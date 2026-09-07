@@ -317,3 +317,40 @@ Tutti ripristinati; `check:contrast` e `check:registry` verdi dopo.
 - **M2.9** deve far passare anche `check:registry` e mettere a verbale il conto dei token custom nei componenti: annotato nel blocco del task, perché a 40 componenti quel numero va conosciuto prima e non scoperto dopo.
 - `registry/.upstream/` **si committa** ed è la seconda cartella con questa proprietà dopo `public/r/`. Non è un generato da ignorare: senza, il confronto non esiste.
 - Da fare a ogni `shadcn add` della FASE 2, e da scrivere nella guida: **prima `--snapshot`, poi si ri-stila.** Uno snapshot preso dopo aver modificato il file registrerebbe come "originale" il nostro, e il controllo diventerebbe una tautologia.
+
+## 2026-09-07 — La scala prima della personalizzazione (regole 4bis e 4ter), e un errore ripetuto
+
+Due cose, e la prima è un errore mio.
+
+### `--snapshot`: il comando era documentato, la regola no
+
+Domanda diretta di Francesco: dove sta la regola. Verificato invece di rispondere a memoria — il **comando** `-- --snapshot` era in `CLAUDE.md` §Comandi, ma l'**ordine operativo** («prima si registra l'originale, poi si ri-stila») stava **solo in `WORKLOG.md`**. Cioè nel diario, che invecchia: è **esattamente** il difetto che avevo appena finito di correggere per i rilievi su `button`, ripetuto due voci più sotto. La lezione era già scritta e non è bastato averla scritta.
+
+Ora è la **regola 4ter** del `CLAUDE.md`, con i due comandi in sequenza e il motivo: uno snapshot preso *dopo* aver modificato il file registrerebbe come "originale" il nostro, e il controllo diventerebbe una tautologia che passa sempre. Ripetuta anche nel blocco M2.1 di `PIANO.md`, che è il primo task che ci passa sopra.
+
+### La scala: shadcn prima, personalizzazione ultima, e mai di iniziativa
+
+Indirizzo di Francesco, che cambia una cosa che avevo scritto male. Nella regola 4bis avevo messo *«se serve una variante nuova, si fa un componente nostro che avvolge quello shadcn»* — come se fosse una via sempre aperta, a discrezione di chi scrive. Non lo è. La regola riscritta è una **scala di quattro gradini che non si saltano**:
+
+1. **il default shadcn così com'è** — e la domanda si fa all'MCP, non si presume;
+2. **ri-stile delle sole stringhe di classi** — l'unica personalizzazione che si fa senza chiedere;
+3. **se il v1 non ci sta dentro, si adatta il v1, non shadcn** — il gradino che si salta più facilmente, ed è il più importante: il v1 non è la specifica, è il punto di partenza, nato prima che ci fosse una libreria di primitive a cui appoggiarsi. Accogliere il modo di shadcn costa una decisione una volta; mantenere il nostro costa a ogni aggiornamento, per sempre;
+4. **solo qui, si PROPONE un componente nostro e si aspetta la conferma di Francesco** — mai deciso di iniziativa, mai "intanto lo scrivo". La proposta deve dire cosa è stato provato ai gradini 1–3 e perché non è bastato: non «shadcn non ce l'ha», ma quale componente shadcn è stato guardato, come lo risolve, e cosa si perderebbe accogliendolo.
+
+Un precedente utile in casa, che è il gradino 3 applicato bene: in M1.2 il terzo livello di testo del v1 (`--color-text-hint`) non è stato salvato con un token o un componente apposta — è stato **eliminato**, perché non reggeva il contrasto.
+
+### La tracciatura è una condizione, non una nota a posteriori
+
+Perché "sempre tracciata" non dipenda dalla diligenza di chi scrive, il registro è **letto dal controllo**: `registry/componenti-propri.json` dichiara ogni componente nostro con file, cosa fa, quale strada shadcn è stata provata, chi ha approvato e quando; `docs/DECISIONI.md` §10 ne tiene il ragionamento esteso. `npm run check:registry` **rifiuta** un file in `registry/tassullo/ui/` che non abbia né un originale shadcn né una riga completa nel registro. Un componente non dichiarato non è un componente mal documentato: è un componente che non passa.
+
+Provato su quattro scenari, tutti rilevati con uscita 1 tranne il terzo:
+- componente nostro **non dichiarato** → errore, con stampata la scala da risalire e il comando giusto nei due casi (viene da shadcn / è nostro);
+- **dichiarato senza** motivazione o approvazione → errore che nomina i campi vuoti;
+- **dichiarato per intero** → ammesso, e stampato come `▣ componente NOSTRO — … (approvato da Francesco, data)`;
+- **voce rimasta nel registro** dopo la cancellazione del file → errore: il registro non accumula fantasmi.
+
+Oggi il registro è **vuoto**, ed è la condizione da difendere: tutto ciò che c'è nel registry viene da shadcn, con forma intatta.
+
+### Prossimi passi
+
+Invariati: **M1.3**, modalità scura e chiusura di D2. Da tenere presente che da qui in poi la FASE 2 ha un ordine operativo obbligatorio a ogni `add` (regola 4ter) e una scala da risalire prima di scrivere qualsiasi cosa che shadcn non abbia (regola 4bis).

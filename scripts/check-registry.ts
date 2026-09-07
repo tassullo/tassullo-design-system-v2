@@ -35,6 +35,7 @@ import { basename, join } from "node:path";
 const UI_DIR = "registry/tassullo/ui";
 const UPSTREAM_DIR = "registry/.upstream";
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
+const PROPRI_FILE = "registry/componenti-propri.json";
 
 /**
  * I 32 token che il preset `base-nova` scrive in `:root` a `init`.
@@ -69,6 +70,19 @@ const COLOR_PREFIXES = [
   "bg", "text", "border", "ring", "fill", "stroke", "outline", "shadow", "divide",
   "caret", "decoration", "placeholder", "accent", "from", "via", "to",
 ];
+
+type ComponenteProprio = {
+  file: string;
+  cosaFa: string;
+  stradaShadcnProvata: string;
+  approvatoDa: string;
+  data: string;
+};
+
+function componentiPropri(): ComponenteProprio[] {
+  if (!existsSync(PROPRI_FILE)) return [];
+  return JSON.parse(readFileSync(PROPRI_FILE, "utf8")).componenti ?? [];
+}
 
 type Problem = { livello: "errore" | "avviso"; dove: string; cosa: string };
 const problemi: Problem[] = [];
@@ -162,7 +176,29 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
     }
 
     if (!existsSync(originalePath)) {
-      err(nome, `manca l'originale in ${UPSTREAM_DIR}. Esegui: npm run check:registry -- --snapshot`);
+      const proprio = componentiPropri().find((c) => c.file === nome);
+      if (!proprio) {
+        err(
+          nome,
+          `non ha un originale in ${UPSTREAM_DIR} e non è dichiarato in ${PROPRI_FILE}.\n` +
+            `      Se viene da shadcn: npm run check:registry -- --snapshot ${basename(nome, ".tsx")}\n` +
+            `      — e va fatto PRIMA di ri-stilarlo, o l'originale registrato sarebbe già il nostro.\n` +
+            `      Se è un componente nostro: non si scrive di iniziativa. Prima si esaurisce la scala\n` +
+            `      della regola 4bis (default shadcn → ri-stile → adattare il design system), poi si\n` +
+            `      PROPONE a Francesco, e solo con la sua conferma si aggiunge la riga nel registro.`,
+        );
+        continue;
+      }
+      const vuoti = (["cosaFa", "stradaShadcnProvata", "approvatoDa", "data"] as const).filter(
+        (k) => !proprio[k],
+      );
+      if (vuoti.length > 0) {
+        err(nome, `dichiarato in ${PROPRI_FILE} ma senza ${vuoti.join(", ")}.`);
+      } else {
+        console.log(
+          `  ▣ ${nome.padEnd(24)} componente NOSTRO — ${proprio.cosaFa} (approvato da ${proprio.approvatoDa}, ${proprio.data})`,
+        );
+      }
       continue;
     }
     const originale = readFileSync(originalePath, "utf8");
@@ -225,6 +261,14 @@ function main(): void {
   const { ristilati, token } = controllaComponenti();
   if (fileUi().length === 0) console.log("  (nessun componente: la FASE 2 non è iniziata)");
 
+  // Voci del registro che non corrispondono più a un file: si tolgono.
+  const presenti = new Set(fileUi().map((f) => basename(f)));
+  for (const c of componentiPropri()) {
+    if (!presenti.has(c.file)) {
+      err(PROPRI_FILE, `dichiara \`${c.file}\`, che in ${UI_DIR} non esiste (più?).`);
+    }
+  }
+
   const tema = tokenDelTema();
   const mancanti = [...SHADCN_TOKENS].filter((t) => !tema.has(t));
   if (mancanti.length > 0) {
@@ -266,8 +310,10 @@ function main(): void {
   for (const p of [...errori, ...avvisi]) {
     console.log(`  ${p.livello === "errore" ? "✖" : "•"} ${p.dove}: ${p.cosa}`);
   }
+  const propri = componentiPropri().length;
   console.log(
     `\n${errori.length === 0 ? "✔" : "✖"} ${errori.length} errore/i, ${avvisi.length} avviso/i` +
+      `, ${propri} componente/i nostro/i dichiarato/i` +
       ` — ${ristilati} componente/i ri-stilato/i sopra una forma shadcn intatta.\n`,
   );
   if (errori.length > 0) process.exit(1);

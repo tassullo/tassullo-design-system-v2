@@ -1,0 +1,19 @@
+{
+  "$commento": [
+    "Registro dei componenti NOSTRI: quelli che non esistono in shadcn e quindi non",
+    "hanno un originale in registry/.upstream/.",
+    "",
+    "Un componente proprio non si scrive di iniziativa: si propone e si aspetta la",
+    "conferma esplicita di Francesco (regola 4bis del CLAUDE.md). Prima si esaurisce",
+    "la scala: default shadcn così com'è → ri-stile delle sole stringhe di classi →",
+    "adattare il design system a shadcn → e solo qui, un componente proprio.",
+    "",
+    "npm run check:registry FALLISCE se in registry/tassullo/ui/ c'è un file che non",
+    "ha né un originale shadcn né una riga qui dentro. Non è documentazione",
+    "facoltativa: è la condizione perché il componente sia ammesso.",
+    "",
+    "Ogni voce: file, cosa fa, quale strada shadcn è stata provata e perché non è",
+    "bastata, chi ha approvato e quando."
+  ],
+  "componenti": []
+}
