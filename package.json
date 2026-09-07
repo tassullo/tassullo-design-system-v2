@@ -11,6 +11,8 @@
     "registry:build": "shadcn build",
     "check:contrast": "node scripts/hex-to-oklch.ts",
     "theme:build": "node scripts/hex-to-oklch.ts --write",
+    "check:registry": "node scripts/check-registry.ts",
+    "check": "npm run check:contrast && npm run check:registry",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },

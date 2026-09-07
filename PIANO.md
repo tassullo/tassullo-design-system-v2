@@ -188,6 +188,19 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
 
   **Nota sulla scala tipografica**: con la scala Tassullo `text-sm` vale 12px invece dei 14px di default di Tailwind, quindi i bottoni del preset — che usano `text-sm` — sono più piccoli di prima. Da decidere qui quale gradino è quello giusto per il bottone, misurando.
 
+  **Vincolo su come si correggono** (regola 4bis del `CLAUDE.md`, fatta rispettare da `npm run check:registry`): si cambiano **solo le stringhe di classi**. Nessuna variante nuova, nessun prop nuovo, nessun export nuovo — quelle modifiche non si riescono più a riportare quando shadcn aggiorna il componente. Se serve una variante Tassullo che shadcn non ha, si fa un componente nuovo che avvolge il suo, non lo si altera.
+
+  **Una decisione da prendere qui, con le misure già fatte.** Il rimedio proposto per `variant: destructive` — `text-destructive-foreground` — introdurrebbe la **prima dipendenza di un componente da un token custom Tassullo**: `--destructive-foreground` non è fra i 32 token che il preset `base-nova` spedisce (verificato sul commit di scaffold). Oggi quel contatore è a zero e `check:registry` lo riporta a ogni esecuzione. Le alternative, misurate su `--destructive` `#DC2626`:
+
+  | opzione | contrasto | costo di aggiornamento |
+  |---|---|---|
+  | `text-destructive-foreground` (custom) | **4.83:1** | 1 token custom dentro un componente |
+  | `text-white` (builtin Tailwind, ed è ciò che usa lo style di default di shadcn) | **4.83:1** | nessuno, ma è un colore fuori dal tema |
+  | `text-background` (standard) | 4.46:1 | — **non passa** |
+  | `text-card` (standard) | 4.75:1 | nessuno, ma semanticamente sbagliato |
+
+  Non è una decisione grave, ed è la prima di una serie: va presa consapevolmente e annotata, perché la stessa domanda tornerà a ogni primitiva.
+
 **M2.2 — Form (1 sessione)** — `field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider`.
 - Nota: `field` è la primitiva ufficiale shadcn per la riga etichetta+campo+errore — si usa quella invece di reinventarla, e il blocco `form-field` di M3.4 ci si appoggia sopra. `input-group` è il campo con icona o bottone incorporato: Anagrafe lo ha già fatto a mano in `.prd-cerca`. `slider` serve ai range di conformità dell'FPC (`range_ottimale`, `range_conformita`).
 - Accettazione: form di prova navigabile **interamente da tastiera**, ogni campo con etichetta associata (INTERFACCE.md §1).
@@ -220,6 +233,8 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
 **M2.9 — Gate di fase: audit del set (1 sessione)**
 - Prompt: "Attiva `parameters.a11y.test = 'error'` su tutte le story e fai passare axe-core in CI: da qui in poi l'audit è automatico e continuo, non una sessione che si ripete. Poi il residuo manuale che axe non vede: navigazione da tastiera reale su ogni componente, bersagli ≥44px in touch, resa in dark, `npm run check:contrast`. Ogni scostamento o si corregge o si annota in WORKLOG con la motivazione."
 - Accettazione: `build-storybook` + test a11y verdi in CI; audit scritto in WORKLOG, zero scostamenti non motivati.
+
+  **Da fare passare anche `npm run check:registry`** (regola 4bis): a fine FASE 2 ogni primitiva deve avere il suo originale in `registry/.upstream/`, forma identica a shadcn, zero valori arbitrari nostri, e il conto dei token custom usati dentro i componenti scritto a verbale — è il costo che si pagherà a ogni aggiornamento di shadcn, e va conosciuto prima di arrivare a 40 componenti.
 
   **Perché questo gate non è rimandabile.** `check:contrast` (M1.1) verifica le **coppie di token**, non come i componenti le accostano. In M1.2 tre difetti reali della `button` del preset — fra cui un `text-primary` a 1.79:1 — sono passati sotto al gate e sono stati trovati a occhio sul workbench. axe-core sulle story è il controllo che li avrebbe presi: finché non c'è, ogni primitiva della FASE 2 va guardata a mano.
 

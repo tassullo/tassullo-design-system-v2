@@ -264,3 +264,56 @@ Scritti quindi **dentro il blocco M2.1**, con le misure e il file da toccare, pi
 Aggiunta per lo stesso motivo una nota nel blocco **M2.9**: che quel gate non è rimandabile è una conclusione tratta in M1.2 — tre difetti reali passati sotto a `check:contrast`, che verifica le coppie di token e non come i componenti le accostano — e stava scritta solo in §2bis.
 
 Lezione di metodo per le prossime sessioni: un rilievo che riguarda un task futuro va scritto **nel blocco di quel task**, non solo nel diario e nella checklist. Il diario invecchia e la checklist ha una riga sola.
+
+## 2026-09-07 — `check:registry`: il controllo di aggiornabilità (regola 4bis)
+
+Lavoro fuori piano, chiesto in corso d'opera e a ragione: i componenti shadcn non sono una dipendenza, sono **codice copiato**, e una versione nuova non arriva da sola — va riportata a mano. Riuscirci dipende da una cosa sola, che le nostre divergenze dall'originale siano poche, dichiarate e **di un tipo solo**. Finora quella condizione era affidata alla buona volontà.
+
+### La regola, scritta come regola 4bis del `CLAUDE.md`
+
+> **Di un componente shadcn si cambiano SOLO le stringhe di classi.** Struttura, props, nomi delle varianti e delle taglie, export: quelli di shadcn, identici.
+
+Non è purismo. Una variante o un prop in più, dentro un file che fra sei mesi va confrontato con la sua versione aggiornata, **non si distingue più da ciò che hanno cambiato loro**: il diff diventa illeggibile e la scelta pratica diventa "riscrivo tutto" oppure "resto indietro per sempre". Se serve davvero un'aggiunta strutturale, si fa un componente **nuovo che avvolge** quello shadcn.
+
+### Come fa a saperlo
+
+`registry/.upstream/` conserva il sorgente **originale** di ogni componente, scaricato con `shadcn view @shadcn/<nome>` — che restituisce il file per lo `style` configurato, quindi la variante Base UI giusta. Il confronto **azzera il contenuto di tutte le stringhe**, toglie i commenti e schiaccia lo spazio: quel che resta è la *forma* del componente. Se la forma è identica, abbiamo solo ri-stilato; se differisce, abbiamo toccato la struttura. È un criterio meccanico e senza zone grigie, e conta anche le stringhe: se il numero non torna, è struttura.
+
+Alla prossima versione di shadcn il ciclo è: `-- --snapshot` → `git diff registry/.upstream/` dice **cosa hanno cambiato loro** → `check:registry` dice se il nostro ri-stile ci si posa ancora sopra. `PROVENIENZA.md` registra versione della CLI (4.21.0), `style` (base-nova) e data.
+
+### I sei controlli, e cosa fa fallire
+
+1. **Forma diversa dall'originale** → errore. 2. **Originale mancante** per un componente presente → errore: un componente copiato senza registrare da dove viene è già fuori controllo. 3. **Valore arbitrario introdotto da noi** → errore (regola 3); **ereditato da shadcn** → avviso, da ripulire ri-stilando. 4. **Colore esadecimale** nel sorgente → errore. 5. **Token standard sparito dal tema** → errore: un componente non ancora ri-stilato che lo usa renderebbe senza colore. 6. **Token custom Tassullo usati dentro i componenti** → non è un errore, è il **costo di aggiornamento misurato**, stampato a ogni esecuzione.
+
+Il sesto è il punto della richiesta: i token custom nel **tema** sono legittimi — il tema è il posto dove shadcn stesso prevede la personalizzazione, e `registry:theme` accetta `cssVars` arbitrari. Sono i token custom **dentro un componente** a costare, perché ognuno è una riga in più da riportare a mano. Il numero va tenuto piccolo e va **conosciuto**, non stimato.
+
+### Un difetto mio, preso alla prima esecuzione
+
+La prima versione segnalava 24 avvisi su un file **intatto**, perché contava come "valori arbitrari" anche le **varianti** Tailwind (`has-data-[icon=inline-end]:pr-2`, `not-aria-[haspopup]:translate-y-px`, `in-data-[slot=button-group]:rounded-lg`). Sono legittime e inevitabili, e non sono ciò che la regola 3 vieta. La distinzione è netta e ora è nel codice: **una parentesi quadra seguita da `:` è una variante; senza, è un valore fuori dal tema**. Tolto anche il controllo sui "token ignoti", che segnalava `border-transparent` e `shadow-sm` come refusi: ora scattano solo i nomi che *hanno la forma* di un token del tema. Da 24 avvisi rumorosi a 4 veri.
+
+### Verifiche: il controllo sa fallire, provato su quattro violazioni simulate
+
+- **variante `tassullo` aggiunta** a `button.tsx` → errore di forma, uscita 1.
+- **ri-stile legittimo + `text-[13px]`** → il ri-stile è riconosciuto come tale (`◐ forma identica, 1 stringa ri-stilata`) e il valore arbitrario è un errore, uscita 1. È il caso che conta: distingue ciò che è permesso da ciò che non lo è **nella stessa modifica**.
+- **`--chart-5` tolto dalla palette** → `31/32 token standard`, errore, uscita 1.
+- **componente senza originale registrato** → errore con il comando da eseguire, uscita 1.
+
+Tutti ripristinati; `check:contrast` e `check:registry` verdi dopo.
+
+### Stato di ciò che è stato prodotto finora — rispetta i criteri?
+
+**Sì, e per la ragione meno meritoria: non ho ancora toccato nessun componente.**
+
+- `button.tsx` è **intatto**, forma identica all'originale, zero stringhe ri-stilate.
+- Il tema definisce **57 token, 25 custom**, e **tutti e 32 gli standard** del preset sono presenti.
+- **Zero token custom usati dentro i componenti.** Il costo di aggiornamento oggi è nullo.
+- I 4 avvisi residui sono valori arbitrari **ereditati da shadcn** (`text-[0.8rem]`, due `rounded-[min(…)]`, un `bg-[color-mix(…)]`), già in carico a M2.1.
+
+**Un rilievo su me stesso, però, e va detto.** Il rimedio che avevo scritto in `PIANO.md` per `variant: destructive` — `text-destructive-foreground` — introdurrebbe la **prima dipendenza di un componente da un token custom**: `--destructive-foreground` **non è** fra i 32 che il preset spedisce (verificato sul commit di scaffold `a435201`, non a memoria). Non è grave, ma non è gratis, ed è la prima di una serie di decisioni identiche. Misurate le alternative su `#DC2626` e messe in tabella nel blocco M2.1: `text-destructive-foreground` e `text-white` danno entrambe 4.83:1, `text-background` 4.46:1 (non passa), `text-card` 4.75:1 ma semanticamente sbagliato. La decisione si prende in M2.1, consapevolmente.
+
+### Ricadute
+
+- `npm run check` esegue i due gate insieme.
+- **M2.9** deve far passare anche `check:registry` e mettere a verbale il conto dei token custom nei componenti: annotato nel blocco del task, perché a 40 componenti quel numero va conosciuto prima e non scoperto dopo.
+- `registry/.upstream/` **si committa** ed è la seconda cartella con questa proprietà dopo `public/r/`. Non è un generato da ignorare: senza, il confronto non esiste.
+- Da fare a ogni `shadcn add` della FASE 2, e da scrivere nella guida: **prima `--snapshot`, poi si ri-stila.** Uno snapshot preso dopo aver modificato il file registrerebbe come "originale" il nostro, e il controllo diventerebbe una tautologia.
