@@ -3,15 +3,23 @@ import { useEffect, type ReactNode } from 'react'
 import { withThemeByClassName } from '@storybook/addon-themes'
 import type { Decorator, Preview } from '@storybook/react-vite'
 
-// Tailwind + token del tema. Oggi è ancora la palette di default di shadcn:
-// da M1.2 questo file importerà `@/registry/tassullo/theme/tassullo-theme.css`.
+// Tailwind + i token del tema, che `src/index.css` importa dal registry.
 import '../src/index.css'
 
 /**
- * Densità: in Tailwind v4 le utility di dimensione derivano da `--spacing`,
- * quindi l'interruttore agisce su un attributo del documento e basta — nessuna
- * primitiva va patchata. Scelta esplicita e non `@media (pointer: coarse)`:
- * è l'app a sapere se si usa in campo (PIANO.md, M1.4).
+ * Densità: l'interruttore agisce su un attributo del documento e basta —
+ * nessuna primitiva va patchata, perché in Tailwind v4 le utility di
+ * dimensione derivano da `--spacing` e la scala tipografica da `--text-*`.
+ * Le due leve, i loro valori e le loro motivazioni stanno nel tema (M1.4);
+ * qui c'è solo l'interruttore.
+ *
+ * È lo stesso attributo che un'app scrive una volta nel suo `index.html`, e
+ * la scelta è esplicita e non `@media (pointer: coarse)`: è l'app a sapere se
+ * si usa in campo — un tablet in ufficio non deve prendere la densità da
+ * guanti.
+ *
+ * La pagina `Tema/Densità` mostra le due densità affiancate e non risente di
+ * questo interruttore: fissa la propria con l'attributo su ciascuna colonna.
  */
 function ConDensita({
   density,
@@ -47,7 +55,7 @@ const preview: Preview = {
 
   globalTypes: {
     density: {
-      description: 'Densità dei controlli (normale / touch, ≥44px)',
+      description: 'Densità dei controlli — in touch il bottone è 48px',
       toolbar: {
         title: 'Densità',
         icon: 'ruler',

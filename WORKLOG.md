@@ -447,3 +447,76 @@ Con una precisazione che mancava in tutto il piano e che chiarisce M2.9: **axe-c
 ### Rimasto fuori, di proposito
 
 Le note **sotto ogni gruppo** ("L'arancio è identico nelle due modalità…", "Le quattro famiglie devono pesare uguale…") sono rimaste: sono didascalie del gruppo, non preambolo, e servono a dire cosa guardare in quelle tessere. Se anche quelle sono di troppo, si tolgono.
+
+## 2026-09-07 — M1.4: la densità touch, e la leva che mancava
+
+Il piano dava la densità per risolta in una riga: `[data-density="touch"] { --spacing: … }`. La riga funziona davvero — nessuna primitiva è stata toccata, ed è il punto in cui il v2 guadagna sul v1, che per la stessa cosa doveva scrivere nove regole per-componente a mano. Ma le leve sono **due**, non una, e la seconda ha un trabocchetto che l'avrebbe resa muta.
+
+### La prima leva: 48px, non 44
+
+`--spacing: 0.375rem` (6px, ×1.5). Il default del bottone in questo preset è `h-8` — 32px, non `h-9` come stimava il piano — e a ×1.5 arriva a **48px**. Misurato a video nelle due densità:
+
+| taglia | normale | touch |
+|---|---|---|
+| xs | 24px | 36px |
+| sm | 28px | 42px |
+| default | **32px** | **48px** |
+| lg | 36px | 54px |
+| icona nel bottone | 16px | 24px |
+
+La strada alternativa era `0.34375rem` (×1.375), il minimo per arrivare ai 44px di Apple, ed era il valore provvisorio scritto in M0.3. Scartata per due misure: **48px è l'altezza che il v1 dà a `.btn` in touch**, in cantiere da due anni — l'unico dato di campo che abbiamo, e anche il minimo di Material — e il fattore 1,375 lascia mezzi pixel su ogni gradino dispari (`h-7` a 38,5px, `h-9` a 49,5px), mentre a 6px tondi tutta la scala cade su interi.
+
+`xs` (36px) e `sm` (42px) restano sotto i 44 anche in touch, ed è **voluto**: è la stessa scelta del v1, che teneva `.btn-sm` a 34px in touch con la ragione scritta accanto — «è la taglia da riga di tabella, dove il bersaglio è un mouse». Le nostre sono più generose delle sue.
+
+La terza strada del rilievo di M0.3 — adottare `lg` come default in touch — è stata scartata senza misurarla: cambierebbe il default di un componente, cioè il gradino 2 della regola 4bis, e obbligherebbe ogni app a scrivere `size` diversi per densità. L'interfaccia verso le app deve restare una riga nell'`index.html`.
+
+### La seconda leva, e il difetto che sarebbe stato muto
+
+La tipografia non deriva da `--spacing`: il piano lo diceva, senza dire come farla scattare. Il come si scontra con una cosa che nel tema c'era già: **`@theme inline` cuoce i valori**. Letto nel CSS compilato, prima di scrivere una riga:
+
+```
+.text-sm { font-size: 12px }          /* con @theme inline */
+.text-sm { font-size: var(--text-sm) } /* con @theme semplice */
+```
+
+Con `inline`, ridichiarare `--text-sm` sotto `[data-density]` non fa **niente** — e non fallisce: nessun errore, il testo semplicemente non scatta, e la cosa si scopre guardando. La scala tipografica è stata quindi spostata in un `@theme` semplice. I colori restano `inline`, perché lì l'indirezione serve al contrario (`--color-primary: var(--primary)`) e la densità non li tocca.
+
+**Il fattore è ×1.08, arrotondato al pixel**, e non è scelto a occhio: è quello che riproduce il passo del v1, che in touch alzava il testo del bottone di **un gradino** della scala (`--text-md` 13px → `--text-base` 14px). Applicato all'intera scala dà 11→12, 12→13, 13→14, 14→15 — cioè esattamente «il gradino successivo» dove i gradini distano 1px — e prosegue con la stessa proporzione sui titoli, 15→16, 18→19, 26→28, dove i gradini sono più larghi e uno scatto secco farebbe collidere il corpo col titolo di card. Non ×1.5 come i bersagli: un bersaglio deve crescere del 50% per stare sotto un dito guantato, un testo a 13px è già leggibile e portarlo a 20px non lo migliora — rompe le colonne.
+
+### Tre decisioni di collocazione, tutte con la stessa ragione
+
+- **La densità sta nel tema, non in `src/index.css`.** Ci stava in via provvisoria da M0.3, quando il tema non esisteva ancora. La densità è un token: lasciata nel workbench, sarebbe la prima riga del registry che un'app non riceve installando `registry:theme`.
+- **I blocchi emessi sono due, `touch` e `normale`.** Il secondo non è un doppione dei valori di `@theme`: senza, la densità saprebbe solo crescere, e non ci sarebbe modo di rimettere la densità normale *dentro* un sottoalbero touch — che è la sola forma in cui le due si guardano affiancate. È lo stesso ragionamento che in M1.3 ha prodotto `.light`, e la seconda volta che si presenta: **una pagina che dimostra una scelta deve poter mostrare anche ciò che la scelta non è.**
+- **I due blocchi escono da una costante sola** nello script (`SPACING` e `TIPOGRAFIA`), con `emitScala()` e `emitDensita()`. Due elenchi di sette valori scritti a mano divergono al primo ritocco.
+
+### La prova: una pagina che misura invece di dichiarare
+
+`stories/Densita.stories.tsx` — `Tema/Densità`, le due densità affiancate. Ogni riga riporta l'altezza reale del suo elemento, letta con `getBoundingClientRect` dopo il layout, e il font-size calcolato; la sezione «Ciò che non scala» legge `border-radius`, `border-width` e `max-width` dal DOM invece di affermarli. È una scelta contro un difetto preciso: **una tabella di numeri scritta a mano resta verde anche il giorno in cui il CSS smette di funzionare**, e questa pagina serve a dire che funziona. Un primo abbozzo aveva una barra `max-w-page` che avrebbe dovuto mostrare l'invarianza della larghezza: ma la barra è ritagliata dalla colonna, quindi era piena in entrambe e non dimostrava nulla. Sostituita col valore letto — 1180px in tutte e due.
+
+### Cosa non scala, e le due eccezioni
+
+Restano identici nelle due densità, verificato a video: raggi (`rounded-md` 6px), larghezze dei bordi (1px), `max-w-page` (1180px), la scala `--container-*` di Tailwind. Cresce il respiro dentro il contenitore, non il contenitore.
+
+Due eccezioni accertate, **entrambe fuori da M1.4 e annotate nel blocco che le chiuderà**:
+
+- **La sidebar non si allarga.** `SIDEBAR_WIDTH` (`16rem`), `SIDEBAR_WIDTH_ICON` (`3rem`), `SIDEBAR_WIDTH_MOBILE` (`18rem`) sono costanti JavaScript in `sidebar.tsx`, passate come `style` inline sul provider: non derivano da `--spacing`. In touch le voci di menu passano da 32 a 48px dentro una colonna che resta 256px, e il rail collassato — 48px — viene riempito esattamente da un `SidebarMenuButton` da 48px, senza margine attorno all'icona. Il rimedio **non richiede di patchare il componente**: `SidebarProvider` accetta uno `style` che sovrascrive le tre variabili. In carico a **M2.5**, con l'aggiunta all'accettazione di provarlo nelle due densità.
+- **La taglia `sm` del bottone non segue lo scatto tipografico**: usa `text-[0.8rem]`, valore arbitrario ereditato da shadcn, e resta a 12,8px in entrambe le densità. Era già uno dei quattro rilievi in carico a **M2.1** — ora si sa che costa anche questo, e la riga della tabella lo riporta.
+
+### Verifiche eseguite
+
+- **Criterio «senza ricaricare»**: interruttore Densità cliccato nella barra di Storybook, i bottoni crescono a video e la pagina non si ricarica (il decorator agisce in `useEffect` su un attributo).
+- **Criterio «bersagli ≥44px»**: default 48px, lg 54px, misurati. `xs` e `sm` sotto soglia di proposito, come nel v1.
+- **Criterio «lo scaling non deforma ciò che non deve»**: raggi, bordi, `max-w-page` e `--container-*` letti in entrambe le densità e identici; icona nel bottone 16→24px, che è il caso che si voleva far scalare.
+- **`<body data-density="touch">`**, la forma letterale del v1, verificata identica all'attributo su `<html>`: i due token si ereditano. È la garanzia che Officina non debba cambiare niente.
+- **axe-core in quattro combinazioni.** `Tema/Densità`: **0 violazioni, 0 incomplete**, 12 controlli passati, in chiaro e in scuro. `Primitive/Button` in densità touch: le stesse 2 violazioni note (`destructive` 3.82:1 chiaro / 3.57:1 scuro, `link` 1.79:1 solo chiaro) e nessuna nuova — la densità non ne introduce. `Tema/Palette` in touch: 0 e 0.
+- **Un'*incomplete* nuova, annotata**: `Primitive/Button` in scuro riporta un `color-contrast` *incomplete* su `ghost` («1:1 con lo sfondo»: fondo trasparente, axe non risolve). Presente identica nelle due densità, quindi **non** è di M1.4 — è del bottone, e va con gli altri rilievi di M2.1.
+- `npm run check` (contrasto 48/48 + registry 0 errori), `npx tsc -b --force`, `npx oxlint`, `npm run build`, `npm run build-storybook`: verdi.
+- Nessuna modifica al repo v1 né alle app. Il v1 è stato **letto** (`components.css`, blocco densità in coda) come fonte per il passo tipografico e per le altezze collaudate.
+
+### Scostamento minore
+
+`.claude/launch.json`: la voce Storybook aveva la porta 6006 fissa negli argomenti e non poteva convivere con un'altra sessione già in ascolto. Tolto il flag e messo `autoPort`. La porta di Storybook non è vincolata da nessuna decisione — quella fissa è **5180**, del workbench, perché è anche il server del registry che l'MCP interroga.
+
+### Prossimi passi
+
+**M1.5** — il tema come item `registry:theme` in `registry.json`, e la pagina Palette completata col click-to-copy. Da tenere presente: l'item dovrà portare con sé il file CSS **intero**, blocchi di densità compresi, e non solo i `cssVars` — i due blocchi `[data-density]` non sono variabili di tema e non hanno posto nel campo `cssVars`. È il primo caso in cui si vede se il canale `registry:theme` basta a distribuire tutto il tema.

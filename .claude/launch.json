@@ -17,11 +17,10 @@
         "run",
         "storybook",
         "--",
-        "--no-open",
-        "--port",
-        "6006"
+        "--no-open"
       ],
-      "port": 6006
+      "port": 6006,
+      "autoPort": true
     }
   ]
 }

@@ -22,12 +22,7 @@
     }
 }
 
-/* Densità touch — PROVVISORIA, il valore si decide in M1.4 misurando.
-   In Tailwind v4 le utility di dimensione derivano da `--spacing`, quindi la
-   densità è una riga e non tocca nessuna primitiva. 0.34375rem (5.5px) porta
-   il bottone di default (`h-8`) a 44px; il piano ipotizzava 0.3125rem su un
-   default `h-9` che questo preset non ha più (docs/DECISIONI.md §6).
-   Manca ancora lo scatto di tipografia, che NON deriva da `--spacing`: M1.4. */
-[data-density="touch"] {
-  --spacing: 0.34375rem;
-}
+/* La densità touch NON sta qui: sta nel tema generato, con le sue due leve
+   e le sue motivazioni (M1.4). Qui ci finì in via provvisoria in M0.3, quando
+   il tema non c'era ancora; una copia locale sarebbe la prima riga del
+   registry che le app non ricevono installando `registry:theme`. */

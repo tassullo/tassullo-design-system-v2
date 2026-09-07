@@ -19,7 +19,7 @@ Gate: `npm run storybook` mostra una primitiva shadcn di prova con Tailwind v4 a
 ## FASE 1 — Tema Tassullo (5 sessioni)
 
 Gate: la pagina Palette mostra tutte le coppie token nelle 4 combinazioni (light/dark × normale/touch); `check:contrast` passa su tutte le coppie `X`/`X-foreground`.
-Metà del gate è superata da M1.3: `check:contrast` è verde su **48 coppie**, 24 per modalità. Manca l'asse della densità (M1.4).
+Superato con M1.3 e M1.4. L'asse **modalità**: `check:contrast` verde su **48 coppie**, 24 per modalità, e la story `Tema/Palette` le mostra affiancate. L'asse **densità**: la story `Tema/Densità` mostra normale e touch affiancate, con le altezze lette dal DOM. I due assi restano in due pagine e non in una griglia di quattro: la densità non cambia un colore e la modalità non cambia una misura, e una pagina che le incrociasse mostrerebbe due volte la stessa cosa. Resta a M1.5 il tema come item di registry.
 Dipendenze di fase: FASE 0.
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
@@ -27,7 +27,7 @@ Dipendenze di fase: FASE 0.
 | M1.1 Mappa dei token e script di conversione | DONE | M0.2 | `PIANO.md` §2bis scritto; `npm run check:contrast` gira e **fallisce** se si forza `--primary-foreground` a bianco |
 | M1.2 `tassullo-theme.css`, modalità chiara | DONE | M1.1 | contrasto verde (24/24); `bg-primary text-primary-foreground` rende arancione con testo nero, verificato a video |
 | M1.3 Modalità scura (chiude D2) | DONE | M1.2, M0.3 | contrasto verde 48/48 (24 per modalità); story `Tema/Palette` con le due palette affiancate e `docs/img/M1.3-palette-chiaro-scuro.png`; **D2 chiusa** |
-| M1.4 Densità touch | TODO | M1.2, M0.3 | l'interruttore densità cambia l'altezza dei controlli senza ricaricare; bersagli ≥44px; eccezioni allo scaling annotate |
+| M1.4 Densità touch | DONE | M1.2, M0.3 | interruttore verificato senza ricaricare; default **48px** (xs 36, sm 42, lg 54, icona 24), misure lette dal DOM nella story `Tema/Densità`; due eccezioni annotate (sidebar → M2.5, `text-[0.8rem]` di `sm` → M2.1) |
 | M1.5 Il tema come item di registry | TODO | M1.3, M1.4 | `npx shadcn@latest registry validate ./registry.json` verde sull'item tema; pagina Palette con click-to-copy |
 
 ## FASE 2 — Primitive (9 sessioni)

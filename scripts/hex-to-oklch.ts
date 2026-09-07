@@ -311,6 +311,62 @@ function css(value: string): string {
   return `oklch(${r(c.l, 4)} ${r(c.c, 4)} ${r(c.h ?? 0, 2)}${alpha})`;
 }
 
+/**
+ * LA DENSITÀ, in una costante sola — M1.4.
+ *
+ * Due leve, e sono due perché misurano due cose diverse.
+ *
+ * `--spacing` scala i BERSAGLI. In Tailwind v4 ogni utility numerica di
+ * dimensione è `calc(var(--spacing) * n)` — `h-*`, `w-*`, `size-*`, `p-*`,
+ * `m-*`, `gap-*`, `space-*` — quindi una dichiarazione scala insieme altezze,
+ * padding, gap e icone senza patchare nessuna primitiva. È il motivo per cui
+ * la densità nel v2 costa due righe dove il v1 doveva scrivere nove regole
+ * per-componente a mano.
+ *
+ * `--text-*` scala la LEGGIBILITÀ, e molto meno: ×1.08 arrotondato al pixel.
+ * Non è un fattore scelto a occhio, è quello che riproduce il passo del v1,
+ * che in touch alzava il testo del bottone di UN gradino della scala
+ * (13px → 14px). Applicato all'intera scala dà 11→12, 12→13, 13→14, 14→15 —
+ * cioè esattamente «il gradino successivo» dove i gradini distano 1px — e
+ * prosegue con la stessa proporzione sui titoli (15→16, 18→19, 26→28), che è
+ * ciò che tiene la gerarchia senza collisioni. Un bersaglio deve crescere del
+ * 50% per stare sotto un dito guantato; un testo a 13px è già leggibile, e
+ * portarlo a 20px non lo rende più leggibile: rompe le colonne.
+ *
+ * Le due densità stanno nella STESSA costante perché il CSS ne emette due
+ * blocchi — `[data-density="touch"]` e `[data-density="normale"]` — e due
+ * elenchi scritti a mano divergerebbero al primo ritocco. Il blocco
+ * `normale` non è un doppione dei valori di `@theme`: serve a rimettere la
+ * densità normale DENTRO una pagina touch, che è la sola forma in cui le due
+ * si guardano affiancate (pagina `Tema/Densità` della style guide). È lo
+ * stesso motivo per cui il chiaro si emette anche su `.light` (M1.3).
+ */
+const SPACING = { normale: "0.25rem", touch: "0.375rem" } as const;
+
+const TIPOGRAFIA = [
+  ["xs", "11px", "12px", "micro-etichette, sottotitoli sidebar"],
+  ["sm", "12px", "13px", "meta, badge, voci sidebar"],
+  ["md", "13px", "14px", "chip, breadcrumb, testi densi"],
+  ["base", "14px", "15px", "corpo standard, input"],
+  ["lg", "15px", "16px", "titoli card"],
+  ["xl", "18px", "19px", "titoli sezione"],
+  ["title", "26px", "28px", "titolo pagina"],
+] as const;
+
+/** I sette gradini per il blocco `@theme` (densità normale, con le note). */
+function emitScala(): string {
+  return TIPOGRAFIA.map(
+    ([nome, normale, , nota]) => `  --text-${nome}: ${normale}; /* ${nota} */`
+  ).join("\n");
+}
+
+/** Un blocco `[data-density="…"]`: la leva dei bersagli e quella del testo. */
+function emitDensita(modo: "normale" | "touch"): string {
+  const i = modo === "touch" ? 2 : 1;
+  const testo = TIPOGRAFIA.map(([nome, ...v]) => `  --text-${nome}: ${v[i - 1]};`).join("\n");
+  return `[data-density="${modo}"] {\n  --spacing: ${SPACING[modo]};\n\n${testo}\n}`;
+}
+
 function emitTokens(palette: Palette, selector: string): string {
   const width = Math.max(...Object.keys(palette).map((k) => k.length)) + 4;
   const body = Object.entries(palette)
@@ -407,17 +463,8 @@ ${colorMap}
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-heading: var(--font-sans);
 
-  /* La scala del v1, sette gradini. Sono i soli che i blocchi devono usare:
-     i gradini Tailwind che restano oltre questi (text-2xl in su) non sono
-     tarati su Tassullo. Lo scatto in densità touch è di M1.4: NON deriva da
-     --spacing, quindi non arriva da solo. */
-  --text-xs: 11px; /* micro-etichette, sottotitoli sidebar */
-  --text-sm: 12px; /* meta, badge, voci sidebar */
-  --text-md: 13px; /* chip, breadcrumb, testi densi */
-  --text-base: 14px; /* corpo standard, input */
-  --text-lg: 15px; /* titoli card */
-  --text-xl: 18px; /* titoli sezione */
-  --text-title: 26px; /* titolo pagina */
+  /* La scala tipografica NON sta in questo blocco: sta nel \`@theme\` semplice
+     qui sotto, e la ragione è la densità (vedi il commento là). */
 
   /* ── Ombre ───────────────────────────────────────────────────────────── */
   --shadow-sm: ${shadow(["0 1px 2px", 0.04])};
@@ -431,6 +478,22 @@ ${colorMap}
   --container-page: 1180px;
 }
 
+/* ── Tipografia: perché sta in un \`@theme\` SEMPLICE e non in \`@theme inline\`
+   \`inline\` significa "risolvi il valore in fase di compilazione": in quel
+   blocco Tailwind emette \`.text-sm { font-size: 12px }\`, il valore cotto
+   dentro l'utility. Ridichiarare \`--text-sm\` a runtime — che è esattamente
+   ciò che fa la densità qui sotto — non cambierebbe nulla, e il difetto è
+   muto: nessun errore, il testo semplicemente non scatta. Senza \`inline\`
+   l'utility esce come \`font-size: var(--text-sm)\` e l'override funziona.
+   I colori restano \`inline\` perché lì l'indirezione serve al contrario
+   (--color-primary: var(--primary)) e la densità non li tocca. */
+@theme {
+  /* La scala del v1, sette gradini. Sono i soli che i blocchi devono usare:
+     i gradini Tailwind che restano oltre questi (text-2xl in su) non sono
+     tarati su Tassullo. */
+${emitScala()}
+}
+
 /* Non portati dal v1, di proposito:
    · --space-1…6 e --space-page: in Tailwind v4 le spaziature derivano da
      --spacing, che è anche il meccanismo della densità (M1.4). Il padding di
@@ -438,6 +501,79 @@ ${colorMap}
    · --transition-fast (0.15s): è già il default di Tailwind.
    · --color-text-hint: eliminato. A 4.5:1 collassa su --muted-foreground, che
      è il token da usare per placeholder e meta (PIANO.md §2bis rilievo 2). */
+
+/* ══════════════════════════════════════════════════════════════════════
+   DENSITÀ TOUCH — M1.4
+
+   Opt-in dell'app, con una riga sola nell'HTML:
+
+     <html data-density="touch">
+
+   È la stessa interfaccia del v1, di proposito: Officina non deve cambiare
+   niente per passare al v2. La scelta è l'attributo esplicito e NON
+   \`@media (pointer: coarse)\`, perché è l'app a sapere se si usa in campo —
+   un tablet in ufficio non deve prendere la densità da guanti.
+
+   Non è un blocco fuori posto in un file di token: la densità È un token,
+   e sta qui perché qui la ricevono le app che installano il tema.
+
+   ── Due leve, e sono due perché misurano due cose diverse ─────────────
+
+   1. \`--spacing\` scala i BERSAGLI. In Tailwind v4 ogni utility numerica di
+      dimensione è \`calc(var(--spacing) * n)\` — \`h-*\`, \`w-*\`, \`size-*\`,
+      \`p-*\`, \`m-*\`, \`gap-*\`, \`space-*\`. Una riga scala insieme altezze,
+      padding, gap e icone, senza patchare nessuna primitiva: è la ragione
+      per cui la densità nel v2 costa due dichiarazioni invece delle nove
+      regole per-componente che il v1 doveva scrivere a mano.
+
+      \`0.375rem\` = 6px, cioè ×1.5 sul default di 4px. Il bottone di default
+      di questo preset è \`h-8\` (32px, NON \`h-9\` come stimava il piano) e
+      arriva così a **48px**: la stessa altezza che il v1 dà a \`.btn\` in
+      touch, collaudata in cantiere, e il minimo di Material. Il fattore
+      1.375 basterebbe per i 44px di Apple, ma lascia mezzi pixel su ogni
+      gradino dispari (\`h-7\` → 38,5px); a 6px tondi ogni gradino della scala
+      cade su un intero.
+
+   2. \`--text-*\` scala la LEGGIBILITÀ, e molto meno: **×1.08**, arrotondato
+      al pixel. Non è un fattore scelto a occhio: è quello che riproduce il
+      passo del v1, che in touch alzava il testo del bottone di UN gradino
+      della scala (13px → 14px). Applicato all'intera scala dà 11→12, 12→13,
+      13→14, 14→15 — cioè esattamente "il gradino successivo" dove i gradini
+      distano 1px — e prosegue con la stessa proporzione sui titoli (15→16,
+      18→19, 26→28), che è ciò che tiene la gerarchia senza collisioni.
+
+      Perché non ×1.5 come i bersagli: un bersaglio deve crescere del 50%
+      per stare sotto un dito guantato; un testo a 13px è già leggibile, e
+      portarlo a 19–20px non lo rende più leggibile, rompe le colonne.
+
+   ── Cosa NON scala, ed è voluto ───────────────────────────────────────
+
+   Restano assoluti e quindi identici nelle due densità: i raggi
+   (\`--radius-*\`, in rem), la larghezza massima di pagina
+   (\`--container-page\`), le larghezze dei bordi, la scala \`--container-*\`
+   di Tailwind da cui vengono \`max-w-md\` e simili. Un bottone in touch è
+   più grande ma ha lo stesso raggio di 6px, e una pagina non diventa più
+   larga: cresce il respiro dentro, non il contenitore.
+
+   ── Perché esiste anche un blocco \`normale\` ──────────────────────────
+
+   Non è un doppione dei valori di \`@theme\`: senza, la densità saprebbe solo
+   crescere. Con \`[data-density="normale"]\` si può rimettere la densità
+   normale DENTRO un sottoalbero touch, che è la sola forma in cui le due si
+   guardano affiancate — pagina \`Tema/Densità\` della style guide. È lo stesso
+   motivo per cui il chiaro si emette anche su \`.light\` (M1.3). I due blocchi
+   escono dalla stessa costante nello script: due elenchi scritti a mano
+   divergerebbero al primo ritocco.
+
+   L'attributo vale su qualunque elemento, non solo su \`<html>\`: i due token
+   si ereditano. Verificato che \`<body data-density="touch">\` — la forma
+   letterale del v1 — funziona identico.
+
+   Le eccezioni accertate a mano sono annotate in WORKLOG.md, M1.4.
+   ══════════════════════════════════════════════════════════════════════ */
+${emitDensita("touch")}
+
+${emitDensita("normale")}
 `;
 }
 
