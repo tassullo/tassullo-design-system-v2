@@ -37,11 +37,11 @@ Dipendenze di fase: FASE 1. Ogni primitiva si aggiunge in `registry/tassullo/ui/
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
-| M2.1 Fondamenta (`button`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`, `lib/utils.ts`) | TODO | M1.5 | `button` in tutte le varianti/stati nelle 4 combinazioni; `typography` riproduce la scala v1; **chiude i 3 rilievi su `button` aperti da M1.2** (`PIANO.md` §2bis) |
+| M2.1 Fondamenta (`button`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`, `lib/utils.ts`) | TODO | M1.5 | `button` in tutte le varianti/stati nelle 4 combinazioni; `typography` riproduce la scala v1; **chiude i 4 rilievi su `button`** aperti da M1.2 e misurati con axe in M1.3, più l'*incomplete* su `ghost` in scuro e il `text-[0.8rem]` di `sm`, che M1.4 ha mostrato non seguire la densità (tabella in `PIANO.md`, M2.1) |
 | M2.2 Form (`field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider`) | TODO | M2.1 | form di prova navigabile **interamente da tastiera**, ogni campo con etichetta associata |
 | M2.3 Overlay (`dialog`, `alert-dialog`, `drawer`, `sheet`, menu, `popover`, `tooltip`, `sonner`, `command`) | TODO | M2.1 | focus trap e chiusura con Esc verificati; `drawer` presente (mattone del responsive di M3.4) |
 | M2.4 Contenuto (`card`, `tabs`, `table`, `alert`, `empty`, `accordion`, `collapsible`, `scroll-area`, `resizable`, `progress`, `aspect-ratio`, `carousel`) | TODO | M2.1 | `alert` nelle 4 varianti semantiche; `card` **non** finge di essere cliccabile |
-| M2.5 Navigazione (`sidebar`, `breadcrumb`, `pagination`) | TODO | M2.1 | sidebar antracite collassabile con stato attivo corretto; passaggio automatico a `Sheet` sotto la soglia mobile funzionante |
+| M2.5 Navigazione (`sidebar`, `breadcrumb`, `pagination`) | TODO | M2.1 | sidebar antracite collassabile con stato attivo corretto; passaggio automatico a `Sheet` sotto la soglia mobile funzionante; **chiude l'unica eccezione allo scaling di M1.4** — le tre larghezze della sidebar sono costanti JS e non seguono la densità — verificata nelle due densità |
 | M2.6 Filtri e selezione (`toggle`, `toggle-group`, `combobox`, `multi-select`/`tag-input`) | TODO | M2.2, M2.3 | combobox con 500 voci filtrabile **da tastiera**; `multi-select` con rimozione da Backspace; filtri distinguibili a colpo d'occhio dai badge |
 | M2.7 Date (`calendar`, `date-picker`) | TODO | M2.3 | date-picker in italiano, settimana da lunedì, selezione di intervalli; eventuale eccezione a Base UI motivata in WORKLOG |
 | M2.8 Dati (`chart`, palette categorica) | TODO | M2.4 | barre, linee e torta in light e dark; **5 serie distinguibili in scala di grigi** |
@@ -54,7 +54,7 @@ Dipendenze di fase: FASE 2. Ogni blocco dichiara i propri `registryDependencies`
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
-| M3.1 `tassullo-app-shell` | TODO | M2.5 | shell resa a 1440px e degradata a 375px |
+| M3.1 `tassullo-app-shell` | TODO | M2.5 | shell resa a 1440px e a 375px **in entrambe le densità** (viewport × densità, non viewport soltanto); **prima misura di D10**: larghezza utile della colonna a 375px in touch |
 | M3.2 `page-header` | TODO | M3.1, M2.5 | una sola forma di intestazione (titolo + breadcrumb + slot azioni) per tutte le pagine di tutte le app |
 | M3.3 `data-table` (**2 sessioni**) | TODO | M2.4, M2.6 | tabella di prova su ~500 righe finte, ordinabile e filtrabile da tastiera; degrado a 375px verificato |
 | M3.4 `form-field`, `confirm-dialog`, `responsive-dialog` | TODO | M2.2, M2.3 | la stessa chiamata rende come dialog a 1440px e come drawer a 375px, **senza `if` nella pagina** |
@@ -73,7 +73,7 @@ Dipendenze di fase: FASE 3. Ogni pagina è un `registry:block` con dati finti ti
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
 | M4.1 `pagina-login` | TODO | M3.4, M3.5 | schermata di accesso predisposta per MSAL/Entra ID, con errore e "accesso in corso" |
-| M4.2 `pagina-lista` | TODO | M3.3, M3.5, M2.6 | intestazione + barra filtri + `data-table` paginata + stati vuoto/caricamento/errore |
+| M4.2 `pagina-lista` | TODO | M3.3, M3.5, M2.6 | intestazione + barra filtri + `data-table` paginata + stati vuoto/caricamento/errore, provata nelle **quattro celle viewport × densità**; **chiude D10** sulla cella `375px × touch` |
 | M4.3 `pagina-scheda` | TODO | M3.2, M3.4, M3.7 | breadcrumb, stato e azioni, tab anagrafica/documenti/storico, form lettura↔modifica, timeline in coda |
 | M4.4 `pagina-dashboard` | TODO | M2.8, M3.3 | indicatori, due grafici, tabella attività recenti, area avvisi |
 | M4.5 `pagina-admin` | TODO | M3.3, M3.4 | tab, tabella con azioni per riga, dialoghi di conferma, banner utente senza permessi |

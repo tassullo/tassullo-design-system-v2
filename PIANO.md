@@ -206,6 +206,10 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
 
   Sono le **2 violazioni axe oggi aperte** in tutto il progetto, entrambe in carico a questo task. Chiuderle qui riporta il conto a zero, che è la condizione da cui M2.9 deve partire per poter mettere `a11y.test = 'error'` senza trovarsi la CI rossa il primo giorno.
 
+  **Più un'*incomplete*, trovata in M1.4 e che va con le altre**: in modalità scura axe segnala `color-contrast` *incomplete* su `variant: ghost` — «1:1 con lo sfondo», cioè fondo trasparente che axe non sa risolvere. Non è una violazione e non conta nel conteggio, ma un'*incomplete* è una misura che nessuno ha fatto: va chiusa qui, guardando il contrasto reale del testo `ghost` sulle superfici su cui il bottone sta davvero. Verificata identica nelle due densità, quindi non è un effetto della densità.
+
+  **E un rilievo che arriva da M1.4**: `text-[0.8rem]` sulla taglia `sm` non è solo un valore arbitrario da ripulire per la regola 3 — essendo fuori dai token **non segue lo scatto tipografico della densità**, e resta 12,8px anche in touch. Ripulirlo lo risolve da sé, ma la scelta del gradino va fatta sapendo questo.
+
   Da qui una regola operativa per tutta la FASE 2: **una misura fatta in una sola modalità non è una misura.** Le coppie di token le copre `check:contrast` su entrambe; come i componenti le accostano no. **axe-core c'è già** — è nel pannello Accessibility di ogni story, dal primo giorno: quello che M2.9 aggiunge non è lo strumento ma l'**automazione** (`a11y.test = 'error'` in CI). Fino ad allora il pannello si guarda a mano, in entrambe le modalità, prima di dichiarare finito un task (regola in `CLAUDE.md` §Conduzione).
 
   **Nota sulla scala tipografica**: con la scala Tassullo `text-sm` vale 12px invece dei 14px di default di Tailwind, quindi i bottoni del preset — che usano `text-sm` — sono più piccoli di prima. Da decidere qui quale gradino è quello giusto per il bottone, misurando.
