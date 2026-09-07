@@ -104,6 +104,7 @@ Dipendenze di fase: FASE 4.
 | D6 quando migrano Anagrafe / Studio / Officina | TODO | nessuno | ognuna decide per sé con la guida M5.5; nessuna scadenza |
 | D7 se `docx/` resti nel repo v1 | TODO | nessuno | nessuna urgenza, mai |
 | D8 librerie di terze parti per i blocchi | TODO | M3.6..M3.9 | PDF, editor, diff, dropzone: una per una **nel task che la incontra**, privilegiando il lazy e la sostituibilità |
+| D10 la densità touch su schermo stretto | TODO | **M4.2** (verdetto), prima misura in **M3.1** | non è «quale densità su mobile»: touch nasce per il cantiere, cioè per il telefono, e lì il viewport è il più stretto. In touch la spaziatura cresce del 50%, il testo dell'8%, la larghezza dello schermo di 0. Da provare su una pagina vera; tre uscite in `PIANO.md`, M4.2 |
 
 Accertamenti tecnici già chiusi sul campo (con la prova): **`docs/DECISIONI.md`**, nato in M0.2. Dove contraddice `PIANO.md`, vince lui e la contraddizione è annotata.
 

@@ -279,7 +279,9 @@ Dipendenze: FASE 2.
 Ogni blocco dichiara i suoi `registryDependencies` sulle primitive che usa, così una sola `shadcn add` tira dentro tutto.
 
 **M3.1 — `tassullo-app-shell` (1 sessione)** — sidebar scura + header + area contenuto con `--page-max-width`; è il sostituto di `Sidebar.tsx`/`Sidebar.css` (190 righe) di Anagrafe.
-- Accettazione: shell resa a 1440px e degradata a 375px.
+- Accettazione: shell resa a 1440px e degradata a 375px, **in tutte e due le densità** — la matrice qui è viewport × densità, non viewport soltanto.
+
+  **Qui si prende la prima misura di D10 (densità su schermo stretto).** È il primo punto del piano in cui la domanda è rispondibile, perché la shell è ciò che possiede il padding di pagina: sono quelle utility, non le altezze dei controlli, a mangiare la larghezza. Il numero da guardare è la **larghezza utile della colonna di contenuto a 375px** nelle due densità. Se il padding di pagina va sottratto allo scaling, il rimedio è un token di spaziatura di pagina che **non** derivi da `--spacing` — cioè rimettere il `--space-page` del v1, che M1.2 aveva scartato di proposito (§2bis, "Non portati dal v1"). Non si decide qui a tavolino: si misura, e il verdetto è di M4.2.
 
 **M3.2 — `page-header` (1 sessione)** — titolo, breadcrumb, slot azioni a destra; una sola forma per tutte le pagine di tutte le app.
 
@@ -326,6 +328,9 @@ Ogni pagina modello è un item `registry:block` con dati finti tipizzati e comme
 
 **M4.2 — `pagina-lista` (1 sessione)** — la pagina più ripetuta in assoluto: intestazione con titolo e azione primaria, barra filtri (`combobox` + `toggle-group` + ricerca), `data-table` con paginazione, stati vuoto/caricamento/errore.
 - Motivo: in Anagrafe è Prodotti, Famiglie, Norme, Sistemi, Pubblicazioni, ChangeSets — sei volte la stessa pagina, scritta sei volte.
+- Accettazione: **la pagina si prova nelle quattro combinazioni viewport × densità**, e la cella `375px × touch` è quella che decide. È la pagina più densa che abbiamo — filtri, tabella, paginazione — quindi è il banco di prova onesto di D10.
+
+  **Qui si chiude D10.** Le tre uscite possibili, da scegliere sulla pagina vera e non prima: *(a)* la densità touch regge a 375px così com'è e non si fa niente; *(b)* regge scorporando la spaziatura di pagina dallo scaling — i bersagli crescono, il respiro di pagina no; *(c)* non regge, e il fattore va ridotto sotto una certa larghezza. La (c) è l'ultima da prendere, perché reintrodurrebbe una dipendenza dal viewport in un meccanismo che è deliberatamente **una scelta dell'app** e non del dispositivo.
 
 **M4.3 — `pagina-scheda` (1 sessione)** — dettaglio di un'entità: breadcrumb, intestazione con stato e azioni, tab (anagrafica / documenti / storico), form in sola lettura che passa in modifica, `version-timeline` in coda.
 - Motivo: Prodotto, Famiglia, Sistema, Norma — quattro volte in Anagrafe, ed è il file CSS più grande (`Prodotto.css`, 201 righe).

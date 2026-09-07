@@ -520,3 +520,13 @@ Due eccezioni accertate, **entrambe fuori da M1.4 e annotate nel blocco che le c
 ### Prossimi passi
 
 **M1.5** — il tema come item `registry:theme` in `registry.json`, e la pagina Palette completata col click-to-copy. Da tenere presente: l'item dovrà portare con sé il file CSS **intero**, blocchi di densità compresi, e non solo i `cssVars` — i due blocchi `[data-density]` non sono variabili di tema e non hanno posto nel campo `cssVars`. È il primo caso in cui si vede se il canale `registry:theme` basta a distribuire tutto il tema.
+
+### Indirizzo di Francesco, subito dopo M1.4 — D10 aperta
+
+La densità va provata su un **blocco**, cioè su una pagina demo completa, e la domanda è se su mobile serva una densità diversa da quella desktop. Il timore: che un'interfaccia progettata a densità desktop «non funzioni» su mobile quando la densità cambia.
+
+Il timore è fondato, ma il pericolo non sta dove sembra. La densità non è un asse mobile/desktop — touch nasce per il **cantiere**, cioè proprio per il telefono, ed è l'app a dichiararla, non il dispositivo. Il guaio è che le due cose coincidono: **la densità che gonfia è esattamente quella che si usa dove il viewport è più stretto.** In touch la spaziatura cresce del 50%, il testo dell'8%, la larghezza dello schermo di 0 — e la differenza la paga tutta la colonna di contenuto. Aritmetica su un telefono da 375px: un `px-10` di pagina passa da 40 a 60px per lato, cioè da 295 a **255px** di colonna utile, mentre le stringhe da mandare a capo sono più lunghe dell'8%. In verticale, `space-y-6` passa da 24 a 36px: un form di dieci righe guadagna un terzo di schermata.
+
+Non è una cosa che si decide a tavolino, ed è per questo che diventa **D10** invece di una riga di CSS scritta adesso. La prima misura si prende in **M3.1** (`tassullo-app-shell`), che è il primo punto in cui la domanda è rispondibile perché la shell possiede il padding di pagina — sono quelle utility, non le altezze dei controlli, a mangiare la larghezza. Il verdetto si prende in **M4.2** (`pagina-lista`), la pagina più densa che avremo. Le tre uscite possibili sono scritte lì, e la meno desiderabile è ridurre il fattore sotto una certa larghezza: rimetterebbe il viewport a decidere una cosa che è deliberatamente una scelta dell'app.
+
+Ricaduta già annotata: l'accettazione di **M3.1** e **M4.2** passa da «resa a 1440 e a 375» a «viewport × densità», quattro celle, e quella che decide è `375px × touch`.
