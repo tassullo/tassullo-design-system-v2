@@ -19,13 +19,14 @@ Gate: `npm run storybook` mostra una primitiva shadcn di prova con Tailwind v4 a
 ## FASE 1 — Tema Tassullo (5 sessioni)
 
 Gate: la pagina Palette mostra tutte le coppie token nelle 4 combinazioni (light/dark × normale/touch); `check:contrast` passa su tutte le coppie `X`/`X-foreground`.
+Metà del gate è superata da M1.3: `check:contrast` è verde su **48 coppie**, 24 per modalità. Manca l'asse della densità (M1.4).
 Dipendenze di fase: FASE 0.
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
 | M1.1 Mappa dei token e script di conversione | DONE | M0.2 | `PIANO.md` §2bis scritto; `npm run check:contrast` gira e **fallisce** se si forza `--primary-foreground` a bianco |
 | M1.2 `tassullo-theme.css`, modalità chiara | DONE | M1.1 | contrasto verde (24/24); `bg-primary text-primary-foreground` rende arancione con testo nero, verificato a video |
-| M1.3 Modalità scura (chiude D2) | TODO | M1.2, M0.3 | contrasto verde anche in dark; screenshot delle due palette affiancate; **D2 chiusa in WORKLOG** |
+| M1.3 Modalità scura (chiude D2) | DONE | M1.2, M0.3 | contrasto verde 48/48 (24 per modalità); story `Tema/Palette` con le due palette affiancate e `docs/img/M1.3-palette-chiaro-scuro.png`; **D2 chiusa** |
 | M1.4 Densità touch | TODO | M1.2, M0.3 | l'interruttore densità cambia l'altezza dei controlli senza ricaricare; bersagli ≥44px; eccezioni allo scaling annotate |
 | M1.5 Il tema come item di registry | TODO | M1.3, M1.4 | `npx shadcn@latest registry validate ./registry.json` verde sull'item tema; pagina Palette con click-to-copy |
 
@@ -96,7 +97,7 @@ Dipendenze di fase: FASE 4.
 
 | Decisione | Stato | Blocca | Nota |
 |---|---|---|---|
-| D2 valori della palette scura | TODO | M1.3 | si chiude **guardandola** nel workbench, non al buio |
+| D2 valori della palette scura | **CHIUSA** 2026-09-07 | — | chiusa guardandola affiancata al chiaro, non al buio. Neutri dalla sidebar v1, brand invariato, tenui specchiati a gradini fissi; tre scostamenti misurati (`--sidebar`, `--info`, `--warning`). Motivazione in `WORKLOG.md` e `PIANO.md` §2bis |
 | D3 licenza Replicall: `.woff` nel registry? | TODO (non urgente) | nessuno | default v1: lo carica l'app. Si riapre solo se si vuole cambiare |
 | D4 quando pubblicare su GitHub | TODO | **M5.6** (solo) | tutto il resto funziona col registry locale via percorso di file |
 | D5 destino di `components.css` e `stylelint-config.cjs` v1 | TODO | nessuno | fuori dal perimetro: si dismettono a ultima app migrata |

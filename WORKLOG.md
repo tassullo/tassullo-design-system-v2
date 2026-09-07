@@ -354,3 +354,54 @@ Oggi il registro è **vuoto**, ed è la condizione da difendere: tutto ciò che 
 ### Prossimi passi
 
 Invariati: **M1.3**, modalità scura e chiusura di D2. Da tenere presente che da qui in poi la FASE 2 ha un ordine operativo obbligatorio a ogni `add` (regola 4ter) e una scala da risalire prima di scrivere qualsiasi cosa che shadcn non abbia (regola 4bis).
+
+## 2026-09-07 — M1.3: la modalità scura, e D2 chiusa
+
+Il v1 non ha una palette scura. Questa è **progettata**, e la differenza rispetto a M1.2 è tutta qui: là si traduceva un file esistente e il lavoro era non sbagliare la conversione, qui si sceglie. Perché "scegliere" non diventi "inventare a occhio", la palette scura è costruita con **tre regole scritte accanto ai valori**, nello script.
+
+### Le tre regole
+
+1. **I neutri si invertono partendo da ciò che il v1 ha già collaudato.** La sidebar antracite è l'unica superficie scura del v1 in produzione da due anni: i suoi valori diventano i neutri di pagina — `#141414`, `#1C1C1C`, `#262626`, `#2E2E2E`, `#EDEDEB`, `#A8A8A8`. Non è un ossequio al v1: è che quei sei valori sono già stati guardati per due anni da chi usa le app.
+2. **Il brand non cambia.** `--primary` resta l'arancio con testo nero in entrambe le modalità. Cambia solo la **direzione dell'hover**: sul chiaro il v1 scurisce di ΔL 0.051, e sul fondo scuro la stessa mossa è schiarire (`#FFBE5A`).
+3. **I tenui si specchiano a gradini fissi**, uguali per tutte le famiglie: alla tinta del pieno chiaro, `subtle` a `l 0.28 c 0.05`, bordo `l 0.42 c 0.10`, testo `l 0.85 c 0.08`. Un gradino solo per tutte è ciò che fa **pesare uguale** i quattro alert, che è il requisito di M2.4 — se una famiglia salta all'occhio più delle altre, il suo alert sembra più grave di quello che è.
+
+I pieni semantici restano quelli del chiaro: un colore per stato in tutte le app è il punto stesso degli stati semantici. `--destructive` `#DC2626` regge anche sul fondo scuro (3.81:1, sopra la soglia 3:1 dei componenti non testuali).
+
+### I tre scostamenti, e il secondo è quello che ho imparato qualcosa
+
+- **`--info` `#1A5276` → `#4BAFF2`.** L'unico pieno ricalcolato, e non per gusto: il blu scuro del v1 dà **2.20:1** sul fondo scuro, cioè un badge che non si vede. Ripreso alla propria tinta sulla banda media dei pieni chiari (`l 0.725 c 0.134`) — la **stessa costruzione** già usata per `deriveInfoBorder`, non un valore scelto a occhio. Ora 7.64:1, testo nero come su tutti i fondi saturi chiari.
+
+- **`--warning` resta `#FBE8C4`, e la correzione ovvia è stata provata e scartata.** È a `l 0.937` contro `l 0.58–0.79` di tutti gli altri pieni: sul fondo scuro è la cosa più luminosa della pagina, e la prima reazione guardandolo è "riportalo nella banda, come hai fatto con `info`". L'ho calcolato: a `l 0.725` il giallo diventa `#CE9E2F`, che sta a **ΔL 0.07 e Δh 9.6** da `--primary` `#F4AC3D`. Cioè un badge di avviso indistinguibile dal brand — un difetto peggiore di un badge troppo luminoso. **La lightness alta è ciò che tiene `--warning` separato dall'arancio**, e nella modalità chiara la collisione non si vede solo perché lì il crema è chiaro. Il valore resta com'era, ma non per inerzia: ora si sa perché, e chi lo vorrà cambiare troverà scritto cosa succede.
+
+- **`--sidebar` `#141414` → `#1C1C1C`.** Sul chiaro la sidebar antracite stacca dalla pagina; sullo scuro la pagina **è** antracite e una sidebar dello stesso valore sparisce. Sale al livello della card.
+
+Cambiato anche `--overlay`, da 45% a 70% dello stesso nero Tassullo: un velo al 45% dello stesso colore della pagina non separa più niente. E le serie dei grafici (provvisorie, M2.8) sono ribaltate: la rampa chiara scende a `#3C3C3C`, che sul fondo scuro non si vedrebbe.
+
+### Due cose costruite per rendere la palette scura *verificabile*, non solo scritta
+
+**Il gate controlla ora anche la parità dei token.** Verifica 48 coppie (24 per modalità) e, in più, che le due palette dichiarino **gli stessi nomi nello stesso ordine**. Serve perché il blocco `@theme inline` espone le utility a partire dalle sole chiavi del chiaro: un token dichiarato solo lì resterebbe al valore chiaro in modalità scura — cioè un colore **sbagliato** e non **mancante**, che è peggio, perché non si nota. Provata nei due modi in cui può rompersi: togliendo `--border-strong` dallo scuro → «token presenti solo nel chiaro: border-strong», uscita **1**; scambiando `input` e `ring` nello scuro → «le due palette hanno gli stessi token ma in ordine diverso», uscita **1**. L'ordine conta perché è ciò che rende leggibile il diff fra le due palette affiancate nello script.
+
+**Il chiaro si emette su `:root` *e* su `.light`.** Non è un doppione. Una palette scura si giudica **affiancata** a quella chiara, non alternandola con l'interruttore: fra un clic e l'altro la memoria dell'occhio non regge, e si finisce per approvare qualunque cosa. Ma per mettere una colonna chiara dentro una pagina che ha `.dark` sulla radice serve un modo di tornare chiari su un sottoalbero, e nel tema non esisteva. Verificato col browser: forzando `.dark` su `<html>`, la colonna chiara continua a riportare `--background: oklch(0.9726 …)`.
+
+### Verifiche eseguite
+
+- `npm run check:contrast` → **0 violazioni su 48 coppie**, 24 per modalità, e file del tema allineato allo script.
+- `npm run check:registry` → 0 errori, 32/32 token standard ancora presenti, 0 token custom dentro i componenti. I 4 avvisi residui sono i valori arbitrari ereditati da shadcn, già in carico a M2.1.
+- **Criterio di accettazione, verificato e non dichiarato**: story `Tema/Palette` aperta nel browser con le due palette affiancate; screenshot in `docs/img/M1.3-palette-chiaro-scuro.png`. La parità di peso delle quattro famiglie tenui si vede.
+- **L'interruttore tema ora fa qualcosa** — in M1.2 non faceva nulla ed era atteso, perché `.dark` era vuoto. Verificato sul workbench forzando `.dark`: `body` passa a `oklch(0.1913 0 0)` con testo `oklch(0.9455 …)`, e le primitive vere seguono.
+- `npx tsc -b --force`, `npx oxlint`, `npm run build` verdi.
+- Nessuna modifica al repo v1 né alle app.
+
+### Ricadute annotate dove verranno lette
+
+- **`PIANO.md` §2bis** ha ora una sezione *La modalità scura* con le tre regole, i tre scostamenti e le due conseguenze; il blocco **M1.3** riporta l'esito.
+- **Blocco M2.1 di `PIANO.md`**, due rilievi rimisurati in scuro e uno cambia il quadro: `variant: link` in dark dà **9.49:1** e **passa** — il difetto esiste solo in chiaro, quindi guardando la primitiva con l'interruttore sullo scuro sembra a posto. È il primo caso concreto di un difetto che una sola delle quattro combinazioni rivela. Il rimedio previsto regge comunque in entrambe, e non per fortuna: `--accent-ink` è definito per modalità, quindi `text-accent-ink` è **una sola classe** corretta sia in chiaro (4.77:1) sia in scuro (9.49:1). `variant: destructive` in dark **peggiora** a 3.25:1. Da lì una regola per tutta la FASE 2: **una misura fatta in una sola modalità non è una misura.**
+- **`CLAUDE.md`** — corretta una deriva: diceva «26 coppie», sono **24 per modalità, 48 in tutto**. Aggiunte la parità dei token e il selettore `.light` fra i comandi; precisato che la regola `text-accent-ink` e mai `text-primary` vale in entrambe le modalità, e **proprio perché** sul fondo scuro `--accent-ink` coincide con `--primary`: è ciò che rende `text-primary` un difetto invisibile in dark.
+
+### D2 — chiusa il 2026-09-07
+
+**Motivazione.** La decisione chiedeva di fissare i valori della palette scura «guardandola, non al buio», ed è stata chiusa così: le due palette affiancate nella story `Tema/Palette`, non alternate. I valori non sono inventati — i neutri vengono dalla sidebar v1 già in produzione, i tenui da una costruzione uniforme, il brand non si tocca — e i **tre** punti in cui si scostano dalla proposta del piano sono ciascuno una misura: 2.20:1 per `--info`, la collisione con `--primary` per `--warning`, la sparizione della sidebar sulla pagina antracite. Ciò che resta aperto non è la decisione ma il gusto: se un valore andrà ritoccato, si cambia la costante nello script e `npm run theme:build` più `check:contrast` rifanno tutto il resto.
+
+### Prossimi passi
+
+**M1.4** — densità touch. Sono già noti i due pezzi che mancano: lo **scatto di tipografia**, che non deriva da `--spacing` e quindi non arriva da solo, e la verifica che lo scaling non deformi larghezze massime, icone e sidebar. Il valore provvisorio in `src/index.css` è `0.34375rem` e va chiuso lì (`docs/DECISIONI.md` §6). Con M1.3 fatto, la densità va ora provata su **quattro** combinazioni e non due.

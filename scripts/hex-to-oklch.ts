@@ -113,8 +113,125 @@ const light: Palette = {
   "chart-5": "#3C3C3C",
 };
 
-/** FASE 1 / M1.3 — modalità scura. Si compila lì, non qui (D2 aperta). */
-const dark: Palette = {};
+/**
+ * FASE 1 / M1.3 — modalità scura. Chiude D2.
+ *
+ * Il v1 non ha una palette scura: questa è progettata, non tradotta. Le tre
+ * regole con cui è stata costruita, perché resti modificabile senza inventare:
+ *
+ *  1. **I neutri si invertono, partendo da ciò che il v1 ha già collaudato**:
+ *     la sidebar antracite del v1 è l'unica superficie scura in produzione da
+ *     due anni, e i suoi valori (#141414 fondo, #262626 hover, #EDEDEB testo
+ *     alto, #A8A8A8 testo a riposo) diventano qui i neutri di pagina.
+ *  2. **Il brand non cambia**: `--primary` resta l'arancio con testo nero, in
+ *     entrambe le modalità. Cambia solo la direzione dell'hover — sul chiaro il
+ *     v1 scurisce (ΔL −0.051), sul fondo scuro schiarire è la stessa mossa.
+ *  3. **I tenui si specchiano a gradini fissi**, uguali per tutte le famiglie:
+ *     alla tinta del pieno chiaro, `subtle` sta a `l 0.28 c 0.05`, il bordo a
+ *     `l 0.42 c 0.10`, il testo a `l 0.85 c 0.08`. Un solo gradino per tutte
+ *     significa che i quattro alert pesano uguale, che è il requisito di M2.4.
+ *
+ * I pieni semantici restano quelli del chiaro — un colore per stato in tutte le
+ * app, che è il punto degli stati semantici — con **una sola eccezione
+ * misurata**: `--info` (#1A5276) dà **2.20:1** sul fondo scuro, cioè un badge
+ * invisibile. Ricalcolato alla propria tinta sulla banda media dei pieni chiari
+ * (`l 0.725 c 0.134`, la stessa costruzione di `deriveInfoBorder`): #4BAFF2,
+ * 7.64:1 sul fondo, testo nero come tutti i fondi saturi chiari.
+ *
+ * `--warning` invece resta il crema del v1 (#FBE8C4), pur essendo a l 0.937 la
+ * cosa più luminosa della pagina scura, contro l 0.58–0.79 di tutti gli altri
+ * pieni. È stata provata la correzione ovvia — riportarlo nella banda alla sua
+ * tinta, come `--info` — e **scartata misurandola**: a l 0.725 il giallo
+ * diventa #CE9E2F, che è a ΔL 0.07 e Δh 9.6 da `--primary` #F4AC3D. Un badge di
+ * avviso indistinguibile dal brand è un difetto peggiore di un badge troppo
+ * luminoso, e nella modalità chiara la stessa collisione non si vede solo
+ * perché lì il crema è chiaro. La lightness alta è ciò che tiene `--warning`
+ * separato dall'arancio: si tiene, sapendo perché.
+ *
+ * `--sidebar` è l'altro punto dove la misura non decide: alzato a #1C1C1C
+ * invece di restare il #141414 del v1, perché in modalità scura la pagina è
+ * già antracite e una sidebar dello stesso valore non si stacca più.
+ */
+const dark: Palette = {
+  // ── Superfici e testo — i neutri della sidebar v1, promossi a pagina ──────
+  background: "#141414", // v1 --color-sidebar-bg
+  foreground: "#EDEDEB", // v1 --color-sidebar-text-hi
+  card: "#1C1C1C", // superficie sollevata: un gradino sopra la pagina
+  "card-foreground": "#EDEDEB",
+  popover: "#1C1C1C",
+  "popover-foreground": "#EDEDEB",
+
+  // ── Brand — invariato, tranne la direzione dell'hover ────────────────────
+  primary: "#F4AC3D",
+  "primary-foreground": "#141414",
+  "primary-hover": "#FFBE5A", // schiarito dello stesso ΔL con cui il v1 scurisce
+  "primary-subtle": "#372508", // l 0.28 alla tinta del brand
+  "primary-border": "#6D4300", // l 0.42
+  "accent-ink": "#F4AC3D", // sul fondo scuro l'arancio leggibile È il brand (9.49:1)
+
+  // ── Neutri ───────────────────────────────────────────────────────────────
+  secondary: "#262626", // v1 --color-sidebar-hover
+  "secondary-foreground": "#EDEDEB",
+  muted: "#262626",
+  "muted-foreground": "#A8A8A8", // v1 --color-sidebar-text
+  accent: "#2E2E2E", // hover dei menu, NON il brand
+  "accent-foreground": "#EDEDEB",
+  border: "#2E2E2E",
+  "border-strong": "#454545",
+  input: "#2E2E2E",
+  ring: "#F4AC3D",
+
+  // ── Stati semantici, livello pieno — identici al chiaro tranne `info` ────
+  destructive: "#DC2626", // 3.81:1 sul fondo: sopra la soglia 3:1 dei componenti
+  "destructive-foreground": "#FFFFFF",
+  success: "#1CAC7C",
+  "success-foreground": "#141414",
+  warning: "#FBE8C4",
+  "warning-foreground": "#886300",
+  info: "#4BAFF2", // UNICA eccezione: #1A5276 dà 2.20:1 sul fondo scuro
+  "info-foreground": "#141414", // fondo saturo chiaro ⇒ testo nero, come primary e success
+
+  // ── Stati semantici, livello tenue — specchiati a gradini fissi ──────────
+  "destructive-subtle": "#3E1F1B",
+  "destructive-subtle-foreground": "#FEBAB1",
+  "destructive-border": "#7A342E",
+  "success-subtle": "#0B3022",
+  "success-subtle-foreground": "#9DDFC0",
+  "success-border": "#005D3E",
+  "warning-subtle": "#352607",
+  "warning-subtle-foreground": "#E7CA91",
+  "warning-border": "#674700",
+  "info-subtle": "#0F2C3F",
+  "info-subtle-foreground": "#9FD5FE",
+  "info-border": "", // DERIVATO — riempito da deriveInfoBorder(), come nel chiaro
+
+  // ── Sidebar ──────────────────────────────────────────────────────────────
+  // Non resta #141414: in modalità scura la pagina è già antracite e una
+  // sidebar dello stesso valore sparisce. Sale al livello della card.
+  sidebar: "#1C1C1C",
+  "sidebar-foreground": "#A8A8A8",
+  "sidebar-primary": "#F4AC3D",
+  "sidebar-primary-foreground": "#141414",
+  "sidebar-accent": "#2E2E2E",
+  "sidebar-accent-foreground": "#EDEDEB",
+  "sidebar-border": "#2E2E2E",
+  "sidebar-ring": "#F4AC3D",
+
+  // ── Velo delle modali ────────────────────────────────────────────────────
+  // Stesso nero Tassullo, opacità alzata da 0.45 a 0.70: sul fondo scuro un
+  // velo al 45% dello stesso colore della pagina non separa più niente.
+  overlay: "#141414B3",
+
+  // ── Serie dei grafici — PROVVISORI, come nel chiaro ──────────────────────
+  // Rampa ribaltata: quella chiara scende fino a #3C3C3C, che sul fondo scuro
+  // non si vedrebbe. Cinque gradini, il più scuro ancora a 3.4:1. M2.8 li
+  // sostituisce con la palette categorica vera.
+  "chart-1": "#EDEDEB",
+  "chart-2": "#C9C9C9",
+  "chart-3": "#A8A8A8",
+  "chart-4": "#8F8F8F",
+  "chart-5": "#6D6D6D",
+};
 
 const THEMES: Array<{ name: string; selector: string; palette: Palette }> = [
   { name: "light", selector: ":root", palette: light },
@@ -240,7 +357,7 @@ function buildTheme(): string {
      chiaro è --accent-ink.
    ══════════════════════════════════════════════════════════════════════ */
 
-${emitTokens(light, ":root")}
+${emitTokens(light, ":root,\n.light")}
 
 :root {
   /* Raggio base. In shadcn --radius È il gradino \`lg\`, non \`md\`: vale quindi
@@ -249,7 +366,20 @@ ${emitTokens(light, ":root")}
   --radius: 0.625rem;
 }
 
-/* Modalità scura — M1.3, D2 ancora aperta. */
+/* Il blocco chiaro vale anche su \`.light\`, non solo su \`:root\`: serve a
+   rimettere la modalità chiara **dentro** una pagina scura, che è la sola
+   forma in cui le due palette si possono guardare affiancate (pagina Palette
+   della style guide). Senza, in una pagina con \`.dark\` sulla radice non
+   esisterebbe modo di tornare chiari su un sottoalbero. */
+
+/* Modalità scura — M1.3, D2 chiusa. Il v1 non ha una palette scura: questa è
+   progettata, e le tre regole con cui è costruita stanno nello script accanto
+   alla palette. Il selettore è \`.dark\` sull'elemento radice, che è ciò che
+   \`@custom-variant dark\` di src/index.css e l'interruttore di Storybook
+   commutano. Qui si ridichiarano SOLO i token: raggi, font, scala tipografica
+   e ombre non cambiano fra le due modalità. */
+
+${emitTokens(dark, ".dark")}
 
 @theme inline {
   /* ── Colori ──────────────────────────────────────────────────────────
@@ -311,6 +441,29 @@ ${colorMap}
 `;
 }
 
+/**
+ * Le due palette devono dichiarare **gli stessi token, nello stesso ordine**.
+ * Il blocco `@theme inline` espone le utility a partire dalle sole chiavi del
+ * chiaro: un token presente solo lì resterebbe al valore chiaro in modalità
+ * scura — cioè un colore sbagliato, non un colore mancante, che è peggio
+ * perché non si nota. L'ordine conta per leggere il diff delle due palette
+ * affiancate: se divergono, il confronto va fatto a mano.
+ */
+function checkParity(): number {
+  const a = Object.keys(light);
+  const b = Object.keys(dark);
+  const soloChiaro = a.filter((k) => !(k in dark));
+  const soloScuro = b.filter((k) => !(k in light));
+  if (soloChiaro.length === 0 && soloScuro.length === 0) {
+    if (a.join() === b.join()) return 0;
+    console.error(`\n✖ le due palette hanno gli stessi token ma in ordine diverso.`);
+    return 1;
+  }
+  if (soloChiaro.length) console.error(`\n✖ token presenti solo nel chiaro: ${soloChiaro.join(", ")}`);
+  if (soloScuro.length) console.error(`✖ token presenti solo nello scuro: ${soloScuro.join(", ")}`);
+  return 1;
+}
+
 function check(palette: Palette, theme: string): number {
   let failures = 0;
   const rows: string[] = [];
@@ -342,6 +495,7 @@ function check(palette: Palette, theme: string): number {
 function main(): void {
   const args = process.argv.slice(2);
   light["info-border"] = deriveInfoBorder(light);
+  dark["info-border"] = deriveInfoBorder(dark);
 
   if (args.includes("--self-test")) {
     // Prova del gate stesso (criterio di accettazione di M1.1): forzando
@@ -374,7 +528,7 @@ function main(): void {
     return;
   }
 
-  let failures = 0;
+  let failures = checkParity();
   for (const { name, palette } of THEMES) {
     if (Object.keys(palette).length === 0) {
       console.log(`\n${name} — palette non ancora compilata, controllo saltato.`);
@@ -403,7 +557,7 @@ function main(): void {
     `\n${failures === 0 ? "✔" : "✖"} ${failures} violazione/i sopra soglia` +
       (esenti ? `, ${esenti} coppia/e esente/i con motivazione.` : "."),
   );
-  console.log(`  --info-border derivato: ${light["info-border"]}\n`);
+  console.log(`  --info-border derivato: ${light["info-border"]} (chiaro), ${dark["info-border"]} (scuro)\n`);
   if (failures > 0) process.exit(1);
 }
 

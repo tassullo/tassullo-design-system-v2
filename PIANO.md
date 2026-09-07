@@ -139,6 +139,8 @@ Dipendenze: FASE 0.
 - File: `registry/tassullo/theme/tassullo-theme.css`, `stories/Palette.stories.tsx`
 - Accettazione: contrasto verde anche in dark; screenshot delle due palette affiancate; D2 chiusa in WORKLOG.
 
+**Chiuso il 2026-09-07. D2 chiusa.** La proposta del prompt è stata adottata quasi per intero — `--background #141414`, `--card #1C1C1C`, `--muted #262626`, `--foreground #EDEDEB`, `--muted-foreground #A8A8A8`, `--border #2E2E2E`, brand invariato — con **tre scostamenti**, tutti misurati e motivati in §2bis *La modalità scura*: `--sidebar` sale a `#1C1C1C` invece di restare `#141414` (sul fondo scuro non si staccherebbe più dalla pagina), `--info` è l'unico pieno ricalcolato (`#1A5276` dava **2.20:1** sul fondo scuro, cioè un badge invisibile), e `--warning` resta il crema del v1 nonostante sia la cosa più luminosa della pagina, perché la correzione ovvia lo fa collidere col brand. Il gate è verde su **48 coppie** (24 per modalità) e verifica anche la parità dei token fra le due palette. La prova visiva è la story `Tema/Palette`, che le mostra affiancate; lo screenshot è `docs/img/M1.3-palette-chiaro-scuro.png`.
+
 **M1.4 — Densità touch (1 sessione)**
 
 Premessa, verificata sulla documentazione (2026-09-07): shadcn è responsive nel **layout** — `sidebar` passa a `Sheet` sotto la soglia mobile (`useIsMobile`, `SIDEBAR_WIDTH_MOBILE`), e `drawer` documenta il pattern *Dialog su desktop, Drawer su mobile*. Sui **bersagli** non dice nulla: la pagina del `Button` elenca le taglie (`xs`, `sm`, default, `lg`, `icon-*`) senza mai citare touch target o altezze minime, e il default resta `h-9` (36px) identico su iPhone e su desktop, contro i 44–48px chiesti da Apple e Material. Il responsive di shadcn si eredita gratis, ma **non** copre il caso che ha fatto nascere `data-density` nel v1: Officina in cantiere, dove il problema non è lo spazio sullo schermo ma il dito guantato.
@@ -185,6 +187,13 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
   | taglie `xs`/`sm` | `rounded-[min(var(--radius-md),12px)]`, `text-[0.8rem]` | — | via i valori arbitrari (regola 3 del `CLAUDE.md`) |
 
   La variante `link` è la trappola che il `CLAUDE.md` mette per iscritto — `--primary` usato come colore di testo — commessa dal preset ufficiale. Da verificare **su ogni primitiva di questo task, non solo sul bottone**: se ci è cascato il preset, il preset ci sarà cascato più di una volta.
+
+  **Rimisurati in modalità scura (M1.3, 2026-09-07), e cambiano il quadro su due punti:**
+
+  - `variant: link` in dark dà **9.49:1** e passa. Il difetto **esiste solo in chiaro**, quindi guardando la primitiva con l'interruttore sullo scuro sembra a posto: è il primo caso concreto di un rilievo che una sola delle quattro combinazioni rivela, ed è la ragione per cui l'accettazione ne chiede quattro. Il rimedio previsto regge in entrambe perché `--accent-ink` è definito per modalità: `text-accent-ink` dà 4.77:1 in chiaro e 9.49:1 in scuro, **una sola classe**.
+  - `variant: destructive` in dark dà **3.25:1** (fondo composito `#3C1818`, testo `#DC2626`): peggiora, e resta sotto soglia in entrambe le modalità. La correzione prevista non cambia.
+
+  Da qui una regola operativa per tutta la FASE 2: **una misura fatta in una sola modalità non è una misura.** Le coppie di token le copre `check:contrast` su entrambe; come i componenti le accostano no, e finché non c'è axe-core (M2.9) lo copre solo l'occhio — su tutte e quattro le combinazioni.
 
   **Nota sulla scala tipografica**: con la scala Tassullo `text-sm` vale 12px invece dei 14px di default di Tailwind, quindi i bottoni del preset — che usano `text-sm` — sono più piccoli di prima. Da decidere qui quale gradino è quello giusto per il bottone, misurando.
 
@@ -477,6 +486,33 @@ Il v1 aveva un terzo livello di testo, `--color-text-hint` `#A8A5A1`: **non è s
 **`--info-border`, derivato invece che inventato.** È il solo colore che il v1 non ha. Convertiti in `oklch`, i tre bordi tenui esistenti stanno in una banda stretta — success `l .854 c .073`, warning `l .897 c .071`, danger `l .808 c .103` — ciascuno alla tinta della propria famiglia. `--info-border` è la **media di quella banda alla tinta di `--info-subtle`**: `oklch(0.852 0.082 237.49)` = `#9BD7FE`. Lo calcola `deriveInfoBorder()` a ogni esecuzione: se un giorno la palette cambia, il valore si riallinea da solo.
 
 **Non colori** (1:1 dal v1, nessuna decisione): `--font-sans` (stack con `'Replicall'`, il `.woff` **non si distribuisce** — D3), `--font-mono`, la scala `--text-xs…--text-title` (7 gradini in px), i quattro `--radius-*`, le quattro `--shadow-*`, `--color-overlay`, `--space-page`, `--page-max-width`, `--transition-fast`. La scala di spaziatura `--space-1…6` **non si porta**: in Tailwind v4 le utility derivano da `--spacing`, che è anche il meccanismo della densità (M1.4).
+
+### La modalità scura (scritta in M1.3, 2026-09-07 — chiude D2)
+
+Il v1 non ha una palette scura: questa è **progettata**, non tradotta. Perché resti modificabile senza inventare, è costruita con tre regole, e le tre regole stanno nello script accanto alla palette.
+
+1. **I neutri si invertono partendo da ciò che il v1 ha già collaudato.** La sidebar antracite del v1 è l'unica superficie scura in produzione da due anni: i suoi valori diventano i neutri di pagina — `#141414` fondo, `#1C1C1C` superficie sollevata, `#262626` e `#2E2E2E` i due gradini sopra, `#EDEDEB` testo, `#A8A8A8` testo attenuato.
+2. **Il brand non cambia.** `--primary` resta `#F4AC3D` con testo nero in entrambe le modalità. Cambia solo la **direzione dell'hover**: sul chiaro il v1 scurisce di ΔL 0.051, sul fondo scuro la stessa mossa è schiarire → `#FFBE5A`.
+3. **I tenui si specchiano a gradini fissi**, uguali per tutte le famiglie: alla tinta del pieno chiaro, `subtle` a `l 0.28 c 0.05`, il bordo a `l 0.42 c 0.10`, il testo a `l 0.85 c 0.08`. Un solo gradino per tutte significa che i quattro alert **pesano uguale**, che è il requisito di M2.4: se una famiglia salta all'occhio più delle altre, l'alert corrispondente sembra più grave di quello che è.
+
+I **pieni semantici restano quelli del chiaro** — un colore per stato in tutte le app, che è il punto degli stati semantici. `--destructive` `#DC2626` resta anche sul fondo scuro: 3.81:1, sopra la soglia 3:1 dei componenti non testuali, e con testo bianco conserva i 4.83:1 del chiaro.
+
+**Tre scostamenti, e ciascuno con la sua misura.**
+
+| token | cosa si è fatto | perché |
+|---|---|---|
+| `--info` | `#1A5276` → **`#4BAFF2`**, testo nero | l'unico pieno **ricalcolato**: il blu scuro del v1 dà **2.20:1** sul fondo scuro, cioè un badge che non si vede. Ripreso alla propria tinta sulla banda media dei pieni chiari (`l 0.725 c 0.134`) — la stessa costruzione di `deriveInfoBorder`, non un valore scelto a occhio. Ora 7.64:1 |
+| `--warning` | **invariato** `#FBE8C4` | è a `l 0.937` contro `l 0.58–0.79` di tutti gli altri pieni: sul fondo scuro è la cosa più luminosa della pagina. La correzione ovvia — riportarlo nella banda, come `--info` — è stata **provata e scartata misurandola**: a `l 0.725` diventa `#CE9E2F`, a ΔL 0.07 e Δh 9.6 da `--primary` `#F4AC3D`. Un badge di avviso indistinguibile dal brand è un difetto peggiore di uno troppo luminoso, e nella modalità chiara la stessa collisione non si vede solo perché lì il crema è chiaro. **La lightness alta è ciò che tiene `--warning` separato dall'arancio** |
+| `--sidebar` | `#141414` → **`#1C1C1C`** | sul chiaro la sidebar antracite stacca dalla pagina; sullo scuro la pagina **è** antracite, e una sidebar dello stesso valore sparisce. Sale al livello della card |
+
+Due conseguenze da conoscere, perché ricadono su altri task:
+
+- **`--accent-ink` sul fondo scuro coincide con `--primary`**: lì l'arancio pieno si legge (9.49:1). La regola per chi scrive non cambia, anzi è la ragione per cui esiste il token — `text-accent-ink` è corretta in **entrambe** le modalità, `text-primary` dà 1.79:1 sul chiaro e 9.49:1 sullo scuro, cioè è un difetto che in dark **non si vede**.
+- **`--overlay`** passa da 45% a 70% dello stesso nero Tassullo: un velo al 45% dello stesso colore della pagina non separerebbe più niente.
+
+**Il gate è cresciuto con la palette.** Verifica ora **48 coppie** (24 per modalità) e, in più, la **parità dei token** fra chiaro e scuro: stessi nomi, stesso ordine. Serve perché il blocco `@theme inline` espone le utility a partire dalle sole chiavi del chiaro — un token dichiarato solo lì resterebbe al valore chiaro in modalità scura, cioè un colore **sbagliato** e non **mancante**, che è peggio perché non si nota.
+
+**Il chiaro si emette su `:root` *e* su `.light`.** Non è un doppione: senza `.light` non esisterebbe modo di rimettere la modalità chiara *dentro* una pagina scura, e le due palette non si potrebbero guardare affiancate — che è la forma in cui una palette scura si giudica, perché alternandole con l'interruttore la memoria dell'occhio non regge.
 
 ### Cinque rilievi, tutti misurati dal gate — da chiudere in M1.2
 

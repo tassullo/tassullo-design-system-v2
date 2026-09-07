@@ -20,7 +20,8 @@
      chiaro è --accent-ink.
    ══════════════════════════════════════════════════════════════════════ */
 
-:root {
+:root,
+.light {
   --background:                     oklch(0.9726 0.0026 106.45); /* #F6F6F4 */
   --foreground:                     oklch(0.1913 0 0); /* #141414 */
   --card:                           oklch(0.994 0 0); /* #FDFDFD */
@@ -86,7 +87,77 @@
   --radius: 0.625rem;
 }
 
-/* Modalità scura — M1.3, D2 ancora aperta. */
+/* Il blocco chiaro vale anche su `.light`, non solo su `:root`: serve a
+   rimettere la modalità chiara **dentro** una pagina scura, che è la sola
+   forma in cui le due palette si possono guardare affiancate (pagina Palette
+   della style guide). Senza, in una pagina con `.dark` sulla radice non
+   esisterebbe modo di tornare chiari su un sottoalbero. */
+
+/* Modalità scura — M1.3, D2 chiusa. Il v1 non ha una palette scura: questa è
+   progettata, e le tre regole con cui è costruita stanno nello script accanto
+   alla palette. Il selettore è `.dark` sull'elemento radice, che è ciò che
+   `@custom-variant dark` di src/index.css e l'interruttore di Storybook
+   commutano. Qui si ridichiarano SOLO i token: raggi, font, scala tipografica
+   e ombre non cambiano fra le due modalità. */
+
+.dark {
+  --background:                     oklch(0.1913 0 0); /* #141414 */
+  --foreground:                     oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --card:                           oklch(0.2264 0 0); /* #1C1C1C */
+  --card-foreground:                oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --popover:                        oklch(0.2264 0 0); /* #1C1C1C */
+  --popover-foreground:             oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --primary:                        oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --primary-foreground:             oklch(0.1913 0 0); /* #141414 */
+  --primary-hover:                  oklch(0.8429 0.1376 75.59); /* #FFBE5A */
+  --primary-subtle:                 oklch(0.2801 0.0501 75.67); /* #372508 */
+  --primary-border:                 oklch(0.4222 0.0916 69.72); /* #6D4300 */
+  --accent-ink:                     oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --secondary:                      oklch(0.2686 0 0); /* #262626 */
+  --secondary-foreground:           oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --muted:                          oklch(0.2686 0 0); /* #262626 */
+  --muted-foreground:               oklch(0.7316 0 0); /* #A8A8A8 */
+  --accent:                         oklch(0.3012 0 0); /* #2E2E2E */
+  --accent-foreground:              oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --border:                         oklch(0.3012 0 0); /* #2E2E2E */
+  --border-strong:                  oklch(0.3904 0 0); /* #454545 */
+  --input:                          oklch(0.3012 0 0); /* #2E2E2E */
+  --ring:                           oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --destructive:                    oklch(0.5771 0.2152 27.33); /* #DC2626 */
+  --destructive-foreground:         oklch(1 0 0); /* #FFFFFF */
+  --success:                        oklch(0.6618 0.1352 163.94); /* #1CAC7C */
+  --success-foreground:             oklch(0.1913 0 0); /* #141414 */
+  --warning:                        oklch(0.9372 0.0514 83.4); /* #FBE8C4 */
+  --warning-foreground:             oklch(0.5239 0.1077 82.89); /* #886300 */
+  --info:                           oklch(0.7238 0.1344 241.5); /* #4BAFF2 */
+  --info-foreground:                oklch(0.1913 0 0); /* #141414 */
+  --destructive-subtle:             oklch(0.2807 0.0491 28.33); /* #3E1F1B */
+  --destructive-subtle-foreground:  oklch(0.8493 0.0804 27.37); /* #FEBAB1 */
+  --destructive-border:             oklch(0.4195 0.0992 27.08); /* #7A342E */
+  --success-subtle:                 oklch(0.2783 0.0494 164.4); /* #0B3022 */
+  --success-subtle-foreground:      oklch(0.8508 0.0797 163.87); /* #9DDFC0 */
+  --success-border:                 oklch(0.4228 0.0925 162.13); /* #005D3E */
+  --warning-subtle:                 oklch(0.2796 0.05 81.98); /* #352607 */
+  --warning-subtle-foreground:      oklch(0.8503 0.0805 83.85); /* #E7CA91 */
+  --warning-border:                 oklch(0.4225 0.0877 79.21); /* #674700 */
+  --info-subtle:                    oklch(0.2811 0.0493 240.47); /* #0F2C3F */
+  --info-subtle-foreground:         oklch(0.85 0.0801 241.59); /* #9FD5FE */
+  --info-border:                    oklch(0.4222 0.093 240.25); /* #09537B */
+  --sidebar:                        oklch(0.2264 0 0); /* #1C1C1C */
+  --sidebar-foreground:             oklch(0.7316 0 0); /* #A8A8A8 */
+  --sidebar-primary:                oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --sidebar-primary-foreground:     oklch(0.1913 0 0); /* #141414 */
+  --sidebar-accent:                 oklch(0.3012 0 0); /* #2E2E2E */
+  --sidebar-accent-foreground:      oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --sidebar-border:                 oklch(0.3012 0 0); /* #2E2E2E */
+  --sidebar-ring:                   oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --overlay:                        oklch(0.1913 0 0 / 0.702); /* #141414B3 */
+  --chart-1:                        oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --chart-2:                        oklch(0.8359 0 0); /* #C9C9C9 */
+  --chart-3:                        oklch(0.7316 0 0); /* #A8A8A8 */
+  --chart-4:                        oklch(0.65 0 0); /* #8F8F8F */
+  --chart-5:                        oklch(0.5348 0 0); /* #6D6D6D */
+}
 
 @theme inline {
   /* ── Colori ──────────────────────────────────────────────────────────
