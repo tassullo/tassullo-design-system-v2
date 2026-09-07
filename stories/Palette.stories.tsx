@@ -19,6 +19,16 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  * `npm run check:contrast`, che è il gate. Una seconda misura in pagina
  * potrebbe divergere dalla prima, e allora non si saprebbe a quale credere.
  * Il click-to-copy e l'elenco completo dei token arrivano in M1.5.
+ *
+ * **Niente `opacity-*` sul testo, mai, e qui meno che altrove.** La prima
+ * versione di questa pagina metteva `opacity-80` sulla terza riga di ogni
+ * tessera per attenuarla: axe-core ha trovato 9 violazioni di contrasto, tutte
+ * lì. Una coppia che passa a 4.55:1 sbiadita all'80% scende a 3.17:1 — la
+ * pagina che dimostra il contrasto lo stava rompendo. L'opacità su un testo
+ * NON è una scelta tipografica: è un cambio di colore che nessun token
+ * dichiara e che il gate delle coppie non può vedere, perché avviene in
+ * composizione, nel browser. Se una riga deve pesare meno, si usa un token
+ * più tenue — che è già stato misurato — o un gradino tipografico più piccolo.
  */
 
 type Tessera = { token: string; su?: string; nota?: string }
@@ -118,7 +128,7 @@ function Coppia({ token, su, nota }: Tessera) {
       <div className="mt-1 text-base font-medium" style={{ color: `var(--${su})` }}>
         Testo su questo fondo
       </div>
-      <div className="mt-1 font-mono text-xs opacity-80" style={{ color: `var(--${su})` }}>
+      <div className="mt-1 font-mono text-xs" style={{ color: `var(--${su})` }}>
         --{su}
         {nota ? ` · ${nota}` : ''}
       </div>
@@ -184,20 +194,6 @@ function Affiancate() {
     <div className="min-h-dvh bg-background">
       <header className="mx-auto max-w-page px-5 pt-6 pb-2">
         <h1 className="text-title font-semibold text-foreground">Palette</h1>
-        <p className="mt-2 text-base text-muted-foreground">
-          Le due modalità affiancate. Il gate del contrasto (
-          <code className="font-mono text-sm">npm run check:contrast</code>) verifica{' '}
-          <strong>24 coppie per modalità, 48 in tutto</strong>, con soglia 4.5:1: qui non si
-          rimisurano i numeri, si guarda ciò che i numeri non dicono — se le famiglie pesano
-          uguale, se qualcosa salta all’occhio più di quanto meriti.
-        </p>
-        <p className="mt-2 text-base text-muted-foreground">
-          I tre punti da giudicare a occhio, dove la misura non decide: il crema di{' '}
-          <code className="font-mono text-sm">--warning</code> sul fondo scuro (passa, ma è la cosa
-          più luminosa della pagina), la sidebar scura alzata a{' '}
-          <code className="font-mono text-sm">#1C1C1C</code> per non sparire nella pagina, e il blu
-          di <code className="font-mono text-sm">--info</code>, l’unico pieno ricalcolato.
-        </p>
       </header>
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2">
         <Colonna modo="light" etichetta="Chiaro" />

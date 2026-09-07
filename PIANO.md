@@ -191,9 +191,18 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
   **Rimisurati in modalità scura (M1.3, 2026-09-07), e cambiano il quadro su due punti:**
 
   - `variant: link` in dark dà **9.49:1** e passa. Il difetto **esiste solo in chiaro**, quindi guardando la primitiva con l'interruttore sullo scuro sembra a posto: è il primo caso concreto di un rilievo che una sola delle quattro combinazioni rivela, ed è la ragione per cui l'accettazione ne chiede quattro. Il rimedio previsto regge in entrambe perché `--accent-ink` è definito per modalità: `text-accent-ink` dà 4.77:1 in chiaro e 9.49:1 in scuro, **una sola classe**.
-  - `variant: destructive` in dark dà **3.25:1** (fondo composito `#3C1818`, testo `#DC2626`): peggiora, e resta sotto soglia in entrambe le modalità. La correzione prevista non cambia.
+  - `variant: destructive` resta sotto soglia in entrambe. La correzione prevista non cambia.
 
-  Da qui una regola operativa per tutta la FASE 2: **una misura fatta in una sola modalità non è una misura.** Le coppie di token le copre `check:contrast` su entrambe; come i componenti le accostano no, e finché non c'è axe-core (M2.9) lo copre solo l'occhio — su tutte e quattro le combinazioni.
+  **Misure rifatte con axe-core sulla story `Primitive/Button` (2026-09-07), e sono queste a fare fede** — non le stime a mano di §2bis, che le precedono e che axe corregge leggendo il pixel composito invece del token:
+
+  | variante | chiaro | scuro |
+  |---|---|---|
+  | `destructive` | **3.82:1** | **3.57:1** |
+  | `link` | **1.79:1** | *nessuna violazione* |
+
+  Sono le **2 violazioni axe oggi aperte** in tutto il progetto, entrambe in carico a questo task. Chiuderle qui riporta il conto a zero, che è la condizione da cui M2.9 deve partire per poter mettere `a11y.test = 'error'` senza trovarsi la CI rossa il primo giorno.
+
+  Da qui una regola operativa per tutta la FASE 2: **una misura fatta in una sola modalità non è una misura.** Le coppie di token le copre `check:contrast` su entrambe; come i componenti le accostano no. **axe-core c'è già** — è nel pannello Accessibility di ogni story, dal primo giorno: quello che M2.9 aggiunge non è lo strumento ma l'**automazione** (`a11y.test = 'error'` in CI). Fino ad allora il pannello si guarda a mano, in entrambe le modalità, prima di dichiarare finito un task (regola in `CLAUDE.md` §Conduzione).
 
   **Nota sulla scala tipografica**: con la scala Tassullo `text-sm` vale 12px invece dei 14px di default di Tailwind, quindi i bottoni del preset — che usano `text-sm` — sono più piccoli di prima. Da decidere qui quale gradino è quello giusto per il bottone, misurando.
 
@@ -248,6 +257,10 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
   **Da fare passare anche `npm run check:registry`** (regola 4bis): a fine FASE 2 ogni primitiva deve avere il suo originale in `registry/.upstream/`, forma identica a shadcn, zero valori arbitrari nostri, e il conto dei token custom usati dentro i componenti scritto a verbale — è il costo che si pagherà a ogni aggiornamento di shadcn, e va conosciuto prima di arrivare a 40 componenti.
 
   **Perché questo gate non è rimandabile.** `check:contrast` (M1.1) verifica le **coppie di token**, non come i componenti le accostano. In M1.2 tre difetti reali della `button` del preset — fra cui un `text-primary` a 1.79:1 — sono passati sotto al gate e sono stati trovati a occhio sul workbench. axe-core sulle story è il controllo che li avrebbe presi: finché non c'è, ogni primitiva della FASE 2 va guardata a mano.
+
+  **Precisazione da M1.3 (2026-09-07): axe-core c'è già** — è nel pannello Accessibility di ogni story dal primo giorno, e in M1.3 ha trovato **9 violazioni vere** su una pagina appena scritta. Quello che manca, e che questo task aggiunge, non è lo strumento ma **l'automazione**: oggi il pannello va aperto a mano e nulla obbliga a farlo. Fino ad allora la regola sta in `CLAUDE.md` §Conduzione — pannello a zero, in entrambe le modalità, prima di dichiarare finito un task.
+
+  **Condizione d'ingresso di questo task**, e va verificata prima di girare l'interruttore: il conto delle violazioni aperte deve essere **zero**. Non lo è: `Primitive/Button` ne ha 2, in carico a M2.1. Mettere `a11y.test = 'error'` con violazioni note aperte significa una CI rossa il primo giorno, e una CI rossa il primo giorno è una CI che qualcuno disattiva la settimana dopo.
 
 ---
 

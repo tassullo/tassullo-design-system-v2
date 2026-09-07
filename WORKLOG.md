@@ -405,3 +405,45 @@ Cambiato anche `--overlay`, da 45% a 70% dello stesso nero Tassullo: un velo al 
 ### Prossimi passi
 
 **M1.4** — densità touch. Sono già noti i due pezzi che mancano: lo **scatto di tipografia**, che non deriva da `--spacing` e quindi non arriva da solo, e la verifica che lo scaling non deformi larghezze massime, icone e sidebar. Il valore provvisorio in `src/index.css` è `0.34375rem` e va chiuso lì (`docs/DECISIONI.md` §6). Con M1.3 fatto, la densità va ora provata su **quattro** combinazioni e non due.
+
+## 2026-09-07 — Il pannello Accessibility guardato davvero: 9 violazioni, tutte mie
+
+Rilievo di Francesco su M1.3, e aveva ragione due volte: sulla pagina Palette (troppo testo di commento) e sul pannello **Accessibility** di Storybook, che segnava **Violations 1** — *serious*, `color-contrast`, 9 nodi. Avevo dichiarato il task finito senza aprirlo. È il difetto più imbarazzante possibile su un task il cui criterio è il contrasto.
+
+### Cosa dice axe, e cosa dicevo io
+
+Prima di guardare ho provato a stimare a mano con uno script nel browser: **sbagliava tutto**, perché i colori calcolati sono `oklch(…)` e il mio parser leggeva i numeri come se fossero RGB — 216 falsi positivi con rapporto 1.00 su testo perfettamente leggibile. Scartato e caricato axe-core vero (`node_modules/axe-core`, servito via `/@fs/` dal dev server di Storybook). Lezione secca: **quando esiste lo strumento, si usa lo strumento**; una misura fatta al volo che non si sa validare è peggio di nessuna misura, perché sembra un dato.
+
+Le 9 violazioni erano **tutte la stessa cosa, e tutte mie**: `opacity-80` sulla terza riga di ogni tessera, messa per attenuarla. Una coppia che passa a 4.55:1 sbiadita all'80% scende a **3.17:1**. La pagina che dimostra il contrasto lo stava rompendo.
+
+**Il punto generale, che vale oltre questa pagina.** `opacity-*` su un testo **non è una scelta tipografica**: è un cambio di colore che nessun token dichiara e che avviene *in composizione*, nel browser. `check:contrast` non può vederlo — verifica coppie di token, e i due token qui sono giusti. Se una riga deve pesare meno si usa un token più tenue, che è già stato misurato, o un gradino tipografico più piccolo. Scritto nel commento in testa alla story, dove chi la modifica lo trova.
+
+Tolta l'opacità e tolti i due paragrafi di commento dall'intestazione: **axe su tutte le regole, 0 violazioni e 0 incomplete**, 9 controlli passati.
+
+### E intanto axe ha confermato i rilievi su `button`, correggendo le mie stime
+
+Passato lo stesso controllo su `Primitive/Button`, in **entrambe** le modalità:
+
+| variante | chiaro | scuro |
+|---|---|---|
+| `destructive` | **3.82:1** | **3.57:1** |
+| `link` | **1.79:1** | *nessuna violazione* |
+
+Due cose. La prima: axe **conferma sperimentalmente** ciò che avevo dedotto poche ore fa dai token — il difetto di `link` **esiste solo in chiaro** e in scuro non compare affatto. La seconda: le mie stime a mano per `destructive` (3.94 chiaro / 3.25 scuro) erano **sbagliate di poco ma sbagliate**, perché calcolavo la composizione io invece di leggere il pixel. Le misure di axe sostituiscono le mie nel blocco M2.1, e da qui in poi **fa fede axe**.
+
+### La regola, perché non dipenda dal fatto che me lo ricordi
+
+In `CLAUDE.md` §Conduzione: **prima di dichiarare finito un task, il pannello Accessibility di ogni story toccata deve essere a zero violazioni, guardato in entrambe le modalità.** Una violazione o si chiude, o si annota nel blocco del task che la chiuderà, con la misura.
+
+Con una precisazione che mancava in tutto il piano e che chiarisce M2.9: **axe-core c'è già**, è nel pannello di ogni story dal primo giorno. Quello che M2.9 aggiunge non è lo strumento ma l'**automazione** (`a11y.test = 'error'` in CI). Annotata anche la sua **condizione d'ingresso**: il conto delle violazioni aperte deve essere zero prima di girare l'interruttore, e oggi non lo è (2 su `button`, in carico a M2.1). Una CI rossa il primo giorno è una CI che qualcuno disattiva la settimana dopo.
+
+### Verifiche eseguite
+
+- axe-core su `Tema/Palette`, tutte le regole: **0 violazioni, 0 incomplete, 9 passate**.
+- axe-core su `Primitive/Button` in chiaro e in scuro: 2 violazioni note, entrambe già in carico a M2.1 e ora misurate.
+- `npm run check` (contrasto + registry), `npx tsc -b --force`, `npx oxlint`, `npm run build`, `npm run build-storybook`: verdi.
+- Screenshot `docs/img/M1.3-palette-chiaro-scuro.png` rifatto sulla pagina corretta.
+
+### Rimasto fuori, di proposito
+
+Le note **sotto ogni gruppo** ("L'arancio è identico nelle due modalità…", "Le quattro famiglie devono pesare uguale…") sono rimaste: sono didascalie del gruppo, non preambolo, e servono a dire cosa guardare in quelle tessere. Se anche quelle sono di troppo, si tolgono.

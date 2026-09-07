@@ -71,6 +71,9 @@ Da sapere per non farci conto a sproposito: l'MCP è **solo lato consumo**. Non 
 - Quando una decisione **D** si chiude, si scrive **nel WORKLOG con la motivazione** e si aggiorna la riga in `CHECKLIST.md`. Una decisione chiusa senza motivazione scritta si riapre da sola fra tre mesi.
 - Uno **scostamento** dal piano (un componente che non regge, una libreria scartata, un'eccezione a Base UI) o si corregge, o si annota nel WORKLOG con la ragione. Mai in silenzio.
 - I **criteri di accettazione** dei task del piano si verificano davvero, non si dichiarano: se un criterio dice "cronometrato", si cronometra; se dice "verificato da tastiera", si prova la tastiera.
+- **Prima di dichiarare finito un task, il pannello Accessibility di ogni story toccata deve essere a zero violazioni** — e va guardato in **entrambe** le modalità, perché un difetto può esistere in una sola (provato: `variant: link` del bottone dà 1.79:1 in chiaro e **non compare affatto** in scuro). Una violazione o si chiude, o si annota nel blocco del task che la chiuderà, con la misura. Non si lascia accesa senza che sia scritto da qualche parte chi la prende in carico.
+  Questo **non** è il gate di M2.9: quello è axe-core in CI, che rende il controllo automatico e continuo. Fino ad allora il controllo esiste lo stesso, e lo si fa a mano. `check:contrast` non lo sostituisce: verifica le **coppie di token**, non come i componenti le accostano — l'opacità su un testo, per esempio, cambia il colore in composizione e nessun token la dichiara.
+  Violazioni oggi aperte e già assegnate: **2 su `Primitive/Button`** (`destructive` 3.82:1 in chiaro e 3.57:1 in scuro; `link` 1.79:1 in chiaro), entrambe in carico a **M2.1**.
 
 ## §Comandi
 
