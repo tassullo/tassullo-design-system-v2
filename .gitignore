@@ -1,0 +1,37 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Segreti e configurazione locale: non entrano mai nel repo
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Storybook
+*storybook.log
+storybook-static
+
+# NOTA: `public/r/` NON si ignora. È il registry compilato da `npm run
+# registry:build`, cioè l'artefatto che la CLI e l'MCP leggono davvero e che
+# GitHub servirà come registry a D4 chiusa (docs/DECISIONI.md §9).

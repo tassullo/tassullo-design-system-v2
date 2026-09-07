@@ -1,0 +1,35 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Introduzione" />
+
+# Tassullo Design System 2.0
+
+Questa è la **style guide** del design system: non una pagina che imita i
+componenti, ma i componenti React veri, montati e manovrabili. È l'erede di
+`styleguide.html` del v1, e la differenza sta tutta qui — quella era HTML
+scritto a mano, e ogni volta che divergeva dal codice reale le app divergevano
+con lei.
+
+## Le tre sezioni
+
+- **Tema** — i token: palette in chiaro e in scuro, tipografia, raggi, densità.
+  È il livello che regge tutto il resto (FASE 1).
+- **Primitive** — i mattoni shadcn ri-stilati Tassullo: bottoni, campi,
+  overlay, tabelle, navigazione (FASE 2).
+- **Blocchi** — i pattern che si ripetono nelle app dello studio e che shadcn
+  non copre: app shell, data table, stati, upload, diff (FASE 3).
+
+## I tre interruttori
+
+Nella barra in alto, e vanno usati tutti e tre: ogni componente si guarda in
+**chiaro e scuro**, in densità **normale e touch** (i bersagli da ≥44px per chi
+lavora in cantiere coi guanti) e nei due formati **Scrivania 1440** e
+**Telefono 375**. Sono quattro combinazioni per due formati: se un componente
+regge solo la prima, non è finito.
+
+## Accessibilità
+
+Ogni story passa da **axe-core** (pannello *Accessibility*). Oggi le violazioni
+si segnalano soltanto; da **M2.9** fanno fallire la CI, e il minimo di
+accessibilità che `docs/INTERFACCE.md` §1 di Anagrafe pone diventa una cosa che
+la macchina verifica invece di una cosa che ci si ricorda.

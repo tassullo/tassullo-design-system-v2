@@ -1,0 +1,16 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  /* Ripetuti anche qui, oltre che in tsconfig.app.json: è il file che la CLI
+     shadcn legge per capire gli alias del progetto (documentazione Vite).
+     Niente `baseUrl`: deprecato in TS 6.0, e i `paths` relativi non lo richiedono. */
+  "compilerOptions": {
+    "paths": {
+      "@/registry/*": ["./registry/*"],
+      "@/*": ["./src/*"]
+    }
+  }
+}

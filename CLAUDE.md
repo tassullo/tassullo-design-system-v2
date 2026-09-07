@@ -1,0 +1,73 @@
+# CLAUDE.md — **Tassullo Design System 2.0** (registry shadcn/ui)
+
+## §Cos'è questo repo
+
+Fonte unica dello stile visivo delle app Tassullo, in forma di **registry shadcn**: non un pacchetto da installare, ma un catalogo da cui la CLI **copia codice sorgente** dentro l'app che lo consuma. Si installa con `npx shadcn@latest add <registry>/<item>`. Contiene il tema (token), le primitive, i blocchi applicativi e le pagine modello.
+
+Rapporto col v1 (`tassullo-design-system`, pacchetto `@tassullo/theme`): **resta in produzione e non si tocca**. Anagrafe, Studio e Officina ci restano sopra finché ognuna non decide di passare, seguendo la guida di migrazione che si scrive in M5.5. Del v1 il v2 eredita solo l'**identità visiva** — palette, font, raggi, densità — tradotta nella convenzione shadcn.
+
+Stack: Vite + React 19 + TypeScript, Tailwind v4, Storybook come style guide.
+
+## §Da dove partire, sempre
+
+A inizio sessione leggere **solo** questi tre, più la sezione di `PIANO.md` del task in corso:
+
+1. **`PIANO.md`** — documento unico: analisi, sei fasi, 42 sessioni con Prompt/File/Accettazione, decisioni e assunzioni. Non esiste un `docs/PIANO.md`: il piano è questo.
+2. **`CHECKLIST.md`** — **fonte di verità dell'avanzamento**: stato di ogni task (`TODO | IN_PROGRESS | BLOCKED | REVIEW | DONE`), dipendenze, criterio sintetico.
+3. **`WORKLOG.md`** — diario: leggere le **ultime voci**, non tutto lo storico. Non c'è archiviazione: su 42 sessioni il file resta consultabile per intero.
+
+Riferimento: **`docs/DECISIONI.md`** — le decisioni tecniche già accertate sul campo, con la prova che le sostiene. Da consultare prima di rimettere in discussione una scelta di stack, e da aggiornare quando se ne accerta una nuova. Dove contraddice `PIANO.md`, vince `DECISIONI.md` e la contraddizione è annotata.
+
+Un task = una sessione, salvo indicazione contraria nel piano (l'unico doppio è M3.3).
+
+## §Regola permanente
+
+**Nessuna app tiene una copia dei token o dei componenti.** Se a un'app serve un token nuovo, una variante o un pattern non coperto, si propone e si aggiunge **qui**, nel registry — mai localmente "per ora" nell'app. È la regola che ha tenuto insieme il v1 ed è la stessa che tiene insieme il v2: la deriva delle app comincia sempre da un'eccezione temporanea.
+
+## §Regole di scrittura del codice
+
+1. Gli import interni al registry usano **sempre** `@/registry/...`, mai `src/components`. È una convenzione shadcn, non un gusto: da essa dipende che i file atterrino nei path giusti nell'app consumer.
+2. Le primitive sono **Base UI** (D9, chiusa il 2026-09-07). Non è disciplina da ricordare a ogni comando: è configurazione, e sta nel campo **`"style": "base-nova"`** di `components.json`, impostato a `init` con `--base base` (accertato in M0.2, vedi `docs/DECISIONI.md` §1 — rettifica `PIANO.md` §0bis, che lo dava per non configurabile). La regola operativa è quindi: **non si cambia `style`**. `add` non ha un flag per sovrascriverlo; un'eventuale eccezione (l'unica prevista è il calendario, M2.7) va presa per indirizzo esplicito e motivata a verbale in `WORKLOG.md`.
+3. Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrari (`h-[37px]`, `bg-[#F4AC3D]`, `text-[13px]`), niente hex, mai — vale anche negli `style={{…}}` inline e nei `fill`/`stroke` degli SVG.
+4. I componenti si modificano **nel registry**, mai nell'app consumer. Un componente corretto in casa è un componente che diverge al primo aggiornamento.
+5. La densità non si ottiene patchando le primitive: in Tailwind v4 le utility di dimensione derivano da `--spacing`, quindi **una riga** — `[data-density="touch"] { --spacing: … }` — scala altezze, padding, gap e icone. Il valore oggi in `src/index.css` è `0.34375rem` ed è **provvisorio**: porta a 44px il bottone di default, che in questo preset è `h-8` (32px) e non `h-9` come stimava il piano. Si chiude in **M1.4**, dove mancano ancora lo scatto di tipografia (che **non** deriva da `--spacing`) e la verifica che lo scaling non deformi larghezze massime, icone e sidebar. Vedi `docs/DECISIONI.md` §6.
+6. Le **story stanno accanto al componente**, dentro il registry (`registry/tassullo/ui/button.stories.tsx`); `stories/` in root ospita solo le pagine trasversali della style guide. Il `title` della story apre con la sezione — `Tema/`, `Primitive/`, `Blocchi/`, `Pagine/` — perché l'ordine dell'indice è fissato in `.storybook/preview.tsx` con `storySort`. Storybook **non** cerca story in `src/`: quella cartella è solo il workbench di sviluppo.
+7. Le primitive generate importano `cn` **dal pacchetto npm `cn`**, non dall'alias `utils`: in shadcn 4.x è un pacchetto, e `registry/tassullo/lib/utils.ts` è un re-export. Non "correggerlo" in `@/registry/tassullo/lib/utils`. Conseguenza per **M5.1**: ogni item che usa `cn`, o un'icona Lucide, deve dichiararlo fra le proprie `dependencies` npm, o l'app consumer non compila.
+
+## §Le due trappole che costano riscritture
+
+- **`--primary` è l'arancio del brand; `--accent`, in shadcn, è il grigio di hover dei menu.** Nel v1 `--color-accent` **era** il brand: confonderli tinge di arancione metà degli hover dell'interfaccia. Il brand sta in `--primary`; per l'arancio leggibile **come testo** su fondo chiaro c'è il token custom `--accent-ink` (`--primary` non è mai usabile per il testo).
+- **Il nome dice la funzione, non l'aspetto.** `badge` è un'etichetta che **si legge**; `toggle-group` è un filtro che **si clicca**. Nel v1 confonderli è costato riscritture ripetute. Prima di scegliere un componente, chiedersi cosa fa l'elemento, non a cosa somiglia.
+
+## §Prima di scrivere un componente, chiedilo all'MCP
+
+Il server MCP di shadcn (installato in M0.4, `npx shadcn@latest mcp init --client claude`) legge i registry dichiarati in `components.json` e sa **elencare, cercare e installare**. Se un componente esiste già nel registry Tassullo, si installa — non si riscrive. È il meccanismo con cui le app smettono di divergere, e vale sia qui dentro sia in ogni app consumer.
+
+Da sapere per non farci conto a sproposito: l'MCP è **solo lato consumo**. Non costruisce registry, non genera temi, non scrive componenti. Quel lavoro resta nostro.
+
+## §Confini
+
+- **Non si toccano** il repo v1 `tassullo-design-system` né le app **Anagrafe, Studio e Officina**. Anagrafe si **legge** come fonte di analisi — il suo codice dice quali componenti sono già stati riscritti a mano, la sua `ROADMAP.md` quali serviranno — e serve da banco di prova **a secco** della guida di migrazione (M5.5). L'unica scrittura prevista su Anagrafe, in tutto il piano, è il passo 0 di M5.5: due file di configurazione (`components.json`, `.mcp.json`), additivi e reversibili, che non toccano né codice né stili.
+- **Nessun `git remote` finché D4 è aperta.** Il repo resta locale: è una decisione, non una dimenticanza, e va ricordata a chi proponesse di pubblicare. Solo M5.6 è bloccato da D4; tutto il resto — compresa la prova d'installazione end-to-end di M5.2 — si fa in locale.
+- **Ma non "via percorso di file", come dice il piano.** La CLI non sa leggere un registry da `file://`: lo riconosce e non lo implementa. Installare da un percorso locale funziona; **sfogliare** (`list`, `search`, tutto l'MCP) no, perché quei comandi risolvono l'indice via rete. Perciò il registry locale è servito in HTTP dal workbench. Accertato in M0.4, `docs/DECISIONI.md` §9 — con la ricaduta su **M5.5**, dove il passo 0 su Anagrafe va ripensato o rimandato a D4 chiusa.
+
+## §Conduzione
+
+- **A fine task**: aggiornare la riga in `CHECKLIST.md` e aggiungere la voce in `WORKLOG.md` (attività svolte, modifiche, decisioni tecniche, problemi, test eseguiti, prossimi passi). Non è burocrazia: è ciò che permette alla sessione successiva di leggere tre file invece di ricostruire il contesto.
+- Quando una decisione **D** si chiude, si scrive **nel WORKLOG con la motivazione** e si aggiorna la riga in `CHECKLIST.md`. Una decisione chiusa senza motivazione scritta si riapre da sola fra tre mesi.
+- Uno **scostamento** dal piano (un componente che non regge, una libreria scartata, un'eccezione a Base UI) o si corregge, o si annota nel WORKLOG con la ragione. Mai in silenzio.
+- I **criteri di accettazione** dei task del piano si verificano davvero, non si dichiarano: se un criterio dice "cronometrato", si cronometra; se dice "verificato da tastiera", si prova la tastiera.
+
+## §Comandi
+
+- `npm run dev` — il workbench, **porta 5180 fissa** (`strictPort`: l'avvio fallisce invece di scivolare su un'altra porta). Non è solo una pagina di prova: serve `public/` alla radice, quindi **è anche il server del registry Tassullo** che l'MCP interroga.
+- `npm run lint` — oxlint. `npm run build` — `tsc -b` più la build di produzione.
+- `npm run storybook` — la style guide 2.0 in locale. **Va servita via HTTP**: il doppio clic sul file del v1 non torna, ed è il prezzo di montare i componenti React veri invece di imitazioni HTML.
+- `npm run build-storybook` — produce `storybook-static/`, sito statico (anch'esso da servire via HTTP).
+- `npm run check:contrast` — verifica il rapporto di contrasto di ogni coppia `X`/`X-foreground`, **uscendo con codice 1 sotto 4.5:1**. Erede di `stylelint-config.cjs` del v1: senza un controllo automatico la regola si perde in poche settimane.
+- `npm run registry:build` — compila `registry.json` nei JSON che la CLI e l'MCP leggono davvero (`public/r/`, uno per item più l'indice). **`public/r/` si committa**: è l'artefatto che GitHub servirà come registry a D4 chiusa. Da rilanciare dopo ogni modifica agli item.
+- `npx shadcn@latest <comando>` — `init`, `add` (anche `--dry-run`), `build`, `registry validate`, `list`, `view`, `search`, `docs`, `info`, `migrate`. **La CLI non si installa globalmente**: si usa per progetto con `npx`, così è sempre aggiornata. L'unico prerequisito d'ambiente è Node aggiornato.
+
+**Per sfogliare il registry Tassullo dall'MCP il workbench deve essere acceso.** Il registry compilato è servito dal dev server di Vite (`http://localhost:5180/r/…`), perché la CLI **non** sa leggere un registry da `file://` — riconosce lo schema ma non lo implementa (`docs/DECISIONI.md` §9). Se l'MCP dice che il registry Tassullo è vuoto: prima si controlla che `npm run dev` sia su, poi che `npm run registry:build` sia stato rilanciato.
+
+Nota per le prime sessioni: i comandi `npm run …` **esistono solo da M0.2 in poi** (Storybook da M0.3, `check:contrast` da M1.1). Prima non c'è ancora un `package.json`, e non è un guasto.

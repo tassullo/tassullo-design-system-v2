@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "tassullo",
+  "homepage": "https://github.com/tassullo/tassullo-design-system-v2",
+  "items": [
+    {
+      "name": "button",
+      "type": "registry:ui",
+      "title": "Button",
+      "description": "Bottone Tassullo: varianti semantiche, quattro taglie testuali e quattro taglie icona. Base UI.",
+      "dependencies": ["@base-ui/react", "class-variance-authority", "cn", "lucide-react"],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    }
+  ]
+}
