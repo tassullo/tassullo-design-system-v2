@@ -6,7 +6,7 @@
 
 ## FASE 0 — Scaffold e fondamenta (5 sessioni)
 
-Gate: `npm run storybook` mostra una primitiva shadcn di prova con Tailwind v4 attivo e i tre interruttori (tema, densità, viewport); i quattro documenti di conduzione esistono; git locale inizializzato.
+Gate: `npm run storybook` mostra una primitiva shadcn di prova con Tailwind v4 attivo e i tre interruttori (tema, densità, viewport); i quattro documenti di conduzione esistono; git locale inizializzato. **Gate superato il 2026-09-07** (commit `a435201`).
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
@@ -14,7 +14,7 @@ Gate: `npm run storybook` mostra una primitiva shadcn di prova con Tailwind v4 a
 | M0.2 Scaffold Vite + Tailwind v4 + `shadcn init` | DONE | M0.1 | `npm run dev` con utility Tailwind attiva; `shadcn add button` compila **in variante Base UI**, meccanismo di selezione scritto in `docs/DECISIONI.md` |
 | M0.3 Storybook: la style guide 2.0 | DONE | M0.2 | `npm run storybook` apre l'indice con una story di prova; i tre interruttori funzionano; `build-storybook` produce `storybook-static/` servibile |
 | M0.4 MCP shadcn e prerequisiti d'ambiente | DONE | M0.2 | dall'MCP si elencano i componenti shadcn **e** gli item del registry Tassullo locale; versioni Node/npm annotate in `docs/DECISIONI.md` |
-| M0.5 Git locale | IN_PROGRESS | M0.1..M0.4 | `git log` col commit iniziale, `git remote -v` vuoto (D4), `CLAUDE.md` rivisto su ciò che le 4 sessioni hanno prodotto davvero |
+| M0.5 Git locale | DONE | M0.1..M0.4 | `git log` col commit iniziale, `git remote -v` vuoto (D4), `CLAUDE.md` rivisto su ciò che le 4 sessioni hanno prodotto davvero |
 
 ## FASE 1 — Tema Tassullo (5 sessioni)
 
