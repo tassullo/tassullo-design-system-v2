@@ -19,9 +19,13 @@
  *   npm run check:contrast -- --self-test   prova che il gate sa fallire
  */
 
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+
 import { oklch, wcagContrast, formatHex, converter } from "culori";
 
 const MIN_RATIO = 4.5;
+const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
 
 // ───────────────────────────────────────────────────────────────────────────
 // La palette. Chiave = nome del token shadcn (senza `--`), valore = hex v1.
@@ -46,16 +50,15 @@ const light: Palette = {
   "primary-hover": "#E8990C", // v1 --color-accent-hover (custom: shadcn non ce l'ha)
   "primary-subtle": "#FCF0DB", // v1 --color-accent-light
   "primary-border": "#F5D9A8", // v1 --color-accent-border
-  "accent-ink": "#B45309", // v1 --color-accent-ink: l'arancio LEGGIBILE come testo
+  "accent-ink": "#B25105", // v1 --color-accent-ink #B45309, ΔL 0.006 per 4.5:1 su --primary-subtle
 
   // ── Neutri ───────────────────────────────────────────────────────────────
   secondary: "#ECEAE8", // v1 --color-surface-2
   "secondary-foreground": "#141414",
   muted: "#ECEAE8",
-  "muted-foreground": "#6E6B67", // v1 --color-text-muted
+  "muted-foreground": "#6C6965", // v1 --color-text-muted #6E6B67, ΔL 0.006 per 4.5:1 su --muted
   accent: "#F4F3F1", // v1 --color-surface-3 — hover dei menu, NON il brand
   "accent-foreground": "#141414",
-  "foreground-hint": "#A8A5A1", // v1 --color-text-hint (custom)
   border: "#DDDBDB", // v1 --color-border
   "border-strong": "#C4C4C4", // v1 --color-border-strong (custom)
   input: "#DDDBDB",
@@ -67,7 +70,7 @@ const light: Palette = {
   success: "#1CAC7C", // v1 --color-success
   "success-foreground": "#141414", // divergenza dal v1: vedi §2bis
   warning: "#FBE8C4", // v1 --color-badge-warn-bg
-  "warning-foreground": "#8A6500", // v1 --color-badge-warn-text
+  "warning-foreground": "#886300", // v1 --color-badge-warn-text #8A6500, ΔL 0.006 per 4.5:1
   info: "#1A5276", // v1 --color-info-text, qui usato come fondo pieno
   "info-foreground": "#FFFFFF",
 
@@ -94,6 +97,20 @@ const light: Palette = {
   "sidebar-accent-foreground": "#EDEDEB", // v1 --color-sidebar-text-hi
   "sidebar-border": "#262626",
   "sidebar-ring": "#F4AC3D",
+
+  // ── Velo delle modali ────────────────────────────────────────────────────
+  overlay: "#14141473", // v1 --color-overlay: rgba(20, 20, 20, 0.45)
+
+  // ── Serie dei grafici — PROVVISORI ───────────────────────────────────────
+  // Ereditati dal preset `nova`, scala di grigi. Il v1 non ha una palette
+  // categorica: la definisce M2.8, che deve renderne 5 distinguibili anche in
+  // scala di grigi. Restano qui perché senza di loro le primitive che li
+  // referenziano non renderebbero; non sono token Tassullo.
+  "chart-1": "#C9C9C9",
+  "chart-2": "#8F8F8F",
+  "chart-3": "#6D6D6D",
+  "chart-4": "#575757",
+  "chart-5": "#3C3C3C",
 };
 
 /** FASE 1 / M1.3 — modalità scura. Si compila lì, non qui (D2 aperta). */
@@ -154,8 +171,6 @@ const PAIRS: Pair[] = [
   ["sidebar", "sidebar-accent-foreground", "voce di sidebar attiva"],
   ["sidebar-accent", "sidebar-accent-foreground", "voce di sidebar in hover"],
   ["sidebar-primary", "sidebar-primary-foreground", "badge nella sidebar"],
-  ["background", "foreground-hint", "placeholder su pagina"],
-  ["card", "foreground-hint", "placeholder su input"],
 ];
 
 /**
@@ -163,11 +178,11 @@ const PAIRS: Pair[] = [
  * Un'esenzione senza ragione è un contrasto rotto travestito da decisione.
  */
 const EXEMPT: Record<string, string> = {
-  "background/foreground-hint":
-    "placeholder: ereditato dal v1, sotto soglia. Decisione in M1.2 — alzare il colore o riservarlo alle sole meta-info non testuali.",
-  "card/foreground-hint": "come sopra.",
+  // Vuoto, e va tenuto vuoto. Un'esenzione senza ragione scritta è un
+  // contrasto rotto travestito da decisione. Il terzo livello di testo del v1
+  // (--color-text-hint) non è stato esentato: è stato eliminato, perché a
+  // 4.5:1 collassa su --muted-foreground (PIANO.md §2bis, rilievo 2).
 };
-
 // ───────────────────────────────────────────────────────────────────────────
 
 const toOklch = converter("oklch");
@@ -175,15 +190,125 @@ const toOklch = converter("oklch");
 function css(value: string): string {
   const c = toOklch(value)!;
   const r = (n: number, d: number) => Number(n.toFixed(d));
-  return `oklch(${r(c.l, 4)} ${r(c.c, 4)} ${r(c.h ?? 0, 2)})`;
+  const alpha = c.alpha === undefined || c.alpha === 1 ? "" : ` / ${r(c.alpha, 3)}`;
+  return `oklch(${r(c.l, 4)} ${r(c.c, 4)} ${r(c.h ?? 0, 2)}${alpha})`;
 }
 
-function emitCss(palette: Palette, selector: string): string {
+function emitTokens(palette: Palette, selector: string): string {
   const width = Math.max(...Object.keys(palette).map((k) => k.length)) + 4;
   const body = Object.entries(palette)
     .map(([k, v]) => `  ${`--${k}:`.padEnd(width)} ${css(v)}; /* ${v.toUpperCase()} */`)
     .join("\n");
   return `${selector} {\n${body}\n}`;
+}
+
+/** Ombre del v1, con il nero Tassullo convertito invece che riscritto a mano. */
+function shadow(...layers: Array<[offset: string, alpha: number]>): string {
+  return layers.map(([o, a]) => `${o} ${css(`#141414${Math.round(a * 255).toString(16).padStart(2, "0")}`)}`).join(", ");
+}
+
+/**
+ * Il file del tema per intero: non solo i colori, ma anche raggi, font, scala
+ * tipografica e ombre. È generato tutto da qui perché una metà generata e una
+ * metà scritta a mano divergono alla prima modifica — ed è il motivo per cui la
+ * palette sta nello script e non nel CSS.
+ */
+function buildTheme(): string {
+  const colorMap = Object.keys(light)
+    .map((k) => `  --color-${k}: var(--${k});`)
+    .join("\n");
+
+  return `/* ══════════════════════════════════════════════════════════════════════
+   TASSULLO DESIGN SYSTEM 2.0 — tassullo-theme.css
+
+   GENERATO da scripts/hex-to-oklch.ts. Non modificare a mano: la fonte
+   unica della palette è quello script, e \`npm run check:contrast\` fallisce
+   se questo file diverge da ciò che lo script produce.
+
+     npm run theme:build       rigenera questo file
+     npm run check:contrast    verifica contrasti e allineamento
+
+   Identità visiva ereditata da @tassullo/theme v1.2.2, tradotta nella
+   convenzione shadcn. La mappa ragionata token per token, con i rilievi e
+   le divergenze deliberate dal v1, è in PIANO.md §2bis.
+
+   Due trappole, se stai per usare un token:
+   · --primary è l'ARANCIO DEL BRAND; --accent è il grigio di hover dei menu.
+     Nel v1 --color-accent era il brand: confonderli tinge di arancione metà
+     degli hover dell'interfaccia.
+   · --primary NON è mai usabile per il testo. L'arancio leggibile su fondo
+     chiaro è --accent-ink.
+   ══════════════════════════════════════════════════════════════════════ */
+
+${emitTokens(light, ":root")}
+
+:root {
+  /* Raggio base. In shadcn --radius È il gradino \`lg\`, non \`md\`: vale quindi
+     i 10px delle card del v1, e sm/md scendono ai 4px e 6px del v1 qui sotto.
+     (PIANO.md §2bis rilievo 3 mappava --radius su --radius-md del v1: rettificato.) */
+  --radius: 0.625rem;
+}
+
+/* Modalità scura — M1.3, D2 ancora aperta. */
+
+@theme inline {
+  /* ── Colori ──────────────────────────────────────────────────────────
+     Generati da tutti i token della palette: aggiungerne uno allo script
+     lo espone automaticamente come utility (bg-*, text-*, border-*). */
+${colorMap}
+
+  /* ── Raggi ───────────────────────────────────────────────────────────
+     sm e md sono i valori del v1, NON la derivazione shadcn: con i fattori
+     0.6/0.8 i bottoni verrebbero a 4.8px invece dei 6px del v1, e le
+     primitive usano rounded-md. Da xl in su la derivazione shadcn resta. */
+  --radius-sm: 0.25rem; /* 4px — badge, tag (v1 --radius-sm) */
+  --radius-md: 0.375rem; /* 6px — bottoni, input (v1 --radius-md) */
+  --radius-lg: var(--radius); /* 10px — card, pannelli, modali (v1 --radius-lg) */
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Tipografia ──────────────────────────────────────────────────────
+     Replicall è il font istituzionale (licenza Webflow del sito): lo stack
+     lo usa se l'app lo carica via @font-face, altrimenti degrada al font di
+     sistema. Il .woff NON si distribuisce con il registry (D3). */
+  --font-sans: 'Replicall', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: var(--font-sans);
+
+  /* La scala del v1, sette gradini. Sono i soli che i blocchi devono usare:
+     i gradini Tailwind che restano oltre questi (text-2xl in su) non sono
+     tarati su Tassullo. Lo scatto in densità touch è di M1.4: NON deriva da
+     --spacing, quindi non arriva da solo. */
+  --text-xs: 11px; /* micro-etichette, sottotitoli sidebar */
+  --text-sm: 12px; /* meta, badge, voci sidebar */
+  --text-md: 13px; /* chip, breadcrumb, testi densi */
+  --text-base: 14px; /* corpo standard, input */
+  --text-lg: 15px; /* titoli card */
+  --text-xl: 18px; /* titoli sezione */
+  --text-title: 26px; /* titolo pagina */
+
+  /* ── Ombre ───────────────────────────────────────────────────────────── */
+  --shadow-sm: ${shadow(["0 1px 2px", 0.04])};
+  --shadow-md: ${shadow(["0 2px 8px", 0.06])};
+  --shadow-lg: ${shadow(["0 8px 24px", 0.12])};
+  --shadow-modal: ${shadow(["0 20px 60px", 0.25])};
+
+  /* ── Larghezza massima del contenuto di pagina (v1 --page-max-width).
+     Esposta come container per poter scrivere max-w-page e non un
+     valore arbitrario. */
+  --container-page: 1180px;
+}
+
+/* Non portati dal v1, di proposito:
+   · --space-1…6 e --space-page: in Tailwind v4 le spaziature derivano da
+     --spacing, che è anche il meccanismo della densità (M1.4). Il padding di
+     pagina del v1 (32px 40px) si scrive py-8 px-10.
+   · --transition-fast (0.15s): è già il default di Tailwind.
+   · --color-text-hint: eliminato. A 4.5:1 collassa su --muted-foreground, che
+     è il token da usare per placeholder e meta (PIANO.md §2bis rilievo 2). */
+`;
 }
 
 function check(palette: Palette, theme: string): number {
@@ -238,14 +363,14 @@ function main(): void {
   }
 
   if (args.includes("--css")) {
-    for (const { name, selector, palette } of THEMES) {
-      if (Object.keys(palette).length === 0) {
-        console.log(`/* ${selector} — palette "${name}" non ancora compilata (M1.3). */\n`);
-        continue;
-      }
-      console.log(`/* Palette Tassullo — ${name}. Generato da scripts/hex-to-oklch.ts. */`);
-      console.log(emitCss(palette, selector) + "\n");
-    }
+    console.log(buildTheme());
+    return;
+  }
+
+  if (args.includes("--write")) {
+    mkdirSync(dirname(THEME_FILE), { recursive: true });
+    writeFileSync(THEME_FILE, buildTheme());
+    console.log(`✔ scritto ${THEME_FILE}`);
     return;
   }
 
@@ -256,6 +381,21 @@ function main(): void {
       continue;
     }
     failures += check(palette, name);
+  }
+
+  // Il file del tema è generato: se qualcuno lo modifica a mano, la modifica
+  // sparirebbe al prossimo theme:build senza che nessuno se ne accorga.
+  if (existsSync(THEME_FILE)) {
+    if (readFileSync(THEME_FILE, "utf8") === buildTheme()) {
+      console.log(`\n${THEME_FILE} allineato allo script.`);
+    } else {
+      console.error(
+        `\n✖ ${THEME_FILE} NON corrisponde all'output dello script.\n` +
+          `  È un file generato: le modifiche a mano vanno riportate nella palette\n` +
+          `  di scripts/hex-to-oklch.ts, poi \`npm run theme:build\`.`,
+      );
+      failures++;
+    }
   }
 
   const esenti = Object.keys(EXEMPT).length;

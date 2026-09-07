@@ -1,0 +1,202 @@
+/* ══════════════════════════════════════════════════════════════════════
+   TASSULLO DESIGN SYSTEM 2.0 — tassullo-theme.css
+
+   GENERATO da scripts/hex-to-oklch.ts. Non modificare a mano: la fonte
+   unica della palette è quello script, e `npm run check:contrast` fallisce
+   se questo file diverge da ciò che lo script produce.
+
+     npm run theme:build       rigenera questo file
+     npm run check:contrast    verifica contrasti e allineamento
+
+   Identità visiva ereditata da @tassullo/theme v1.2.2, tradotta nella
+   convenzione shadcn. La mappa ragionata token per token, con i rilievi e
+   le divergenze deliberate dal v1, è in PIANO.md §2bis.
+
+   Due trappole, se stai per usare un token:
+   · --primary è l'ARANCIO DEL BRAND; --accent è il grigio di hover dei menu.
+     Nel v1 --color-accent era il brand: confonderli tinge di arancione metà
+     degli hover dell'interfaccia.
+   · --primary NON è mai usabile per il testo. L'arancio leggibile su fondo
+     chiaro è --accent-ink.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --background:                     oklch(0.9726 0.0026 106.45); /* #F6F6F4 */
+  --foreground:                     oklch(0.1913 0 0); /* #141414 */
+  --card:                           oklch(0.994 0 0); /* #FDFDFD */
+  --card-foreground:                oklch(0.1913 0 0); /* #141414 */
+  --popover:                        oklch(0.994 0 0); /* #FDFDFD */
+  --popover-foreground:             oklch(0.1913 0 0); /* #141414 */
+  --primary:                        oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --primary-foreground:             oklch(0.1913 0 0); /* #141414 */
+  --primary-hover:                  oklch(0.7442 0.1573 72.07); /* #E8990C */
+  --primary-subtle:                 oklch(0.959 0.0305 81.76); /* #FCF0DB */
+  --primary-border:                 oklch(0.8968 0.0707 81.43); /* #F5D9A8 */
+  --accent-ink:                     oklch(0.549 0.1456 48.87); /* #B25105 */
+  --secondary:                      oklch(0.938 0.0035 67.78); /* #ECEAE8 */
+  --secondary-foreground:           oklch(0.1913 0 0); /* #141414 */
+  --muted:                          oklch(0.938 0.0035 67.78); /* #ECEAE8 */
+  --muted-foreground:               oklch(0.5222 0.0072 75.36); /* #6C6965 */
+  --accent:                         oklch(0.9644 0.0029 84.56); /* #F4F3F1 */
+  --accent-foreground:              oklch(0.1913 0 0); /* #141414 */
+  --border:                         oklch(0.893 0.0022 17.2); /* #DDDBDB */
+  --border-strong:                  oklch(0.8203 0 0); /* #C4C4C4 */
+  --input:                          oklch(0.893 0.0022 17.2); /* #DDDBDB */
+  --ring:                           oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --destructive:                    oklch(0.5771 0.2152 27.33); /* #DC2626 */
+  --destructive-foreground:         oklch(1 0 0); /* #FFFFFF */
+  --success:                        oklch(0.6618 0.1352 163.94); /* #1CAC7C */
+  --success-foreground:             oklch(0.1913 0 0); /* #141414 */
+  --warning:                        oklch(0.9372 0.0514 83.4); /* #FBE8C4 */
+  --warning-foreground:             oklch(0.5239 0.1077 82.89); /* #886300 */
+  --info:                           oklch(0.4204 0.0828 241.28); /* #1A5276 */
+  --info-foreground:                oklch(1 0 0); /* #FFFFFF */
+  --destructive-subtle:             oklch(0.9705 0.0129 17.38); /* #FEF2F2 */
+  --destructive-subtle-foreground:  oklch(0.4437 0.1613 26.9); /* #991B1B */
+  --destructive-border:             oklch(0.8077 0.1035 19.57); /* #FCA5A5 */
+  --success-subtle:                 oklch(0.9651 0.0152 171.06); /* #EAF7F2 */
+  --success-subtle-foreground:      oklch(0.5148 0.1057 164.17); /* #0E7A57 */
+  --success-border:                 oklch(0.854 0.0725 170.24); /* #9FDFC8 */
+  --warning-subtle:                 oklch(0.9832 0.0183 86.15); /* #FFF9EC */
+  --warning-subtle-foreground:      oklch(0.4732 0.1247 46.2); /* #92400E */
+  --warning-border:                 oklch(0.8968 0.0707 81.43); /* #F5D9A8 */
+  --info-subtle:                    oklch(0.9314 0.031 237.56); /* #D6ECFB */
+  --info-subtle-foreground:         oklch(0.4204 0.0828 241.28); /* #1A5276 */
+  --info-border:                    oklch(0.852 0.082 237.49); /* #9BD7FE */
+  --sidebar:                        oklch(0.1913 0 0); /* #141414 */
+  --sidebar-foreground:             oklch(0.7316 0 0); /* #A8A8A8 */
+  --sidebar-primary:                oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --sidebar-primary-foreground:     oklch(0.1913 0 0); /* #141414 */
+  --sidebar-accent:                 oklch(0.2686 0 0); /* #262626 */
+  --sidebar-accent-foreground:      oklch(0.9455 0.0027 106.45); /* #EDEDEB */
+  --sidebar-border:                 oklch(0.2686 0 0); /* #262626 */
+  --sidebar-ring:                   oklch(0.795 0.1473 73.78); /* #F4AC3D */
+  --overlay:                        oklch(0.1913 0 0 / 0.451); /* #14141473 */
+  --chart-1:                        oklch(0.8359 0 0); /* #C9C9C9 */
+  --chart-2:                        oklch(0.65 0 0); /* #8F8F8F */
+  --chart-3:                        oklch(0.5348 0 0); /* #6D6D6D */
+  --chart-4:                        oklch(0.4568 0 0); /* #575757 */
+  --chart-5:                        oklch(0.3562 0 0); /* #3C3C3C */
+}
+
+:root {
+  /* Raggio base. In shadcn --radius È il gradino `lg`, non `md`: vale quindi
+     i 10px delle card del v1, e sm/md scendono ai 4px e 6px del v1 qui sotto.
+     (PIANO.md §2bis rilievo 3 mappava --radius su --radius-md del v1: rettificato.) */
+  --radius: 0.625rem;
+}
+
+/* Modalità scura — M1.3, D2 ancora aperta. */
+
+@theme inline {
+  /* ── Colori ──────────────────────────────────────────────────────────
+     Generati da tutti i token della palette: aggiungerne uno allo script
+     lo espone automaticamente come utility (bg-*, text-*, border-*). */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-border: var(--primary-border);
+  --color-accent-ink: var(--accent-ink);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-destructive-subtle-foreground: var(--destructive-subtle-foreground);
+  --color-destructive-border: var(--destructive-border);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-subtle-foreground: var(--success-subtle-foreground);
+  --color-success-border: var(--success-border);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-warning-subtle-foreground: var(--warning-subtle-foreground);
+  --color-warning-border: var(--warning-border);
+  --color-info-subtle: var(--info-subtle);
+  --color-info-subtle-foreground: var(--info-subtle-foreground);
+  --color-info-border: var(--info-border);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-overlay: var(--overlay);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* ── Raggi ───────────────────────────────────────────────────────────
+     sm e md sono i valori del v1, NON la derivazione shadcn: con i fattori
+     0.6/0.8 i bottoni verrebbero a 4.8px invece dei 6px del v1, e le
+     primitive usano rounded-md. Da xl in su la derivazione shadcn resta. */
+  --radius-sm: 0.25rem; /* 4px — badge, tag (v1 --radius-sm) */
+  --radius-md: 0.375rem; /* 6px — bottoni, input (v1 --radius-md) */
+  --radius-lg: var(--radius); /* 10px — card, pannelli, modali (v1 --radius-lg) */
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Tipografia ──────────────────────────────────────────────────────
+     Replicall è il font istituzionale (licenza Webflow del sito): lo stack
+     lo usa se l'app lo carica via @font-face, altrimenti degrada al font di
+     sistema. Il .woff NON si distribuisce con il registry (D3). */
+  --font-sans: 'Replicall', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: var(--font-sans);
+
+  /* La scala del v1, sette gradini. Sono i soli che i blocchi devono usare:
+     i gradini Tailwind che restano oltre questi (text-2xl in su) non sono
+     tarati su Tassullo. Lo scatto in densità touch è di M1.4: NON deriva da
+     --spacing, quindi non arriva da solo. */
+  --text-xs: 11px; /* micro-etichette, sottotitoli sidebar */
+  --text-sm: 12px; /* meta, badge, voci sidebar */
+  --text-md: 13px; /* chip, breadcrumb, testi densi */
+  --text-base: 14px; /* corpo standard, input */
+  --text-lg: 15px; /* titoli card */
+  --text-xl: 18px; /* titoli sezione */
+  --text-title: 26px; /* titolo pagina */
+
+  /* ── Ombre ───────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px oklch(0.1913 0 0 / 0.039);
+  --shadow-md: 0 2px 8px oklch(0.1913 0 0 / 0.059);
+  --shadow-lg: 0 8px 24px oklch(0.1913 0 0 / 0.122);
+  --shadow-modal: 0 20px 60px oklch(0.1913 0 0 / 0.251);
+
+  /* ── Larghezza massima del contenuto di pagina (v1 --page-max-width).
+     Esposta come container per poter scrivere max-w-page e non un
+     valore arbitrario. */
+  --container-page: 1180px;
+}
+
+/* Non portati dal v1, di proposito:
+   · --space-1…6 e --space-page: in Tailwind v4 le spaziature derivano da
+     --spacing, che è anche il meccanismo della densità (M1.4). Il padding di
+     pagina del v1 (32px 40px) si scrive py-8 px-10.
+   · --transition-fast (0.15s): è già il default di Tailwind.
+   · --color-text-hint: eliminato. A 4.5:1 collassa su --muted-foreground, che
+     è il token da usare per placeholder e meta (PIANO.md §2bis rilievo 2). */

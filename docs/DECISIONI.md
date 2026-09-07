@@ -44,10 +44,10 @@ e in `package.json` compare la dipendenza **`@base-ui/react`** (^1.8.0), non `ra
 | Cosa | Destino |
 |---|---|
 | icone **Lucide** (`lucide-react`, `iconLibrary: "lucide"`) | **resta** — è il default shadcn e non c'è motivo di divergere |
-| font **Geist** (`@fontsource-variable/geist`, importato in `src/index.css`) | **cade in M1.2**: lo stack Tassullo dichiara `'Replicall'` con degrado a font di sistema, e il `.woff` non si distribuisce (D3) |
-| palette `neutral` in `:root` / `.dark` di `src/index.css` | **cade in M1.2/M1.3**: sostituita dai token Tassullo |
-| `--radius: 0.625rem` | **cade in M1.2**: il raggio Tassullo è `0.375rem` (6px) |
-| blocco `@theme inline` con le coppie `--color-*` | **resta come struttura**, cambiano i valori: è la convenzione shadcn di esposizione a Tailwind |
+| font **Geist** (`@fontsource-variable/geist`, importato in `src/index.css`) | **caduto in M1.2**: import rimosso e pacchetto disinstallato; lo stack Tassullo dichiara `'Replicall'` con degrado a font di sistema, e il `.woff` non si distribuisce (D3) |
+| palette `neutral` in `:root` / `.dark` di `src/index.css` | **caduta in M1.2**: `src/index.css` non dichiara più alcun token, importa `registry/tassullo/theme/tassullo-theme.css`. Il blocco `.dark` è di M1.3 |
+| `--radius: 0.625rem` | **resta il valore, cambia il significato** (M1.2): in shadcn `--radius` è il gradino `lg`, che nel v1 vale proprio 10px. I 6px del v1 sono `--radius-md`, sovrascritto esplicitamente insieme a `--radius-sm` |
+| blocco `@theme inline` con le coppie `--color-*` | **resta come struttura**, cambiano i valori (M1.2): ora è **generato** dalle chiavi della palette, così un token nuovo si espone da sé |
 | `@custom-variant dark (&:is(.dark *))` | **resta** |
 
 ---

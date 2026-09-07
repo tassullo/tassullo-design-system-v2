@@ -24,7 +24,7 @@ Dipendenze di fase: FASE 0.
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
 | M1.1 Mappa dei token e script di conversione | DONE | M0.2 | `PIANO.md` §2bis scritto; `npm run check:contrast` gira e **fallisce** se si forza `--primary-foreground` a bianco |
-| M1.2 `tassullo-theme.css`, modalità chiara | TODO | M1.1 | contrasto verde; `bg-primary text-primary-foreground` rende arancione con testo nero — **apre con 3 coppie rosse e 5 rilievi da chiudere**, `PIANO.md` §2bis |
+| M1.2 `tassullo-theme.css`, modalità chiara | DONE | M1.1 | contrasto verde (24/24); `bg-primary text-primary-foreground` rende arancione con testo nero, verificato a video |
 | M1.3 Modalità scura (chiude D2) | TODO | M1.2, M0.3 | contrasto verde anche in dark; screenshot delle due palette affiancate; **D2 chiusa in WORKLOG** |
 | M1.4 Densità touch | TODO | M1.2, M0.3 | l'interruttore densità cambia l'altezza dei controlli senza ricaricare; bersagli ≥44px; eccezioni allo scaling annotate |
 | M1.5 Il tema come item di registry | TODO | M1.3, M1.4 | `npx shadcn@latest registry validate ./registry.json` verde sull'item tema; pagina Palette con click-to-copy |
@@ -36,7 +36,7 @@ Dipendenze di fase: FASE 1. Ogni primitiva si aggiunge in `registry/tassullo/ui/
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
-| M2.1 Fondamenta (`button`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`, `lib/utils.ts`) | TODO | M1.5 | `button` in tutte le varianti/stati nelle 4 combinazioni; `typography` riproduce la scala v1 |
+| M2.1 Fondamenta (`button`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`, `lib/utils.ts`) | TODO | M1.5 | `button` in tutte le varianti/stati nelle 4 combinazioni; `typography` riproduce la scala v1; **chiude i 3 rilievi su `button` aperti da M1.2** (`PIANO.md` §2bis) |
 | M2.2 Form (`field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider`) | TODO | M2.1 | form di prova navigabile **interamente da tastiera**, ogni campo con etichetta associata |
 | M2.3 Overlay (`dialog`, `alert-dialog`, `drawer`, `sheet`, menu, `popover`, `tooltip`, `sonner`, `command`) | TODO | M2.1 | focus trap e chiusura con Esc verificati; `drawer` presente (mattone del responsive di M3.4) |
 | M2.4 Contenuto (`card`, `tabs`, `table`, `alert`, `empty`, `accordion`, `collapsible`, `scroll-area`, `resizable`, `progress`, `aspect-ratio`, `carousel`) | TODO | M2.1 | `alert` nelle 4 varianti semantiche; `card` **non** finge di essere cliccabile |

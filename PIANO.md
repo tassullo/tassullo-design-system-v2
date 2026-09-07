@@ -375,14 +375,14 @@ La taratura è per analogia con la ROADMAP di Anagrafe (assunzione A3).
 | `--primary-foreground` | `#141414` | `--color-accent-text` | **nero, non bianco** |
 | `--secondary`, `--muted` | `#ECEAE8` | `--color-surface-2` | |
 | `--secondary-foreground` | `#141414` | `--color-text` | |
-| `--muted-foreground` | `#6E6B67` | `--color-text-muted` | ⚠ 4.42:1 su `--muted`, vedi rilievo 1 |
+| `--muted-foreground` | `#6C6965` | `--color-text-muted` | v1 `#6E6B67`, ΔL 0.006 in M1.2 → 4.55:1 |
 | `--accent` | `#F4F3F1` | `--color-surface-3` | hover dei menu, **non** il brand |
 | `--accent-foreground` | `#141414` | `--color-text` | |
 | `--destructive` | `#DC2626` | `--color-danger` | |
 | `--destructive-foreground` | `#FFFFFF` | `--color-on-dark` | 4.83:1, passa |
 | `--border`, `--input` | `#DDDBDB` | `--color-border` | |
 | `--ring` | `#F4AC3D` | `--focus-ring` | vedi rilievo 4: nel v1 è un'**ombra**, qui è un colore |
-| `--radius` | `0.375rem` | `--radius-md` | ma la derivazione shadcn non basta: rilievo 3 |
+| `--radius` | `0.625rem` | `--radius-lg` | **rettificato in M1.2**: in shadcn `--radius` è il gradino `lg`, non `md`. `sm` e `md` si sovrascrivono con i 4px e 6px del v1 |
 
 ### Sidebar — mappatura 1:1 (8 token)
 
@@ -408,14 +408,16 @@ Servono per ottenere `bg-success`, `text-warning-subtle-foreground`, `border-inf
 | `--primary-hover` | `#E8990C` | `--color-accent-hover` | shadcn usa `hover:bg-primary/90`, che su fondo chiaro **schiarisce**; il v1 scurisce. Un token esplicito o l'hover del brand è sbagliato |
 | `--primary-subtle` | `#FCF0DB` | `--color-accent-light` | chip attivi, fondo tenue del focus |
 | `--primary-border` | `#F5D9A8` | `--color-accent-border` | bordo tenue del brand |
-| `--accent-ink` | `#B45309` | `--color-accent-ink` | l'arancio **leggibile come testo** (link). ⚠ 4.45:1 su `--primary-subtle`, rilievo 1 |
+| `--accent-ink` | `#B25105` | `--color-accent-ink` | l'arancio **leggibile come testo** (link). v1 `#B45309`, ΔL 0.006 in M1.2 → 4.57:1 |
 
 **Neutri, oltre quelli di shadcn**
 
 | token | hex | token v1 | perché serve |
 |---|---|---|---|
 | `--border-strong` | `#C4C4C4` | `--color-border-strong` | il v1 ha due livelli di bordo, shadcn uno |
-| `--foreground-hint` | `#A8A5A1` | `--color-text-hint` | terzo livello di testo (placeholder, meta). ⚠ **sotto soglia**, rilievo 2 |
+| `--overlay` | `#14141473` | `--color-overlay` | velo delle modali, `rgba(20,20,20,.45)` |
+
+Il v1 aveva un terzo livello di testo, `--color-text-hint` `#A8A5A1`: **non è stato portato**, vedi rilievo 2.
 
 **Stati semantici.** Il v1 li descrive su **due livelli** — un colore pieno e una terna tenue fondo/testo/bordo — e servono entrambi: il pieno per indicatori e badge, il tenue per gli alert di M2.4, che devono somigliarsi fra loro. Si tiene quindi la forma shadcn `X`/`X-foreground` per il livello pieno e si aggiunge `X-subtle`/`X-subtle-foreground`/`X-border` per il tenue. **Estende `PIANO.md` M1.1**, che per ogni stato prevedeva tre token soli: con tre, o si perde il badge pieno o si perde l'alert, e la prima app che ne ha bisogno se lo inventa in casa — cioè la deriva che il progetto esiste per impedire.
 
@@ -427,7 +429,7 @@ Servono per ottenere `bg-success`, `text-warning-subtle-foreground`, `border-inf
 | `--success-subtle-foreground` | `#0E7A57` | `--color-success-text` | |
 | `--success-border` | `#9FDFC8` | `--color-success-border` | |
 | `--warning` | `#FBE8C4` | `--color-badge-warn-bg` | il v1 **non ha un giallo pieno**: si adotta la coppia del badge, non si inventa un hex |
-| `--warning-foreground` | `#8A6500` | `--color-badge-warn-text` | ⚠ 4.42:1, rilievo 1 |
+| `--warning-foreground` | `#886300` | `--color-badge-warn-text` | v1 `#8A6500`, ΔL 0.006 in M1.2 → 4.55:1 |
 | `--warning-subtle` | `#FFF9EC` | `--color-warn-bg` | |
 | `--warning-subtle-foreground` | `#92400E` | `--color-warn-text` | |
 | `--warning-border` | `#F5D9A8` | `--color-warn-border` | stesso hex di `--primary-border`: nel v1 sono già lo stesso valore |
@@ -456,15 +458,31 @@ Il gate ha trovato al primo colpo cose che il v1 non poteva vedere, perché `sty
    | `primary-subtle`/`accent-ink` | 4.45:1 | `--accent-ink` `#B45309` → `#B25105` | 4.57:1 (e 4.77:1 su `--background`) |
    | `warning`/`warning-foreground` | 4.42:1 | `--warning-foreground` `#8A6500` → `#886300` | 4.55:1 |
 
-   Finché non si decide, **`npm run check:contrast` esce con codice 1**: è la palette v1 a non passare, non lo script a essere rotto. Non si nasconde con un'esenzione.
+   **Chiuso in M1.2**: le tre correzioni sono state applicate come proposte. Il gate è verde, 24 coppie su 24.
 
-2. **`--foreground-hint` è ben sotto soglia** (2.27:1 su `--background`, 2.41:1 su `--card`). È l'unica esenzione dichiarata nello script, con la ragione scritta accanto. WCAG richiede 4.5:1 anche per i placeholder: in M1.2 o si alza il colore, o il token si riserva a meta-informazioni non testuali e i placeholder passano a `--muted-foreground`.
+2. **`--foreground-hint` è ben sotto soglia** (2.27:1 su `--background`, 2.41:1 su `--card`). **Chiuso in M1.2: il token è stato eliminato.** Entrambi i suoi usi nel v1 (`components.css`: `.input::placeholder` e `.card-meta`) sono **testo**, quindi nessuno dei due è esente da WCAG; e misurando, per arrivare a 4.5:1 dovrebbe scendere a `l 0.547` contro `l 0.522` di `--muted-foreground` — ΔL 0.025, indistinguibile — mentre su fondo `--muted` collassa esattamente sullo stesso hex. Il terzo livello di testo non sopravvive al requisito: placeholder e meta usano `--muted-foreground`. Nota per la guida di migrazione (M5.5): v1 `--color-text-hint` → v2 `--muted-foreground`. Lo script resta **senza alcuna esenzione**, e va tenuto così.
 
 3. **I raggi non si ottengono derivandoli.** shadcn calcola `--radius-sm/md/lg/xl` da `--radius` con i fattori `0.6/0.8/1/1.4`. Con `--radius: 0.375rem` (6px) escono **3.6 / 4.8 / 6 / 8.4px**, mentre il v1 vuole **4 / 6 / 10 / 999px** — e le primitive shadcn usano `rounded-md`, quindi i bottoni verrebbero a 4.8px invece di 6. In M1.2 i quattro `--radius-*` si **sovrascrivono con valori espliciti** nel blocco `@theme inline`, invece di affidarsi alla derivazione.
 
 4. **`--ring` cambia natura.** Nel v1 `--focus-ring` è un'**ombra** completa (`0 0 0 3px var(--color-accent-light)`, cioè l'arancio *tenue*); in shadcn `--ring` è un **colore** a cui le primitive applicano spessore e offset. Il piano mappa `--ring` su `#F4AC3D`, che è l'arancio *pieno*: più marcato del v1. Si tiene — un focus visibile è un requisito di accessibilità, non un gusto — ma va saputo che l'anello di focus del v2 **non sarà identico** a quello del v1, e l'arancio tenue resta disponibile come `--primary-subtle`.
 
-5. **Il verde pieno non regge il bianco.** Il v1 prescrive `--color-on-dark` (bianco) anche "sul verde success": bianco su `#1CAC7C` dà **2.6:1**. Stessa identica trappola dell'arancio, mai notata perché nessuno la misurava. `--success-foreground` è quindi `#141414` (6.35:1), coerente con la regola già valida per il brand: **sui fondi saturi chiari il testo è nero**.
+5. **Il verde pieno non regge il bianco.**  Il v1 prescrive `--color-on-dark` (bianco) anche "sul verde success": bianco su `#1CAC7C` dà **2.6:1**. Stessa identica trappola dell'arancio, mai notata perché nessuno la misurava. `--success-foreground` è quindi `#141414` (6.35:1), coerente con la regola già valida per il brand: **sui fondi saturi chiari il testo è nero**.
+
+### Tre rilievi nuovi, emersi in M1.2 — il tema è giusto, le primitive no
+
+Applicato il tema, il workbench ha mostrato che i colori corretti **non bastano**: la primitiva `button` che il preset `base-nova` ha generato in M0.2 usa i token nel modo sbagliato. Nessuno dei tre si risolve nel tema; tutti e tre sono **da chiudere in M2.1**, e sono il primo caso concreto di ciò che il preset porta con sé e va ri-stilato.
+
+| dove | cosa fa il preset | misura | cosa deve diventare |
+|---|---|---|---|
+| `variant: link` | `text-primary` | **1.79:1** | `text-accent-ink` → 4.77:1 |
+| `variant: destructive` | `bg-destructive/10 text-destructive` (rosso tenue) | **3.94:1** | `bg-destructive text-destructive-foreground` → 4.83:1, ed è anche il rosso pieno del v1 |
+| base + taglie | `rounded-lg` (10px), e `rounded-[min(var(--radius-md),12px)]`, `text-[0.8rem]` sulle taglie | bottoni a **10px** invece dei 6px del v1 | `rounded-md`, e via i valori arbitrari (regola 3 del `CLAUDE.md`) |
+
+La variante `link` merita d'essere notata: il preset commette **esattamente** la trappola che il `CLAUDE.md` mette per iscritto — `--primary` usato come colore di testo. Se succede al preset ufficiale, succederà a noi.
+
+**Limite del gate, da tenere presente e da colmare in M2.9.** `check:contrast` verifica le **coppie di token**, non come i componenti le accostano: nessuno dei tre rilievi qui sopra è stato trovato dallo script, ma guardando il workbench e misurando col browser. Il controllo che li avrebbe presi è axe-core sulle story, cioè il gate di M2.9.
+
+**Effetto collaterale della scala tipografica**, da valutare in M2.1: con la scala Tassullo `text-sm` vale **12px** invece dei 14px di default di Tailwind, quindi i bottoni del preset (che usano `text-sm`) sono ora più piccoli di prima. Non è un guasto: è il preset tarato su una scala diversa.
 
 ### Il gate: come si usa e come si verifica che funzioni
 
