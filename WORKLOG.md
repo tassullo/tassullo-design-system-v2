@@ -254,3 +254,13 @@ Annotato anche un effetto collaterale della scala tipografica, da valutare in M2
 ### Prossimi passi
 
 **M1.3** — modalità scura, che chiude **D2**. Il blocco `dark` è già predisposto e vuoto nello script, e il controllo lo salta dichiarandolo: basta riempirlo e `check:contrast` lo verifica da sé con le stesse 24 coppie. Da tenere presente che finché è vuoto l'interruttore tema di Storybook non cambia nulla — è atteso, non un guasto. Il criterio chiede anche lo screenshot delle due palette affiancate.
+
+## 2026-09-07 — I rilievi su `button` portati dove verranno letti
+
+Controllo di conduzione, non lavoro nuovo. I tre rilievi aperti da M1.2 erano annotati in `CHECKLIST.md` (riga M2.1), in `PIANO.md` §2bis e nella voce di WORKLOG — ma **non nel blocco del task M2.1 di `PIANO.md`**, che è ciò che il `CLAUDE.md` prescrive di leggere a inizio sessione insieme a CHECKLIST e alle ultime voci di WORKLOG. Fra M1.2 e M2.1 ci sono tre sessioni: la voce di diario non sarà più fra le ultime, e i rilievi sarebbero rimasti appesi a un rimando da seguire.
+
+Scritti quindi **dentro il blocco M2.1**, con le misure e il file da toccare, più due cose che dalla sola tabella non si deducevano: che il controllo va fatto **su tutte le primitive del task e non solo sul bottone** (se ci è cascato il preset ufficiale, non ci sarà cascato una volta sola), e che con la scala Tassullo `text-sm` vale 12px, quindi la taglia del testo del bottone è una decisione da prendere lì misurando. Il conteggio passa da tre a **quattro** righe, separando la base (`rounded-lg`) dalle taglie (valori arbitrari): sono due correzioni diverse.
+
+Aggiunta per lo stesso motivo una nota nel blocco **M2.9**: che quel gate non è rimandabile è una conclusione tratta in M1.2 — tre difetti reali passati sotto a `check:contrast`, che verifica le coppie di token e non come i componenti le accostano — e stava scritta solo in §2bis.
+
+Lezione di metodo per le prossime sessioni: un rilievo che riguarda un task futuro va scritto **nel blocco di quel task**, non solo nel diario e nella checklist. Il diario invecchia e la checklist ha una riga sola.

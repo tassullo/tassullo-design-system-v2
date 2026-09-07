@@ -175,6 +175,19 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
 **M2.1 — Fondamenta (1 sessione)** — `lib/utils.ts` (`cn()`), `button`, `button-group`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`.
 - Accettazione: `button` con tutte le varianti/dimensioni/stati (hover, focus da tastiera, disabled, loading) nelle 4 combinazioni; `typography` riproduce la scala del v1 (`--text-xs` … `--text-title`); `spinner` è il caricamento inline previsto dallo standard unico di INTERFACCE.md §1.
 
+  **Da chiudere qui: quattro rilievi su `button`, aperti e misurati in M1.2** (dettaglio e misure in §2bis, "Tre rilievi nuovi"). Il file è `registry/tassullo/ui/button.tsx`, com'è uscito dal preset `base-nova` in M0.2. Non sono ipotesi: sono stati letti dal browser sul workbench con il tema applicato.
+
+  | dove | cosa fa oggi | misura | cosa deve diventare |
+  |---|---|---|---|
+  | `variant: link` | `text-primary` | **1.79:1** | `text-accent-ink` → 4.77:1 |
+  | `variant: destructive` | `bg-destructive/10 text-destructive` | **3.94:1** | `bg-destructive text-destructive-foreground` → 4.83:1, ed è anche il rosso pieno del v1 |
+  | base | `rounded-lg` | bottoni a **10px** invece dei 6px del v1 | `rounded-md` |
+  | taglie `xs`/`sm` | `rounded-[min(var(--radius-md),12px)]`, `text-[0.8rem]` | — | via i valori arbitrari (regola 3 del `CLAUDE.md`) |
+
+  La variante `link` è la trappola che il `CLAUDE.md` mette per iscritto — `--primary` usato come colore di testo — commessa dal preset ufficiale. Da verificare **su ogni primitiva di questo task, non solo sul bottone**: se ci è cascato il preset, il preset ci sarà cascato più di una volta.
+
+  **Nota sulla scala tipografica**: con la scala Tassullo `text-sm` vale 12px invece dei 14px di default di Tailwind, quindi i bottoni del preset — che usano `text-sm` — sono più piccoli di prima. Da decidere qui quale gradino è quello giusto per il bottone, misurando.
+
 **M2.2 — Form (1 sessione)** — `field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider`.
 - Nota: `field` è la primitiva ufficiale shadcn per la riga etichetta+campo+errore — si usa quella invece di reinventarla, e il blocco `form-field` di M3.4 ci si appoggia sopra. `input-group` è il campo con icona o bottone incorporato: Anagrafe lo ha già fatto a mano in `.prd-cerca`. `slider` serve ai range di conformità dell'FPC (`range_ottimale`, `range_conformita`).
 - Accettazione: form di prova navigabile **interamente da tastiera**, ogni campo con etichetta associata (INTERFACCE.md §1).
@@ -207,6 +220,8 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
 **M2.9 — Gate di fase: audit del set (1 sessione)**
 - Prompt: "Attiva `parameters.a11y.test = 'error'` su tutte le story e fai passare axe-core in CI: da qui in poi l'audit è automatico e continuo, non una sessione che si ripete. Poi il residuo manuale che axe non vede: navigazione da tastiera reale su ogni componente, bersagli ≥44px in touch, resa in dark, `npm run check:contrast`. Ogni scostamento o si corregge o si annota in WORKLOG con la motivazione."
 - Accettazione: `build-storybook` + test a11y verdi in CI; audit scritto in WORKLOG, zero scostamenti non motivati.
+
+  **Perché questo gate non è rimandabile.** `check:contrast` (M1.1) verifica le **coppie di token**, non come i componenti le accostano. In M1.2 tre difetti reali della `button` del preset — fra cui un `text-primary` a 1.79:1 — sono passati sotto al gate e sono stati trovati a occhio sul workbench. axe-core sulle story è il controllo che li avrebbe presi: finché non c'è, ogni primitiva della FASE 2 va guardata a mano.
 
 ---
 
