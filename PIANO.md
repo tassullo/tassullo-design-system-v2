@@ -353,6 +353,131 @@ Due tagli possibili, se si vuole arrivare prima a qualcosa di usabile:
 
 La taratura è per analogia con la ROADMAP di Anagrafe (assunzione A3).
 
+## §2bis. Mappa dei token: `theme.css` v1 → shadcn
+
+> Scritta in **M1.1** (2026-09-07) leggendo `tassullo-design-system/theme.css` **v1.2.2** (125 righe, 63 token). È la mappa che **M1.2** trasforma in `registry/tassullo/theme/tassullo-theme.css` e **M1.3** replica in modalità scura.
+> La conversione degli hex in `oklch` **non si fa a mano**: la fa `scripts/hex-to-oklch.ts`, che è anche il gate di contrasto (`npm run check:contrast`). La palette vive **dentro quello script**, in una sola costante: è la fonte unica, e il CSS è il suo output (`-- --css`). Quando la palette cambia, l'aggiornamento è riproducibile e il contrasto è ricontrollato nello stesso gesto.
+
+### Le due trappole, prima della tabella
+
+1. **`--color-accent` del v1 NON è `--accent` di shadcn.** Nel v1 `--color-accent` **è l'arancio del brand**; in shadcn `--accent` è il **grigio di hover dei menu**, e il brand sta in `--primary`. Tradurre il nome invece della funzione tinge di arancione metà degli hover dell'interfaccia. È l'equivalente v2 della confusione `badge`/`chip` che nel v1 è costata 23 riscritture.
+2. **Sull'arancio il testo è nero.** `--primary-foreground` è `#141414`, non bianco: il bianco su `#F4AC3D` dà **1.94:1** ed è la violazione più frequente dalla v1.1.0. Il gate la rileva ed esce con codice 1 (verificato in M1.1, vedi in fondo). Per l'arancio **leggibile come testo** su fondo chiaro esiste un token diverso, `--accent-ink`: `--primary` non è mai usabile per il testo.
+
+### Mappa principale (light) — token che shadcn ha già
+
+| shadcn | hex | token v1 | note |
+|---|---|---|---|
+| `--background` | `#F6F6F4` | `--color-page-bg` | |
+| `--foreground` | `#141414` | `--color-text` | |
+| `--card`, `--popover` | `#FDFDFD` | `--color-surface` | |
+| `--card-foreground`, `--popover-foreground` | `#141414` | `--color-text` | |
+| `--primary` | `#F4AC3D` | `--color-accent` | il brand |
+| `--primary-foreground` | `#141414` | `--color-accent-text` | **nero, non bianco** |
+| `--secondary`, `--muted` | `#ECEAE8` | `--color-surface-2` | |
+| `--secondary-foreground` | `#141414` | `--color-text` | |
+| `--muted-foreground` | `#6E6B67` | `--color-text-muted` | ⚠ 4.42:1 su `--muted`, vedi rilievo 1 |
+| `--accent` | `#F4F3F1` | `--color-surface-3` | hover dei menu, **non** il brand |
+| `--accent-foreground` | `#141414` | `--color-text` | |
+| `--destructive` | `#DC2626` | `--color-danger` | |
+| `--destructive-foreground` | `#FFFFFF` | `--color-on-dark` | 4.83:1, passa |
+| `--border`, `--input` | `#DDDBDB` | `--color-border` | |
+| `--ring` | `#F4AC3D` | `--focus-ring` | vedi rilievo 4: nel v1 è un'**ombra**, qui è un colore |
+| `--radius` | `0.375rem` | `--radius-md` | ma la derivazione shadcn non basta: rilievo 3 |
+
+### Sidebar — mappatura 1:1 (8 token)
+
+| shadcn | hex | token v1 |
+|---|---|---|
+| `--sidebar` | `#141414` | `--color-sidebar-bg` |
+| `--sidebar-foreground` | `#A8A8A8` | `--color-sidebar-text` |
+| `--sidebar-primary` | `#F4AC3D` | `--color-accent` |
+| `--sidebar-primary-foreground` | `#141414` | `--color-accent-text` |
+| `--sidebar-accent` | `#262626` | `--color-sidebar-hover` |
+| `--sidebar-accent-foreground` | `#EDEDEB` | `--color-sidebar-text-hi` |
+| `--sidebar-border` | `#262626` | `--color-sidebar-border` |
+| `--sidebar-ring` | `#F4AC3D` | `--focus-ring` |
+
+### Token che shadcn non ha → custom, esposti con `@theme inline`
+
+Servono per ottenere `bg-success`, `text-warning-subtle-foreground`, `border-info-border`… senza valori arbitrari.
+
+**Brand, oltre `--primary`**
+
+| token | hex | token v1 | perché serve |
+|---|---|---|---|
+| `--primary-hover` | `#E8990C` | `--color-accent-hover` | shadcn usa `hover:bg-primary/90`, che su fondo chiaro **schiarisce**; il v1 scurisce. Un token esplicito o l'hover del brand è sbagliato |
+| `--primary-subtle` | `#FCF0DB` | `--color-accent-light` | chip attivi, fondo tenue del focus |
+| `--primary-border` | `#F5D9A8` | `--color-accent-border` | bordo tenue del brand |
+| `--accent-ink` | `#B45309` | `--color-accent-ink` | l'arancio **leggibile come testo** (link). ⚠ 4.45:1 su `--primary-subtle`, rilievo 1 |
+
+**Neutri, oltre quelli di shadcn**
+
+| token | hex | token v1 | perché serve |
+|---|---|---|---|
+| `--border-strong` | `#C4C4C4` | `--color-border-strong` | il v1 ha due livelli di bordo, shadcn uno |
+| `--foreground-hint` | `#A8A5A1` | `--color-text-hint` | terzo livello di testo (placeholder, meta). ⚠ **sotto soglia**, rilievo 2 |
+
+**Stati semantici.** Il v1 li descrive su **due livelli** — un colore pieno e una terna tenue fondo/testo/bordo — e servono entrambi: il pieno per indicatori e badge, il tenue per gli alert di M2.4, che devono somigliarsi fra loro. Si tiene quindi la forma shadcn `X`/`X-foreground` per il livello pieno e si aggiunge `X-subtle`/`X-subtle-foreground`/`X-border` per il tenue. **Estende `PIANO.md` M1.1**, che per ogni stato prevedeva tre token soli: con tre, o si perde il badge pieno o si perde l'alert, e la prima app che ne ha bisogno se lo inventa in casa — cioè la deriva che il progetto esiste per impedire.
+
+| token | hex | token v1 | note |
+|---|---|---|---|
+| `--success` | `#1CAC7C` | `--color-success` | il verde istituzionale |
+| `--success-foreground` | `#141414` | — | **divergenza dal v1**, rilievo 5: il bianco che il v1 prescrive dà 2.6:1 |
+| `--success-subtle` | `#EAF7F2` | `--color-success-bg` | |
+| `--success-subtle-foreground` | `#0E7A57` | `--color-success-text` | |
+| `--success-border` | `#9FDFC8` | `--color-success-border` | |
+| `--warning` | `#FBE8C4` | `--color-badge-warn-bg` | il v1 **non ha un giallo pieno**: si adotta la coppia del badge, non si inventa un hex |
+| `--warning-foreground` | `#8A6500` | `--color-badge-warn-text` | ⚠ 4.42:1, rilievo 1 |
+| `--warning-subtle` | `#FFF9EC` | `--color-warn-bg` | |
+| `--warning-subtle-foreground` | `#92400E` | `--color-warn-text` | |
+| `--warning-border` | `#F5D9A8` | `--color-warn-border` | stesso hex di `--primary-border`: nel v1 sono già lo stesso valore |
+| `--info` | `#1A5276` | `--color-info-text` | il v1 non ha un blu pieno: si usa il suo blu scuro come fondo |
+| `--info-foreground` | `#FFFFFF` | `--color-on-dark` | 8.36:1 |
+| `--info-subtle` | `#D6ECFB` | `--color-info-bg` | |
+| `--info-subtle-foreground` | `#1A5276` | `--color-info-text` | |
+| `--info-border` | `#9BD7FE` | — | **derivato**, unico valore assente dal v1: vedi sotto |
+| `--destructive-subtle` | `#FEF2F2` | `--color-danger-bg` | |
+| `--destructive-subtle-foreground` | `#991B1B` | `--color-danger-text` | |
+| `--destructive-border` | `#FCA5A5` | `--color-danger-border` | |
+
+**`--info-border`, derivato invece che inventato.** È il solo colore che il v1 non ha. Convertiti in `oklch`, i tre bordi tenui esistenti stanno in una banda stretta — success `l .854 c .073`, warning `l .897 c .071`, danger `l .808 c .103` — ciascuno alla tinta della propria famiglia. `--info-border` è la **media di quella banda alla tinta di `--info-subtle`**: `oklch(0.852 0.082 237.49)` = `#9BD7FE`. Lo calcola `deriveInfoBorder()` a ogni esecuzione: se un giorno la palette cambia, il valore si riallinea da solo.
+
+**Non colori** (1:1 dal v1, nessuna decisione): `--font-sans` (stack con `'Replicall'`, il `.woff` **non si distribuisce** — D3), `--font-mono`, la scala `--text-xs…--text-title` (7 gradini in px), i quattro `--radius-*`, le quattro `--shadow-*`, `--color-overlay`, `--space-page`, `--page-max-width`, `--transition-fast`. La scala di spaziatura `--space-1…6` **non si porta**: in Tailwind v4 le utility derivano da `--spacing`, che è anche il meccanismo della densità (M1.4).
+
+### Cinque rilievi, tutti misurati dal gate — da chiudere in M1.2
+
+Il gate ha trovato al primo colpo cose che il v1 non poteva vedere, perché `stylelint-config.cjs` verificava che si usassero le variabili, non che i colori si leggessero.
+
+1. **Tre coppie sotto soglia per un soffio**, tutte fra 4.42 e 4.45:1. La correzione minima è una riduzione di lightness di **0.006 in oklch**, cioè invisibile a occhio:
+
+   | coppia | oggi | proposta M1.2 | dopo |
+   |---|---|---|---|
+   | `muted`/`muted-foreground` | 4.42:1 | `--muted-foreground` `#6E6B67` → `#6C6965` | 4.55:1 |
+   | `primary-subtle`/`accent-ink` | 4.45:1 | `--accent-ink` `#B45309` → `#B25105` | 4.57:1 (e 4.77:1 su `--background`) |
+   | `warning`/`warning-foreground` | 4.42:1 | `--warning-foreground` `#8A6500` → `#886300` | 4.55:1 |
+
+   Finché non si decide, **`npm run check:contrast` esce con codice 1**: è la palette v1 a non passare, non lo script a essere rotto. Non si nasconde con un'esenzione.
+
+2. **`--foreground-hint` è ben sotto soglia** (2.27:1 su `--background`, 2.41:1 su `--card`). È l'unica esenzione dichiarata nello script, con la ragione scritta accanto. WCAG richiede 4.5:1 anche per i placeholder: in M1.2 o si alza il colore, o il token si riserva a meta-informazioni non testuali e i placeholder passano a `--muted-foreground`.
+
+3. **I raggi non si ottengono derivandoli.** shadcn calcola `--radius-sm/md/lg/xl` da `--radius` con i fattori `0.6/0.8/1/1.4`. Con `--radius: 0.375rem` (6px) escono **3.6 / 4.8 / 6 / 8.4px**, mentre il v1 vuole **4 / 6 / 10 / 999px** — e le primitive shadcn usano `rounded-md`, quindi i bottoni verrebbero a 4.8px invece di 6. In M1.2 i quattro `--radius-*` si **sovrascrivono con valori espliciti** nel blocco `@theme inline`, invece di affidarsi alla derivazione.
+
+4. **`--ring` cambia natura.** Nel v1 `--focus-ring` è un'**ombra** completa (`0 0 0 3px var(--color-accent-light)`, cioè l'arancio *tenue*); in shadcn `--ring` è un **colore** a cui le primitive applicano spessore e offset. Il piano mappa `--ring` su `#F4AC3D`, che è l'arancio *pieno*: più marcato del v1. Si tiene — un focus visibile è un requisito di accessibilità, non un gusto — ma va saputo che l'anello di focus del v2 **non sarà identico** a quello del v1, e l'arancio tenue resta disponibile come `--primary-subtle`.
+
+5. **Il verde pieno non regge il bianco.** Il v1 prescrive `--color-on-dark` (bianco) anche "sul verde success": bianco su `#1CAC7C` dà **2.6:1**. Stessa identica trappola dell'arancio, mai notata perché nessuno la misurava. `--success-foreground` è quindi `#141414` (6.35:1), coerente con la regola già valida per il brand: **sui fondi saturi chiari il testo è nero**.
+
+### Il gate: come si usa e come si verifica che funzioni
+
+```bash
+npm run check:contrast                 # tabella di tutte le coppie, esce 1 sotto 4.5:1
+npm run check:contrast -- --css        # i blocchi CSS in oklch, per M1.2 / M1.3
+npm run check:contrast -- --self-test  # dimostra che il gate sa fallire
+```
+
+Le coppie verificate sono **26**, e non sono solo quelle `X`/`X-foreground` letterali: ci sono anche gli accostamenti che le pagine fanno davvero e che nessun token dichiara — testo attenuato *su pagina* e *su card*, link su entrambe, voce di sidebar attiva sul fondo della sidebar. Sono quelli il posto dove il contrasto si rompe senza che nessuno se ne accorga.
+
+Il `--self-test` esiste perché il criterio di accettazione di M1.1 — *"fallisce se si forza `--primary-foreground` a bianco"* — resti verificabile in un comando invece che a colpi di modifica temporanea. **Verificato in entrambi i modi** in M1.1: il flag riporta `1.94:1 → RILEVATO`, e la modifica reale della palette a `#FFFFFF` fa uscire `npm run check:contrast` con **codice 1**.
+
 ## §3. Cosa NON viene toccato
 
 - **Anagrafe, Studio e Officina.** Nessuna migrazione in questo piano. Restano su `@tassullo/theme` v1, che continua a funzionare esattamente come oggi. L'**unica** cosa che si aggiunge, e solo su Anagrafe in M5.5, è il collegamento dell'MCP al registry v2: due file di configurazione, nessuna modifica a codice o stili, reversibile cancellandoli. Serve a poter *consultare* il design system mentre si sviluppa, non ad adottarlo. Anagrafe compare in queste pagine solo come **fonte di analisi** — il suo codice dice quali componenti sono già stati riscritti a mano, la sua roadmap quali serviranno — e come banco di prova **a secco** della guida di migrazione in M5.5, dove si nomina il blocco che sostituirà ogni pagina senza scrivere codice. È anche la scelta più prudente: si migra avendo in mano un design system finito e documentato, non uno in costruzione.

@@ -23,8 +23,8 @@ Dipendenze di fase: FASE 0.
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
-| M1.1 Mappa dei token e script di conversione | TODO | M0.2 | `PIANO.md` §2bis scritto; `npm run check:contrast` gira e **fallisce** se si forza `--primary-foreground` a bianco |
-| M1.2 `tassullo-theme.css`, modalità chiara | TODO | M1.1 | contrasto verde; `bg-primary text-primary-foreground` rende arancione con testo nero |
+| M1.1 Mappa dei token e script di conversione | DONE | M0.2 | `PIANO.md` §2bis scritto; `npm run check:contrast` gira e **fallisce** se si forza `--primary-foreground` a bianco |
+| M1.2 `tassullo-theme.css`, modalità chiara | TODO | M1.1 | contrasto verde; `bg-primary text-primary-foreground` rende arancione con testo nero — **apre con 3 coppie rosse e 5 rilievi da chiudere**, `PIANO.md` §2bis |
 | M1.3 Modalità scura (chiude D2) | TODO | M1.2, M0.3 | contrasto verde anche in dark; screenshot delle due palette affiancate; **D2 chiusa in WORKLOG** |
 | M1.4 Densità touch | TODO | M1.2, M0.3 | l'interruttore densità cambia l'altezza dei controlli senza ricaricare; bersagli ≥44px; eccezioni allo scaling annotate |
 | M1.5 Il tema come item di registry | TODO | M1.3, M1.4 | `npx shadcn@latest registry validate ./registry.json` verde sull'item tema; pagina Palette con click-to-copy |
