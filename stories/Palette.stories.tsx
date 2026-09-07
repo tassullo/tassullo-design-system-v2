@@ -1,7 +1,8 @@
+import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 /**
- * Tema / Palette — M1.3, la prova visiva che chiude D2.
+ * Tema / Palette — M1.3 (le due modalità), completata in M1.5.
  *
  * Le due modalità si guardano **affiancate**, non una alla volta con
  * l'interruttore: una palette scura si giudica per contrasto con quella
@@ -15,10 +16,23 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  * generata affatto, perché Tailwind v4 cerca nomi di classe interi nel
  * sorgente (errore preso in M1.2 e da non ripetere).
  *
+ * **Il valore oklch non è scritto qui: è letto dal DOM** (M1.5), con
+ * `getComputedStyle`, dall'elemento stesso che quel colore lo sta mostrando.
+ * È la stessa scelta della pagina `Tema/Densità`, e per la stessa ragione: un
+ * elenco di valori copiati a mano resta verde anche il giorno in cui il tema
+ * smette di funzionare. Letto dal DOM, invece, la colonna chiara e quella
+ * scura riportano ciascuna il proprio valore senza che la story sappia nulla
+ * della palette — che resta dove deve stare, in `scripts/hex-to-oklch.ts`.
+ *
+ * **Click-to-copy** (eredita l'idea dalla palette di `styleguide.html` del
+ * v1): un clic sulla riga copia il **nome del token**, `--primary`, non il
+ * valore. È il nome che si scrive nel codice; il valore è lì per riconoscere
+ * il colore, non per incollarlo — incollarlo sarebbe esattamente il valore
+ * arbitrario che la regola 3 vieta.
+ *
  * I rapporti di contrasto NON si ricalcolano qui: la fonte è
  * `npm run check:contrast`, che è il gate. Una seconda misura in pagina
  * potrebbe divergere dalla prima, e allora non si saprebbe a quale credere.
- * Il click-to-copy e l'elenco completo dei token arrivano in M1.5.
  *
  * **Niente `opacity-*` sul testo, mai, e qui meno che altrove.** La prima
  * versione di questa pagina metteva `opacity-80` sulla terza riga di ogni
@@ -31,7 +45,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  * più tenue — che è già stato misurato — o un gradino tipografico più piccolo.
  */
 
-type Tessera = { token: string; su?: string; nota?: string }
+type Tessera = { token: string; su?: string; nota?: string; velo?: boolean }
 type Gruppo = { titolo: string; testo?: string; tessere: Tessera[] }
 
 /** Coppie fondo/testo: si guarda se il testo si legge, non se il colore piace. */
@@ -105,6 +119,15 @@ const TINTE: Gruppo[] = [
     ],
   },
   {
+    titolo: 'Sidebar — bordo, focus, e il velo dei modali',
+    testo: '--overlay è l’unico token con un canale alfa: si guarda sopra il contenuto, non affiancato. La tessera lo mostra sopra un fondo a bande, dove il velo si vede per quello che è.',
+    tessere: [
+      { token: 'sidebar-border' },
+      { token: 'sidebar-ring' },
+      { token: 'overlay', nota: 'velo dei modali (M2.3)', velo: true },
+    ],
+  },
+  {
     titolo: 'Serie dei grafici — provvisorie (M2.8)',
     tessere: [
       { token: 'chart-1' },
@@ -116,36 +139,115 @@ const TINTE: Gruppo[] = [
   },
 ]
 
+/**
+ * Legge il valore risolto di un token **dall'elemento stesso**, non da una
+ * tabella. Le proprietà custom si ereditano, quindi la stessa riga dentro la
+ * colonna `.light` e dentro la `.dark` restituisce due valori diversi senza
+ * che il componente sappia in quale delle due si trova.
+ */
+function useValore(token: string) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const [valore, setValore] = useState('')
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    setValore(getComputedStyle(el).getPropertyValue(`--${token}`).trim())
+  }, [token])
+  return { ref, valore }
+}
+
+/**
+ * Una riga copiabile: nome del token, valore letto, e il clic che copia il
+ * nome. `aria-live` sull'esito perché un cambio di etichetta senza annuncio
+ * non esiste per chi usa uno screen reader.
+ */
+function RigaToken({ token, colore }: { token: string; colore?: string }) {
+  const { ref, valore } = useValore(token)
+  const [copiato, setCopiato] = useState(false)
+
+  async function copia() {
+    const testo = `--${token}`
+    try {
+      await navigator.clipboard.writeText(testo)
+    } catch {
+      // Contesto non sicuro o permesso negato: la via vecchia funziona ancora.
+      const area = document.createElement('textarea')
+      area.value = testo
+      document.body.append(area)
+      area.select()
+      document.execCommand('copy')
+      area.remove()
+    }
+    setCopiato(true)
+    setTimeout(() => setCopiato(false), 1200)
+  }
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={copia}
+      title={`Copia --${token}`}
+      className="block w-full cursor-pointer rounded-sm border border-transparent px-1 py-0.5 text-left font-mono text-xs hover:border-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+      style={colore ? { color: `var(--${colore})` } : undefined}
+    >
+      <span className="block break-all">--{token}</span>
+      <span className="block break-all">{valore}</span>
+      <span aria-live="polite" className="block">
+        {copiato ? 'copiato' : ' '}
+      </span>
+    </button>
+  )
+}
+
 function Coppia({ token, su, nota }: Tessera) {
   return (
     <div
       className="rounded-md border p-3"
       style={{ background: `var(--${token})`, borderColor: 'var(--border)' }}
     >
-      <div className="font-mono text-xs" style={{ color: `var(--${su})` }}>
-        --{token}
-      </div>
+      <RigaToken token={token} colore={su} />
       <div className="mt-1 text-base font-medium" style={{ color: `var(--${su})` }}>
         Testo su questo fondo
       </div>
-      <div className="mt-1 font-mono text-xs" style={{ color: `var(--${su})` }}>
-        --{su}
-        {nota ? ` · ${nota}` : ''}
-      </div>
+      <RigaToken token={su!} colore={su} />
+      {nota && (
+        <div className="px-1 font-mono text-xs" style={{ color: `var(--${su})` }}>
+          {nota}
+        </div>
+      )}
     </div>
   )
 }
 
-function Tinta({ token, nota }: Tessera) {
+function Tinta({ token, nota, velo }: Tessera) {
   return (
     <div>
       <div
-        className="h-10 rounded-md border"
-        style={{ background: `var(--${token})`, borderColor: 'var(--border-strong)' }}
-      />
-      <div className="mt-1 font-mono text-xs text-muted-foreground">
-        --{token}
-        {nota ? ` · ${nota}` : ''}
+        className="relative h-10 overflow-hidden rounded-md border"
+        style={{ borderColor: 'var(--border-strong)' }}
+      >
+        {/* Sotto un velo ci vuole qualcosa da velare, o --overlay sembra un
+            grigio pieno come gli altri. È una scacchiera e non una scritta di
+            proposito: axe misura il contrasto di qualunque testo visibile, e
+            un testo sotto un velo è per definizione «sovrapposto da un altro
+            elemento» — un *incomplete* che resterebbe acceso per sempre senza
+            dimostrare niente (misurato: 2 nodi, uno per colonna). Le bande
+            sono fatte di due token, non di due colori. */}
+        {velo && (
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'repeating-linear-gradient(45deg, var(--foreground) 0 8px, var(--background) 8px 16px)',
+            }}
+          />
+        )}
+        <div className="absolute inset-0" style={{ background: `var(--${token})` }} />
+      </div>
+      <div className="mt-1 text-muted-foreground">
+        <RigaToken token={token} />
+        {nota && <div className="px-1 font-mono text-xs">{nota}</div>}
       </div>
     </div>
   )
@@ -177,6 +279,7 @@ function Colonna({ modo, etichetta }: { modo: 'light' | 'dark'; etichetta: strin
         {TINTE.map((g) => (
           <section key={g.titolo}>
             <h3 className="text-md font-semibold">{g.titolo}</h3>
+            {g.testo && <p className="mt-1 text-sm text-muted-foreground">{g.testo}</p>}
             <div className="mt-2 grid grid-cols-4 gap-2">
               {g.tessere.map((t) => (
                 <Tinta key={t.token} {...t} />
@@ -189,11 +292,25 @@ function Colonna({ modo, etichetta }: { modo: 'light' | 'dark'; etichetta: strin
   )
 }
 
+/**
+ * Quanti token la pagina mostra davvero: contato dalle due tabelle qui sopra,
+ * non scritto a mano. Un numero scritto a mano è vero il giorno in cui lo si
+ * scrive e falso al primo token aggiunto — e nessuno se ne accorge.
+ */
+const QUANTI = new Set([
+  ...COPPIE.flatMap((g) => g.tessere.flatMap((t) => [t.token, t.su!])),
+  ...TINTE.flatMap((g) => g.tessere.map((t) => t.token)),
+]).size
+
 function Affiancate() {
   return (
     <div className="min-h-dvh bg-background">
       <header className="mx-auto max-w-page px-5 pt-6 pb-2">
         <h1 className="text-title font-semibold text-foreground">Palette</h1>
+        <p className="mt-1 text-base text-muted-foreground">
+          Tutti i {QUANTI} token del tema, nelle due modalità. Il valore è letto dal DOM; un clic
+          sulla riga copia il nome del token.
+        </p>
       </header>
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2">
         <Colonna modo="light" etichetta="Chiaro" />

@@ -391,8 +391,11 @@ function buildTheme(): string {
     .map((k) => `  --color-${k}: var(--${k});`)
     .join("\n");
 
-  return `/* ══════════════════════════════════════════════════════════════════════
-   TASSULLO DESIGN SYSTEM 2.0 — tassullo-theme.css
+  return `/* ── NOTA DI REPO — questo commento NON arriva alle app ───────────────
+   \`shadcn build\` scarta il PRIMO commento di un file del registry (M1.5,
+   verificato: 379 righe in casa, 357 nell'app, e la differenza è tutta qui).
+   Sta qui di proposito ciò che vale solo dentro questo repo, e nel commento
+   successivo — che invece viaggia — ciò che deve leggere chi installa.
 
    GENERATO da scripts/hex-to-oklch.ts. Non modificare a mano: la fonte
    unica della palette è quello script, e \`npm run check:contrast\` fallisce
@@ -400,10 +403,25 @@ function buildTheme(): string {
 
      npm run theme:build       rigenera questo file
      npm run check:contrast    verifica contrasti e allineamento
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ══════════════════════════════════════════════════════════════════════
+   TASSULLO DESIGN SYSTEM 2.0 — tassullo-theme.css
 
    Identità visiva ereditata da @tassullo/theme v1.2.2, tradotta nella
    convenzione shadcn. La mappa ragionata token per token, con i rilievi e
-   le divergenze deliberate dal v1, è in PIANO.md §2bis.
+   le divergenze deliberate dal v1, è in PIANO.md §2bis del design system.
+
+   Installato con:  npx shadcn@latest add @tassullo/tema
+
+   Questo file è il tema INTERO: palette chiara e scura, raggi, tipografia,
+   ombre e le due densità. Non si modifica nell'app — un token nuovo o una
+   variante si chiedono al registry (regola permanente del design system).
+   Per aggiornarlo: lo stesso comando con \`--overwrite\`.
+
+   ⚠ Se l'app viene da \`shadcn init\`, il suo CSS globale contiene ancora il
+   blocco \`:root\`/\`.dark\` della palette di partenza. Sta DOPO questo
+   \`@import\` e quindi VINCE: va tolto, o i colori Tassullo non si vedono.
 
    Due trappole, se stai per usare un token:
    · --primary è l'ARANCIO DEL BRAND; --accent è il grigio di hover dei menu.

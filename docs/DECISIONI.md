@@ -218,3 +218,70 @@ Perché la conferma sia utile, la proposta deve dire **cosa è stato provato** a
 | file | cosa fa | strada shadcn provata, e perché non basta | approvato da | data |
 |---|---|---|---|---|
 | — | — | — | — | — |
+
+---
+
+## 11. Come si distribuisce il tema: cosa il canale `registry:theme` sa fare, e cosa **fa in silenzio** (M1.5, 2026-09-08)
+
+Un item `registry:theme` ha due modi di consegnare CSS, e il piano (§M1.5) li chiedeva **entrambi**: `cssVars` per `theme`/`light`/`dark`, più il file CSS con `target` sul CSS globale dell'app. Provati tutti e due su un'app Vite+React+Tailwind v4 costruita apposta (shadcn CLI **4.21.0**), con questi esiti.
+
+### `cssVars`: dove finisce ciò che ci si mette
+
+| campo | dove la CLI lo scrive | uso per noi |
+|---|---|---|
+| `cssVars.light` | fonde nel `:root` **esistente** dell'app | ✔ funziona |
+| `cssVars.dark` | fonde in `.dark` | ✔ funziona |
+| `cssVars.theme` | fonde in **`@theme inline`** | ✘ **inservibile per la tipografia** |
+
+L'ultima riga è la ragione per cui `cssVars` da solo non basta. `@theme inline` cuoce il valore dentro l'utility (`.text-sm{font-size:12px}`): la scala tipografica ci finirebbe dentro e la **densità smetterebbe di scattare**, che è esattamente il difetto muto già accertato in M1.4 (§6). Non esiste un campo che scriva in un `@theme` **semplice**.
+
+### `css`: regge i selettori, e **butta via `@theme`**
+
+Il campo `css` accetta at-rule e selettori arbitrari e li accoda al CSS globale. `.light { … }`, `[data-density="touch"] { … }`, `@utility …` passano. `@theme` **no**, in due modi diversi e tutti e due cattivi:
+
+- `css: { "@theme": { "--text-md": "13px" } }` **da solo**: nessun errore, nessuna riga scritta. Sparisce.
+- lo stesso, **insieme a qualunque altra chiave**: la CLI muore e **non installa niente** — `update-css: <css input>:1:7: Unknown word 13px`, perché costruisce `.temp{13px}` (sotto un'at-rule si aspetta selettori annidati, non dichiarazioni).
+
+Un canale che a seconda del contorno o tace o esplode non è un canale.
+
+### `files` con `target`: funziona, e il `target` sul CSS globale **distrugge l'app**
+
+Un file `registry:theme` con `target` viene copiato dove dice il target (senza target atterra in `components/`). Ma il `target` che il piano indicava — il CSS globale dell'app — **sostituisce il file, non ci si fonde**: `src/index.css` è rimasto una riga, `@import "tailwindcss"` compreso. **`PIANO.md` §M1.5 è rettificato qui.**
+
+Nessuna delle due vie aggiunge da sé l'`@import` del file copiato… tranne per una scoperta utile: **`css: { "@import \"./tassullo-theme.css\"": {} }` funziona**, e la CLI lo mette al posto giusto, subito dopo `@import "tailwindcss"` e prima di `:root`.
+
+### La forma adottata
+
+```jsonc
+{
+  "name": "tema", "type": "registry:theme",
+  "files": [{ "path": "registry/tassullo/theme/tassullo-theme.css",
+              "type": "registry:theme", "target": "src/tassullo-theme.css" }],
+  "css": { "@import \"./tassullo-theme.css\"": {} },
+  "docs": "…"
+}
+```
+
+Il tema viaggia **come file intero**, non come elenco di variabili. Tre ragioni, in ordine di peso:
+
+1. **Il `@theme` semplice della tipografia esiste solo così.** È il vincolo che decide.
+2. **Una sola rappresentazione.** Con `cssVars` la palette starebbe due volte nel repo — nella costante di `scripts/hex-to-oklch.ts` e nel JSON dell'item — e due elenchi divergono al primo ritocco. Col file, la fonte resta una e l'item punta al suo output.
+3. **I commenti arrivano.** Le due trappole (`--primary` vs `--accent`, mai `--primary` sul testo) viaggiano col tema invece di restare qui.
+
+### Il commento che non arriva
+
+`shadcn build` **scarta il primo commento** del file: 379 righe in casa, 357 nell'app, e la differenza è tutto e solo il blocco di testa. Il rimedio è la disposizione, non un accorgimento: il **primo** commento contiene ciò che vale solo dentro il repo («generato da, non modificare a mano»), il **secondo** ciò che deve leggere chi installa. Chi tocca `buildTheme()` in `scripts/hex-to-oklch.ts` deve saperlo, ed è scritto lì dentro.
+
+### Il passo a mano che resta, e perché non è nascosto
+
+Il file è importato **prima** del `:root` che l'app si porta da `shadcn init`: in CSS, a parità di specificità, vince l'ultimo, quindi **la palette di partenza di shadcn copre quella Tassullo**. Non c'è modo di evitarlo dal lato del registry senza duplicare la palette nell'item (che è il punto 2 qui sopra). Si toglie a mano, ed è un blocco solo.
+
+Perché non sia un difetto silenzioso, l'istruzione sta nel campo **`docs` dell'item, che la CLI stampa a fine installazione** — verificato — e nel commento di testa del file. Ricaduta su **M5.5**: è il primo passo della guida di migrazione, ed è già misurato.
+
+### Prova d'installazione (M1.5, end-to-end, in locale)
+
+`npx shadcn@latest add @tassullo/tema` da un'app Vite+React+Tailwind v4 vuota, registry servito dal workbench su `http://localhost:5180/r/`:
+
+- file creato in `src/tassullo-theme.css`, `@import` aggiunto in `src/index.css` al posto giusto, `docs` stampato;
+- tolto a mano il blocco di `init`, `vite build` compila: `.text-title{font-size:var(--text-title)}` e `.text-md{font-size:var(--text-md)}` — cioè la **tipografia resta una variabile e la densità scatta** — `.max-w-page{max-width:1180px}`, i blocchi `[data-density=touch]` e `[data-density=normale]` presenti, `.dark` presente, `bg-primary` / `text-accent-ink` / `bg-sidebar` risolti;
+- ri-lanciando il comando l'`@import` **non** viene duplicato.

@@ -530,3 +530,68 @@ Il timore è fondato, ma il pericolo non sta dove sembra. La densità non è un 
 Non è una cosa che si decide a tavolino, ed è per questo che diventa **D10** invece di una riga di CSS scritta adesso. La prima misura si prende in **M3.1** (`tassullo-app-shell`), che è il primo punto in cui la domanda è rispondibile perché la shell possiede il padding di pagina — sono quelle utility, non le altezze dei controlli, a mangiare la larghezza. Il verdetto si prende in **M4.2** (`pagina-lista`), la pagina più densa che avremo. Le tre uscite possibili sono scritte lì, e la meno desiderabile è ridurre il fattore sotto una certa larghezza: rimetterebbe il viewport a decidere una cosa che è deliberatamente una scelta dell'app.
 
 Ricaduta già annotata: l'accettazione di **M3.1** e **M4.2** passa da «resa a 1440 e a 375» a «viewport × densità», quattro celle, e quella che decide è `375px × touch`.
+
+---
+
+## 2026-09-08 — M1.5: il tema esce di casa, e il canale che tace
+
+Chiude la FASE 1. Il tema è dichiarato come item `registry:theme` in `registry.json`, e la pagina `Tema/Palette` è completa: tutti i 56 token, il valore `oklch` **letto dal DOM**, click-to-copy.
+
+L'accettazione del piano chiedeva `registry validate` verde. È verde, ma da sola non dimostrava niente di ciò che questa sessione doveva sapere — se il canale `registry:theme` **basta a portare tutto il tema**, che era la domanda lasciata aperta dai «prossimi passi» di M1.4. Quindi il tema è stato **installato per davvero** su un'app Vite+React+Tailwind v4 costruita apposta, e la risposta è arrivata da lì.
+
+### Il prompt del piano era sbagliato in due punti, e nessuno dei due si vede a metà
+
+Il piano diceva: `cssVars` per `theme`/`light`/`dark`, **più** il file CSS con `target` sul CSS globale dell'app. Provati entrambi (shadcn CLI **4.21.0**):
+
+- **`cssVars.theme` finisce in `@theme inline`.** Che è precisamente il blocco in cui la scala tipografica non può stare: `inline` cuoce il valore dentro l'utility, e la densità smette di scattare — il difetto muto già accertato in M1.4. Non esiste un campo che scriva in un `@theme` **semplice**.
+- **Il `target` sul CSS globale dell'app lo sostituisce.** Non ci si fonde: dopo l'installazione `src/index.css` era una riga sola, `@import "tailwindcss"` compreso. L'app era da rifare.
+
+E il ripiego naturale — mettere il `@theme` nel campo `css`, che regge at-rule e selettori arbitrari — fa due cose, tutte e due cattive: **da solo sparisce senza un errore**; **insieme a qualunque altra chiave la CLI muore e non installa niente** (`update-css: <css input>:1:7: Unknown word 13px`, perché costruisce `.temp{13px}`). Un canale che a seconda del contorno o tace o esplode non è un canale.
+
+Rettifica scritta in `PIANO.md` §M1.5, con la misura e il perché in `docs/DECISIONI.md` §11.
+
+### La forma adottata, e perché il file intero e non l'elenco di variabili
+
+```jsonc
+{ "name": "tema", "type": "registry:theme",
+  "files": [{ "path": "registry/tassullo/theme/tassullo-theme.css",
+              "type": "registry:theme", "target": "src/tassullo-theme.css" }],
+  "css": { "@import \"./tassullo-theme.css\"": {} },
+  "docs": "…" }
+```
+
+La scoperta che rende la cosa automatica invece che manuale: **`css` accetta un `@import` come chiave**, e la CLI lo colloca al posto giusto — subito dopo `@import "tailwindcss"`, prima di `:root`. Senza, il file arriverebbe nell'app e nessuno lo importerebbe.
+
+Tre ragioni per il file intero, in ordine di peso: **il `@theme` semplice esiste solo così**; con `cssVars` la palette starebbe **due volte** nel repo — nella costante dello script e nel JSON dell'item — e due elenchi divergono al primo ritocco; **i commenti arrivano**, cioè le due trappole viaggiano col tema invece di restare qui.
+
+### Il commento che non arriva, e la disposizione che lo rimedia
+
+`shadcn build` **scarta il primo commento** di un file del registry: 379 righe in casa, 357 nell'app, e la differenza è tutto e solo il blocco di testa — cioè, prima di questa sessione, proprio le due trappole. Il rimedio non è un accorgimento ma la disposizione: `buildTheme()` emette ora **due** commenti. Il primo — sacrificabile — dice ciò che vale solo dentro il repo («generato da, non modificare a mano») e sa di essere quello che verrà buttato. Il secondo, che viaggia, è il tema visto da chi lo installa: com'è fatto, come si aggiorna, la riga della densità, il passo a mano, le due trappole.
+
+### Il passo a mano che resta, messo dove non si può non vederlo
+
+Il file è importato **prima** del `:root` che l'app si porta da `shadcn init`, e in CSS a parità di specificità vince l'ultimo: **la palette di partenza di shadcn copre quella Tassullo**. Dal lato del registry non è evitabile senza duplicare la palette nell'item, che è ciò che si è appena deciso di non fare. Si toglie a mano, è un blocco solo, e l'istruzione sta nel campo **`docs` dell'item — che la CLI stampa a fine installazione** (verificato) — oltre che nel commento di testa del file. Ricaduta su **M5.5**: è il primo passo della guida di migrazione, già misurato.
+
+### La pagina Palette: cosa è cambiato
+
+- **I 56 token, tutti.** Ne mancavano tre (`sidebar-border`, `sidebar-ring`, `overlay`), ora in un gruppo loro. Il conto in intestazione non è scritto a mano: è `new Set(...).size` sulle due tabelle, perché un numero scritto a mano è vero il giorno in cui lo si scrive.
+- **Il valore `oklch` è letto dal DOM**, con `getComputedStyle`, dall'elemento che quel colore lo sta mostrando. Stessa scelta di `Tema/Densità` e stessa ragione: un elenco copiato a mano resta verde anche il giorno in cui il tema smette di funzionare. In più le proprietà custom si ereditano, quindi la colonna chiara e quella scura riportano ciascuna il proprio valore **senza che la story sappia nulla della palette** — che resta nello script, dove è la fonte unica.
+- **Click-to-copy**: copia il **nome del token**, non il valore. Il nome è ciò che si scrive nel codice; incollare il valore sarebbe il valore arbitrario che la regola 3 vieta. `navigator.clipboard.writeText` **è negato dentro l'iframe di Storybook** — misurato, `NotAllowedError: Write permission denied` — quindi il ripiego `execCommand` non è difensivismo: è la strada che viene percorsa davvero, e la verifica l'ha vista percorrere con `--overlay` selezionato nella textarea.
+- **`--overlay` si guarda sopra qualcosa, non accanto.** La tessera lo mette su un fondo a bande. Le bande sono bande e non una scritta di proposito: axe misura il contrasto di qualunque testo visibile, e un testo sotto un velo è per definizione «sovrapposto da un altro elemento» — un *incomplete* acceso per sempre che non dimostra nulla (misurato: 2 nodi, uno per colonna, prima di sostituirlo).
+
+### Verifiche eseguite
+
+- **Installazione end-to-end**, app Vite vuota, registry servito dal workbench su `http://localhost:5180/r/`: file creato in `src/tassullo-theme.css`, `@import` al posto giusto, `docs` stampato. Tolto a mano il blocco di `init`, `vite build` compila **`.text-title{font-size:var(--text-title)}`** e `.text-md{font-size:var(--text-md)}` — la tipografia resta una variabile, cioè la densità scatta anche nell'app — più `.max-w-page{max-width:1180px}`, i due blocchi `[data-density]`, `.dark`, e `bg-primary`/`text-accent-ink`/`bg-sidebar` risolti. Ri-lanciando il comando l'`@import` **non** si duplica.
+- **axe-core su `Tema/Palette`: 0 violazioni, 0 incomplete**, 14 controlli passati, a **1440×900** e nelle due densità (`touch` e `normale`). La story mostra le due palette affiancate, quindi la modalità è coperta dalla pagina stessa. Ricontrollato anche a 375, 768, 1023 e 1024: 0 e 0 dappertutto.
+- **Un falso positivo di axe, da riconoscere se ricapita.** Su una finestra non emulata la pagina si impilava fino a **38 314 px** e in quello stato axe restituiva **326 `incomplete`** («Unable to determine contrast ratio», cioè quasi ogni testo) e **2 violazioni** — fra cui `--muted-foreground` sul fondo scuro dato a **2.19:1**, quando quella coppia è nel gate e misura **7.75:1**. axe risolve il fondo di un testo col punto, non con l'albero, e su una pagina così alta prendeva il fondo *chiaro* della cornice per un testo della colonna *scura*. Non è un difetto della pagina: è una lettura da buttare. **Quando quasi ogni nodo è «unable to determine», il verdetto non vale**; si rimisura a viewport dichiarata.
+- `npm run check` (contrasto 48/48, registry 0 errori), `npx shadcn@latest registry validate ./registry.json` (2 item), `npx tsc -b --force`, `npx oxlint`, `npm run build`, `npm run build-storybook`: verdi.
+- Nessuna modifica al repo v1 né alle app. L'app di prova sta fuori dal repo, nella cartella temporanea di sessione.
+
+### Scostamenti
+
+- **`public/r/tema.json` committato**, come già `button.json`: è l'artefatto che GitHub servirà a D4 chiusa.
+- Il `@theme` semplice della tipografia **non è stato spostato** in `@theme inline` con un'indirezione (`--text-md: var(--type-md)`), che pure renderebbe il tema esprimibile tutto in `cssVars`. Sarebbe riaprire una decisione chiusa da M1.4 per guadagnare il canale peggiore dei due; annotato qui perché la strada esiste e non è stata dimenticata.
+
+### Prossimi passi
+
+**FASE 2, M2.1 — Fondamenta.** Arriva con quattro rilievi già misurati e in carico: `destructive` a 3.82:1 in chiaro e 3.57:1 in scuro, `link` a 1.79:1 in chiaro, l'*incomplete* su `ghost` in scuro, e il `text-[0.8rem]` della taglia `sm` che M1.4 ha mostrato non seguire la densità.
