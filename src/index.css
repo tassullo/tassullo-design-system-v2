@@ -20,37 +20,69 @@
 
    Queste @font-face stanno QUI e non nel tema apposta: `src/` è il workbench,
    e ciò che sta qui non viaggia col registry. I file vanno in `public/fonts/`
-   e sono esclusi dal repo; istruzioni e provenienza in `public/fonts/LEGGIMI.md`.
-   Finché mancano, la console mostra un 404 per peso e tutto degrada al font
-   di sistema: è il comportamento voluto.
+   e sono esclusi dal repo; nomi, formati e provenienza in
+   `public/fonts/LEGGIMI.md`. Ogni faccia accetta `.woff2` o `.otf`, in
+   quest'ordine: arriva quello che c'è. Finché mancano, la console mostra un
+   404 per file e tutto degrada al font di sistema — comportamento voluto.
 
-   ── I PESI SONO TRE, E NON SONO QUELLI CHE IL DESIGN SYSTEM USA ────────
-   tassullo.it dichiara Replicall in **300 Light, 400 Regular, 700 Bold**, in
-   `.otf`, e basta: **500 e 600 non esistono**. Ma il v1 costruisce la
+   ── LA FAMIGLIA NON HA 500 NÉ 600, E IL DESIGN SYSTEM LI USA ───────────
+   Replica LL (Lineto) ha quattro pesi: **Light 300, Regular 400, Bold 700,
+   Heavy 800**, più i corsivi. **Medium e Semibold non esistono**, e non è che
+   manchino i file: non esistono nel carattere. Ma il v1 costruisce la
    gerarchia su 600 (×13) e 500 (×2), e il v2 su `font-semibold` (×14) e
-   `font-medium` (×3). Quando il font si carica, la sostituzione di CSS manda
-   **600 → 700** e **500 → 400**: il semibold diventa bold, il medium sparisce
-   dentro il corpo del testo. Non è un guasto da riparare qui — è una scelta
-   di gerarchia da prendere vedendola, ed è in carico a M2.1 (`typography`).
+   `font-medium` (×3). La sostituzione di CSS manda **600 → 700** e
+   **500 → 400**: il semibold diventa bold, il medium sparisce dentro il corpo
+   del testo. Quattro gradini scritti, due resi.
+
+   Non si ripara qui: è una scelta di gerarchia da prendere guardandola, ed è
+   in carico a M2.1 (`typography`). Heavy 800 è dichiarato apposta — è il
+   gradino in più che il carattere offre e che il v1 non ha mai usato.
    ══════════════════════════════════════════════════════════════════════ */
 @font-face {
   font-family: 'Replicall';
-  src: url('/fonts/replicall-300.otf') format('opentype');
+  src: url('/fonts/replicall-300.woff2') format('woff2'),
+       url('/fonts/replicall-300.otf') format('opentype');
   font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Replicall';
-  src: url('/fonts/replicall-400.otf') format('opentype');
+  src: url('/fonts/replicall-400.woff2') format('woff2'),
+       url('/fonts/replicall-400.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Replicall';
-  src: url('/fonts/replicall-700.otf') format('opentype');
+  src: url('/fonts/replicall-400-italic.woff2') format('woff2'),
+       url('/fonts/replicall-400-italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Replicall';
+  src: url('/fonts/replicall-700.woff2') format('woff2'),
+       url('/fonts/replicall-700.otf') format('opentype');
   font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Replicall';
+  src: url('/fonts/replicall-700-italic.woff2') format('woff2'),
+       url('/fonts/replicall-700-italic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Replicall';
+  src: url('/fonts/replicall-800.woff2') format('woff2'),
+       url('/fonts/replicall-800.otf') format('opentype');
+  font-weight: 800;
   font-style: normal;
   font-display: swap;
 }

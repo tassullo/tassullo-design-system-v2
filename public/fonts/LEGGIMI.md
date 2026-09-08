@@ -5,41 +5,64 @@ mostrare la style guide nella tipografia vera del marchio; i file binari
 **non si committano** e **non si distribuiscono col registry** (D3, licenza
 Webflow del sito istituzionale — `.gitignore` li esclude già).
 
-## Cosa mettere qui
+Il carattere è **Replica LL**, di [Lineto](https://lineto.com/typefaces/replica).
 
-Tre file, con questi nomi esatti:
+## Formato
 
-| file | peso | note |
+**`.woff2` è la scelta migliore** — è il formato dei font per il web, pesa un
+terzo o meno dell'`.otf` a parità di disegno, ed è supportato da ogni browser
+in uso. Se arriva un `.otf` va bene lo stesso: ogni `@font-face` in
+`src/index.css` dichiara **entrambe** le fonti, `.woff2` per prima, e il
+browser usa quella che trova. Non c'è niente da modificare nel codice in
+nessuno dei due casi.
+
+Se Roberto ha solo `.otf` o `.ttf`, si convertono in `.woff2` in un minuto —
+ma solo se la licenza copre la conversione, che è una domanda da fare a lui.
+
+## Nomi dei file
+
+| file | peso CSS | file originale Lineto |
 |---|---|---|
-| `replicall-300.otf` | 300 — Light | oggi non usato dal design system |
-| `replicall-400.otf` | 400 — Regular | corpo del testo, input, tabelle |
-| `replicall-700.otf` | 700 — Bold | il peso marcato |
+| `replicall-300.woff2` | 300 | `ReplicaLL-Light` |
+| `replicall-400.woff2` | 400 | `ReplicaLL-Regular` |
+| `replicall-400-italic.woff2` | 400 corsivo | `ReplicaLL-Italic` |
+| `replicall-700.woff2` | 700 | `ReplicaLL-Bold` |
+| `replicall-700-italic.woff2` | 700 corsivo | `ReplicaLL-BoldItalic` |
+| `replicall-800.woff2` | 800 | `ReplicaLL-Heavy` |
 
-**Sono tutti quelli che esistono.** `tassullo.it` dichiara la famiglia in
-questi tre pesi e basta — verificato leggendo le `@font-face` del sito, che
-li serve dal CDN Webflow come `ReplicaLL-Light.otf`, `ReplicaLL-Regular.otf`,
-`ReplicaLL-Bold.otf`. Sono gli stessi file che carica il sito.
+Stessi nomi con estensione `.otf` se il formato è quello. Mancano di proposito
+`LightItalic` e `HeavyItalic`: nessuna app li usa: se servissero, si aggiungono
+due `@font-face` in `src/index.css`.
 
-Se hai solo alcuni pesi, mettili lo stesso: i mancanti degradano al font di
-sistema per quel peso, e la pagina resta leggibile.
+Se hai solo alcuni file, mettili lo stesso: i pesi mancanti degradano al font
+di sistema **per quel peso soltanto**, e la pagina resta leggibile.
 
-Se preferisci convertirli in `.woff2` (più leggeri), va benissimo: cambia le
-tre righe `src:` in `src/index.css`, sostituendo `format('opentype')` con
-`format('woff2')` e l'estensione.
+## ⚠ 500 e 600 non esistono — e il design system li usa
 
-## ⚠ 500 e 600 non esistono, e il design system li usa
+La famiglia ha **quattro pesi: 300 Light, 400 Regular, 700 Bold, 800 Heavy**
+(più i corsivi). **Medium e Semibold non esistono**, e non è che manchino i
+file: non esistono nel carattere. Verificato sui nomi degli asset pubblicati
+da Lineto e sulle `@font-face` di `tassullo.it`, che ne serve tre — Light,
+Regular, Bold.
 
-Il v1 costruisce la gerarchia su **600** (×13) e **500** (×2), il v2 su
-`font-semibold` (×14) e `font-medium` (×3). Nessuno dei due pesi è nella
-famiglia. Quando il font si carica, la sostituzione prevista dal CSS manda:
+Ma il v1 costruisce la gerarchia su **600** (×13) e **500** (×2), e il v2 su
+`font-semibold` (×14) e `font-medium` (×3). Quando il font si carica, la
+sostituzione prevista dal CSS dà:
 
-- **600 → 700** — il semibold diventa bold;
-- **500 → 400** — il medium sparisce dentro il corpo del testo.
+| scritto | reso con Replicall |
+|---|---|
+| `font-medium` (500) | **400 Regular** — indistinguibile dal corpo del testo |
+| `font-semibold` (600) | **700 Bold** |
 
-Non è un guasto da riparare in questa cartella: è una scelta di gerarchia da
-prendere **vedendola**, ed è esattamente il motivo per cui vale la pena
-caricare il font nel workbench prima di scrivere le primitive. In carico a
-**M2.1** (`typography`).
+Quattro gradini scritti, **due resi**. Oggi il difetto non si vede, perché
+nessuna app carica il font e San Francisco quei pesi ce li ha: salterebbe
+fuori il giorno in cui un'app carica finalmente Replicall.
+
+Non si ripara in questa cartella: è una scelta di gerarchia da prendere
+**guardandola**, ed è in carico a **M2.1** (`typography`). **Heavy 800** è
+dichiarato apposta — è il gradino in più che il carattere offre e che il v1
+non ha mai usato, e potrebbe essere lì che la gerarchia ritrova il quarto
+livello.
 
 ## Come si accende
 
@@ -57,4 +80,4 @@ Il tema distribuito alle app (`registry/tassullo/theme/tassullo-theme.css`)
 **non cambia**: continua a dichiarare solo lo stack, `'Replicall'` con i suoi
 fallback di sistema, e a non portare nessun file. Un'app che vuole il font lo
 carica per conto suo, esattamente come nel v1 — cosa che oggi **nessuna app
-fa**, Studio compreso. D3 resta chiusa al default.
+fa**, Studio compresa. D3 resta chiusa al default.
