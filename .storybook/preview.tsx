@@ -5,6 +5,8 @@ import type { Decorator, Preview } from '@storybook/react-vite'
 
 // Tailwind + i token del tema, che `src/index.css` importa dal registry.
 import '../src/index.css'
+// Il canvas di Storybook dipinto coi token, non col bianco di Storybook.
+import './preview.css'
 
 /**
  * Densità: l'interruttore agisce su un attributo del documento e basta —
@@ -43,8 +45,32 @@ const withDensity: Decorator = (Story, context) => (
   </ConDensita>
 )
 
+/**
+ * La superficie si scrive come attributo sul `<body>` del canvas, e il
+ * colore lo mette `preview.css` leggendo i token. È la stessa forma della
+ * densità, e per la stessa ragione: l'attributo è un interruttore, il
+ * valore sta nel tema. Così la superficie segue chiaro/scuro senza che
+ * questo file sappia nulla dei colori.
+ */
+function ConSuperficie({ superficie, children }: { superficie: string; children: ReactNode }) {
+  useEffect(() => {
+    const body = document.body
+    if (superficie && superficie !== 'pagina') body.setAttribute('data-superficie', superficie)
+    else body.removeAttribute('data-superficie')
+  }, [superficie])
+
+  return children
+}
+
+const withSuperficie: Decorator = (Story, context) => (
+  <ConSuperficie superficie={context.globals.superficie as string}>
+    <Story />
+  </ConSuperficie>
+)
+
 const preview: Preview = {
   decorators: [
+    withSuperficie,
     withDensity,
     withThemeByClassName({
       themes: { chiaro: '', scuro: 'dark' },
@@ -54,6 +80,27 @@ const preview: Preview = {
   ],
 
   globalTypes: {
+    /**
+     * Su quale superficie del tema si guarda il componente. Tre, e non di
+     * più: sono quelle per cui il tema dichiara **anche il colore del
+     * testo**, cioè le coppie che `npm run check:contrast` verifica. Un
+     * fondale senza il suo testo verificato non è un banco di prova
+     * realistico — è un modo di rompere il contrasto senza accorgersene.
+     */
+    superficie: {
+      description: 'Superficie del tema su cui poggia la story',
+      toolbar: {
+        title: 'Superficie',
+        icon: 'paintbrush',
+        items: [
+          { value: 'pagina', title: 'Pagina' },
+          { value: 'card', title: 'Card' },
+          { value: 'sidebar', title: 'Sidebar' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+
     density: {
       description: 'Densità dei controlli — in touch il bottone è 48px',
       toolbar: {
@@ -71,18 +118,30 @@ const preview: Preview = {
   initialGlobals: {
     density: 'normale',
     viewport: { value: 'scrivania', isRotated: false },
+    // Si parte dalla pagina: è la superficie su cui sta la maggior parte
+    // dei componenti, e commutando chiaro/scuro segue da sé.
+    superficie: 'pagina',
   },
 
   parameters: {
     layout: 'centered',
 
-    // Le tre sezioni della style guide, nell'ordine in cui si leggono:
-    // il tema regge le primitive, le primitive reggono i blocchi.
-    options: {
-      storySort: {
-        order: ['Introduzione', 'Tema', 'Primitive', 'Blocchi', 'Pagine'],
-      },
-    },
+    /**
+     * L'addon «backgrounds» di Storybook è **spento**, e al suo posto c'è
+     * l'interruttore «Superficie» qui sotto. Due ragioni.
+     *
+     * I suoi fondali predefiniti sono `#F8F8F8` e `#333333`: colori che in
+     * Tassullo non esistono, offerti *accanto* all'interruttore
+     * chiaro/scuro — due controlli che sembrano fare la stessa cosa.
+     *
+     * E, provandolo, **l'addon cuoce il valore**: configurato con
+     * `var(--background)` il fondale resta quello della modalità in cui è
+     * stato applicato. Misurato: commutando su scuro il testo diventava
+     * chiaro e il fondo restava quello chiaro. Illeggibile, senza errore.
+     * La superficie la mette quindi il CSS (`preview.css`), dove `var()`
+     * resta vivo e segue la modalità da sé.
+     */
+    backgrounds: { disable: true },
 
     controls: {
       matchers: { color: /(background|color)$/i, date: /Date$/i },

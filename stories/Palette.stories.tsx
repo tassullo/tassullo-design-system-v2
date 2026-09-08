@@ -328,6 +328,8 @@ const meta = {
     // L'interruttore del tema non serve qui: la story mostra già entrambe le
     // modalità, e commutarlo cambierebbe solo la cornice attorno alle colonne.
     themes: { disable: true },
+    // Né la superficie: questa è la pagina che le superfici le *mostra*, e
+    // dipinge il proprio fondo da sé su ciascuna colonna.
   },
 } satisfies Meta<typeof Affiancate>
 

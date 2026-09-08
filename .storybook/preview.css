@@ -1,0 +1,55 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Il canvas di Storybook prende i token del tema
+
+   Senza questo file una story con `layout: 'centered'` — cioè quasi tutte
+   le primitive — viene disegnata sul bianco di Storybook anche in modalità
+   scura: il bottone si giudica su un fondo che nel design system non
+   esiste. Le pagine `layout: 'fullscreen'` non se ne accorgevano perché il
+   fondo se lo dipingono da sé, ed è per questo che il difetto è rimasto in
+   piedi fino a quando qualcuno ha guardato una primitiva in scuro.
+
+   ── Perché non l'addon «backgrounds» di Storybook ─────────────────────
+
+   Due ragioni. La prima: i suoi fondali predefiniti sono `#F8F8F8` e
+   `#333333`, colori che in Tassullo non esistono, offerti *accanto*
+   all'interruttore chiaro/scuro — due controlli che sembrano fare la
+   stessa cosa e non la fanno.
+
+   La seconda è tecnica e si scopre solo provandola: **l'addon cuoce il
+   valore**. Configurandolo con `var(--background)` il fondale resta quello
+   della modalità in cui è stato applicato — misurato: commutando su scuro
+   il testo diventava chiaro e il fondo restava `oklab(0.9726 …)`, cioè il
+   fondo *chiaro*, con testo chiaro sopra. Illeggibile, e senza errore.
+
+   Qui invece il colore lo mette il CSS, quindi `var()` resta vivo e la
+   superficie **segue la modalità** da sé.
+   ══════════════════════════════════════════════════════════════════════ */
+
+body.sb-show-main {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* ── Le superfici su cui un componente può davvero trovarsi ────────────
+   Tre, e non di più: sono quelle per cui il tema dichiara **anche il
+   colore del testo**, cioè quelle che `npm run check:contrast` verifica
+   come coppia. Un fondale senza il suo testo verificato non è un banco di
+   prova realistico, è un modo di rompere il contrasto senza accorgersene.
+   `--muted` non è qui di proposito: è un riempimento per chip e scheletri,
+   non una superficie di pagina. */
+body.sb-show-main[data-superficie='card'] {
+  background: var(--card);
+  color: var(--card-foreground);
+}
+
+body.sb-show-main[data-superficie='sidebar'] {
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+}
+
+/* Le story centrate hanno bisogno di respiro attorno al componente, o il
+   fondo del tema si vede per pochi pixel e non si giudica niente. */
+body.sb-show-main.sb-main-centered #storybook-root {
+  padding: 2rem;
+}

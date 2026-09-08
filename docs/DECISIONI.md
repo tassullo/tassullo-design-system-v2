@@ -566,3 +566,53 @@ La ragione di fondo è quella che ha chiuso D3: servire i font da un terzo signi
 - `--font-sans: "Inter", …` e `.text-title{font-size:var(--text-title)}`, cioè la densità continua a scattare;
 - **i byte del font sopravvivono al viaggio**: 73.016 in casa e 73.016 nell'app, stesso `sha256`, identici anche al `.woff2` di partenza. È la verifica che il canale binario non superava, e la ragione per cui il base64 è la strada giusta.
 - Nel workbench: **nessuna richiesta di rete per il font** (`performance.getEntriesByType('resource')` non ne riporta), 2 facce caricate, 5 pesi distinti su 5, axe 0/0.
+
+---
+
+## 16. Il canvas di Storybook prende i token, e i fondali sono le superfici del tema (2026-09-08)
+
+Rilievo di Francesco, guardando `Tema/Carattere` e `Primitive/Button`: in modalità scura il fondo non diventava scuro, e i fondali offerti non erano quelli di Tassullo. Due sintomi, una causa sola: **il canvas non conosceva il tema**.
+
+### Il difetto
+
+Le story `layout: 'fullscreen'` — le pagine del tema — il fondo se lo dipingono da sé, e sembravano a posto. Quelle `layout: 'centered'`, cioè **quasi tutte le primitive**, venivano disegnate sul bianco di Storybook anche in scuro: il bottone si giudicava su un fondo che nel design system non esiste. Il difetto è rimasto in piedi finché qualcuno non ha guardato una primitiva in modalità scura.
+
+Accanto, l'addon **backgrounds** di Storybook offriva un `light` e un `dark` suoi — `#F8F8F8` e `#333333` — *insieme* all'interruttore chiaro/scuro. Due controlli che sembrano fare la stessa cosa e non la fanno.
+
+### La strada che sembrava giusta e non lo era
+
+Configurare l'addon con le superfici del tema, `value: 'var(--background)'`, in modo che seguisse la modalità da sé. Sembra elegante e **non funziona**: l'addon **cuoce il valore** al momento in cui lo applica. Misurato — commutando su scuro il testo diventava chiaro e il fondo restava `oklab(0.9726 …)`, cioè quello *chiaro*: testo chiaro su fondo chiaro, illeggibile e senza errore.
+
+### La forma adottata
+
+L'addon è **spento**, e al suo posto c'è un interruttore nostro, «Superficie», fatto come la densità: un global scrive un attributo sul `<body>` del canvas, e il colore lo mette il CSS leggendo i token (`.storybook/preview.css`). Così `var()` resta vivo e la superficie **segue chiaro/scuro** da sé.
+
+**Tre superfici, e non di più** — sono quelle per cui il tema dichiara *anche* il colore del testo, cioè le coppie che `check:contrast` verifica:
+
+| superficie | fondo | testo |
+|---|---|---|
+| Pagina *(default)* | `--background` | `--foreground` |
+| Card | `--card` | `--card-foreground` |
+| Sidebar | `--sidebar` | `--sidebar-foreground` |
+
+`--muted` non c'è di proposito: è un riempimento per chip e scheletri, non una superficie di pagina. Un fondale senza il suo testo verificato non è un banco di prova realistico — è un modo di rompere il contrasto senza accorgersene.
+
+`Tema/Palette` non prende superficie né tema: è la pagina che le superfici le *mostra*, e dipinge il proprio fondo su ciascuna colonna.
+
+### Verifiche
+
+Le nove combinazioni superficie × modalità risolvono tutte alla coppia giusta, lette dal DOM:
+
+| | chiaro | scuro |
+|---|---|---|
+| Pagina | `0.9726` su `0.1913` | `0.1913` su `0.9455` |
+| Card | `0.994` su `0.1913` | `0.2264` su `0.9455` |
+| Sidebar | `0.1913` su `0.7316` | `0.2264` su `0.7316` |
+
+**Nessuna violazione nuova**: `Primitive/Button` in chiaro riporta esattamente le due note — `destructive` 3.82:1 e `link` 1.79:1 — con le stesse cifre già a verbale, in carico a M2.1.
+
+### Una misura sbagliata, di nuovo, e vale la pena scriverla
+
+Alla prima verifica axe dava **4** violazioni invece di 2. Le due in più erano `#ededeb` (il testo della modalità *scura*) su `#f6f6f4` e su `#babab9` — un grigio intermedio. Erano **artefatti della transizione**: avevo tolto `.dark` via JS e misurato dopo 700 ms, mentre i bottoni hanno `transition-colors` ed erano a metà strada. Rimisurato da pagina appena caricata: 2, con le cifre esatte.
+
+È la stessa forma degli altri sbagli di questa sessione — il righello sulla virgola, il canvas per lo zero barrato, la larghezza per il corsivo. **Una misura che gira e restituisce un numero non è una verifica: lo è solo se misura la cosa giusta, nello stato giusto.**

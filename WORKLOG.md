@@ -1008,3 +1008,34 @@ Il tema è anche documentazione — ha più commenti che dichiarazioni. Affogarl
 Il **sottoinsieme**: oggi solo `latin`, che copre italiano e tedesco. `latin-ext` costerebbe il doppio (130 KB contro 71) e serve solo per l'Europa centrale — si aggiunge in una riga se un giorno un nome lo richiede.
 
 E il **canale PDF**, che non è toccato: resta Replica, coi `.ttf` convertiti, fuori dal repo in `public/fonts/`. Nessuna pagina la carica più.
+
+---
+
+## 2026-09-08 — Il canvas di Storybook prende i token del tema
+
+Rilievo di Francesco su uno screenshot: in `Tema/Carattere` il fondo non diventava scuro, e nel bottone «non è quello corretto». Due sintomi, una causa: **il canvas non conosceva il tema.**
+
+Le story `layout: 'fullscreen'` — le pagine del tema — il fondo se lo dipingono da sé e sembravano a posto. Quelle `layout: 'centered'`, cioè **quasi tutte le primitive**, venivano disegnate sul bianco di Storybook anche in scuro. Accanto, l'addon *backgrounds* offriva un `light` e un `dark` suoi (`#F8F8F8`, `#333333`) *insieme* all'interruttore chiaro/scuro: due controlli che sembrano fare la stessa cosa.
+
+### La strada elegante che non funziona
+
+Configurare l'addon con `value: 'var(--background)'`, così da far seguire la modalità al fondale. **L'addon cuoce il valore** al momento in cui lo applica: misurato, commutando su scuro il testo diventava chiaro e il fondo restava quello chiaro. Testo chiaro su fondo chiaro, senza errore.
+
+### Fatto
+
+- Addon **spento**, e al suo posto l'interruttore **«Superficie»**, fatto come la densità: un global scrive un attributo sul `<body>`, il colore lo mette `.storybook/preview.css` leggendo i token. `var()` resta vivo e la superficie segue chiaro/scuro da sé.
+- **Tre superfici**: Pagina, Card, Sidebar — quelle per cui il tema dichiara *anche* il colore del testo, cioè le coppie che `check:contrast` verifica. `--muted` è fuori di proposito: è un riempimento per chip e scheletri, non una superficie di pagina, e un fondale senza il suo testo verificato è un modo di rompere il contrasto senza accorgersene.
+- `body.sb-show-main` prende fondo, testo e `font-family` dai token; le story centrate hanno `padding` attorno, o il fondo si vedrebbe per pochi pixel.
+- `Tema/Palette` non prende né tema né superficie: è la pagina che le superfici le *mostra*.
+
+### Verifiche
+
+Le nove combinazioni superficie × modalità risolvono tutte alla coppia giusta, lette dal DOM — Pagina `0.9726`/`0.1913` in chiaro e `0.1913`/`0.9455` in scuro, Card `0.994`→`0.2264`, Sidebar `0.1913`→`0.2264` con testo `0.7316` in entrambe.
+
+**Nessuna violazione nuova**: `Primitive/Button` in chiaro riporta esattamente le due note, `destructive` 3.82:1 e `link` 1.79:1, con le cifre già a verbale.
+
+### La misura sbagliata, di nuovo
+
+Alla prima verifica axe dava **4** violazioni. Le due in più erano `#ededeb` — il testo della modalità *scura* — su `#f6f6f4` e su `#babab9`, un grigio intermedio: **artefatti della transizione**, perché avevo tolto `.dark` via JS e misurato dopo 700 ms mentre i bottoni erano a metà di `transition-colors`. Da pagina appena caricata: 2, cifre esatte.
+
+È la quarta volta in questa sessione, dopo il righello sulla virgola, il canvas per lo zero barrato e la larghezza per il corsivo. Aggiunta la regola in `CLAUDE.md`: **le misure di accessibilità si prendono a pagina ferma.**
