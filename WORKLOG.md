@@ -1216,3 +1216,102 @@ Il testo lungo nelle app Tassullo esiste: le descrizioni delle schede tecniche, 
 ### Prossimo passo
 
 M2.2 (Form) come da piano. D11 non blocca niente fino a M3.8.
+
+---
+
+## 2026-09-09 — M2.2 Form: dieci primitive, tre difetti del preset, e un pannello che mente
+
+Le dieci primitive del modulo — `field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider` — installate, ri-stilate, dichiarate nel registry (**21 item**, `registry validate` verde) e provate da tastiera.
+
+### Il gate corretto per primo, e ha subito ripagato
+
+Due modifiche a `scripts/check-registry.ts`, fatte **prima** di ri-stilare:
+
+1. **I componenti a segnaposto d'icona uscivano con `continue` e si portavano via anche il controllo dei valori arbitrari.** `spinner`, `checkbox` e `select` erano gli unici file del registry dove un valore arbitrario *nostro* non sarebbe stato visto da nessuno — e con M2.2 diventavano tre su venti. Ora il segnaposto salta solo il confronto di **forma**; le stringhe di classi si controllano lo stesso. Ha scoperto nello stesso minuto `checkbox rounded-[4px]` e `select rounded-[min(var(--radius-md),10px)]`, invisibili fino a ieri.
+2. **Un elenco di proprietà non è un valore.** `transition-[color,box-shadow]` è una parentesi quadra che non contiene né una lunghezza né un colore: non è ciò che la regola 3 vieta, e non c'è niente da «ripulire ri-stilando». Aggiunto `ELENCO_PROPRIETA_RE`.
+
+Avvisi del gate: **da 18 a 5**, e i cinque restanti sono tutti sostanziali.
+
+### I ri-stili, e i tre difetti veri
+
+Sette componenti toccati; `input`, `textarea`, `label` e `radio-group` passano **senza un ritocco**.
+
+**`field` — le due trappole scritte nel CLAUDE.md, tutte e due presenti nel preset.**
+
+| | prima | rapporto | ora | rapporto |
+|---|---|---|---|---|
+| testo d'errore, chiaro | `text-destructive` | **4.46** pagina / 4.75 card | `text-destructive-subtle-foreground` | **7.68** / 8.17 |
+| testo d'errore, scuro | `text-destructive` | **3.81** pagina / **3.53** card | idem | **11.29** / 10.45 |
+| link in hover | `text-primary` | **1.79** | `text-accent-ink` | **4.77** / 5.07 |
+
+`--destructive` è un colore da **fondo** — è il rosso pieno del bottone distruttivo — e come testo non arriva a 4.5:1 in **nessuna** delle quattro combinazioni. Il testo rosso ha già il suo token dal v1 (`--color-danger-text`). Stessa correzione fatta al `badge` in M2.1, stesso errore del preset.
+
+**`slider` — tre cose, e la terza è la più grave.**
+
+- `bg-white` sul pomello: un colore **fuori dal tema**. In chiaro non si notava, in scuro era l'unico bianco pieno dell'interfaccia. `bg-background` da solo però crollava a **1.22** sul binario scuro: la risposta giusta è `bg-background dark:bg-foreground` — **12.91 in scuro** — che è l'idioma che il nostro `switch` usa già per il suo pomello.
+- pomello `size-3` → `size-4`: bersaglio del dito da **42 a 48px** in touch, sopra i 44 che M2.9 chiederà invece che sotto per due pixel.
+- **La maniglia non mostrava il fuoco.** `focus-visible:ring-3` stava sulla maniglia, ma Base UI mette il fuoco su un `<input type="range">` **nascosto dentro** di essa: la maniglia matcha `:focus-within`, mai `:focus-visible`, e l'anello non compariva mai. È WCAG 2.4.7, ed è un difetto del preset. Corretto in `has-[:focus-visible]:ring-3` — l'idioma che checkbox e radio del preset stesso già usano.
+
+**`switch` — l'unico componente del set con misure in pixel crudi, quindi l'unico che la densità non scalava.**
+
+| | prima | ora | normale | touch |
+|---|---|---|---|---|
+| `default` | `h-[18.4px] w-[32px]` | `h-4.5 w-8` | 18 × 32 | **27 × 48** |
+| `sm` | `h-[14px] w-[24px]` | `h-3.5 w-6` | 14 × 24 | 21 × 36 |
+
+Stessa forma dell'eccezione della sidebar accertata in M1.4. I 18px al posto di 18.4 sono **esatti**: il pomello è `size-4` più i due bordi da 1px — il quarto di pixel mancante era il refuso, non la correzione.
+
+**`checkbox`, `select`, `input-group`** — raggi e rientri in unità crude riportati sui gradini del tema. I quattro rientri negativi di `input-group` (`ml-[-0.3rem]` → `-ml-1`, `ml-[-0.15rem]` → `-ml-0.5`) non sono decorazione: tolgono il doppio margine fra bordo e bottone incorporato, e in rem non seguivano la densità.
+
+### Due requisiti d'uso che nessuno documenta, e che ogni app sbaglierebbe
+
+1. **Lo `slider` si etichetta con `aria-labelledby`, non con `htmlFor`.** L'`id` scritto sullo `<Slider>` finisce sul `div` esterno; il fuoco sta sugli `<input type="range">` nascosti, che restano **senza nome**. Trovato interrogando il DOM — axe non lo vede, perché gli input sono nascosti. Con `aria-labelledby` la radice inoltra il nome a tutte le maniglie: «Range di conformità, 5, inizio intervallo».
+2. **Il `select` vuole `items`, o il grilletto mostra il valore grezzo**: «deumidificanti» invece di «Intonaci deumidificanti». Base UI risolve l'etichetta da quella mappa (`resolveSelectedLabel`); senza, ricade sull'`value`. Si vede a occhio nudo appena si sceglie una voce.
+
+Entrambi corretti in tutte le story e scritti in pagina, perché li sbagli zero volte invece di una.
+
+### Verifiche
+
+- **axe-core: 158 scansioni (79 story × 2 modalità) — 0 violazioni, 0 errori.** Regola `region` disattivata: su una story isolata «tutto dentro un landmark» non ha senso. Due violazioni trovate e chiuse, entrambe **mie nelle story**: campi senza etichetta in `Input/CifreInColonna`, ed etichetta al 50% di opacità in `Slider/Disabilitato` (che ha portato a una scelta migliore — il cursore si spegne, l'etichetta no: è la sola cosa che dice *che cosa* è disabilitato).
+- **16 *incomplete*, tutte `color-contrast` sui tasti simbolo di `Kbd`** — la famiglia già chiusa a misura in M2.1, ora estesa a `InputGroup/Ricerca`. Rimisurata invece che data per buona: ⌘ e K danno **4.55 in chiaro e 6.36 in scuro**, identici fra simbolo e lettera. Il conto delle violazioni aperte resta **zero**.
+- **Percorso da tastiera del form di prova: 14 fermi**, in ordine di DOM, ognuno con nome accessibile, `:focus-visible` e anello visibile (per i controlli dentro `InputGroup` l'anello sta sul contenitore, per costruzione). Gruppo radio: un solo fermo, frecce che cambiano scelta e ciclano.
+- **Densità, misurata a transizioni spente su Storybook costruito** (vedi sotto perché):
+
+| | normale | touch | | normale | touch |
+|---|---|---|---|---|---|
+| input, select, input-group, bottone | 32 | **48** | checkbox / radio (disegno) | 16 | 24 |
+| switch (disegno) | 18 | **27** | checkbox / radio (bersaglio) | 32 | **48** |
+| switch (bersaglio) | — | **51×84** | slider (bersaglio) | 32 | **48** |
+
+- `npm run check` (contrasto 48/48, registry 0 errori, font allineato), `tsc -b`, `oxlint`, `build`, `build-storybook`: verdi.
+
+### Quello che NON è stato verificato, e va detto
+
+**Il `select` *aperto* non è verificabile in questo pannello.** `requestAnimationFrame` non ci scatta, e Base UI ci schedula dentro lo spostamento del fuoco nel popup: il fuoco resta sul grilletto, e frecce e `Invio` non rispondono. Col mouse la scelta funziona. Non è una prova che il componente sia rotto, e non è una prova che sia sano: **è una misura che non si può prendere qui**. In carico a **M2.3**, dove il comportamento da tastiera dei popup è il criterio di accettazione, in un browser vero.
+
+### Un rilievo più grosso del task, che non è mio da chiudere
+
+**Il contorno dei controlli sta sotto la soglia 3:1 di WCAG 1.4.11 — su tutto il set, in entrambe le modalità.**
+
+| | chiaro | scuro |
+|---|---|---|
+| `border-input` su pagina | **1.27** | **1.36** |
+| `border-input` su card | 1.36 | 1.25 |
+
+Non viene dal ri-stile: è il valore di `--input`/`--border`, ereditato dal `--color-border` del v1. E **`check:contrast` non lo può vedere**, perché verifica 24 coppie di **testo** e nessuna coppia non testuale. Cambiarlo significa toccare la palette nella fonte unica, cioè una decisione di Francesco, non una correzione di componente. Annotato in `CHECKLIST.md` e in carico a **M2.9**.
+
+### Cinque errori di strumento, e vale la pena scriverli tutti
+
+Più della metà del tempo di questa sessione è finita qui. Sono errori di **misura**, non di componente, e quattro su cinque hanno fatto sembrare rotto qualcosa che funzionava.
+
+1. **`html` largo 0 col pannello senza viewport stabilito.** Base UI nasconde le maniglie del cursore quando il controllo misura 0 e non le rimette: lo `slider` dentro il form appariva senza maniglie e non raggiungibile da tastiera. Con un viewport vero (1200×900): largo 672px, maniglie visibili, fuoco che ci arriva. **La conclusione «è rotto» era mia, non sua.**
+2. **`requestAnimationFrame` non scatta** — già a verbale in M2.1, qui con una conseguenza nuova e peggiore: non stalla una misura, **fa sembrare rotto un componente intero** (il `select`).
+3. **Le transizioni non avanzano.** `transition-all` fa *animare* l'altezza quando cambia `--spacing`: bottone e switch restavano congelati a 32 e 18 in touch mentre l'`input` accanto — che ha `transition-colors` — era già a 48. Correlazione perfetta fra i due gruppi, e con `transition: none` tutti i valori tornano quelli attesi. **Ogni misura di densità va presa a transizioni spente.**
+4. **`axe.run` su un elemento di un *altro* documento fallisce come «arguments are invalid»**: 158 scansioni tornate «0 violazioni» che non valevano niente. Me ne sono accorto solo perché contavo anche gli errori. axe va iniettato **dentro** l'iframe ed eseguito da lì.
+5. **«Popup ancora nel DOM» ≠ «popup aperto»** (Base UI lo tiene per l'animazione d'uscita, con `data-closed`), e **`Down` non è un nome di tasto valido** mentre `ArrowDown` sì — per cui il gruppo radio sembrava non rispondere alle frecce.
+
+La lezione operativa, che il CLAUDE.md già dice a metà: **prima di scrivere che un componente è rotto, si verifica che lo strumento non lo sia.** Le tre volte in cui ho concluso troppo presto, la prova successiva mi ha smentito.
+
+### Prossimi passi
+
+**M2.3 — Overlay**: `dialog`, `alert-dialog`, `drawer`, `sheet`, `dropdown-menu`, `context-menu`, `popover`, `hover-card`, `tooltip`, `sonner`, `command`. Accettazione: focus trap e chiusura con Esc verificati. **Ci arriva in eredità il `select` aperto**, che è la stessa macchina di popup e positioner, e va provato in un browser vero — non nel pannello.

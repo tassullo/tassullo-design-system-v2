@@ -68,6 +68,17 @@ const SHADCN_TOKENS = new Set([
  */
 const ARBITRARIO_RE = /[a-z-]+-\[(?:[^[\]]|\[[^\]]*\])*\](?!(?:\/[\w.-]+)?:)/g;
 
+/**
+ * ...e una terza forma, trovata in M2.2 su `slider`: l'ELENCO DI PROPRIETÀ.
+ * `transition-[color,box-shadow]` è una parentesi quadra che non contiene
+ * nessun valore — solo i nomi delle proprietà da animare. Non c'è dentro una
+ * lunghezza, un colore o un numero: non è ciò che la regola 3 vieta, e non c'è
+ * niente da «ripulire ri-stilando». Metterla in `transition-all`, che sarebbe
+ * l'unica alternativa in utility, sul pomello dello slider è pure sbagliato:
+ * animerebbe la traslazione, e il pomello resterebbe indietro rispetto al dito.
+ */
+const ELENCO_PROPRIETA_RE = /^[a-z-]+-\[[a-z-]+(?:,[a-z-]+)*\]$/;
+
 /** Nomi che tradiscono un token del tema: un `*-mutedforeground` è un refuso. */
 const FORMA_TOKEN =
   /(foreground|primary|secondary|muted|accent|destructive|success|warning|info|sidebar|popover|chart|overlay|border|ring|card)/;
@@ -222,20 +233,29 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
     }
     const originale = readFileSync(originalePath, "utf8");
 
-    if (originale.includes("IconPlaceholder")) {
+    /*
+     * Il segnaposto d'icona toglie la FORMA dal confronto, non le stringhe.
+     *
+     * Fino a M2.2 questo ramo usciva con `continue`, e si portava via anche il
+     * controllo dei valori arbitrari (punto 4). Conseguenza: `spinner`,
+     * `checkbox` e `select` erano gli unici file del registry dove un valore
+     * arbitrario NOSTRO non sarebbe stato visto da nessuno — e con M2.2 quei
+     * file diventano tre su venti. Un gate che tace su un file intero è peggio
+     * di un gate che grida: nel secondo caso almeno si sa che c'è.
+     */
+    const segnaposto = originale.includes("IconPlaceholder");
+    if (segnaposto) {
       console.log(
         `  ◌ ${nome.padEnd(24)} originale a segnaposto d'icona: la forma non è confrontabile`,
       );
       warn(
         nome,
         "l'originale shadcn usa <IconPlaceholder>, che la CLI risolve a `add` sulla libreria " +
-          "d'icone di components.json. Il confronto di forma qui non dice nulla: alla prossima " +
-          "versione di shadcn questo file va riletto a mano.",
+          "d'icone di components.json. Il confronto di FORMA qui non dice nulla (le stringhe di " +
+          "classi sono controllate lo stesso): alla prossima versione di shadcn questo file va " +
+          "riletto a mano.",
       );
-      continue;
-    }
-
-    if (forma(nostro) !== forma(originale)) {
+    } else if (forma(nostro) !== forma(originale)) {
       err(
         nome,
         "diverge dall'originale FUORI dalle stringhe di classi: struttura, props, nomi di varianti o export. " +
@@ -252,11 +272,16 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
     );
     const gia = new Set<string>();
     let diverse = 0;
+    // Col segnaposto le due liste possono non allinearsi: il conto del ri-stile
+    // si tiene solo se hanno la stessa lunghezza. Il set `arbitrariOriginali`
+    // invece è per contenuto, quindi resta valido comunque.
+    const allineate = nostreStringhe.length === originaliStringhe.length;
     for (let i = 0; i < nostreStringhe.length; i++) {
-      if (nostreStringhe[i] !== originaliStringhe[i]) diverse++;
+      if (allineate && nostreStringhe[i] !== originaliStringhe[i]) diverse++;
       for (const m of nostreStringhe[i]!.matchAll(ARBITRARIO_RE)) {
         if (gia.has(m[0])) continue;
         gia.add(m[0]);
+        if (ELENCO_PROPRIETA_RE.test(m[0])) continue;
         if (arbitrariOriginali.has(m[0])) {
           warn(nome, `valore arbitrario ereditato da shadcn, da ripulire ri-stilando: ${m[0]}`);
         } else {
