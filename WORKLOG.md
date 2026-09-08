@@ -731,3 +731,49 @@ Il PDF di prova (`public/fonts/ttf/specimen-replicall.pdf`) è stato anche **gua
 ### Conseguenza
 
 **Il canale PDF è aperto.** Ad Anagrafe non resta che copiare i `.ttf` e registrarli con `pdfmetrics.registerFont(TTFont(...))`. Restano aperte solo due cose: la gerarchia dei pesi (M2.1) e Word, che nessun formato risolve — `python-docx` non incorpora font, e **Arial resta**.
+
+---
+
+## 2026-09-08 — I numeri nelle tabelle: `tabular-nums`, e due righelli sbagliati
+
+Domanda di Francesco: le colonne di numeri si allineano con Replicall, o tocca passare al monospace per quelle colonne, «che si noterebbe»? Timore fondato — le cifre di Replicall sono **proporzionali di default**, l'`1` è 380/1000 di em e il `4` è 580 — e risposta netta: **si allineano con una utility, senza cambiare carattere.**
+
+Il font dichiara **`tnum`**, e le sue cifre tabellari misurano **580/1000 di em su tutte e otto le facce**, corsivi compresi. Cioè il totale in grassetto si incolonna col corpo in tondo, che è la cosa che serve in un computo metrico. In Tailwind è la utility `tabular-nums`: nessun token nuovo, nessun componente nuovo.
+
+### Fatto
+
+Story **`Tema/Cifre`** (`stories/Cifre.stories.tsx`), che misura invece di affermare, come `Tema/Palette` e `Tema/Densità`. Stesso computo reso nei due modi, con lo scarto letto dal DOM:
+
+| | scarto del bordo dei decimali fra le 5 righe |
+|---|---|
+| default (proporzionali) | **2.38px** |
+| con `tabular-nums` | **0px** |
+
+Zero secco, riga «Sommano» in grassetto compresa. E le dieci cifre isolate: 6 larghezze da 6.84 a 10.45px senza, **una sola — 10.45px** con. A `text-xl` (18px), 580/1000 × 18 = 10.44: la stessa misura letta dai file del font, arrivata per un'altra strada.
+
+La pagina ha in testa un riquadro che dice se Replicall è caricato, perché **senza il font la dimostrazione sembra riuscire e non dimostra niente**: il fallback di sistema ha le cifre già tabellari di suo.
+
+### La regola, che cambia il v1
+
+La style guide del v1 dice «monospace per codici sistema **e dati tabellari**». La seconda metà **cade**: i dati tabellari si scrivono nel carattere del testo con `tabular-nums`, e il `font-mono` resta ai **codici di sistema**, dove si *vuole* che stonino. Scritta in `CLAUDE.md` fra le trappole; in carico a **M2.1** (`typography`) e **M2.4** (`table`), con la misura nelle rispettive righe di `CHECKLIST.md`.
+
+### Due righelli sbagliati, e li ho presi tutti e due
+
+Entrambi portano a concludere che `tabular-nums` non funzioni, quando funziona. Vale la pena averli scritti perché la prossima verifica non ci ricaschi.
+
+1. **La larghezza dell'intera stringa.** `tnum` non tocca la punteggiatura: virgola e punto restano proporzionali e **cambiano larghezza col peso** (11,2px a 400, 12,8px a 600, misurati a 40px). Quindi `1.114,00` misura 72.73px in tondo e 74.16px in grassetto anche con le cifre perfettamente allineate. La prima versione della story dichiarava «stessa larghezza in tondo e in grassetto» **sotto due numeri che misuravano diverso**: la pagina si contraddiceva da sola. Riscritta la sezione perché confronti le sole cifre — 73.09px contro 73.09px — e perché il caso con i separatori sia mostrato *e spiegato* invece che nascosto.
+2. **La virgola.** Oltre a non essere tabellare è **crenata** col carattere che la precede, quindi balla di riga in riga: misurando lì, la tabella tabellare risultava fuori di 0.56px e sembrava un difetto vero. Il righello giusto è il bordo sinistro del gruppo dei decimali.
+
+### Una trappola d'ambiente, che sembrava di codice
+
+`.tabular-nums` non esisteva nel CSS compilato, e anche `md:grid-cols-2` non applicava: il dev server di Storybook era in piedi da prima che il file esistesse, e Tailwind non aveva ripreso il sorgente nuovo. Non è un difetto del codice — si riavvia il server. Annotato in `DECISIONI.md` §13 perché la prossima story nuova non faccia perdere la stessa mezz'ora.
+
+### Verifiche
+
+- axe-core su `Tema/Cifre`: **0 violazioni, 0 incomplete** in chiaro, in scuro e in densità touch, a 1440×900.
+- Le misure in pagina sono lette dal DOM dopo `document.fonts.ready` — non al primo layout, o riporterebbero il fallback.
+- `tsc -b`, `oxlint`, `npm run check`, `build`, `build-storybook`: verdi.
+
+### Prossimi passi
+
+Invariati: **M2.1**, che ora eredita due decisioni tipografiche invece di una — la gerarchia dei pesi (500 e 600 non esistono) e la regola delle cifre.

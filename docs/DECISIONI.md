@@ -409,3 +409,51 @@ Le larghezze coincidono alla seconda cifra decimale: non è un'approssimazione, 
 ### Prova del meccanismo (prima che i file arrivassero)
 
 Messo un file di comodo al posto di un peso, `document.fonts` riporta quel peso `loaded` e gli altri `error`: i pesi presenti si attivano e i mancanti degradano **per quel peso soltanto**. Lo stack risolto sull'elemento radice parte da `Replicall`. Il file di comodo è stato rimosso. `public/fonts/` è servito sia dal workbench (5180) sia da Storybook (6006), quindi non serve toccare `staticDirs`. Il `.gitignore` è stato provato con un binario in cartella: `git add -A` indicizza **solo** il `LEGGIMI.md`.
+
+---
+
+## 13. I numeri nelle tabelle: `tabular-nums`, non un secondo font (2026-09-08)
+
+Domanda di Francesco: nelle tabelle di dati — il computo metrico di Studio, gli elenchi di Anagrafe — le colonne di numeri si allineano con Replicall, o tocca passare al monospace per quelle colonne, «che si noterebbe»?
+
+Il timore era fondato e la risposta è netta: **si allineano, con una utility, senza cambiare carattere.**
+
+### Il fatto, letto dai file del font
+
+Le cifre di Replicall sono **proporzionali di default** — nel Regular l'`1` è largo 380/1000 di em e il `4` ne è largo 580. Una colonna di importi scritta così non incolonna, ed è esattamente il difetto che si voleva evitare.
+
+Ma il font dichiara la feature OpenType **`tnum`**, che sostituisce tutte e dieci le cifre con versioni a larghezza fissa. E la larghezza è **580/1000 di em su tutte e otto le facce** — Light, Regular, Bold, Heavy, tondi e corsivi. Non è un dettaglio: vuol dire che il **totale in grassetto si incolonna col corpo in tondo**, che è la cosa che serve davvero in un computo metrico.
+
+In CSS: `font-variant-numeric: tabular-nums`, in Tailwind la utility **`tabular-nums`**. Nessun token nuovo, nessun componente nuovo — è già nel linguaggio.
+
+### La regola, che cambia il v1
+
+La style guide del v1 dice «Monospace solo per codici sistema **e dati tabellari**». **La seconda metà cade.** I dati tabellari si scrivono nel carattere del testo con `tabular-nums`; il `font-mono` resta ai **codici di sistema**, dove si *vuole* che stonino — un identificativo deve staccare dalla prosa, ed è per questo che lì il carattere diverso è un pregio. Regola scritta in `CLAUDE.md`; ricade su **M2.1** (`typography`) e **M2.4** (`table`).
+
+### La misura
+
+Story `Tema/Cifre`, che misura invece di affermare. Stesso computo, stesse quattro voci più il totale in grassetto, reso nei due modi:
+
+| | scarto del bordo dei decimali fra le 5 righe |
+|---|---|
+| default (proporzionali) | **2.38px** |
+| con `tabular-nums` | **0px** |
+
+Zero secco, riga «Sommano» in grassetto compresa. E le dieci cifre isolate: 6 larghezze diverse da 6.84px a 10.45px senza, **una sola larghezza — 10.45px** con (a `text-xl`, cioè 18px: 580/1000 × 18 = 10.44, che è la stessa misura letta dai file del font, per un'altra strada).
+
+### Due trappole nel verificarlo
+
+Entrambe portano a concludere che `tabular-nums` non funziona, quando funziona.
+
+1. **`tnum` non tocca la punteggiatura.** La virgola e il punto restano proporzionali e **cambiano larghezza col peso**: 11,2px a 400 e 12,8px a 600, misurati a 40px. Quindi la larghezza dell'**intera stringa** `1.114,00` non coincide fra tondo e grassetto (72.73px contro 74.16px) anche quando le cifre sono perfettamente allineate. Le sole cifre, invece, coincidono al centesimo: 73.09px contro 73.09px.
+2. **La virgola è il righello sbagliato.** Oltre a non essere tabellare è **crenata** col carattere che la precede, quindi si sposta di riga in riga. Misurando lì, la tabella tabellare risultava disallineata di 0.56px e sembrava un difetto. Il righello giusto è il **bordo sinistro del gruppo dei decimali**, ed è quello che la story usa.
+
+### Le altre feature che il font porta, e che non si usano
+
+`zero` (zero barrato — utile sui codici, dove 0 e O si confondono), `onum` (cifre minuscole per la prosa), `lnum`, `pnum`, `frac`, `sups`, `subs`, `numr`, `dnom`, e undici set stilistici. Nessuna in uso: annotate perché esistano nella testa di chi progetta una pagina.
+
+### Verifiche
+
+axe-core su `Tema/Cifre`: **0 violazioni, 0 incomplete** in chiaro, in scuro e in densità touch, a 1440×900. `tsc`, `oxlint`, `build`, `build-storybook` verdi.
+
+**Trappola d'ambiente, non di codice:** le utility del file nuovo non venivano generate affatto — `.tabular-nums` non esisteva nel CSS e anche `md:grid-cols-2` non applicava — perché il dev server di Storybook era in piedi da prima che il file esistesse e Tailwind non l'aveva ripreso. Si vede come un difetto di codice e non lo è. Riavviare il server.
