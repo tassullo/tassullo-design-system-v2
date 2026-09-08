@@ -812,7 +812,7 @@ Invariati. **M2.1** eredita la gerarchia dei pesi e la regola delle cifre; **M2.
 
 Richiesta di Francesco: un artifact che estenda la demo del workbench con l'esempio dei codici di sistema e dei dati tabellari, e un selettore fra **Replica, Inter, Geist, Outfit e Albert Sans**, per scegliere il carattere dei siti insieme a Roberto.
 
-**Artifact**: <https://claude.ai/code/artifact/edbec1ee-f73d-4313-94b3-bfd8014d5474> — «Carattere Tassullo». Sorgente conservato in `docs/carattere-demo.html`.
+**Artifact**: <https://claude.ai/code/artifact/edbec1ee-f73d-4313-94b3-bfd8014d5474> — «Carattere Tassullo». Sorgente conservato in `docs/carattere-demo.html` **col segnaposto al posto dei font**, e due script per rigenerarlo: `scripts/otf2woff2.py` e `scripts/inlina-font.py`.
 
 ### Come è fatta
 
@@ -845,5 +845,7 @@ Alla prima resa la scheda dava **Albert Sans senza corsivo**, che è falso. Caus
 Corretta anche l'etichetta del collasso, da «rende come 400» a «identico a 400»: quale dei due pesi sia il sostituto non è determinabile né interessante — sono lo stesso file.
 
 ### Nota di licenza
+
+**Errore commesso e corretto nella stessa sessione:** il primo commit archiviava in `docs/` la pagina **coi font inlinati**, cioè i binari Lineto dentro il repo — esattamente ciò che il `.gitignore` di `public/fonts/` esiste per impedire. Il sorgente archiviato ora tiene il segnaposto `/*REPLICA_FONTFACE*/`, e la pagina pubblicabile si ricostruisce con `scripts/otf2woff2.py` più `scripts/inlina-font.py`. La regola vale per estensione: **un file di font non entra nel repo da nessuna porta**, nemmeno inlinato dentro un HTML, dove nessun `.gitignore` lo può vedere.
 
 Replica è **inlinata come data URI** nell'artifact: il CSP ammette file di font solo da `fonts.gstatic.com`, quindi non c'è altro modo di mostrarla. Sono gli stessi tagli che `tassullo.it` già serve pubblicamente dal CDN Webflow, convertiti in woff2 (206 KB in tutto). L'artifact è **privato** finché non lo si condivide. Resta la domanda aperta con Lineto sulla distribuzione come webfont, e condividere il link con Roberto è una forma di distribuzione: da tenere presente, e da chiudere insieme alle altre due domande.
