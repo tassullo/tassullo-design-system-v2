@@ -1084,3 +1084,78 @@ Corretto con una **chiave primitiva**: `testi.join('|')`.
 ### La regola che ne resta
 
 In `CLAUDE.md`: **una dipendenza di `useEffect` dev'essere un valore primitivo o un riferimento stabile.** E, di metodo: il sintomo non indica la causa. «Il tema non si applica» sembrava un problema di tema e non lo era in nessuna delle sue parti.
+
+---
+
+## 2026-09-08 — M2.1: le fondamenta, e le due violazioni aperte tornano a zero
+
+Nove primitive nel registry — `button` (ri-stilato), `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `button-group`, più `lib/utils.ts` che era un file e non era un item. E la tipografia, che **non è un componente**: vedi sotto.
+
+### I quattro rilievi su `button`, chiusi e misurati
+
+Erano aperti dalla M1.2 e misurati con axe in M1.3. Le misure di adesso sono lette dal DOM col colore risolto dal motore di resa, non stimate:
+
+| dove | prima | ora | previsto dal piano |
+|---|---|---|---|
+| `link`, chiaro | **1.79:1** | **4.77:1** | 4.77 ✓ |
+| `link`, scuro | 9.49:1 (già passava) | **9.49:1** | invariato ✓ |
+| `destructive`, chiaro | **3.82:1** | **4.83:1** | 4.83 ✓ |
+| `destructive`, scuro | **3.57:1** | **4.83:1** | 4.83 ✓ |
+| raggio | 10px (`rounded-lg`) | **6px** | i 6px del v1 ✓ |
+| `sm`, corpo | 12,8px fisso (`text-[0.8rem]`) | **12px → 13px in touch** | segue la densità ✓ |
+
+E l'***incomplete*** su `ghost` in scuro, che M1.4 aveva lasciato aperta: **chiusa senza toccare il componente**. Era «1:1 con lo sfondo», cioè un fondo trasparente che axe non sapeva risolvere; da quando il canvas di Storybook dipinge la superficie coi token (sessione precedente), axe risale al fondo vero. Misurata: **17.03:1 in chiaro, 15.72:1 in scuro**.
+
+**Il gradino tipografico del bottone**, che il piano lasciava da decidere misurando: `text-md`, cioè 13px, e non i 12 di `text-sm`. È il valore che il v1 dà a `.btn`, e in touch scatta a 14 — di nuovo il passo del v1. Le quattro taglie ora fanno 11/12/13/14 in normale e 12/13/14/15 in touch; prima `sm` era l'unica ferma.
+
+Altezze rimisurate nelle due densità: **24/28/32/36 → 36/42/48/54**. I 48px di M1.4 tengono.
+
+### Il preset ci era cascato due volte, non una
+
+Il piano avvertiva: «da verificare su ogni primitiva, non solo sul bottone — se ci è cascato il preset, il preset ci sarà cascato più di una volta». **Ci era cascato.** `badge` aveva le stesse due trappole identiche: `link: "text-primary"` — l'arancio del brand come colore di testo — e un `destructive` tenue `bg-destructive/10 text-destructive`, sotto soglia per la stessa ragione del bottone.
+
+Per il badge il rimedio è diverso e migliore: la famiglia **tenue** del tema (`destructive-subtle` + il suo testo + il suo bordo), che è la terna che il tema dichiara insieme e che `check:contrast` verifica. Un badge è un'etichetta che si legge, non un bottone: il rosso pieno sarebbe stato un allarme dove serve uno stato.
+
+Ri-stilati anche il raggio (`rounded-4xl`, cioè pillola, → i 4px del v1) e il corpo (11 → 12px, il gradino che il v1 dà ai badge). E `focus-visible:ring-[3px]` → `ring-3`: stesso numero, dentro la scala.
+
+### La tipografia non si scrive
+
+`typography` **non esiste come item shadcn** — 471 item interrogati con l'MCP, nessuno con quel nome né sotto altro nome. Salita la scala della regola 4bis fino al gradino 3 — adattare il v1 — e lì si è fermata: la scala del v1 è già tutta nel tema. `registry/componenti-propri.json` **resta vuoto**, che è la condizione da difendere. Al suo posto una pagina, `Primitive/Tipografia`, con le sei parti di testo e le misure lette dal DOM nelle due densità. Ragionamento in `DECISIONI.md` §20.
+
+### La decisione che il piano chiedeva di prendere qui
+
+Il primo **token custom dentro un componente**. Scelto `text-destructive-foreground` (4.83:1) e non `text-white`, che dà lo stesso numero a costo zero: la regola 3 del `CLAUDE.md` esclude un colore che nessun token dichiara e nessun gate verifica. Il contatore passa da 0 a **5**, tutti dello stesso tipo — coppie di cui il tema dichiara anche il testo. Criterio e cifre in `DECISIONI.md` §18.
+
+### Il gate dava falsi positivi, ed è la cosa più grave della sessione
+
+Su componenti **appena scaricati e non ancora toccati**, `check:registry` segnalava 2 errori e 6 avvisi su 7. Nessuno vero:
+
+- `"use client"`: `shadcn view` la restituisce, la CLI la **toglie** scrivendo in un progetto `rsc: false`. `separator.tsx` risultava «divergente fuori dalle stringhe di classi» senza che nessuno l'avesse aperto.
+- `<IconPlaceholder>`: l'originale di `spinner` è un **template**, non un componente — la CLI lo risolve a `add` sulla libreria d'icone. Non è confrontabile per costruzione: ora è uno stato a sé (`◌`) con l'avviso che dice cosa fare alla prossima versione, cioè **rileggerlo a mano**.
+- la regex dei valori arbitrari prendeva per valori il nome di gruppo (`group-data-[size=sm]/avatar:`) e le parentesi annidate (`has-[>[data-slot=button-group]]:`).
+
+Corretti tutti e tre. Da 8 avvisi (7 falsi) a **2, entrambi veri**. Un gate che grida al lupo è un gate che si smette di leggere — ed è lo stesso motivo per cui M2.9 non potrà accendere `a11y.test = 'error'` con violazioni aperte.
+
+L'unico avviso vero che resta è `bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]` sull'hover di `secondary`, e si **tiene**: è sintassi arbitraria ma non un colore arbitrario — costruito su due token, nessun hex, segue le modalità da sé. Inventare un `--secondary-hover` allontanerebbe il file dall'originale per guadagnare nulla.
+
+### Cosa ho sbagliato misurando, e come me ne sono accorto
+
+Due volte, e vale la pena scriverle perché sono errori di **strumento**, non di componente:
+
+1. Il primo calcolo del contrasto dava **1.02:1** su `kbd`, cioè testo invisibile — e non lo era. Il browser restituisce i colori risolti in **`oklch`**, e la mia conversione li leggeva come tre numeri RGB. Rifatto facendo risolvere il colore al motore di resa (dipingo su un canvas 1×1 e leggo il pixel): così `oklch`, `color-mix` e le trasparenze arrivano già in sRGB, e non si converte niente a mano.
+2. La scansione si bloccava sempre alla stessa story: `requestAnimationFrame` **non scatta col pannello del browser nascosto**, e lo usavo per aspettare che la pagina fosse ferma. Tolto — ricaricando l'iframe la modalità è già applicata al load, quindi non c'è nessuna `transition-colors` in corso da attendere, che era il difetto che quella riga esisteva per evitare.
+
+### Verifiche
+
+- **axe-core su tutte le 41 story × 2 modalità = 82 scansioni: 0 violazioni.** Il conto delle violazioni aperte in tutto il progetto torna a **zero**, che è la condizione d'ingresso di M2.9.
+- Restano **6 *incomplete*, tutte su `Primitive/Kbd`** e tutte lo stesso caso: «Element content contains only non-text characters» sui tasti simbolo (⌘ ⇧ ↑ ↓ ↵). axe non sa valutare il contrasto di un glifo che non classifica come testo. **Chiuse misurando**: la coppia è la stessa dei tasti alfabetici, che axe valuta e promuove — **4.55:1 in chiaro, 6.36:1 in scuro**, identico per simboli e lettere. Non è un difetto del componente ed è annotata qui, non lasciata accesa.
+- `npm run check` (contrasto 48/48, registry 0 errori, font allineato), `tsc -b`, `oxlint`, `build`, `build-storybook`: verdi. `registry validate`: **11 item**.
+
+### Due cose sistemate di passaggio
+
+- **`storySort` non c'era mai stato scritto.** Il `CLAUDE.md` lo dà per fissato dalla M0.3 — «l'ordine dell'indice è fissato in `.storybook/preview.tsx`» — ma la riga non esisteva: l'indice era alfabetico, e ci somigliava abbastanza da non farsi notare (Blocchi, Pagine, Primitive, Tema è quasi l'ordine giusto). Con nove primitive non somigliava più. Scritto: Introduzione, Tema, Primitive, Blocchi, Pagine.
+- **`lib/utils.ts` era un file e non un item**: un'app che avesse installato una primitiva non avrebbe ricevuto l'alias `utils` dichiarato in `components.json`. Ora è `registry:lib`.
+
+### Prossimi passi
+
+**M2.2 — Form**: `field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider`. Accettazione: form di prova navigabile **interamente da tastiera**, ogni campo con etichetta associata. Da aspettarsi le stesse due trappole del preset — `text-primary` come testo e i tenui sotto soglia — e da verificare su ogni singolo componente, che in M2.1 è stato il rilievo più utile del piano.

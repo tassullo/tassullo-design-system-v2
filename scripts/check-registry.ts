@@ -53,13 +53,20 @@ const SHADCN_TOKENS = new Set([
 ]);
 
 /**
- * Un valore arbitrario è una parentesi quadra NON seguita da `:`.
- * Con i due punti è una VARIANTE (`has-data-[icon=inline-end]:pr-2`,
+ * Un valore arbitrario è una parentesi quadra che NON apre una variante.
+ * Con i due punti dopo è una VARIANTE (`has-data-[icon=inline-end]:pr-2`,
  * `not-aria-[haspopup]:translate-y-px`): legittima, inevitabile, e non è ciò
  * che la regola 3 del CLAUDE.md vieta. Senza, è un valore fuori dal tema
  * (`text-[0.8rem]`, `h-[37px]`, `bg-[#F4AC3D]`): quello sì.
+ *
+ * Due forme che la prima versione di questa regex prendeva per valori e non
+ * lo sono (trovate in M2.1 su `avatar` e `button-group`, 6 segnalazioni su 7
+ * false — e un gate che grida al lupo è un gate che si smette di leggere):
+ *
+ *   · il NOME DI GRUPPO fra parentesi e due punti: `group-data-[size=sm]/avatar:size-2`
+ *   · le parentesi ANNIDATE: `has-[>[data-slot=button-group]]:gap-2`
  */
-const ARBITRARIO_RE = /[a-z-]+-\[[^\]]+\](?!:)/g;
+const ARBITRARIO_RE = /[a-z-]+-\[(?:[^[\]]|\[[^\]]*\])*\](?!(?:\/[\w.-]+)?:)/g;
 
 /** Nomi che tradiscono un token del tema: un `*-mutedforeground` è un refuso. */
 const FORMA_TOKEN =
@@ -97,11 +104,23 @@ const warn = (dove: string, cosa: string) => problemi.push({ livello: "avviso", 
 const STRING_RE = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
 
 function estraiStringhe(src: string): string[] {
-  return src.match(STRING_RE) ?? [];
+  return src.replace(USE_CLIENT_RE, "").match(STRING_RE) ?? [];
 }
+
+/**
+ * La direttiva `"use client"` non fa parte della forma del componente, e va
+ * tolta da entrambi i lati prima di confrontare: `shadcn view` la restituisce
+ * sempre, ma la CLI la RIMUOVE scrivendo il file in un progetto `rsc: false`
+ * — che è il nostro. Senza questa riga il gate segnalava `separator.tsx` come
+ * "diverge fuori dalle stringhe di classi" su un file che nessuno aveva
+ * toccato (M2.1). Un falso positivo del gate è peggio di nessun gate: insegna
+ * a non credergli.
+ */
+const USE_CLIENT_RE = /^\s*(["'])use client\1\s*;?\s*/;
 
 function forma(src: string): string {
   return src
+    .replace(USE_CLIENT_RE, "")
     .replace(STRING_RE, '"·"')
     .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/\/\/[^\n]*/g, " ")
@@ -202,6 +221,19 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
       continue;
     }
     const originale = readFileSync(originalePath, "utf8");
+
+    if (originale.includes("IconPlaceholder")) {
+      console.log(
+        `  ◌ ${nome.padEnd(24)} originale a segnaposto d'icona: la forma non è confrontabile`,
+      );
+      warn(
+        nome,
+        "l'originale shadcn usa <IconPlaceholder>, che la CLI risolve a `add` sulla libreria " +
+          "d'icone di components.json. Il confronto di forma qui non dice nulla: alla prossima " +
+          "versione di shadcn questo file va riletto a mano.",
+      );
+      continue;
+    }
 
     if (forma(nostro) !== forma(originale)) {
       err(

@@ -181,6 +181,22 @@ const preview: Preview = {
     layout: 'centered',
 
     /**
+     * L'ordine dell'indice. Il `CLAUDE.md` lo dà per fissato dalla M0.3 — «il
+     * `title` della story apre con la sezione perché l'ordine è fissato in
+     * `.storybook/preview.tsx` con `storySort`» — ma la riga non c'era mai
+     * stata scritta: l'indice era in ordine alfabetico, e ci somigliava
+     * abbastanza da non farsi notare (Blocchi, Pagine, Primitive, Tema è
+     * quasi l'ordine giusto). Scritta in M2.1, quando le primitive sono
+     * diventate nove e l'alfabetico ha smesso di bastare.
+     *
+     * L'ordine è quello del piano, cioè quello in cui le cose si costruiscono:
+     * prima il tema, poi le primitive, poi i blocchi, poi le pagine.
+     */
+    options: {
+      storySort: { order: ['Introduzione', 'Tema', 'Primitive', 'Blocchi', 'Pagine'] },
+    },
+
+    /**
      * L'addon «backgrounds» di Storybook è **spento**, e al suo posto c'è
      * l'interruttore «Superficie» qui sotto. Due ragioni.
      *

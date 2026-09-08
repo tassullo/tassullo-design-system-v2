@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "utils",
+  "title": "cn()",
+  "description": "Re-export di `cn` dal pacchetto npm omonimo. In shadcn 4.x `cn` NON è più un file da copiare: è una dipendenza, e questo file esiste solo perché l'alias `utils` di components.json punti da qualche parte.",
+  "dependencies": [
+    "cn"
+  ],
+  "files": [
+    {
+      "path": "registry/tassullo/lib/utils.ts",
+      "content": "export { cn } from \"cn\"\n",
+      "type": "registry:lib"
+    }
+  ],
+  "type": "registry:lib"
+}

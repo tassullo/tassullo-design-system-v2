@@ -62,6 +62,136 @@
           "type": "registry:ui"
         }
       ]
+    },
+    {
+      "name": "utils",
+      "type": "registry:lib",
+      "title": "cn()",
+      "description": "Re-export di `cn` dal pacchetto npm omonimo. In shadcn 4.x `cn` NON è più un file da copiare: è una dipendenza, e questo file esiste solo perché l'alias `utils` di components.json punti da qualche parte.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/lib/utils.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "badge",
+      "type": "registry:ui",
+      "title": "Badge",
+      "description": "Etichetta che si legge, non filtro che si clicca: varianti semantiche sui token del tema, raggio e corpo del v1. Base UI.",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/badge.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "separator",
+      "type": "registry:ui",
+      "title": "Separator",
+      "description": "Filo orizzontale o verticale sul token --border, con il ruolo di separatore annunciato. Base UI.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/separator.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "skeleton",
+      "type": "registry:ui",
+      "title": "Skeleton",
+      "description": "Rettangolo che pulsa al posto del contenuto che sta arrivando. Prende la forma di ciò che sostituisce.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/skeleton.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "spinner",
+      "type": "registry:ui",
+      "title": "Spinner",
+      "description": "Caricamento inline con role=status: dentro un bottone, accanto a un'etichetta, in una cella. Segue la densità.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/spinner.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "avatar",
+      "type": "registry:ui",
+      "title": "Avatar",
+      "description": "Immagine, iniziali di ripiego, pallino di stato e gruppo col conteggio. Tre taglie che seguono la densità. Base UI.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/avatar.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "kbd",
+      "type": "registry:ui",
+      "title": "Kbd",
+      "description": "Tasto della tastiera in un <kbd> vero, e il gruppo per le scorciatoie. Nel carattere dell'interfaccia, non in monospazio.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/kbd.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "button-group",
+      "type": "registry:ui",
+      "title": "Button Group",
+      "description": "Bottoni saldati in un blocco: azioni imparentate. NON è un filtro a scelta singola — quello è toggle-group.",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/button-group.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/separator"
+      ]
     }
   ]
 }

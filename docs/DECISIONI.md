@@ -666,3 +666,46 @@ Corretto passando una **chiave primitiva** — `testi.join('|')` — che cambia 
 ### Verifiche
 
 Le cinque story commutano ora in **entrambe le direzioni**, quattro cicli di fila, e la densità funziona sulle stesse. axe-core su `Tema/Carattere` e `Tema/Cifre`: **0 violazioni, 0 incomplete** in chiaro e in scuro.
+
+---
+
+## 18. Il primo token custom dentro un componente, e quanto costa (M2.1, 2026-09-08)
+
+`PIANO.md` lasciava a M2.1 una decisione da prendere «consapevolmente, perché la stessa domanda tornerà a ogni primitiva»: il rimedio a `variant: destructive` del bottone introduce la **prima dipendenza di un componente shadcn da un token che il preset non spedisce**. Le quattro opzioni erano già misurate su `--destructive` `#DC2626`:
+
+| opzione | contrasto | costo |
+|---|---|---|
+| `text-destructive-foreground` (custom Tassullo) | **4.83:1** | 1 token custom dentro un componente |
+| `text-white` (builtin Tailwind, è ciò che usa lo style di default di shadcn) | 4.83:1 | nessuno, ma è un colore **fuori dal tema** |
+| `text-background` (standard) | 4.46:1 | — non passa |
+| `text-card` (standard) | 4.75:1 | nessuno, ma semanticamente sbagliato |
+
+**Scelto `text-destructive-foreground`**, e non è stata una scelta fra pari: la **regola 3 del `CLAUDE.md`** — «le utility Tailwind si usano solo sui token del tema» — esclude `text-white` prima che se ne discuta il costo. Un `text-white` è un colore che nessun token dichiara e che nessun gate verifica; il giorno in cui il rosso di `--destructive` cambiasse, `--destructive-foreground` lo seguirebbe e `text-white` no. Il costo di aggiornamento si paga una volta a ogni versione di shadcn; un colore fuori dal tema si paga per sempre, e in silenzio.
+
+Il contatore, che era a zero, è ora a **5**: `accent-ink`, `destructive-foreground`, `destructive-subtle`, `destructive-subtle-foreground`, `destructive-border`. Sono tutti e cinque dello stesso tipo — coppie che il tema dichiara **insieme al loro testo** e che `check:contrast` verifica come coppie. È il criterio da tenere: un token custom entra in un componente se il tema ne dichiara anche il contrasto. `check:registry` lo stampa a ogni esecuzione, che è il modo per non scoprire fra sei mesi che sono diventati quaranta.
+
+---
+
+## 19. Due falsi positivi del gate di aggiornabilità, e perché contano (M2.1, 2026-09-08)
+
+`npm run check:registry` ha segnalato, su componenti **appena scaricati e non ancora toccati**, 2 errori e 6 avvisi su 7. Nessuno era vero.
+
+1. **`"use client"`.** `shadcn view` restituisce sempre la direttiva; la CLI la **rimuove** scrivendo il file in un progetto `rsc: false` — che è il nostro. Il confronto di forma la vedeva come una divergenza nostra. Corretto togliendola da entrambi i lati, in `forma()` e in `estraiStringhe()` — la seconda serviva o le stringhe risultavano sfalsate di una, e un componente intatto contava «5 ri-stili» inesistenti.
+
+2. **`<IconPlaceholder>`.** L'originale di `spinner` non è un componente ma un **template**: la CLI lo risolve a `add` sulla libreria d'icone dichiarata in `components.json`. Il file scritto non somiglia al template nemmeno prima che lo tocchiamo noi, e la forma non è confrontabile per costruzione. Ora è uno stato a sé (`◌`) con un avviso che dice cosa fare alla prossima versione di shadcn: **rileggerlo a mano**, perché lì il gate non protegge.
+
+3. **La regex dei valori arbitrari** prendeva per valori due forme che sono varianti: il **nome di gruppo** fra parentesi e due punti (`group-data-[size=sm]/avatar:size-2`) e le parentesi **annidate** (`has-[>[data-slot=button-group]]:gap-2`). Sei avvisi su sette erano questi.
+
+Perché non è manutenzione minore: **un gate che grida al lupo è un gate che si smette di leggere**, e il giorno in cui la segnalazione fosse vera passerebbe fra le altre. È lo stesso motivo per cui M2.9 non può mettere `a11y.test = 'error'` con violazioni note aperte — una CI rossa il primo giorno è una CI che qualcuno disattiva la settimana dopo.
+
+Resta **un solo avviso vero**: `bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]` sull'hover di `variant: secondary`. **Tenuto**, ed è una scelta: è sintassi arbitraria ma non un colore arbitrario — è costruito interamente su due token del tema, non contiene nessun hex, e segue le due modalità da sé. Inventargli un token `--secondary-hover` significherebbe aggiungere alla palette un valore che nessuna app ha chiesto, e allontanare il file dall'originale shadcn per guadagnare nulla.
+
+---
+
+## 20. `typography` non esiste, e non lo scriviamo (M2.1, 2026-09-08)
+
+L'accettazione di M2.1 elenca `typography` fra le primitive. **Non è un item del registry shadcn**: nel loro sito è una pagina di documentazione (verificato con l'MCP — 471 item, nessuno con quel nome, e nessuno che ci somigli sotto altro nome).
+
+Salita la scala della regola 4bis: gradino 1 (esiste già?) no; gradino 2 (ri-stilare qualcosa) non c'è niente da ri-stilare; **gradino 3 — adattare il v1 perché entri nella forma shadcn — e lì finisce**, perché la scala tipografica del v1 è già interamente nel tema, sette gradini `--text-*` che Tailwind espone come utility. Un componente `<Titolo>` non aggiungerebbe nulla e toglierebbe due cose: la scelta del tag giusto per la struttura del documento, e la leggibilità di quale gradino si sta usando.
+
+**Gradino 4 non raggiunto**: nessun componente nostro proposto, `registry/componenti-propri.json` resta vuoto. La tipografia è una **pagina della style guide** (`Primitive/Tipografia`) che fissa le sei parti di testo — titolo di pagina, di sezione, di card, corpo, meta, micro-etichetta — ciascuna come combinazione di utility, con le misure lette dal DOM nelle due densità.

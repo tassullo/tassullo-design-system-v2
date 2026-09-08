@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "skeleton",
+  "title": "Skeleton",
+  "description": "Rettangolo che pulsa al posto del contenuto che sta arrivando. Prende la forma di ciò che sostituisce.",
+  "dependencies": [
+    "cn"
+  ],
+  "files": [
+    {
+      "path": "registry/tassullo/ui/skeleton.tsx",
+      "content": "import { cn } from \"cn\"\n\nfunction Skeleton({ className, ...props }: React.ComponentProps<\"div\">) {\n  return (\n    <div\n      data-slot=\"skeleton\"\n      className={cn(\"animate-pulse rounded-md bg-muted\", className)}\n      {...props}\n    />\n  )\n}\n\nexport { Skeleton }\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}
