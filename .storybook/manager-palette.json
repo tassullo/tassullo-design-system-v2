@@ -1,0 +1,33 @@
+{
+  "_nota": "GENERATO da scripts/hex-to-oklch.ts (npm run theme:build). Non modificare a mano: e' la palette del tema, ridotta ai token che servono alla cornice di Storybook.",
+  "light": {
+    "background": "#F6F6F4",
+    "foreground": "#141414",
+    "card": "#FDFDFD",
+    "muted": "#ECEAE8",
+    "muted-foreground": "#6C6965",
+    "border": "#DDDBDB",
+    "primary": "#F4AC3D",
+    "accent-ink": "#B25105",
+    "sidebar": "#141414",
+    "sidebar-foreground": "#A8A8A8",
+    "sidebar-accent": "#262626",
+    "sidebar-accent-foreground": "#EDEDEB",
+    "sidebar-border": "#262626"
+  },
+  "dark": {
+    "background": "#141414",
+    "foreground": "#EDEDEB",
+    "card": "#1C1C1C",
+    "muted": "#262626",
+    "muted-foreground": "#A8A8A8",
+    "border": "#2E2E2E",
+    "primary": "#F4AC3D",
+    "accent-ink": "#F4AC3D",
+    "sidebar": "#1C1C1C",
+    "sidebar-foreground": "#A8A8A8",
+    "sidebar-accent": "#2E2E2E",
+    "sidebar-accent-foreground": "#EDEDEB",
+    "sidebar-border": "#2E2E2E"
+  }
+}

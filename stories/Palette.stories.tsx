@@ -325,9 +325,11 @@ const meta = {
   component: Affiancate,
   parameters: {
     layout: 'fullscreen',
-    // L'interruttore del tema non serve qui: la story mostra già entrambe le
+    // L'interruttore Modalità non serve qui: la story mostra già entrambe le
     // modalità, e commutarlo cambierebbe solo la cornice attorno alle colonne.
-    themes: { disable: true },
+    // Resta attivo — è un global, non un addon che si possa spegnere per
+    // story — ma è innocuo: ciascuna colonna dichiara la propria classe.
+
     // Né la superficie: questa è la pagina che le superfici le *mostra*, e
     // dipinge il proprio fondo da sé su ciascuna colonna.
   },

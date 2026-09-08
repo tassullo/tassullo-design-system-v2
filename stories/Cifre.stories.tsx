@@ -95,10 +95,23 @@ const IMPORTI = [
 ]
 const TOTALE = '52.040,13'
 
-/** Misura la larghezza resa di una stringa in un dato contesto di classi. */
+/**
+ * Misura la larghezza resa di una stringa in un dato contesto di classi.
+ *
+ * **La dipendenza è una stringa, non l'array.** Un array passato come
+ * dipendenza di `useEffect` è nuovo a ogni render: l'effetto riparte, chiama
+ * `setLarghezze` con un array nuovo, il render riparte, e si avvita. Il ciclo
+ * non dà nessun errore — React non lo interrompe — e il sintomo è
+ * inaspettato: **la story smette di rispondere agli interruttori della
+ * barra**, perché il render non arriva mai a completarsi. È successo davvero
+ * l'8 settembre 2026, e si è visto come «in Carattere/Cifre il tema scuro non
+ * viene applicato». La chiave `testi.join('|')` è un valore primitivo e
+ * cambia solo quando cambia il contenuto.
+ */
 function useLarghezze(testi: string[], classi: string) {
   const ref = useRef<HTMLDivElement>(null)
   const [larghezze, setLarghezze] = useState<number[]>([])
+  const chiave = testi.join('|')
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -107,9 +120,9 @@ function useLarghezze(testi: string[], classi: string) {
       setLarghezze(figli.map((f) => Math.round(f.getBoundingClientRect().width * 100) / 100))
     }
     // Le larghezze vanno lette a font caricato, non al primo layout: prima che
-    // il .otf arrivi il testo è reso col fallback, e i numeri sarebbero quelli.
+    // il font arrivi il testo è reso col fallback, e i numeri sarebbero quelli.
     document.fonts.ready.then(misura)
-  }, [testi, classi])
+  }, [chiave, classi])
   return { ref, larghezze }
 }
 

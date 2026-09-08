@@ -616,3 +616,53 @@ Le nove combinazioni superficie × modalità risolvono tutte alla coppia giusta,
 Alla prima verifica axe dava **4** violazioni invece di 2. Le due in più erano `#ededeb` (il testo della modalità *scura*) su `#f6f6f4` e su `#babab9` — un grigio intermedio. Erano **artefatti della transizione**: avevo tolto `.dark` via JS e misurato dopo 700 ms, mentre i bottoni hanno `transition-colors` ed erano a metà strada. Rimisurato da pagina appena caricata: 2, con le cifre esatte.
 
 È la stessa forma degli altri sbagli di questa sessione — il righello sulla virgola, il canvas per lo zero barrato, la larghezza per il corsivo. **Una misura che gira e restituisce un numero non è una verifica: lo è solo se misura la cosa giusta, nello stato giusto.**
+
+---
+
+## 17. L'interruttore del tema che commutava una volta sola (2026-09-08)
+
+Rilievo di Francesco: «in Carattere/Cifre il tema scuro non viene applicato». Esattamente due story su cinque, e la causa non era dove sembrava.
+
+### Cosa succedeva
+
+Misurato commutando la modalità dal canale, cinque story a confronto:
+
+| story | chiaro → scuro → chiaro → scuro |
+|---|---|
+| `Primitive/Button` | light → dark → light → dark ✔ |
+| `Tema/Palette` | light → dark → light → dark ✔ |
+| `Tema/Densità` | light → dark → light → dark ✔ |
+| **`Tema/Carattere`** | light → dark → **dark → dark** ✘ |
+| **`Tema/Cifre`** | light → dark → **dark → dark** ✘ |
+
+Il primo cambio funzionava, il ritorno no. Nessun errore, in nessuna console.
+
+### Due piste sbagliate, prima di quella giusta
+
+1. **`themes: { chiaro: '' }`**, la stringa vuota passata a `withThemeByClassName`. Sembrava una causa credibile — rimuovere una classe vuota non è un'operazione valida — ma leggendo il sorgente dell'addon il caso è gestito (`classes.length > 0 &&`). Dare alla modalità chiara la classe **`light`** resta comunque giusto, ed è stato tenuto: il tema emette i token chiari su `:root, .light` dalla M1.3 proprio perché la modalità chiara si deve poter *dichiarare*.
+2. **L'addon.** Sostituito con un decorator nostro, della stessa forma di quelli di densità e superficie. **Il difetto è rimasto identico** — la prova che l'addon non c'entrava.
+
+### La causa
+
+Un contatore di render nel decorator l'ha inchiodata: su `Tema/Cifre` il render si ferma a **2** e non riparte più, qualunque cosa si faccia. Su `Button` va 1, 2, 3, 4.
+
+Le due story che fallivano hanno in comune un `useEffect` con **un array appena creato fra le dipendenze**:
+
+```ts
+useLarghezze(campioni.map((c) => c.testo + c.classi), '')   // Cifre
+useLarghezze(PESI.map((p) => p.v))                          // Carattere
+```
+
+Un array è nuovo a ogni render: l'effetto riparte, chiama `setLarghezze` con un array nuovo, il render riparte, e si avvita. **React non interrompe questo ciclo e non stampa niente**, e il sintomo non ha nulla a che vedere con la causa: la story smette di rispondere agli interruttori della barra, perché il render non arriva mai a completarsi.
+
+Corretto passando una **chiave primitiva** — `testi.join('|')` — che cambia solo quando cambia il contenuto.
+
+### Cosa resta, e cosa se ne impara
+
+- L'interruttore **Modalità** è ora scritto in `preview.tsx`, come Densità e Superficie: tre leve, tre decorator della stessa forma, tutte in casa. `@storybook/addon-themes` è uscito dagli `addons` — **rettifica di §8**, che lo teneva. Il pacchetto resta in `package.json` per M2.9.
+- La regola: **una dipendenza di `useEffect` deve essere un valore primitivo o un riferimento stabile.** Un `.map()` inline fra le dipendenze è un ciclo infinito che non protesta.
+- E la regola di metodo, la quinta volta in questa sessione: il sintomo non indica la causa. «Il tema non si applica» sembrava un problema di tema, e non lo era in nessuna delle sue parti.
+
+### Verifiche
+
+Le cinque story commutano ora in **entrambe le direzioni**, quattro cicli di fila, e la densità funziona sulle stesse. axe-core su `Tema/Carattere` e `Tema/Cifre`: **0 violazioni, 0 incomplete** in chiaro e in scuro.

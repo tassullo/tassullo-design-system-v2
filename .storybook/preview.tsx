@@ -1,6 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
 
-import { withThemeByClassName } from '@storybook/addon-themes'
 import type { Decorator, Preview } from '@storybook/react-vite'
 
 // Tailwind + i token del tema, che `src/index.css` importa dal registry.
@@ -46,6 +45,53 @@ const withDensity: Decorator = (Story, context) => (
 )
 
 /**
+ * La modalità chiara/scura, come classe sull'elemento radice.
+ *
+ * ── Perché non `withThemeByClassName` di `@storybook/addon-themes` ───────
+ *
+ * Perché **commutava una volta sola**. Misurato: partendo dal chiaro il
+ * primo clic applicava `dark` correttamente, il secondo cambiava l'etichetta
+ * in barra e lasciava `dark` sulla radice. La pagina restava scura con
+ * l'interruttore che diceva «chiaro», e nessun errore da nessuna parte —
+ * il difetto che Francesco ha visto come «in Carattere/Cifre il tema scuro
+ * non viene applicato». Letto il sorgente dell'addon, la sua logica è
+ * corretta: è il suo `useEffect` che non si ri-esegue in questa
+ * composizione di decorator.
+ *
+ * Non valeva la pena inseguirlo. Densità e superficie sono già due
+ * interruttori scritti così, provati e funzionanti: questo è il terzo, e
+ * avere le tre leve della style guide fatte allo stesso modo — un global in
+ * barra, un `useEffect`, una classe o un attributo sulla radice — vale più
+ * della dipendenza che si toglie (rettifica di `docs/DECISIONI.md` §8, che
+ * teneva l'addon).
+ *
+ * `light` non è un nome inventato: il tema emette i token chiari su
+ * `:root, .light` dalla M1.3, proprio perché la modalità chiara si deve
+ * poter *dichiarare* e non solo sottintendere — è ciò che rende possibile
+ * `Tema/Palette`, dove le due modalità stanno affiancate.
+ */
+function applicaModalita(modalita: string) {
+  const root = document.documentElement
+  const voluta = modalita === 'scuro' ? 'dark' : 'light'
+  if (root.classList.contains(voluta) && root.classList.length === 1) return
+  root.classList.remove('light', 'dark')
+  root.classList.add(voluta)
+}
+
+function ConModalita({ modalita, children }: { modalita: string; children: ReactNode }) {
+  applicaModalita(modalita)
+  useEffect(() => applicaModalita(modalita))
+
+  return children
+}
+
+const withModalita: Decorator = (Story, context) => (
+  <ConModalita modalita={context.globals.modalita as string}>
+    <Story />
+  </ConModalita>
+)
+
+/**
  * La superficie si scrive come attributo sul `<body>` del canvas, e il
  * colore lo mette `preview.css` leggendo i token. È la stessa forma della
  * densità, e per la stessa ragione: l'attributo è un interruttore, il
@@ -69,17 +115,24 @@ const withSuperficie: Decorator = (Story, context) => (
 )
 
 const preview: Preview = {
-  decorators: [
-    withSuperficie,
-    withDensity,
-    withThemeByClassName({
-      themes: { chiaro: '', scuro: 'dark' },
-      defaultTheme: 'chiaro',
-      parentSelector: 'html',
-    }),
-  ],
+  decorators: [withModalita, withSuperficie, withDensity],
+
 
   globalTypes: {
+    /** Chiaro o scuro: le due palette del tema, e nient'altro. */
+    modalita: {
+      description: 'Modalità chiara o scura',
+      toolbar: {
+        title: 'Modalità',
+        icon: 'contrast',
+        items: [
+          { value: 'chiaro', title: 'Chiaro' },
+          { value: 'scuro', title: 'Scuro' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+
     /**
      * Su quale superficie del tema si guarda il componente. Tre, e non di
      * più: sono quelle per cui il tema dichiara **anche il colore del
@@ -116,6 +169,7 @@ const preview: Preview = {
   },
 
   initialGlobals: {
+    modalita: 'chiaro',
     density: 'normale',
     viewport: { value: 'scrivania', isRotated: false },
     // Si parte dalla pagina: è la superficie su cui sta la maggior parte

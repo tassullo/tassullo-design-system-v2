@@ -72,6 +72,11 @@ const SCALA = [
 function useLarghezze(pesi: number[]) {
   const rif = useRef<HTMLDivElement>(null)
   const [larghezze, setLarghezze] = useState<number[]>([])
+  // La dipendenza è una stringa, non l'array: un array è nuovo a ogni render,
+  // quindi l'effetto ripartirebbe, rifarebbe `setLarghezze`, e si avviterebbe.
+  // Il ciclo non dà errore e il sintomo è che la story smette di rispondere
+  // agli interruttori della barra — vedi il commento in `Tema/Cifre`.
+  const chiave = pesi.join('|')
   useEffect(() => {
     document.fonts.ready.then(() => {
       const el = rif.current
@@ -80,7 +85,7 @@ function useLarghezze(pesi: number[]) {
         [...el.children].map((f) => Math.round(f.getBoundingClientRect().width * 100) / 100),
       )
     })
-  }, [pesi])
+  }, [chiave])
   return { rif, larghezze }
 }
 

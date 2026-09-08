@@ -27,6 +27,33 @@ import { oklch, wcagContrast, formatHex, converter } from "culori";
 const MIN_RATIO = 4.5;
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
 
+/**
+ * La UI di Storybook — barra laterale, barra strumenti, pannelli — è un
+ * documento a parte: non carica il CSS del tema e non vede i token, quindi
+ * il suo tema vuole colori concreti. Emetterli qui, dalla stessa costante
+ * della palette, è l'unico modo di non averne una seconda copia: una
+ * palette scritta due volte diverge al primo ritocco, ed è la regola che
+ * questo script esiste per far rispettare.
+ */
+const MANAGER_FILE = ".storybook/manager-palette.json";
+
+/** I soli token che servono alla cornice di Storybook. */
+const TOKEN_MANAGER = [
+  "background",
+  "foreground",
+  "card",
+  "muted",
+  "muted-foreground",
+  "border",
+  "primary",
+  "accent-ink",
+  "sidebar",
+  "sidebar-foreground",
+  "sidebar-accent",
+  "sidebar-accent-foreground",
+  "sidebar-border",
+] as const;
+
 // ───────────────────────────────────────────────────────────────────────────
 // La palette. Chiave = nome del token shadcn (senza `--`), valore = hex v1.
 // L'ordine è quello in cui i token usciranno nel CSS.
@@ -386,6 +413,24 @@ function shadow(...layers: Array<[offset: string, alpha: number]>): string {
  * metà scritta a mano divergono alla prima modifica — ed è il motivo per cui la
  * palette sta nello script e non nel CSS.
  */
+function buildManagerPalette(): string {
+  const estrai = (p: Palette) =>
+    Object.fromEntries(TOKEN_MANAGER.map((t) => [t, p[t]]));
+  return (
+    JSON.stringify(
+      {
+        _nota:
+          "GENERATO da scripts/hex-to-oklch.ts (npm run theme:build). Non modificare a mano: " +
+          "e' la palette del tema, ridotta ai token che servono alla cornice di Storybook.",
+        light: estrai(light),
+        dark: estrai(dark),
+      },
+      null,
+      2,
+    ) + "\n"
+  );
+}
+
 function buildTheme(): string {
   const colorMap = Object.keys(light)
     .map((k) => `  --color-${k}: var(--${k});`)
@@ -688,6 +733,9 @@ function main(): void {
     mkdirSync(dirname(THEME_FILE), { recursive: true });
     writeFileSync(THEME_FILE, buildTheme());
     console.log(`✔ scritto ${THEME_FILE}`);
+    mkdirSync(dirname(MANAGER_FILE), { recursive: true });
+    writeFileSync(MANAGER_FILE, buildManagerPalette());
+    console.log(`✔ scritto ${MANAGER_FILE}`);
     return;
   }
 

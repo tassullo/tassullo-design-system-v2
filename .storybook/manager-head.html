@@ -1,0 +1,7 @@
+<!-- Inter anche nella cornice di Storybook. Il manager è un documento a parte:
+     non carica il CSS del tema, quindi senza questo `fontBase` di manager.ts
+     nominerebbe un carattere che il documento non ha. Il file è quello vero
+     del registry, servito da `staticDirs` in main.ts — non una copia. -->
+<style>
+  @import url("/tema/inter.css");
+</style>

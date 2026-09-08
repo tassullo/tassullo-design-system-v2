@@ -1039,3 +1039,48 @@ Le nove combinazioni superficie × modalità risolvono tutte alla coppia giusta,
 Alla prima verifica axe dava **4** violazioni. Le due in più erano `#ededeb` — il testo della modalità *scura* — su `#f6f6f4` e su `#babab9`, un grigio intermedio: **artefatti della transizione**, perché avevo tolto `.dark` via JS e misurato dopo 700 ms mentre i bottoni erano a metà di `transition-colors`. Da pagina appena caricata: 2, cifre esatte.
 
 È la quarta volta in questa sessione, dopo il righello sulla virgola, il canvas per lo zero barrato e la larghezza per il corsivo. Aggiunta la regola in `CLAUDE.md`: **le misure di accessibilità si prendono a pagina ferma.**
+
+---
+
+## 2026-09-08 — «Il tema scuro non viene applicato»: cinque story, due rotte, e la causa altrove
+
+Rilievo di Francesco su `Tema/Carattere` e `Tema/Cifre`. Aveva ragione, ed erano **esattamente quelle due**: `Button`, `Palette` e `Densità` commutavano bene. Il primo cambio chiaro→scuro funzionava sempre; il ritorno, su quelle due, mai. Nessun errore in console.
+
+### Due piste sbagliate
+
+1. **La stringa vuota** passata a `withThemeByClassName` (`themes: { chiaro: '' }`). Credibile, ma leggendo il sorgente dell'addon il caso è gestito. Dare alla modalità chiara la classe `light` resta comunque giusto ed è stato tenuto — il tema emette i token chiari su `:root, .light` dalla M1.3 proprio perché la modalità chiara si deve poter *dichiarare*.
+2. **L'addon.** Sostituito con un decorator nostro, della stessa forma di densità e superficie: **il difetto è rimasto identico**, ed è la prova che l'addon non c'entrava.
+
+### La causa, trovata con un contatore
+
+Un contatore di render nel decorator: su `Tema/Cifre` il render si ferma a **2** e non riparte più; su `Button` va 1, 2, 3, 4.
+
+Le due story rotte avevano in comune un `useEffect` con **un array appena creato fra le dipendenze**:
+
+```ts
+useLarghezze(campioni.map((c) => c.testo + c.classi), '')   // Cifre
+useLarghezze(PESI.map((p) => p.v))                          // Carattere
+```
+
+Un array è nuovo a ogni render: l'effetto riparte, chiama `setLarghezze` con un array nuovo, il render riparte, si avvita. **React non interrompe il ciclo e non stampa niente**, e il sintomo non somiglia alla causa — la story smette di rispondere agli interruttori della barra perché il render non arriva mai in fondo.
+
+Corretto con una **chiave primitiva**: `testi.join('|')`.
+
+### Fatto, in questa sessione
+
+- **Il canvas prende i token** (`.storybook/preview.css`): le story `layout: 'centered'` — quasi tutte le primitive — finivano sul bianco di Storybook anche in scuro.
+- **Interruttore «Superficie»** al posto dell'addon *backgrounds*, che offriva `#F8F8F8` e `#333333` accanto a quello del tema. Tre superfici, quelle per cui il tema dichiara anche il testo: Pagina, Card, Sidebar.
+- **Interruttore «Modalità»** scritto in casa; `@storybook/addon-themes` fuori dagli `addons` (rettifica di `DECISIONI.md` §8).
+- **La cornice di Storybook è Tassullo**: `.storybook/manager.ts` legge `manager-palette.json`, **generato da `scripts/hex-to-oklch.ts`** insieme al CSS del tema — la palette resta una sola. La barra laterale usa i token `--sidebar`, che è la stessa colonna antracite delle app: la style guide **mostra** la sidebar mentre la si sfoglia.
+- **Inter anche nella cornice**, servita da `staticDirs` che pubblica la cartella del tema **dov'è** — una copia di un file generato diverge al primo ritocco, e per un attimo l'avevo fatta.
+
+### Verifiche
+
+- Le **cinque** story commutano in entrambe le direzioni, quattro cicli di fila; la densità funziona sulle stesse.
+- Le nove combinazioni superficie × modalità risolvono alla coppia di token giusta, lette dal DOM.
+- axe-core su `Tema/Carattere` e `Tema/Cifre`: **0 violazioni, 0 incomplete** in chiaro e in scuro. Su `Primitive/Button`, le due note e nessuna nuova.
+- `npm run check` (tre gate), `tsc -b`, `oxlint`, `build`, `build-storybook`: verdi.
+
+### La regola che ne resta
+
+In `CLAUDE.md`: **una dipendenza di `useEffect` dev'essere un valore primitivo o un riferimento stabile.** E, di metodo: il sintomo non indica la causa. «Il tema non si applica» sembrava un problema di tema e non lo era in nessuna delle sue parti.
