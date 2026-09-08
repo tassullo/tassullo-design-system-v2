@@ -7,7 +7,25 @@ Webflow del sito istituzionale — `.gitignore` li esclude già).
 
 Il carattere è **Replica LL**, di [Lineto](https://lineto.com/typefaces/replica).
 
-## Formato
+## Formato — e perché un formato solo non basta
+
+`woff2` serve **solo al browser**. Non lo legge nient'altro: né il generatore
+di PDF, né Word, né macOS. Il font desktop non è quindi un ripiego: è il
+**sopra-insieme**. Da un `.ttf` si ricava tutto, `woff2` compreso; dal `woff2`
+si ricava solo la pagina web.
+
+| canale | formato che serve |
+|---|---|
+| interfaccia (questa cartella) | `.woff2`, oppure `.otf` |
+| **PDF** (reportlab, Anagrafe) | **`.ttf`**, e solo `.ttf` |
+| Word (`python-docx`) | nessuno: non incorpora font — resta **Arial**, come nel v1 |
+
+Il vincolo del PDF è misurato, non supposto: reportlab accetta solo contorni
+TrueType e sui `.otf` di fonderia fallisce con *«postscript outlines are not
+supported»*. I file che tassullo.it serve sono `.otf`, quindi **per i PDF non
+vanno bene così come sono**.
+
+## Formato per questa cartella
 
 **`.woff2` è la scelta migliore** — è il formato dei font per il web, pesa un
 terzo o meno dell'`.otf` a parità di disegno, ed è supportato da ogni browser
