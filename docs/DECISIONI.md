@@ -428,7 +428,19 @@ In CSS: `font-variant-numeric: tabular-nums`, in Tailwind la utility **`tabular-
 
 ### La regola, che cambia il v1
 
-La style guide del v1 dice «Monospace solo per codici sistema **e dati tabellari**». **La seconda metà cade.** I dati tabellari si scrivono nel carattere del testo con `tabular-nums`; il `font-mono` resta ai **codici di sistema**, dove si *vuole* che stonino — un identificativo deve staccare dalla prosa, ed è per questo che lì il carattere diverso è un pregio. Regola scritta in `CLAUDE.md`; ricade su **M2.1** (`typography`) e **M2.4** (`table`).
+La style guide del v1 dice «Monospace solo per codici sistema **e dati tabellari**». **La seconda metà cade**; la prima resta, e vale la pena dire perché sono cose diverse: sui codici il monospace non serve a *incolonnare* — a quello basterebbe `tabular-nums` — serve a **far vedere che quella stringa non è prosa**. È un segnale, non una misura.
+
+Il criterio operativo è una domanda sola: **la stringa si legge, o si trascrive?**
+
+| `font-mono` — si trascrive | niente mono — si legge |
+|---|---|
+| codice articolo `TAS-04182-B`, numero DoP, lotto di produzione | importi, prezzi, quantità, misure |
+| partita IVA, codice fiscale | date, percentuali, progressivi di riga |
+| percorsi, token, hash, id tecnici | titoli, designazioni, note — prosa, e basta |
+
+Un dettaglio che la story mostra e che conviene copiare: il codice porta anche `text-sm` e `text-muted-foreground`. Il monospace di sistema ha un'altezza-x più alta di Replicall e a parità di corpo sembra più grande — e un identificativo non deve pesare quanto la voce che identifica.
+
+Regola scritta in `CLAUDE.md`; ricade su **M2.1** (`typography`) e **M2.4** (`table`), che porterà `tabular-nums` sulle colonne dichiarate numeriche perché le app non lo riscrivano a mano.
 
 ### La misura
 
@@ -447,6 +459,12 @@ Entrambe portano a concludere che `tabular-nums` non funziona, quando funziona.
 
 1. **`tnum` non tocca la punteggiatura.** La virgola e il punto restano proporzionali e **cambiano larghezza col peso**: 11,2px a 400 e 12,8px a 600, misurati a 40px. Quindi la larghezza dell'**intera stringa** `1.114,00` non coincide fra tondo e grassetto (72.73px contro 74.16px) anche quando le cifre sono perfettamente allineate. Le sole cifre, invece, coincidono al centesimo: 73.09px contro 73.09px.
 2. **La virgola è il righello sbagliato.** Oltre a non essere tabellare è **crenata** col carattere che la precede, quindi si sposta di riga in riga. Misurando lì, la tabella tabellare risultava disallineata di 0.56px e sembrava un difetto. Il righello giusto è il **bordo sinistro del gruppo dei decimali**, ed è quello che la story usa.
+
+### Lo zero, sui codici
+
+Su un codice `0` e `O` si confondono, ed è il difetto che fa sbagliare una trascrizione. Il monospace di sistema li distingue di suo, quindi la regola qui sopra risolve anche questo. Se un giorno servisse un codice **nel carattere del testo**, Replicall porta la feature `zero` — in Tailwind `slashed-zero` — e funziona: verificato a video, lo zero barrato è un glifo diverso, non un'inclinazione sintetica. Oggi non si usa.
+
+*(Il controllo su canvas non serve a verificarlo: `fontVariantNumeric` non è una proprietà di `CanvasRenderingContext2D`, quindi impostarla non fa nulla e le due varianti risultano identiche. Si guarda a video, ingrandito.)*
 
 ### Le altre feature che il font porta, e che non si usano
 

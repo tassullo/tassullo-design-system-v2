@@ -777,3 +777,31 @@ Entrambi portano a concludere che `tabular-nums` non funzioni, quando funziona. 
 ### Prossimi passi
 
 Invariati: **M2.1**, che ora eredita due decisioni tipografiche invece di una — la gerarchia dei pesi (500 e 600 non esistono) e la regola delle cifre.
+
+---
+
+## 2026-09-08 — `Tema/Cifre`: dalla dimostrazione al modello da copiare
+
+Indirizzo di Francesco: la pagina mostrava due tabelle affiancate e sembravano due proposte fra cui scegliere. Non lo erano — sono un prima/dopo — ma se la pagina si presta all'equivoco l'equivoco è suo. Aggiornata perché dica quale forma si adotta, e aggiunto ciò che mancava sui codici di sistema.
+
+### Cosa è cambiato
+
+- **Le due tabelle si chiamano per quello che sono**: «✗ Difetto — cifre di default» e «✓ Adottato — con tabular-nums», con scritto nella nota che la prima non è un'alternativa ma ciò che succede se non si fa niente.
+- **Sezione 3 nuova, «Il modello da copiare»**: una riga di computo vera con le due regole insieme — codice di sistema in `font-mono`, designazione in prosa, numeri in `tabular-nums` — più il sorgente JSX da copiare. È la sezione che serviva: la dimostrazione spiegava *perché*, non *cosa scrivere*.
+- **Sezione 4 riscritta**, dai due esempi che c'erano a una guida vera sui codici: il criterio in una domanda — *la stringa si legge, o si trascrive?* — e due elenchi affiancati di casi Tassullo reali (codice articolo, DoP, lotto, partita IVA, path, hash da una parte; importi, quantità, date, percentuali, progressivi, prosa dall'altra).
+- **Lo zero barrato**, che sui codici è il difetto che fa sbagliare le trascrizioni: il mono di sistema distingue `0` da `O` di suo, e se un giorno servisse un codice nel carattere del testo Replicall porta `zero` (`slashed-zero` in Tailwind).
+- Il codice nella tabella porta anche `text-sm text-muted-foreground`, ed è scritto perché: **il monospace di sistema ha un'altezza-x più alta di Replicall** e a parità di corpo sembra più grande — un identificativo non deve pesare quanto la voce che identifica.
+
+### Una verifica che non valeva niente, e come si è vista
+
+Per dimostrare che `slashed-zero` funziona ho prima disegnato le due varianti su `<canvas>` contando i pixel d'inchiostro: **511 contro 511**, cioè «non funziona». Falso: **`fontVariantNumeric` non è una proprietà di `CanvasRenderingContext2D`**, quindi impostarla non fa nulla e le due varianti erano semplicemente lo stesso disegno. Verificato allora a video, a 140px: lo zero barrato è un glifo diverso, non un'inclinazione sintetica. Annotato in `DECISIONI.md` §13 perché la trappola è credibile — un test che gira e restituisce un numero sembra una misura.
+
+### Verifiche
+
+- axe-core su `Tema/Cifre` aggiornata: **0 violazioni, 0 incomplete**, 13 controlli passati, in chiaro, in scuro e in densità touch a 1440×900.
+- Le misure in pagina reggono dopo la riscrittura: scarto dei decimali **2.38px** senza e **0px** con; cifre sole nei due pesi «Larghezze identiche», stringa intera coi separatori «Larghezze diverse», com'è giusto che sia.
+- `tsc -b`, `oxlint`, `npm run check`, `build`, `build-storybook`: verdi.
+
+### Prossimi passi
+
+Invariati. **M2.1** eredita la gerarchia dei pesi e la regola delle cifre; **M2.4** eredita `tabular-nums` sulle colonne numeriche di `table`, così le app non lo riscrivano a mano.

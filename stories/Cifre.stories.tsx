@@ -36,14 +36,22 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  * dei decimali che deve cadere sulla stessa ascissa, e ci cade — ma chi
  * verificasse puntando il righello sulla virgola concluderebbe il contrario.
  *
- * ── La regola che ne discende, e che cambia il v1 ────────────────────────
+ * ── Le due regole che ne discendono ──────────────────────────────────────
  *
- * La style guide del v1 dice «Monospace solo per codici sistema e **dati
- * tabellari**». La seconda metà di quella frase nasceva da un font che non
- * aveva le tabellari, o dal non averle cercate. **Con Replicall va tolta**:
- * i dati tabellari si scrivono nel carattere del testo con `tabular-nums`, e
- * il monospace resta ai codici di sistema — dove lo si vuole diverso, perché
- * un identificativo *deve* stonare rispetto alla prosa.
+ * 1. **I numeri da confrontare in colonna prendono `tabular-nums`.** Importi,
+ *    quantità, prezzi, date, progressivi, percentuali. Il carattere resta
+ *    quello del testo. La sezione 3 è il modello da copiare.
+ * 2. **Il `font-mono` è per i codici di sistema, e per niente altro.** Il
+ *    criterio è una domanda sola: *la stringa si legge, o si trascrive?* Chi
+ *    deve ricopiarla, dettarla o confrontarla carattere per carattere ha
+ *    bisogno che stoni; chi la legge come una quantità no. Sui codici il
+ *    monospace non serve a incolonnare — a quello basterebbe `tabular-nums` —
+ *    serve a far vedere che quella stringa non è prosa: è un segnale, non una
+ *    misura.
+ *
+ * La style guide del v1 diceva «Monospace solo per codici sistema e **dati
+ * tabellari**». La seconda metà cade: nasceva da un font senza le tabellari, o
+ * dal non averle cercate. La prima resta.
  *
  * ── Perché questa pagina misura invece di affermare ──────────────────────
  *
@@ -60,10 +68,34 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  */
 
 const IMPORTI = [
-  { voce: 'Rasatura armata — tradizionale', qta: '1.114,00', prezzo: '18,40', importo: '20.497,60' },
-  { voce: 'Effetto calce — grana fine', qta: '87,50', prezzo: '112,05', importo: '9.804,38' },
-  { voce: 'Rinzaffo di sottofondo', qta: '1.011,11', prezzo: '7,90', importo: '7.987,77' },
-  { voce: 'Finitura ai silicati', qta: '441,00', prezzo: '31,18', importo: '13.750,38' },
+  {
+    codice: 'TAS-04182-B',
+    voce: 'Rasatura armata — tradizionale',
+    qta: '1.114,00',
+    prezzo: '18,40',
+    importo: '20.497,60',
+  },
+  {
+    codice: 'TAS-00907-A',
+    voce: 'Effetto calce — grana fine',
+    qta: '87,50',
+    prezzo: '112,05',
+    importo: '9.804,38',
+  },
+  {
+    codice: 'TAS-10550-C',
+    voce: 'Rinzaffo di sottofondo',
+    qta: '1.011,11',
+    prezzo: '7,90',
+    importo: '7.987,77',
+  },
+  {
+    codice: 'TAS-03118-A',
+    voce: 'Finitura ai silicati',
+    qta: '441,00',
+    prezzo: '31,18',
+    importo: '13.750,38',
+  },
 ]
 const TOTALE = '52.040,13'
 
@@ -240,6 +272,52 @@ function Tabella({ num, titolo, nota }: { num: string; titolo: string; nota: str
   )
 }
 
+/**
+ * Un blocco di codice da copiare. `font-mono` qui è il suo mestiere: è codice
+ * sorgente, cioè il caso in cui si VUOLE che stoni rispetto alla prosa.
+ */
+function Sorgente({ children }: { children: string }) {
+  return (
+    <pre className="overflow-x-auto rounded-md border border-border bg-muted p-3 font-mono text-sm text-foreground">
+      <code>{children}</code>
+    </pre>
+  )
+}
+
+/** La tabella nella forma adottata: codici in mono, numeri in tabellare. */
+function TabellaModello() {
+  return (
+    <table className="w-full border-collapse text-base">
+      <thead>
+        <tr className="border-b border-border-strong text-left">
+          <th className="py-1 pr-3 font-semibold">Codice</th>
+          <th className="py-1 pr-3 font-semibold">Designazione dei lavori</th>
+          <th className="py-1 pr-3 text-right font-semibold tabular-nums">Quantità</th>
+          <th className="py-1 pr-3 text-right font-semibold tabular-nums">Prezzo</th>
+          <th className="py-1 text-right font-semibold tabular-nums">Importo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {IMPORTI.map((r) => (
+          <tr key={r.codice} className="border-b border-border">
+            <td className="py-1 pr-3 font-mono text-sm text-muted-foreground">{r.codice}</td>
+            <td className="py-1 pr-3">{r.voce}</td>
+            <td className="py-1 pr-3 text-right tabular-nums">{r.qta}</td>
+            <td className="py-1 pr-3 text-right tabular-nums">{r.prezzo}</td>
+            <td className="py-1 text-right tabular-nums">{r.importo}</td>
+          </tr>
+        ))}
+        <tr>
+          <td className="py-1 pr-3 font-semibold" colSpan={4}>
+            Sommano
+          </td>
+          <td className="py-1 text-right font-semibold tabular-nums">{TOTALE}</td>
+        </tr>
+      </tbody>
+    </table>
+  )
+}
+
 /** Dice a chi guarda se sta vedendo Replicall o il fallback di sistema. */
 function StatoFont() {
   const [stato, setStato] = useState<{ caricate: number; famiglia: string } | null>(null)
@@ -309,7 +387,9 @@ function Pagina() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">2. Lo stesso computo, nei due modi</h2>
+          <h2 className="text-xl font-semibold">
+            2. Lo stesso computo: il difetto, e la forma adottata
+          </h2>
           <p className="text-base text-muted-foreground">
             Il bordo destro combacia in tutti e due i casi — non è lì che si vede. Si vede dove
             comincia il <strong>gruppo dei decimali</strong>, misurato sotto ogni tabella, e sulla
@@ -321,45 +401,146 @@ function Pagina() {
           <div className="grid gap-6 md:grid-cols-2">
             <Tabella
               num=""
-              titolo="Default — proporzionali"
-              nota="Le cifre hanno larghezze diverse: le colonne ballano, e il totale in grassetto sfasa ancora di più."
+              titolo="✗ Difetto — cifre di default"
+              nota="Le cifre hanno larghezze diverse: le colonne ballano, e il totale in grassetto sfasa ancora di più. Non è un'alternativa: è ciò che succede se non si fa niente."
             />
             <Tabella
               num="tabular-nums"
-              titolo="Con tabular-nums"
-              nota="Una utility su ogni cella numerica. Nessun cambio di carattere."
+              titolo="✓ Adottato — con tabular-nums"
+              nota="Una utility su ogni cella numerica. Nessun cambio di carattere. È questa la forma che le app devono scrivere."
             />
           </div>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">3. La strada scartata: il monospace</h2>
+          <h2 className="text-xl font-semibold">3. Il modello da copiare</h2>
+          <p className="text-base text-muted-foreground">
+            Le due regole insieme, su una riga di computo vera: il{' '}
+            <strong>codice di sistema</strong> in <code>font-mono</code>, perché deve staccare dalla
+            prosa e si legge carattere per carattere; i <strong>numeri</strong> in{' '}
+            <code>tabular-nums</code>, perché si confrontano in colonna. La designazione resta prosa
+            e non prende niente.
+          </p>
+          <div className="rounded-md border border-border p-4">
+            <TabellaModello />
+          </div>
+          <Sorgente>{`<td className="font-mono text-sm text-muted-foreground">TAS-04182-B</td>
+<td>Rasatura armata — tradizionale</td>
+<td className="text-right tabular-nums">1.114,00</td>
+<td className="text-right tabular-nums">18,40</td>
+<td className="text-right tabular-nums">20.497,60</td>`}</Sorgente>
+          <p className="text-base text-muted-foreground">
+            Il codice porta anche <code>text-sm</code> e <code>text-muted-foreground</code>: il
+            monospace di sistema ha un&apos;altezza-x più alta di Replicall e a parità di corpo
+            sembra più grande, e un identificativo non deve pesare quanto la voce che identifica. Da{' '}
+            <strong>M2.4</strong> sarà la primitiva <code>table</code> a portarsi dietro queste
+            classi sulle colonne che le dichiarano numeriche: nelle app non si riscrivono a mano.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">4. I codici di sistema, e quando il mono serve</h2>
           <p className="text-base text-muted-foreground">
             La style guide del v1 dice «monospace per codici sistema <em>e dati tabellari</em>». La
-            seconda metà va tolta: il monospace incolonna, ma <strong>si nota</strong> — è un altro
-            carattere in mezzo alla riga, con un altro colore di grigio e un&apos;altra altezza-x.
-            Confronta le due righe.
+            seconda metà è caduta con la sezione 2. La <strong>prima resta</strong>, e vale la pena
+            dire perché: sui codici il monospace non serve a incolonnare — a quello basterebbe{' '}
+            <code>tabular-nums</code> — serve a <strong>far vedere che quella stringa non è
+            prosa</strong>. È un segnale, non una misura.
           </p>
-          <div className="space-y-3 rounded-md border border-border p-3">
+
+          <div className="space-y-3 rounded-md border border-border p-4">
+            <div className="text-sm font-semibold">Il criterio, in una domanda</div>
+            <p className="text-base">
+              <em>La stringa si legge, o si trascrive?</em> Se qualcuno dovrà ricopiarla, dettarla
+              al telefono o confrontarla carattere per carattere, è un codice e va in{' '}
+              <code>font-mono</code>. Se si legge come una quantità o una frase, no.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-md border border-border p-4">
+              <div className="text-sm font-semibold">✓ Mono — si trascrive</div>
+              <ul className="mt-2 space-y-2 text-base">
+                <li>
+                  Codice articolo <span className="font-mono text-sm">TAS-04182-B</span>
+                </li>
+                <li>
+                  Numero DoP <span className="font-mono text-sm">TAS-0342-CPR-2024</span>
+                </li>
+                <li>
+                  Lotto di produzione <span className="font-mono text-sm">L240718-03</span>
+                </li>
+                <li>
+                  Partita IVA <span className="font-mono text-sm">IT01234567890</span>
+                </li>
+                <li>
+                  Percorso <span className="font-mono text-sm">/allegati/dop/2024/</span>
+                </li>
+                <li>
+                  Token, hash, id tecnici <span className="font-mono text-sm">a3f9c1e0</span>
+                </li>
+              </ul>
+            </div>
+            <div className="rounded-md border border-border p-4">
+              <div className="text-sm font-semibold">✗ Non mono — si legge</div>
+              <ul className="mt-2 space-y-2 text-base">
+                <li>
+                  Importi e prezzi <span className="tabular-nums">20.497,60 €</span>
+                </li>
+                <li>
+                  Quantità e misure <span className="tabular-nums">1.114,00 m²</span>
+                </li>
+                <li>
+                  Date <span className="tabular-nums">18/07/2024</span>
+                </li>
+                <li>
+                  Percentuali <span className="tabular-nums">12,5 %</span>
+                </li>
+                <li>
+                  Progressivi di riga <span className="tabular-nums">1, 2, 3</span>
+                </li>
+                <li>Titoli, descrizioni, note — prosa, e basta</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-md border border-border p-4">
+            <div className="text-sm font-semibold">
+              Perché un numero NON va in mono: guarda la riga, non il numero
+            </div>
             <p className="text-base">
               Importo della voce: <span className="tabular-nums">20.497,60</span> € — con{' '}
-              <code>tabular-nums</code>, il numero è dello stesso carattere della frase.
+              <code>tabular-nums</code> il numero è dello stesso carattere della frase.
             </p>
             <p className="text-base">
               Importo della voce: <span className="font-mono">20.497,60</span> € — con{' '}
-              <code>font-mono</code>, il numero è un corpo estraneo.
+              <code>font-mono</code> il numero è un corpo estraneo: altra altezza-x, altro peso
+              apparente, e l&apos;occhio ci inciampa.
             </p>
           </div>
-          <p className="text-base text-muted-foreground">
-            Il monospace resta ai <strong>codici di sistema</strong> — un identificativo{' '}
-            <span className="font-mono">TAS-04182-B</span> <em>deve</em> stonare rispetto alla
-            prosa, ed è per questo che lì il carattere diverso è un pregio.
-          </p>
+
+          <div className="space-y-2 rounded-md border border-border p-4">
+            <div className="text-sm font-semibold">
+              Lo zero: il mono di sistema lo distingue già, Replicall lo può distinguere
+            </div>
+            <p className="text-base">
+              Su un codice, <strong>0</strong> e <strong>O</strong> si confondono, ed è il difetto
+              che fa sbagliare una trascrizione. Il monospace di sistema li distingue di suo:{' '}
+              <span className="font-mono text-xl">O0 IlL1</span>
+            </p>
+            <p className="text-base">
+              Se un giorno servisse un codice nel carattere del testo, Replicall porta la feature{' '}
+              <code>zero</code> — in Tailwind <code>slashed-zero</code>:{' '}
+              <span className="text-xl">O0</span> normale contro{' '}
+              <span className="text-xl slashed-zero">O0</span> con lo zero barrato. Oggi non si usa:
+              per i codici la scelta è il mono.
+            </p>
+          </div>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">
-            4. I due pesi affiancati, e il limite dei separatori
+            5. I due pesi affiancati, e il limite dei separatori
           </h2>
           <p className="text-base text-muted-foreground">
             La proprietà che fa incolonnare i totali: le cifre tabellari misurano{' '}
@@ -420,7 +601,7 @@ function Pagina() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">5. Le altre feature che il font porta</h2>
+          <h2 className="text-xl font-semibold">6. Le altre feature che il font porta</h2>
           <p className="text-base text-muted-foreground">
             Oltre a <code>tnum</code>, Replicall dichiara <code>zero</code> (zero barrato, utile sui
             codici dove 0 e O si confondono), <code>onum</code> (cifre minuscole, per la prosa),{' '}
@@ -442,13 +623,22 @@ function Pagina() {
             testo.
           </p>
           <p className="text-base">
-            Il <code>font-mono</code> è per i <strong>codici di sistema</strong>, dove si vuole che
-            si noti: identificativi, hash, path, valori di token — come nelle pagine{' '}
-            <code>Tema/Palette</code> e <code>Tema/Densità</code> di questa style guide.
+            <strong>
+              Il <code>font-mono</code> è per i codici di sistema, e per niente altro.
+            </strong>{' '}
+            Il criterio è una domanda sola: <em>la stringa si legge, o si trascrive?</em> Chi la
+            deve ricopiare, dettare o confrontare carattere per carattere ha bisogno che stoni —
+            identificativi, DoP, lotti, partite IVA, path, hash. Chi la legge come una quantità no.
+          </p>
+          <p className="text-base">
+            <strong>La designazione, i titoli e le note non prendono niente.</strong> Sono prosa: il
+            carattere del testo, senza utility numeriche addosso.
           </p>
           <p className="text-base text-muted-foreground">
-            Dove finirà scritta: nella primitiva <code>typography</code> e nella tabella, quando si
-            faranno. Qui c&apos;è la misura che la giustifica.
+            Dove finirà scritta: nella primitiva <code>typography</code> (<strong>M2.1</strong>) e
+            in <code>table</code> (<strong>M2.4</strong>), che porterà{' '}
+            <code>tabular-nums</code> sulle colonne dichiarate numeriche — nelle app non si
+            riscriverà a mano. Qui c&apos;è la misura che la giustifica.
           </p>
         </section>
       </div>
