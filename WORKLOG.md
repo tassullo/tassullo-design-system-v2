@@ -1159,3 +1159,60 @@ Due volte, e vale la pena scriverle perché sono errori di **strumento**, non di
 ### Prossimi passi
 
 **M2.2 — Form**: `field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider`. Accettazione: form di prova navigabile **interamente da tastiera**, ogni campo con etichetta associata. Da aspettarsi le stesse due trappole del preset — `text-primary` come testo e i tenui sotto soglia — e da verificare su ogni singolo componente, che in M2.1 è stato il rilievo più utile del piano.
+
+---
+
+## 2026-09-08 — Si chiama `typeset`, non `typography`: rettifica a M2.1 e apertura di D11
+
+Rilievo di Francesco subito dopo la chiusura di M2.1: <https://ui.shadcn.com/docs/typeset>, «la stiamo rispettando?».
+
+### La risposta breve
+
+**Sì, perché non ci siamo mai entrati dentro — ma la premessa con cui l'avevo escluso era sbagliata.**
+
+Avevo cercato `typography` all'MCP, non trovato niente, e concluso che «shadcn non ha una risposta sul testo». La conclusione operativa di M2.1 regge — non c'era nulla da installare — ma quella frase è falsa: la risposta esiste, si chiama `typeset`, e non l'avevo cercata perché non ne conoscevo il nome. È un errore di metodo, non di giudizio: la scala della regola 4bis dice «si chiede all'MCP, non si presume», e chiedere con il nome sbagliato è un modo di presumere.
+
+### Cosa ho verificato, e non dato per buono
+
+**Non è un item del registry**, in tre modi indipendenti:
+
+- `npx shadcn@latest view @shadcn/typeset` → `The item at .../base-nova/typeset.json was not found`;
+- `npx shadcn@latest search @shadcn -q typeset` → `No items found`;
+- la pagina rimanda a un generatore (`/typeset`) che emette un `typeset.css` «one CSS file you own».
+
+Quindi **nessun `add` mancato**, e `registry/componenti-propri.json` resta vuoto a ragione — non per una svista.
+
+Il `typeset.css` vero l'ho letto (12.158 byte, 491 righe) invece di fidarmi del riassunto della pagina: tre variabili di ritmo (`--typeset-size`, `--typeset-leading`, `--typeset-flow`), tre di carattere, i rapporti dei sei livelli di titolo, e la via d'uscita `not-typeset` / `data-not-typeset` per i componenti annidati nella prosa.
+
+### Perché M2.1 non ne è toccata
+
+Sono due mestieri diversi, e il nome lo dice — è la stessa regola del CLAUDE.md sui nomi, applicata a noi:
+
+- **`typeset`** è il contenitore del **contenuto lungo reso da markdown**, l'equivalente shadcn di `prose`: stila i discendenti e ricava tutto dal ritmo.
+- **`Primitive/Tipografia`** è la **cornice dell'interfaccia** — titolo di pagina, di card, meta, micro-etichetta — applicata per elemento, su gradini **enumerati** e non derivati.
+
+Nessuno dei due sostituisce l'altro, e l'accettazione di M2.1 chiedeva il secondo.
+
+### Ma è una lacuna vera, e ha una data
+
+Il testo lungo nelle app Tassullo esiste: le descrizioni delle schede tecniche, l'editor di **M3.8**, il diff di **M3.9**, e le pagine MDX di questa stessa style guide. Oggi non ha una risposta. Aperta **D11**, con verdetto a M3.8.
+
+### Le tre misure, prese ora perché a M3.8 servano già fatte
+
+1. **I rapporti quasi coincidono.** Con `--typeset-size: var(--text-base)`, cinque livelli su sei cadono **sotto il pixel** rispetto alla scala Tassullo (`h2` −0,50, `h3` +0,75, `h4` 0,00, `h5` +0,25, `h6` +0,38). Solo `h1` diverge di 1,50px. I rapporti di shadcn e la scala scelta a mano dal v1 descrivono quasi la stessa gerarchia — che è l'argomento più forte a favore.
+2. **Legge già i nostri token**: `--color-foreground`, `--color-muted-foreground`, `--color-border`, `--font-heading`, `--font-mono`. Entrerebbe senza inventare un colore.
+3. **L'attrito vero, e non si vedeva a occhio**: `typeset` porta una **sua** leva responsiva — `calc(var(--typeset-size) * 1.125)` sotto i 768px — che si **somma** alla densità touch. 14px → 15 in touch → **16,88px sul telefono in touch**, cioè **1,205×** il corpo di partenza su una colonna che non si è allargata di un pixel. È esattamente la cella `375px × touch` di **D10**. Le due decisioni vanno guardate insieme, o in M4.2 salterebbe fuori un ingrandimento che nessuna delle due leve dichiara da sola.
+
+### Modifiche
+
+- `stories/Tipografia.stories.tsx` — corretta la frase sbagliata, e detto in pagina cosa fa `typeset`, cosa fa questa pagina, e che il contenuto lungo è D11.
+- `docs/DECISIONI.md` §20 — rettifica in coda, con le tre misure e la tabella dei sei livelli.
+- `CHECKLIST.md` — **D11** aperta accanto a D10, e precisata la riga di fase 2.
+
+### Cosa NON è stato fatto, di proposito
+
+**`typeset` non è stato adottato.** Sarebbe stato un file di tema nuovo, una leva responsiva in più e un intreccio con D10: non è una cosa da infilare in coda a un task chiuso, ed è una decisione di Francesco. Qui c'è la misura, non la scelta.
+
+### Prossimo passo
+
+M2.2 (Form) come da piano. D11 non blocca niente fino a M3.8.

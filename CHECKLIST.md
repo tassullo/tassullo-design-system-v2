@@ -33,7 +33,7 @@ Dipendenze di fase: FASE 0.
 ## FASE 2 — Primitive (9 sessioni)
 
 Gate: M2.9 verde su tutto il set (contrasto, tastiera, densità, dark), con axe-core in CI.
-Con M2.1 il conto delle **violazioni axe aperte in tutto il progetto torna a zero** (82 scansioni: 41 story × 2 modalità), che è la condizione d'ingresso di M2.9. `typography` non esiste come item shadcn ed è diventato una pagina della style guide, non un componente: `registry/componenti-propri.json` resta vuoto.
+Con M2.1 il conto delle **violazioni axe aperte in tutto il progetto torna a zero** (82 scansioni: 41 story × 2 modalità), che è la condizione d'ingresso di M2.9. `typography` non esiste come item shadcn ed è diventato una pagina della style guide, non un componente: `registry/componenti-propri.json` resta vuoto. **Rettifica del 2026-09-08**: il nome giusto della risposta shadcn sul testo è `typeset`, non `typography` — non è comunque un item (`view` → 404) e non sostituisce quella pagina, ma copre il **contenuto lungo**, che non copriamo. Aperta **D11**.
 Dipendenze di fase: FASE 1. Ogni primitiva si aggiunge in `registry/tassullo/ui/` **in variante Base UI** (D9).
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
@@ -105,6 +105,7 @@ Dipendenze di fase: FASE 4.
 | D6 quando migrano Anagrafe / Studio / Officina | TODO | nessuno | ognuna decide per sé con la guida M5.5; nessuna scadenza |
 | D7 se `docx/` resti nel repo v1 | TODO | nessuno | nessuna urgenza, mai |
 | D8 librerie di terze parti per i blocchi | TODO | M3.6..M3.9 | PDF, editor, diff, dropzone: una per una **nel task che la incontra**, privilegiando il lazy e la sostituibilità |
+| D11 il testo lungo: si adotta `typeset` di shadcn? | TODO | **M3.8** (verdetto), da guardare insieme a **D10** | `typeset` è la risposta di shadcn al contenuto reso da markdown — l'equivalente di `prose` — e **non è un item**: `view` dà 404, la pagina rimanda a un generatore. Non sostituisce `Primitive/Tipografia`, che è la cornice dell'interfaccia; copre ciò che oggi non copriamo (schede tecniche, editor M3.8, diff M3.9, le MDX di questa style guide). A favore: 5 gradini su 6 coincidono con la scala Tassullo **sotto il pixel**, e legge già i nostri token. Contro: porta una **sua** leva responsiva (+12,5% sotto 768px) che si **somma** alla densità touch — 16,88px sul telefono, 1,205× il corpo di partenza. Misure in `docs/DECISIONI.md` §20 |
 | D10 la densità touch su schermo stretto | TODO | **M4.2** (verdetto), prima misura in **M3.1** | non è «quale densità su mobile»: touch nasce per il cantiere, cioè per il telefono, e lì il viewport è il più stretto. In touch la spaziatura cresce del 50%, il testo dell'8%, la larghezza dello schermo di 0. Da provare su una pagina vera; tre uscite in `PIANO.md`, M4.2 |
 
 Accertamenti tecnici già chiusi sul campo (con la prova): **`docs/DECISIONI.md`**, nato in M0.2. Dove contraddice `PIANO.md`, vince lui e la contraddizione è annotata.

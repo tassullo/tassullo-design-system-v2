@@ -709,3 +709,43 @@ L'accettazione di M2.1 elenca `typography` fra le primitive. **Non è un item de
 Salita la scala della regola 4bis: gradino 1 (esiste già?) no; gradino 2 (ri-stilare qualcosa) non c'è niente da ri-stilare; **gradino 3 — adattare il v1 perché entri nella forma shadcn — e lì finisce**, perché la scala tipografica del v1 è già interamente nel tema, sette gradini `--text-*` che Tailwind espone come utility. Un componente `<Titolo>` non aggiungerebbe nulla e toglierebbe due cose: la scelta del tag giusto per la struttura del documento, e la leggibilità di quale gradino si sta usando.
 
 **Gradino 4 non raggiunto**: nessun componente nostro proposto, `registry/componenti-propri.json` resta vuoto. La tipografia è una **pagina della style guide** (`Primitive/Tipografia`) che fissa le sei parti di testo — titolo di pagina, di sezione, di card, corpo, meta, micro-etichetta — ciascuna come combinazione di utility, con le misure lette dal DOM nelle due densità.
+
+### Rettifica, stessa giornata: si chiama `typeset`, e non l'avevo cercato
+
+Rilievo di Francesco: <https://ui.shadcn.com/docs/typeset>.
+
+La conclusione qui sopra **regge**, la premessa **no**. Era stato cercato `typography` — e con quel nome davvero non esiste nulla. Il nome giusto è **`typeset`**, e shadcn una risposta sul testo ce l'ha eccome.
+
+**Non è comunque un item**, verificato in tre modi: `npx shadcn@latest view @shadcn/typeset` risponde `404 — not found at the registry`, `search -q typeset` non trova nulla, e la pagina rimanda a un generatore (`/typeset`) che emette un `typeset.css` da tenersi in casa. Quindi nessun `add` mancato, e `componenti-propri.json` resta vuoto a ragione.
+
+**Ma risolve un problema diverso, che noi non abbiamo risolto.** `typeset` è l'equivalente shadcn di `prose` di Tailwind: un contenitore per il **contenuto lungo reso da markdown**, che stila i discendenti (`p`, `h1..h6`, liste, tabelle, codice, citazioni) ricavando tutto da tre variabili di ritmo — `--typeset-size`, `--typeset-leading`, `--typeset-flow` — più tre di carattere e la via d'uscita `not-typeset` / `data-not-typeset`. `Primitive/Tipografia` è un'altra cosa: la **cornice dell'interfaccia**, applicata per elemento con le utility, su gradini **enumerati** e non derivati.
+
+I due non si sostituiscono, e M2.1 non ne è toccata. Ma il testo lungo nelle app Tassullo esiste — le descrizioni delle schede tecniche, l'editor di M3.8, il diff di M3.9, e le pagine MDX di questa stessa style guide — e oggi non ha una risposta. Da qui **D11**.
+
+### Le tre misure da avere in mano quando D11 si deciderà
+
+**1. I rapporti di `typeset` e la scala del v1 quasi coincidono.** Ponendo `--typeset-size: var(--text-base)`:
+
+| | typeset (normale) | Tassullo | scarto | typeset (touch) | Tassullo | scarto |
+|---|---|---|---|---|---|---|
+| `h1` 1.75em | 24,50px | 26px (`--text-title`) | −1,50 | 26,25px | 28px | −1,75 |
+| `h2` 1.25em | 17,50px | 18px (`--text-xl`) | −0,50 | 18,75px | 19px | −0,25 |
+| `h3` 1.125em | 15,75px | 15px (`--text-lg`) | +0,75 | 16,88px | 16px | +0,88 |
+| `h4` 1em | 14,00px | 14px (`--text-base`) | 0,00 | 15,00px | 15px | 0,00 |
+| `h5` 0.875em | 12,25px | 12px (`--text-sm`) | +0,25 | 13,13px | 13px | +0,13 |
+| `h6` 0.8125em | 11,38px | 11px (`--text-xs`) | +0,38 | 12,19px | 12px | +0,19 |
+
+Cinque gradini su sei stanno **sotto il pixel**. Solo `h1` diverge di un pixel e mezzo — e si chiude scrivendo una riga, non rinunciando al sistema. È un argomento forte a favore: i rapporti di shadcn e la scala scelta a mano dal v1 descrivono quasi la stessa gerarchia.
+
+**2. `typeset` legge già i nostri token.** `--color-foreground`, `--color-muted-foreground`, `--color-border`, `--font-heading`, `--font-mono`: tutti definiti dal tema Tassullo, tutti con un ripiego se mancassero. Entrerebbe senza inventare un colore, che è la condizione della regola permanente.
+
+**3. Il punto di attrito vero: `typeset` porta una SUA leva responsiva, e si somma alla densità.** Il file emette
+
+```css
+.typeset { font-size: calc(var(--typeset-size) * 1.125); }
+@media (min-width: 48rem), print { .typeset { font-size: var(--typeset-size); } }
+```
+
+cioè **sotto i 768px il corpo cresce del 12,5%**. Tassullo ha già una leva sullo stesso asse — la densità touch, ×1.08 sul testo — e le due si **compongono**: 14px sulla scrivania in normale → 15px in touch → **16,88px sul telefono in touch**, cioè **1,205×** il corpo di partenza, su una colonna che non si è allargata di un pixel.
+
+È esattamente la cella `375px × touch` di **D10**, il cui verdetto è M4.2. Le due decisioni vanno quindi guardate insieme: adottare `typeset` senza neutralizzare quel `1.125` significherebbe scoprire in M4.2 un ingrandimento che nessuna delle due leve dichiara da sola.

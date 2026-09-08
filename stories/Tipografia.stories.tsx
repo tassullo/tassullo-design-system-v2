@@ -5,9 +5,30 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  * Primitive / Tipografia — **e perché non è un componente.**
  *
  * L'accettazione di M2.1 chiede che «`typography` riproduca la scala del v1».
- * Prima domanda della scala del CLAUDE.md: shadcn ce l'ha già? **No** —
- * `typography` nel loro sito è una pagina di documentazione, non un item del
- * registry (verificato con l'MCP: 471 item, nessuno si chiama così).
+ * Prima domanda della scala del CLAUDE.md: shadcn ce l'ha già? **Non come
+ * item**: `shadcn view @shadcn/typeset` dà 404, `search` non trova nulla, e
+ * la pagina rimanda a un generatore. Non c'è niente da installare, quindi il
+ * gradino 1 non si applica e `componenti-propri.json` resta legittimamente
+ * vuoto.
+ *
+ * **Ma shadcn una risposta sul testo ce l'ha, e si chiama `typeset`** — non
+ * `typography`, che è il nome con cui è stata cercata la prima volta e per
+ * cui non si trovava niente (rettifica scritta in `docs/DECISIONI.md` §20).
+ * Risolve però un problema **diverso** da questa pagina, e i due non si
+ * sostituiscono:
+ *
+ * · `typeset` è un contenitore per il **contenuto lungo reso da markdown** —
+ *   l'equivalente di `prose` di Tailwind. Stila i discendenti (`p`, `h1..h6`,
+ *   liste, tabelle, codice) e ricava tutto da tre variabili di ritmo:
+ *   `--typeset-size`, `--typeset-leading`, `--typeset-flow`.
+ * · questa pagina è la **cornice dell'interfaccia**: titolo di pagina,
+ *   intestazione di card, meta, micro-etichetta. Si applica per elemento, con
+ *   le utility, e i gradini sono **enumerati** — sette valori scelti — non
+ *   derivati da un rapporto.
+ *
+ * Nelle app Tassullo il testo lungo esiste (le descrizioni delle schede
+ * tecniche, l'editor di M3.8, il diff di M3.9) e oggi **non ha una risposta**:
+ * è la decisione **D11**, aperta in `CHECKLIST.md` e non risolta qui.
  *
  * Secondo gradino, ri-stilare qualcosa di esistente: non c'è niente da
  * ri-stilare. Terzo gradino, **adattare il v1 perché entri nella forma
