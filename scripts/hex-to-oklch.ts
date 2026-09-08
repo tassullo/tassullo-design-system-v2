@@ -474,10 +474,19 @@ ${colorMap}
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* ── Tipografia ──────────────────────────────────────────────────────
-     Replicall è il font istituzionale (licenza Webflow del sito): lo stack
-     lo usa se l'app lo carica via @font-face, altrimenti degrada al font di
-     sistema. Il .woff NON si distribuisce con il registry (D3). */
-  --font-sans: 'Replicall', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+     **Inter** è il carattere delle interfacce, deciso l'8 settembre 2026 dopo
+     il confronto misurato di cinque candidati (docs/DECISIONI.md §14). Ha i
+     quattro pesi che il design system usa — 400/500/600/700 — le cifre
+     tabellari, e i corsivi; è SIL Open Font, quindi gratuito e
+     ridistribuibile. Lo carica l'app, come sempre (D3).
+
+     **Replicall NON è più nello stack.** Resta il carattere del marchio e
+     resta nelle stampe PDF, ma per lo schermo non si usa più: tenerlo qui
+     lo farebbe apparire sulle macchine che ce l'hanno installato e non
+     sulle altre, cioè renderebbe l'interfaccia diversa da persona a
+     persona. La scelta di un carattere non si lascia al parco font di chi
+     guarda. */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-heading: var(--font-sans);
 

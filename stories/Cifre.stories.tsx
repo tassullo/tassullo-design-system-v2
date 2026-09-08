@@ -6,35 +6,32 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  *
  * La domanda che ha prodotto questa pagina: nelle tabelle di dati — il computo
  * metrico di Studio, gli elenchi di Anagrafe — le colonne di numeri si
- * allineano con Replicall, o tocca passare al monospace per quelle colonne?
- * Il timore era giusto e la risposta è netta: **si allineano, con una utility
- * e senza cambiare carattere.**
+ * allineano, o tocca passare al monospace per quelle colonne? Il timore era
+ * fondato e la risposta è netta: **si allineano, con una utility e senza
+ * cambiare carattere.**
  *
- * ── Il fatto, letto dai file del font ────────────────────────────────────
+ * ── Il fatto ─────────────────────────────────────────────────────────────
  *
- * Le cifre di Replicall sono **proporzionali di default**: l'1 è largo 380
- * millesimi di em e il 4 ne è largo 580, nel Regular. Una colonna di importi
- * scritta così non incolonna, ed è esattamente il difetto che si voleva
- * evitare.
+ * Le cifre di **Inter** sono **proporzionali di default**: nove larghezze
+ * diverse fra 0 e 9. Una colonna di importi scritta così non incolonna.
  *
  * Ma il font porta la feature OpenType **`tnum`** (cifre tabellari), che
- * sostituisce tutte e dieci le cifre con versioni a larghezza fissa. E la
- * larghezza è **580/1000 em su tutte e otto le facce** — Light, Regular, Bold,
- * Heavy, tondi e corsivi. Non è un dettaglio: vuol dire che il **totale in
- * grassetto si incolonna col corpo in tondo**, che è la cosa che serve
- * davvero in un computo metrico, e che una nota in corsivo non sfasa la
- * colonna.
+ * sostituisce tutte e dieci le cifre con versioni a larghezza fissa. In CSS si
+ * accende con `font-variant-numeric: tabular-nums`, in Tailwind con la utility
+ * **`tabular-nums`**. Nessun token nuovo, nessun componente nuovo.
  *
- * In CSS si accende con `font-variant-numeric: tabular-nums`, che in Tailwind
- * è la utility **`tabular-nums`**. Nessun token nuovo, nessun componente
- * nuovo: è già nel linguaggio.
+ * Non era scontato. Delle cinque famiglie confrontate per la scelta del
+ * carattere, **Albert Sans non ha `tnum`**: con quella un computo metrico non
+ * si sarebbe potuto incolonnare se non cambiando font per le sole colonne
+ * numeriche — cioè la cosa che si voleva evitare. È uno dei motivi per cui è
+ * stata scartata (`docs/DECISIONI.md` §14).
  *
  * Un'avvertenza che costa un'ora se non la si sa: **`tnum` non tocca la
- * punteggiatura.** La virgola decimale resta proporzionale e cambia larghezza
- * col peso (11,2px a 400, 12,8px a 600, misurati a 40px), ed è crenata col
- * carattere che la precede. Le cifre si incolonnano lo stesso — è il gruppo
- * dei decimali che deve cadere sulla stessa ascissa, e ci cade — ma chi
- * verificasse puntando il righello sulla virgola concluderebbe il contrario.
+ * punteggiatura.** La virgola resta proporzionale, cambia larghezza col peso ed
+ * è crenata col carattere che la precede. Le cifre si incolonnano lo stesso — è
+ * il gruppo dei decimali che deve cadere sulla stessa ascissa, e ci cade — ma
+ * chi verificasse puntando il righello sulla virgola concluderebbe il
+ * contrario. Le misure qui sotto lo mostrano invece di affermarlo.
  *
  * ── Le due regole che ne discendono ──────────────────────────────────────
  *
@@ -42,12 +39,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  *    quantità, prezzi, date, progressivi, percentuali. Il carattere resta
  *    quello del testo. La sezione 3 è il modello da copiare.
  * 2. **Il `font-mono` è per i codici di sistema, e per niente altro.** Il
- *    criterio è una domanda sola: *la stringa si legge, o si trascrive?* Chi
- *    deve ricopiarla, dettarla o confrontarla carattere per carattere ha
- *    bisogno che stoni; chi la legge come una quantità no. Sui codici il
- *    monospace non serve a incolonnare — a quello basterebbe `tabular-nums` —
- *    serve a far vedere che quella stringa non è prosa: è un segnale, non una
- *    misura.
+ *    criterio è una domanda sola: *la stringa si legge, o si trascrive?* Sui
+ *    codici il monospace non serve a incolonnare — a quello basterebbe
+ *    `tabular-nums` — serve a far vedere che quella stringa non è prosa: è un
+ *    segnale, non una misura.
  *
  * La style guide del v1 diceva «Monospace solo per codici sistema e **dati
  * tabellari**». La seconda metà cade: nasceva da un font senza le tabellari, o
@@ -55,16 +50,17 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  *
  * ── Perché questa pagina misura invece di affermare ──────────────────────
  *
- * Le larghezze qui sotto sono lette dal DOM con `getBoundingClientRect` dopo
- * il layout, come in `Tema/Densità` e `Tema/Palette`. Una tabella di numeri
- * scritta a mano resta verde anche il giorno in cui `tabular-nums` smette di
- * funzionare — per esempio perché qualcuno reimposta `font-variant-numeric`
- * in un componente. Letta dal DOM, no.
+ * Le larghezze sono lette dal DOM con `getBoundingClientRect` dopo il layout,
+ * come in `Tema/Densità` e `Tema/Palette`. Una tabella di numeri scritta a mano
+ * resta verde anche il giorno in cui `tabular-nums` smette di funzionare — o il
+ * giorno in cui si **cambia carattere**, che è successo davvero l'8 settembre
+ * 2026 e ha reso stantii tutti i numeri che in questo file erano scritti a
+ * mano. Quelli letti dal DOM si sono aggiornati da soli.
  *
- * **Serve il font caricato.** Senza i file in `public/fonts/` la pagina
- * mostra il fallback di sistema, che ha cifre già tabellari di suo: la
- * dimostrazione sembra riuscire e non dimostra niente. Il riquadro in testa
- * dice quale dei due casi stai guardando.
+ * **Serve il font caricato.** Senza Inter la pagina mostra il fallback di
+ * sistema, che ha cifre già tabellari di suo: la dimostrazione sembrerebbe
+ * riuscire senza dimostrare niente. Il riquadro in testa dice quale dei due
+ * casi stai guardando.
  */
 
 const IMPORTI = [
@@ -264,8 +260,8 @@ function Tabella({ num, titolo, nota }: { num: string; titolo: string; nota: str
         Scarto del bordo dei decimali fra le cinque righe:{' '}
         <strong className="font-mono">{scarto === null ? '…' : `${scarto}px`}</strong>
         {scarto !== null &&
-          (scarto === 0
-            ? ' — cadono tutte sulla stessa ascissa, riga «Sommano» in grassetto compresa.'
+          (scarto < 0.25
+            ? ' — cadono tutte sulla stessa ascissa, riga «Sommano» in grassetto compresa. Sotto un quarto di pixel è arrotondamento del motore di resa, non disallineamento.'
             : ' — di tanto ballano i decimali, riga per riga.')}
       </p>
     </div>
@@ -318,13 +314,65 @@ function TabellaModello() {
   )
 }
 
-/** Dice a chi guarda se sta vedendo Replicall o il fallback di sistema. */
+/**
+ * I separatori nei due pesi, letti dal DOM. Erano scritti a mano — «11,2px
+ * contro 12,8px» — e sono diventati falsi il giorno in cui il carattere è
+ * cambiato, senza che niente protestasse. Ora si misurano, e **la frase si
+ * adatta alla misura** invece di affermare un fatto che vale per un font
+ * solo: in Replica i separatori cambiavano col peso, in Inter no.
+ */
+function Separatori() {
+  const [v, setV] = useState<{
+    virgola: [number, number]
+    punto: [number, number]
+    stabili: boolean
+  } | null>(null)
+
+  useEffect(() => {
+    document.fonts.ready.then(() => {
+      const misura = (ch: string, peso: number) => {
+        const e = document.createElement('span')
+        e.textContent = ch.repeat(10)
+        e.style.cssText = `position:absolute;left:-9999px;top:0;font-size:40px;font-weight:${peso};font-variant-numeric:tabular-nums`
+        document.body.append(e)
+        const w = e.getBoundingClientRect().width / 10
+        e.remove()
+        return Math.round(w * 10) / 10
+      }
+      const virgola: [number, number] = [misura(',', 400), misura(',', 600)]
+      const punto: [number, number] = [misura('.', 400), misura('.', 600)]
+      setV({
+        virgola,
+        punto,
+        stabili: virgola[0] === virgola[1] && punto[0] === punto[1],
+      })
+    })
+  }, [])
+
+  if (!v) return <span>misura in corso…</span>
+  if (v.stabili) {
+    return (
+      <span>
+        in questo carattere sono stabili, la virgola misura {v.virgola[0]}px a entrambi i pesi, e
+        lo scarto residuo viene dalla crenatura e non dalla larghezza
+      </span>
+    )
+  }
+  return (
+    <span>
+      qui la virgola passa da {v.virgola[0]}px a {v.virgola[1]}px fra peso 400 e 600, misurati a
+      40px
+    </span>
+  )
+}
+
+/** Dice a chi guarda se sta vedendo Inter o il fallback di sistema. */
 function StatoFont() {
   const [stato, setStato] = useState<{ caricate: number; famiglia: string } | null>(null)
   useEffect(() => {
     document.fonts.ready.then(() => {
       const caricate = [...document.fonts].filter(
-        (f) => f.family === 'Replicall' && f.status === 'loaded',
+        (f) => f.family === 'Inter' && f.status === 'loaded',
       ).length
       setStato({
         caricate,
@@ -345,15 +393,15 @@ function StatoFont() {
     >
       {ok ? (
         <>
-          <strong>Replicall è caricato</strong> ({stato.caricate} facce): quello che vedi qui sotto
-          è il carattere vero, e le misure valgono.
+          <strong>Inter è caricato</strong> ({stato.caricate} facce): quello che vedi qui sotto è il
+          carattere delle interfacce Tassullo, e le misure valgono.
         </>
       ) : (
         <>
-          <strong>Replicall non è caricato</strong> — stai vedendo <code>{stato.famiglia}</code>, il
+          <strong>Inter non è caricato</strong> — stai vedendo <code>{stato.famiglia}</code>, il
           fallback di sistema, che ha le cifre già tabellari di suo. La dimostrazione sembrerà
-          riuscire e non dimostrerà niente. Metti i file in <code>public/fonts/</code>: le
-          istruzioni sono nel <code>LEGGIMI.md</code> lì dentro.
+          riuscire e non dimostrerà niente. Inter arriva dal <code>&lt;link&gt;</code> in{' '}
+          <code>.storybook/preview-head.html</code>: se manca, manca lì.
         </>
       )}
     </div>
@@ -367,7 +415,7 @@ function Pagina() {
         <header className="space-y-3">
           <h1 className="text-title font-semibold">Cifre e dati tabellari</h1>
           <p className="text-base text-muted-foreground">
-            Le colonne di numeri si allineano con Replicall, senza cambiare carattere. Serve una
+            Le colonne di numeri si allineano con Inter, senza cambiare carattere. Serve una
             utility, <code>tabular-nums</code>, e non un secondo font.
           </p>
           <StatoFont />
@@ -393,10 +441,9 @@ function Pagina() {
           <p className="text-base text-muted-foreground">
             Il bordo destro combacia in tutti e due i casi — non è lì che si vede. Si vede dove
             comincia il <strong>gruppo dei decimali</strong>, misurato sotto ogni tabella, e sulla
-            riga «Sommano», che è in grassetto e in tabellare si incolonna col corpo perché le cifre
-            tabellari di Replicall misurano{' '}
-            <strong>580/1000 di em su tutte e otto le facce</strong> — Light, Regular, Bold, Heavy,
-            tondi e corsivi.
+            riga «Sommano», che è in grassetto: se si incolonna col corpo in tondo è perché la
+            cifra tabellare del carattere resta larga uguale cambiando peso. Non è scontato — fra i
+            candidati, Geist derivava del 6% e i totali in grassetto sfasavano.
           </p>
           <div className="grid gap-6 md:grid-cols-2">
             <Tabella
@@ -431,7 +478,7 @@ function Pagina() {
 <td className="text-right tabular-nums">20.497,60</td>`}</Sorgente>
           <p className="text-base text-muted-foreground">
             Il codice porta anche <code>text-sm</code> e <code>text-muted-foreground</code>: il
-            monospace di sistema ha un&apos;altezza-x più alta di Replicall e a parità di corpo
+            monospace di sistema ha un&apos;altezza-x più alta di Inter e a parità di corpo
             sembra più grande, e un identificativo non deve pesare quanto la voce che identifica. Da{' '}
             <strong>M2.4</strong> sarà la primitiva <code>table</code> a portarsi dietro queste
             classi sulle colonne che le dichiarano numeriche: nelle app non si riscrivono a mano.
@@ -521,7 +568,7 @@ function Pagina() {
 
           <div className="space-y-2 rounded-md border border-border p-4">
             <div className="text-sm font-semibold">
-              Lo zero: il mono di sistema lo distingue già, Replicall lo può distinguere
+              Lo zero: il mono di sistema lo distingue già
             </div>
             <p className="text-base">
               Su un codice, <strong>0</strong> e <strong>O</strong> si confondono, ed è il difetto
@@ -529,11 +576,12 @@ function Pagina() {
               <span className="font-mono text-xl">O0 IlL1</span>
             </p>
             <p className="text-base">
-              Se un giorno servisse un codice nel carattere del testo, Replicall porta la feature{' '}
-              <code>zero</code> — in Tailwind <code>slashed-zero</code>:{' '}
+              Se un giorno servisse un codice nel carattere del testo, <code>slashed-zero</code> in
+              Tailwind chiede al font lo zero barrato — dove il font ce l&apos;ha:{' '}
               <span className="text-xl">O0</span> normale contro{' '}
-              <span className="text-xl slashed-zero">O0</span> con lo zero barrato. Oggi non si usa:
-              per i codici la scelta è il mono.
+              <span className="text-xl slashed-zero">O0</span>. Inter non porta quella feature, e
+              infatti i due sono identici; Replica sì, ma Replica non è più il carattere dello
+              schermo. Per i codici la scelta resta il mono.
             </p>
           </div>
         </section>
@@ -543,9 +591,9 @@ function Pagina() {
             5. I due pesi affiancati, e il limite dei separatori
           </h2>
           <p className="text-base text-muted-foreground">
-            La proprietà che fa incolonnare i totali: le cifre tabellari misurano{' '}
-            <strong>580/1000 di em su tutte e otto le facce</strong>, quindi la stessa cifra occupa
-            lo stesso spazio in Light, Regular, Bold e Heavy. Sotto è misurata, non affermata.
+            La proprietà che fa incolonnare i totali: la cifra tabellare deve occupare lo stesso
+            spazio a tutti i pesi. Sotto è misurata, non affermata — ed è il criterio su cui, nel
+            confronto fra i candidati, Geist ha perso.
           </p>
           <div className="space-y-3">
             <div>
@@ -590,11 +638,11 @@ function Pagina() {
               />
               <p className="mt-1 text-base text-muted-foreground">
                 E va benissimo così. La differenza è tutta nei <strong>separatori</strong>, che{' '}
-                <code>tnum</code> non tocca: il punto e la virgola passano da 11,2px a 12,8px fra
-                peso 400 e 600. Le <em>cifre</em> restano incolonnate, ed è quello che conta in una
-                colonna allineata a destra — lo scarto misurato sulla tabella qui sopra è{' '}
-                <strong>0px</strong>. Chi misurasse la larghezza dell&apos;intera stringa, o
-                puntasse il righello sulla virgola, concluderebbe a torto che non funziona.
+                <code>tnum</code> non tocca: restano proporzionali e possono cambiare larghezza
+                col peso — <Separatori /> — mentre le <em>cifre</em> restano incolonnate, ed è
+                quello che conta in una colonna allineata a destra. Chi misurasse la larghezza dell&apos;intera
+                stringa, o puntasse il righello sulla virgola, concluderebbe a torto che non
+                funziona.
               </p>
             </div>
           </div>
@@ -603,12 +651,11 @@ function Pagina() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">6. Le altre feature che il font porta</h2>
           <p className="text-base text-muted-foreground">
-            Oltre a <code>tnum</code>, Replicall dichiara <code>zero</code> (zero barrato, utile sui
-            codici dove 0 e O si confondono), <code>onum</code> (cifre minuscole, per la prosa),{' '}
-            <code>lnum</code>, <code>pnum</code>, <code>frac</code>, <code>sups</code>,{' '}
-            <code>subs</code> e undici set stilistici. <strong>Nessuna è in uso oggi</strong>: sono
-            annotate perché esistano nella testa di chi progetta una pagina, non perché si adottino
-            adesso.
+            Oltre a <code>tnum</code>, Inter dichiara <code>pnum</code> (cifre proporzionali),{' '}
+            <code>frac</code>, <code>numr</code> e <code>dnom</code>. <strong>Nessuna è in uso
+            oggi</strong>: sono annotate perché esistano nella testa di chi progetta una pagina, non
+            perché si adottino adesso. Non porta invece <code>zero</code> né <code>onum</code>, che
+            Replica aveva — nessuna delle due era in uso, quindi non si perde niente.
           </p>
         </section>
 

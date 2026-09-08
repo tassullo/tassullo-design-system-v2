@@ -932,3 +932,41 @@ A parità passa avanti chi ha più gradini di peso: è il criterio da cui dipend
 | 5 | Albert Sans | 5/9 | nessuna cifra tabellare |
 
 **Un limite scritto in pagina, perché la classifica non venga letta per più di quello che è:** il punteggio misura quanto un carattere regge il *lavoro dell'interfaccia* — colonne di numeri, gerarchia dei pesi, note in corsivo. **Non misura quanto somigli a Tassullo**, che non è misurabile e resta la decisione di Roberto. Il costo è nell'ultima colonna e non fa punti.
+
+---
+
+## 2026-09-08 — Inter sullo schermo, Replica nelle stampe
+
+Decisione di Francesco dopo la demo: **Inter per le interfacce, Replica per le stampe PDF**. Chiude la questione che `DECISIONI.md` §12 aveva aperto e lasciata in carico a M2.1, e la chiude meglio di come M2.1 avrebbe potuto: invece di adattare la gerarchia a un carattere che non ha i pesi, si prende un carattere che li ha.
+
+### Cosa è cambiato nel codice
+
+- **`scripts/hex-to-oklch.ts`**: `--font-sans` passa a `'Inter', -apple-system, …`. **Replicall esce dallo stack.** Non è pignoleria: tenerlo lì lo farebbe apparire sulle macchine che ce l'hanno installato e non sulle altre, cioè renderebbe l'interfaccia diversa da persona a persona. Tema rigenerato.
+- **`src/index.css`**: tolte le otto `@font-face` di Replica. Inter arriva da un `<link>` nella testa dei due punti d'ingresso — `index.html` e il nuovo **`.storybook/preview-head.html`**, che prima non esisteva: Storybook non usa `index.html`, e senza quel file la style guide sarebbe tornata a rendere nel font di sistema. È lo stesso difetto scoperto il giorno prima, e questa volta è stato previsto invece che subito.
+- **Story nuova `Tema/Carattere`**: la scelta, i pesi misurati, la scala, le due famiglie e a cosa servono, e il fatto che Replica resta nelle stampe. Con Inter: **5 pesi distinti su 5**, letti dal DOM.
+- **`Tema/Cifre` riscritta per Inter.** Tutti i numeri che erano scritti a mano erano diventati falsi — è successo davvero ciò che quella pagina predicava, e la parte misurata dal DOM si è aggiornata da sola mentre la parte scritta è rimasta indietro.
+
+### Tre bugie trovate nella riscrittura, e una resa impossibile
+
+1. «Le cifre di Replicall sono proporzionali, l'1 è 380 millesimi» — vero di Replica, falso di Inter (nove larghezze diverse, altri valori).
+2. «580/1000 di em su tutte e otto le facce» — proprietà di Replica, non di Inter. Sostituita col criterio, non col numero: *la cifra tabellare deve restare larga uguale a tutti i pesi*, che è ciò che conta e vale per qualunque carattere.
+3. Il verdetto dava «di tanto ballano i decimali» per **0.04px**. Stesso difetto già corretto nell'artifact e non qui: soglia di un quarto di pixel, col numero esatto sempre in vista.
+
+E una che non si poteva correggere scrivendo un altro numero: la frase «la virgola cambia larghezza col peso» accanto alla misura «10.7px contro 10.7px». **In Inter i separatori sono stabili, in Replica no.** Riscritta come componente che *sceglie la frase in base alla misura* — è l'unico modo perché non ridiventi falsa al prossimo cambio di carattere.
+
+### Verifiche
+
+- **`Tema/Carattere`**: 5 pesi distinti su 5, larghezze crescenti 355,82 → 393,14px. axe **0 violazioni, 0 incomplete** in chiaro e in scuro.
+- **`Tema/Cifre` con Inter**: cifre di default **9 larghezze da 7,15 a 11,52px**; con `tabular-nums` **una sola, 11,66px**. Scarto dei decimali **2,69px senza, 0,04px con**. axe **0 e 0** in chiaro, scuro e densità touch.
+- `npm run check`, `tsc -b`, `oxlint`, `build`, `build-storybook`: verdi.
+- Il tema rigenerato non tocca nessun colore: `check:contrast` resta 48/48.
+
+### D3 cambia domanda
+
+Non è più «si può distribuire Replica?» — Replica non è più il carattere dello schermo. Ora è **«Inter da Google Fonts o auto-ospitato?»**, e per la prima volta la licenza (SIL Open Font) **permette** di metterlo nel registry. Da decidere guardando anche la privacy: i server di Google vedono l'indirizzo IP di ogni visitatore, che in UE è un tema. Riga di `CHECKLIST.md` riformulata.
+
+### Cosa resta di Replica
+
+Il carattere del marchio, e le **stampe PDF** — con i `.ttf` convertiti e verificati (§12). Lì il limite dei pesi resta: un PDF che volesse un semibold userà il Bold. `public/fonts/` continua a tenerla fuori dal repo, ma ora **nessuna pagina la carica**.
+
+Conseguenza da non scoprire per caso, scritta in `Tema/Carattere`: **lo stesso computo è in Inter a schermo e in Replica sul PDF.**

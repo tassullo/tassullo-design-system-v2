@@ -475,3 +475,45 @@ Su un codice `0` e `O` si confondono, ed è il difetto che fa sbagliare una tras
 axe-core su `Tema/Cifre`: **0 violazioni, 0 incomplete** in chiaro, in scuro e in densità touch, a 1440×900. `tsc`, `oxlint`, `build`, `build-storybook` verdi.
 
 **Trappola d'ambiente, non di codice:** le utility del file nuovo non venivano generate affatto — `.tabular-nums` non esisteva nel CSS e anche `md:grid-cols-2` non applicava — perché il dev server di Storybook era in piedi da prima che il file esistesse e Tailwind non l'aveva ripreso. Si vede come un difetto di codice e non lo è. Riavviare il server.
+
+---
+
+## 14. Il carattere: Inter sullo schermo, Replica nelle stampe (deciso il 2026-09-08)
+
+**Decisione di Francesco**, dopo il confronto misurato di cinque candidati nella demo «Carattere Tassullo». Chiude una questione che §12 aveva aperto e lasciata a M2.1.
+
+### Cosa cambia
+
+`--font-sans` del tema passa da `'Replicall', …` a **`'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif`**. `--font-mono` non cambia. **Replicall esce dallo stack dello schermo** e resta nelle stampe PDF.
+
+### Perché non Replica, che è il carattere del marchio
+
+Perché non ha i pesi che servono. Replica LL ha **300, 400, 700, 900: 500 e 600 non esistono**, e non è che manchino i file — non esistono nel carattere. Ma il design system costruisce la gerarchia proprio su quelli (`font-medium` per le etichette, `font-semibold` per i titoli): la sostituzione di CSS manda 500 → 400 e 600 → 700, e **quattro gradini scritti ne rendono due**. Misurato in §12.
+
+Il difetto era invisibile perché **nessuna app caricava Replica** — Studio compresa, verificata in produzione — quindi tutto rendeva in San Francisco, che 500 e 600 ce li ha. Sarebbe saltato fuori il giorno in cui un'app avesse finalmente caricato il carattere del marchio: il momento peggiore.
+
+### Perché Inter
+
+Dei cinque provati è l'unico che passa tutti e quattro i criteri misurati:
+
+| # | carattere | punti | dove perde |
+|---|---|---|---|
+| **1** | **Inter** | 9/9 | — |
+| 2 | Geist | 8/9 | cifra tabellare +6% fra 400 e 700: i totali in grassetto sfasano di 0,84px |
+| 3 | Outfit | 7/9 | nessun corsivo disegnato |
+| 4 | Replica LL | 7/9 | 2 gradini di peso su 4 |
+| 5 | Albert Sans | 5/9 | nessuna cifra tabellare |
+
+Ed è **SIL Open Font**: gratuito e ridistribuibile, che con Replica non era.
+
+### Cosa NON è stato deciso, e va deciso
+
+- **Come si serve Inter alle app in produzione.** Il workbench e Storybook lo prendono da Google Fonts, che per un ambiente di sviluppo va bene. Per le app è **parte di D3**: servire i font dai server di Google significa mandare l'indirizzo IP di ogni visitatore a un terzo, il che in UE è un tema — e la licenza OFL, a differenza di quella di Replica, **permette di auto-ospitarlo e di distribuirlo col registry**. È la prima volta che D3 ha una risposta possibile diversa da «lo carica l'app».
+- **Se il marchio vuole Replica nei titoli.** Non si è fatto, e non si deve fare di iniziativa: un carattere fuori dallo stack apparirebbe solo sulle macchine che ce l'hanno installato, cioè renderebbe l'interfaccia diversa da persona a persona.
+
+### Conseguenze già registrate
+
+- **M2.1 non deve più decidere la gerarchia dei pesi**: con Inter i quattro gradini rendono distinti, misurato — 5 su 5 provati nella story `Tema/Carattere`.
+- **Il canale PDF resta com'è**: Replica, `.ttf` convertiti (§12), e lì il limite dei pesi rimane — un PDF che volesse un semibold userà il Bold.
+- **Lo stesso computo è in Inter a schermo e in Replica sul PDF.** È una scelta e va detta: lo schermo prende il carattere che lavora meglio, la carta quello del marchio.
+- `public/fonts/` continua a tenere Replica fuori dal repo, ma ora **solo per le stampe**: nessuna pagina la carica più.

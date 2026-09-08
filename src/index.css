@@ -9,94 +9,24 @@
 @import "../registry/tassullo/theme/tassullo-theme.css";
 
 /* ══════════════════════════════════════════════════════════════════════
-   REPLICALL — solo per il workbench e per la style guide
+   IL CARATTERE — Inter sullo schermo, Replica nelle stampe
 
-   Il tema dichiara lo stack (`'Replicall'` con i fallback di sistema) ma non
-   porta nessun file, ed è giusto così: la licenza è quella Lineto, e il
-   registry non ridistribuisce binari (D3, invariata dal v1). Conseguenza
-   però: Storybook rendeva la tipografia nel font di sistema, cioè la pagina
-   che deve dire come le cose appaiono mostrava un carattere che non è quello
-   del marchio.
+   Deciso l'8 settembre 2026 (docs/DECISIONI.md §14). Le @font-face di
+   Replica stavano qui e sono state tolte: sullo schermo non si usa più.
 
-   Queste @font-face stanno QUI e non nel tema apposta: `src/` è il workbench,
-   e ciò che sta qui non viaggia col registry. I file stanno in `public/fonts/`
-   e sono **esclusi dal repo** (`.gitignore`), quindi chi clona non li ha e
-   vede il fallback di sistema: è il comportamento voluto, e le istruzioni
-   sono in `public/fonts/LEGGIMI.md`.
+   **Inter** si carica dal `<link>` nella testa dei due punti d'ingresso —
+   `index.html` per il workbench e `.storybook/preview-head.html` per la
+   style guide — e non da qui, perché un `@import` remoto dentro il CSS che
+   Tailwind compila è una dipendenza in più che non serve a niente.
 
-   `.otf` e non `.woff2` perché è ciò che la licenza ha consegnato. Convertirli
-   sarebbe più leggero — ~157 KB a faccia contro ~40 — ma è una modifica del
-   file, cioè una domanda per Lineto, non una scelta tecnica.
+   Per le **app in produzione** la domanda «Google Fonts o auto-ospitato?»
+   non è chiusa ed è parte di D3: servire i font dai server di Google
+   significa mandare l'indirizzo IP di ogni visitatore a un terzo, che in UE
+   è un tema. Qui è un workbench di sviluppo e non si pone.
 
-   ── I PESI SONO QUATTRO, E NON SONO QUELLI CHE IL CSS SCRIVE ───────────
-   Replica LL ha **300 Light, 400 Regular, 700 Bold, 900 Heavy**, ciascuno col
-   suo corsivo, e i valori sono quelli che i file dichiarano nella loro OS/2
-   (Heavy è 900, non 800 come si era stimato). **500 e 600 non esistono**: non
-   mancano i file, non esistono nel carattere. Ma il v1 costruisce la
-   gerarchia su 600 (×13) e 500 (×2), e il v2 su `font-semibold` (×14) e
-   `font-medium` (×3). La sostituzione di CSS manda **600 → 700** e
-   **500 → 400**: il semibold diventa bold, il medium sparisce dentro il corpo
-   del testo.
-
-   Non si ripara qui: è una scelta di gerarchia, in carico a M2.1
-   (`typography`). Ora però si vede, che era il punto di caricare il font.
+   **Replica resta** in `public/fonts/`, fuori dal repo, ma solo per le
+   stampe PDF: non la carica più nessuna pagina.
    ══════════════════════════════════════════════════════════════════════ */
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-300.otf') format('opentype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-300-italic.otf') format('opentype');
-  font-weight: 300;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-400.otf') format('opentype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-400-italic.otf') format('opentype');
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-700.otf') format('opentype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-700-italic.otf') format('opentype');
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-900.otf') format('opentype');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Replicall';
-  src: url('/fonts/replicall-900-italic.otf') format('opentype');
-  font-weight: 900;
-  font-style: italic;
-  font-display: swap;
-}
 
 @custom-variant dark (&:is(.dark *));
 
