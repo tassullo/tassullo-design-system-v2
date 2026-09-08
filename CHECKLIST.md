@@ -98,7 +98,7 @@ Dipendenze di fase: FASE 4.
 | Decisione | Stato | Blocca | Nota |
 |---|---|---|---|
 | D2 valori della palette scura | **CHIUSA** 2026-09-07 | — | chiusa guardandola affiancata al chiaro, non al buio. Neutri dalla sidebar v1, brand invariato, tenui specchiati a gradini fissi; tre scostamenti misurati (`--sidebar`, `--info`, `--warning`). Motivazione in `WORKLOG.md` e `PIANO.md` §2bis |
-| D3 come si servono i font alle app | TODO | nessuno | **Riformulata il 2026-09-08** (`DECISIONI.md` §14): non più «si può distribuire Replica?» — Replica non è più il carattere dello schermo. Ora è «Inter da Google Fonts o auto-ospitato?», e la licenza OFL **permette** di metterlo nel registry, che con Replica non era possibile. Da decidere con l'occhio alla privacy: i server di Google vedono l'IP di ogni visitatore |
+| D3 come si servono i font alle app | **DONE** (2026-09-08) | nessuno | **Chiusa**: Inter va nel registry, item `tema-font`, coi file in **data URI** dentro il CSS — perché `shadcn build` legge i file come testo e un `.woff2` arriverebbe corrotto senza errore (73.016 byte → 69.186 caratteri, misurato). Un solo `add @tassullo/tema` porta tema, font e licenza OFL; l'app non fa **nessuna richiesta di rete** per la tipografia, che era il punto. Byte verificati identici dopo il viaggio nel JSON. `DECISIONI.md` §15 |
 | D4 quando pubblicare su GitHub | TODO | **M5.6** (solo) | tutto il resto funziona col registry locale via percorso di file |
 | D5 destino di `components.css` e `stylelint-config.cjs` v1 | TODO | nessuno | fuori dal perimetro: si dismettono a ultima app migrata |
 | D6 quando migrano Anagrafe / Studio / Officina | TODO | nessuno | ognuna decide per sé con la guida M5.5; nessuna scadenza |

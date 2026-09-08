@@ -12,9 +12,11 @@
     "check:contrast": "node scripts/hex-to-oklch.ts",
     "theme:build": "node scripts/hex-to-oklch.ts --write",
     "check:registry": "node scripts/check-registry.ts",
-    "check": "npm run check:contrast && npm run check:registry",
+    "check": "npm run check:contrast && npm run check:registry && npm run check:font",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "font:build": "node scripts/build-font-css.ts --write",
+    "check:font": "node scripts/build-font-css.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

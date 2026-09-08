@@ -517,3 +517,52 @@ Ed è **SIL Open Font**: gratuito e ridistribuibile, che con Replica non era.
 - **Il canale PDF resta com'è**: Replica, `.ttf` convertiti (§12), e lì il limite dei pesi rimane — un PDF che volesse un semibold userà il Bold.
 - **Lo stesso computo è in Inter a schermo e in Replica sul PDF.** È una scelta e va detta: lo schermo prende il carattere che lavora meglio, la carta quello del marchio.
 - `public/fonts/` continua a tenere Replica fuori dal repo, ma ora **solo per le stampe**: nessuna pagina la carica più.
+
+---
+
+## 15. Il carattere si distribuisce col registry — e **D3 si chiude** (2026-09-08)
+
+**Decisione di Francesco**: Inter va nel registry, così ogni app lo riceve installando il tema. Chiude D3, aperta dal piano e riformulata poche ore prima quando la scelta del carattere è passata da Replica a Inter (§14). La licenza lo permette — SIL Open Font — dove quella di Replica non lo permetteva; è ciò che ha reso la domanda rispondibile.
+
+### L'accertamento che ha deciso la forma: **il registry non sa portare binari**
+
+Provato prima di progettare, non supposto. Un `.woff2` da **73.016 byte** dichiarato come file di un item: nel JSON prodotto da `shadcn build` ne arrivano **69.186 caratteri**, e ri-codificandoli in UTF-8 non si torna all'originale. La CLI legge ogni file come **testo**, quindi i byte non rappresentabili vengono sostituiti.
+
+Il guaio è che **non fallisce**: la CLI copia una stringa e dice «Created 1 file». Il font arriverebbe corrotto e il difetto si vedrebbe solo a video, come un carattere che non si carica senza che niente lo spieghi.
+
+### La forma adottata: due item, e i font dentro il CSS
+
+| item | cosa porta | dove atterra |
+|---|---|---|
+| `tema-font` | `inter.css` coi font in **data URI**, più la licenza OFL | `src/tassullo-inter.css`, `src/tassullo-inter-OFL.txt` |
+| `tema` | `tassullo-theme.css` — dichiara `tema-font` fra le `registryDependencies` | `src/tassullo-theme.css` |
+
+`npx shadcn@latest add @tassullo/tema` porta **tutti e tre i file** con un comando, e la CLI aggiunge da sé i due `@import` al CSS globale.
+
+**Perché in data URI.** È l'unico modo di far passare un font da un canale che trasporta solo testo. Costa un terzo di byte in più del binario, e in cambio **l'app non fa nessuna richiesta di rete per la tipografia** — che era il punto di D3.
+
+**Perché due item e non uno.** Il tema è anche documentazione: ha più commenti che dichiarazioni, e affogarlo sotto 200 KB di base64 lo renderebbe illeggibile. Separati, il tema resta leggibile e il font si scarica e si mette in cache per conto suo.
+
+**Perché solo il sottoinsieme `latin`.** Copre italiano e tedesco: accentate e umlaut stanno in U+0000–00FF. `latin-ext` aggiunge l'Europa centrale e costa il doppio (130 KB contro 71). Se servisse, si aggiunge a `SOTTOINSIEMI` in `scripts/build-font-css.ts`.
+
+**La licenza viaggia col font**, come l'OFL richiede: `tassullo-inter-OFL.txt` è un file dell'item e il campo `docs` dice che non si cancella.
+
+### Niente `<link>` a Google, nemmeno nel workbench
+
+Il `<link>` in `index.html` e il file `.storybook/preview-head.html`, aggiunti poche ore prima, sono stati **tolti**. `src/index.css` importa lo stesso `inter.css` che ricevono le app: altrimenti si svilupperebbe contro la copia di Google e si spedirebbe la nostra, che è il modo classico di scoprire una differenza in produzione.
+
+La ragione di fondo è quella che ha chiuso D3: servire i font da un terzo significa mandargli l'indirizzo IP di ogni visitatore.
+
+### Il file generato, e il gate che lo tiene onesto
+
+`registry/tassullo/theme/inter.css` è **generato** da `scripts/build-font-css.ts` dai `.woff2` in `theme/fonts/` — stessa disciplina del tema: `npm run font:build` lo rigenera, **`npm run check:font` fallisce se diverge**, ed è entrato in `npm run check`. Un base64 modificato a mano non è ispezionabile a occhio: senza il gate, una divergenza sarebbe invisibile per sempre.
+
+### Prova d'installazione (end-to-end, in locale)
+
+`npx shadcn@latest add @tassullo/tema` da un'app Vite vuota:
+
+- **tre file creati** con un comando — tema, font, licenza — e i due `@import` al posto giusto;
+- `vite build` compila **211 KB** di CSS con **2 facce inlinate** e **zero riferimenti a `gstatic`/`googleapis`**;
+- `--font-sans: "Inter", …` e `.text-title{font-size:var(--text-title)}`, cioè la densità continua a scattare;
+- **i byte del font sopravvivono al viaggio**: 73.016 in casa e 73.016 nell'app, stesso `sha256`, identici anche al `.woff2` di partenza. È la verifica che il canale binario non superava, e la ragione per cui il base64 è la strada giusta.
+- Nel workbench: **nessuna richiesta di rete per il font** (`performance.getEntriesByType('resource')` non ne riporta), 2 facce caricate, 5 pesi distinti su 5, axe 0/0.

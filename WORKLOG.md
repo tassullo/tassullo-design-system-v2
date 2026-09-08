@@ -970,3 +970,41 @@ Non è più «si può distribuire Replica?» — Replica non è più il caratter
 Il carattere del marchio, e le **stampe PDF** — con i `.ttf` convertiti e verificati (§12). Lì il limite dei pesi resta: un PDF che volesse un semibold userà il Bold. `public/fonts/` continua a tenerla fuori dal repo, ma ora **nessuna pagina la carica**.
 
 Conseguenza da non scoprire per caso, scritta in `Tema/Carattere`: **lo stesso computo è in Inter a schermo e in Replica sul PDF.**
+
+---
+
+## 2026-09-08 — Il carattere entra nel registry, e **D3 si chiude**
+
+Indirizzo di Francesco: «sicuramente salvato nel registry in modo da usarlo per ogni App». Chiude D3, che era aperta dal piano e che poche ore prima aveva cambiato domanda — da «si può distribuire Replica?» a «Inter da Google o auto-ospitato?». La licenza SIL Open Font è ciò che ha reso la domanda rispondibile: con Replica non lo era.
+
+### L'accertamento che ha deciso la forma
+
+Prima di progettare qualunque cosa: **il registry sa portare un binario?** No.
+
+Un `.woff2` da **73.016 byte** dichiarato come file di un item diventa **69.186 caratteri** nel JSON di `shadcn build`, e ri-codificandoli non si torna all'originale: la CLI legge ogni file come **testo**. E non fallisce — dice «Created 1 file» e consegna un font corrotto. Sarebbe stato l'ennesimo difetto muto, scoperto a video settimane dopo.
+
+Da lì la forma: **i font viaggiano dentro il CSS, in data URI**, che è testo e passa sul canale `registry:theme` già dimostrato in M1.5.
+
+### Fatto
+
+- **`registry/tassullo/theme/fonts/`** — i due `.woff2` di Inter, sottoinsieme `latin`, tondo e corsivo. Variabili: un file per stile copre i pesi da 300 a 900.
+- **`scripts/build-font-css.ts`** → `theme/inter.css`, 201 KB, generato dai `.woff2`. Stessa disciplina del tema: `npm run font:build` rigenera, **`npm run check:font` fallisce se diverge**, ed è entrato in `npm run check`. Un base64 ritoccato a mano non è ispezionabile a occhio: senza il gate, la divergenza sarebbe invisibile per sempre.
+- **Item `tema-font`** con il CSS e la **licenza OFL**, che l'OFL richiede resti col font — il campo `docs` dice che non si cancella. **`tema` lo dichiara fra le `registryDependencies`**: un solo comando porta tutti e tre i file.
+- **Via il `<link>` a Google**, da `index.html` e da `.storybook/preview-head.html`, che era stato creato poche ore prima ed è stato rimosso. `src/index.css` importa **lo stesso `inter.css` che ricevono le app**: altrimenti si svilupperebbe contro la copia di Google e si spedirebbe la nostra.
+
+### Perché due item e non uno
+
+Il tema è anche documentazione — ha più commenti che dichiarazioni. Affogarlo sotto 200 KB di base64 lo renderebbe illeggibile, e quel file è la cosa che chi installa legge per capire i token. Separati, il tema resta leggibile e il font si mette in cache per conto suo.
+
+### Verifiche
+
+- **Prova d'installazione end-to-end**, app Vite vuota: `add @tassullo/tema` crea **tre file** con un comando — tema, font, licenza — e mette i due `@import` al posto giusto. `vite build` compila **211 KB** di CSS con **2 facce inlinate** e **zero riferimenti a `gstatic`/`googleapis`**; `--font-sans: "Inter", …`; `.text-title{font-size:var(--text-title)}`, cioè la densità continua a scattare.
+- **I byte sopravvivono al viaggio**: 73.016 in casa e 73.016 nell'app, **stesso `sha256`**, identici anche al `.woff2` di partenza. È esattamente la verifica che il canale binario non superava, ed è la ragione per cui il base64 è la strada giusta e non un ripiego.
+- **Nel workbench: nessuna richiesta di rete per il font.** `performance.getEntriesByType('resource')` non ne riporta nessuna verso `gstatic` o `googleapis`. Due facce caricate, **5 pesi distinti su 5**, axe **0 violazioni e 0 incomplete** in chiaro e in scuro su `Tema/Carattere`.
+- `npm run check` (contrasto 48/48, registry 0 errori, font allineato), `tsc -b`, `build`, `build-storybook`: verdi. `registry validate`: 3 item.
+
+### Cosa resta aperto
+
+Il **sottoinsieme**: oggi solo `latin`, che copre italiano e tedesco. `latin-ext` costerebbe il doppio (130 KB contro 71) e serve solo per l'Europa centrale — si aggiunge in una riga se un giorno un nome lo richiede.
+
+E il **canale PDF**, che non è toccato: resta Replica, coi `.ttf` convertiti, fuori dal repo in `public/fonts/`. Nessuna pagina la carica più.

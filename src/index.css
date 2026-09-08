@@ -8,21 +8,26 @@
    se ne serve uno nuovo si aggiunge alla palette dello script. */
 @import "../registry/tassullo/theme/tassullo-theme.css";
 
+/* Inter, con i file inlinati in data URI. È GENERATO da
+   scripts/build-font-css.ts (npm run font:build) dai .woff2 in
+   registry/tassullo/theme/fonts/, e viaggia come item `tema-font`.
+   Importato **da qui e non da un <link> a Google**: il workbench deve
+   provare esattamente il file che ricevono le app, o si svilupperebbe
+   contro una copia e si spedirebbe l'altra (D3, chiusa il 2026-09-08). */
+@import "../registry/tassullo/theme/inter.css";
+
 /* ══════════════════════════════════════════════════════════════════════
    IL CARATTERE — Inter sullo schermo, Replica nelle stampe
 
-   Deciso l'8 settembre 2026 (docs/DECISIONI.md §14). Le @font-face di
-   Replica stavano qui e sono state tolte: sullo schermo non si usa più.
+   Deciso l'8 settembre 2026 (docs/DECISIONI.md §14 e §15). Le @font-face
+   stavano qui e ora stanno nel registry, in `theme/inter.css`, importato
+   sopra: **il carattere fa parte del tema e si installa con lui**, non è
+   qualcosa che ogni app si arrangia a caricare.
 
-   **Inter** si carica dal `<link>` nella testa dei due punti d'ingresso —
-   `index.html` per il workbench e `.storybook/preview-head.html` per la
-   style guide — e non da qui, perché un `@import` remoto dentro il CSS che
-   Tailwind compila è una dipendenza in più che non serve a niente.
-
-   Per le **app in produzione** la domanda «Google Fonts o auto-ospitato?»
-   non è chiusa ed è parte di D3: servire i font dai server di Google
-   significa mandare l'indirizzo IP di ogni visitatore a un terzo, che in UE
-   è un tema. Qui è un workbench di sviluppo e non si pone.
+   Niente `<link>` a Google Fonts, né qui né in `index.html`: servire i font
+   da un terzo significa mandargli l'indirizzo IP di ogni visitatore. I file
+   sono dentro il CSS, in data URI, e l'app non fa nessuna richiesta di rete
+   per la tipografia.
 
    **Replica resta** in `public/fonts/`, fuori dal repo, ma solo per le
    stampe PDF: non la carica più nessuna pagina.
