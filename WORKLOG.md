@@ -905,3 +905,30 @@ In un computo metrico la riga dei totali **è** in grassetto: è il caso che con
 - **Colonna nuova nella scheda**: «stabili fra i pesi», con la percentuale di deriva.
 - **L'interruttore spiegato**: cosa fa esattamente (`font-variant-numeric: tabular-nums`, cioè chiedere al carattere la serie di cifre a larghezza fissa), cosa non fa (non cambia carattere, non cambia il disegno delle lettere), e cosa succede se il carattere quella serie non ce l'ha.
 - **Un consiglio per carattere**, derivato dalle stesse misure e non da un'opinione: acceso sempre dove `tnum` c'è, con l'avvertenza sulla deriva dove c'è; inutile su Albert Sans, dove l'unica via sarebbe un secondo carattere per le colonne numeriche.
+
+---
+
+## 2026-09-08 — La scheda diventa una classifica
+
+Richiesta di Francesco: ordinare i cinque caratteri dal migliore al peggiore, numerati.
+
+L'ordine è **calcolato dalle misure**, non deciso a mano: sarebbe un'opinione travestita da tabella, ed è il difetto che questa pagina esiste per evitare. I pesi dei criteri sono dichiarati in pagina, così chiunque può contestarli sapendo cosa cambia.
+
+| criterio | punti | perché tanto |
+|---|---|---|
+| cifre tabellari | **3** | senza, un computo non si incolonna e l'unica via è un secondo carattere per i numeri |
+| gradini di peso usabili | **0–3** | uno per gradino oltre il primo, fra i quattro che il design system usa |
+| corsivo disegnato | **2** | manca in *ogni* nota di misurazione del computo |
+| stabili fra i pesi | **1** | tocca una riga per tabella, quella dei totali |
+
+A parità passa avanti chi ha più gradini di peso: è il criterio da cui dipende la gerarchia di tutta l'interfaccia, non una riga sola.
+
+| # | carattere | punti | dove perde |
+|---|---|---|---|
+| 1 | **Inter** | 9/9 | niente |
+| 2 | Geist | 8/9 | deriva +6% fra i pesi: i totali in grassetto sfasano di 0,84px |
+| 3 | Outfit | 7/9 | nessun corsivo disegnato |
+| 4 | **Replica LL** | 7/9 | 2 gradini di peso su 4 |
+| 5 | Albert Sans | 5/9 | nessuna cifra tabellare |
+
+**Un limite scritto in pagina, perché la classifica non venga letta per più di quello che è:** il punteggio misura quanto un carattere regge il *lavoro dell'interfaccia* — colonne di numeri, gerarchia dei pesi, note in corsivo. **Non misura quanto somigli a Tassullo**, che non è misurabile e resta la decisione di Roberto. Il costo è nell'ultima colonna e non fa punti.
