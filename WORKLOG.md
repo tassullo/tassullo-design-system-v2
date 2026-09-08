@@ -832,17 +832,37 @@ Più una **scheda di sintesi** che misura tutti e cinque, non solo quello selezi
 |---|---|---|---|
 | **Replica LL** | **2 su 4** | sì | sì |
 | Inter | 4 su 4 | sì | sì |
-| Geist | 4 su 4 | sì | no |
-| Outfit | 4 su 4 | sì | no |
+| Geist | 4 su 4 | sì | sì |
+| Outfit | 4 su 4 | sì | **no** |
 | Albert Sans | 4 su 4 | **no** | sì |
+
+*(Tabella corretta: la prima versione dava Geist e Albert Sans senza corsivo. Vedi «I due difetti sul corsivo» qui sotto.)*
 
 Il dato che pesa: **Replica dà due gradini di peso su quattro**, perché 500 e 600 non esistono e collassano su 400 e 700. Tutti e quattro gli alternativi li hanno. In compenso Replica ha le cifre tabellari, quindi sul computo metrico non ha problemi — e **Albert Sans no**, che per Tassullo è squalificante: senza `tnum` le colonne di importi non si incolonnano se non cambiando font.
 
-### Il difetto che il primo sguardo ha trovato
+### I due difetti sul corsivo, e come sono venuti fuori
 
-Alla prima resa la scheda dava **Albert Sans senza corsivo**, che è falso. Causa: un font si scarica **quando serve**, e le facce corsive sono file a parte — le misuravo prima che arrivassero, quindi misuravo il fallback di sistema, dove il corsivo è finto. Corretto chiedendo esplicitamente tutte le facce con `document.fonts.load()` prima di rimisurare. È lo stesso difetto muto di sempre: nessun errore, solo un numero sbagliato che sembra una misura.
+Francesco, guardando la scheda: «non capisco, mi sembra che tutte le supportino». Aveva ragione, e i difetti erano **due**, sovrapposti — il primo trovato guardando, il secondo solo andando a leggere i file dei font.
 
-Corretta anche l'etichetta del collasso, da «rende come 400» a «identico a 400»: quale dei due pesi sia il sostituto non è determinabile né interessante — sono lo stesso file.
+1. **Le facce si scaricano quando servono.** Alla prima resa la scheda dava Albert Sans senza corsivo perché lo misuravo prima che il file arrivasse: misuravo il fallback di sistema, dove il corsivo è finto. Corretto con `document.fonts.load()` su tutte le facce prima di rimisurare.
+2. **Il metodo era sbagliato in partenza, e la correzione (1) non bastava.** Confrontavo la larghezza del corsivo con quella del tondo: un corsivo *disegnato* può avere le stesse avanzate, e allora il confronto lo dichiara finto. **Il corsivo non si misura: si guarda se la faccia esiste**, enumerando `document.fonts`. Con Replica il metodo sbagliato funzionava per caso, ed è per questo che era sopravvissuto.
+3. **E c'era anche un terzo, banale:** il `<link>` a Google Fonts chiedeva i corsivi solo per Inter e Albert Sans. Geist il corsivo ce l'ha, ma la pagina non l'aveva mai chiesto — quindi «no» era vero della pagina, non del carattere.
+
+**Verificato alla fonte**, non solo a video: scaricati i `.woff2` che Google serve davvero e ispezionati con `fontTools`. Le feature numeriche dichiarate, che sono anche il modo di rileggere la colonna «cifre tabellari»:
+
+| carattere | `tnum` | cifre di default | altre feature numeriche |
+|---|---|---|---|
+| Replica LL | sì | 6 larghezze | `zero onum lnum pnum frac sups subs numr dnom` |
+| Inter | sì | 9 larghezze | `pnum frac numr dnom` |
+| Geist | sì | 9 larghezze | `pnum frac numr dnom` |
+| Outfit | sì | 8 larghezze | `pnum frac` |
+| **Albert Sans** | **no** | 8 larghezze | `frac` |
+
+Albert Sans è l'unico senza `tnum`, e le sue cifre di default hanno otto larghezze diverse: **non c'è modo di incolonnare un importo senza cambiare carattere**. Per Tassullo è squalificante, ed è il dato che la scheda serve a far vedere.
+
+Corretta anche l'etichetta del collasso dei pesi, da «rende come 400» a «identico a 400»: quale dei due sia il sostituto non è determinabile né interessante — sono lo stesso file.
+
+**La lezione, che è la terza volta in questa sessione:** una misura che gira e restituisce un numero sembra una verifica. Lo è solo se il righello misura la cosa giusta — vale per la virgola in `Tema/Cifre`, per il canvas sullo zero barrato, e qui per la larghezza del corsivo.
 
 ### Nota di licenza
 
