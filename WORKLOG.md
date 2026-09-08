@@ -805,3 +805,45 @@ Per dimostrare che `slashed-zero` funziona ho prima disegnato le due varianti su
 ### Prossimi passi
 
 Invariati. **M2.1** eredita la gerarchia dei pesi e la regola delle cifre; **M2.4** eredita `tabular-nums` sulle colonne numeriche di `table`, così le app non lo riscrivano a mano.
+
+---
+
+## 2026-09-08 — Una demo per Roberto: cinque caratteri sui banchi di prova
+
+Richiesta di Francesco: un artifact che estenda la demo del workbench con l'esempio dei codici di sistema e dei dati tabellari, e un selettore fra **Replica, Inter, Geist, Outfit e Albert Sans**, per scegliere il carattere dei siti insieme a Roberto.
+
+**Artifact**: <https://claude.ai/code/artifact/edbec1ee-f73d-4313-94b3-bfd8014d5474> — «Carattere Tassullo». Sorgente conservato in `docs/carattere-demo.html`.
+
+### Come è fatta
+
+Cinque banchi, e i verdetti sono **misurati nella pagina** mentre la si legge, non scritti a mano — la stessa scelta di `Tema/Densità` e `Tema/Cifre`, per la stessa ragione.
+
+1. **Gerarchia dei pesi** — i sei pesi 300/400/500/600/700/900 con la larghezza resa di ciascuno; le righe che collassano su un'altra si evidenziano da sole.
+2. **Scala tipografica** — i sette gradini Tassullo ai corpi reali.
+3. **Computo metrico** — la tabella vera, codici in monospaziato e numeri in `tabular-nums`, con l'interruttore per spegnerli e vedere il difetto. Sotto, lo scarto del bordo dei decimali.
+4. **Codici di sistema** — i due elenchi («si trascrive» / «si legge») e i tre zeri a confronto.
+5. **In contesto** — un frammento d'interfaccia Studio con la colonna antracite e l'arancio, perché un carattere non si sceglie su una parola sola.
+
+Più una **scheda di sintesi** che misura tutti e cinque, non solo quello selezionato: è quella la pagina da guardare con Roberto.
+
+### Cosa dice la misura
+
+| carattere | gradini usabili | cifre tabellari | corsivo disegnato |
+|---|---|---|---|
+| **Replica LL** | **2 su 4** | sì | sì |
+| Inter | 4 su 4 | sì | sì |
+| Geist | 4 su 4 | sì | no |
+| Outfit | 4 su 4 | sì | no |
+| Albert Sans | 4 su 4 | **no** | sì |
+
+Il dato che pesa: **Replica dà due gradini di peso su quattro**, perché 500 e 600 non esistono e collassano su 400 e 700. Tutti e quattro gli alternativi li hanno. In compenso Replica ha le cifre tabellari, quindi sul computo metrico non ha problemi — e **Albert Sans no**, che per Tassullo è squalificante: senza `tnum` le colonne di importi non si incolonnano se non cambiando font.
+
+### Il difetto che il primo sguardo ha trovato
+
+Alla prima resa la scheda dava **Albert Sans senza corsivo**, che è falso. Causa: un font si scarica **quando serve**, e le facce corsive sono file a parte — le misuravo prima che arrivassero, quindi misuravo il fallback di sistema, dove il corsivo è finto. Corretto chiedendo esplicitamente tutte le facce con `document.fonts.load()` prima di rimisurare. È lo stesso difetto muto di sempre: nessun errore, solo un numero sbagliato che sembra una misura.
+
+Corretta anche l'etichetta del collasso, da «rende come 400» a «identico a 400»: quale dei due pesi sia il sostituto non è determinabile né interessante — sono lo stesso file.
+
+### Nota di licenza
+
+Replica è **inlinata come data URI** nell'artifact: il CSP ammette file di font solo da `fonts.gstatic.com`, quindi non c'è altro modo di mostrarla. Sono gli stessi tagli che `tassullo.it` già serve pubblicamente dal CDN Webflow, convertiti in woff2 (206 KB in tutto). L'artifact è **privato** finché non lo si condivide. Resta la domanda aperta con Lineto sulla distribuzione come webfont, e condividere il link con Roberto è una forma di distribuzione: da tenere presente, e da chiudere insieme alle altre due domande.
