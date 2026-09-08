@@ -91,7 +91,7 @@ Dipendenze di fase: FASE 4.
 | M5.3 `INTEGRAZIONE.md` v2 (app nuova) | TODO | M5.2 | seguendo **solo** il documento si porta un'app Vite vuota a una pagina in stile; tempo effettivo in WORKLOG |
 | M5.4 Regole per `CLAUDE.md` e piani delle app | TODO | M5.3 | blocco di regole copiabile senza adattamenti; `DECISIONI.md` motiva no-npm, Base UI, `primary`≠`accent`, oklch, font non distribuito |
 | M5.5 `GUIDA-MIGRAZIONE.md` (app esistente) | TODO | M5.4 | **passo 0 eseguito davvero su Anagrafe** (solo `components.json` + `.mcp.json`, zero modifiche a codice e stili); guida verificata a secco sulle sue 10 pagine |
-| M5.6 Pubblicazione su GitHub + Pages | BLOCKED | M5.5; **D4** | install da GitHub riuscita fuori dal repo con tag `v2.0.0`; Storybook raggiungibile su Pages |
+| M5.6 Pubblicazione su GitHub + Pages | BLOCKED | M5.5; **D4** | install da GitHub riuscita fuori dal repo con tag `v2.0.0`; Storybook raggiungibile su Pages; **prima di pubblicare, ripulire la storia**: il commit `0c4f5e4` (2026-09-08) contiene i binari di Replica inlinati in un HTML, tolti dal working tree in `72520d8` ma non dalla storia. Finché il repo è locale non è esposto niente; pubblicandolo lo sarebbe |
 
 ## Decisioni
 
