@@ -749,3 +749,32 @@ Cinque gradini su sei stanno **sotto il pixel**. Solo `h1` diverge di un pixel e
 cioè **sotto i 768px il corpo cresce del 12,5%**. Tassullo ha già una leva sullo stesso asse — la densità touch, ×1.08 sul testo — e le due si **compongono**: 14px sulla scrivania in normale → 15px in touch → **16,88px sul telefono in touch**, cioè **1,205×** il corpo di partenza, su una colonna che non si è allargata di un pixel.
 
 È esattamente la cella `375px × touch` di **D10**, il cui verdetto è M4.2. Le due decisioni vanno quindi guardate insieme: adottare `typeset` senza neutralizzare quel `1.125` significherebbe scoprire in M4.2 un ingrandimento che nessuna delle due leve dichiara da sola.
+
+### Il vincolo di adozione, deciso il 2026-09-08
+
+Indirizzo di Francesco, dopo aver visto le due prove di propagazione qui sotto:
+
+> «Confermo che i preset stanno nel registry. Nessuna app può modificarli, chiede eventualmente un'aggiunta al registry per casi specifici.»
+
+Vale **a prescindere** dall'esito di D11: è la regola permanente applicata a una classe di artefatti nuova, e va scritta proprio perché il modello di shadcn spinge nella direzione opposta. `typeset.css` non contiene **nessun** preset — l'unica classe `.typeset-*` al suo interno è `.typeset-scroll`, l'involucro delle tabelle — e `.typeset-docs` / `.typeset-chat` sono esempi che la loro documentazione fa scrivere al consumatore nel proprio `globals.css`. Senza questa regola, «ogni app si scrive il suo preset» non sarebbe un rischio: sarebbe **l'esito predefinito**.
+
+### Le due prove di propagazione (misurate su un'app usa-e-getta)
+
+**Che una modifica arrivi.** Cambiato `--radius` nella fonte unica (`scripts/hex-to-oklch.ts`), poi `theme:build` + `registry:build`. Nell'app, **un comando solo** — `npx shadcn@latest add @tassullo/tema --overwrite` — e il file passa da `0.625rem` a `0.9rem` **senza toccare nessun file dell'app**. Poi tutto ripristinato: repo pulito, `npm run check` verde.
+
+**Che una personalizzazione locale non sopravviva.** Nell'app è stato scritto `--radius: 0rem; /* ci piacciono gli angoli vivi */`. Al primo aggiornamento: `Updated 1 file`, valore e commento **spariti, senza un avviso**. È brutale ed è il punto: un'app che si personalizza in casa o perde la modifica al primo aggiornamento, o smette di aggiornare — e il secondo è la deriva, solo più lenta.
+
+### Due precisazioni oneste su come si fa rispettare
+
+**1. «Nessuna app può modificarli» è disciplina, non meccanismo.** Il preset, una volta installato, è un file dentro l'app: niente le impedisce tecnicamente di aprirlo. Ciò che la regola ottiene è che modificarlo sia **inutile** — l'aggiornamento lo sovrascrive — non che sia impossibile. `check:registry` sorveglia i nostri componenti, ma **non può ispezionare un consumer**: da qui non si vede la deriva di un'app. Il posto dove questa regola diventa esigibile è quindi **M5.4** (il blocco di regole per il `CLAUDE.md` delle app) e **M5.5** (la guida di migrazione), non un gate di questo repo.
+
+**2. Esiste una leva locale legittima, e non causa deriva.** `typeset` prevede `not-typeset` / `data-not-typeset` per escludere un sottoalbero dallo stile della prosa. È il modo corretto perché un'app risolva un caso particolare **senza toccare i preset** e senza chiedere niente al registry. La richiesta di aggiunta al registry serve per un preset *nuovo* — una densità di lettura che non abbiamo — non per un'eccezione puntuale.
+
+### Come si divide il file, se si adotta
+
+| parte | righe | canale di aggiornamento |
+|---|---|---|
+| **preset** (le sole variabili di ritmo) | ~6 per preset | nostri, nel registry, propagati con `add --overwrite` |
+| **motore** (`typeset.css`, i selettori) | 491 | **nessuno a monte**: generato una volta dal loro builder, poi nostro per sempre |
+
+Il motore è l'unico punto in cui `typeset` è **peggio** di un componente: non ha `shadcn view`, quindi non è diffabile come fa `check:registry`. Il rimedio è la stessa disciplina, applicata a mano: l'originale generato va in `registry/.upstream/`, e si rigenera dal builder per vedere cosa hanno cambiato loro.
