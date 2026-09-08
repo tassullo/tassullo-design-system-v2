@@ -869,3 +869,39 @@ Corretta anche l'etichetta del collasso dei pesi, da «rende come 400» a «iden
 **Errore commesso e corretto nella stessa sessione:** il primo commit archiviava in `docs/` la pagina **coi font inlinati**, cioè i binari Lineto dentro il repo — esattamente ciò che il `.gitignore` di `public/fonts/` esiste per impedire. Il sorgente archiviato ora tiene il segnaposto `/*REPLICA_FONTFACE*/`, e la pagina pubblicabile si ricostruisce con `scripts/otf2woff2.py` più `scripts/inlina-font.py`. La regola vale per estensione: **un file di font non entra nel repo da nessuna porta**, nemmeno inlinato dentro un HTML, dove nessun `.gitignore` lo può vedere.
 
 Replica è **inlinata come data URI** nell'artifact: il CSP ammette file di font solo da `fonts.gstatic.com`, quindi non c'è altro modo di mostrarla. Sono gli stessi tagli che `tassullo.it` già serve pubblicamente dal CDN Webflow, convertiti in woff2 (206 KB in tutto). L'artifact è **privato** finché non lo si condivide. Resta la domanda aperta con Lineto sulla distribuzione come webfont, e condividere il link con Roberto è una forma di distribuzione: da tenere presente, e da chiudere insieme alle altre due domande.
+
+---
+
+## 2026-09-08 — Lo scarto che si contraddiceva, e un criterio che mancava
+
+Francesco, sulla demo: «verifica che lo scarto 0.01px funzioni, chiarisci il bottone e dimmi per ogni font se conviene abilitarlo». Le tre cose hanno scoperto un difetto e un criterio.
+
+### Il verdetto diceva due cose opposte
+
+Il chip si accendeva di rosso se lo scarto non era **esattamente** zero, ma il testo accanto continuava a dire «le cinque righe cadono sulla stessa ascissa». Su Inter (0.05px) e Outfit (0.01px) la pagina si smentiva da sola nella stessa riga.
+
+### Ma dietro c'era una cosa vera, e vale come criterio
+
+Misurate le righe una per una su Geist, che dava 0.84px: **le quattro voci del corpo sono allineate al centesimo (637.66px tutte e quattro); è la riga SOMMANO, in grassetto, a sfasare.** La causa non è un arrotondamento — è che **la cifra tabellare di Geist cambia larghezza col peso**.
+
+Misurato a 100px sulle cinque famiglie, larghezza della cifra tabellare da 400 a 700:
+
+| carattere | @400 | @700 | deriva |
+|---|---|---|---|
+| Replica LL | 58,0 | 58,0 | **0%** |
+| Outfit | 59,0 | 59,0 | **0%** |
+| Inter | 64,84 | 64,64 | −0,3% |
+| Geist | 60,0 | 63,60 | **+6%** |
+| Albert Sans | 62,9 | 64,5 | (e non ha `tnum`) |
+
+In un computo metrico la riga dei totali **è** in grassetto: è il caso che conta, non un caso limite. Replica e Outfit incolonnano esattamente; Inter deriva di una frazione di pixel che non si vede; **Geist scarta 0,84px a 14px — 1,6px a corpo di titolo, e lì si vede.**
+
+È una proprietà che Replica ha e che non avevo pensato di cercare altrove: in M1.5 era stata annotata come un pregio di Replica («580/1000 em su tutte e otto le facce») senza chiedersi se fosse scontata. Non lo è.
+
+### Cosa è cambiato nella demo
+
+- **Due numeri invece di uno**: `corpo` (scarto fra le quattro voci) e `totale` (di quanto scarta la riga SOMMANO). Dicono *dove* è il problema invece che dire che c'è.
+- **Soglia dichiarata**: sotto un quarto di pixel è arrotondamento del motore di resa, non disallineamento — e il numero esatto si mostra lo stesso, così la soglia non nasconde niente.
+- **Colonna nuova nella scheda**: «stabili fra i pesi», con la percentuale di deriva.
+- **L'interruttore spiegato**: cosa fa esattamente (`font-variant-numeric: tabular-nums`, cioè chiedere al carattere la serie di cifre a larghezza fissa), cosa non fa (non cambia carattere, non cambia il disegno delle lettere), e cosa succede se il carattere quella serie non ce l'ha.
+- **Un consiglio per carattere**, derivato dalle stesse misure e non da un'opinione: acceso sempre dove `tnum` c'è, con l'avvertenza sulla deriva dove c'è; inutile su Albert Sans, dove l'unica via sarebbe un secondo carattere per le colonne numeriche.
