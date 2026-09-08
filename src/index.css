@@ -8,6 +8,53 @@
    se ne serve uno nuovo si aggiunge alla palette dello script. */
 @import "../registry/tassullo/theme/tassullo-theme.css";
 
+/* ══════════════════════════════════════════════════════════════════════
+   REPLICALL — solo per il workbench e per la style guide
+
+   Il tema dichiara lo stack (`'Replicall'` con i fallback di sistema) ma non
+   porta nessun file, ed è giusto così: la licenza è quella Webflow del sito
+   istituzionale, e il registry non ridistribuisce binari (D3, invariata dal
+   v1). Conseguenza però: Storybook rendeva la tipografia nel font di sistema,
+   cioè la pagina che deve dire come le cose appaiono mostrava un carattere
+   che non è quello del marchio.
+
+   Queste @font-face stanno QUI e non nel tema apposta: `src/` è il workbench,
+   e ciò che sta qui non viaggia col registry. I file vanno in `public/fonts/`
+   e sono esclusi dal repo; istruzioni e provenienza in `public/fonts/LEGGIMI.md`.
+   Finché mancano, la console mostra un 404 per peso e tutto degrada al font
+   di sistema: è il comportamento voluto.
+
+   ── I PESI SONO TRE, E NON SONO QUELLI CHE IL DESIGN SYSTEM USA ────────
+   tassullo.it dichiara Replicall in **300 Light, 400 Regular, 700 Bold**, in
+   `.otf`, e basta: **500 e 600 non esistono**. Ma il v1 costruisce la
+   gerarchia su 600 (×13) e 500 (×2), e il v2 su `font-semibold` (×14) e
+   `font-medium` (×3). Quando il font si carica, la sostituzione di CSS manda
+   **600 → 700** e **500 → 400**: il semibold diventa bold, il medium sparisce
+   dentro il corpo del testo. Non è un guasto da riparare qui — è una scelta
+   di gerarchia da prendere vedendola, ed è in carico a M2.1 (`typography`).
+   ══════════════════════════════════════════════════════════════════════ */
+@font-face {
+  font-family: 'Replicall';
+  src: url('/fonts/replicall-300.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Replicall';
+  src: url('/fonts/replicall-400.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Replicall';
+  src: url('/fonts/replicall-700.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @layer base {

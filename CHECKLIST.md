@@ -37,7 +37,7 @@ Dipendenze di fase: FASE 1. Ogni primitiva si aggiunge in `registry/tassullo/ui/
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
-| M2.1 Fondamenta (`button`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`, `lib/utils.ts`) | TODO | M1.5 | `button` in tutte le varianti/stati nelle 4 combinazioni; `typography` riproduce la scala v1; **chiude i 4 rilievi su `button`** aperti da M1.2 e misurati con axe in M1.3, più l'*incomplete* su `ghost` in scuro e il `text-[0.8rem]` di `sm`, che M1.4 ha mostrato non seguire la densità (tabella in `PIANO.md`, M2.1) |
+| M2.1 Fondamenta (`button`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`, `lib/utils.ts`) | TODO | M1.5 | `button` in tutte le varianti/stati nelle 4 combinazioni; `typography` riproduce la scala v1; **chiude i 4 rilievi su `button`** aperti da M1.2 e misurati con axe in M1.3, più l'*incomplete* su `ghost` in scuro e il `text-[0.8rem]` di `sm`, che M1.4 ha mostrato non seguire la densità (tabella in `PIANO.md`, M2.1); **e decide la gerarchia dei pesi**: Replicall ha 300/400/700 e non ha 500 né 600, quindi col font vero `font-medium` rende 400 e `font-semibold` rende 700 — quattro gradini scritti, due resi (`DECISIONI.md` §12) |
 | M2.2 Form (`field`, `input`, `input-group`, `label`, `textarea`, `select`, `checkbox`, `switch`, `radio-group`, `slider`) | TODO | M2.1 | form di prova navigabile **interamente da tastiera**, ogni campo con etichetta associata |
 | M2.3 Overlay (`dialog`, `alert-dialog`, `drawer`, `sheet`, menu, `popover`, `tooltip`, `sonner`, `command`) | TODO | M2.1 | focus trap e chiusura con Esc verificati; `drawer` presente (mattone del responsive di M3.4) |
 | M2.4 Contenuto (`card`, `tabs`, `table`, `alert`, `empty`, `accordion`, `collapsible`, `scroll-area`, `resizable`, `progress`, `aspect-ratio`, `carousel`) | TODO | M2.1 | `alert` nelle 4 varianti semantiche; `card` **non** finge di essere cliccabile |
@@ -98,7 +98,7 @@ Dipendenze di fase: FASE 4.
 | Decisione | Stato | Blocca | Nota |
 |---|---|---|---|
 | D2 valori della palette scura | **CHIUSA** 2026-09-07 | — | chiusa guardandola affiancata al chiaro, non al buio. Neutri dalla sidebar v1, brand invariato, tenui specchiati a gradini fissi; tre scostamenti misurati (`--sidebar`, `--info`, `--warning`). Motivazione in `WORKLOG.md` e `PIANO.md` §2bis |
-| D3 licenza Replicall: `.woff` nel registry? | TODO (non urgente) | nessuno | default v1: lo carica l'app. Si riapre solo se si vuole cambiare |
+| D3 licenza Replicall: `.woff` nel registry? | TODO (non urgente) | nessuno | default v1: lo carica l'app. Si riapre solo se si vuole cambiare. **Non toccata** dal caricamento locale del 2026-09-08: quello è il workbench, non il registry (`DECISIONI.md` §12) |
 | D4 quando pubblicare su GitHub | TODO | **M5.6** (solo) | tutto il resto funziona col registry locale via percorso di file |
 | D5 destino di `components.css` e `stylelint-config.cjs` v1 | TODO | nessuno | fuori dal perimetro: si dismettono a ultima app migrata |
 | D6 quando migrano Anagrafe / Studio / Officina | TODO | nessuno | ognuna decide per sé con la guida M5.5; nessuna scadenza |

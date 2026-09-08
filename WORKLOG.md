@@ -595,3 +595,57 @@ Il file è importato **prima** del `:root` che l'app si porta da `shadcn init`, 
 ### Prossimi passi
 
 **FASE 2, M2.1 — Fondamenta.** Arriva con quattro rilievi già misurati e in carico: `destructive` a 3.82:1 in chiaro e 3.57:1 in scuro, `link` a 1.79:1 in chiaro, l'*incomplete* su `ghost` in scuro, e il `text-[0.8rem]` della taglia `sm` che M1.4 ha mostrato non seguire la densità.
+
+---
+
+## 2026-09-08 — Il font: niente da scegliere, e due pesi che non esistono
+
+Rilievo di Francesco: «manca da decidere il font, da DECISIONI risulta impostato Geist». Il presupposto era sbagliato, ma la domanda ha scoperto due cose che valevano la sessione.
+
+**Geist non è impostato.** La riga letta è nella tabella §2 di `DECISIONI.md`, «cosa il preset `nova` porta con sé», e la sua colonna *Destino* dice «caduto in M1.2». Riverificato: nessuna dipendenza `geist`, nessuna occorrenza in `src/`, `registry/`, `stories/`, `.storybook/`, `index.html`.
+
+**Lo stack è già quello del v1, carattere per carattere** — `'Replicall', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif`, e lo stesso mono. Cambia solo il nome del token (`--font-family` → `--font-sans`, lo spazio dei nomi di Tailwind/shadcn), più `--font-heading` che è un alias di `--font-sans`. Non c'era nessun font da scegliere.
+
+### Primo buco: nessuna app carica Replicall, Studio compresa
+
+Domanda di Francesco a metà sessione: cosa usa Studio? Interrogata **l'app in produzione** invece del repo, che dice cosa spedisce davvero: `--font-family` è lo stack v1 identico, ma **`document.fonts` è vuoto** e i fogli di stile caricati contengono **zero `CSSFontFaceRule`**. Studio rende in `-apple-system` — San Francisco sul Mac di Francesco, Segoe UI su Windows, qualcos'altro su un telefono. Non in Replicall.
+
+Sommato ad Anagrafe (nessun `@font-face`) e ai due repo del design system (nessun file di font): **il carattere istituzionale non ha mai reso in nessuna app Tassullo, v1 compreso**. Lo screenshot che Francesco ha allegato è, sul suo Mac, San Francisco.
+
+`gh` non è installato, quindi il repo GitHub di Studio non è stato letto; non è servito, perché la build in produzione è una prova più forte del sorgente — dice cosa arriva all'utente.
+
+### Secondo buco, quello che pesa: 500 e 600 non esistono
+
+Lette le `@font-face` di **tassullo.it**: la famiglia è servita dal CDN Webflow in **tre pesi soli** — `ReplicaLL-Light.otf` (300), `ReplicaLL-Regular.otf` (400), `ReplicaLL-Bold.otf` (700). **Niente 500, niente 600.**
+
+Ma la gerarchia del v1 è costruita su 600 (×13) e 500 (×2), e quella del v2 su `font-semibold` (×14) e `font-medium` (×3). Con la sostituzione prevista dal CSS:
+
+| scritto | reso con Replicall |
+|---|---|
+| `font-medium` (500) | **400 Regular** — indistinguibile dal corpo del testo |
+| `font-semibold` (600) | **700 Bold** |
+
+Quattro gradini scritti, **due resi**. Non è un guasto da riparare adesso: è una scelta di gerarchia che va presa **guardandola**, ed è la ragione più forte per caricare il font nel workbench *prima* di scrivere le primitive invece che dopo. Messa in carico a **M2.1** (`typography`), nella riga di `CHECKLIST.md`.
+
+Vale la pena dirlo chiaramente: finché nessuna app carica il font, questo difetto **non si vede** — le app rendono in San Francisco, che i pesi 500 e 600 ce li ha. Si manifesterebbe il giorno in cui un'app carica Replicall, cioè nel momento peggiore.
+
+### Fatto
+
+- Tre `@font-face` in **`src/index.css`** — nel workbench, non nel tema: ciò che sta in `src/` non viaggia col registry. Pesi **300/400/700**, cioè quelli che la famiglia ha davvero; nessun corsivo, che né il sito né il v1 usano.
+- `public/fonts/` con un `LEGGIMI.md` che dice quali file mettere, con che nomi, **dove sono** (i tre file del sito) e perché non si committano — più l'avvertenza sui pesi 500/600.
+- `.gitignore`: `public/fonts/*` con eccezione del `LEGGIMI.md`.
+- **Il tema distribuito non cambia**: continua a dichiarare solo lo stack e a non portare binari. D3 resta chiusa al default del v1, e la riga in `CHECKLIST.md` lo dice esplicitamente perché non si riapra per equivoco.
+
+### Verifiche
+
+- `public/fonts/` è servito **sia** dal workbench (5180) **sia** da Storybook (6006) — `curl` 200 su entrambi, quindi nessun `staticDirs` da aggiungere a `.storybook/main.ts`.
+- Messo un file di comodo al posto di un peso: `document.fonts` riporta quel peso `loaded` e gli altri `error`. Cioè i pesi presenti si attivano e i mancanti degradano **per quel peso soltanto**. Lo stack risolto sulla radice parte da `Replicall`. File di comodo rimosso.
+- `.gitignore` provato col binario in cartella: `git add -A` indicizza **solo** `LEGGIMI.md`, e `git check-ignore` conferma la regola. È la garanzia che la licenza Webflow non venga violata per distrazione.
+- `npm run check`, `tsc -b`, `oxlint`, `build`, `build-storybook`: verdi.
+- Nessuna modifica ad Anagrafe, Studio o al repo v1: sono stati **letti**, e Studio solo attraverso la sua build pubblica.
+
+### Cosa resta a Francesco
+
+Mettere i tre file in `public/fonts/` coi nomi del `LEGGIMI.md` — sono gli stessi che carica tassullo.it. Si accende da sé, basta ricaricare. Finché la cartella è vuota, la console mostra un 404 per peso e tutto degrada al font di sistema: **voluto, non un guasto**.
+
+Quando arriveranno, due cose da riguardare con l'occhio: la scala di `Tema/Densità` (le altezze no, vengono da `--spacing`; le colonne di testo sì) e soprattutto la gerarchia dei pesi, che è la decisione vera e ora ha un posto dove essere presa.

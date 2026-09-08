@@ -35,3 +35,9 @@ storybook-static
 # NOTA: `public/r/` NON si ignora. È il registry compilato da `npm run
 # registry:build`, cioè l'artefatto che la CLI e l'MCP leggono davvero e che
 # GitHub servirà come registry a D4 chiusa (docs/DECISIONI.md §9).
+
+# I file del font Replicall non entrano nel repo: licenza Webflow del sito
+# istituzionale (D3). La cartella e le istruzioni sì, i binari no — servono
+# solo al workbench, per mostrare la style guide nella tipografia vera.
+public/fonts/*
+!public/fonts/LEGGIMI.md
