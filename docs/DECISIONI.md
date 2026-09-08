@@ -309,7 +309,7 @@ Il workbench non lo caricava, quindi Storybook — la pagina che deve dire *come
 
 ### I pesi disponibili sono tre, e il design system ne usa due che non ci sono
 
-`tassullo.it` dichiara Replicall in **300 Light, 400 Regular, 700 Bold** — `.otf` dal CDN Webflow (`ReplicaLL-Light/Regular/Bold.otf`), letto dalle sue `@font-face`. E non è che il sito ne usi solo alcuni: **Medium e Semibold non esistono nel carattere.** Replica LL (Lineto) ha quattro pesi — `ReplicaLL-Light`, `-Regular`, `-Bold`, `-Heavy` — più i corsivi `-LightItalic`, `-Italic`, `-BoldItalic`, `-HeavyItalic`, e un `ReplicaMonoLL-Regular` a parte. Verificato due volte e in due modi: sulla pagina della fonderia e sui nomi degli asset che quella pagina pubblica.
+`tassullo.it` dichiara Replicall in **300 Light, 400 Regular, 700 Bold** — `.otf` dal CDN Webflow (`ReplicaLL-Light/Regular/Bold.otf`), letto dalle sue `@font-face`. E non è che il sito ne usi solo alcuni: **Medium e Semibold non esistono nel carattere.** Replica LL (Lineto) ha quattro pesi — `ReplicaLL-Light` 300, `-Regular` 400, `-Bold` 700, `-Heavy` **900** — più i corsivi `-LightItalic`, `-Italic`, `-BoldItalic`, `-HeavyItalic`, e un `ReplicaMonoLL-Regular` a parte. Verificato due volte e in due modi: sulla pagina della fonderia e sui nomi degli asset che quella pagina pubblica.
 
 Il v1 costruisce però la gerarchia su **600** (×13 in `components.css`/`theme.css`/`styleguide.html`) e **500** (×2), e il v2 su `font-semibold` (×14) e `font-medium` (×3). Con la sostituzione prevista dal CSS — sopra 500 si sale, da 400 a 500 si scende — il risultato è:
 
@@ -320,7 +320,7 @@ Il v1 costruisce però la gerarchia su **600** (×13 in `components.css`/`theme.
 
 Non è un guasto: è una gerarchia che, col font vero, ha **due gradini invece di quattro**. Va guardata prima di essere cotta dentro quaranta componenti — ed è la ragione più forte per caricare il font nel workbench adesso. **In carico a M2.1** (`typography`), che è il task che deve «riprodurre la scala v1».
 
-Il gradino da cui ripartire c'è, ed è **Heavy 800**: un peso che il carattere offre e che né il sito né il v1 hanno mai usato. È dichiarato nel workbench apposta, perché la decisione di M2.1 si prenda vedendolo e non immaginandolo.
+Il gradino da cui ripartire c'è, ed è **Heavy 900**: un peso che il carattere offre e che né il sito né il v1 hanno mai usato. È dichiarato nel workbench apposta, perché la decisione di M2.1 si prenda vedendolo e non immaginandolo. (900 e non 800: è il valore che i file dichiarano nella propria `OS/2.usWeightClass`, letto con `fontTools`. La stima precedente era sbagliata.)
 
 Nota di rilievo per le app: lo screenshot di Studio mostra testo **in corsivo** (le note di misurazione del computo). Senza il file corsivo il browser inclina il tondo per conto suo — un falso corsivo, che è cosa diversa dal `ReplicaLL-Italic` disegnato. Per questo i corsivi 400 e 700 sono fra i file richiesti.
 
@@ -354,14 +354,33 @@ Ricaduta di licenza, da chiarire con Roberto insieme ai file: incorporare in PDF
 
 ### La forma adottata
 
-Sei `@font-face` in **`src/index.css`** — cioè nel workbench, non nel tema: ciò che sta in `src/` non viaggia col registry. I file vanno in `public/fonts/`, che il dev server di Vite serve sia sul workbench (5180) sia su Storybook (6006) — verificato, nessun `staticDirs` da aggiungere. I binari sono **esclusi dal repo** (`.gitignore`: `public/fonts/*` con l'eccezione del `LEGGIMI.md`; verificato mettendone uno e vedendo che `git add -A` indicizza solo il `LEGGIMI.md`).
+Otto `@font-face` in **`src/index.css`** — cioè nel workbench, non nel tema: ciò che sta in `src/` non viaggia col registry. I file vanno in `public/fonts/`, che il dev server di Vite serve sia sul workbench (5180) sia su Storybook (6006) — verificato, nessun `staticDirs` da aggiungere. I binari sono **esclusi dal repo** (`.gitignore`: `public/fonts/*` con l'eccezione del `LEGGIMI.md`; verificato mettendone uno e vedendo che `git add -A` indicizza solo il `LEGGIMI.md`).
 
-Le facce dichiarate sono **sei**: 300, 400, 400 corsivo, 700, 700 corsivo, 800 — cioè ciò che la famiglia ha davvero, non ciò che il design system scrive. Ogni faccia accetta `.woff2` **o** `.otf`, in quest'ordine, così arriva quello che c'è senza toccare il codice: `.woff2` è il formato giusto per il web e pesa un terzo, `.otf` è quello che il sito serve oggi. Restano fuori `LightItalic` e `HeavyItalic`, che nessuno usa.
+Le facce dichiarate sono **otto**: 300, 400, 700, 900, ciascuna col suo corsivo — cioè la famiglia intera. Sono `.otf` con contorni CFF, ~157 KB l'una, perché è ciò che la licenza ha consegnato; convertirle in `.woff2` (~40 KB) modificherebbe il file, che è una domanda per Lineto e non una scelta tecnica.
 
 Finché i file mancano, la console mostra un 404 per peso e tutto degrada al font di sistema. È il comportamento voluto — ed è anche il modo di vedere a colpo d'occhio se i file ci sono.
 
 **Il tema distribuito non cambia:** continua a dichiarare solo lo stack e a non portare nessun binario. **D3 resta chiusa al default del v1** (lo carica l'app), e questa decisione non la riapre.
 
-### Prova
+### I file sono arrivati, e la previsione si è misurata (2026-09-08)
+
+Otto `.otf` forniti da Francesco. Ispezionati con `fontTools` prima di installarli: contorni **CFF** tutti e otto, `usWeightClass` **300 / 400 / 700 / 900**, `fsType` **4 — Preview & Print** (permesso di incorporamento *dichiarato dal file*: visualizzare e stampare sì, editing no; la tabella `name` rimanda comunque alla EULA Lineto, che è la licenza vera).
+
+Caricati nel workbench, `document.fonts` riporta tutte e otto le facce `loaded`. E la sostituzione dei pesi, finora dedotta dalla specifica, ora è **misurata** — larghezza della stessa stringa a 40px:
+
+| `font-weight` | larghezza | rende |
+|---|---|---|
+| 300 | 475.20 px | Light |
+| 400 | 496.41 px | Regular |
+| **500** (`font-medium`) | **496.41 px** | **Regular — identico a 400** |
+| **600** (`font-semibold`) | **529.20 px** | **Bold — identico a 700** |
+| 700 | 529.20 px | Bold |
+| 900 (`font-black`) | 536.41 px | Heavy |
+
+Le larghezze coincidono alla seconda cifra decimale: non è un'approssimazione, è lo stesso file. **Quattro gradini scritti, due resi**, confermato.
+
+**Col font vero, i due gate restano verdi.** `Tema/Palette` e `Tema/Densità`: axe **0 violazioni, 0 incomplete** a 1440×900, nelle due densità. E le altezze della story `Tema/Densità` sono **identiche a quelle di M1.4** — 32px il bottone di default in normale, 48 in touch, 54 il `lg` — che è la conferma che vengono da `--spacing` e non dal carattere. Cambia il disegno delle lettere, non una misura.
+
+### Prova del meccanismo (prima che i file arrivassero)
 
 Messo un file di comodo al posto di un peso, `document.fonts` riporta quel peso `loaded` e gli altri `error`: i pesi presenti si attivano e i mancanti degradano **per quel peso soltanto**. Lo stack risolto sull'elemento radice parte da `Replicall`. Il file di comodo è stato rimosso. `public/fonts/` è servito sia dal workbench (5180) sia da Storybook (6006), quindi non serve toccare `staticDirs`. Il `.gitignore` è stato provato con un binario in cartella: `git add -A` indicizza **solo** il `LEGGIMI.md`.

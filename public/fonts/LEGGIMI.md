@@ -1,9 +1,13 @@
 # Replicall — i file del font vanno qui, e non entrano nel repo
 
-Questa cartella è **vuota di proposito**. Serve al workbench e a Storybook per
-mostrare la style guide nella tipografia vera del marchio; i file binari
-**non si committano** e **non si distribuiscono col registry** (D3, licenza
-Webflow del sito istituzionale — `.gitignore` li esclude già).
+I file servono al workbench e a Storybook per mostrare la style guide nella
+tipografia vera del marchio. **Non si committano** e **non si distribuiscono
+col registry** (D3, licenza Lineto — `.gitignore` li esclude già), quindi chi
+clona il repo non li ha e vede il fallback di sistema: è normale, e questa
+pagina dice come rimediare.
+
+**Stato al 2026-09-08: gli otto file ci sono**, forniti da Francesco
+(`~/Downloads/REPLICA/`, licenza Lineto).
 
 Il carattere è **Replica LL**, di [Lineto](https://lineto.com/typefaces/replica).
 
@@ -25,56 +29,52 @@ TrueType e sui `.otf` di fonderia fallisce con *«postscript outlines are not
 supported»*. I file che tassullo.it serve sono `.otf`, quindi **per i PDF non
 vanno bene così come sono**.
 
-## Formato per questa cartella
+## Formato dei file presenti
 
-**`.woff2` è la scelta migliore** — è il formato dei font per il web, pesa un
-terzo o meno dell'`.otf` a parità di disegno, ed è supportato da ogni browser
-in uso. Se arriva un `.otf` va bene lo stesso: ogni `@font-face` in
-`src/index.css` dichiara **entrambe** le fonti, `.woff2` per prima, e il
-browser usa quella che trova. Non c'è niente da modificare nel codice in
-nessuno dei due casi.
+Gli otto file sono **`.otf`** con contorni **CFF**, ~157 KB l'uno. Per il
+browser vanno benissimo: `src/index.css` li dichiara con
+`format('opentype')` e si caricano tutti e otto (verificato,
+`document.fonts` li riporta `loaded`).
 
-Se Roberto ha solo `.otf` o `.ttf`, si convertono in `.woff2` in un minuto —
-ma solo se la licenza copre la conversione, che è una domanda da fare a lui.
+Un `.woff2` peserebbe circa un quarto (~40 KB), ma convertirli **modifica il
+file**, e questa è una domanda per Lineto, non una scelta tecnica. Finché la
+risposta non c'è, `.otf` e amen: sono ~1,2 MB che carica solo il workbench, in
+locale, e nessuna app.
 
-## Nomi dei file
-
-| file | peso CSS | file originale Lineto |
-|---|---|---|
-| `replicall-300.woff2` | 300 | `ReplicaLL-Light` |
-| `replicall-400.woff2` | 400 | `ReplicaLL-Regular` |
-| `replicall-400-italic.woff2` | 400 corsivo | `ReplicaLL-Italic` |
-| `replicall-700.woff2` | 700 | `ReplicaLL-Bold` |
-| `replicall-700-italic.woff2` | 700 corsivo | `ReplicaLL-BoldItalic` |
-| `replicall-800.woff2` | 800 | `ReplicaLL-Heavy` |
-
-Stessi nomi con estensione `.otf` se il formato è quello. Mancano di proposito
-`LightItalic` e `HeavyItalic`: nessuna app li usa: se servissero, si aggiungono
-due `@font-face` in `src/index.css`.
-
-Se hai solo alcuni file, mettili lo stesso: i pesi mancanti degradano al font
-di sistema **per quel peso soltanto**, e la pagina resta leggibile.
+**Bit di licenza nei file** (`OS/2.fsType`, letto con `fontTools`): **4 —
+Preview & Print** su tutti e otto. È il permesso di incorporamento
+*dichiarato dal file*: consente di incorporare per visualizzare e stampare —
+cioè, in linea di principio, dentro un PDF — ma non per l'editing. Non è la
+licenza: la tabella `name` dei file dice esplicitamente che nessun uso è
+consentito senza il consenso di Lineto e il rispetto della sua EULA
+(<https://lineto.com/licensing>). Le due domande da fare restano quelle:
+**conversione** dei file e **generazione da server**.
 
 ## ⚠ 500 e 600 non esistono — e il design system li usa
 
-La famiglia ha **quattro pesi: 300 Light, 400 Regular, 700 Bold, 800 Heavy**
+La famiglia ha **quattro pesi: 300 Light, 400 Regular, 700 Bold, 900 Heavy**
 (più i corsivi). **Medium e Semibold non esistono**, e non è che manchino i
-file: non esistono nel carattere. Verificato sui nomi degli asset pubblicati
-da Lineto e sulle `@font-face` di `tassullo.it`, che ne serve tre — Light,
-Regular, Bold.
+file: non esistono nel carattere.
 
 Ma il v1 costruisce la gerarchia su **600** (×13) e **500** (×2), e il v2 su
 `font-semibold` (×14) e `font-medium` (×3). Quando il font si carica, la
 sostituzione prevista dal CSS dà:
 
-| scritto | reso con Replicall |
-|---|---|
-| `font-medium` (500) | **400 Regular** — indistinguibile dal corpo del testo |
-| `font-semibold` (600) | **700 Bold** |
+**Misurato**, col font caricato, sulla larghezza della stessa stringa a 40px:
 
-Quattro gradini scritti, **due resi**. Oggi il difetto non si vede, perché
-nessuna app carica il font e San Francisco quei pesi ce li ha: salterebbe
-fuori il giorno in cui un'app carica finalmente Replicall.
+| `font-weight` | larghezza | rende |
+|---|---|---|
+| 300 | 475.20 px | Light |
+| 400 | 496.41 px | Regular |
+| **500** (`font-medium`) | **496.41 px** | **Regular — identico a 400** |
+| **600** (`font-semibold`) | **529.20 px** | **Bold — identico a 700** |
+| 700 | 529.20 px | Bold |
+| 900 (`font-black`) | 536.41 px | Heavy |
+
+Quattro gradini scritti, **due resi**, e le larghezze coincidono alla seconda
+cifra decimale: non è un'approssimazione, è lo stesso file. Nelle app il
+difetto non si vede ancora, perché nessuna carica il font e San Francisco
+quei pesi ce li ha — salterebbe fuori il giorno in cui una lo caricasse.
 
 Non si ripara in questa cartella: è una scelta di gerarchia da prendere
 **guardandola**, ed è in carico a **M2.1** (`typography`). **Heavy 800** è
@@ -88,9 +88,8 @@ Da sé. Le `@font-face` sono già in `src/index.css`, che il workbench e
 Storybook importano entrambi, e `public/` è servito da tutti e due i server
 (verificato). Basta ricaricare.
 
-**Finché la cartella è vuota**, la console mostra un 404 per ciascun file
-mancante e tutto degrada al font di sistema: è il comportamento voluto, non un
-guasto. È anche il modo di vedere a colpo d'occhio se i file ci sono.
+Se un file manca, quel peso — e solo quello — degrada al font di sistema, con
+un 404 in console. È il comportamento voluto.
 
 ## Cosa NON succede
 

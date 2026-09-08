@@ -649,3 +649,47 @@ Vale la pena dirlo chiaramente: finché nessuna app carica il font, questo difet
 Mettere i tre file in `public/fonts/` coi nomi del `LEGGIMI.md` — sono gli stessi che carica tassullo.it. Si accende da sé, basta ricaricare. Finché la cartella è vuota, la console mostra un 404 per peso e tutto degrada al font di sistema: **voluto, non un guasto**.
 
 Quando arriveranno, due cose da riguardare con l'occhio: la scala di `Tema/Densità` (le altezze no, vengono da `--spacing`; le colonne di testo sì) e soprattutto la gerarchia dei pesi, che è la decisione vera e ora ha un posto dove essere presa.
+
+---
+
+## 2026-09-08 — Replicall installato: la previsione sui pesi diventa una misura
+
+Francesco ha fornito gli **otto `.otf`** della famiglia (licenza Lineto). Installati in `public/fonts/`, dove il `.gitignore` li tiene fuori dal repo.
+
+### Ispezionati prima di installarli, e due correzioni
+
+`fontTools` sui file, non fiducia nei nomi:
+
+- contorni **CFF** tutti e otto — che conferma il vincolo già misurato: reportlab non li prende, quindi il canale PDF resta scoperto finché non arriva un `.ttf` o non si può convertire;
+- `usWeightClass` **300 / 400 / 700 / 900**. **Heavy è 900, non 800**: la stima fatta prima di avere i file era sbagliata, e ora i pesi dichiarati nel CSS sono quelli che i file dichiarano di sé;
+- `fsType` **4 — Preview & Print** su tutti: è il permesso di incorporamento *dichiarato dal file* — visualizzare e stampare sì, editing no — che per un PDF è, in principio, il caso giusto. Non è la licenza: la tabella `name` rimanda alla EULA Lineto, e le due domande aperte restano **conversione dei file** e **generazione da server**.
+
+Otto facce dichiarate invece di sei: ci sono anche `LightItalic` e `HeavyItalic`, e non c'è ragione di lasciarli fuori. `.otf` e non `.woff2`: convertirli modificherebbe il file, che è una domanda per Lineto e non una scelta tecnica. Sono ~1,2 MB che carica solo il workbench, in locale.
+
+### La previsione sui pesi era giusta, e ora è misurata
+
+Larghezza della stessa stringa a 40px, col font caricato:
+
+| `font-weight` | larghezza | rende |
+|---|---|---|
+| 300 | 475.20 px | Light |
+| 400 | 496.41 px | Regular |
+| **500** (`font-medium`) | **496.41 px** | **Regular — identico a 400** |
+| **600** (`font-semibold`) | **529.20 px** | **Bold — identico a 700** |
+| 700 | 529.20 px | Bold |
+| 900 (`font-black`) | 536.41 px | Heavy |
+
+Le larghezze coincidono alla **seconda cifra decimale**: non è un'approssimazione, è lo stesso file usato due volte. **Quattro gradini scritti nel design system, due resi.** Resta in carico a **M2.1**, dove ora la decisione si prende guardandola invece che deducendola — che era esattamente lo scopo di caricare il font prima di scrivere le primitive.
+
+### Col font vero i gate restano verdi
+
+- `Tema/Palette` e `Tema/Densità`: axe **0 violazioni, 0 incomplete** a 1440×900, in entrambe le densità.
+- Le altezze della story `Tema/Densità` sono **identiche a quelle di M1.4** — 32px il bottone di default in normale, 48 in touch, 54 il `lg`. È la conferma sul campo che vengono da `--spacing` e non dal carattere: cambia il disegno delle lettere, non una misura. Se una di quelle cifre si fosse mossa, avrebbe voluto dire che M1.4 misurava un effetto del font.
+- `npm run check`, `tsc -b`, `build`, `build-storybook`: verdi.
+
+### Cosa resta aperto
+
+1. **La gerarchia dei pesi** — M2.1. Con `Heavy 900` disponibile, il quarto gradino potrebbe tornare da lì.
+2. **Il canale PDF** — servono `.ttf`, o il permesso di convertire. Ricade su Anagrafe, che genera i PDF con reportlab.
+3. **Word** — nessun formato lo risolve: `python-docx` non incorpora font. La scelta **Arial** del v1 resta, e non va riaperta pensando che i file la cambino.
+4. **D3** — invariata. Il tema distribuito continua a dichiarare solo lo stack e a non portare binari; i file stanno nel workbench e non nel registry.
