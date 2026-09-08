@@ -21,13 +21,13 @@ si ricava solo la pagina web.
 | canale | formato che serve |
 |---|---|
 | interfaccia (questa cartella) | `.woff2`, oppure `.otf` |
-| **PDF** (reportlab, Anagrafe) | **`.ttf`**, e solo `.ttf` |
+| **PDF** (reportlab, Anagrafe) | **`.ttf`**, e solo `.ttf` — convertiti, in `ttf/` |
 | Word (`python-docx`) | nessuno: non incorpora font — resta **Arial**, come nel v1 |
 
 Il vincolo del PDF è misurato, non supposto: reportlab accetta solo contorni
 TrueType e sui `.otf` di fonderia fallisce con *«postscript outlines are not
-supported»*. I file che tassullo.it serve sono `.otf`, quindi **per i PDF non
-vanno bene così come sono**.
+supported»*. I file consegnati sono `.otf`, quindi per i PDF non vanno bene
+così come sono — **per questo esistono i `.ttf` convertiti in `ttf/`**.
 
 ## Formato dei file presenti
 
@@ -49,6 +49,38 @@ licenza: la tabella `name` dei file dice esplicitamente che nessun uso è
 consentito senza il consenso di Lineto e il rispetto della sua EULA
 (<https://lineto.com/licensing>). Le due domande da fare restano quelle:
 **conversione** dei file e **generazione da server**.
+
+## I `.ttf` per i PDF — convertiti, in `ttf/`
+
+`ttf/` contiene le stesse otto facce con **contorni TrueType**, ricavate dagli
+`.otf` con `scripts/otf2ttf.py`. Servono al canale PDF: reportlab accetta solo
+contorni TrueType e su un `.otf` di fonderia muore con *«postscript outlines
+are not supported»*.
+
+Sono anche loro **fuori dal repo**: vanno copiati a mano dove gira la
+generazione dei PDF (oggi: il backend di Anagrafe). Per rigenerarli, se un
+giorno arrivano font aggiornati:
+
+```
+python3 -m venv .venv && .venv/bin/pip install fonttools
+.venv/bin/python scripts/otf2ttf.py public/fonts public/fonts/ttf
+```
+
+**Cosa è stato verificato**, perché una conversione di font non si dichiara:
+
+- avanzate e side bearing **identici** — 0 differenze su 846 glifi × 8 facce,
+  quindi il testo non si rimpagina;
+- nomi dei glifi, kerning GPOS, `cmap`, `OS/2` (peso e `fsType`) preservati;
+- scarto massimo dei contorni **0,16/1000 em** nel caso peggiore, cioè 0,7
+  micron a 12pt — il limite garantito dalla tolleranza cu2qu è comunque
+  1/1000 em (4 micron a 12pt);
+- reportlab registra tutte e otto le facce, e il PDF di prova
+  (`ttf/specimen-replicall.pdf`) contiene **8 `/FontFile2`**, cioè le otto
+  facce incorporate come sottoinsiemi TrueType, accentate ed euro compresi.
+
+⚠ **Licenza**: la conversione *modifica il file del font*. Autorizzata da
+Francesco l'8 settembre 2026, **da confermare con Lineto** — insieme all'altra
+domanda aperta, la generazione da server.
 
 ## ⚠ 500 e 600 non esistono — e il design system li usa
 

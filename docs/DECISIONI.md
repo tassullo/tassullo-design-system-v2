@@ -352,6 +352,31 @@ I file che tassullo.it serve sono `.otf` (`ReplicaLL-Regular.otf` ecc.), quindi 
 
 Ricaduta di licenza, da chiarire con Roberto insieme ai file: incorporare in PDF e generare da un server sono usi che le licenze delle fonderie trattano separatamente dal desktop e dal web.
 
+### La conversione OTF → TTF, fatta e verificata (2026-09-08)
+
+Autorizzata da Francesco. **Nota di licenza, che resta aperta:** la conversione *modifica il file del font*, quindi va confermata con Lineto insieme all'altra domanda — la generazione da server.
+
+Lo strumento è **`scripts/otf2ttf.py`**, tenuto nel repo perché una conversione il cui script si butta non è ripetibile: le cubiche di Bézier del CFF diventano quadratiche con `cu2qu`, e nient'altro cambia. Prodotti in `public/fonts/ttf/`, anch'essi fuori dal repo, da copiare a mano dove gira la generazione dei PDF.
+
+**Due trappole silenziose, entrambe prese sul campo** — e sono la ragione per cui lo script vale più della cartella che produce:
+
+- `maxp.compile()` esplode se i bordi dei glifi non sono stati ricalcolati: `AttributeError: 'Glyph' object has no attribute 'xMin'`. Rumoroso, quindi innocuo.
+- La `post` di un OTF è **v3.0, che i nomi dei glifi non li memorizza** — stanno nel charset del CFF, che qui si butta. Senza passare a v2.0 prima di salvare, metà famiglia si riapre come `glyph00638` e le alternative stilistiche (`a.ss02`) perdono il nome. **Questa non dà nessun errore**: la prima conversione era già "riuscita" e i file già registrati da reportlab quando il confronto delle metriche ha rivelato che le chiavi non coincidevano. Si scopre solo confrontando i due file.
+
+**Cosa è stato verificato**, perché una conversione di font non si dichiara:
+
+| controllo | esito |
+|---|---|
+| contorni | `glyf` su tutte e otto |
+| avanzate e side bearing | **0 differenze** su 846 glifi × 8 facce — il testo non si rimpagina |
+| nomi dei glifi, `cmap`, kerning GPOS | preservati |
+| `OS/2` — `usWeightClass`, `fsType` | preservati |
+| scarto max dei contorni | **0,16/1000 em** nel caso peggiore = 0,7 micron a 12pt (il limite garantito da cu2qu è 1/1000 em, 4 micron) |
+| reportlab | registra tutte e otto |
+| PDF di prova | **8 `/FontFile2`**, cioè le otto facce incorporate come sottoinsiemi TrueType; accentate italiane, euro e cifre resi corretti, verificato a video |
+
+Il PDF di prova è `public/fonts/ttf/specimen-replicall.pdf`. **Il canale PDF è quindi aperto**, e ad Anagrafe non resta che copiare i `.ttf` e registrarli.
+
 ### La forma adottata
 
 Otto `@font-face` in **`src/index.css`** — cioè nel workbench, non nel tema: ciò che sta in `src/` non viaggia col registry. I file vanno in `public/fonts/`, che il dev server di Vite serve sia sul workbench (5180) sia su Storybook (6006) — verificato, nessun `staticDirs` da aggiungere. I binari sono **esclusi dal repo** (`.gitignore`: `public/fonts/*` con l'eccezione del `LEGGIMI.md`; verificato mettendone uno e vedendo che `git add -A` indicizza solo il `LEGGIMI.md`).

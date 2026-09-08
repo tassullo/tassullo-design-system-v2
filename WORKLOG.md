@@ -693,3 +693,41 @@ Le larghezze coincidono alla **seconda cifra decimale**: non è un'approssimazio
 2. **Il canale PDF** — servono `.ttf`, o il permesso di convertire. Ricade su Anagrafe, che genera i PDF con reportlab.
 3. **Word** — nessun formato lo risolve: `python-docx` non incorpora font. La scelta **Arial** del v1 resta, e non va riaperta pensando che i file la cambino.
 4. **D3** — invariata. Il tema distribuito continua a dichiarare solo lo stack e a non portare binari; i file stanno nel workbench e non nel registry.
+
+---
+
+## 2026-09-08 — La conversione OTF → TTF, e la trappola che non dava errore
+
+Francesco ha autorizzato la conversione. **La nota di licenza resta**: convertire *modifica il file del font*, quindi va confermata con Lineto insieme all'altra domanda aperta, la generazione da server. È una decisione sua, presa dopo che il punto era stato sollevato; qui si registra come tale.
+
+### Fatto
+
+`scripts/otf2ttf.py` — tenuto nel repo, perché una conversione il cui script si butta non è ripetibile. Le cubiche di Bézier del CFF diventano quadratiche con `cu2qu`; nient'altro cambia. Otto `.ttf` in `public/fonts/ttf/`, anch'essi esclusi dal repo, da copiare a mano dove gira la generazione dei PDF (oggi: il backend di Anagrafe).
+
+### La trappola che conta
+
+Due intoppi, e solo il secondo è interessante.
+
+Il primo — `maxp.compile()` che esplode se i bordi dei glifi non sono ricalcolati — è **rumoroso**, quindi innocuo: lo si vede e lo si aggiusta.
+
+Il secondo no. La `post` di un OTF è **v3.0, che i nomi dei glifi non li memorizza**: stanno nel charset del CFF, cioè nella tabella che la conversione butta. Senza passare a `post` v2.0 prima di salvare, metà famiglia si riapre come `glyph00638` e le alternative stilistiche (`a.ss02`, `Euro.tf`) perdono il nome. **Nessun errore.** I file della prima conversione erano "riusciti", reportlab li registrava tutti e otto, e il difetto è saltato fuori solo perché il confronto delle metriche riportava `DIVERSE` — non per un vero scostamento, ma perché le due tabelle `hmtx` avevano chiavi diverse. Se avessi verificato solo «reportlab li accetta?», sarebbero passati.
+
+È la stessa forma dei due difetti muti già incontrati in questo progetto: `@theme inline` che cuoce i valori (M1.4) e il campo `css` che ingoia `@theme` (M1.5). Tre volte su tre, la cosa che rompe non protesta.
+
+### Verificato, perché una conversione di font non si dichiara
+
+| controllo | esito |
+|---|---|
+| contorni | `glyf` su tutte e otto |
+| avanzate e side bearing | **0 differenze** su 846 glifi × 8 facce — il testo non si rimpagina |
+| nomi dei glifi, `cmap`, kerning GPOS | preservati |
+| `OS/2` — `usWeightClass`, `fsType` | preservati |
+| scarto max dei contorni | **0,16/1000 em** nel caso peggiore = 0,7 micron a 12pt (il limite garantito da cu2qu è 1/1000 em, 4 micron) |
+| reportlab | registra tutte e otto le facce |
+| PDF di prova | **8 `/FontFile2`** — le otto facce incorporate come sottoinsiemi TrueType |
+
+Il PDF di prova (`public/fonts/ttf/specimen-replicall.pdf`) è stato anche **guardato**, non solo analizzato: accentate italiane, euro e cifre corretti, Bold e Heavy distinguibili, corsivi veri. Renderizzato in PNG con `sips` per poterlo ispezionare.
+
+### Conseguenza
+
+**Il canale PDF è aperto.** Ad Anagrafe non resta che copiare i `.ttf` e registrarli con `pdfmetrics.registerFont(TTFont(...))`. Restano aperte solo due cose: la gerarchia dei pesi (M2.1) e Word, che nessun formato risolve — `python-docx` non incorpora font, e **Arial resta**.
