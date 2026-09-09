@@ -66,7 +66,7 @@ export const Predefinito: Story = {
             I filtri restano attivi finché non si azzerano.
           </DrawerDescription>
         </DrawerHeader>
-        <div className="flex flex-col gap-4 px-4">
+        <div className="flex flex-col gap-4 p-4">
           <Field>
             <FieldLabel htmlFor="dr-fam">Famiglia</FieldLabel>
             <Select
@@ -120,7 +120,7 @@ export const ConManiglia: Story = {
             Confezionato il 17 aprile 2024 — sacco da 25 kg.
           </DrawerDescription>
         </DrawerHeader>
-        <dl className="grid grid-cols-2 gap-y-2 px-4 text-sm">
+        <dl className="grid grid-cols-2 gap-y-2 p-4 text-sm">
           <dt className="text-muted-foreground">Resa</dt>
           <dd className="text-right tabular-nums">12,40 kg/m²</dd>
           <dt className="text-muted-foreground">Spessore minimo</dt>
@@ -140,6 +140,23 @@ export const ConManiglia: Story = {
  * Con i punti d'aggancio: il pannello si ferma a metà o tutto aperto. Serve
  * quando sotto c'è qualcosa da guardare mentre si legge — una mappa, una
  * tabella — e non è il caso più comune.
+ *
+ * **Il contenuto deve stare dentro l'aggancio d'apertura.** Con `snapPoints`
+ * il popup è alto quanto l'aggancio **massimo** e viene traslato giù di
+ * `--drawer-snap-point-offset`: la parte sotto la piega esce dallo schermo, e
+ * un `overflow-y-auto` là dentro non ha niente da scorrere, perché overflow
+ * non ce n'è — il contenuto ci sta comodo nell'altezza piena del popup.
+ * Misurato: con l'aggancio a `0.4` su una finestra di 720px il popup andava
+ * da 432 a 1056, `padding-bottom` 0, `scrollHeight === clientHeight`, e
+ * l'ultima voce finiva 45px **sotto** il bordo. L'unico modo di leggerla era
+ * trascinare.
+ *
+ * La doc di Base UI compensa, nel proprio esempio, con un `padding-bottom`
+ * pari all'offset sul popup; **shadcn `base-nova` non lo fa** e noi non
+ * diverghiamo per aggiungerlo (deciso il 2026-09-09). Finché resta così, gli
+ * agganci vogliono contenuto **corto**: qui due revisioni, non quattro. Per
+ * un elenco lungo si usa il drawer senza agganci, che si apre all'altezza del
+ * contenuto e scorre.
  */
 export const ConAgganci: Story = {
   render: () => (
@@ -151,15 +168,13 @@ export const ConAgganci: Story = {
         <DrawerHeader>
           <DrawerTitle>Storico delle revisioni</DrawerTitle>
           <DrawerDescription>
-            Quattro revisioni, dalla più recente.
+            Le due più recenti.
           </DrawerDescription>
         </DrawerHeader>
-        <ol className="flex flex-col gap-3 overflow-y-auto px-4 pb-4 text-sm">
+        <ol className="flex flex-col gap-3 p-4 text-sm">
           {[
             ['04', '2 settembre 2026', 'Aggiornati i valori di resa'],
             ['03', '14 marzo 2026', 'Recepita EN 998-1:2016'],
-            ['02', '9 novembre 2025', 'Corretto il campo granulometria'],
-            ['01', '3 giugno 2025', 'Prima emissione'],
           ].map(([n, data, motivo]) => (
             <li key={n} className="flex flex-col gap-0.5 border-b pb-3 last:border-b-0">
               <span className="font-medium tabular-nums">Revisione {n}</span>
@@ -192,7 +207,7 @@ export const DaDestra: Story = {
             Appunti presi sul posto, non ancora protocollati.
           </DrawerDescription>
         </DrawerHeader>
-        <p className="px-4 text-sm text-muted-foreground">
+        <p className="p-4 text-sm text-muted-foreground">
           Il supporto risulta ancora umido a 48 ore dalla posa del rinzaffo.
           Rimandata la finitura.
         </p>
