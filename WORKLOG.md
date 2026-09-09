@@ -812,7 +812,7 @@ Invariati. **M2.1** eredita la gerarchia dei pesi e la regola delle cifre; **M2.
 
 Richiesta di Francesco: un artifact che estenda la demo del workbench con l'esempio dei codici di sistema e dei dati tabellari, e un selettore fra **Replica, Inter, Geist, Outfit e Albert Sans**, per scegliere il carattere dei siti insieme a Roberto.
 
-**Artifact**: <https://claude.ai/code/artifact/edbec1ee-f73d-4313-94b3-bfd8014d5474> — «Carattere Tassullo». Sorgente conservato in `docs/carattere-demo.html` **col segnaposto al posto dei font**, e due script per rigenerarlo: `scripts/otf2woff2.py` e `scripts/inlina-font.py`.
+**Artifact**: <https://claude.ai/code/artifact/edbec1ee-f73d-4313-94b3-bfd8014d5474> — «Carattere Tassullo». Il sorgente era conservato in `docs/carattere-demo.html` **col segnaposto al posto dei font**, con due script per rigenerarlo: `scripts/otf2woff2.py` e `scripts/inlina-font.py`. **Non c'è più né il file né `inlina-font.py`**: scelto Inter, la demo aveva esaurito il suo scopo, ed è stata rimossa dal working tree *e dalla storia* il 2026-09-09 (voce in coda a questo diario). L'artifact resta all'indirizzo qui sopra.
 
 ### Come è fatta
 
@@ -1951,3 +1951,53 @@ L'indirizzo «solo componenti standard» arriva a fine giornata, quando `toggle.
 - il raggio è **identico al pixel** (il nostro `--radius-md` è 6px, sotto il tetto del `min()`): cambia solo che ora deriva dal tema.
 
 Se l'indirizzo dovesse valere anche su questi, si tolgono in dieci minuti — ma allora va tolto anche il `sm` del bottone di M2.1, o il set resta incoerente.
+
+---
+
+## 2026-09-09 — Pulizia della storia: la demo dei caratteri esce dal repo, e con lei Replicall
+
+Fuori sessione di piano. Richiesta di Francesco: valutare la fattibilità di caricare il v2 su GitHub e, come esito, ripulire la storia dalla demo dei caratteri — «abbiamo scelto Inter, non penso serva più averla».
+
+### La valutazione, prima
+
+Verificato che l'org `tassullo` esiste ed è raggiungibile (`gh`, account `fsartoricovi`, scope `repo`), che `tassullo-design-system-v2` **non esiste ancora**, che qui non c'è nessun `git remote` (D4), che il repo è piccolo e che **non ci sono segreti**: nessun `.env` nel working tree né in tutta la storia, nessuna chiave. I `.woff2` di Inter tracciati sono OFL con la licenza accanto, quindi ridistribuibili; i binari di Replicall in `public/fonts/` non sono **mai** stati committati, come voleva il `.gitignore`.
+
+Un solo ostacolo reale, ed era quello già annotato in `CHECKLIST.md`: `docs/carattere-demo.html` portava **cinque font in base64**, Replicall compreso, nei commit dal `0c4f5e4` al `54361cb`. Il file era stato svuotato nel working tree in `72520d8`, ma la storia se lo teneva. Replicall è sotto licenza Webflow del sito istituzionale: pubblicarlo sarebbe una ridistribuzione non consentita.
+
+**D4 resta aperta e nessun caricamento è stato fatto.** Francesco ha scelto di restare sul piano: il repo è ancora locale, senza remote. Questa pulizia è l'unico pezzo di M5.6 che non dipende da D4, ed è la ragione per cui si è fatta ora: oggi costa un comando su un repo che nessuno ha clonato, in M5.6 costerebbe lo stesso comando su un repo con dei cloni in giro.
+
+### Come è stata fatta
+
+`git-filter-repo` 2.47.0 (installato con brew; non è una dipendenza del progetto), `--invert-paths --path docs/carattere-demo.html`. Prima un **backup mirror completo** nella cartella di lavoro temporanea, con la demo ancora dentro: se un giorno servisse rivedere quei numeri, sono lì.
+
+Esito, misurato e non dichiarato:
+
+- **49 commit conservati**, nessuno perso; i messaggi e le date restano quelli.
+- Il file non compare più in **nessun** commit (`git log --all -- docs/carattere-demo.html` → 0).
+- Cercati i blob residui che contengono `data:font` in tutta la storia: ne restano **quattro**, e sono tutti legittimi — `registry/tassullo/theme/inter.css` e `public/r/tema-font.json` (Inter in data URI, OFL, che è l'item `tema-font` e ci deve stare) più `scripts/build-font-css.ts` e `scripts/inlina-font.py`, dove `data:font` è codice, non binario.
+- Cercata la stringa «replica» in ogni blob sopra i 60 KB: solo `WORKLOG.md`, `PIANO.md` e `docs/DECISIONI.md`. Sono **menzioni testuali** — la cronaca di come si è scelto il carattere — e si pubblicano senza problemi. Il ragionamento di D3 resta leggibile per intero: si è tolta la prova, non il verbale.
+- `.git` **da 8.6 MB a 2.5 MB**; `git fsck` muto; `npm run check` verde su tutti e tre i gate (48 avvisi, tutti valori arbitrari ereditati da shadcn e preesistenti).
+- Gli hash **sono cambiati da `0c4f5e4` in poi**. Non ha conseguenze: nessun remote, nessun clone, nessun riferimento incrociato ai vecchi hash fuori dai documenti aggiornati qui sotto.
+
+### Una cosa da sapere, ed è la sola che abbia fatto rischiare
+
+A metà lavoro è arrivato in questo repo un commit da **un'altra sessione** (`2a562d9`, M2.6): il primo backup era già vecchio di un commit, e il confronto fra la storia riscritta e `HEAD` l'ha rivelato mostrando differenze che la sola rimozione della demo non spiegava. Il segnale che ha salvato la situazione è stato proprio quello: **un `diff --stat` più largo dell'atteso**. Backup rifatto sulla storia a 49 commit e riscrittura ripetuta in casa, ad albero pulito.
+
+La regola che ne esce, per chiunque riscriva la storia di questo repo in futuro: **si riscrive solo ad albero pulito e senza altre sessioni aperte**, e prima di applicare si confronta l'albero vecchio col nuovo, che deve differire *solo* per ciò che si intendeva togliere. Un backup mirror preso dieci minuti prima non è un backup.
+
+### Modifiche ai documenti
+
+- `CHECKLIST.md` — riga M5.6: la precondizione «ripulire la storia» è barrata e chiusa con la misura. M5.6 **resta BLOCKED su D4**, che è l'unica cosa che ancora lo blocca.
+- `WORKLOG.md` — la voce del 2026-09-08 che indicava `docs/carattere-demo.html` come sorgente archiviato ora dice che il file non c'è più e perché. L'indirizzo dell'artifact resta.
+
+### La coda: lo script che restava senza input
+
+`scripts/inlina-font.py` esisteva **solo** per sostituire il segnaposto `/*REPLICA_FONTFACE*/` dentro quella demo. Tolta la demo, non aveva più né input né scopo. Indirizzo di Francesco nella stessa sessione: toglierlo. **Fatto** — verificato prima che non fosse richiamato da nessuno script di `package.json` e che il suo unico argomento fosse il file appena rimosso.
+
+Restano `scripts/otf2woff2.py` e `scripts/otf2ttf.py`, che **non** sono orfani: convertono Replicall per il **canale di stampa**, che è vivo — il carattere è Inter sullo schermo e Replica nelle stampe (D14). Nessuno dei due porta binari nel repo: leggono da `public/fonts/`, che il `.gitignore` tiene fuori.
+
+Nota per chi rileggesse il conteggio dei blob qui sopra: `inlina-font.py` compare ancora fra i quattro con `data:font`, e va bene — quel conteggio parla della **storia**, dove il file resta, e lì `data:font` era codice, non un binario. Non c'è niente da ripulire una seconda volta.
+
+### Prossimi passi
+
+Nessuno vincolato. D4 aperta, repo locale, si torna al piano: **M2.7 Date** (`calendar`, `date-picker`).
