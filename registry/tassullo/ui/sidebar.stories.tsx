@@ -251,14 +251,27 @@ const larghezze = {
 
 /**
  * Il marchio, in `currentColor` come vuole la regola 3: niente hex nei `fill`,
- * nemmeno dentro un SVG. Segnaposto in attesa dell'asset vero.
+ * nemmeno dentro un SVG. **Segnaposto in attesa dell'asset vero (D13)**, ma
+ * con le proporzioni **misurate sul logo ufficiale** invece che a occhio — la
+ * prima stesura le aveva sbagliate, e Francesco l'ha vista subito: gamba
+ * troppo corta e marchio schiacciato.
+ *
+ * Ricavate rasterizzando il wordmark del sito e contando i pixel anneriti,
+ * in quota sull'altezza totale: barra superiore **12,6%**, stacco **10,2%**,
+ * traversa **13,0%**, gamba **63,0%** — e la gamba è larga il **23,6%** della
+ * larghezza. Il rapporto larghezza/altezza è **0,618**: il marchio è **più
+ * alto che largo**, ed è la cosa che il segnaposto sbagliava di più (era
+ * 16×18, cioè 0,89).
+ *
+ * Il `viewBox` non è quadrato apposta: con `size-*` il marchio si allinea
+ * all'altezza e resta stretto, come l'originale.
  */
 function MarchioT({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="currentColor">
-      <rect x="4" y="3" width="16" height="2.4" rx="0.4" />
-      <rect x="4" y="8.6" width="16" height="2.4" rx="0.4" />
-      <rect x="10.8" y="8.6" width="2.4" height="12.4" rx="0.4" />
+    <svg viewBox="0 0 16 26" aria-hidden className={className} fill="currentColor">
+      <rect x="0" y="0" width="16" height="3.3" rx="0.4" />
+      <rect x="0" y="5.95" width="16" height="3.4" rx="0.4" />
+      <rect x="6.1" y="9.35" width="3.8" height="16.65" rx="0.4" />
     </svg>
   )
 }

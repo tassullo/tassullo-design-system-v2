@@ -1800,3 +1800,17 @@ Perché il segnaposto e non il file vero: il wordmark del sito è un `<path>` un
 **Francesco fa mandare a Roberto la T bianca su fondo trasparente.** Scadenza: **entro la fine della FASE 2**, cioè non oltre M2.9. Da chiudere insieme all'asset: in che formato viaggia nel registry (l'esperienza di `tema-font` dice che `shadcn build` legge i file come testo, quindi un binario va in data URI o non ci va), e se serve anche il marchio esteso accanto alla sola T.
 
 Fino ad allora il segnaposto resta, ed è marcato come tale nella story: rispetta la regola 3 (niente hex nei `fill`, tutto `currentColor`) e **va sostituito, non dimenticato**.
+
+**Nota su D13, aggiunta in giornata.** Francesco, confrontando il segnaposto con la sidebar di Anagrafe: «la T è schiacciata, la gamba è più corta». Vero, e le proporzioni erano state messe a occhio. Ricavate quelle giuste **misurando il logo ufficiale** invece di stimarle: il wordmark rasterizzato a 254px d'altezza, contando i pixel anneriti riga per riga (il primo glifo di «TASSULLO» è la T, quindi basta ritagliare il `viewBox` sui primi 15,7 dei 136,418 di larghezza — e il frammento della «A» che entra nel ritaglio si esclude prendendo, alla riga di misura, la sola corsa contigua che contiene il centro).
+
+| parte | quota dell'altezza |
+|---|---|
+| barra superiore | 12,6% |
+| stacco | 10,2% |
+| traversa | 13,0% |
+| **gamba** | **63,0%**, larga il 23,6% della larghezza |
+| larghezza / altezza | **0,618** |
+
+Il segnaposto era 16×18, cioè rapporto **0,89**, con la gamba al 55%: sbagliava soprattutto la proporzione d'insieme — il marchio vero è **più alto che largo**. Rifatto su `viewBox="0 0 16 26"`, non quadrato apposta, così con `size-*` si allinea all'altezza e resta stretto.
+
+Resta un segnaposto e D13 resta aperta: serve l'asset di Roberto. Ma un segnaposto con le proporzioni giuste non insegna una forma sbagliata a chi guarda la style guide nel frattempo.
