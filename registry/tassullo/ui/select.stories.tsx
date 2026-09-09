@@ -28,6 +28,26 @@ import {
  * ma è un passo che shadcn non documenta e che **ogni consumatore sbaglierà
  * una volta**. Qui si scrive perché lo sbagli zero volte.
  *
+ * ## Le voci vanno dentro un `SelectGroup`, anche quando il gruppo è uno solo
+ *
+ * **È il rientro del riquadro, e senza gruppo non c'è.** Il `p-1` che stacca
+ * le voci dal bordo del popup sta su `SelectGroup` (`scroll-my-1 p-1`), non su
+ * `SelectContent`, che ha padding **0**. Mettere gli `SelectItem` direttamente
+ * dentro `SelectContent` — la forma più naturale da scrivere, e quella in cui
+ * erano tre delle quattro story di questa pagina — fa arrivare la riga
+ * evidenziata **a filo del bordo**, con gli angoli arrotondati che spariscono
+ * contro il bordo del riquadro.
+ *
+ * Misurato contro la pagina di shadcn, che avvolge sempre le voci in un
+ * gruppo: rientro della voce **4px per lato da loro, 0px da noi**. È la
+ * differenza che si vede a occhio fra i due menu aperti, e l'unica: per il
+ * resto le classi del popup, il padding e le classi delle voci coincidono
+ * (`DECISIONI.md` §24).
+ *
+ * Non è un difetto del componente né un'opzione di `components.json`: è come
+ * shadcn ha distribuito il padding fra le parti. Il gruppo si usa **anche
+ * senza `SelectLabel`**, che resta facoltativa.
+ *
  * **Il `select` regge le liste corte.** Sopra le poche decine di voci non
  * regge più, e la risposta è il `combobox` di M2.6 — che si scrive filtrando,
  * mentre qui si può solo scorrere. Le famiglie e le norme di Anagrafe, che
@@ -61,10 +81,12 @@ export const Predefinito: Story = {
           <SelectValue placeholder="Scegli uno stato" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="bozza">Bozza</SelectItem>
-          <SelectItem value="revisione">In revisione</SelectItem>
-          <SelectItem value="pubblicato">Pubblicato</SelectItem>
-          <SelectItem value="archiviato">Archiviato</SelectItem>
+          <SelectGroup>
+            <SelectItem value="bozza">Bozza</SelectItem>
+            <SelectItem value="revisione">In revisione</SelectItem>
+            <SelectItem value="pubblicato">Pubblicato</SelectItem>
+            <SelectItem value="archiviato">Archiviato</SelectItem>
+          </SelectGroup>
         </SelectContent>
       </Select>
     </div>
@@ -118,8 +140,10 @@ export const Taglie: Story = {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="a">Altezza del bottone</SelectItem>
-            <SelectItem value="b">Seconda voce</SelectItem>
+            <SelectGroup>
+              <SelectItem value="a">Altezza del bottone</SelectItem>
+              <SelectItem value="b">Seconda voce</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
@@ -130,8 +154,10 @@ export const Taglie: Story = {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="a">Un gradino più basso</SelectItem>
-            <SelectItem value="b">Seconda voce</SelectItem>
+            <SelectGroup>
+              <SelectItem value="a">Un gradino più basso</SelectItem>
+              <SelectItem value="b">Seconda voce</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
@@ -149,7 +175,9 @@ export const Stati: Story = {
             <SelectValue placeholder="Nessuna scelta" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="a">Prima voce</SelectItem>
+            <SelectGroup>
+              <SelectItem value="a">Prima voce</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
@@ -160,7 +188,9 @@ export const Stati: Story = {
             <SelectValue placeholder="Campo obbligatorio" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="a">Prima voce</SelectItem>
+            <SelectGroup>
+              <SelectItem value="a">Prima voce</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
@@ -171,7 +201,9 @@ export const Stati: Story = {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="a">Non modificabile</SelectItem>
+            <SelectGroup>
+              <SelectItem value="a">Non modificabile</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>

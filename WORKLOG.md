@@ -1472,3 +1472,17 @@ Verificato in tre modi che non perdiamo niente — codice della CLI, zero regole
 2. **La trappola: `--font-heading` dietro un `@import` la CLI non lo vede.** Tiene `cn-font-heading` solo se trova la stringa `--font-heading:` dentro il file indicato da `tailwind.css` (`src/index.css`), con una ricerca testuale su **un solo file**, senza seguire gli `@import`. Il nostro token esiste ma sta in `tassullo-theme.css`, importato: quindi la classe viene tolta dai titoli di dialog, alert-dialog, sheet e drawer. **Oggi innocuo per fortuna** — `--font-heading` è `var(--font-sans)`, cioè Inter come il corpo (§14) — **ma il giorno in cui i titoli avessero una faccia diversa non si applicherebbe, in silenzio.** Rimedio noto e non applicato: dichiararlo anche in `src/index.css` sarebbe una seconda copia di un token, cioè la deriva che la regola permanente vieta, per un problema che oggi non esiste.
 
 Rettificata `DECISIONI.md` §23, dove `cn-font-heading` era archiviato come semplice trasformazione della CLI senza dire **da cosa dipende**.
+
+### Rettifica in coda: le violazioni axe aperte sono **12**, non 8
+
+Trovata verificando l'osservazione di Francesco sul `select`. **L'imbracatura di misura apriva i menu ma non il `select`**: la mappa dei grilletti da cliccare, in `axe.mjs`, non aveva la voce `select` (né il dialog della palette comandi). Aggiunte e rifatto il giro completo.
+
+| | prima | ora |
+|---|---|---|
+| `dropdown-menu` aperto, 4 story × 2 modalità | 8 (6 nodi ciascuna) | 8 |
+| **`select` aperto, 2 story × 2 modalità** | **0, perché non veniva aperto** | **4** (4 nodi ciascuna) |
+| **totale** | **8** | **12** |
+
+Stessa famiglia, stessa causa, stesso verdetto: sono i guardiani del fuoco di Base UI, non toccabili ri-stilando, in carico a M2.9. Cambia il numero, non la sostanza — ma il numero era scritto in tre posti e andava corretto.
+
+**La lezione operativa vale più del numero, ed è per M2.9**: avevo scritto che «il registro cambia quando la misura sa aprire i popup». È successo di nuovo, **dentro la stessa sessione**, per una riga mancante nella mia mappa. Chi accende axe in CI deve verificare *quali* popup la scansione apre davvero: **un popup non aperto non è un popup senza violazioni**, è un popup non misurato.

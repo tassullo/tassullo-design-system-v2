@@ -858,6 +858,23 @@ Verificato che non stiamo perdendo niente, in tre modi:
 
 Quindi: nessuna opzione spenta per sbaglio. Ma due cose vanno sapute.
 
+### 24.0 Rettifica: una differenza c'era, e non era nei token
+
+La prima conclusione di questa sezione — «divergono solo i nostri token» — era **sbagliata**, e l'ha smentita Francesco guardando le due tendine aperte affiancate. Il confronto automatico che l'aveva prodotta misurava il popup e la voce, ma **non ciò che sta in mezzo**, e stampava «identico» senza i valori: così la differenza non si vedeva né a schermo né nel verbale.
+
+Misurato daccapo, coi numeri in chiaro:
+
+| | loro | nostro (prima) |
+|---|---|---|
+| catena nel DOM | `select-content` → div → **`select-group`** → voci | `select-content` → div → voci |
+| rientro della voce | **4px** per lato | **0px** |
+
+**Il `p-1` che stacca le voci dal bordo sta su `SelectGroup`** (`scroll-my-1 p-1`), non su `SelectContent`, che ha padding **0**. Mettere gli `SelectItem` direttamente dentro `SelectContent` — la forma più naturale da scrivere — fa arrivare la riga evidenziata a filo del bordo, con gli angoli arrotondati che spariscono contro il bordo del riquadro. Tre story su quattro erano scritte così.
+
+Non è un difetto del componente (identico a shadcn) né un'opzione di `components.json`: è come shadcn ha distribuito il padding fra le parti. **Il gruppo si usa anche quando è uno solo, e anche senza `SelectLabel`.** Corretto nelle story e scritto in pagina.
+
+**Il metodo che ha fallito, e vale più del caso**: un confronto che dice «identico» senza mostrare il valore non è una misura, è una rassicurazione. Se avessi stampato `rientroSinistro: 4` contro `0` l'avrei vista al primo giro. Vale per il prossimo confronto automatico che si scrive.
+
 ### 24.1 Un'opzione mai esercitata, non un errore
 
 `menuColor` ammette quattro valori — `default`, `inverted`, `default-translucent`, `inverted-translucent` — e `menuAccent` due, `subtle` e `bold`. Siamo sui default di shadcn, che nessuno ha scelto: li ha messi `init`. Cambiarli è una decisione legittima e **visibile su tutti i menu**, ma non è gratis: la CLI li applica **al momento di `add`**, quindi andrebbero riscaricati e **ri-stilati a mano** i file interessati. Se un giorno si volessero i menu traslucidi o scuri, si fa lì e si scrive qui perché.

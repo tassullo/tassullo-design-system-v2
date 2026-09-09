@@ -66,7 +66,8 @@ import {
  * ## Due misure che questa pagina consegna a M2.9
  *
  * 1. **axe dà `aria-hidden-focus` × 6 su ogni menu aperto, in entrambe le
- *    modalità, e non è chiudibile qui.** I sei nodi sono i **guardiani del
+ *    modalità, e non è chiudibile qui** (il `select` aperto ne dà 4, stessa
+ *    causa: **12 violazioni in tutto**). I sei nodi sono i **guardiani del
  *    fuoco di Base UI** — `<span aria-hidden="true" tabindex="0"
  *    data-base-ui-focus-guard>` — cioè proprio il meccanismo che fa girare il
  *    `Tab` dentro al menu. Sono generati dalla libreria, non dal ri-stile, e
