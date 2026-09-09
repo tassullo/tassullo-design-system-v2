@@ -751,6 +751,81 @@
       "registryDependencies": [
         "@tassullo/button"
       ]
+    },
+    {
+      "name": "use-mobile",
+      "type": "registry:hook",
+      "title": "useIsMobile",
+      "description": "Soglia mobile a 768px, in un solo posto. La sidebar la usa per passare a Sheet.",
+      "files": [
+        {
+          "path": "registry/tassullo/hooks/use-mobile.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "sidebar",
+      "type": "registry:ui",
+      "title": "Sidebar",
+      "description": "La sidebar antracite Tassullo: collassabile a icone e sostituita da Sheet sotto la soglia mobile.",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/sidebar.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/input",
+        "@tassullo/separator",
+        "@tassullo/sheet",
+        "@tassullo/skeleton",
+        "@tassullo/tooltip",
+        "@tassullo/use-mobile"
+      ]
+    },
+    {
+      "name": "breadcrumb",
+      "type": "registry:ui",
+      "title": "Breadcrumb",
+      "description": "Percorso di navigazione. Testi in italiano, ellissi per i livelli intermedi.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/breadcrumb.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "pagination",
+      "type": "registry:ui",
+      "title": "Pagination",
+      "description": "Navigazione fra pagine di risultati. Etichette e nomi accessibili in italiano.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/pagination.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button"
+      ]
     }
   ]
 }

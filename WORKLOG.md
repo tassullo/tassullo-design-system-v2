@@ -1633,3 +1633,142 @@ Segnalazione di Francesco su `Primitive/Tabs`. Riprodotta e misurata subito: pas
 Documentata in testa a entrambe le story, perché è un requisito d'uso e non un dettaglio delle story: in un'app il caso non si presenta finché le schede stanno in una colonna di pagina che una larghezza ce l'ha, e si presenta il giorno in cui qualcuno le mette in un flex item o in una cella di griglia `auto`.
 
 **Un errore di strumento di contorno, utile a chi misurerà in M2.9**: le classi Tailwind iniettate da JavaScript per una prova **non esistono** se non compaiono nel sorgente — il JIT genera solo quelle che trova. `w-120` e `w-128` risolvevano a `0px`, e non perché la scala non le preveda.
+
+### Coda della stessa giornata — «il drawer con agganci non mostra tutti i campi»
+
+Due segnalazioni di Francesco su `Primitive/Drawer`, e solo la seconda era un difetto del componente.
+
+**La prima, di padding, era mia e delle story.** Il bottone «Applica» risultava attaccato al campo. `DrawerHeader` è `p-4 pb-0` e `DrawerFooter` è `p-4 pt-0`: tolgono di proposito il padding sul lato interno e **contano sul corpo in mezzo per portarsi il proprio**. Le quattro story davano al corpo solo `px-4`, e una sola (`ConAgganci`) aggiungeva `pb-4` — quindi erano anche incoerenti fra loro. Corretto a `p-4` su tutte e quattro. I due bottoni a piena larghezza impilati **non** sono un difetto: è `flex-col gap-2` del `DrawerFooter` di shadcn, invariato, ed è la forma giusta per il mattone mobile del `responsive-dialog` di M3.4.
+
+**La seconda era del componente, e si è chiusa senza divergere.** Con `snapPoints` il popup è alto quanto l'aggancio **massimo** e viene **traslato giù** di `--drawer-snap-point-offset`: la parte sotto la piega finisce fuori dallo schermo, e `overflow-y-auto` sul contenuto non ha niente da scorrere perché **non c'è overflow** — il contenitore ci sta comodo dentro l'altezza piena del popup. Unica via per leggere il resto: trascinare. Misurato in Storybook, viewport 720: popup da 432 a 1056, `--drawer-snap-point-offset` 336px, `padding-bottom` **0px**, sul contenuto `scrollHeight === clientHeight` (264 = 264), ultima voce a **765px**, cioè 45px sotto il bordo.
+
+La doc di Base UI compensa nel proprio esempio con un `padding-bottom` pari all'offset sul popup; **shadcn `base-nova` non lo fa**, e il nostro `DrawerContent` era identico all'upstream.
+
+**Provata la toppa nel componente, poi ritirata — decisione di Francesco, 2026-09-09.** Avevo aggiunto al popup `data-[swipe-axis=y]:data-snap-points:[padding-bottom:max(0px,calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))]`, e funzionava: `padding-bottom` 336px, `scrollHeight 264 > clientHeight 219`, contenuto scorrevole dentro l'aggancio. **Ritirata lo stesso**, e la ragione vale più del rimedio: formalmente era gradino 2 — una stringa di classi, forma intatta, gate verde — ma il gradino 2 esiste per l'**aspetto**, e quella classe cambiava un **comportamento**. Un ri-stile che passa il gate non è per ciò stesso dentro la regola: il gate misura la forma, non l'intenzione. E l'avevo applicata **decidendo io**, informando dopo, che è esattamente ciò che 4bis vieta.
+
+`registry/tassullo/ui/drawer.tsx` è quindi **identico all'upstream** (verificato col diff su `DrawerContent`). Il limite sta scritto in testa alla story `ConAgganci`, con le misure: **gli agganci vogliono contenuto corto**. La story è stata rifatta di conseguenza — due revisioni invece di quattro. Verificato che ci stia in **entrambe** le densità: aggancio d'apertura 288px, ultima voce a **195px** in normale e **246px** in touch. Per un elenco lungo si usa il drawer **senza** agganci, che si apre all'altezza del contenuto e scorre.
+
+**Se un giorno servisse davvero**, la strada non è patchare il componente di nascosto: è il gradino 4 — proposta esplicita, riga in `registry/componenti-propri.json`, approvazione. Oppure aspettare che shadcn copra il caso.
+
+**Errore d'ambiente, il solito**: nel pannello del browser `document.visibilityState` è `hidden` e `requestAnimationFrame` **non scatta** — verificato di nuovo esplicitamente — quindi l'animazione d'ingresso del drawer si ferma a metà e la geometria del popup letta lì non vale. Le misure sopra sono di **stile calcolato** (`padding-bottom`, `scrollHeight`/`clientHeight`), che non dipendono dall'animazione. Una controprova visiva vuole un browser vero, come in M2.3.
+
+---
+
+## M2.5 — Navigazione: `sidebar`, `breadcrumb`, `pagination`
+
+**2026-09-09.** Tre primitive, un hook (`use-mobile`), **48 item**, `registry validate` verde. Tutte e tre esistono in shadcn e la scala 4bis si ferma al **gradino 1** sulla forma: nessuna divergenza strutturale, un solo ri-stile di stringa, e la lingua.
+
+### La sidebar antracite era già lì, e non era scontato
+
+Il preset dipinge la sidebar con la famiglia `--sidebar-*`, che il tema Tassullo definisce antracite **in entrambe le modalità** (`#141414` chiaro, `#1C1C1C` scuro). Non c'è stato niente da ri-colorare: la sidebar del v1 non è una superficie che segue il tema, è *l'unica superficie scura* delle app, e il tema lo dichiarava già dalla M1.1.
+
+**Anche lo stato attivo coincide alla lettera.** In `components.css` del v1 la regola è `.sidebar-item:hover, .sidebar-item.is-active { background: var(--color-sidebar-hover); color: var(--color-sidebar-text-hi) }`, cioè esattamente `data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground` del preset, sugli stessi due colori. shadcn ci aggiunge `data-active:font-medium`, che il v1 non aveva perché dava peso 500 a *tutte* le voci: è un guadagno, perché nel v1 attivo e hover erano indistinguibili. Il criterio «resa identica alla sidebar antracite delle app esistenti» si chiude senza toccare niente.
+
+### Il ri-stile: uno solo, ed è ancora l'opacità
+
+`SidebarGroupLabel` usa `text-sidebar-foreground/70`. Il token pieno sul fondo della sidebar fa **7.75:1**; al 70% fa **4.41 in chiaro e 4.21 in scuro**, sotto soglia in entrambe. È la **seconda volta** — la prima erano gli alert di M2.4 — che l'opacità su un testo apre un difetto che `check:contrast` non può vedere per costruzione: il gate verifica le *coppie di token*, e nessun token dichiara con quanta opacità un componente lo usa. Tolto il `/70`: la gerarchia fra etichetta e voce la fanno già `text-xs` contro `text-sm` e il peso, che non costano contrasto.
+
+Vale la pena scriverlo come regola, perché due volte su due sessioni non è coincidenza: **un'opacità su un testo va misurata, sempre**, e non basta che la coppia di token sia verde.
+
+### La lingua
+
+Undici stringhe, e quasi tutte le sente **solo chi usa uno screen reader**: «Toggle Sidebar» ×3, il titolo e la descrizione del pannello mobile, `aria-label="breadcrumb"`, «More», `aria-label="pagination"`, «Go to previous/next page», «More pages». Le sole visibili sono i due testi di `PaginationPrevious`/`Next` — ora «Precedente» e «Successiva», e restano `prop` con quel default. Il gate non se ne accorge, ed è giusto: confronta la forma azzerando il contenuto delle stringhe, quindi tradurre resta dentro il gradino 2 (stessa cosa fatta al `carousel` in M2.4).
+
+### La densità: chiusa l'unica eccezione di M1.4
+
+M1.4 aveva accertato che la sidebar è la sola cosa che la densità touch non scala, perché `SIDEBAR_WIDTH` (`16rem`), `SIDEBAR_WIDTH_ICON` (`3rem`) e `SIDEBAR_WIDTH_MOBILE` (`18rem`) sono costanti JavaScript passate come `style` inline.
+
+**Misurato il difetto prima di rimediarlo**, togliendo l'override dal wrapper a pagina viva:
+
+| in touch | senza rimedio | col rimedio |
+|---|---|---|
+| colonna aperta | **256px** | 384px |
+| voce di menu | 48px in 231 di colonna | 48 in 359 |
+| rail collassato | **48px** | 72px |
+| voce nel rail | **48px** — riempie il rail a filo | 48 in 72 |
+
+Cioè esattamente quello che M1.4 aveva previsto: il rail da 48 riempito da un bottone da 48, **zero margine attorno all'icona**.
+
+Il rimedio non patcha il componente: `SidebarProvider` accetta uno `style` che sovrascrive le due variabili, e lì si esprimono in unità di `--spacing` conservando i valori di densità normale — `calc(var(--spacing) * 64)` fa 256 e 384, `calc(var(--spacing) * 12)` fa 48 e 72. Resta dentro il gradino 2.
+
+**La terza costante non è sovrascrivibile, e va saputo.** `SIDEBAR_WIDTH_MOBILE` è scritta *dentro* `Sidebar`, sullo `style` dello `SheetContent`, dove non arrivano né `style` né `className` del chiamante: `{...props}` va sullo `Sheet`, e `className` in quel ramo non è usato affatto. Da fuori non c'è modo. Non è un problema — misurati **281px** su un telefono da 375, già più larghi dei 256 della scrivania — ma è una libertà che il componente non concede, e il criterio del piano «`--sidebar-width-mobile` tarato sui token» va letto così: **non è tarabile**, e il valore ereditato è adeguato. Chi scrive M3.1 non deve perderci una mezz'ora.
+
+### Il passaggio a `Sheet`, in un browser vero
+
+| prova (375×812) | esito |
+|---|---|
+| la colonna fissa | **fuori dal DOM**, non nascosta |
+| clic sul grilletto | `Sheet` da 281px |
+| 8 `Tab` | 8 su 8 **dentro** il pannello |
+| `Esc` | chiude |
+| il fuoco | torna al grilletto |
+
+### Tre requisiti d'uso, tutti risolti in composizione e tutti da portare a M3.1
+
+Sono la parte che vale più del codice, perché nessuno dei tre dà errore.
+
+1. **Senza `TooltipProvider` la sidebar chiusa è muta.** A rail le voci sono sole icone e l'etichetta torna come tooltip; senza un provider che avvolge l'albero il tooltip **non compare né col fuoco né col mouse**, e non c'è nessun errore. Misurato: zero tooltip su tre `Tab` e su un hover da nove decimi. Col provider: «Anagrafe» sulla testata, «Cruscotto» sulla voce. Stessa famiglia del `select` che vuole `items` (M2.2) e del `DropdownMenuLabel` che vuole un `Group` (M2.3). Il provider sta **una volta sola**, alla radice dell'app.
+
+2. **Nascondere l'etichetta per il rail toglie anche il nome accessibile.** Il testo della testata non sparisce da sé: il bottone collassato è 32px con `overflow-hidden`, ma il testo comincia dopo l'icona da 16 e il divario da 8, quindi gli restano **8px dentro il riquadro** — nel rail si vedeva una «A» accanto alla T, e non lo curano né `truncate` né `flex-1`. Serve `group-data-[collapsible=icon]:hidden`. Fatto questo, però, **axe ha segnalato `button-name`** in entrambe le modalità: il bottone resta con dentro un solo SVG. Il tooltip **non è un nome accessibile**. Aggiunto `aria-label` a testata e piede — il piede non era stato segnalato solo perché l'avatar porta le iniziali, e «FS» come nome di un bottone è peggio di niente.
+
+3. **Sul telefono il primo `Esc` non chiude niente.** Misurato: aperto lo `Sheet`, il fuoco va su un `SidebarMenuButton` e il primo `Esc` non fa nulla, il secondo chiude; togliendo il fuoco, un `Esc` solo basta. La causa è il `tooltip` del bottone: sotto la soglia mobile il preset non lo *mostra* (`hidden={state !== "collapsed" || isMobile}`) ma **la radice Base UI resta montata**, si apre col fuoco e si prende il primo `Esc`, invisibile. Su un telefono è il tasto che sembra rotto. È comportamento, non stringhe: non si ri-stila. Ma il rimedio sta nella composizione e usa l'API pubblica del componente — `useSidebar().isMobile`, e il `tooltip` non si passa affatto quando non servirebbe. Verificato: `Esc 1: chiuso`. **Da portare in `tassullo-app-shell`: `sidebar-07` di shadcn passa il tooltip sempre**, quindi chi copia il blocco a occhi chiusi si porta dietro il difetto.
+
+### La composizione, su indicazione di Francesco
+
+Impianto del blocco **`sidebar-07`** di shadcn — «a sidebar that collapses to icons» — coi menu annidati del suo `nav-main` (un `Collapsible` che *rende* il `SidebarMenuItem`, un `CollapsibleTrigger` che rende il `SidebarMenuButton`), più i due estremi della sidebar che Anagrafe ha già in produzione: **marchio e nome dell'applicativo in cima**, con la sola T nel rail, e **utente in fondo** con avatar, indirizzo, ruolo e menu delle opzioni (profilo, impostazioni, uscita), con il solo avatar nel rail.
+
+**Il marchio nelle story è un segnaposto in `currentColor`, e va deciso.** Il logo Tassullo è un file del brand, non una classe: il wordmark ufficiale del sito è un `<path>` unico con `fill="#141414"` — che, per inciso, è **esattamente** il nostro token `--sidebar`, conferma indipendente che la palette è giusta — e la T da sola non se ne estrae senza tagliare a mano i dati vettoriali. Distribuirlo è una **voce nuova del registry** (`tema-logo`, accanto a `tema` e `tema-font`) e non si improvvisa dentro una story: **proposta a Francesco, in attesa**. La geometria del segnaposto è quella del marchio in uso, e il file vero lo sostituisce senza toccare la composizione.
+
+### Contrasto, a pagina ferma
+
+| coppia | chiaro | scuro |
+|---|---|---|
+| sidebar — voce a riposo | 7.75 | 7.17 |
+| sidebar — voce attiva | 12.91 | 11.58 |
+| sidebar — etichetta di gruppo | **7.75** (era 4.41) | **7.17** (era 4.21) |
+| sidebar — nome dell'applicativo | 15.72 | 14.54 |
+| sidebar — iniziali sull'avatar | 9.49 | 9.49 |
+| sidebar — sottolivello attivo | 12.91 | 11.58 |
+| breadcrumb — livello link | 5.05 | 7.75 |
+| breadcrumb — pagina corrente | 17.03 | 15.72 |
+| pagination — numero | 17.03 | 15.72 |
+| pagination — pagina corrente | 17.03 | 14.56 |
+
+### Bersagli in touch
+
+Tutti i bersagli nuovi stanno sopra i 44px: voce di menu **48**, testata e utente **72**, numero di pagina **48**, «Precedente»/«Successiva» **48**, ellissi di paginazione **48**. Due note:
+
+- **l'ellissi del breadcrumb è 20px, cioè 30 in touch, e non è un bersaglio.** Non è un difetto del componente: `BreadcrumbEllipsis` è `aria-hidden` e da sola è muta, quindi va comunque dentro un grilletto vero — nella story un `dropdown-menu` — e il grilletto ha una taglia propria, `size-8`, che fa 32 e 48. La regola è che l'ellissi **non si usa nuda**.
+- il sottolivello resta **42px** in touch (`h-7` del preset). Sotto di due pixel, stessa famiglia dei tre bersagli aperti da M2.4 — **in carico a M2.9**.
+
+### axe: 358 scansioni, 0 violazioni — ma leggere l'avvertenza
+
+**179 story × 2 modalità, 0 errori di strumento, 0 violazioni.** Il primo giro ne aveva una — il `button-name` del punto 2 qui sopra, in entrambe le modalità.
+
+**Il numero non è confrontabile con le 12 di M2.4, e va detto forte**: questa scansione **non apre i popup**, quindi i dodici guardiani del fuoco di Base UI su `dropdown-menu` e `select` non compaiono. Controprova fatta apposta: aprendo a mano i quattro menu di `dropdown-menu`, `aria-hidden-focus × 6` per story è ancora lì, immutato. **Le 12 restano aperte e in carico a M2.9.** È la stessa avvertenza che M2.3 aveva già scritto, e questa sessione la conferma dal lato opposto: un popup non aperto non è un popup senza violazioni.
+
+Aperti invece i popup *nuovi* — il menu utente della sidebar (aperta e collassata) e l'ellissi del breadcrumb, sei scansioni — **nessuna `aria-hidden-focus`**, e le sole segnalazioni sono `region` / `landmark-one-main` / `page-has-heading-one`, che compaiono perché quella scansione guarda il **documento intero** invece che `#storybook-root`: la controprova sulle story di `dropdown-menu` mostra le stesse tre righe accanto alle violazioni vere. Sono regole di *pagina*, non di componente. Una però va raccolta da M3.1: nell'app shell il contenuto della sidebar dovrebbe stare in un landmark `<nav>` — `Sidebar` rende un `div`.
+
+### Verifiche
+
+- `npm run check` (contrasto 48/48, registry 0 errori, font allineato), `registry validate` (**48 item**), `tsc -b`, `oxlint`, `build`, `build-storybook`: **verdi**.
+- `oxlint`: 3 avvisi, tutti `set-state-in-effect` — due sul `carousel` (già noti, presenti identici in `.upstream/`) e uno su `use-mobile.ts`, che è codice shadcn non toccato.
+- Il gate legge **11 componenti ri-stilati**, e il conto **non sale a 12 nonostante il ri-stile della sidebar**: `sidebar.tsx` esce dall'originale col segnaposto d'icona (`◌`), e per quel ramo lo script dichiara già a verbale che «il conto del ri-stile non è affidabile» (`check-registry.ts`, riga 339). Non è una regressione, ma è il terzo file in quello stato: quando saranno molti, il numero di prima pagina dirà sempre meno.
+
+### Errori di strumento, di nuovo la metà del lavoro
+
+Tutti e tre già noti, e ci sono ricascato lo stesso.
+
+1. **I tasti non arrivano alla pagina finché non ci si clicca dentro davvero** (M2.3). Il primo giro sullo `Sheet` dava «`Esc` NON chiude» e «`Tab` esce dal pannello»: era l'imbracatura senza clic. Con un `mouse.click` prima, 8 `Tab` su 8 restano dentro e l'`Esc` chiude. **Ho accusato il componente prima dello strumento**, che è la quarta volta di fila.
+2. **Il selettore che pesca l'elemento sbagliato** (M2.3, M2.4). Dopo aver rifatto la composizione, `[data-slot="sidebar-menu-button"]` non era più la voce di menu ma la **testata**, che è `size="lg"`: la voce risultava alta 48px in densità normale invece di 32. E `[data-active]` non trovava più niente, perché la voce attiva è ora un `CollapsibleTrigger` che si prende lo `slot`. Regola: dopo aver cambiato la composizione, **i selettori di misura si rileggono**, non si riusano.
+3. **`w-full` e i selettori a parte, le story cambiate spezzano gli script**: `primitive-sidebar--sotto-livelli` non esiste più e due script sono morti in timeout su `#storybook-root`. Banale, ma è un minuto perso ogni volta.
+
+### Prossimi passi
+
+**M2.6 — Filtri e selezione**: `toggle`, `toggle-group`, `combobox`, `multi-select`/`tag-input`.
+
+Nel fascicolo di **M3.1** (`tassullo-app-shell`): l'override delle due larghezze, il `TooltipProvider` alla radice, gli `aria-label` su testata e piede, il `tooltip` da non passare su mobile, il landmark `<nav>`, e il fatto che `SIDEBAR_WIDTH_MOBILE` non si tocca.
+
+Per **M2.9**: il sottolivello a 42px in touch; la conferma che la scansione a popup chiusi vale zero sui popup; e la seconda prova che `check:contrast` non vede l'opacità.
+
+**In attesa di decisione di Francesco**: l'item `tema-logo` per il marchio Tassullo.
