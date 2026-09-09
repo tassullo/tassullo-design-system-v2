@@ -22,6 +22,18 @@ import {
  * estetico — chi legge lo schermo da vicino distingue meglio due forme che
  * una forma ruotata a metà animazione.
  *
+ * **La stessa trappola d'uso delle `tabs`, e qui è più vistosa** (misurata
+ * insieme, su segnalazione di Francesco): in un contenitore che si stringe
+ * sul contenuto, aprire una sezione allarga il gruppo, perché il testo del
+ * pannello è più lungo dell'intestazione. Misurato su questa story prima
+ * della correzione: la radice passava da **201 a 576px** al primo clic e
+ * l'accordion slittava di **188px** — un salto che si vede benissimo.
+ *
+ * Non è un difetto del componente e **`w-full` non lo cura**: su un
+ * contenitore a larghezza indefinita è circolare. Serve una larghezza
+ * definita, qui `w-96`, che sta sulla scala di `--spacing` e segue la
+ * densità. Con quella lo slittamento è **0px** su tutte le sezioni.
+ *
  * Da tastiera: ogni intestazione è un bottone, `Tab` li attraversa tutti,
  * `Invio`/`Spazio` aprono. Base UI non aggiunge scorciatoie con le frecce, e
  * va bene così: sono sezioni indipendenti, non una lista da percorrere.
@@ -54,7 +66,7 @@ const sezioni = [
 
 export const Predefinito: Story = {
   render: () => (
-    <Accordion className="w-full max-w-lg">
+    <Accordion className="w-96">
       {sezioni.map((s) => (
         <AccordionItem key={s.titolo} value={s.titolo}>
           <AccordionTrigger>{s.titolo}</AccordionTrigger>
@@ -71,7 +83,7 @@ export const Predefinito: Story = {
  */
 export const UnaAllaVolta: Story = {
   render: () => (
-    <Accordion multiple={false} className="w-full max-w-lg">
+    <Accordion multiple={false} className="w-96">
       {sezioni.map((s) => (
         <AccordionItem key={s.titolo} value={s.titolo}>
           <AccordionTrigger>{s.titolo}</AccordionTrigger>
@@ -85,7 +97,7 @@ export const UnaAllaVolta: Story = {
 /** Una sezione già aperta all'arrivo, con `defaultValue`. */
 export const GiaAperta: Story = {
   render: () => (
-    <Accordion defaultValue={['Modalità di posa']} className="w-full max-w-lg">
+    <Accordion defaultValue={['Modalità di posa']} className="w-96">
       {sezioni.map((s) => (
         <AccordionItem key={s.titolo} value={s.titolo}>
           <AccordionTrigger>{s.titolo}</AccordionTrigger>
@@ -99,7 +111,7 @@ export const GiaAperta: Story = {
 /** Una sezione disattivata: il grilletto non risponde e non prende il fuoco. */
 export const Disattivata: Story = {
   render: () => (
-    <Accordion className="w-full max-w-lg">
+    <Accordion className="w-96">
       <AccordionItem value="a">
         <AccordionTrigger>Campo di impiego</AccordionTrigger>
         <AccordionContent className="text-muted-foreground">{sezioni[0].testo}</AccordionContent>

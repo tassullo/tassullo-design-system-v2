@@ -1617,3 +1617,19 @@ Tre, e i primi due hanno bruciato mezza sessione.
 **M2.5 — Navigazione**: `sidebar`, `breadcrumb`, `pagination`. Da chiudere lì l'unica vera eccezione allo scaling di M1.4 — le tre larghezze della sidebar sono costanti JS — e il rimedio è già noto: si sovrascrivono via `style` sul `SidebarProvider`, senza patchare il componente.
 
 Per **M2.9**, tre cose che questo task aggiunge al fascicolo: i tre bersagli sotto 44px qui sopra; il fatto che `check:contrast` **non vede l'opacità** applicata a un testo, quindi il gate dei token non sostituisce axe; e il server statico da usare per la scansione.
+
+### Coda della stessa giornata — «cambiando scheda si sposta l'interfaccia»
+
+Segnalazione di Francesco su `Primitive/Tabs`. Riprodotta e misurata subito: passando **Dati → Allegati → Revisioni** la radice della story faceva **452 → 421 → 341px** e la lista di schede slittava di **55px** a ogni clic.
+
+**Non è il componente, ed è una trappola d'uso che vale per le app.** Il canvas di Storybook è `body.sb-main-centered` con `align-items: center`, quindi `#storybook-root` è un flex item **a larghezza indefinita**: si stringe sul contenuto. Il pannello attivo è l'unico figlio che porta testo, perciò è **la lunghezza del testo del pannello** a decidere la larghezza del gruppo — e cambiando scheda cambia il testo.
+
+**La parte che conta, e che non era ovvia: `w-full` non lo cura.** Le mie story avevano `w-full max-w-lg`, che sembra una larghezza e non lo è: su un contenitore indefinito `w-full` è **circolare** e non fa nulla. Misurato: risolveva a 277px, cioè alla larghezza del testo. Serve una larghezza **definita** — `w-96`, che sta sulla scala di `--spacing` e quindi segue la densità.
+
+**Cercata la stessa causa altrove, e c'era.** `accordion` ce l'aveva **peggiore**: aprire la prima sezione portava la radice da **201 a 576px**, cioè **188px** di slittamento, perché il testo del pannello è molto più lungo dell'intestazione. `collapsible` e `carousel` erano già a posto (`w-96` e `w-80`, definite).
+
+**Dopo la correzione, misurato su tutte le videate**: cinque story di `tabs` e quattro di `accordion`, commutando ogni scheda e aprendo ogni sezione — **slittamento 0px, variazione di larghezza 0px** ovunque. `npm run check` verde, axe di nuovo **338 scansioni / 12 violazioni**, cioè le sole note di M2.3.
+
+Documentata in testa a entrambe le story, perché è un requisito d'uso e non un dettaglio delle story: in un'app il caso non si presenta finché le schede stanno in una colonna di pagina che una larghezza ce l'ha, e si presenta il giorno in cui qualcuno le mette in un flex item o in una cella di griglia `auto`.
+
+**Un errore di strumento di contorno, utile a chi misurerà in M2.9**: le classi Tailwind iniettate da JavaScript per una prova **non esistono** se non compaiono nel sorgente — il JIT genera solo quelle che trova. `w-120` e `w-128` risolvevano a `0px`, e non perché la scala non le preveda.
