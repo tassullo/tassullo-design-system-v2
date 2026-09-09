@@ -890,3 +890,17 @@ Il nostro `--font-heading` **esiste** — `tassullo-theme.css` riga 268, `var(--
 Il rimedio, se e quando servirà, è una riga: dichiarare `--font-heading` **anche** in `src/index.css`, o puntare `tailwind.css` al file del tema. Non si fa adesso perché sarebbe una seconda copia di un token, cioè la deriva che la regola permanente vieta, per un problema che oggi non esiste. Ma va saputo prima di cambiare il carattere dei titoli, non dopo.
 
 **Rettifica a §23**: lì `cn-font-heading` era archiviato come «trasformazione della CLI, non una nostra divergenza». Vero, ma incompleto — non diceva **da cosa dipende**, e da cosa dipende è questa trappola.
+
+---
+
+## 25. Quinta normalizzazione del gate: l'import di React che shadcn spedisce inutilizzato (M2.4, 2026-09-09)
+
+Terzo seguito di §19 e §23, e per una volta non è una trasformazione della CLI: è un **difetto del sorgente originale**.
+
+`scroll-area.tsx` esce da `shadcn add` con `import * as React from "react"` in testa e **non usa React da nessuna parte**: tutti i tipi vengono da `ScrollAreaPrimitive.*.Props`. Sotto il nostro `tsconfig`, che ha `noUnusedLocals: true`, quel file **non compila** — `tsc -b` esce con `TS6133: 'React' is declared but its value is never read`.
+
+Quindi non c'è una scelta da fare: o si toglie quella riga, o il componente non entra nel repo. Ma il confronto di forma la leggeva come **divergenza strutturale**, cioè come il tipo di modifica che al prossimo aggiornamento di shadcn non si riesce più a riportare — ed è falso: è una riga morta che il compilatore rifiuta. Aggiunta la normalizzazione, che azzera l'import da **entrambi** i lati.
+
+**Cosa non fa, ed è la parte che conta.** La regexp è ancorata alla riga intera e al solo import *namespace* di React (`import * as React from "react"`). Un import diverso — o l'aggiunta di un import nostro — resta una divergenza. Verificato sul campo prima di considerarla chiusa: aggiungendo un `import { useMemo } from "react"` a `scroll-area.tsx` il gate torna **rosso**. Una normalizzazione che acceca il gate sarebbe peggio del falso positivo che chiude.
+
+Vale la pena aspettarselo su altri file: è plausibile che altri componenti shadcn portino lo stesso import morto, e da qui in poi il gate non lo confonderà più con una nostra modifica.

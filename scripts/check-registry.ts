@@ -155,9 +155,26 @@ function normalizzaClassi(s: string): string {
  */
 const USE_CLIENT_RE = /^\s*(["'])use client\1\s*;?\s*/;
 
+/**
+ * Quarta normalizzazione, accertata in M2.4 su `scroll-area.tsx`: shadcn
+ * spedisce alcuni componenti con `import * as React from "react"` che il file
+ * NON usa — lì tutti i tipi vengono da `ScrollAreaPrimitive.*.Props`. Sotto
+ * `noUnusedLocals: true`, che è il nostro `tsconfig`, quel file **non
+ * compila**: `tsc -b` esce con TS6133. Toglierlo non è un ri-stile e non è una
+ * scelta, è l'unico modo di avere il componente; ma il confronto di forma lo
+ * leggeva come divergenza strutturale, ed è un falso positivo — la stessa
+ * famiglia di `"use client"`. Si azzera da entrambi i lati.
+ *
+ * Attenzione a cosa NON fa: toglie solo l'import *namespace* di React, cioè
+ * la riga esatta che la CLI spedisce inutilizzata. Un import diverso, o
+ * l'aggiunta di un import nostro, resta una divergenza e viene segnalata.
+ */
+const REACT_NAMESPACE_IMPORT_RE = /^\s*import \* as React from (["'])react\1\s*;?\s*$/m;
+
 function forma(src: string): string {
   return src
     .replace(USE_CLIENT_RE, "")
+    .replace(REACT_NAMESPACE_IMPORT_RE, "")
     .replace(STRING_RE, '"·"')
     .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/\/\/[^\n]*/g, " ")

@@ -1505,3 +1505,115 @@ Con `true` il popup si apre *attorno* al valore corrente e può debordare sopra 
 **Quando servirà `false`**: campi in fondo alla pagina o dentro contenitori che scorrono, dove con `true` il popup insegue la voce scelta e può coprire il campo e ciò che gli sta sopra. Nelle schede di Anagrafe i `select` stanno in form lunghi, quindi è la variante da valutare — ma la decisione vera arriva con **M2.6**, dove il `combobox` sostituisce queste liste quando si allungano.
 
 axe sulla story nuova: **0 violazioni** nelle due modalità e in entrambe le varianti. Giro completo rifatto: **248 scansioni (124 story × 2 modalità), 12 violazioni**, invariate.
+
+---
+
+## 2026-09-09 — M2.4 Contenuto: dodici primitive, un criterio che si chiude al gradino 1, e un server che mentiva
+
+**Task**: M2.4 — `card`, `tabs`, `table`, `alert`, `empty`, `accordion`, `collapsible`, `scroll-area`, `resizable`, `progress`, `aspect-ratio`, `carousel`. Dodici primitive, 44 item nel registry.
+
+### Il criterio dell'`alert`, e perché la risposta non era quella che sembrava
+
+Il piano chiedeva «`alert` nelle quattro varianti info/success/warning/destructive sui token semantici», e `PIANO.md` §492 aveva creato la famiglia `X-subtle`/`X-subtle-foreground`/`X-border` **proprio per questi alert**. Ma shadcn ne ha due, `default` e `destructive`, e aggiungere tre **nomi di variante** al `cva` esce dal gradino 2 della regola 4bis.
+
+L'ho provato prima di discuterne, ed è la misura che conta: `check:registry` va **rosso** — «diverge dall'originale FUORI dalle stringhe di classi: struttura, props, nomi di varianti o export». Il gate ha fatto esattamente il suo mestiere.
+
+Portata la scelta a Francesco come proposta di gradino 4. **La sua risposta ha cambiato la domanda**: nella pagina del componente shadcn documenta l'opzione *Custom colors* — «You can customize the alert colors by adding custom classes such as `bg-amber-50 dark:bg-amber-950` to the `Alert` component». Cioè **shadcn ce l'ha già**, e la sua risposta ai livelli semantici è `className`, non le varianti.
+
+Quindi la scala si ferma al **gradino 1**, `alert.tsx` resta intatto nella forma, e il gate resta verde. Quello che il design system mette di suo non è una variante: è la **terna di token**, che `check:contrast` verifica e che fa **pesare uguale** i quattro alert (gradini fissi per tutte le famiglie, `PIANO.md` §525). La ricetta sta scritta una volta nella story `Alert/QuattroLivelli`, e i blocchi di FASE 3 la incorporeranno.
+
+**La lezione operativa, e vale oltre questo task**: prima di proporre una divergenza, si guarda la **documentazione** del componente, non solo il suo sorgente. Il sorgente dice cosa c'è; la documentazione dice cosa gli autori considerano l'uso previsto — e qui le due cose non coincidevano.
+
+### I ri-stili: tre, e due sono la stessa trappola di sempre
+
+1. **`alert`, `destructive`**: `bg-card text-destructive` → la famiglia tenue. È la **quinta** volta che il preset usa il rosso pieno come **testo** (le altre in M2.2 ×2 e M2.3 ×2). Misurato in M2.2: **4.46:1 in chiaro, 3.53:1 su card in scuro**, sotto soglia in entrambe.
+2. **`empty`, `EmptyDescription`**: i link avevano `hover:text-primary`, l'arancio del brand come testo — **1.79:1 in chiaro**. Ora `text-accent-ink`, corretto in entrambe le modalità. **Sesta ripetizione**: conviene cercarla per prima cosa in ogni componente nuovo.
+3. **`table`**: `tabular-nums` sull'elemento `<table>`. Una classe sola sulla radice, perché le cifre tabellari si ereditano: copre intestazioni, corpo e piede senza che chi scrive una tabella se ne debba ricordare colonna per colonna — che è il modo in cui la regola si perde.
+
+E una quarta modifica che non è un ri-stile ma **la lingua**: le due frecce del `carousel` portavano `sr-only` in inglese e `aria-roledescription="carousel"/"slide"`. Sono le sole stringhe del componente che arrivano a un utente, e le sente **solo chi usa uno screen reader** — cioè esattamente chi non può accorgersi da sé che sono nella lingua sbagliata. Tradotte. Il gate non se ne accorge ed è giusto: confronta la forma **azzerando il contenuto delle stringhe**, quindi tradurre resta dentro il gradino 2.
+
+**`card` non è stato toccato**, ed è il secondo criterio del task: il preset non ha `hover:`, non ha `cursor-pointer`, non ha `transition` sulla card. La regola non sta nel codice, sta nel non aggiungercelo — quindi sta nella story, `Card/Cliccabile`, che mette la forma sbagliata (la regressione del v1, commit `94b0f5a`) accanto a quella giusta, dove il bersaglio è un link vero che prende il fuoco.
+
+### Quinta normalizzazione del gate, e non è colpa della CLI
+
+`scroll-area.tsx` esce da `shadcn add` con `import * as React from "react"` e **non usa React**. Sotto il nostro `noUnusedLocals: true` quel file **non compila**: `tsc -b` esce con TS6133. Non c'è una scelta — o si toglie la riga, o il componente non entra — ma il confronto di forma la leggeva come divergenza strutturale. Aggiunta la normalizzazione (`DECISIONI.md` §25).
+
+**Verificata prima di considerarla chiusa**: aggiungendo un `import { useMemo } from "react"` allo stesso file il gate torna **rosso**. Una normalizzazione che acceca il gate sarebbe peggio del falso positivo che chiude.
+
+### axe-core: 338 scansioni (169 story × 2 modalità), 0 errori di strumento
+
+**Primo giro: 15 violazioni.** Dodici sono le note di M2.3 — i guardiani del fuoco di Base UI su `dropdown-menu` (6 nodi × 4 story) e `select` (4 nodi × 2 story), in entrambe le modalità, in carico a M2.9. **Tre erano mie, e tutte e due le famiglie valevano la pena di trovarle adesso.**
+
+1. **`alert` success, descrizione a 4.07:1 in chiaro.** Avevo scritto `text-success-subtle-foreground/90`, copiando l'opacità dal `destructive` del preset. **È esattamente il caso che `check:contrast` non può vedere**: verifica le *coppie di token*, e nessun token dichiara l'opacità con cui un componente lo usa. Il token pieno passa, il token al 90% no. Tolto il `/90` da tutti e quattro i livelli e da `empty`: la terna che il tema dichiara è quella che il gate garantisce, e non va annacquata.
+
+2. **`resizable`, `scrollable-region-focusable` × 2 su `Verticale`.** I pannelli di `react-resizable-panels` portano `overflow: auto`, quindi appena il contenuto sborda diventano una regione che scorre senza fermi di tabulazione dentro — da tastiera irraggiungibile. **La risposta è la `scroll-area` di questo stesso task**, messa dentro il pannello: è la stessa medicina del rilievo di M2.3 sullo `sheet`, e ora è documentata nella story perché lo `split-view` di M3.9 la componga così fin da subito.
+
+**Secondo giro dopo le correzioni: 12 violazioni, cioè esattamente le dodici note.** Il conto delle violazioni nostre torna a **zero**, che è la condizione d'ingresso di M2.9.
+
+Le *incomplete* (192 `aria-hidden-focus`, 114 `color-contrast`, 26 `aria-valid-attr-value`) sono le stesse famiglie già misurate a mano in M2.3, cresciute in proporzione alle story.
+
+### Contrasto, misurato a pagina ferma
+
+| coppia | chiaro | scuro |
+|---|---|---|
+| alert **info**, titolo e descrizione | **6.87** | 9.24 |
+| alert **success** | **4.84** | 9.42 |
+| alert **warning** | **6.76** | 9.26 |
+| alert **destructive** | **7.60** | 9.09 |
+| `empty` — link | 5.05 | 7.75 |
+| tabella — cella | 17.03 | 15.72 |
+| card — descrizione | 5.37 | 7.17 |
+| tabs — scheda inattiva | **4.51** | 6.36 |
+
+I quattro alert stanno fra 4.84 e 7.60 in chiaro: **pesano uguale** come chiede `PIANO.md` §525. Il `destructive` viene da 4.46/3.53 del preset.
+
+### Tastiera, in un browser vero
+
+| | prova | esito |
+|---|---|---|
+| `tabs` | `Tab` entra sulla lista | **un solo** fermo, sulla scheda attiva |
+| | frecce | spostano fra le schede; `Tab` scende nel pannello |
+| `accordion` | `Invio` | apre; `Tab` passa all'intestazione dopo |
+| `scroll-area` | `Tab` | **si ferma sul riquadro** (`tabindex="0"`), frecce: `scrollTop` 0 → 120 |
+| `resizable` | frecce sulla maniglia | 1º pannello 335 → 502; `Home` 0, `Fine` 450 |
+| `carousel` | frecce col fuoco su un bottone | la diapositiva scorre (bordo 464 → 131) |
+| | frecce col fuoco **fuori** | **non** ruba i tasti: il cursore si muove nel campo |
+| `collapsible` | `Invio` | `aria-expanded` → `true` |
+
+### Densità
+
+| | normale | touch | | normale | touch |
+|---|---|---|---|---|---|
+| lista di tabs | 32 | **48** | intestazione tabella | 40 | **60** |
+| scheda di tabs | 25 | 41 | cella di tabella | 34,14 | 43,56 |
+| intestazione accordion | 39,14 | 56 | traccia di progress | 4 | 6 |
+| freccia carosello | 28 | 42 | spaziatura card | 16px | **24px** |
+
+**Tre bersagli sotto i 44px in touch, tutti da portare a M2.9** — stessa famiglia della voce di menu a 36px trovata in M2.3, e nessuno dei tre si chiude con una scelta di questo task:
+
+- **scheda di `tabs`: 41px.** Non è che non scali: 48 meno i `p-[3px]` della lista e l'`h-[calc(100%-1px)]` del grilletto fa esattamente 41. Sono **due valori arbitrari di shadcn**, e cambiarli è ridisegnare l'allineamento del filo della variante `line`.
+- **freccia del `carosello`: 42px.** È la taglia `icon-sm` che shadcn passa di suo. Un `size="icon"` la porterebbe a 48, ma cambia il carosello di tutte le app.
+- **cella di tabella: 43,56px** — sotto di mezzo pixel, e la riga è un bersaglio quando il `data-table` di M3.3 la renderà cliccabile.
+
+**La maniglia di `resizable` resta 1px in entrambe le densità, e non è un'eccezione**: `w-px` è un filo, e i fili seguono la regola dei bordi, che M1.4 esclude esplicitamente dallo scaling. La **zona sensibile** invece scala (4 → 6px), ed è quella che conta per afferrarla.
+
+### Verifiche
+
+- `npm run check` (contrasto 48/48, registry 0 errori, font allineato), `registry validate` (**44 item**), `tsc -b`, `oxlint`, `build`, `build-storybook`: **verdi**.
+- Il gate legge **11 componenti ri-stilati sopra una forma shadcn intatta**, 32 avvisi tutti ereditati, **0 componenti nostri** — `registry/componenti-propri.json` resta vuoto.
+- Due dipendenze nuove, entrambe scelte di shadcn a monte e non eccezioni a D9: `react-resizable-panels` (resizable) ed `embla-carousel-react` (carousel).
+- Un avviso di `oxlint` su `carousel.tsx` (`set-state-in-effect`): **è di shadcn**, e lo si vede perché compare identico su `registry/.upstream/carousel.tsx`.
+
+### Gli errori di strumento, che restano la metà del lavoro
+
+Tre, e i primi due hanno bruciato mezza sessione.
+
+1. **`npx serve` rompe lo Storybook costruito.** Il preview restava su `sb-show-nopreview` — nessuna story risolta, in nessuna modalità — e axe girava **22 minuti senza produrre una riga**, perché ogni scansione andava in timeout a 15s. Nessun errore in console, nessuna richiesta fallita: le sue riscritture di URL bastano a far perdere al preview l'indice delle story. Con `python3 -m http.server` sulla stessa cartella funziona tutto. **Il dev server non serve da controprova**: lì rendeva benissimo, ed è ciò che ha fatto sospettare le story invece del server. Chi automatizza axe in M2.9 usi un server statico stupido.
+2. **`document.querySelector('tbody td')` pescava lo scheletro nascosto di Storybook** (`.sb-argstableBlock` dentro `.sb-preparing-docs`), non la story: la cella di tabella misurava **1.17:1 in scuro** su un componente che ne fa 15.72. È **la stessa trappola di M2.3**, che aveva già colpito con `querySelector('button')`, e ci sono ricascato in una forma diversa. Rimedio: ogni selettore di misura va scopato a `#storybook-root`.
+3. **Il compositore di colori, di nuovo.** Dipingevo il nero sul canvas prima del colore, quindi ogni fondo trasparente tornava opaco e la catena si componeva sul nero: quattordici numeri tutti sbagliati, e tutti *plausibili* — `text-muted-foreground` a 3.85 invece di 5.05. Se ne è accorto solo il confronto con axe, che sulle stesse story non segnalava nulla. **Quarta sessione di fila in cui lo strumento accusa il componente**, e la regola operativa è quella: quando la mia misura e axe non concordano, il sospettato è la mia misura.
+
+### Prossimi passi
+
+**M2.5 — Navigazione**: `sidebar`, `breadcrumb`, `pagination`. Da chiudere lì l'unica vera eccezione allo scaling di M1.4 — le tre larghezze della sidebar sono costanti JS — e il rimedio è già noto: si sovrascrivono via `style` sul `SidebarProvider`, senza patchare il componente.
+
+Per **M2.9**, tre cose che questo task aggiunge al fascicolo: i tre bersagli sotto 44px qui sopra; il fatto che `check:contrast` **non vede l'opacità** applicata a un testo, quindi il gate dei token non sostituisce axe; e il server statico da usare per la scansione.
