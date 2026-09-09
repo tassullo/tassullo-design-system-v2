@@ -839,3 +839,37 @@ Seguito diretto di §19, stessa ragione: **un gate che grida al lupo si smette d
 Effetto sui conti già a verbale, che erano gonfiati: `field` **5 → 3**, `input-group` **8 → 5**, `button-group` **5 → 4**, `alert-dialog` e `drawer` **→ 0**. I numeri di M2.1 e M2.2 vanno letti con questa correzione.
 
 3. **Una riga per componente.** Il ramo del segnaposto d'icona introdotto in M2.2 stampava la sua riga `◌` e poi **cadeva** in fondo al ciclo, aggiungendone una seconda che diceva «forma identica all'originale» — cioè esattamente l'affermazione che la riga sopra aveva appena dichiarato impossibile. Con undici overlay in più erano sette componenti raccontati due volte e in contraddizione con sé stessi.
+
+---
+
+## 24. Le classi `cn-*`, e la trappola del `--font-heading` che nessuno vedrebbe (M2.3, 2026-09-09)
+
+Nata da un'osservazione di Francesco: «l'apertura del menù del nostro `select` è diversa da quella di shadcn, forse c'è un'opzione non attiva».
+
+### Cosa sono
+
+`shadcn view` restituisce cinque marcatori che **non sono classi CSS**: `cn-menu-target`, `cn-menu-translucent`, `cn-font-heading`, `cn-rtl-flip`, `cn-logical-sides`. La CLI li **risolve a `add`** leggendo `components.json`, e nel nostro registry ne sparivano **16 occorrenze su 7 file**.
+
+Verificato che non stiamo perdendo niente, in tre modi:
+
+1. **Il codice della CLI.** Con `menuColor: "default"` — che è il nostro valore, il default dello schema **e** quello di tutti i preset (nova, vega, maia, lyra, mira) — `cn-menu-target` e `cn-menu-translucent` vengono semplicemente **cancellati**, senza sostituzione. Diventano utility vere solo con `inverted` (→ `dark`) o con le varianti `-translucent` (→ merge di utility di sfocatura). `cn-rtl-flip` sparisce perché abbiamo `rtl: false`, ed è corretto: italiano, inglese e croato.
+2. **Il sito di shadcn.** Lì le classi restano nel sorgente pubblicato, ma hanno **zero regole** in tutti i fogli di stile della pagina: sono marcatori inerti anche a casa loro.
+3. **Il confronto a parità di contenuto.** Il nostro `select` aperto contro quello della loro pagina: **stesse classi del popup** (tolte le due inerti), **stesso padding**, **stessi figli**, **stesse classi delle voci**. Divergono solo i **nostri token** — raggio della voce **6px** (il nostro `--radius-md`) contro 8, e i colori della palette Tassullo.
+
+Quindi: nessuna opzione spenta per sbaglio. Ma due cose vanno sapute.
+
+### 24.1 Un'opzione mai esercitata, non un errore
+
+`menuColor` ammette quattro valori — `default`, `inverted`, `default-translucent`, `inverted-translucent` — e `menuAccent` due, `subtle` e `bold`. Siamo sui default di shadcn, che nessuno ha scelto: li ha messi `init`. Cambiarli è una decisione legittima e **visibile su tutti i menu**, ma non è gratis: la CLI li applica **al momento di `add`**, quindi andrebbero riscaricati e **ri-stilati a mano** i file interessati. Se un giorno si volessero i menu traslucidi o scuri, si fa lì e si scrive qui perché.
+
+### 24.2 La trappola vera: `--font-heading` dietro un `@import` non si vede
+
+`cn-font-heading` è l'unico dei cinque che **dipende da noi**. La CLI lo tiene — trasformandolo nell'utility `font-heading` — **solo se trova la stringa letterale `--font-heading:` dentro il file indicato da `tailwind.css`** in `components.json`, cioè `src/index.css`. È una ricerca testuale su **un solo file**: la CLI **non segue gli `@import`**.
+
+Il nostro `--font-heading` **esiste** — `tassullo-theme.css` riga 268, `var(--font-sans)` — ma sta dietro un `@import`. La CLI non lo vede, e toglie la classe dai titoli di `dialog`, `alert-dialog`, `sheet` e `drawer`.
+
+**Oggi è innocuo per fortuna, non per progetto**: `--font-heading` vale `var(--font-sans)`, cioè Inter, lo stesso corpo del testo (§14, D3). L'utility che viene tolta renderebbe identico. **Il giorno in cui i titoli avessero una faccia diversa, non si applicherebbe — e in silenzio.**
+
+Il rimedio, se e quando servirà, è una riga: dichiarare `--font-heading` **anche** in `src/index.css`, o puntare `tailwind.css` al file del tema. Non si fa adesso perché sarebbe una seconda copia di un token, cioè la deriva che la regola permanente vieta, per un problema che oggi non esiste. Ma va saputo prima di cambiare il carattere dei titoli, non dopo.
+
+**Rettifica a §23**: lì `cn-font-heading` era archiviato come «trasformazione della CLI, non una nostra divergenza». Vero, ma incompleto — non diceva **da cosa dipende**, e da cosa dipende è questa trappola.

@@ -1456,3 +1456,19 @@ Aperta e non mia: **`next-themes` va tolto da `sonner`?** In carico a Francesco.
 Si lascia perché il guadagno sarebbe 3 KB e il prezzo la **prima divergenza strutturale del progetto**, su un file che `check:registry` per giunta **non confronta** (segnaposto d'icona, `◌`): il gate non ci proteggerebbe dal dimenticarcene al prossimo aggiornamento di shadcn.
 
 **E c'è già una via d'uscita per chi ne avesse bisogno**, senza toccare niente: in `sonner.tsx` lo `{...props}` è l'**ultima** prop, quindi un `<Toaster theme="dark" />` passato dall'app vince su `next-themes`. Verificato: `data-sonner-theme` passa da `light` a `dark`.
+
+### Coda — le classi `cn-*`, da un'osservazione su `select`
+
+Francesco: «l'apertura del menù del nostro `select` è diversa da quella di shadcn, forse c'è un'opzione non attiva». Verificato: **nessuna opzione spenta per sbaglio**, ma l'osservazione ha portato fuori una trappola vera.
+
+Le classi `cn-*` (`cn-menu-target`, `cn-menu-translucent`, `cn-font-heading`, `cn-rtl-flip`) **non sono CSS**: sono marcatori che la CLI risolve a `add` leggendo `components.json`. Ne sparivano **16 su 7 file**, ed era invisibile al gate perché `select`, `dropdown-menu` e `context-menu` sono componenti a segnaposto d'icona (`◌`), di cui la forma non si confronta.
+
+Verificato in tre modi che non perdiamo niente — codice della CLI, zero regole CSS per quelle classi **anche sul sito di shadcn**, e confronto a parità di contenuto del `select` aperto: stesse classi del popup, stesso padding, stessi figli, stesse classi delle voci. Divergono solo i **nostri token**: raggio della voce **6px** contro 8, e i colori. Dettaglio in `DECISIONI.md` §24.
+
+**Due cose che restano.**
+
+1. **`menuColor` e `menuAccent` sono opzioni mai esercitate**, non errori: siamo sui default di shadcn, messi da `init`. `menuColor` ammette anche `inverted`, `default-translucent`, `inverted-translucent`. Cambiarli è legittimo e si vedrebbe su tutti i menu, ma la CLI li applica **a `add`**: andrebbero riscaricati e ri-stilati a mano i file toccati.
+
+2. **La trappola: `--font-heading` dietro un `@import` la CLI non lo vede.** Tiene `cn-font-heading` solo se trova la stringa `--font-heading:` dentro il file indicato da `tailwind.css` (`src/index.css`), con una ricerca testuale su **un solo file**, senza seguire gli `@import`. Il nostro token esiste ma sta in `tassullo-theme.css`, importato: quindi la classe viene tolta dai titoli di dialog, alert-dialog, sheet e drawer. **Oggi innocuo per fortuna** — `--font-heading` è `var(--font-sans)`, cioè Inter come il corpo (§14) — **ma il giorno in cui i titoli avessero una faccia diversa non si applicherebbe, in silenzio.** Rimedio noto e non applicato: dichiararlo anche in `src/index.css` sarebbe una seconda copia di un token, cioè la deriva che la regola permanente vieta, per un problema che oggi non esiste.
+
+Rettificata `DECISIONI.md` §23, dove `cn-font-heading` era archiviato come semplice trasformazione della CLI senza dire **da cosa dipende**.
