@@ -250,41 +250,40 @@ const larghezze = {
 } as CSSProperties
 
 /**
- * Il marchio, in `currentColor` come vuole la regola 3: niente hex nei `fill`,
- * nemmeno dentro un SVG. **Segnaposto in attesa dell'asset vero (D13)**, ma
- * con le proporzioni **misurate sul logo ufficiale** invece che a occhio — la
- * prima stesura le aveva sbagliate, e Francesco l'ha vista subito: gamba
- * troppo corta e marchio schiacciato.
+ * Il marchio Tassullo, **tracciato ufficiale**: è il file che Anagrafe ha già
+ * in produzione (`frontend/public/tassullo-t.svg`, 24×38), segnalato da
+ * Roberto. Un solo `path` con due sottotracciati — l'asta con la traversa, e
+ * la barra sopra — e `fill-rule="evenodd"`.
  *
- * Ricavate rasterizzando il wordmark del sito e contando i pixel anneriti,
- * in quota sull'altezza totale: barra superiore **12,6%**, stacco **10,2%**,
- * traversa **13,0%**, gamba **63,0%** — e la gamba è larga il **23,6%** della
- * larghezza. Il rapporto larghezza/altezza è **0,618**: il marchio è **più
- * alto che largo**, ed è la cosa che il segnaposto sbagliava di più (era
- * 16×18, cioè 0,89).
+ * L'unica modifica al file è il colore: l'originale è `fill="#FFF"`, qui è
+ * **`currentColor`**, perché la regola 3 non ammette hex nemmeno dentro un
+ * SVG. Non è pignoleria: così il marchio segue il testo che lo circonda e
+ * funziona anche dove il fondo non è antracite — un `#FFF` cotto nel file
+ * sparirebbe su fondo chiaro.
  *
- * Il `viewBox` non è quadrato apposta: con `size-*` il marchio si allinea
- * all'altezza e resta stretto, come l'originale.
+ * Il `viewBox` non è quadrato: il marchio è **più alto che largo** (24×38,
+ * rapporto 0,63), quindi con `size-*` si allinea all'altezza e resta stretto.
+ * Era la cosa che il segnaposto sbagliava di più — Francesco l'ha vista
+ * subito, «la T è schiacciata, la gamba è più corta».
+ *
+ * **Resta da chiudere D13**: qui il tracciato è incollato dentro la story, e
+ * una copia in ogni app è esattamente ciò che la regola permanente vieta. Il
+ * marchio deve diventare una **voce del registry**.
  */
 function MarchioT({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 26" aria-hidden className={className} fill="currentColor">
-      <rect x="0" y="0" width="16" height="3.3" rx="0.4" />
-      <rect x="0" y="5.95" width="16" height="3.4" rx="0.4" />
-      <rect x="6.1" y="9.35" width="3.8" height="16.65" rx="0.4" />
+    <svg
+      viewBox="0 0 24 38"
+      aria-hidden
+      className={className}
+      fill="currentColor"
+      fillRule="evenodd"
+    >
+      <path d="m9.517 38-.414-.415V14.196l-.413-.415H.413L0 13.36V9.189l.413-.421H23.58l.42.42v4.172l-.42.421H15.31l-.42.415v23.389l-.414.415h-4.96Zm5.794-33.086H.413L0 4.493V.415L.413 0H23.58l.42.415v4.078l-.42.42H15.31Z" />
     </svg>
   )
 }
 
-/**
- * La navigazione come dato: **sezioni** che raggruppano **voci**, e ogni voce
- * può avere `figli` oppure no. È la forma di `sidebar-07`, dove le sezioni si
- * chiamano *Platform* e *Projects*.
- *
- * Due libertà, e sono dell'app che consuma, non del design system: **se
- * raggruppare** (una sezione sola, e il raggruppamento sparisce) e **quali
- * voci hanno un sottomenu** (basta non passare `figli`).
- */
 const sezioni = [
   {
     titolo: 'Anagrafe',
