@@ -2001,3 +2001,146 @@ Nota per chi rileggesse il conteggio dei blob qui sopra: `inlina-font.py` compar
 ### Prossimi passi
 
 Nessuno vincolato. D4 aperta, repo locale, si torna al piano: **M2.7 Date** (`calendar`, `date-picker`).
+
+---
+
+## 2026-09-09 — M2.7 Date: l'eccezione prevista non si pone, e la tastiera è rotta a monte
+
+Una primitiva sola, `calendar`. **52 item**, `registry validate` verde.
+
+### L'eccezione a Base UI (D9) non si decide: non c'è niente da decidere
+
+Il piano metteva qui l'unico punto in cui era prevista un'eccezione a Base UI — «se il calendario Base UI risultasse debole su locale e intervalli, si valuta la variante React Aria». Chiesto all'MCP prima di scrivere qualsiasi cosa, e la premessa è falsa: **Base UI non ha un calendario**, e shadcn ne spedisce **uno solo**, costruito su `react-day-picker` + `date-fns`. Non ci sono due candidati da confrontare, quindi non c'è nessuna eccezione da motivare. D9 resta chiusa com'era.
+
+E il componente unico copre da sé tutt'e tre i criteri, senza che si scriva una riga.
+
+### `date-picker` non esiste come item, e resta una composizione
+
+Il piano elencava due voci. **`date-picker` ha una sua pagina fra i componenti shadcn** (`/docs/components/base/date-picker`) — segnalata da Francesco, e la mia prima formulazione la dava per inesistente, il che era sbagliato. Ma **non è un item installabile**: `view` e `add @shadcn/date-picker` danno **404** su `base-nova`, e `shadcn docs date-picker` risponde «not found in the shadcn registry». Nell'indice MCP esistono tre `registry:example` (`date-picker-demo`, `-with-range`, `-with-presets`) che pure **404 su `base-nova`**: sono gli esempi dell'era Radix.
+
+Lo dice la pagina stessa, e la riga chiude la questione: **«A date picker is built from Popover and Calendar (there is no DatePicker root component)»**. È una composizione documentata, non un componente.
+
+**Errore di strumento da annotare, perché mi ha fatto scrivere una cosa falsa.** La prima verifica l'avevo fatta con `npx shadcn list @shadcn | grep -i date`, e ne avevo concluso «esistono solo `calendar` e `calendar-example`». **`list` è troncato**: restituisce 105 righe su un registro di **471 item**. Non è una fonte su cui basare un «non esiste». La coppia giusta è `view`/`add` sul nome esatto (che dice se l'item è installabile *in questo stile*) più la pagina di documentazione (che dice qual è la risposta di shadcn). Regola: **`list` serve a sfogliare, non a dimostrare un'assenza.**
+
+Non l'ho impacchettato in un componente nostro, ed è la stessa scelta del «Grilletto» di M2.6, presa per l'indirizzo che ne è uscito: **componenti shadcn standard, senza personalizzazioni**. Un `DatePicker` nostro sarebbe stato il primo componente in `componenti-propri.json` — un file da mantenere per sempre — in cambio di dodici righe che ogni app scrive comunque una volta sola. Le composizioni stanno nelle story, che sono il modello da copiare. `componenti-propri.json` **resta vuoto**, ed è la condizione da difendere.
+
+Quindi: il piano ne chiedeva due, ne è uscita **una**. Come M2.6, che ne chiedeva quattro e ne ha date tre.
+
+### I criteri, misurati in un browser vero
+
+- **Italiano e lunedì**, col solo `locale={it}`: intestazioni `lun mar mer gio ven sab dom`, prima colonna lunedì (31/08/2026, che è un lunedì), didascalia `settembre 2026`. **`weekStartsOn` non si scrive**: `it.options.weekStartsOn` vale già `1`, misurato. Il locale porta anche le etichette ARIA — «Vai al mese precedente», «Oggi, mercoledì 9 settembre 2026».
+- La story `Il locale, a confronto` tiene i due calendari affiancati: `Su Mo Tu We Th Fr Sa` a sinistra, `lun mar mer gio ven sab dom` a destra. È il verbale del perché non serve `weekStartsOn`.
+- **Intervalli**: `mode="range"`, due mesi, estremi in arancio e mezzo in grigio; ricomposti al clic (start 1 / middle 8 / end 1 dopo due clic nuovi).
+- **Densità**: cella **28 → 42px**, nome del giorno **12 → 13px**, numero **13 → 14px**. Il preset la densità la segue già da sé perché la cella è `--cell-size: --spacing(7)` invece che in pixel.
+
+### Un ri-stile solo, ed è la quarta volta dello stesso difetto
+
+`text-[0.8rem]` → `text-sm`, due volte (nomi dei giorni, numeri di settimana). Un valore arbitrario **non segue la densità**: prima della correzione il testo restava a 12.8px mentre la cella cresceva a 42. Quarta ripetizione dopo `button` (M2.1), `select` (M2.2) e `toggle`/`toggle-group` (M2.6). Gradino 2, solo stringhe di classi.
+
+### Aperta e chiusa **D15** — la tastiera del calendario non naviga, e la causa è in shadcn
+
+È il rilievo della sessione, e l'ha trovato **solo** la prova manuale della tastiera: axe dà zero violazioni su queste story con la navigazione completamente rotta.
+
+Misurato in Chromium sullo Storybook costruito, sul componente nudo senza composizioni:
+
+| | |
+|---|---|
+| giorni resi | **35** |
+| giorni raggiungibili col `Tab` | **1** |
+| tasti di navigazione che muovono il fuoco | **0 su 7** |
+
+Il percorso di tabulazione è `mese precedente → mese successivo → il giorno a fuoco → fuori`. Le frecce, `Home`, `End` non spostano niente; `PageDown` non viene nemmeno intercettato e scorre la pagina. **Da tastiera si può scegliere una data sola**, quella già selezionata.
+
+**La causa è una riga mancante nel sorgente shadcn**, identica nel nostro file e nell'originale in `registry/.upstream/calendar.tsx`: `CalendarDayButton` dichiara un `ref` e lo usa in un effetto — `React.useEffect(() => { if (modifiers.focused) ref.current?.focus() }, [modifiers.focused])` — ma **non lo attacca mai al `Button`**. `ref.current` resta `null` per sempre: `react-day-picker` sposta correttamente il proprio giorno «a fuoco» (il `tabindex` mobile si muove, verificato) e il fuoco del DOM non lo segue.
+
+Correzione provata e misurata: **un solo attributo, `ref={ref}`**, e tutti e sette i tasti tornano a muovere (`→` giovedì 10, `↓` mercoledì 16, `Home` lunedì 7, `End` domenica 13, `PageDown` 13 ottobre).
+
+**Portata a Francesco invece di applicarla**, perché la somiglianza con D14 è solo nella forma della decisione: D14 riguardava i lettori di schermo, che per strumenti interni non sono un requisito, mentre questa colpisce **chi usa la tastiera**, che lo è. Le quattro strade a verbale erano: divergere di un attributo, accettare come D14, segnalare a monte e aspettare, o rimediare in composizione con un `components={{ DayButton }}` per ogni app.
+
+**D15 chiusa in giornata: si accetta, non si diverge.** Stessa motivazione di D14 e stesso indirizzo — si spediscono i componenti shadcn standard, e le personalizzazioni le chiederanno le app, discusse e autorizzate prima. Il file spedito è il preset intatto. **In carico a M2.9**, con l'avvertenza che conta: **axe non vede questo difetto** — zero violazioni sulle story del calendario mentre la navigazione è completamente rotta — quindi è il residuo manuale del gate a doverlo tenere a registro, non la CI. Ed è l'ennesima volta che la prova manuale della tastiera trova ciò che lo strumento automatico non trova: in M2.5 era il primo `Esc` mangiato dal tooltip invisibile, in M2.2 la maniglia dello `slider` senza anello di fuoco.
+
+### Il rilievo che vale oltre il calendario: sui file `◌` il gate è cieco
+
+Provato: **col `ref={ref}` applicato, `npm run check:registry` resta verde.** Non è un guasto del gate, è la sua regola nota — l'originale shadcn del calendario è un template a segnaposto d'icona (`◌`), e su quei file il confronto di forma è **saltato per costruzione**. Conseguenza da conoscere, e che non era ancora scritta: **sui file `◌` una divergenza strutturale passa in silenzio**, e l'unico controllo resta la rilettura a mano alla prossima versione di shadcn. Oggi i file `◌` sono otto (`calendar`, `dropdown-menu`, `pagination`, `select`, `sheet`, `sidebar`, `sonner`, `spinner`).
+
+### Un difetto mio, trovato e chiuso: il picker a intervallo si chiudeva al primo clic
+
+La prima stesura chiudeva il riquadro dell'intervallo quando `onSelect` dava `from` **e** `to`. Sembra ovvio, ed è sbagliato: misurato che al **primo** clic `react-day-picker` chiama `onSelect` con `{ from: X, to: X }`, non con `to` vuoto. Il campo diceva `6 set 2026 — 6 set 2026` e il riquadro era già chiuso.
+
+Rimedio, che è di nuovo il non-fare: **il picker a intervallo non si chiude da sé**, come nell'esempio di shadcn. Si chiude con `Esc` o cliccando fuori, che è il comportamento del popover e non va insegnato. Confrontare i due estremi per decidere sarebbe stato scrivere una regola nostra sopra un componente standard, per giunta sbagliata al primo caso limite — un intervallo di un giorno solo è legittimo.
+
+### Un requisito d'uso nuovo: `aria-label` sul `PopoverContent`
+
+axe ha dato **4 violazioni `aria-dialog-name`, gravità *serious***, sui due date-picker a popup aperto (2 story × 2 modalità). Il riquadro è un `role="dialog"` e un dialogo senza nome è una violazione. Non è un difetto del `popover` — un popover che contiene un titolo il nome ce l'ha; questo no perché contiene solo la griglia. **Chiuse in composizione**, con l'attributo, senza toccare nessun componente.
+
+### Quello che è venuto fuori dalla segnalazione: **la data si scrive**
+
+La pagina che Francesco ha linkato porta sette varianti, e una non ce l'avevamo: **`Input`**, il date-picker con un campo in cui la data si **batte**, e il calendario relegato a seconda strada dietro un bottone-icona (`↓` nel campo lo apre).
+
+Aggiunta come story — composizione, gradino 1, nessun componente nuovo — perché per Anagrafe è probabilmente **la forma da usare di default**: chi carica schede a giornata la data la scrive, e aprire un riquadro per cliccare un numero è più lento di sei cifre. Ed è anche il **rimedio pratico a D15** senza divergere da niente: se la data si scrive, il calendario che non si naviga da tastiera smette di essere sulla strada.
+
+**Una differenza dall'esempio shadcn, ed è obbligata.** Loro fanno `new Date(e.target.value)` sulla stringa scritta. In italiano non si può: `new Date('03/09/2026')` la legge **all'americana**, mese prima del giorno, quindi il 3 settembre diventerebbe il 9 marzo — un errore che **non dà errore**, e che su una data di revisione non si scopre mai. Si usa `parse(valore, 'dd/MM/yyyy', ..., { locale: it })`, e il segnaposto dice `gg/mm/aaaa` così il formato atteso è scritto.
+
+Verificato in un browser vero: scritto `03/09/2026`, `↓` apre e il calendario mostra **giovedì 3 settembre 2026, selezionato** (non il 9 marzo); scritto `99/99/9999` il calendario non si muove; scelto col mouse, il campo si riempie `20/09/2026` e il riquadro si chiude.
+
+### Una domanda di Francesco a fine sessione: perché il riquadro si apre a destra
+
+Guardando la story del date-picker nel suo Storybook, il calendario si apriva **a destra del campo** invece che sotto. Misurato, ed è l'anti-collisione del `popover`, non un difetto:
+
+| viewport | lato | spazio sotto il campo |
+|---|---|---|
+| 1400×1000 | `bottom` | 485px |
+| 1440×640 | `bottom` | 305px |
+| **1440×560** | **`right`** | **265px** |
+
+Il riquadro è alto **257px**: sotto i ~270px di spazio libero Base UI non trova posto né sotto né sopra (nel caso misurato lo spazio sopra e sotto sono quasi identici) e ripiega sull'asse perpendicolare. Nel suo Storybook il pannello degli addon era aperto, quindi il canvas era basso. In una pagina vera, con un campo in cima a un form, si apre sotto.
+
+Non vincolato: è il comportamento di ogni popup del set. Volendo tenerlo sull'asse verticale c'è `collisionAvoidance` di Base UI, che sta in composizione e non nel componente — ma il prezzo è che quando davvero non ci sta il riquadro esce dallo schermo. Messo a verbale nella story, perché è il tipo di cosa che fra sei mesi si riapre come un bug.
+
+### Contrasto: 14 *incomplete*, tutte false, e un'eccezione da dire
+
+Misurate a mano sui colori risolti dal motore di resa (canvas 1×1, come impone la nota di M2.1 sugli `oklch`):
+
+| | chiaro | scuro |
+|---|---|---|
+| nome del giorno, giorno normale, fuori mese | 5.05 | 7.75 |
+| mese e anno | 17.03 | 15.72 |
+| giorno scelto, estremo dell'intervallo | 9.49 | 9.49 |
+| dentro l'intervallo | 15.35 | 12.91 |
+| scadenza marcata (`accent-ink`) | **4.77** | 9.49 |
+
+Minimo vero **4.77:1**.
+
+**L'eccezione: il giorno disabilitato.** Il preset lo fa con `opacity-50`, e l'opacità cambia il colore in composizione senza che nessun token la dichiari — **terza volta** che sfugge a `check:contrast` (M2.2 sul testo d'errore, M2.5 sull'etichetta della sidebar). Composto: **2.00:1 in chiaro, 2.84:1 in scuro**. Resta com'è, e non è una svista: la WCAG 1.4.3 esenta i controlli inattivi, e un giorno disabilitato che si legge come uno attivo sarebbe il difetto opposto. Scritto perché la prossima misura non lo riscopra come nuovo.
+
+### Un incidente di procedura, da non ripetere
+
+`npx shadcn add @shadcn/calendar --yes --overwrite` ha riscritto **anche `button.tsx`**, che è una `registryDependency` del calendario: cancellati i ri-stili di M2.1 — `destructive` tornato a 3.82:1, `link` tornato a `text-primary` (1.79:1), `sm` tornato a `text-[0.8rem]`. Accorto dal `git diff` subito dopo, ripristinato con `git checkout`.
+
+La regola che ne esce: **`--overwrite` non si usa su un `add` le cui `registryDependencies` includono componenti già ri-stilati.** La CLI riscrive le dipendenze senza chiedere e senza dirlo se non in una riga di riepilogo. L'unica difesa è guardare il `git diff` di *ogni* file toccato, non solo di quello che si voleva installare.
+
+### Verifiche
+
+`npm run check` verde su tutti e tre i gate (contrasto 0 sopra soglia; registry **0 errori / 50 avvisi / 13 ri-stilati**; font allineato); `npx shadcn registry validate` verde su **52 item**; `tsc -b`, `npm run build`, `npm run build-storybook` verdi; `oxlint` 3 avvisi, gli stessi ereditati. `npm run registry:build` rilanciato, `public/r/` aggiornato.
+
+**axe: 452 scansioni (207 story × 2 modalità, popup aperto *e* chiuso), 24 violazioni — le stesse 24 accettate di M2.6**, nessuna nuova. Il conto noto di progetto resta **36** (le 12 di M2.3 su `dropdown-menu` e `select` non sono rimisurate qui, per la stessa ragione scritta allora: l'imbracatura non apre quei due popup).
+
+### Prossimi passi
+
+**M2.8 — Dati**: `chart` con la palette categorica sui token Tassullo. Non è bloccato da D15.
+
+**In attesa di decisione di Francesco**: **D13** (l'item `tema-logo`). D15 è stata chiusa in giornata, e M2.7 è **DONE**.
+
+## 2026-09-09 — Nota: un componente di avanzamento per fasi, autorizzato in linea di principio
+
+Domanda di Francesco fuori sessione: esiste un componente che mostri lo stato di un flusso come **progressione** — bozza → in attesa di approvazione → in revisione → approvato → superato — con una linea orizzontale e dei pallini, uno dei quali segna la fase attuale.
+
+**Chiesto all'MCP prima di rispondere** (regola 4bis, gradino 1). **Non esiste**: 471 item nel registry `@shadcn`, nessuna corrispondenza per `stepper`, `steps`, `timeline`, `progress steps`. Quello che si avvicina non serve, e per ragioni di funzione, non di aspetto: `progress` è una barra continua senza tappe nominate; `breadcrumb` è un **percorso di navigazione che si clicca**, non uno stato che si legge (è la trappola del nome già a verbale nel CLAUDE.md); `tabs` cambia vista; `badge` dice bene la fase attuale ma non mostra quelle prima e dopo.
+
+Il gradino 3 — adattare il design system — è stato valutato e proposto: `badge` della fase attuale più un «3 di 5». Costa zero di manutenzione ma perde proprio ciò che è stato chiesto, cioè vedere la sequenza intera e la propria posizione dentro di essa. Su un flusso di approvazione quella è mezza informazione.
+
+**Decisione di Francesco: sarà un componente nostro, che si progetta se e quando serve.** È un'autorizzazione **in linea di principio**, non un ordine di scriverlo ora — nessun file toccato, `registry/componenti-propri.json` resta vuoto. La riga formale nel registro si scrive quando il componente si fa, non adesso: la tracciatura è la condizione perché esista, e un componente che non esiste non si traccia.
+
+Collocazione naturale quando toccherà: **M3.7**, accanto a `version-timeline`. La timeline verticale delle revisioni di un documento e la barra orizzontale dello stato sono lo stesso dominio — il flusso di approvazione di Anagrafe, quello attorno a cui ruota anche `diff-view` (M3.9) — e vanno progettate coerenti in una sessione sola. Il consumatore previsto è l'intestazione «stato e azioni» di `pagina-scheda` (M4.3).
+
+Forma abbozzata, da confermare quando si farà: sola lettura e **non cliccabile** (se si clicca è un'altra cosa e va chiamata in un altro modo), tre stati per pallino — fatta / attuale / futura — con l'arancio `--primary` **solo** sull'attuale, e degrado a incolonnato sotto i 375px.

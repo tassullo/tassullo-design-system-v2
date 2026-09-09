@@ -884,6 +884,27 @@
         "@tassullo/button",
         "@tassullo/input-group"
       ]
+    },
+    {
+      "name": "calendar",
+      "type": "registry:ui",
+      "title": "Calendar",
+      "description": "Calendario a data singola, multipla o a intervallo. In italiano con `locale={it}`, che porta con sé la settimana da lunedì. Il date-picker è una composizione con `popover`, non un componente a sé.",
+      "dependencies": [
+        "react-day-picker",
+        "date-fns",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/calendar.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button"
+      ]
     }
   ]
 }
