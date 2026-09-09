@@ -1822,3 +1822,132 @@ Resta un segnaposto e D13 resta aperta: serve l'asset di Roberto. Ma un segnapos
 L'unica modifica al file è il colore, `#FFF` → `currentColor`, perché la regola 3 non ammette hex nemmeno dentro un SVG. Non è formalismo: un bianco cotto nel tracciato sparirebbe su fondo chiaro, mentre `currentColor` fa seguire al marchio il testo che lo circonda.
 
 **D13 resta aperta, ed è giusto così.** Il tracciato oggi è incollato dentro `sidebar.stories.tsx`: va bene per la style guide, sarebbe la deriva se ogni app se lo ricopiasse — cioè esattamente ciò che la regola permanente esiste per impedire. Manca la parte che conta, la voce del registry, e ha un nodo che non decido da solo: la forma comoda è un componente (`<MarchioT className="size-6" />`), ma un componente **nostro**, senza originale shadcn, è gradino 4 e vuole una riga in `registry/componenti-propri.json` — file oggi vuoto, e `CLAUDE.md` chiama quella condizione «da difendere». Un marchio di brand non è una primitiva UI e non lo sarà mai in shadcn, quindi il caso è probabilmente legittimo; ma è precisamente il tipo di eccezione che la regola vuole che si chieda invece di prendersi.
+
+## 2026-09-09 — M2.6 Filtri e selezione: `toggle`, `toggle-group`, `combobox`
+
+Tre primitive, **51 item**, `registry validate` verde. Il piano ne prevedeva quattro; ne sono bastate tre, e la ragione è la parte migliore della sessione.
+
+### Il piano chiedeva quattro componenti, shadcn ne ha già tre
+
+`PIANO.md` elenca `toggle`, `toggle-group`, `combobox` e `multi-select`/`tag-input`, e per il combobox dice «shadcn lo compone da `command` + `popover`». **Non è più vero**, ed era la prima cosa da chiedere all'MCP invece di presumerla: `combobox` oggi è un item suo (`registry:ui`), costruito su `Combobox` di Base UI, con `Chips`, `Chip`, `ChipRemove` e `ChipsInput` nella stessa scatola. Cioè: **il multi-select e il tag-input sono lo stesso componente con `multiple`**, e la quarta voce del piano si chiude senza scrivere niente.
+
+Scala 4bis: **gradino 1 sul combobox** — il default shadcn così com'è, zero stringhe toccate — e **gradino 2 su toggle e toggle-group**. `registry/componenti-propri.json` resta vuoto, che è la condizione da difendere.
+
+### I due ri-stili, ed è la terza volta della stessa famiglia
+
+`toggle`, taglia `sm`: `rounded-[min(var(--radius-md),12px)] text-[0.8rem]` → `rounded-md text-sm`. `toggle-group`: `data-[size=sm]:rounded-[min(var(--radius-md),10px)]` → `rounded-md`. Identica alla correzione fatta al `button` in M2.1 e al `select` in M2.2, e per la stessa ragione: **un valore arbitrario non segue la densità**. Misurato dopo: i tre corpi del `toggle` fanno **12px in normale e 13px in touch** su tutte e tre le taglie, mentre prima `sm` restava inchiodato a 12.8px. Le altezze: **28 / 32 / 36 → 42 / 48 / 54**.
+
+Il gate passa da 11 a **13 componenti ri-stilati sopra una forma shadcn intatta**, e gli avvisi da 51 a **48**: i tre valori arbitrari tolti sono esattamente quelli.
+
+### Il criterio di accettazione, verificato in un browser vero
+
+Storybook costruito, servito in HTTP, Chromium di Playwright dalla cartella temporanea — **senza aggiungere Playwright al repo**, come in M2.3 e M2.5. Il pannello del browser resta inutilizzabile per i popup: `document.visibilityState` è ancora `hidden`, quindi `requestAnimationFrame` non scatta e Base UI non sposta il fuoco. Verificato di nuovo, non dato per buono.
+
+- **Combobox, 500 voci.** `Tab` porta sul campo; scritto `412`, restano **2 voci su 500**; con `autoHighlight` la prima è già evidenziata, `Invio` la sceglie (`EN 412-9 — Requisito 216` finisce nel campo) e il riquadro si chiude. `↓` riapre, `Esc` chiude senza cambiare e **il fuoco resta sul campo**. Scritto `zzzz`, compare il messaggio di elenco vuoto.
+- **Più scelte, `Backspace`.** Due pillole di partenza: `Backspace` a campo vuoto → **1**, ancora → **0**. Riaggiunta da tastiera scrivendo `deum` + `Invio` → **1**, etichetta `Intonaci deumidificanti`. Nessuna riga di codice nostro: è Base UI.
+- **`toggle-group` da tastiera.** `Tab` entra **una volta sola** e si ferma su `Pubblicati`; `→` porta su `Bozze`, `Spazio` lo accende (accesi: `Pubblicati`, `Bozze`), `Tab` **esce dal gruppo**. A scelta singola, commutando il secondo resta acceso solo quello.
+
+Il terzo criterio — «i filtri si distinguono a colpo d'occhio dai badge» — ha una story sua, `Filtri contro badge`, con gli stessi tre contenuti nelle due forme. Si distinguono: i filtri hanno bordo, raggio dei controlli e uno è acceso; i badge sono pieni, senza contorno, e stanno appoggiati al contenuto.
+
+### Densità
+
+| | normale | touch |
+|---|---|---|
+| voce di `toggle-group` | 32 | **48** |
+| `toggle` sm / default / lg | 28 / 32 / 36 | 42 / 48 / **54** |
+| campo del combobox | 32 | **48** |
+| contenitore delle pillole | 32 | **48** |
+| pillola | 21 | 32 |
+| **voce del riquadro combobox** | — | **31** |
+
+L'ultima riga è un rilievo nuovo, e va a M2.9: **31px è il bersaglio più piccolo di tutto il set in densità touch**, sotto i 36 della voce di menu già segnalata da M2.3 e ben sotto i 44 del criterio di M2.9. Stessa famiglia e stesso rimedio (`py-1` → `py-2`), stessa natura di scelta di sistema: alza tutti i menu anche da scrivania.
+
+### Il difetto del preset che si vede solo a popup chiuso
+
+`ComboboxInput` monta da sé, in coda al campo, il bottone a chevron che apre l'elenco. Quel bottone porta **solo l'icona e nessun `aria-label`**: axe lo segna `button-name`, gravità **critical**. Non è nostro — la pagina d'esempio di shadcn ha lo stesso difetto. Stessa cosa per la crocetta di ogni pillola (`ComboboxChipRemove`).
+
+Nel corso della sessione l'avevo chiuso in composizione, con un componente `Grilletto` nelle story: `showTrigger={false}` e il grilletto rimesso come figlio, dove l'`aria-label` arriva davvero sul bottone. **Disfatto a fine giornata su decisione di Francesco** — vedi la coda. Misurato prima di toglierlo, e vale la pena averlo a verbale: il bottone composto è **identico al pixel** a quello di serie (24×24, fondo trasparente, stessa icona), e l'unica differenza è l'attributo invisibile. Non era un cambio d'aspetto.
+
+**E qui la lezione di strumento, che resta anche senza il rimedio.** Alla prima scansione la violazione compariva su **una story sola**, quella disabilitata. Non perché le altre fossero sane: l'imbracatura, per misurare i popup, *apriva il combobox* — e a popup aperto Base UI rende il grilletto inerte, quindi axe lo salta. È il **rovescio esatto** dell'avvertenza di M2.3: lì un popup non aperto nascondeva le violazioni del popup, qui un popup aperto nasconde quelle del campo. La scansione di questa sessione misura perciò **tutti e due gli stati**, ed è così che dev'essere scritta in M2.9, o metà del set non viene guardato.
+
+### axe: 420 scansioni, 24 violazioni, 32 incomplete
+
+420 = 210 stati (197 story, 13 delle quali misurate anche a popup aperto) × 2 modalità. A pagina ferma, 250 ms dopo il cambio di modalità.
+
+- **16 `button-name`, gravità critical**: il chevron del campo e le crocette delle pillole, come sopra. **Accettate**, vedi coda e **D14**.
+- **8 `aria-hidden-focus`** su combobox aperto (`Predefinito`, `Cinquecento voci`, `Con gruppi`, `In un campo`, in entrambe le modalità): sono i **guardiani del fuoco di Base UI**, la stessa famiglia delle 12 di M2.3, generati dalla libreria e assenti da ogni stringa di classi. **Il conto in carico a M2.9 sale da 12 a 20** — e le 24 di questa scansione non sono il totale del progetto (**36 note**): l'imbracatura di M2.6 apre i popup del `combobox` ma non quelli di `dropdown-menu` e `select`, quindi le 12 di M2.3 sono *presunte ancora aperte* e non rimisurate qui. Il rilievo 5 della CHECKLIST vale anche per chi l'ha scritto.
+- **32 incomplete, tutte misurate a mano e tutte false.** 20 `color-contrast` col messaggio «overlapped by another element»: è il riquadro aperto che copre il testo di pagina dietro, e le voci del riquadro misurate a mano fanno **18.11:1**. 12 `aria-valid-attr-value`: axe dice di non poter verificare `aria-controls` in presenza di `aria-haspopup`; l'elemento riferito **esiste**, verificato con `getElementById`.
+
+Nessuna violazione sulle 179 story preesistenti: il conto di M2.5 tiene.
+
+### Il rilievo che non ho chiuso di iniziativa: **premuto e sorvolato sono lo stesso grigio**
+
+Il preset scrive `hover:bg-muted` e `aria-pressed:bg-muted` — la stessa classe per due stati diversi. Misurato al byte, sui colori risolti dal motore di resa (canvas 1×1, come impone la nota di M2.1 sugli `oklch`):
+
+| | fondo | bordo | testo |
+|---|---|---|---|
+| spento, sorvolato | 236,234,232 | 221,219,219 | 20,20,20 |
+| **acceso** | **236,234,232** | **221,219,219** | **20,20,20** |
+
+Identici. In scuro idem (38,38,38 in tutti e due). Lo stato acceso sta a **1.11:1 dalla pagina in chiaro e 1.22:1 in scuro**: passando il puntatore su una fila di filtri non si sa più quali erano accesi.
+
+Non l'ho corretto perché è una **scelta di sistema**, come le costanti della sidebar: tocca `toggle`, `toggle-group` e chiunque li componga. Il rimedio è nella story `Spento, sorvolato, acceso`, scritto solo con token del tema — `primary-subtle` / `primary-border` / `accent-ink`, che è il chip arancione del v1 — e misurato: testo **4.57:1 in chiaro, 7.56:1 in scuro** sul proprio fondo. Si distingue per **tinta**, non per luminanza (il fondo sta a 1.04:1 dalla pagina), ed è esattamente perché funziona. **Non adottato**: vedi la coda.
+
+### Aperta **D14** — la crocetta della pillola è un bottone senza nome
+
+Le 4 violazioni `button-name` di sopra. La riga che le chiude è una: `aria-label` su `ComboboxPrimitive.ChipRemove` dentro `combobox.tsx`. Ma è **fuori dai gradini 1–3** della regola 4bis — non è una stringa di classi, è la forma del file — quindi `check:registry` andrebbe in rosso e la divergenza va decisa, non presa.
+
+Le tre strade, e il costo di ciascuna:
+1. **Diverge di una riga.** Chiude un difetto *critical* per tutte le app. Prezzo: la prima divergenza strutturale del progetto, su un file che al prossimo aggiornamento di shadcn va riletto a mano.
+2. **Esporta `ComboboxChipRemove`** dal nostro file e lascia che ogni app componga la propria pillola. Sempre una divergenza di forma, e in più sposta dodici righe di boilerplate su ogni app: peggio.
+3. **Non fa niente** e la porta a M2.9 insieme ai guardiani del fuoco, esentando la regola in CI. Prezzo: ogni multi-select spedito ha un bottone senza nome.
+
+Non è la stessa cosa dei guardiani del fuoco, e la differenza conta: **quelli non si possono chiudere, questo sì**. Portata a Francesco, che ha scelto la strada 3. **D14 chiusa in giornata**, vedi la coda.
+
+### Verifiche
+
+`npm run check` verde (contrasto 0 sopra soglia, registry 0 errori / 48 avvisi / 13 ri-stilati, font allineato); `npx shadcn registry validate` verde su **51 item**; `tsc -b`, `npm run build`, `npm run build-storybook` verdi; `oxlint` 3 avvisi, gli stessi ereditati. `npm run registry:build` rilanciato, `public/r/` aggiornato con i tre item nuovi.
+
+### Prossimi passi
+
+**M2.7 — Date**: `calendar`, `date-picker`. È il punto in cui l'eccezione a Base UI (D9) è prevista, se il calendario risultasse debole su locale italiano e intervalli.
+
+Per **M2.9**, il fascicolo cresce: i guardiani del fuoco salgono a **20**; la voce del riquadro combobox a **31px in touch** è il bersaglio più piccolo del set; la scansione deve misurare **popup aperto e chiuso**, perché ciascuno dei due nasconde le violazioni dell'altro; e il grigio unico di sorvolato/acceso sui filtri.
+
+**In attesa di decisione di Francesco**: **D13** (l'item `tema-logo`). D14 è stata chiusa in giornata.
+
+### Coda della stessa giornata — tre decisioni di Francesco, e un indirizzo che vale oltre M2.6
+
+Tutte e tre vanno nella stessa direzione, e la direzione è più importante delle tre decisioni: **si usano i componenti shadcn standard, senza personalizzazioni.** Le personalizzazioni le chiederanno le app, e vanno **discusse e autorizzate prima**, perché deviano dal tema base e rischiano di corrompere gli aggiornamenti futuri. È la regola 4bis detta dalla parte di chi paga il conto.
+
+**1. Chiusa D14 — la crocetta della pillola resta senza nome.** Strada 3 delle tre a verbale: non si diverge, si accetta. La motivazione è secca e va scritta perché regge anche le prossime volte: **le app Tassullo sono strumenti interni e i lettori di schermo non sono un requisito.** Se un domani una di queste app diventasse rivolta al pubblico, si riapre — gli obblighi (Legge Stanca, European Accessibility Act) colpiscono i servizi al pubblico e le grandi aziende, non gli strumenti interni.
+
+Misurata prima di chiudere, perché la gravità nominale di axe non è la gravità vera: la crocetta ha **`tabindex="-1"`**, quindi il fuoco da tastiera **non ci passa mai** (percorso misurato: campo → fuori) e le pillole si tolgono con `Backspace`. Chi usa mouse o tastiera non incontra il difetto. Lo incontra solo chi esplora con un lettore di schermo.
+
+**2. Disfatto il `Grilletto`.** Era la composizione che dava il nome al chevron del combobox: coerente, ma **dodici righe che ogni app avrebbe copiato per un attributo invisibile**. Tolta, le story tornano alla forma shadcn nuda, che è anche la più corta. Prima di toglierla ho costruito una story temporanea di confronto (poi rimossa) e misurato: bottone di serie e bottone composto **identici — 24×24, fondo trasparente, stessa icona** — con la sola differenza dell'`aria-label`. Serviva a chiarire che «togliere il Grilletto» **non** vuol dire togliere la freccia: quello sarebbe `showTrigger={false}`, e non è mai stato in discussione. Il malinteso era mio, per aver usato un nome (il nome shadcn del componente) senza mai mostrare la cosa.
+
+Conseguenza sul conto axe: le violazioni salgono da 12 a **24** (16 `button-name` + 8 guardiani del fuoco). Sono accettate e scritte, non nascoste.
+
+**3. Lo stato «acceso» dei filtri resta il grigio del preset.** L'arancio del brand si tiene **ai bottoni d'azione e alle cose importanti**: se tinge anche ogni filtro acceso, su una pagina di lista diventa il colore di sfondo e smette di segnalare. Si riprende in **FASE 4**, sulle pagine modello, dove si vedrà quanti filtri accesi stanno davvero su una barra vera.
+
+Il confronto che ha portato alla decisione **resta a verbale** come story — `Primitive/ToggleGroup` → `Acceso: la scelta del grigio` — con tre barre da sette filtri: il preset, l'arancio pieno (`.chip.is-active` del v1) e l'arancio tenue (quello che il token `--color-accent-light` del v1 dichiara nel commento pur non essendo il colore spedito). Non è una proposta in attesa: è il verbale, perché fra sei mesi il difetto si «riscopre» e qualcuno lo richiude di testa sua senza sapere che era stato guardato.
+
+**Trovata un'incoerenza dentro il v1**, e va segnata: `components.css` fa `.chip.is-active { background: var(--color-accent) }` — arancio pieno — mentre `theme.css` commenta `--color-accent-light: #FCF0DB` con «chip attivi». Il v1 ha spedito il pieno e documentato il tenue. Quando in FASE 4 si riprende in mano la questione, si parte da lì.
+
+**Della barra 2 resta una cosa buona indipendente dal colore**: nel v1 il sorvolo muoveva **solo il bordo** e l'acceso riempiva il fondo — due stati su due proprietà diverse. È il motivo per cui nel v1 l'ambiguità non esisteva, ed è la parte riutilizzabile qualunque tinta si scelga.
+
+### Errore di strumento, di nuovo, e di nuovo nel pannello
+
+Guardando la story del confronto **nel pannello del browser dell'app** le pillole sembravano accendersi da sole: leggendo `aria-pressed` due volte di fila ottenevo insiemi diversi, coi fondi a metà transizione (`oklab(… / 0.82)`, `/ 0.18`). Riportato nello strumento pulito — Storybook costruito, Chromium headless — lo stato è **identico a 1,5 secondi di distanza, in entrambe le modalità**.
+
+Era il pannello, non il componente. È la terza volta che quel pannello mente su un componente sano (M2.2 e M2.3 sui popup, `DECISIONI.md` §22), e la regola operativa resta: **il pannello va bene per guardare, non per misurare.** Le immagini mandate a Francesco vengono tutte dallo strumento pulito.
+
+### I due soli ri-stili di M2.6, e perché restano
+
+L'indirizzo «solo componenti standard» arriva a fine giornata, quando `toggle.tsx` e `toggle-group.tsx` avevano già i due ri-stili di cui sopra (`text-[0.8rem]` → `text-sm`, `rounded-[min(…)]` → `rounded-md`). Li ho tenuti, e il motivo va scritto perché non sembri una svista:
+
+- non sono personalizzazioni di gusto ma la **terza ripetizione di una correzione già presa** in M2.1 sul `button` e in M2.2 sul `select`: un valore arbitrario **non segue la densità**, quindi in touch il componente cresce e il testo resta fermo. Toglierli rimetterebbe un difetto del tema, non una libertà a shadcn;
+- stanno al **gradino 2** della regola 4bis, l'unico che `CLAUDE.md` dichiara si faccia «senza chiedere niente a nessuno», e `check:registry` resta verde perché confronta la forma, non il contenuto delle stringhe;
+- il raggio è **identico al pixel** (il nostro `--radius-md` è 6px, sotto il tetto del `min()`): cambia solo che ora deriva dal tema.
+
+Se l'indirizzo dovesse valere anche su questi, si tolgono in dieci minuti — ma allora va tolto anche il `sm` del bottone di M2.1, o il set resta incoerente.
