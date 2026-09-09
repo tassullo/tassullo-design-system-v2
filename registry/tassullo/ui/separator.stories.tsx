@@ -29,6 +29,25 @@ export const Orizzontale: Story = {
   ),
 }
 
+/**
+ * **Il separatore verticale porta `data-vertical:self-stretch`, e in una riga
+ * più alta di lui questo lo incolla in cima.** `self-stretch` vince
+ * sull'`items-center` del contenitore: se poi gli si dà un'altezza — il caso
+ * tipico è `h-4` in una testata da 48px — il filo resta alto 16px ma
+ * appoggiato al bordo superiore, e si legge come una barretta grigia
+ * dimenticata lì. Misurato in una testata da 48: **1×16px a y=0**.
+ *
+ * Non è un difetto da ri-stilare: `self-stretch` è quello che si vuole nel
+ * caso normale, cioè un separatore che prende tutta l'altezza della riga. Chi
+ * lo vuole più corto deve restituire l'allineamento al contenitore, ed è la
+ * forma che shadcn stesso usa nei suoi blocchi:
+ * `className="data-vertical:h-4 data-vertical:self-auto"`. **Il `data-vertical:`
+ * non è pignoleria**: un `h-4` semplice perde contro `data-vertical:self-stretch`
+ * sull'allineamento, e cambia solo l'altezza.
+ *
+ * Qui sotto il caso normale — la riga è `h-6` e il separatore la riempie —
+ * quindi il difetto non si vede: si presenta appena la riga cresce.
+ */
 export const Verticale: Story = {
   render: () => (
     <div className="flex h-6 items-center gap-3 text-md">

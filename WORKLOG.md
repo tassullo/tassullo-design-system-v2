@@ -1772,3 +1772,19 @@ Nel fascicolo di **M3.1** (`tassullo-app-shell`): l'override delle due larghezze
 Per **M2.9**: il sottolivello a 42px in touch; la conferma che la scansione a popup chiusi vale zero sui popup; e la seconda prova che `check:contrast` non vede l'opacità.
 
 **In attesa di decisione di Francesco**: l'item `tema-logo` per il marchio Tassullo.
+
+### Coda della stessa giornata — quattro rilievi di Francesco sulle story della sidebar
+
+Tutti e quattro guardando la style guide, e tutti e quattro veri. Nessuno tocca i componenti: stanno nella composizione, che è esattamente il posto dove M3.1 li erediterà.
+
+1. **«Cosa è questa barra grigia rimasta?»** — il filo verticale nella testata di pagina. Misurato: **1×16px a y=0** in una testata da 48, cioè incollato al bordo superiore invece che centrato. La causa è che `Separator` porta `data-vertical:self-stretch`, che **vince sull'`items-center` del contenitore**: dandogli `h-4` si accorcia il filo ma non si sposta l'allineamento, e resta una barretta appoggiata in alto. Si rimette con `data-vertical:h-4 data-vertical:self-auto` — che è **la forma che shadcn stesso usa** nel blocco `sidebar-07`, e ora si capisce perché. Ora è a y=16, centrato. Documentato in `Primitive/Separator`, perché la trappola è del separatore e non della sidebar: nella story `Verticale` non si vedeva, perché lì la riga è `h-6` e il filo la riempie tutta — **il difetto compare solo quando la riga è più alta del filo**.
+
+2. **«Il logo è piccolo e non centrato con le icone sottostanti a sidebar chiusa.»** Misurato nel rail da 48: tutti i bottoni centrati a 24, ma il marchio dentro centrato a **18**, cioè **6px fuori asse**. La causa è che i bottoni `size="lg"` — testata e utente — portano `group-data-[collapsible=icon]:p-0!`, che annulla il `p-2!` della base: il contenuto resta appoggiato a sinistra. Aggiunto `group-data-[collapsible=icon]:justify-center` su entrambi, e il marchio da `size-5` a `size-6`. Ora centro **24.0**, come le icone delle voci. Vale per qualunque `size="lg"` nella sidebar, quindi va nel fascicolo di M3.1.
+
+3. **Raggruppamento per sezione** (indicazione di Francesco su `sidebar-07`, dove le sezioni sono *Platform* e *Projects*). La navigazione è ora scritta come **elenco di sezioni**, ciascuna con la sua `SidebarGroup` e `SidebarGroupLabel`, ciascuna con le sue voci: `Anagrafe` (Cruscotto, Prodotti, Documenti) e `Gestione` (Cantieri, Utenti). Due libertà che restano **all'app** e non al design system: se raggruppare (una sezione sola e il raggruppamento sparisce da sé) e quali voci hanno un sottomenu (basta passare `figli`, o non passarli — `Prodotti` e `Documenti` sì, `Cruscotto` no).
+
+   Verificato cosa succede nel rail, perché la prima stesura della nota era **troppo severa**: spariscono i *nomi* delle sezioni, non le sezioni. Il preset spegne le etichette (`-mt-8` e `opacity-0`) ma il `p-2` di ogni gruppo resta, quindi lo stacco fra i due gruppi si vede ancora. Corretto a verbale.
+
+4. **«Il breadcrumb sopra non dovrebbe essere Prodotti > Famiglie?»** — sì, e nella testata c'era uno `<span>` semplice invece del componente. Sostituito col `Breadcrumb` vero, `Prodotti › Famiglie`, che ora rispecchia la voce attiva nel menu. Occasione buona: le due primitive di questo task si vedono finalmente lavorare insieme. **Il percorso resta un dato**, calcolato dalla rotta nell'app; il design system dà la forma, e la testata come elemento a sé — titolo, breadcrumb, slot azioni — è `page-header` (M3.2).
+
+Rifatte tutte le verifiche dopo le quattro modifiche: `npm run check`, `tsc -b`, `oxlint` (3 avvisi, gli stessi ereditati), `build`, `build-storybook` verdi; **axe 358 scansioni, 0 violazioni**; `Esc` sul telefono chiude ancora al primo colpo.

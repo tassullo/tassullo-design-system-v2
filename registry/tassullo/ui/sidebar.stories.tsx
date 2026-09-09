@@ -15,6 +15,14 @@ import {
 
 import { Avatar, AvatarFallback } from '@/registry/tassullo/ui/avatar'
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/registry/tassullo/ui/breadcrumb'
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -107,6 +115,37 @@ import { TooltipProvider } from '@/registry/tassullo/ui/tooltip'
  * - **in fondo l'utente**, con avatar, indirizzo, ruolo e un menu per le
  *   opzioni — profilo, impostazioni, uscita. Stessa forma: collassato resta il
  *   solo avatar, e il menu si apre di lato invece che sopra.
+ *
+ * **Nel rail il marchio va centrato a mano, e non è ovvio perché.** I bottoni
+ * `size="lg"` — testata e utente — portano `group-data-[collapsible=icon]:p-0!`,
+ * che annulla il `p-2!` della base: il contenuto resta appoggiato a sinistra
+ * invece di stare al centro. Misurato: bottone da 32px centrato a 24 nel rail,
+ * ma il marchio dentro centrato a **18**, cioè **6px fuori asse** rispetto alle
+ * icone delle voci. Si rimette con `group-data-[collapsible=icon]:justify-center`
+ * sul bottone — segnalato da Francesco guardando la story, e vale per
+ * qualunque `size="lg"` nella sidebar.
+ *
+ * ## Le sezioni sono facoltative, e i sottomenu si decidono voce per voce
+ *
+ * `sidebar-07` raggruppa le voci in sezioni — da loro *Platform* e *Projects* —
+ * e la navigazione qui è scritta allo stesso modo: un elenco di **sezioni**,
+ * ciascuna con la sua `SidebarGroup` e la sua `SidebarGroupLabel`, ciascuna
+ * con le sue **voci**. Sono due libertà che restano **all'app**, non al design
+ * system:
+ *
+ * - **se raggruppare**: una sezione sola e il raggruppamento sparisce da sé,
+ *   senza cambiare un componente;
+ * - **quali voci hanno un sottomenu**: basta passare `figli`, o non passarli.
+ *   Qui `Prodotti` e `Documenti` ce l'hanno, `Cruscotto` no.
+ *
+ * Una conseguenza da conoscere: **nel rail spariscono i nomi delle sezioni,
+ * non le sezioni.** Il preset spegne le etichette di gruppo quando la sidebar
+ * è collassata (`group-data-[collapsible=icon]:-mt-8` e `opacity-0`), ma il
+ * `p-2` di ogni `SidebarGroup` resta, quindi fra un gruppo e l'altro rimane
+ * uno stacco visibile: si vede *che* ci sono due sezioni, non *come si
+ * chiamano*. Se anche il nome deve arrivare a rail chiuso, l'unica strada è
+ * il tooltip sulle voci — e per quello serve il `TooltipProvider` di cui
+ * sopra.
  *
  * **Il marchio qui è disegnato in `currentColor`, e non è l'asset
  * definitivo.** Il logo Tassullo è un file del brand, non una classe:
@@ -222,18 +261,36 @@ function MarchioT({ className }: { className?: string }) {
   )
 }
 
-const navigazione = [
-  { titolo: 'Cruscotto', icona: LayoutDashboardIcon },
+/**
+ * La navigazione come dato: **sezioni** che raggruppano **voci**, e ogni voce
+ * può avere `figli` oppure no. È la forma di `sidebar-07`, dove le sezioni si
+ * chiamano *Platform* e *Projects*.
+ *
+ * Due libertà, e sono dell'app che consuma, non del design system: **se
+ * raggruppare** (una sezione sola, e il raggruppamento sparisce) e **quali
+ * voci hanno un sottomenu** (basta non passare `figli`).
+ */
+const sezioni = [
   {
-    titolo: 'Prodotti',
-    icona: BoxesIcon,
-    badge: '128',
-    attiva: true,
-    figli: ['Famiglie', 'Sistemi', 'Norme'],
+    titolo: 'Anagrafe',
+    voci: [
+      { titolo: 'Cruscotto', icona: LayoutDashboardIcon },
+      {
+        titolo: 'Prodotti',
+        icona: BoxesIcon,
+        attiva: true,
+        figli: ['Famiglie', 'Sistemi', 'Norme'],
+      },
+      { titolo: 'Documenti', icona: FileTextIcon, figli: ['Schede tecniche', 'Certificati'] },
+    ],
   },
-  { titolo: 'Documenti', icona: FileTextIcon, figli: ['Schede tecniche', 'Certificati'] },
-  { titolo: 'Cantieri', icona: HardHatIcon, badge: '7' },
-  { titolo: 'Utenti', icona: UsersIcon },
+  {
+    titolo: 'Gestione',
+    voci: [
+      { titolo: 'Cantieri', icona: HardHatIcon, badge: '7' },
+      { titolo: 'Utenti', icona: UsersIcon },
+    ],
+  },
 ]
 
 /** La testata: marchio più nome dell'applicativo. Collassata resta la T. */
@@ -242,8 +299,13 @@ function Testata() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton size="lg" tooltip={isMobile ? undefined : 'Anagrafe'} aria-label="Anagrafe">
-          <MarchioT className="size-5! shrink-0 text-sidebar-accent-foreground" />
+        <SidebarMenuButton
+          size="lg"
+          tooltip={isMobile ? undefined : 'Anagrafe'}
+          aria-label="Anagrafe"
+          className="group-data-[collapsible=icon]:justify-center"
+        >
+          <MarchioT className="size-6! shrink-0 text-sidebar-accent-foreground" />
           <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate font-semibold text-sidebar-accent-foreground">Anagrafe</span>
           </div>
@@ -264,7 +326,7 @@ function Utente() {
               <SidebarMenuButton
                 size="lg"
                 aria-label="fsartori@covicostruzioni.it — opzioni dell'utente"
-                className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
+                className="group-data-[collapsible=icon]:justify-center data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
               />
             }
           >
@@ -313,34 +375,44 @@ function Utente() {
 }
 
 /**
- * Le voci. Quelle con figli sono un `Collapsible` che *rende* il
- * `SidebarMenuItem`: è la forma di `sidebar-07`, e il vantaggio è che il
+ * Le voci di una sezione. Quelle con figli sono un `Collapsible` che *rende*
+ * il `SidebarMenuItem`: è la forma di `sidebar-07`, e il vantaggio è che il
  * sottolivello sparisce da sé quando la sidebar è collassata a icone — un
  * albero di navigazione dentro un rail da 48px non si legge.
+ *
+ * Il sottomenu è **per voce**, non per sezione: `Prodotti` e `Documenti` ce
+ * l'hanno, `Cruscotto` no, e non serve dichiararlo da nessuna parte — basta
+ * non passare `figli`.
  */
-function Voci() {
+function Voci({ voci }: { voci: (typeof sezioni)[number]['voci'] }) {
   const { isMobile } = useSidebar()
   const suggerimento = (titolo: string) => (isMobile ? undefined : titolo)
   return (
     <SidebarMenu>
-      {navigazione.map(({ titolo, icona: Icona, badge, attiva, figli }) =>
-        figli ? (
+      {voci.map((voce) => {
+        const Icona = voce.icona
+        return 'figli' in voce && voce.figli ? (
           <Collapsible
-            key={titolo}
-            defaultOpen={attiva}
+            key={voce.titolo}
+            defaultOpen={'attiva' in voce && voce.attiva}
             className="group/collapsible"
             render={<SidebarMenuItem />}
           >
             <CollapsibleTrigger
-              render={<SidebarMenuButton isActive={attiva} tooltip={suggerimento(titolo)} />}
+              render={
+                <SidebarMenuButton
+                  isActive={'attiva' in voce && voce.attiva}
+                  tooltip={suggerimento(voce.titolo)}
+                />
+              }
             >
               <Icona />
-              <span>{titolo}</span>
+              <span>{voce.titolo}</span>
               <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarMenuSub>
-                {figli.map((figlio) => (
+                {voce.figli.map((figlio) => (
                   <SidebarMenuSubItem key={figlio}>
                     <SidebarMenuSubButton href="#" isActive={figlio === 'Famiglie'}>
                       <span>{figlio}</span>
@@ -351,26 +423,63 @@ function Voci() {
             </CollapsibleContent>
           </Collapsible>
         ) : (
-          <SidebarMenuItem key={titolo}>
-            <SidebarMenuButton tooltip={suggerimento(titolo)}>
+          <SidebarMenuItem key={voce.titolo}>
+            <SidebarMenuButton tooltip={suggerimento(voce.titolo)}>
               <Icona />
-              <span>{titolo}</span>
+              <span>{voce.titolo}</span>
             </SidebarMenuButton>
-            {badge ? <SidebarMenuBadge>{badge}</SidebarMenuBadge> : null}
+            {'badge' in voce && voce.badge ? (
+              <SidebarMenuBadge>{voce.badge}</SidebarMenuBadge>
+            ) : null}
           </SidebarMenuItem>
         )
-      )}
+      })}
     </SidebarMenu>
   )
 }
 
+/** Le sezioni, una `SidebarGroup` ciascuna con la sua etichetta. */
+function Navigazione() {
+  return (
+    <>
+      {sezioni.map((sezione) => (
+        <SidebarGroup key={sezione.titolo}>
+          <SidebarGroupLabel>{sezione.titolo}</SidebarGroupLabel>
+          <Voci voci={sezione.voci} />
+        </SidebarGroup>
+      ))}
+    </>
+  )
+}
+
+/**
+ * La pagina accanto alla sidebar. La testata è quella di `sidebar-07`:
+ * grilletto, filo verticale, **breadcrumb** — e il percorso rispecchia la voce
+ * attiva nel menu, `Prodotti › Famiglie`.
+ *
+ * **Il percorso è dato, non stato del design system.** Qui è scritto a mano
+ * perché una story non naviga da nessuna parte; in un'app lo si calcola dalla
+ * rotta corrente, e il design system dà solo la forma. La testata come
+ * elemento a sé — titolo, breadcrumb e slot per le azioni, una sola per tutte
+ * le pagine di tutte le app — è `page-header`, M3.2.
+ */
 function Pagina({ children }: { children: ReactNode }) {
   return (
     <SidebarInset>
       <header className="flex h-12 items-center gap-2 border-b px-4">
         <SidebarTrigger />
-        <Separator orientation="vertical" className="h-4" />
-        <span className="text-sm font-medium">Prodotti</span>
+        <Separator orientation="vertical" className="data-vertical:h-4 data-vertical:self-auto" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="#">Prodotti</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Famiglie</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </header>
       <div className="p-4 text-sm text-muted-foreground">{children}</div>
     </SidebarInset>
@@ -396,10 +505,7 @@ function Guscio({
             <Testata />
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Anagrafe</SidebarGroupLabel>
-              {contenuto ?? <Voci />}
-            </SidebarGroup>
+            {contenuto ?? <Navigazione />}
           </SidebarContent>
           <SidebarFooter>
             <Utente />
@@ -448,13 +554,16 @@ export const InCaricamento: Story = {
   render: () => (
     <Guscio
       contenuto={
-        <SidebarMenu>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <SidebarMenuItem key={i}>
-              <SidebarMenuSkeleton showIcon />
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        <SidebarGroup>
+          <SidebarGroupLabel>Anagrafe</SidebarGroupLabel>
+          <SidebarMenu>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <SidebarMenuItem key={i}>
+                <SidebarMenuSkeleton showIcon />
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
       }
     >
       Le righe hanno larghezze diverse apposta.
