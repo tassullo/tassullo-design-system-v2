@@ -1443,3 +1443,16 @@ E una svista mia, non di strumento: `npx prettier` lanciato su due story le ha r
 **M2.4 — Contenuto**: `card`, `tabs`, `table`, `alert`, `empty`, `accordion`, `collapsible`, `scroll-area`, `resizable`, `progress`, `aspect-ratio`, `carousel`. Due cose arrivano da qui: **`alert` avrà quasi certamente lo stesso `text-destructive` come testo** — è la quinta volta che il preset lo ripete — e **`scroll-area` è la risposta pronta** al `scrollable-region-focusable` misurato oggi sullo `sheet`.
 
 Aperta e non mia: **`next-themes` va tolto da `sonner`?** In carico a Francesco.
+
+### Coda della stessa giornata — D12 chiusa, e un'ipotesi provata e scartata
+
+**Il `modal` dei menu non c'entra con le 8 violazioni.** `Menu.Root` di Base UI ha una prop `modal` (default `true`), ed era l'unica leva plausibile per far sparire `aria-hidden-focus` senza toccare il file. Provata su una story usa-e-getta: **6 violazioni con `modal: true`, 6 con `modal: false`**, e i guardiani del fuoco non prendono `data-base-ui-inert` in nessuno dei due casi. Il rilievo resta in carico a M2.9 — che però ora sa di non dover ritentare questa strada.
+
+**D12 chiusa: `next-themes` si lascia.** Chiusa con due misure, non con un'opinione.
+
+1. **Dopo la correzione del contrasto, il suo contributo è zero.** Confrontato il toast reso **con e senza** tema forzato, in chiaro e in scuro, su `backgroundColor`, `color`, `borderColor`, `borderRadius`, `boxShadow` del toast, colore di titolo, descrizione e icona, e sugli stessi valori del bottone d'azione e di quello di chiusura: **0 differenze**, in entrambe le modalità. Il preset mappa già `--normal-bg/text/border` e `--border-radius` sui nostri token, la descrizione ora è fissata dalla nostra classe, e shadcn **non accende `richColors`** — quindi la palette semantica interna di `sonner` non viene mai usata.
+2. **Il costo è 3,4 KB nel bundle** (il modulo non minificato) e 44 KB in `node_modules`, su un bundle che oggi è 232 KB. **Nulla sul server**: è una dipendenza di *compilazione*, finisce nel JavaScript costruito. Sulle app ospitate su Azure non cambia niente — nessun pacchetto da installare là, nessuna configurazione.
+
+Si lascia perché il guadagno sarebbe 3 KB e il prezzo la **prima divergenza strutturale del progetto**, su un file che `check:registry` per giunta **non confronta** (segnaposto d'icona, `◌`): il gate non ci proteggerebbe dal dimenticarcene al prossimo aggiornamento di shadcn.
+
+**E c'è già una via d'uscita per chi ne avesse bisogno**, senza toccare niente: in `sonner.tsx` lo `{...props}` è l'**ultima** prop, quindi un `<Toaster theme="dark" />` passato dall'app vince su `next-themes`. Verificato: `data-sonner-theme` passa da `light` a `dark`.

@@ -15,21 +15,39 @@ import { Toaster } from '@/registry/tassullo/ui/sonner'
  * per cui la superficie della style guide sta nel CSS e non nell'addon
  * `backgrounds` (M0.3).
  *
- * **Un rilievo aperto, e non è mio da chiudere.** Il componente importa
- * `useTheme` da **`next-themes`**, che è la libreria di temi di Next.js. Noi
- * non la usiamo: la nostra modalità è una classe sulla radice
- * (`.light`/`.dark`), messa dall'app — o, qui, dall'interruttore della style
- * guide. Senza il suo provider `useTheme()` non rompe niente e ricade su
- * `"system"`, cioè sul tema del **sistema operativo**: se il computer è in
- * chiaro e l'app in scuro, il toast prende il chiaro. I colori restano
- * giusti, perché arrivano dai `var()` qui sopra; è la palette interna di
- * `sonner` a divergere.
+ * **La stranezza di questo file, e come è finita.** Il componente importa
+ * `useTheme` da **`next-themes`**, la libreria di temi di Next.js. Noi non la
+ * usiamo: la nostra modalità è una classe sulla radice (`.light`/`.dark`),
+ * messa dall'app — o, qui, dall'interruttore della style guide. Senza il suo
+ * provider `useTheme()` non rompe niente e ricade su `"system"`, cioè sul
+ * tema del **sistema operativo**, e `data-sonner-theme` non viene scritto
+ * affatto. Fondo, bordo e titolo del toast restano giusti — arrivano dai
+ * `var()` qui sopra; a divergere è la palette interna di `sonner`.
  *
- * Toglierlo sarebbe una modifica **strutturale** — una chiamata e una prop in
- * meno — cioè fuori dal gradino 2 della regola 4bis, che ammette solo le
- * stringhe di classi. Quindi non si tocca di iniziativa: la misura è scritta
- * in `WORKLOG.md`, la decisione è di Francesco. Nel frattempo `next-themes`
- * resta dichiarato fra le dipendenze dell'item, o l'app consumer non compila.
+ * **Il sintomo era grave e ora è chiuso**: la descrizione del toast ha il
+ * colore `#3f3f3f` cablato dentro il CSS di `sonner`, sollevato solo da
+ * `[data-sonner-theme='dark']` — che senza `next-themes` non viene mai
+ * scritto. Su fondo scuro faceva **1.62:1**. Fissata sul token con una
+ * stringa di classi, `**:data-[description]:text-muted-foreground!`: ora
+ * **7.17:1** in scuro e 5.37 in chiaro. L'importante serve perché il CSS di
+ * `sonner` non sta in un layer e batterebbe l'utility a prescindere dalla
+ * specificità.
+ *
+ * **E `next-themes` si lascia dov'è** (D12, chiusa il 2026-09-09). Dopo quella
+ * correzione il toast reso **con e senza** il tema forzato è **identico**:
+ * zero differenze su fondo, testo, bordo, raggio, ombra, titolo, descrizione,
+ * icona, bottone d'azione e bottone di chiusura, in **entrambe** le modalità.
+ * Il preset mappa già `--normal-*` sui nostri token e non accende
+ * `richColors`, quindi la palette interna di `sonner` non viene mai usata.
+ * Costa **3,4 KB** nel bundle, e nulla sul server: è una dipendenza di
+ * compilazione. Si tiene perché toglierlo sarebbe la **prima divergenza
+ * strutturale** del progetto — e su un file che `check:registry` non
+ * confronta, essendo a segnaposto d'icona: il gate non ci proteggerebbe.
+ *
+ * **Se un'app volesse comunque forzare il tema del toast**, non serve toccare
+ * niente: `{...props}` è l'ultima prop, quindi `<Toaster theme="dark" />`
+ * vince su `next-themes`. Verificato — `data-sonner-theme` passa da `light` a
+ * `dark`.
  *
  * **`<Toaster />` va una volta sola**, in cima all'app. Queste story ce
  * l'hanno dentro perché ognuna è un'app a sé.
