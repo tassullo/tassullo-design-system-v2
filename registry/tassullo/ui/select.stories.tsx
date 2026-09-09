@@ -211,3 +211,84 @@ export const Stati: Story = {
   ),
 }
 
+/**
+ * **`alignItemWithTrigger`**, l'unica prop di posizionamento che cambia il
+ * *carattere* del controllo. Sta su `SelectContent`, vale `true` per
+ * impostazione predefinita, e le due rese sono queste — qui affiancate,
+ * entrambe con la terza voce già scelta perché la differenza si veda.
+ *
+ * - **`true` (predefinito)** — il popup si posiziona in modo che **la voce
+ *   scelta cada sopra il grilletto**: il menu si apre *attorno* al valore
+ *   corrente, che può quindi debordare sopra il campo. È il comportamento del
+ *   `<select>` nativo di macOS, e il motivo per cui il preset spegne
+ *   l'animazione in questo caso (`data-[align-trigger=true]:animate-none`):
+ *   una tendina che si apre già a cavallo del campo, se anche scivolasse,
+ *   sembrerebbe saltare.
+ * - **`false`** — il popup si aggancia al **bordo** del grilletto e scende
+ *   sotto, come un menu a tendina qualsiasi. Qui l'animazione c'è.
+ *
+ * **Misurato** su questa story, grilletto alto 32px con bordo superiore a
+ * y=344 e la terza voce su cinque già scelta:
+ *
+ * | | bordo alto del popup | voce scelta |
+ * |---|---|---|
+ * | `true` | **51px sopra** il grilletto | y=347, cioè **sul grilletto** (scarto 3px) |
+ * | `false` | 36px **sotto** — i 4px di `sideOffset` dal bordo basso | y=434, 90px più giù |
+ *
+ * **Quando mettere `false`.** Quando il campo sta in fondo alla pagina o
+ * dentro un contenitore che scorre: con `true` il popup si sposta in su per
+ * inseguire la voce scelta, e in una lista lunga può coprire il campo e
+ * quello che gli sta sopra. Con `false` la posizione è prevedibile. Nelle
+ * schede di Anagrafe, dove i `select` stanno dentro form lunghi, è la
+ * variante da valutare — la decisione vera arriva col `combobox` di M2.6,
+ * che è ciò che sostituirà queste liste quando si allungano.
+ */
+export const AllineatoAlGrilletto: Story = {
+  render: () => {
+    const voci = {
+      a: 'Prima voce',
+      b: 'Seconda voce',
+      c: 'Terza voce',
+      d: 'Quarta voce',
+      e: 'Quinta voce',
+    }
+    return (
+      <div className="flex gap-8">
+        <div className="flex w-64 flex-col gap-2">
+          <Label htmlFor="se-align-si">true — sopra il grilletto</Label>
+          <Select defaultValue="c" items={voci}>
+            <SelectTrigger id="se-align-si" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {Object.entries(voci).map(([v, t]) => (
+                  <SelectItem key={v} value={v}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex w-64 flex-col gap-2">
+          <Label htmlFor="se-align-no">false — sotto il bordo</Label>
+          <Select defaultValue="c" items={voci}>
+            <SelectTrigger id="se-align-no" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent alignItemWithTrigger={false}>
+              <SelectGroup>
+                {Object.entries(voci).map(([v, t]) => (
+                  <SelectItem key={v} value={v}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    )
+  },
+}

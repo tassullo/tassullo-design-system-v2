@@ -1486,3 +1486,22 @@ Trovata verificando l'osservazione di Francesco sul `select`. **L'imbracatura di
 Stessa famiglia, stessa causa, stesso verdetto: sono i guardiani del fuoco di Base UI, non toccabili ri-stilando, in carico a M2.9. Cambia il numero, non la sostanza — ma il numero era scritto in tre posti e andava corretto.
 
 **La lezione operativa vale più del numero, ed è per M2.9**: avevo scritto che «il registro cambia quando la misura sa aprire i popup». È successo di nuovo, **dentro la stessa sessione**, per una riga mancante nella mia mappa. Chi accende axe in CI deve verificare *quali* popup la scansione apre davvero: **un popup non aperto non è un popup senza violazioni**, è un popup non misurato.
+
+### Coda — `alignItemWithTrigger`: c'era, mancava la story
+
+Domanda di Francesco: «`alignItemWithTrigger` non la vedo attivabile, c'è nel componente importato?» **Sì, e identica all'originale** — tipizzata su `SelectContent` fra le prop del `Positioner`, default `true`, riflessa anche in `data-align-trigger` (che è ciò che spegne l'animazione quando è attiva). Si usa `<SelectContent alignItemWithTrigger={false}>`.
+
+Quello che mancava era il modo di **provarla**: le nostre story usano `render` senza `args`, quindi Storybook dice «This story has no controls». Aggiunta la story `Select/AllineatoAlGrilletto`, che mostra le due rese affiancate con la terza voce su cinque già scelta — la stessa forma con cui `Tema/Densità` mostra le due densità.
+
+Misurato, grilletto alto 32px col bordo superiore a y=344:
+
+| | bordo alto del popup | voce scelta |
+|---|---|---|
+| `true` (predefinito) | **51px sopra** il grilletto | y=347, cioè **sul grilletto** (scarto 3px) |
+| `false` | 36px **sotto** — i 4px di `sideOffset` dal bordo basso | y=434, 90px più giù |
+
+Con `true` il popup si apre *attorno* al valore corrente e può debordare sopra il campo — è il `<select>` nativo di macOS, e spiega perché il preset spegne l'animazione in quel caso. Con `false` si aggancia al bordo e scende, come una tendina qualsiasi, con l'animazione.
+
+**Quando servirà `false`**: campi in fondo alla pagina o dentro contenitori che scorrono, dove con `true` il popup insegue la voce scelta e può coprire il campo e ciò che gli sta sopra. Nelle schede di Anagrafe i `select` stanno in form lunghi, quindi è la variante da valutare — ma la decisione vera arriva con **M2.6**, dove il `combobox` sostituisce queste liste quando si allungano.
+
+axe sulla story nuova: **0 violazioni** nelle due modalità e in entrambe le varianti. Giro completo rifatto: **248 scansioni (124 story × 2 modalità), 12 violazioni**, invariate.
