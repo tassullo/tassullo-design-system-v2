@@ -1788,3 +1788,15 @@ Tutti e quattro guardando la style guide, e tutti e quattro veri. Nessuno tocca 
 4. **«Il breadcrumb sopra non dovrebbe essere Prodotti > Famiglie?»** — sì, e nella testata c'era uno `<span>` semplice invece del componente. Sostituito col `Breadcrumb` vero, `Prodotti › Famiglie`, che ora rispecchia la voce attiva nel menu. Occasione buona: le due primitive di questo task si vedono finalmente lavorare insieme. **Il percorso resta un dato**, calcolato dalla rotta nell'app; il design system dà la forma, e la testata come elemento a sé — titolo, breadcrumb, slot azioni — è `page-header` (M3.2).
 
 Rifatte tutte le verifiche dopo le quattro modifiche: `npm run check`, `tsc -b`, `oxlint` (3 avvisi, gli stessi ereditati), `build`, `build-storybook` verdi; **axe 358 scansioni, 0 violazioni**; `Esc` sul telefono chiude ancora al primo colpo.
+
+### Aperta **D13** — il marchio Tassullo come item del registry
+
+Deciso il **2026-09-09**, in coda a M2.5. La sidebar vuole il marchio in testata, e nel rail la sola **T**: l'ho composta, ma quello che c'è nelle story è un **segnaposto disegnato in `currentColor`**, non l'asset.
+
+Non è pigrizia, è la regola permanente applicata a una classe di artefatti nuova. Il logo è un file del brand, non una stringa di classi: se ogni app se lo porta dietro per conto suo, la deriva comincia esattamente lì. Distribuirlo vuol dire farne una **voce del registry** — `tema-logo`, accanto a `tema` e `tema-font` — e quella si decide, non si improvvisa dentro una story.
+
+Perché il segnaposto e non il file vero: il wordmark del sito è un `<path>` unico con `fill="#141414"` — che è **esattamente** il nostro token `--sidebar`, conferma indipendente che la palette è tarata bene — e la **T da sola non se ne estrae**, perché i sottotracciati sono relativi e ritagliarli vorrebbe dire riscrivere a mano i dati vettoriali.
+
+**Francesco fa mandare a Roberto la T bianca su fondo trasparente.** Scadenza: **entro la fine della FASE 2**, cioè non oltre M2.9. Da chiudere insieme all'asset: in che formato viaggia nel registry (l'esperienza di `tema-font` dice che `shadcn build` legge i file come testo, quindi un binario va in data URI o non ci va), e se serve anche il marchio esteso accanto alla sola T.
+
+Fino ad allora il segnaposto resta, ed è marcato come tale nella story: rispetta la regola 3 (niente hex nei `fill`, tutto `currentColor`) e **va sostituito, non dimenticato**.

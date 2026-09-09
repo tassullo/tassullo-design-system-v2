@@ -147,12 +147,14 @@ import { TooltipProvider } from '@/registry/tassullo/ui/tooltip'
  * il tooltip sulle voci — e per quello serve il `TooltipProvider` di cui
  * sopra.
  *
- * **Il marchio qui è disegnato in `currentColor`, e non è l'asset
- * definitivo.** Il logo Tassullo è un file del brand, non una classe:
+ * **Il marchio qui è un segnaposto disegnato in `currentColor`, e va
+ * sostituito.** Il logo Tassullo è un file del brand, non una classe:
  * distribuirlo è una voce del registry — `tema-logo`, accanto a `tema` e
- * `tema-font` — e va decisa, non improvvisata dentro una story. La geometria
- * (barra, asta, traversa) è quella del marchio in uso; il file vero lo
- * sostituisce senza toccare la composizione.
+ * `tema-font` — e non si improvvisa dentro una story. È la **decisione D13**,
+ * da chiudere **entro la fine della FASE 2**: l'asset (la T bianca su fondo
+ * trasparente) arriva da Roberto. La geometria del segnaposto — barra, asta,
+ * traversa — è quella del marchio in uso, e il file vero lo sostituisce senza
+ * toccare la composizione.
  *
  * ## Un requisito d'uso che costa le etichette: serve un `TooltipProvider`
  *
