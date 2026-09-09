@@ -1315,3 +1315,131 @@ La lezione operativa, che il CLAUDE.md già dice a metà: **prima di scrivere ch
 ### Prossimi passi
 
 **M2.3 — Overlay**: `dialog`, `alert-dialog`, `drawer`, `sheet`, `dropdown-menu`, `context-menu`, `popover`, `hover-card`, `tooltip`, `sonner`, `command`. Accettazione: focus trap e chiusura con Esc verificati. **Ci arriva in eredità il `select` aperto**, che è la stessa macchina di popup e positioner, e va provato in un browser vero — non nel pannello.
+
+---
+
+## 2026-09-09 — M2.3 Overlay: undici primitive, un componente che si schianta, e il pannello che mentiva
+
+Le undici primitive del modulo — `dialog`, `alert-dialog`, `drawer`, `sheet`, `dropdown-menu`, `context-menu`, `popover`, `hover-card`, `tooltip`, `sonner`, `command` — installate, ri-stilate, dichiarate nel registry (**32 item**, `registry validate` verde) e provate **in un browser vero**, che è la novità di questa sessione.
+
+### Il rilievo lasciato aperto da M2.2 si chiude, e la causa non era il `select`
+
+M2.2 aveva scritto: «il `select` aperto non è verificabile nel pannello del browser». La causa è stata isolata qui ed è una riga sola:
+
+```
+document.visibilityState === 'hidden'   →   requestAnimationFrame NON scatta
+```
+
+Il pannello tiene la pagina **nascosta** anche mentre la si guida; Base UI schedula in `rAF` lo spostamento del fuoco dentro il popup; con `rAF` fermo il fuoco resta sul grilletto. Non è lentezza: non scatta mai, misurato con un timeout di 800ms. Ci si somma un secondo strumento rotto — **i tasti non arrivano alla pagina finché non ci si è cliccato dentro davvero**: prima di un clic reale, zero eventi `keydown` registrati. Due guasti di strumento che insieme dicono «il popup non risponde alla tastiera».
+
+Misura rifatta con Chromium di Playwright, dalla cartella temporanea, contro lo Storybook **costruito** servito in HTTP: `rAF` scatta in 0ms. **Playwright non è stato aggiunto al repo di proposito** — l'imbracatura dei test in CI è una scelta di M2.9, e anticiparla qui l'avrebbe decisa di fatto.
+
+Col browser vero, il **`select` aperto funziona in tutto il percorso**: `Invio` apre e porta il fuoco sulla voce, le frecce scorrono, la lettera salta («p» → Pubblicato), `Invio` sceglie e chiude col grilletto che mostra l'etichetta giusta, `Esc` chiude senza cambiare, e il fuoco torna sempre sul grilletto. Il rilievo di M2.2 è **chiuso**.
+
+### Il criterio di accettazione, misurato
+
+**Fuoco intrappolato ed `Esc`** su tutti e cinque i modali. Per ognuno: `Invio` apre, il fuoco entra, otto `Tab` girano **senza mai uscire**, `Esc` chiude, il fuoco **torna sul grilletto**.
+
+| | `Invio` apre | fuoco all'apertura | 8 `Tab` restano dentro | `Esc` chiude | fuoco dopo `Esc` |
+|---|---|---|---|---|---|
+| `Dialog` | sì | campo | sì | sì | grilletto |
+| `AlertDialog` | sì | «Annulla» | sì | sì | grilletto |
+| `Sheet` | sì | campo | sì | sì | grilletto |
+| `Drawer` | sì | pannello | sì | sì | grilletto |
+| `Popover` | sì | campo | **no, ed è giusto** | sì | grilletto |
+
+Il popover è l'eccezione **voluta**: non è modale, `Tab` ne esce e lo chiude. Somigliare a un dialog non lo rende un dialog, ed è la distinzione scritta in pagina.
+
+**Menu**: `↓` apre, frecce che scorrono e ciclano, salto per lettera (che **accumula** più lettere: «d» poi «e» cerca «de», non «e»), `→` entra nel sottomenu e `←` ne esce, `Esc` chiude e riporta il fuoco. Il tasto destro apre il menu contestuale e le frecce ci arrivano dentro. **`Command`**: 500 voci filtrate a 3 in **340ms**, fuoco che resta nel campo e selezione che si muove con `aria-activedescendant` — il modo giusto, e l'unico che lascia continuare a scrivere mentre si scorre.
+
+### Il difetto grosso: un componente che non degrada, si schianta
+
+**`DropdownMenuLabel` deve stare dentro un `DropdownMenuGroup`**, o Base UI **lancia**: «MenuGroupContext is missing», errore **#31**. Il menu non si apre affatto e la story sparisce.
+
+Gli esempi di shadcn mettono l'intestazione in cima al contenuto, fuori da ogni gruppo, cioè **nella forma che fallisce**. Quattro story su cinque di questa sessione erano scritte così — copiando la forma canonica — e sono crollate. Vale identico per `ContextMenuLabel`. Corrette tutte, e scritto in pagina: è lo stesso genere di rilievo del `select` che vuole `items`, ma peggiore, perché lì restava il valore grezzo e qui non resta niente.
+
+È anche la dimostrazione del perché §22 conta: **il difetto esiste solo a menu aperto**, e fino a M2.3 il menu non si riusciva ad aprire in fase di misura.
+
+### I ri-stili, e i tre difetti veri
+
+Sette file su undici passano **senza un ritocco**: `dialog`, `alert-dialog`, `drawer`, `popover`, `hover-card`, `command` e — quanto a classi — `sheet` era l'unico con misure crude.
+
+**1. `text-destructive` come colore di testo, per la terza e quarta volta.** `dropdown-menu` e `context-menu` scrivevano le voci distruttive nel rosso pieno, che è un colore da **fondo**. Corretto in `text-destructive-subtle-foreground` (il `--color-danger-text` del v1) nelle tre occorrenze di ciascuno: testo a riposo, testo col fuoco, icona. Stessa correzione di `badge` (M2.1) e `field` (M2.2): il preset la ripete a ogni componente che ha una variante distruttiva, e conviene aspettarsela in M2.4 su `alert`.
+
+**2. Il toast era illeggibile in modalità scura, e la causa è `next-themes`.**
+
+| | prima | ora |
+|---|---|---|
+| descrizione del toast, chiaro | 10.35:1 | 5.37:1 |
+| descrizione del toast, **scuro** | **1.62:1** | **7.17:1** |
+
+`sonner.tsx` importa `useTheme` da **`next-themes`**, la libreria di temi di Next.js, che noi non usiamo: la nostra modalità è una classe sulla radice. Senza il suo provider `useTheme()` ricade su `"system"`, cioè sul tema del **sistema operativo**, e `data-sonner-theme` non viene scritto affatto. Il fondo e il titolo del toast restano giusti — arrivano dai `var()` che il preset mappa sui nostri token — ma la **descrizione** ha il colore `#3f3f3f` **cablato dentro il CSS di `sonner`**, sollevato solo da `[data-sonner-theme='dark']`. Su fondo scuro: 1.62:1.
+
+Chiuso con una stringa di classi, che è il gradino 2: `**:data-[description]:text-muted-foreground!`. L'importante serve perché il CSS di `sonner` non è in un layer e batterebbe l'utility a prescindere dalla specificità.
+
+**Resta aperta la domanda strutturale**, e non è mia: `next-themes` va tolto? Sarebbe una chiamata e una prop in meno, cioè fuori dal gradino 2. Finché resta, va dichiarato fra le dipendenze dell'item o l'app consumer non compila — ed è un pacchetto che ogni app installerebbe **per non usarlo**. Decisione di Francesco; la misura è qui.
+
+**3. Le misure fuori dal tema.** `sheet`: le quattro distanze d'ingresso in `rem` crudi (`translate-y-[2.5rem]` e speculari) → `translate-y-10` e `-translate-x-10`, stesso pixel al gradino normale ma ora dal tema. `dropdown-menu`: `min-w-[96px]` → `min-w-24`. `tooltip`: `rounded-[2px]` sulla punta della freccia → `rounded-xs` (Tailwind lascia `--radius-xs` a 2px e il tema non lo ridichiara: identico, ma è un gradino).
+
+**Lasciati ereditati, ed è una scelta**: i valori del `drawer` (`cubic-bezier`, `--drawer-swipe-progress`, `--drawer-swipe-strength`) sono **fisica**, non tema — descrivono come il pannello segue il dito, non hanno un gradino e «ripulirli» cambierebbe il comportamento. Idem `grid-rows-[auto_1fr]` (elenco di tracce) e i `calc()` geometrici, per il precedente dello `switch` in M2.2.
+
+### Il gate corretto per primo, di nuovo, e di nuovo ha ripagato
+
+Tre correzioni a `scripts/check-registry.ts`, **prima** di ri-stilare, tutte della famiglia di `DECISIONI.md` §19 (dettaglio in §23):
+
+1. **`cn-font-heading`** — la CLI lo toglie dai titoli di dialog/alert-dialog/sheet/drawer; il gate lo contava come nostro ri-stile su file mai aperti.
+2. **L'alias del registry** — `@/registry/base-nova/…` → `@/registry/tassullo/…` è un **percorso**, non una classe, e finiva nel conto. Conseguenza: **i conti di M2.1 e M2.2 erano gonfiati** — `field` 5 → 3, `input-group` 8 → 5, `button-group` 5 → 4.
+3. **Una riga per componente** — il ramo del segnaposto stampava `◌ la forma non è confrontabile` e poi **cadeva** in fondo aggiungendo `○ forma identica all'originale`: la contraddizione esatta, su sette componenti.
+
+### axe-core: 246 scansioni (123 story × 2 modalità), 0 errori di strumento
+
+**8 violazioni, tutte della stessa famiglia**, e non chiudibili a questo livello: `aria-hidden-focus` × 6 sulle quattro story di `dropdown-menu` aperto, in entrambe le modalità. I sei nodi sono i **guardiani del fuoco di Base UI** — `<span aria-hidden="true" tabindex="0" data-base-ui-focus-guard>` — cioè il meccanismo stesso che fa girare il `Tab` dentro al menu. Generati dalla libreria, assenti da ogni stringa di classi: la regola 4bis non lascia modo di toccarli. Il `dialog` monta gli stessi guardiani e lì axe li marca *incomplete* invece che violazione, perché portano anche `data-base-ui-inert`. **In carico a M2.9**, che dovrà decidere se esentare la regola quando axe passa in CI.
+
+**Tre violazioni trovate e chiuse, tutte mie nelle story** — e tutte e tre sono requisiti d'uso che valeva la pena scoprire adesso:
+
+- `aria-dialog-name` su due popover senza `PopoverTitle`: **un popup con `role="dialog"` vuole un nome**, anche quando contiene una frase sola (`DECISIONI.md` §21.2);
+- `scrollable-region-focusable` sull'elenco lungo dello `sheet`: una regione che scorre e non contiene controlli va resa raggiungibile dal fuoco, o da tastiera non la si scorre;
+- `aria-required-children` su `command`: **`CommandSeparator` non può stare dentro `CommandList`**, che è un `role="listbox"` — «children which are not allowed: [role=separator]». La forma che lo produce è quella degli esempi di shadcn. Tolto dalle story: l'intestazione di gruppo separa già, e lo fa in un modo che chi usa uno screen reader sente.
+
+**Le 290 *incomplete* misurate e chiuse a mano**, perché un'*incomplete* è una misura che nessuno ha fatto:
+
+| famiglia | quante | verdetto |
+|---|---|---|
+| `color-contrast` | 112 | campionate su tutte le famiglie: **il minimo vero è 5.37:1** (`muted-foreground` su `popover`, chiaro). Nessuna sotto soglia |
+| `aria-hidden-focus` | 162 | gli stessi guardiani di Base UI, più `#storybook-root` marcato `aria-hidden` dai modali |
+| `aria-valid-attr-value` | 16 | `aria-controls` del grilletto: verificato a mano che **l'elemento puntato esiste** ed è il popup |
+
+Una delle 112 sembrava 1.55:1 — era il mio strumento, non il componente (vedi sotto).
+
+### Densità, misurata a transizioni spente
+
+| | normale | touch | | normale | touch |
+|---|---|---|---|---|---|
+| voce di menu | 25,14 | **36** | riquadro del menu | 117,56 | 169 |
+| voce di `command` | 29,14 | **42** | campo di ricerca | 32 | **48** |
+| chiusura del dialog | 32 | **48** | fumetto del tooltip | 26,66 | 34 |
+
+**Un rilievo per M2.9**: la **voce di menu è il bersaglio più piccolo del set in touch** — 36px, contro i 48 di bottone, campo e select; la voce di `command` sta a 42. Passano WCAG 2.5.8 (24px minimi) ma stanno sotto i 44 che M2.9 chiederà. Il rimedio è una stringa di classi sola, `py-1` → **`py-2`**, misurata: **48px esatti in touch**, 33 in normale contro gli attuali 25. Non fatto qui perché alza tutti i menu di tutte le app **anche alla densità da scrivania**: è una scelta di sistema come le costanti della sidebar, non una correzione di passaggio.
+
+### Verifiche
+
+- `npm run check` (contrasto 48/48, registry 0 errori, font allineato), `registry validate` (32 item), `tsc -b`, `oxlint`, `build`, `build-storybook`: **verdi**.
+- Il gate di aggiornabilità legge ora **8 componenti ri-stilati sopra una forma shadcn intatta**, 22 avvisi tutti ereditati, **0 componenti nostri** — `registry/componenti-propri.json` resta vuoto, che è la condizione da difendere.
+- 5 token custom usati dentro i componenti, invariati rispetto a M2.2: `accent-ink`, `destructive-border`, `destructive-foreground`, `destructive-subtle`, `destructive-subtle-foreground`.
+
+### Gli errori di strumento, che restano più della metà del lavoro
+
+Quattro, e tre hanno fatto sembrare rotto qualcosa che funzionava. Vanno a sommarsi ai cinque di M2.2.
+
+1. **`rAF` fermo col pannello nascosto** — già noto da M2.1, qui **isolato come causa** del rilievo di M2.2 e non più solo sospettato: `document.visibilityState === 'hidden'`, timeout di 800ms senza un frame.
+2. **I tasti non arrivano senza un clic reale prima**: `keydown` registrava **zero eventi**, nemmeno non fidati. Con un clic vero prima, tutto normale.
+3. **`document.querySelector('button')` prendeva un bottone della *struttura di Storybook***, non della story: nel preview costruito resta nel DOM uno scheletro nascosto con tre bottoni «Set string». `.focus()` su un elemento nascosto non fa nulla — e la conclusione era «il grilletto non prende il fuoco». Lo stesso scheletro gonfiava le *incomplete* di axe finché non è stato escluso dalla scansione.
+4. **Il compositore di colori scritto in fretta** componeva **sempre su bianco** i fondi semitrasparenti: **1.55:1** su un bottone `outline` nel drawer scuro. Rifatto impilando la catena dei fondi nell'ordine giusto: **13.74:1**. Terza sessione di fila in cui lo strumento accusa il componente.
+
+E una svista mia, non di strumento: `npx prettier` lanciato su due story le ha riscritte con virgolette doppie e punti e virgola, che non sono lo stile della casa. Riscritte a mano. **Nel repo non c'è un prettier configurato**, e non va invocato al volo.
+
+### Prossimi passi
+
+**M2.4 — Contenuto**: `card`, `tabs`, `table`, `alert`, `empty`, `accordion`, `collapsible`, `scroll-area`, `resizable`, `progress`, `aspect-ratio`, `carousel`. Due cose arrivano da qui: **`alert` avrà quasi certamente lo stesso `text-destructive` come testo** — è la quinta volta che il preset lo ripete — e **`scroll-area` è la risposta pronta** al `scrollable-region-focusable` misurato oggi sullo `sheet`.
+
+Aperta e non mia: **`next-themes` va tolto da `sonner`?** In carico a Francesco.

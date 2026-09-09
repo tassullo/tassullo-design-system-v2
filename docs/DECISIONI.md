@@ -778,3 +778,64 @@ Vale **a prescindere** dall'esito di D11: è la regola permanente applicata a un
 | **motore** (`typeset.css`, i selettori) | 491 | **nessuno a monte**: generato una volta dal loro builder, poi nostro per sempre |
 
 Il motore è l'unico punto in cui `typeset` è **peggio** di un componente: non ha `shadcn view`, quindi non è diffabile come fa `check:registry`. Il rimedio è la stessa disciplina, applicata a mano: l'originale generato va in `registry/.upstream/`, e si rigenera dal builder per vedere cosa hanno cambiato loro.
+
+---
+
+## 21. Due requisiti d'uso di Base UI che shadcn non documenta (M2.3, 2026-09-09)
+
+Sono due, li ha trovati questa sessione, e il primo **non degrada: lancia**.
+
+### 21.1 `DropdownMenuLabel` va dentro un `DropdownMenuGroup`
+
+`Menu.GroupLabel` di Base UI pretende il contesto del gruppo e, se non lo trova, **lancia**: *«MenuGroupContext is missing. Menu group parts must be used within `<Menu.Group>` or `<Menu.RadioGroup>`»* — Base UI error **#31**. Il menu non si apre affatto e la story sparisce dalla pagina.
+
+Gli esempi di shadcn mettono `DropdownMenuLabel` in cima al contenuto, **fuori** da qualsiasi gruppo, cioè nella forma che fallisce. Quattro story su cinque, in questa sessione, sono state scritte così e sono crollate all'apertura; lo stesso vale per `ContextMenuLabel`. Vale anche il `RadioGroup` come contenitore, ed è la forma giusta per l'intestazione di un gruppo di scelte.
+
+Perché non si vede prima: il componente si legge senza sospetti, il gate di aggiornabilità non ha niente da dire (è una forma **d'uso**, non del file), e il difetto compare **solo aprendo il menu** — cioè in una misura che fino a M2.3 non si riusciva a prendere (vedi §22).
+
+### 21.2 Un popup con `role="dialog"` vuole un nome accessibile
+
+Un `PopoverContent` senza `PopoverTitle` dà `aria-dialog-name`. Misurato su due story di questa sessione, scritte senza titolo perché «contengono solo una frase». Il titolo si può nascondere con `sr-only` — è quel che fa `CommandDialog` — ma non si può omettere. Stesso requisito già noto per `dialog` e `sheet`, che qui vale anche dove il riquadro non sembra una finestra.
+
+**Il seguito operativo di entrambi**: sono requisiti che **ogni app consumer sbaglierebbe una volta**, come il `select` che vuole `items` (§ M2.2). Stanno scritti nelle story delle rispettive primitive, in pagina, perché li si sbagli zero volte.
+
+---
+
+## 22. Perché fino a M2.3 i popup non si potevano misurare, e come si è risolto (M2.3, 2026-09-09)
+
+M2.2 ha consegnato un rilievo aperto: *«il `select` aperto non è verificabile nel pannello del browser»*. La causa è stata isolata qui, ed è una sola, misurata:
+
+```
+document.visibilityState === 'hidden'   →   requestAnimationFrame NON scatta
+```
+
+Il pannello del browser dell'app tiene la pagina **nascosta** anche mentre la si guida. Base UI schedula in `rAF` lo spostamento del fuoco dentro il popup: con `rAF` fermo il fuoco resta sul grilletto, le frecce non rispondono, e **il componente sembra rotto mentre è sano**. Non è una lentezza da aspettare: non scatta mai, misurato con un timeout di 800ms.
+
+Un secondo effetto, più insidioso, si somma al primo: **i tasti non arrivano alla pagina finché non ci si è cliccato dentro davvero**. Prima di un clic reale, `keydown` non registra nessun evento — zero, nemmeno non fidati. Sono due strumenti rotti che si mascherano a vicenda, e insieme producono la conclusione sbagliata «il popup non risponde alla tastiera».
+
+### La misura si è presa altrove
+
+Chromium di Playwright, dalla cartella di lavoro temporanea, contro lo **Storybook costruito** servito in HTTP. Lì `rAF` scatta in 0ms e la tastiera arriva. Con quello:
+
+- **il rilievo di M2.2 si chiude**: il `select` aperto funziona da tastiera in tutto il percorso — `Invio` apre e porta il fuoco sulla voce, le frecce scorrono, la **lettera** salta («p» → Pubblicato), `Invio` sceglie e chiude, `Esc` chiude senza cambiare, e il fuoco torna sul grilletto ogni volta;
+- **sono comparse violazioni axe che prima non si vedevano**, non perché siano nuove ma perché **i popup ora si aprono** durante la scansione. È il rilievo che M2.9 deve conoscere prima di accendere la CI: il registro delle violazioni cambia quando la misura diventa capace di aprire ciò che misura.
+
+**Playwright non è stato aggiunto al repo**, di proposito: l'imbracatura dei test in CI è una scelta di **M2.9**, e anticiparla qui l'avrebbe decisa di fatto. Qui serviva una misura, non un'infrastruttura.
+
+### Un terzo strumento sbagliato, e vale la regola di sempre
+
+Un helper scritto in fretta per il contrasto componeva **sempre su bianco** il fondo dei nodi semitrasparenti: in modalità scura ha dato **1.55:1** su un bottone `outline` dentro il drawer. Rifatta impilando la catena dei fondi nell'ordine giusto: **13.74:1** (17.03 in chiaro). Terza volta in tre sessioni che lo strumento accusa il componente — vedi la regola in coda a §17: **prima di scrivere che un componente è rotto, si verifica che lo strumento non lo sia.**
+
+---
+
+## 23. Terza e quarta normalizzazione del gate di aggiornabilità (M2.3, 2026-09-09)
+
+Seguito diretto di §19, stessa ragione: **un gate che grida al lupo si smette di leggere**.
+
+1. **`cn-font-heading`.** `shadcn view` lo restituisce sui titoli di `dialog`, `alert-dialog`, `sheet` e `drawer`; la CLI lo **toglie** scrivendo il file. Il gate lo contava come nostro ri-stile: due stringhe su `alert-dialog`, una su `drawer`, su file **appena installati e mai aperti**. Stessa natura di `"use client"`.
+
+2. **L'alias del registry.** Gli import fra componenti arrivano da `view` come `@/registry/base-nova/ui/x` e la CLI li riscrive su `@/registry/tassullo/ui/x`. È una stringa, quindi finiva nel conto delle «stringhe di classi ri-stilate» — ma è un **percorso**, non una classe, e cambia da sé a ogni `add`. Conseguenza: ogni componente che ne importa un altro risultava ri-stilato di almeno una stringa appena uscito dall'installazione.
+
+Effetto sui conti già a verbale, che erano gonfiati: `field` **5 → 3**, `input-group` **8 → 5**, `button-group` **5 → 4**, `alert-dialog` e `drawer` **→ 0**. I numeri di M2.1 e M2.2 vanno letti con questa correzione.
+
+3. **Una riga per componente.** Il ramo del segnaposto d'icona introdotto in M2.2 stampava la sua riga `◌` e poi **cadeva** in fondo al ciclo, aggiungendone una seconda che diceva «forma identica all'originale» — cioè esattamente l'affermazione che la riga sopra aveva appena dichiarato impossibile. Con undici overlay in più erano sette componenti raccontati due volte e in contraddizione con sé stessi.

@@ -115,7 +115,33 @@ const warn = (dove: string, cosa: string) => problemi.push({ livello: "avviso", 
 const STRING_RE = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
 
 function estraiStringhe(src: string): string[] {
-  return src.replace(USE_CLIENT_RE, "").match(STRING_RE) ?? [];
+  return (src.replace(USE_CLIENT_RE, "").match(STRING_RE) ?? []).map(normalizzaClassi);
+}
+
+/**
+ * Seconda trasformazione della CLI, accertata in M2.3: `shadcn view`
+ * restituisce `cn-font-heading` sui titoli di `dialog`, `alert-dialog`,
+ * `sheet` e `drawer`, e la CLI lo TOGLIE scrivendo il file. Non è un nostro
+ * ri-stile — quei quattro file sono usciti dall'installazione e nessuno li
+ * aveva ancora aperti — ma il gate li contava come tali: due stringhe
+ * "ri-stilate" su `alert-dialog`, una su `drawer`. Stessa natura di
+ * `"use client"`, e stessa cura.
+ */
+const CN_FONT_HEADING_RE = /cn-font-heading\s*/g;
+
+/**
+ * Terza trasformazione della CLI, accertata nella stessa sessione: gli import
+ * fra componenti arrivano da `view` come `@/registry/base-nova/ui/x` e la CLI
+ * li riscrive sull'alias di `components.json`, `@/registry/tassullo/ui/x`.
+ * È una stringa, quindi finiva nel conto del ri-stile insieme alle classi —
+ * ma non è una classe e non è nostra: è il percorso, e cambia da sé a ogni
+ * `add`. Senza questa riga ogni componente che ne importa un altro risultava
+ * "ri-stilato" di almeno una stringa anche appena uscito dall'installazione.
+ */
+const ALIAS_REGISTRY_RE = /@\/registry\/[a-z0-9-]+\//g;
+
+function normalizzaClassi(s: string): string {
+  return s.replace(CN_FONT_HEADING_RE, "").replace(ALIAS_REGISTRY_RE, "@/registry/·/");
 }
 
 /**
@@ -245,9 +271,6 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
      */
     const segnaposto = originale.includes("IconPlaceholder");
     if (segnaposto) {
-      console.log(
-        `  ◌ ${nome.padEnd(24)} originale a segnaposto d'icona: la forma non è confrontabile`,
-      );
       warn(
         nome,
         "l'originale shadcn usa <IconPlaceholder>, che la CLI risolve a `add` sulla libreria " +
@@ -290,10 +313,22 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
       }
     }
     if (diverse > 0) ristilati++;
-    console.log(
-      `  ${diverse > 0 ? "◐" : "○"} ${nome.padEnd(24)} forma identica all'originale` +
-        (diverse > 0 ? `, ${diverse} stringhe di classi ri-stilate` : ", nessun ri-stile"),
-    );
+    /*
+     * Una riga sola per componente. Fino a M2.3 il ramo del segnaposto
+     * stampava la sua riga e poi CADEVA QUI, aggiungendone una seconda che
+     * diceva «forma identica all'originale» — cioè esattamente l'affermazione
+     * che la riga sopra aveva appena dichiarato impossibile. Con undici
+     * overlay in più erano sette componenti raccontati due volte, e in
+     * contraddizione. Il conto del ri-stile, col segnaposto, non è affidabile
+     * (le due liste di stringhe possono non allinearsi), quindi non si stampa.
+     */
+    const simbolo = segnaposto ? "◌" : diverse > 0 ? "◐" : "○";
+    const nota = segnaposto
+      ? "originale a segnaposto d'icona: la forma non è confrontabile"
+      : diverse > 0
+        ? `forma identica all'originale, ${diverse} stringhe di classi ri-stilate`
+        : "forma identica all'originale, nessun ri-stile";
+    console.log(`  ${simbolo} ${nome.padEnd(24)} ${nota}`);
   }
   return { ristilati, token: tokenUsati };
 }

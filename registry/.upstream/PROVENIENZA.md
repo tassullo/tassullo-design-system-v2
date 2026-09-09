@@ -8,6 +8,6 @@ shadcn, cosa è cambiato a monte e cosa invece avevamo cambiato noi.
 |---|---|
 | CLI shadcn | 4.21.0 |
 | `style` | base-nova |
-| aggiornato il | 2026-09-08 |
+| aggiornato il | 2026-09-09 |
 
 Si rigenera con `npm run check:registry -- --snapshot`.

@@ -361,6 +361,202 @@
         "@tassullo/label",
         "@tassullo/separator"
       ]
+    },
+    {
+      "name": "dialog",
+      "type": "registry:ui",
+      "title": "Dialog",
+      "description": "Finestra modale: fuoco intrappolato, chiusura con Esc e clic fuori. Il mattone desktop del responsive-dialog di M3.4.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/dialog.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button"
+      ]
+    },
+    {
+      "name": "alert-dialog",
+      "type": "registry:ui",
+      "title": "Alert Dialog",
+      "description": "Conferma distruttiva. Distinto da Dialog perché NON si chiude per errore: niente clic fuori, la scelta si fa. Eliminazioni, revoche di ruolo.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/alert-dialog.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button"
+      ]
+    },
+    {
+      "name": "drawer",
+      "type": "registry:ui",
+      "title": "Drawer",
+      "description": "Pannello che entra dal bordo con trascinamento e punti d'aggancio. Il mattone mobile del responsive-dialog di M3.4.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/drawer.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "sheet",
+      "type": "registry:ui",
+      "title": "Sheet",
+      "description": "Pannello laterale ancorato a un bordo. Lo usa la sidebar sotto la soglia mobile (M2.5).",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/sheet.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button"
+      ]
+    },
+    {
+      "name": "dropdown-menu",
+      "type": "registry:ui",
+      "title": "Dropdown Menu",
+      "description": "Menu di azioni aperto da un bottone: voci, sottomenu, spunte, gruppi radio, scorciatoie.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/dropdown-menu.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "context-menu",
+      "type": "registry:ui",
+      "title": "Context Menu",
+      "description": "Le stesse azioni, col tasto destro. Serve alle righe delle tabelle di M3.3.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/context-menu.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "popover",
+      "type": "registry:ui",
+      "title": "Popover",
+      "description": "Riquadro ancorato a un elemento, con fuoco e contenuto interattivo. Base del combobox di M2.6.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/popover.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "hover-card",
+      "type": "registry:ui",
+      "title": "Hover Card",
+      "description": "Anteprima al passaggio del puntatore: una scheda prodotto, una norma. Non contiene azioni — chi naviga da tastiera non la aprirebbe mai.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/hover-card.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tooltip",
+      "type": "registry:ui",
+      "title": "Tooltip",
+      "description": "Etichetta breve al passaggio o al fuoco. Non sostituisce un nome accessibile.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/tooltip.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "sonner",
+      "type": "registry:ui",
+      "title": "Sonner (toast)",
+      "description": "Avvisi non bloccanti in coda. Colori presi dai token del tema.",
+      "dependencies": [
+        "sonner",
+        "next-themes",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/sonner.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "command",
+      "type": "registry:ui",
+      "title": "Command",
+      "description": "Elenco filtrabile da tastiera. Base del combobox di M2.6 e della palette comandi.",
+      "dependencies": [
+        "cmdk",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/command.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/dialog",
+        "@tassullo/input-group"
+      ]
     }
   ]
 }
