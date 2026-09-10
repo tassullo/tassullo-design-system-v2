@@ -521,11 +521,29 @@ export function AppShell({
                  * `min-w-0` non è ornamentale: senza, un contenuto lungo nella
                  * fascia non si stringe — la larghezza minima predefinita di un
                  * elemento flex è quella del suo contenuto — e spinge le azioni
-                 * fuori dallo schermo. Con `min-w-0` la fascia resta una riga
-                 * sola e a cedere è il contenuto, che è la parte che l'app sa
-                 * come far cedere.
+                 * fuori dallo schermo.
+                 *
+                 * **Ma `min-w-0` da solo NON basta, e la versione precedente di
+                 * questo commento prometteva una garanzia che il codice non
+                 * dava.** Stretto abbastanza, il testo non si limita a
+                 * stringersi: **va a capo**. E siccome l'header è `h-12` fisso,
+                 * la seconda riga non alza la barra, le esce fuori. Misurato con
+                 * un titolo di pagina lungo («Malta strutturale R4
+                 * fibrorinforzata») a 375px: due righe in **entrambe** le
+                 * densità e con **una sola** azione in fascia — cioè il numero
+                 * delle azioni non c'entrava, come aveva intuito Francesco.
+                 *
+                 * La garanzia che il guscio deve dare è che **la fascia sia una
+                 * riga sola, sempre**: `overflow-hidden` più `whitespace-nowrap`
+                 * su tutta la discendenza. Quello che il guscio NON può decidere
+                 * è *dove* tagliare — dipende dal contenuto, che è dell'app: i
+                 * puntini di sospensione se li mette l'app sull'elemento giusto
+                 * (`truncate` sull'ultimo livello del percorso, come fa la
+                 * story). Il guscio garantisce l'altezza, l'app la leggibilità.
                  */}
-                <div className="min-w-0 flex-1">{barra}</div>
+                <div className="min-w-0 flex-1 overflow-hidden [&_*]:whitespace-nowrap">
+                  {barra}
+                </div>
               </>
             ) : null}
             {/*

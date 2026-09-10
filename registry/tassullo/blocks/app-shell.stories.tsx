@@ -240,8 +240,14 @@ const PERCORSO = (
         <BreadcrumbLink href="#">Prodotti</BreadcrumbLink>
       </BreadcrumbItem>
       <BreadcrumbSeparator className={INTERMEDI} />
-      <BreadcrumbItem>
-        <BreadcrumbPage>Famiglie</BreadcrumbPage>
+      <BreadcrumbItem className="min-w-0">
+        {/*
+         * `truncate` qui e non nel guscio: il guscio garantisce che la fascia
+         * resti una riga sola, ma *dove* mettere i puntini di sospensione lo sa
+         * solo chi conosce il contenuto. Su un percorso è l'ultimo livello, che
+         * è il nome della pagina — quello che si vuole leggere anche tagliato.
+         */}
+        <BreadcrumbPage className="truncate">Famiglie</BreadcrumbPage>
       </BreadcrumbItem>
     </BreadcrumbList>
   </Breadcrumb>
