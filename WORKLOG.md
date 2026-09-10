@@ -2671,3 +2671,22 @@ Due controprove che hanno indicato il colpevole prima di toccare qualsiasi cosa:
 **Una trappola di Tailwind pagata per intero, e vale oltre il caso.** La prima stesura usava `in-data-[density=touch]:`, che è la forma leggibile. **Non funzionava**, e in modo muto: Tailwind genera `in-*` con `:where([data-density=touch]) &`, e **`:where()` ha specificità zero** — la regola pesava quanto `.md\:block`, e a parità vince l'ordine, cioè `block`. Il livello intermedio restava `display: block` a 768 e lo sbordo non si chiudeva; la classe *c'era* nel DOM, quindi guardando il markup sembrava a posto. Si scrive `[[data-density=touch]_&]:`, che genera un selettore d'attributo vero (0,2,0) e vince davvero. Trovato solo perché la misura diceva ancora 13px quando il markup diceva di sì: **è la misura a chiudere un rimedio, non la lettura del markup**.
 
 Scatti: `docs/img/M1.6/coda2-guscio-768-touch.png` e `coda2-guscio-1440-touch.png`.
+
+### Coda di M1.6 (3) — il contenuto si adatta alla larghezza della pagina (2026-09-10)
+
+Segnalato da Francesco: collassando la colonna, l'area di contenuto non si allargava. Misurato, e confermava alla lettera:
+
+| | colonna | card |
+|---|---|---|
+| 1440, colonna aperta | 256 | x 274 · **w 1148** |
+| 1440, colonna collassata | 48 | x 170 · **w 1148** |
+| 1920, aperta | 256 | x 514 · **w 1148** |
+| 1920, collassata | 48 | x 410 · **w 1148** |
+
+**Collassare la colonna non dava un pixel di contenuto in più**: la card restava 1148 e scivolava a sinistra di 104px. I 208px liberati andavano tutti ai margini. Non era un guasto ma `larghezza="pagina"` che faceva quel che la sua doc prometteva — `mx-auto w-full max-w-page`, tetto a `--container-page` (1180, misura del v1) e centratura.
+
+**Decisione di Francesco: `piena` diventa il predefinito.** Il contenuto si adatta alla larghezza della pagina, come già faceva `SenzaIcone` — che era, si scopre, l'unica story a comportarsi come il guscio si comporta adesso ovunque. `pagina` resta disponibile e **si chiede**: è ancora la scelta giusta dove una riga lunga si legge male, cioè un form o un testo (e sarà da riprendere con **D11**, il testo lungo).
+
+Dopo: a 1440 la card passa da **1152 a 1360** collassando la colonna — esattamente i 208px liberati — e a 1920 da 1632 a 1840. Cinque gate verdi, `lint` pulito, `registry:build` rifatto perché il blocco è un item.
+
+Nota di metodo: la prima volta ho posto la domanda in astratto («togliere il salto o il tetto?») e Francesco ha giustamente risposto «non capisco quel che dici». La domanda utile era la sua: *si comporti come quella story lì*. Un riferimento a qualcosa che si vede batte tre opzioni descritte a parole.

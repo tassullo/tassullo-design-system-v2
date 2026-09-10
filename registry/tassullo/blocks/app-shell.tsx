@@ -438,10 +438,18 @@ export type AppShellProps = {
   collassa?: "icona" | "fuori"
   defaultAperta?: boolean
   /**
-   * La larghezza del contenuto. `pagina` lo tiene entro `--container-page`
-   * (1180px) e lo centra — è la misura del v1, ed è quella che rende leggibile
-   * un form su uno schermo largo. `piena` toglie il limite: serve alle tabelle
-   * grandi e ai cruscotti, dove la larghezza è il contenuto.
+   * La larghezza del contenuto.
+   *
+   * **`piena` è il predefinito**, e il contenuto si adatta alla larghezza della
+   * pagina. Scelta di Francesco il 2026-09-10, guardando la story col tetto
+   * attivo: collassare la colonna **non dava un pixel di contenuto in più** —
+   * misurato a 1440, la card restava 1148px e si limitava a scivolare a
+   * sinistra di 104, perché i 208px liberati andavano ai margini. Collassare la
+   * colonna deve dare spazio al contenuto, o il grilletto non serve a niente.
+   *
+   * `pagina` tiene il contenuto entro `--container-page` (1180px) e lo centra:
+   * è la misura del v1, e resta la scelta giusta dove una riga lunga si legge
+   * male — un form, un testo. Si chiede, non si subisce.
    */
   larghezza?: "pagina" | "piena"
   className?: string
@@ -467,7 +475,7 @@ export function AppShell({
   azioni,
   collassa = "icona",
   defaultAperta = true,
-  larghezza = "pagina",
+  larghezza = "piena",
   className,
   children,
   ...props
@@ -560,10 +568,16 @@ export function AppShell({
           </header>
 
           {/*
-           * L'area di contenuto. Due utility soltanto, ed è deliberato: il
-           * respiro attorno alla pagina lo possiede il guscio, non le pagine —
-           * è l'unico modo perché un form e una tabella comincino allo stesso
-           * punto in tutte le app.
+           * L'area di contenuto. **Una utility soltanto** di suo — `p-4` — ed è
+           * deliberato: il respiro attorno alla pagina lo possiede il guscio,
+           * non le pagine, ed è l'unico modo perché un form e una tabella
+           * comincino allo stesso punto in tutte le app.
+           *
+           * Il tetto `max-w-page` c'è solo se lo si **chiede**, con
+           * `larghezza="pagina"`. Di suo il contenuto si adatta alla larghezza
+           * della pagina: col tetto acceso, collassare la colonna non dava un
+           * pixel di contenuto in più — i 208px liberati andavano ai margini, e
+           * la card scivolava a sinistra invece di crescere.
            *
            * `p-4` segue la densità: 16px in normale, 24 in touch. È qui che si
            * misura D10 — su uno schermo da 375 il padding è l'unica cosa che

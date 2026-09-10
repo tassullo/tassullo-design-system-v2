@@ -320,10 +320,11 @@ function Contenuto() {
           <CardTitle>L&apos;area di contenuto</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Il respiro attorno alla pagina lo possiede il guscio, non la pagina: sono due utility
-          soltanto — <code>p-4</code> e <code>max-w-page</code> — ed è l&apos;unico modo perché un
-          form e una tabella comincino allo stesso punto in tutte le app. Il padding segue la
-          densità: 16px in normale, 24 in touch.
+          Il respiro attorno alla pagina lo possiede il guscio, non la pagina: è una utility
+          soltanto, <code>p-4</code>, ed è l&apos;unico modo perché un form e una tabella comincino
+          allo stesso punto in tutte le app. Il padding segue la densità: 16px in normale, 24 in
+          touch. Il contenuto si adatta alla larghezza della pagina; il tetto di{' '}
+          <code>max-w-page</code> si chiede con <code>larghezza=&quot;pagina&quot;</code>.
         </CardContent>
       </Card>
     </div>
@@ -380,8 +381,9 @@ export const Collassato: Story = {
 /**
  * **La forma che serve ad Anagrafe oggi**: voci senza icona, quindi
  * `collassa="fuori"` — la colonna sparisce invece di ridursi a una fila di
- * quadrati vuoti — e `larghezza="piena"`, che è ciò che vuole una tabella di
- * prodotti.
+ * quadrati vuoti. `larghezza="piena"` resta scritta per chiarezza, ma dal
+ * 2026-09-10 è il predefinito: era questa la story che si comportava già come
+ * il guscio si comporta adesso ovunque.
  *
  * Sono le sezioni vere di `NAV_SEZIONI`, con «Famiglie EPD» disabilitata come
  * in produzione.
