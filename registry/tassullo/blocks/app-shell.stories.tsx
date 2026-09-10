@@ -21,14 +21,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/registry/tassullo/ui/breadcrumb'
-import { Button } from '@/registry/tassullo/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/registry/tassullo/ui/dropdown-menu'
-import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
+import { AppShell, type AzionePagina, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 
 /**
  * Il **guscio** di un'applicazione Tassullo: colonna scura a sinistra, fascia
@@ -279,13 +278,12 @@ const PERCORSO = (
  * Non si sceglie il colore pagina per pagina: si sceglie il **ruolo**, e il
  * colore viene dietro.
  *
- * - **ogni** azione in fascia porta un'icona, e la sua etichetta è marcata
- *   `data-etichetta`. Non è decorazione: in densità touch, sotto i 1024px, il
- *   guscio nasconde le etichette con `sr-only` perché altrimenti il guscio non
- *   ci starebbe nello schermo (misurato: sbordava di 199px a 768). Un'azione
- *   senza icona, lì, diventa un rettangolo vuoto;
- * - **una sola** azione primaria per pagina, variante `default` (l'arancio del
- *   brand);
+ * - le azioni si **dichiarano**, non si disegnano: `{ titolo, icona, ruolo }`.
+ *   Il guscio le rende in due forme — bottoni interi sopra i 1024px, tutte
+ *   dentro un menu «⋯» sotto — e per farlo deve sapere cosa sono. `icona` è
+ *   obbligatoria: sul telefono l'azione è una riga di menu, e una riga senza
+ *   icona in un elenco che ne ha resta disallineata;
+ * - **una sola** azione `primaria` per pagina (l'arancio del brand);
  * - le azioni che le stanno accanto, `outline`;
  * - le distruttive, `destructive` — e mai come azione primaria di pagina.
  *
@@ -305,18 +303,10 @@ const PERCORSO = (
  * del design system e non compare in nessun'altra pagina. Il guscio non
  * contiene bottoni, espone slot vuoti.
  */
-const AZIONI_DI_PAGINA = (
-  <>
-    <Button variant="outline">
-      <RefreshCwIcon />
-      <span data-etichetta>Sistema da BC</span>
-    </Button>
-    <Button>
-      <PlusIcon />
-      <span data-etichetta>Nuovo prodotto</span>
-    </Button>
-  </>
-)
+const AZIONI_DI_PAGINA: AzionePagina[] = [
+  { titolo: 'Sistema da BC', icona: RefreshCwIcon, ruolo: 'secondaria' },
+  { titolo: 'Nuovo prodotto', icona: PlusIcon, ruolo: 'primaria' },
+]
 
 function Contenuto() {
   return (

@@ -2690,3 +2690,27 @@ Segnalato da Francesco: collassando la colonna, l'area di contenuto non si allar
 Dopo: a 1440 la card passa da **1152 a 1360** collassando la colonna — esattamente i 208px liberati — e a 1920 da 1632 a 1840. Cinque gate verdi, `lint` pulito, `registry:build` rifatto perché il blocco è un item.
 
 Nota di metodo: la prima volta ho posto la domanda in astratto («togliere il salto o il tetto?») e Francesco ha giustamente risposto «non capisco quel che dici». La domanda utile era la sua: *si comporti come quella story lì*. Un riferimento a qualcosa che si vede batte tre opzioni descritte a parole.
+
+### Coda di M1.6 (5) — le azioni si dichiarano, e sul telefono stanno nei tre puntini (2026-09-10)
+
+Proposta di Francesco: **scrivania bottoni interi, telefono tutto dentro un menu «⋯»**, in entrambe le densità. Attuata.
+
+**Perché serviva, in numeri.** A 375px due bottoni con l'etichetta per esteso prendono 283px dei 375 e al nome della pagina ne restano **7**: sparisce. Con una sola azione ne restano 149, che bastano per «Famiglie» ma non per un titolo vero. E la riduzione a icone della coda (2) era una risposta parziale che non scala: cinque icone in touch fanno 328px di 375. Il numero delle azioni non era il problema, come Francesco aveva intuito prima che lo misurassi.
+
+**Il cambio d'API, e perché era inevitabile.** `azioni` smette di essere `ReactNode` — bottoni già disegnati — e diventa `AzionePagina[]`: `{ titolo, icona, ruolo }`. Per rendere la stessa azione in due forme il guscio deve sapere *cosa* è, non riceverla già fatta. Con del JSX opaco l'unica strada sarebbe disegnarlo due volte, cioè bottoni dentro le righe di un menu — markup sbagliato, e ogni azione annunciata due volte da un lettore di schermo. Si dichiara il **ruolo** (`primaria` / `secondaria` / `distruttiva`), non il colore: la grammatica delle azioni resta quella, e ora il codice la impone invece di raccomandarla. `icona` è **obbligatoria**, perché sul telefono l'azione è una riga di menu e una riga senza icona in un elenco che ne ha resta disallineata.
+
+Nessuna app consuma ancora il guscio: il momento per cambiare una prop pubblica era adesso. La parte difficile di M3.2 — come una pagina dichiari le proprie azioni a un guscio montato attorno all'`Outlet` — **non** è anticipata: il guscio continua a ricevere prop.
+
+**Una soglia sola, 1024, per entrambe le densità.** Non 768, che è quella della colonna: in touch la colonna vale 384px e a 768 non resterebbe niente. Una regola che si ramifica per densità l'avevamo già scritta nella coda (2) e ci è costata una trappola di specificità; qui non si ramifica.
+
+Le due forme stanno entrambe nel DOM, una spenta con `hidden` — che è `display: none`, quindi la forma spenta esce anche dall'albero di accessibilità e nessuna azione è annunciata due volte.
+
+**E qui è saltato fuori il difetto vero, che stava sotto tutti gli sbordi di questa coda.** Col titolo lungo iniettato, a 1024 in touch il guscio sbordava ancora di 149px. La catena del DOM diceva che il percorso **si tronca correttamente** — 228px dentro un contenitore da 319 — quindi il colpevole era più in alto: la fascia riceveva 789px dove ce n'erano 640. Causa: **`SidebarInset` ha `min-width: auto`**, come ogni elemento flex, quindi non scende sotto il proprio contenuto minimo e quel minimo diventa il pavimento del documento. Il guscio si allargava oltre lo schermo invece di stringere ciò che aveva dentro.
+
+`min-w-0` sull'inset, una riga, e il guscio **non sborda più**, qualunque cosa ci si metta dentro: a cedere è il contenuto, che sa come farlo. È la stessa lezione della coda (2) — l'avevamo applicata allo slot del percorso e non al contenitore che lo contiene.
+
+**Verifica**: sbordo **0** a 375 / 768 / 900 / 1024 / 1440, in **entrambe** le densità, **col titolo lungo** «Malta strutturale R4 fibrorinforzata». A 1024 in touch il percorso riceve ora esattamente i 170px che gli spettano invece di 319. Menu provato col dito: si apre, contiene le due azioni con la loro icona, `Esc` chiude e riporta il fuoco al grilletto. Cinque gate verdi, **868 scansioni / 0 violazioni**, bersagli invariati, `lint` pulito.
+
+Scatti: `docs/img/M1.6/coda5-telefono-menu.png`, `coda5-scrivania.png`.
+
+**Cosa resta a M3.2**: il contratto con cui una pagina *dichiara* percorso e azioni a un guscio montato una volta sola. Il tipo `AzionePagina` è la forma che quel contratto trasporterà.
