@@ -87,12 +87,12 @@ function Bottone({ taglia }: { taglia: (typeof TAGLIE)[number] }) {
 
 const GRADINI = [
   ['text-xs', 'Micro-etichetta'],
-  ['text-sm', 'Meta, badge, voci di sidebar'],
-  ['text-md', 'Chip, breadcrumb, testi densi'],
+  ['text-sm', 'Voci di sidebar, breadcrumb, menu, bottoni'],
   ['text-base', 'Corpo standard, campi'],
   ['text-lg', 'Titolo di card'],
   ['text-xl', 'Titolo di sezione'],
-  ['text-title', 'Titolo di pagina'],
+  ['text-2xl', 'Titolo di pagina'],
+  ['text-3xl', 'Numerone del cruscotto'],
 ] as const
 
 function Gradino({ classe, testo }: { classe: string; testo: string }) {
@@ -144,7 +144,7 @@ function Invariante({
 function Sezione({ titolo, children }: { titolo: string; children: ReactNode }) {
   return (
     <section>
-      <h3 className="text-md font-semibold text-foreground">{titolo}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{titolo}</h3>
       <div className="mt-2 space-y-2">{children}</div>
     </section>
   )
@@ -222,7 +222,7 @@ function Affiancate() {
   return (
     <div className="min-h-dvh bg-background">
       <header className="mx-auto max-w-page px-5 pt-6 pb-2">
-        <h1 className="text-title font-semibold text-foreground">Densità</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Densità</h1>
       </header>
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2">
         <Colonna densita="normale" etichetta="Normale" />

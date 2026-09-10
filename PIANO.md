@@ -180,7 +180,7 @@ Le primitive si aggiungono con `npx shadcn@latest add <nome>` **dentro `registry
 **Confronto con l'inventario completo.** shadcn documenta **63 componenti**. Sotto, il set scelto copre quelli che servono; l'elenco di ciò che si lascia fuori, e perché, è in coda alla fase — serve a non ridiscuterlo ogni volta.
 
 **M2.1 — Fondamenta (1 sessione)** — `lib/utils.ts` (`cn()`), `button`, `button-group`, `badge`, `separator`, `skeleton`, `spinner`, `avatar`, `kbd`, `typography`.
-- Accettazione: `button` con tutte le varianti/dimensioni/stati (hover, focus da tastiera, disabled, loading) nelle 4 combinazioni; `typography` riproduce la scala del v1 (`--text-xs` … `--text-title`); `spinner` è il caricamento inline previsto dallo standard unico di INTERFACCE.md §1.
+- Accettazione: `button` con tutte le varianti/dimensioni/stati (hover, focus da tastiera, disabled, loading) nelle 4 combinazioni; `typography` riproduce la scala del v1 (`--text-xs` … `--text-title`) *(la scala è poi cambiata con M1.6: vedi `docs/DECISIONI.md` §30)*; `spinner` è il caricamento inline previsto dallo standard unico di INTERFACCE.md §1.
 
   **Da chiudere qui: quattro rilievi su `button`, aperti e misurati in M1.2** (dettaglio e misure in §2bis, "Tre rilievi nuovi"). Il file è `registry/tassullo/ui/button.tsx`, com'è uscito dal preset `base-nova` in M0.2. Non sono ipotesi: sono stati letti dal browser sul workbench con il tema applicato.
 
@@ -514,7 +514,7 @@ Il v1 aveva un terzo livello di testo, `--color-text-hint` `#A8A5A1`: **non è s
 
 **`--info-border`, derivato invece che inventato.** È il solo colore che il v1 non ha. Convertiti in `oklch`, i tre bordi tenui esistenti stanno in una banda stretta — success `l .854 c .073`, warning `l .897 c .071`, danger `l .808 c .103` — ciascuno alla tinta della propria famiglia. `--info-border` è la **media di quella banda alla tinta di `--info-subtle`**: `oklch(0.852 0.082 237.49)` = `#9BD7FE`. Lo calcola `deriveInfoBorder()` a ogni esecuzione: se un giorno la palette cambia, il valore si riallinea da solo.
 
-**Non colori** (1:1 dal v1, nessuna decisione): `--font-sans` (stack con `'Replicall'`, il `.woff` **non si distribuisce** — D3), `--font-mono`, la scala `--text-xs…--text-title` (7 gradini in px), i quattro `--radius-*`, le quattro `--shadow-*`, `--color-overlay`, `--space-page`, `--page-max-width`, `--transition-fast`. La scala di spaziatura `--space-1…6` **non si porta**: in Tailwind v4 le utility derivano da `--spacing`, che è anche il meccanismo della densità (M1.4).
+**Non colori** (1:1 dal v1, nessuna decisione): `--font-sans` (stack con `'Replicall'`, il `.woff` **non si distribuisce** — D3), `--font-mono`, la scala `--text-xs…--text-title` (7 gradini in px) — **superata da M1.6**: `md` è fuso in `sm`, `title` è diventato `2xl` e `3xl` è tarato accanto, quindi i gradini restano sette ma non sono gli stessi e **nessuno è più un nome nostro** (`docs/DECISIONI.md` §30, che qui vince), i quattro `--radius-*`, le quattro `--shadow-*`, `--color-overlay`, `--space-page`, `--page-max-width`, `--transition-fast`. La scala di spaziatura `--space-1…6` **non si porta**: in Tailwind v4 le utility derivano da `--spacing`, che è anche il meccanismo della densità (M1.4).
 
 ### La modalità scura (scritta in M1.3, 2026-09-07 — chiude D2)
 

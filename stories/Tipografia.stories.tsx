@@ -34,7 +34,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  * ri-stilare. Terzo gradino, **adattare il v1 perché entri nella forma
  * shadcn**: ed è qui che finisce, perché la scala del v1 è già interamente
  * nel tema — sette gradini `--text-*`, che Tailwind espone come `text-xs`…
- * `text-title`. Un componente `<Titolo>` non aggiungerebbe niente e
+ * `text-3xl`. Un componente `<Titolo>` non aggiungerebbe niente e
  * toglierebbe due cose: la possibilità di scegliere il tag giusto per la
  * struttura del documento, e la certezza che nella pagina ci sia scritto
  * quale gradino si sta usando.
@@ -49,9 +49,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  *
  * ── Due cose che NON si fanno ────────────────────────────────────────────
  *
- * · **Oltre `text-title` non si sale.** I gradini Tailwind che restano —
- *   `text-2xl` in su — non sono tarati su Tassullo: sono i default della
- *   libreria, e usarli rimette in circolo una seconda scala.
+ * · **Oltre `text-3xl` non si sale.** I gradini Tailwind che restano —
+ *   `text-4xl` in su — non sono tarati su Tassullo: sono i default della
+ *   libreria, non scalano con la densità, e usarli rimette in circolo una
+ *   seconda scala. Da M1.6 non è più solo una raccomandazione:
+ *   `check:registry` segnala ogni `text-*` che il tema non tara.
  * · **I numeri da confrontare in colonna vogliono `tabular-nums`**, non un
  *   altro carattere. Il `font-mono` è dei codici di sistema, dove si *vuole*
  *   che stonino. La misura è in `Tema/Cifre`: scarto dei decimali 2,69px
@@ -65,7 +67,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 const PARTI = [
   {
     ruolo: 'Titolo di pagina',
-    classi: 'text-title font-bold tracking-tight',
+    classi: 'text-2xl font-bold tracking-tight',
     tag: 'h1',
     dove: 'uno per pagina, nel page-header (M3.2)',
     testo: 'Schede tecniche',
@@ -93,7 +95,7 @@ const PARTI = [
   },
   {
     ruolo: 'Meta',
-    classi: 'text-md text-muted-foreground',
+    classi: 'text-sm text-muted-foreground',
     tag: 'p',
     dove: 'date, autori, contatori, breadcrumb',
     testo: 'Revisione 4 — 8 settembre 2026, Francesco Sartori',

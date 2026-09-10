@@ -24,7 +24,7 @@ export const Orizzontale: Story = {
     <div className="w-80">
       <p className="text-base">Scheda tecnica</p>
       <Separator className="my-3" />
-      <p className="text-md text-muted-foreground">Revisione 4 — 8 settembre 2026</p>
+      <p className="text-sm text-muted-foreground">Revisione 4 — 8 settembre 2026</p>
     </div>
   ),
 }
@@ -50,7 +50,7 @@ export const Orizzontale: Story = {
  */
 export const Verticale: Story = {
   render: () => (
-    <div className="flex h-6 items-center gap-3 text-md">
+    <div className="flex h-6 items-center gap-3 text-sm">
       <span>Anagrafe</span>
       <Separator orientation="vertical" />
       <span>Prodotti</span>

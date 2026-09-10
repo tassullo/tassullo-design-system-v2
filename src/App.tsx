@@ -13,7 +13,7 @@ const semantiche = [
 export default function App() {
   return (
     <main className="min-h-dvh bg-background p-8 text-foreground">
-      <h1 className="text-title font-semibold">Tassullo Design System 2.0</h1>
+      <h1 className="text-2xl font-semibold">Tassullo Design System 2.0</h1>
       <p className="mt-2 max-w-prose text-muted-foreground">
         Workbench di sviluppo del registry. La style guide è Storybook (M0.3):
         questa pagina verifica che il tema Tassullo sia attivo. La pagina
@@ -96,11 +96,11 @@ export default function App() {
         <div className="mt-3 space-y-1">
           <p className="text-xs">text-xs 11px</p>
           <p className="text-sm">text-sm 12px</p>
-          <p className="text-md">text-md 13px</p>
+          <p className="text-sm">text-sm 13px</p>
           <p className="text-base">text-base 14px</p>
           <p className="text-lg">text-lg 15px</p>
           <p className="text-xl">text-xl 18px</p>
-          <p className="text-title">text-title 26px</p>
+          <p className="text-2xl">text-2xl 26px</p>
         </div>
       </section>
     </main>

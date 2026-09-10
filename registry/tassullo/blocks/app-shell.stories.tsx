@@ -3,6 +3,7 @@ import {
   BoxesIcon,
   FileTextIcon,
   PlusIcon,
+  RefreshCwIcon,
   HardHatIcon,
   LayoutDashboardIcon,
   LogOutIcon,
@@ -20,14 +21,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/registry/tassullo/ui/breadcrumb'
-import { Button } from '@/registry/tassullo/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/registry/tassullo/ui/dropdown-menu'
-import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
+import { AppShell, type AzionePagina, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 
 /**
  * Il **guscio** di un'applicazione Tassullo: colonna scura a sinistra, fascia
@@ -211,16 +211,42 @@ const AZIONI_UTENTE = (
  * del proprio percorso si possono perdere. Il guscio fa la sua parte con
  * `min-w-0` sulla fascia: garantisce che a cedere sia il percorso e non le
  * azioni a destra.
+ *
+ * **`md` da solo non basta, e il perché è una coincidenza di soglie.** `md` è
+ * 768px, cioè *esattamente* la larghezza alla quale la colonna torna nel DOM:
+ * a 768 i livelli intermedi ricompaiono (+146px di percorso) nello stesso
+ * istante in cui ricompare la colonna (+384px in touch), e i due effetti si
+ * sommano sulla larghezza peggiore. Misurato: era l'ultimo residuo di sbordo,
+ * 13px, dopo che le etichette delle azioni erano già state ridotte a icone.
+ * In touch i livelli intermedi restano quindi nascosti fino a `lg`, che è la
+ * stessa soglia delle etichette: sotto i 1024 in touch la fascia è tutta in
+ * forma compatta, e sopra è tutta per esteso. Una soglia sola, non due.
  */
+/*
+ * `in-data-[density=touch]:` NON basta qui, e la ragione è invisibile a occhio:
+ * Tailwind lo genera con `:where([data-density=touch]) &`, e `:where()` ha
+ * specificità **zero** — la regola pesa quanto `.md\:block`, e a parità vince
+ * l'ordine, cioè `block`. La variante esplicita `[[data-density=touch]_&]:`
+ * genera invece un selettore d'attributo vero (0,2,0) e vince davvero.
+ * Misurato: col primo il livello intermedio restava `display: block` a 768.
+ */
+const INTERMEDI = 'hidden md:block [[data-density=touch]_&]:max-lg:hidden'
+
 const PERCORSO = (
   <Breadcrumb>
     <BreadcrumbList className="flex-nowrap">
-      <BreadcrumbItem className="hidden md:block">
+      <BreadcrumbItem className={INTERMEDI}>
         <BreadcrumbLink href="#">Prodotti</BreadcrumbLink>
       </BreadcrumbItem>
-      <BreadcrumbSeparator className="hidden md:block" />
-      <BreadcrumbItem>
-        <BreadcrumbPage>Famiglie</BreadcrumbPage>
+      <BreadcrumbSeparator className={INTERMEDI} />
+      <BreadcrumbItem className="min-w-0">
+        {/*
+         * `truncate` qui e non nel guscio: il guscio garantisce che la fascia
+         * resti una riga sola, ma *dove* mettere i puntini di sospensione lo sa
+         * solo chi conosce il contenuto. Su un percorso è l'ultimo livello, che
+         * è il nome della pagina — quello che si vuole leggere anche tagliato.
+         */}
+        <BreadcrumbPage className="truncate">Famiglie</BreadcrumbPage>
       </BreadcrumbItem>
     </BreadcrumbList>
   </Breadcrumb>
@@ -252,8 +278,12 @@ const PERCORSO = (
  * Non si sceglie il colore pagina per pagina: si sceglie il **ruolo**, e il
  * colore viene dietro.
  *
- * - **una sola** azione primaria per pagina, variante `default` (l'arancio del
- *   brand), **sempre con icona**;
+ * - le azioni si **dichiarano**, non si disegnano: `{ titolo, icona, ruolo }`.
+ *   Il guscio le rende in due forme — bottoni interi sopra i 1024px, tutte
+ *   dentro un menu «⋯» sotto — e per farlo deve sapere cosa sono. `icona` è
+ *   obbligatoria: sul telefono l'azione è una riga di menu, e una riga senza
+ *   icona in un elenco che ne ha resta disallineata;
+ * - **una sola** azione `primaria` per pagina (l'arancio del brand);
  * - le azioni che le stanno accanto, `outline`;
  * - le distruttive, `destructive` — e mai come azione primaria di pagina.
  *
@@ -273,15 +303,10 @@ const PERCORSO = (
  * del design system e non compare in nessun'altra pagina. Il guscio non
  * contiene bottoni, espone slot vuoti.
  */
-const AZIONI_DI_PAGINA = (
-  <>
-    <Button variant="outline">Sistema da BC</Button>
-    <Button>
-      <PlusIcon />
-      Nuovo prodotto
-    </Button>
-  </>
-)
+const AZIONI_DI_PAGINA: AzionePagina[] = [
+  { titolo: 'Sistema da BC', icona: RefreshCwIcon, ruolo: 'secondaria' },
+  { titolo: 'Nuovo prodotto', icona: PlusIcon, ruolo: 'primaria' },
+]
 
 function Contenuto() {
   return (
@@ -291,10 +316,11 @@ function Contenuto() {
           <CardTitle>L&apos;area di contenuto</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Il respiro attorno alla pagina lo possiede il guscio, non la pagina: sono due utility
-          soltanto — <code>p-4</code> e <code>max-w-page</code> — ed è l&apos;unico modo perché un
-          form e una tabella comincino allo stesso punto in tutte le app. Il padding segue la
-          densità: 16px in normale, 24 in touch.
+          Il respiro attorno alla pagina lo possiede il guscio, non la pagina: è una utility
+          soltanto, <code>p-4</code>, ed è l&apos;unico modo perché un form e una tabella comincino
+          allo stesso punto in tutte le app. Il padding segue la densità: 16px in normale, 24 in
+          touch. Il contenuto si adatta alla larghezza della pagina; il tetto di{' '}
+          <code>max-w-page</code> si chiede con <code>larghezza=&quot;pagina&quot;</code>.
         </CardContent>
       </Card>
     </div>
@@ -351,8 +377,9 @@ export const Collassato: Story = {
 /**
  * **La forma che serve ad Anagrafe oggi**: voci senza icona, quindi
  * `collassa="fuori"` — la colonna sparisce invece di ridursi a una fila di
- * quadrati vuoti — e `larghezza="piena"`, che è ciò che vuole una tabella di
- * prodotti.
+ * quadrati vuoti. `larghezza="piena"` resta scritta per chiarezza, ma dal
+ * 2026-09-10 è il predefinito: era questa la story che si comportava già come
+ * il guscio si comporta adesso ovunque.
  *
  * Sono le sezioni vere di `NAV_SEZIONI`, con «Famiglie EPD» disabilitata come
  * in produzione.

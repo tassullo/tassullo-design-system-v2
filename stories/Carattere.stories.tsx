@@ -54,13 +54,13 @@ const PESI = [
 ]
 
 const SCALA = [
-  { px: 11, tok: 'text-xs', testo: 'MICRO-ETICHETTA' },
-  { px: 12, tok: 'text-sm', testo: 'Meta, badge, voci di sidebar' },
-  { px: 13, tok: 'text-md', testo: 'Chip, breadcrumb, testi densi' },
-  { px: 14, tok: 'text-base', testo: 'Corpo standard: rasatura armata su intonaco di sottofondo' },
-  { px: 15, tok: 'text-lg', testo: 'Titolo di card' },
-  { px: 18, tok: 'text-xl', testo: 'Titolo di sezione' },
-  { px: 26, tok: 'text-title', testo: 'Computo metrico estimativo' },
+  { px: 12, tok: 'text-xs', testo: 'MICRO-ETICHETTA' },
+  { px: 13, tok: 'text-sm', testo: 'Voci di sidebar, breadcrumb, menu, bottoni' },
+  { px: 15, tok: 'text-base', testo: 'Corpo standard: rasatura armata su intonaco di sottofondo' },
+  { px: 16, tok: 'text-lg', testo: 'Titolo di card' },
+  { px: 19, tok: 'text-xl', testo: 'Titolo di sezione' },
+  { px: 27, tok: 'text-2xl', testo: 'Computo metrico estimativo' },
+  { px: 31, tok: 'text-3xl', testo: '1.284,50' },
 ]
 
 /**
@@ -216,7 +216,7 @@ function Pagina() {
     <div className="min-h-dvh bg-background text-foreground">
       <div className="mx-auto max-w-page space-y-8 px-5 py-6">
         <header className="space-y-3">
-          <h1 className="text-title font-semibold">Il carattere</h1>
+          <h1 className="text-2xl font-semibold">Il carattere</h1>
           <p className="max-w-[62ch] text-base text-muted-foreground">
             <strong className="text-foreground">Inter sullo schermo, Replica nelle stampe.</strong>{' '}
             Deciso l’8 settembre 2026 dopo il confronto misurato di cinque candidati. Il

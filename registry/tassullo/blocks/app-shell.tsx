@@ -49,7 +49,7 @@ import type {
   ReactElement,
   ReactNode,
 } from "react"
-import { ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react"
+import { ChevronRightIcon, ChevronsUpDownIcon, EllipsisIcon } from "lucide-react"
 
 import { cn } from "cn"
 import { Avatar, AvatarFallback } from "@/registry/tassullo/ui/avatar"
@@ -62,10 +62,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/registry/tassullo/ui/dropdown-menu"
+import { Button } from "@/registry/tassullo/ui/button"
 import { Separator } from "@/registry/tassullo/ui/separator"
 import {
   Sidebar,
@@ -416,6 +418,95 @@ function Navigazione({ sezioni }: { sezioni: SezioneNav[] }) {
   )
 }
 
+/**
+ * Un'azione di pagina, come la dichiara chi rende la pagina.
+ *
+ * `icona` non è facoltativa per vezzo: sul telefono l'azione diventa una riga
+ * di menu, e una riga senza icona dentro un elenco che ne ha resta disallineata.
+ */
+const VARIANTE = {
+  primaria: "default",
+  secondaria: "outline",
+  distruttiva: "destructive",
+} as const
+
+/**
+ * Le azioni della pagina, in due forme e una fonte sola.
+ *
+ * **Sopra `lg` (1024px): bottoni interi.** Sotto: **un solo bottone «⋯»** con
+ * dentro tutte le azioni. Non è una preferenza estetica, è aritmetica misurata
+ * a 375px: due bottoni con l'etichetta per esteso occupano 283px dei 375
+ * disponibili, e al nome della pagina ne restano **7** — sparisce. Con una sola
+ * azione ne restano 149, che bastano per «Famiglie» ma non per un titolo vero:
+ * «Malta strutturale R4 fibrorinforzata» si taglia comunque. Il numero delle
+ * azioni non era il problema, e ridurle a icone era una risposta parziale che
+ * non scala: cinque icone in touch fanno 328px di 375.
+ *
+ * **Perché 1024 e non 768**, che è la soglia della colonna: perché in densità
+ * touch la colonna vale 384px e a 768 non resterebbe niente. Una soglia sola
+ * per tutte e due le densità, invece di una regola che si ramifica: la
+ * ramificazione l'avevamo scritta e ci è costata una trappola di specificità.
+ *
+ * Le due forme stanno **entrambe nel DOM**, una spenta con `hidden`. `hidden`
+ * è `display: none`, quindi la forma spenta esce anche dall'albero di
+ * accessibilità: nessuna azione viene annunciata due volte.
+ */
+function AzioniDiPagina({ azioni }: { azioni: AzionePagina[] }) {
+  if (azioni.length === 0) return null
+  return (
+    <>
+      <div className="ml-auto hidden shrink-0 items-center gap-2 lg:flex">
+        {azioni.map((a) => (
+          <Button
+            key={a.titolo}
+            variant={VARIANTE[a.ruolo ?? "secondaria"]}
+            disabled={a.disabilitata}
+            onClick={a.onClick}
+            {...(a.href ? { render: <a href={a.href} /> } : {})}
+          >
+            <a.icona />
+            {a.titolo}
+          </Button>
+        ))}
+      </div>
+      <div className="ml-auto shrink-0 lg:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon" aria-label="Altre azioni">
+                <EllipsisIcon />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" sideOffset={4} className="w-56">
+            {azioni.map((a) => (
+              <DropdownMenuItem
+                key={a.titolo}
+                disabled={a.disabilitata}
+                onClick={a.onClick}
+                className={cn(a.ruolo === "distruttiva" && "text-destructive")}
+              >
+                <a.icona />
+                {a.titolo}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </>
+  )
+}
+
+export type AzionePagina = {
+  titolo: string
+  icona: Icona
+  /** Il ruolo, non il colore. Una sola `primaria` per pagina. */
+  ruolo?: "primaria" | "secondaria" | "distruttiva"
+  onClick?: () => void
+  href?: string
+  disabilitata?: boolean
+}
+
 export type AppShellProps = {
   /** Il nome dell'applicativo, accanto al marchio. «Anagrafe», «Officina». */
   applicazione: string
@@ -428,7 +519,20 @@ export type AppShellProps = {
   /** Il contenuto della fascia in alto, dopo il grilletto: di norma il breadcrumb. */
   barra?: ReactNode
   /** Ciò che sta a destra nella fascia in alto: ricerca, notifiche, tema. */
-  azioni?: ReactNode
+  /**
+   * Le azioni della pagina, **dichiarate e non già disegnate**.
+   *
+   * Il guscio deve poter rendere la stessa azione in due forme — bottone
+   * intero sulla scrivania, riga di menu sul telefono — e per farlo deve
+   * sapere *cosa* è un'azione, non riceverla già fatta. È il motivo per cui
+   * qui c'è un elenco e non del JSX: con del JSX opaco l'unica strada sarebbe
+   * disegnarlo due volte, cioè dei bottoni dentro le righe di un menu — markup
+   * sbagliato, e ogni azione annunciata due volte da un lettore di schermo.
+   *
+   * Si dichiara il **ruolo**, non il colore: è la grammatica delle azioni, e
+   * il colore viene dietro. Una sola `primaria` per pagina.
+   */
+  azioni?: AzionePagina[]
   /**
    * Come si comprime la colonna. `icona` la riduce al rail delle sole icone —
    * e presuppone che le voci **abbiano** un'icona; `fuori` la fa sparire del
@@ -438,10 +542,18 @@ export type AppShellProps = {
   collassa?: "icona" | "fuori"
   defaultAperta?: boolean
   /**
-   * La larghezza del contenuto. `pagina` lo tiene entro `--container-page`
-   * (1180px) e lo centra — è la misura del v1, ed è quella che rende leggibile
-   * un form su uno schermo largo. `piena` toglie il limite: serve alle tabelle
-   * grandi e ai cruscotti, dove la larghezza è il contenuto.
+   * La larghezza del contenuto.
+   *
+   * **`piena` è il predefinito**, e il contenuto si adatta alla larghezza della
+   * pagina. Scelta di Francesco il 2026-09-10, guardando la story col tetto
+   * attivo: collassare la colonna **non dava un pixel di contenuto in più** —
+   * misurato a 1440, la card restava 1148px e si limitava a scivolare a
+   * sinistra di 104, perché i 208px liberati andavano ai margini. Collassare la
+   * colonna deve dare spazio al contenuto, o il grilletto non serve a niente.
+   *
+   * `pagina` tiene il contenuto entro `--container-page` (1180px) e lo centra:
+   * è la misura del v1, e resta la scelta giusta dove una riga lunga si legge
+   * male — un form, un testo. Si chiede, non si subisce.
    */
   larghezza?: "pagina" | "piena"
   className?: string
@@ -467,7 +579,7 @@ export function AppShell({
   azioni,
   collassa = "icona",
   defaultAperta = true,
-  larghezza = "pagina",
+  larghezza = "piena",
   className,
   children,
   ...props
@@ -495,7 +607,23 @@ export function AppShell({
           ) : null}
         </Sidebar>
 
-        <SidebarInset>
+        {/*
+         * `min-w-0` sull'inset, ed è la riga che impedisce al guscio di
+         * sbordare in orizzontale — qualunque cosa ci si metta dentro.
+         *
+         * Un elemento flex ha `min-width: auto`, cioè **non scende sotto il
+         * proprio contenuto minimo**. Senza questa riga il contenuto minimo
+         * dell'inset diventa il pavimento del documento, e il guscio si allarga
+         * oltre lo schermo invece di stringere ciò che ha dentro. È il
+         * meccanismo che stava sotto tutti gli sbordi misurati in questa coda:
+         * a 1024 in touch la fascia riceveva 789px di spazio dove ce n'erano
+         * 640, e il percorso — che si tronca correttamente, misurato — se ne
+         * prendeva 319 invece dei 170 che gli spettavano.
+         *
+         * Con `min-w-0` il guscio non sborda mai: a cedere è il contenuto,
+         * che sa come farlo (il percorso si tronca, le azioni entrano nel menu).
+         */}
+        <SidebarInset className="min-w-0">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger />
             {barra ? (
@@ -513,21 +641,45 @@ export function AppShell({
                  * `min-w-0` non è ornamentale: senza, un contenuto lungo nella
                  * fascia non si stringe — la larghezza minima predefinita di un
                  * elemento flex è quella del suo contenuto — e spinge le azioni
-                 * fuori dallo schermo. Con `min-w-0` la fascia resta una riga
-                 * sola e a cedere è il contenuto, che è la parte che l'app sa
-                 * come far cedere.
+                 * fuori dallo schermo.
+                 *
+                 * **Ma `min-w-0` da solo NON basta, e la versione precedente di
+                 * questo commento prometteva una garanzia che il codice non
+                 * dava.** Stretto abbastanza, il testo non si limita a
+                 * stringersi: **va a capo**. E siccome l'header è `h-12` fisso,
+                 * la seconda riga non alza la barra, le esce fuori. Misurato con
+                 * un titolo di pagina lungo («Malta strutturale R4
+                 * fibrorinforzata») a 375px: due righe in **entrambe** le
+                 * densità e con **una sola** azione in fascia — cioè il numero
+                 * delle azioni non c'entrava, come aveva intuito Francesco.
+                 *
+                 * La garanzia che il guscio deve dare è che **la fascia sia una
+                 * riga sola, sempre**: `overflow-hidden` più `whitespace-nowrap`
+                 * su tutta la discendenza. Quello che il guscio NON può decidere
+                 * è *dove* tagliare — dipende dal contenuto, che è dell'app: i
+                 * puntini di sospensione se li mette l'app sull'elemento giusto
+                 * (`truncate` sull'ultimo livello del percorso, come fa la
+                 * story). Il guscio garantisce l'altezza, l'app la leggibilità.
                  */}
-                <div className="min-w-0 flex-1">{barra}</div>
+                <div className="min-w-0 flex-1 overflow-hidden [&_*]:whitespace-nowrap">
+                  {barra}
+                </div>
               </>
             ) : null}
-            {azioni ? <div className="ml-auto flex items-center gap-2">{azioni}</div> : null}
+            {azioni?.length ? <AzioniDiPagina azioni={azioni} /> : null}
           </header>
 
           {/*
-           * L'area di contenuto. Due utility soltanto, ed è deliberato: il
-           * respiro attorno alla pagina lo possiede il guscio, non le pagine —
-           * è l'unico modo perché un form e una tabella comincino allo stesso
-           * punto in tutte le app.
+           * L'area di contenuto. **Una utility soltanto** di suo — `p-4` — ed è
+           * deliberato: il respiro attorno alla pagina lo possiede il guscio,
+           * non le pagine, ed è l'unico modo perché un form e una tabella
+           * comincino allo stesso punto in tutte le app.
+           *
+           * Il tetto `max-w-page` c'è solo se lo si **chiede**, con
+           * `larghezza="pagina"`. Di suo il contenuto si adatta alla larghezza
+           * della pagina: col tetto acceso, collassare la colonna non dava un
+           * pixel di contenuto in più — i 208px liberati andavano ai margini, e
+           * la card scivolava a sinistra invece di crescere.
            *
            * `p-4` segue la densità: 16px in normale, 24 in touch. È qui che si
            * misura D10 — su uno schermo da 375 il padding è l'unica cosa che

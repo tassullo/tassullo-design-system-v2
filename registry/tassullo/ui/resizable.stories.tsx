@@ -32,6 +32,19 @@ import { ScrollArea } from '@/registry/tassullo/ui/scroll-area'
  * story `Verticale` la usa, ed è il modo in cui lo `split-view` di M3.9 dovrà
  * comporli.
  *
+ * **L'altezza si dà al contenitore, non al gruppo, e non è un dettaglio di
+ * gusto.** `react-resizable-panels` scrive `height: 100%` **inline** sulla
+ * radice del gruppo, e uno stile inline batte qualunque classe: un `h-72` sul
+ * `ResizablePanelGroup` non fa niente. Se sopra non c'è un'altezza vera, quel
+ * `100%` si risolve su un genitore alto `auto`, e il gruppo prende l'altezza
+ * del proprio contenuto. Con dentro dei paragrafi si vede poco (`Predefinito`
+ * rendeva **94px invece di 256**, e sembrava solo «stretta»); con dentro una
+ * `ScrollArea` in `h-full` — cioè una percentuale di un genitore senza altezza
+ * — **collassa a zero**: era `Verticale`, che si vedeva come una riga sola.
+ * Il rimedio è quello che shadcn usa nei propri esempi senza spiegarlo: **un
+ * contenitore con l'altezza**, e il gruppo in `h-full` dentro. Vale per lo
+ * `split-view` di M3.9.
+ *
  * La maniglia è un filo di 1px, ma la **zona sensibile è più larga** dello
  * spessore che si vede (lo pseudo-elemento `after:`): si afferra senza doverla
  * centrare al pixel. `withHandle` aggiunge il grip visibile, e conviene
@@ -57,51 +70,49 @@ function Riquadro({ titolo, testo }: { titolo: string; testo: string }) {
 
 export const Predefinito: Story = {
   render: () => (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      className="h-64 w-full max-w-2xl rounded-md border"
-    >
-      <ResizablePanel defaultSize={50}>
-        <Riquadro
-          titolo="Revisione 3"
-          testo="Membrana armata in poliestere, spessore 4 mm. Sovrapposizione 80 mm."
-        />
-      </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={50}>
-        <Riquadro
-          titolo="Revisione 4"
-          testo="Membrana armata in poliestere, spessore 4 mm. Sovrapposizione 100 mm."
-        />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <div className="h-64 w-full max-w-2xl">
+      <ResizablePanelGroup orientation="horizontal" className="h-full rounded-md border">
+        <ResizablePanel defaultSize={50}>
+          <Riquadro
+            titolo="Revisione 3"
+            testo="Membrana armata in poliestere, spessore 4 mm. Sovrapposizione 80 mm."
+          />
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={50}>
+          <Riquadro
+            titolo="Revisione 4"
+            testo="Membrana armata in poliestere, spessore 4 mm. Sovrapposizione 100 mm."
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   ),
 }
 
 /** In verticale, e senza grip: si vede quanto sia meno invitante da afferrare. */
 export const Verticale: Story = {
   render: () => (
-    <ResizablePanelGroup
-      orientation="vertical"
-      className="h-72 w-full max-w-lg rounded-md border"
-    >
-      <ResizablePanel defaultSize={40}>
-        <ScrollArea className="h-full">
-          <Riquadro titolo="Anteprima" testo="Prima pagina della scheda tecnica." />
-        </ScrollArea>
-      </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel defaultSize={60}>
-        <ScrollArea className="h-full">
-          <Riquadro
-            titolo="Note interne"
-            testo="Non pubblicate in officina. Il pannello si può stringere fino a
-              far sbordare il testo: il contenuto sta dentro una ScrollArea, quindi
-              la regione che scorre resta raggiungibile dal Tab."
-          />
-        </ScrollArea>
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <div className="h-72 w-full max-w-lg">
+      <ResizablePanelGroup orientation="vertical" className="h-full rounded-md border">
+        <ResizablePanel defaultSize={40}>
+          <ScrollArea className="h-full">
+            <Riquadro titolo="Anteprima" testo="Prima pagina della scheda tecnica." />
+          </ScrollArea>
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={60}>
+          <ScrollArea className="h-full">
+            <Riquadro
+              titolo="Note interne"
+              testo="Non pubblicate in officina. Il pannello si può stringere fino a
+                far sbordare il testo: il contenuto sta dentro una ScrollArea, quindi
+                la regione che scorre resta raggiungibile dal Tab."
+            />
+          </ScrollArea>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   ),
 }
 
@@ -111,21 +122,20 @@ export const Verticale: Story = {
  */
 export const TrePannelli: Story = {
   render: () => (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      className="h-64 w-full max-w-3xl rounded-md border"
-    >
-      <ResizablePanel defaultSize={25} minSize={15}>
-        <Riquadro titolo="Elenco" testo="128 schede" />
-      </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={50} minSize={15}>
-        <Riquadro titolo="Scheda" testo="Guaina bituminosa TS-40" />
-      </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={25} minSize={15}>
-        <Riquadro titolo="Storico" testo="4 revisioni" />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <div className="h-64 w-full max-w-3xl">
+      <ResizablePanelGroup orientation="horizontal" className="h-full rounded-md border">
+        <ResizablePanel defaultSize={25} minSize={15}>
+          <Riquadro titolo="Elenco" testo="128 schede" />
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={50} minSize={15}>
+          <Riquadro titolo="Scheda" testo="Guaina bituminosa TS-40" />
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={25} minSize={15}>
+          <Riquadro titolo="Storico" testo="4 revisioni" />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   ),
 }

@@ -109,7 +109,7 @@ L'ordine conta anche in `vite.config.ts`: `@/registry` è un sottopercorso di `@
 
 La terza strada del rilievo originale — *adottare `lg` come taglia di default in densità touch* — è stata scartata prima di misurare: cambierebbe il default di un componente, cioè il gradino 2 della regola 4bis, e obbligherebbe ogni app a scrivere `size` diversi a seconda della densità. La densità deve restare una riga nell'`index.html`.
 
-**La seconda leva è la tipografia, e serviva perché `--spacing` non la tocca.** In touch la scala sale di **×1.08 arrotondato al pixel**: 11→12, 12→13, 13→14, 14→15, 15→16, 18→19, 26→28. Il fattore non è scelto a occhio — è quello che riproduce il passo del v1, che in touch alzava il testo del bottone di **un gradino** della scala (`--text-md` 13px → `--text-base` 14px). Applicato all'intera scala dà esattamente «il gradino successivo» dove i gradini distano 1px, e prosegue con la stessa proporzione sui titoli, dove i gradini sono più larghi e uno scatto secco romperebbe la gerarchia. Non ×1.5 come i bersagli: un bersaglio deve crescere del 50% per stare sotto un dito guantato, un testo a 13px è già leggibile e portarlo a 20px non lo migliora — rompe le colonne.
+**La seconda leva è la tipografia, e serviva perché `--spacing` non la tocca.** In touch la scala sale di **×1.08 arrotondato al pixel**: dopo M1.6 (§30) fa 12→13, 13→14, 15→16, 16→17, 19→21, 27→29, 31→33, e i valori touch sono **derivati** da quella formula invece che scritti a mano. Il fattore non è scelto a occhio — è quello che riproduce il passo del v1, che in touch alzava il testo del bottone di **un gradino** della scala (13px → 14px, che nella scala di M1.6 è `--text-sm` → `--text-base`). Applicato all'intera scala dà esattamente «il gradino successivo» dove i gradini distano 1px, e prosegue con la stessa proporzione sui titoli, dove i gradini sono più larghi e uno scatto secco romperebbe la gerarchia. Non ×1.5 come i bersagli: un bersaglio deve crescere del 50% per stare sotto un dito guantato, un testo a 13px è già leggibile e portarlo a 20px non lo migliora — rompe le colonne.
 
 **Il trabocchetto che rende possibile la seconda leva: `@theme inline` cuoce i valori.** Con `inline` Tailwind emette `.text-sm { font-size: 12px }`, il valore risolto in compilazione: ridichiarare `--text-sm` a runtime non cambierebbe nulla, e il difetto sarebbe **muto** — nessun errore, il testo semplicemente non scatta. La scala tipografica è stata quindi spostata in un `@theme` **semplice**, che emette `font-size: var(--text-sm)`. I colori restano `inline`, perché lì l'indirezione serve al contrario (`--color-primary: var(--primary)`) e la densità non li tocca. Verificato leggendo il CSS compilato prima e dopo.
 
@@ -1120,13 +1120,13 @@ Esito: **31 tipi di bersaglio sotto i 44px** di WCAG 2.5.5 (AAA), e **nessuno pi
 
 Il segno che distingue i campi nativi della libreria da quelli che vestiamo noi è che **i primi non hanno classi**. Il filtro iniziale scartava i trasparenti e gli alti un pixel, ma non questo, che è visibile e sta sotto il pomello.
 
-Gli altri tre — un collegamento e due campi di testo, 18.56px alti ma **larghi 48, 239 e 416** — sono formalmente sotto i 24×24 e in pratica coperti dall'eccezione di spaziatura. Da cui la regola nel rapporto: `!!` per ciò che è piccolo in **entrambe** le direzioni, `!` per ciò che è solo basso. Confonderli è ciò che ha prodotto l'allarme.
+Gli altri tre — un collegamento e due campi di testo, 18.56px alti ma **larghi 48, 239 e 416** — sono formalmente sotto i 24×24 e in pratica coperti dall'eccezione di spaziatura. *(Dopo M1.6 quei tre misurano **20px**: a muoverli è l'interlinea della scala nuova, non `--spacing`. Le voci di menu passano da 30.56 a 32. Il verdetto non cambia — 0 piccoli in entrambe le direzioni — e i più bassi si sono alzati.)* Da cui la regola nel rapporto: `!!` per ciò che è piccolo in **entrambe** le direzioni, `!` per ciò che è solo basso. Confonderli è ciò che ha prodotto l'allarme.
 
 **Morale, che vale oltre il caso**: uno strumento di misura nuovo produce anche **falsi positivi**, non solo falsi negativi, e i due si scoprono in modi opposti — il falso negativo lo prende un difetto noto (§27.1), il falso positivo lo prende solo andando a **guardare cosa sia davvero** ogni cosa segnalata. Un numero non verificato messo a verbale diventa una decisione da prendere che non esisteva.
 
 **Rettifica di due numeri a registro**: la voce di menu era data a 36px e la voce del combobox a 31px. Sono **entrambe 30.56px** — lo stesso bersaglio, non due.
 
-Le voci di menu restano come sono: il rimedio (`py-1` → `py-2`) le alza **anche in densità normale**, cioè cambierebbe l'aspetto della scrivania per un criterio nato per il cantiere. Sono 30.56 × 324: basse, ma lunghe quanto tutto il menu.
+Le voci di menu restano come sono: il rimedio (`py-1` → `py-2`) le alza **anche in densità normale**, cioè cambierebbe l'aspetto della scrivania per un criterio nato per il cantiere. Sono 30.56 × 324 — 32 × 324 dopo M1.6: basse, ma lunghe quanto tutto il menu.
 
 ---
 
@@ -1178,30 +1178,50 @@ D13 chiedeva di chiudere anche «se serve il marchio esteso accanto alla sola T�
 
 ## 29. La prima misura di D10: a schermo stretto il padding non è il colpevole (M3.1, 2026-09-10)
 
-**Conclusione: a 375px la densità touch costa 16px di larghezza utile (−4,7%), ma **10,2%** di testo per riga — e sulla scrivania costa molto di più, per un motivo diverso.** Misurato in Chromium sullo Storybook costruito, sulla story `Blocchi/App shell`, quattro celle viewport × densità.
+**Conclusione: a 375px la densità touch costa 16px di larghezza utile (−4,7%), ma **10,6%** di testo per riga — e sulla scrivania costa molto di più, per un motivo diverso.** Misurato in Chromium sullo Storybook costruito, sulla story `Blocchi/App shell`, quattro celle viewport × densità.
+
+**Numeri rimisurati dopo M1.6** (2026-09-10): la scala tipografica è cambiata, quindi i caratteri per riga sono cambiati con essa. Le larghezze **no** — vengono da `--spacing`, che M1.6 non tocca, e coincidono al pixel con la prima misura. Fra parentesi i valori della misura di M3.1, con la scala vecchia.
 
 | cella | colonna | fascia | padding | larghezza utile | caratteri per riga |
 |---|---|---|---|---|---|
-| 1440 × normale | 256 | 48 | 16 | **1148** | 165 |
-| 1440 × touch | 384 | 72 | 24 | **1008** | 136 |
-| 375 × normale | — | 48 | 16 | **343** | 49 |
-| 375 × touch | — | 72 | 24 | **327** | 44 |
+| 1440 × normale | 256 | 48 | 16 | **1148** | 156 *(165)* |
+| 1440 × touch | 384 | 72 | 24 | **1008** | 129 *(136)* |
+| 375 × normale | — | 48 | 16 | **343** | 47 *(49)* |
+| 375 × touch | — | 72 | 24 | **327** | 42 *(44)* |
+
+**Il righello è stato tarato prima di fidarsene.** Rimisurando la scala *vecchia* con lo strumento nuovo escono 166 / 137 / 50 / 44: la stessa misura a meno di un carattere, che è la differenza fra due stringhe campione diverse. Senza questa taratura non si saprebbe se lo scarto è la scala o il metro — ed è la stessa cura di §27.1 applicata a una misura invece che a un gate.
 
 I caratteri per riga si misurano, non si stimano: una stringa di 100 caratteri a `text-base` dentro l'area di contenuto vera, e la larghezza utile divisa per la sua.
 
-**Il rilievo che ribalta l'assunzione del piano.** `PIANO.md` §M3.1 dà per scontato che a mangiare la larghezza sia il **padding di pagina** — «sono quelle utility, non le altezze dei controlli». A 375px non è così: sotto i 768px la colonna esce dal DOM, quindi il padding è l'**unica** cosa che toglie larghezza, e toglie 16px in tutto. A perdere il 10% del testo per riga non è la larghezza (−4,7%) ma il **corpo**, che passa da 14 a 15px: le due leve di M1.4 tirano nello stesso verso e si sommano.
+**Il rilievo che ribalta l'assunzione del piano.** `PIANO.md` §M3.1 dà per scontato che a mangiare la larghezza sia il **padding di pagina** — «sono quelle utility, non le altezze dei controlli». A 375px non è così: sotto i 768px la colonna esce dal DOM, quindi il padding è l'**unica** cosa che toglie larghezza, e toglie 16px in tutto. A perdere il 10,6% del testo per riga non è la larghezza (−4,7%) ma il **corpo**, che dopo M1.6 passa da 15 a 16px: le due leve di M1.4 tirano nello stesso verso e si sommano.
 
 **E sulla scrivania il colpevole è un terzo ancora.** A 1440 la larghezza utile cala di 140px (−12,2%) e **128 di quei 140 sono la colonna**, che passa da 256 a 384 — l'override di densità di M2.5, che è deliberato. Il contenuto scende sotto `--container-page` (1056 contro 1180): in touch, a 1440px, **la larghezza massima di pagina non è più il vincolo**, lo è la colonna. Chi progetta una tabella larga in touch deve saperlo.
 
-**Il rimedio che il piano prevedeva — un `--space-page` che non derivi da `--spacing` — non serve al problema che si è misurato**: a 375px varrebbe 16px su 343, cioè meno della metà di ciò che si perde. Il verdetto resta di M4.2, su una pagina vera; questa è la misura, non la decisione.
+**Il rimedio che il piano prevedeva — un `--space-page` che non derivi da `--spacing` — non serve al problema che si è misurato**: a 375px varrebbe 16px su 343, cioè meno della metà di ciò che si perde.
+
+**E M1.6 ha alzato il prezzo, consapevolmente.** Nella cella stretta i caratteri per riga scendono da 44 a **42**: sono due caratteri pagati per la leggibilità, ed è esattamente il conto che D16 aveva fatto prima di scegliere. L'allineamento pieno a shadcn (`base` 16 in normale, quindi ~17 in touch) era stato scartato perché avrebbe portato la cella a ~39; la scala «+1» ne costa 2 invece di 5. La misura conferma la stima su cui la decisione è stata presa, e sposta il verdetto di D10 — che resta di M4.2 — su una base un po' più stretta di prima. Il verdetto resta di M4.2, su una pagina vera; questa è la misura, non la decisione.
 
 **Un quinto rilievo, trovato guardando invece che misurando.** A 375px in **touch** il percorso della fascia andava **a capo dentro la barra** — in densità normale, alla stessa larghezza, ci stava. È la stessa cella di D10 vista nella fascia invece che nel contenuto, ed è la prova che la densità su schermo stretto non è un problema del solo corpo pagina. Il rimedio sta nell'app (i livelli intermedi del breadcrumb spariscono sotto i 768px, come nel `sidebar-07` di shadcn), e il guscio fa la sua parte con `min-w-0` sullo slot della fascia: garantisce che a cedere sia il percorso e non le azioni a destra.
 
 ---
 
-## 30. La scala tipografica è due punti sotto shadcn, e `text-md` è il gradino del bottone (D16, M3.1, 2026-09-10)
+## 30. La scala tipografica era due punti sotto shadcn (D16, aperta in M3.1, **attuata in M1.6**, 2026-09-10)
 
-**Conclusione: la scala del v1 rende ogni componente shadcn 2px più piccolo di com'è disegnato, e il rimedio scelto è la scala `12 / 13 / 15 / 16 / 19 / 27` con `--text-md` fuso in `--text-sm`.** Rilevato da Francesco confrontando la style guide con i blocchi di `ui.shadcn.com`; misurato invece che discusso.
+**In vigore dal 2026-09-10: `xs 12 / sm 13 / base 15 / lg 16 / xl 19 / 2xl 27 / 3xl 31`, zero gradini nostri.** La scala del v1 rendeva ogni componente shadcn 2px più piccolo di com'è disegnato; `--text-md` è fuso in `--text-sm` e `--text-title` è diventato `--text-2xl`, con `3xl` tarato accanto. Rilevato da Francesco confrontando la style guide con i blocchi di `ui.shadcn.com`; misurato invece che discusso, e **attuato in M1.6** — questo paragrafo descrive il tema com'è, non una proposta.
+
+I valori in densità touch **non sono più scritti a mano**: escono da `arrotonda(px × 1.08)` applicato alla scala normale, cioè dalla stessa regola che il tema dichiarava già a parole. Erano l'unico dato del tema con due fonti, e due fonti per un dato solo divergono al primo ritocco.
+
+| gradino | normale | touch |
+|---|---|---|
+| `xs` | 12 | 13 |
+| `sm` | 13 | 14 |
+| `base` | 15 | 16 |
+| `lg` | 16 | 17 |
+| `xl` | 19 | 21 |
+| `2xl` | 27 | 29 |
+| `3xl` | 31 | 33 |
+
+**Le interlinee non sono state toccate**, ed era giusto così: in Tailwind v4 ogni gradino porta una `--text-*--line-height` espressa come **rapporto**, quindi segue la misura da sé. L'unico salto voluto è il titolo di pagina, che passando da `title` a `2xl` prende l'interlinea di Tailwind (1.333) dove prima ereditava 1.5.
 
 ### shadcn non tocca la scala, quindi il confronto è esatto
 
@@ -1249,7 +1269,7 @@ Scelta di Francesco il 2026-09-10, provata sul **banco tipografico** — una pag
 
 Stessa famiglia, e più insidiosa: tolto `--text-md`, la classe `text-md` **non esiste in Tailwind**. Un `text-md` dimenticato in una story non è un errore di compilazione: è un'utility sconosciuta che non emette niente, e il testo eredita la misura del genitore. Muto, di nuovo.
 
-Rimedio in carico al lavoro: **`check:registry` segnala ogni `text-*` usato nel registry che il tema non tara.** Poche righe, e trasforma due difetti muti in un errore.
+Rimedio, **fatto in M1.6**: `check:registry` segnala ogni `text-*` usato nel registry che il tema non tara, e distingue i due difetti perché hanno rimedi opposti — un `text-4xl` **esiste** e rende, semplicemente non scala; un `text-md` non esiste affatto. Il gate è stato **visto fallire** su entrambi, piantandoli a turno in `badge.tsx` (§27.1: un gate nuovo si prova su un difetto noto, mai su codice pulito). E la prova migliore è arrivata da sola: girando sul codice pre-M1.6 il gate ha segnalato **esattamente i due `text-md` veri**, quelli di `button` e `button-group`.
 
 ### Rettifica in giornata: anche `--text-title` esce
 
@@ -1258,3 +1278,9 @@ Segnalato da Francesco subito dopo: tolto il titolo di pagina, `title` non ha pi
 **A una condizione, però, e non è formale**: qualcosa deve coprire la tipografia di pagina, o la FASE 4 — il titolo del login, i numeroni del cruscotto — andrà a pescare `text-2xl`/`text-3xl` di Tailwind, che il tema **non tara**, e ricadrà esattamente nel buco descritto qui sopra: 24px in normale e 24px in touch. Togliere `title` va quindi accompagnato dal **tarare `2xl` e `3xl`**.
 
 L'esito è più pulito della situazione di partenza: **zero gradini nostri**, tutti i nomi sono quelli di Tailwind, e ogni nome che un componente possa scrivere è tarato dal tema. Che è la definizione operativa di «resa uniforme».
+
+### Uno scostamento: il conto dei ri-stilati non è sceso
+
+Il piano di M1.6 si aspettava che `check:registry` calasse, perché `button` e `button-group` tornano a scrivere `text-sm` come l'originale. **Non è successo**, e la ragione è che il gate conta le **stringhe** di classi divergenti, non le classi: quelle due stringhe divergono ancora sul **raggio** — `rounded-md` (6px) contro `rounded-lg` (10px) — che è identità di marchio e resta. Il conto sta a 8 e 4 come prima, e i componenti ri-stilati restano 14.
+
+La sostanza di D16 regge lo stesso, e anzi è ora vera alla lettera: su quelle due stringhe **l'unica differenza superstite è il raggio**. Ciò che non regge è la previsione numerica, ed è annotata qui perché un numero atteso e non arrivato, lasciato correre, la sessione dopo si legge come un guasto.

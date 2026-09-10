@@ -168,7 +168,7 @@ function Colonna({ titolo, classe }: { titolo: string; classe: string }) {
   const scarto = useScartoDecimali(rif, righe.length)
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-md font-semibold">{titolo}</h3>
+      <h3 className="text-sm font-semibold">{titolo}</h3>
       <Table ref={rif} className={`w-80 ${classe}`}>
         <TableHeader>
           <TableRow>
