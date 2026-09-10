@@ -3,6 +3,7 @@ import {
   BoxesIcon,
   FileTextIcon,
   PlusIcon,
+  RefreshCwIcon,
   HardHatIcon,
   LayoutDashboardIcon,
   LogOutIcon,
@@ -211,14 +212,34 @@ const AZIONI_UTENTE = (
  * del proprio percorso si possono perdere. Il guscio fa la sua parte con
  * `min-w-0` sulla fascia: garantisce che a cedere sia il percorso e non le
  * azioni a destra.
+ *
+ * **`md` da solo non basta, e il perché è una coincidenza di soglie.** `md` è
+ * 768px, cioè *esattamente* la larghezza alla quale la colonna torna nel DOM:
+ * a 768 i livelli intermedi ricompaiono (+146px di percorso) nello stesso
+ * istante in cui ricompare la colonna (+384px in touch), e i due effetti si
+ * sommano sulla larghezza peggiore. Misurato: era l'ultimo residuo di sbordo,
+ * 13px, dopo che le etichette delle azioni erano già state ridotte a icone.
+ * In touch i livelli intermedi restano quindi nascosti fino a `lg`, che è la
+ * stessa soglia delle etichette: sotto i 1024 in touch la fascia è tutta in
+ * forma compatta, e sopra è tutta per esteso. Una soglia sola, non due.
  */
+/*
+ * `in-data-[density=touch]:` NON basta qui, e la ragione è invisibile a occhio:
+ * Tailwind lo genera con `:where([data-density=touch]) &`, e `:where()` ha
+ * specificità **zero** — la regola pesa quanto `.md\:block`, e a parità vince
+ * l'ordine, cioè `block`. La variante esplicita `[[data-density=touch]_&]:`
+ * genera invece un selettore d'attributo vero (0,2,0) e vince davvero.
+ * Misurato: col primo il livello intermedio restava `display: block` a 768.
+ */
+const INTERMEDI = 'hidden md:block [[data-density=touch]_&]:max-lg:hidden'
+
 const PERCORSO = (
   <Breadcrumb>
     <BreadcrumbList className="flex-nowrap">
-      <BreadcrumbItem className="hidden md:block">
+      <BreadcrumbItem className={INTERMEDI}>
         <BreadcrumbLink href="#">Prodotti</BreadcrumbLink>
       </BreadcrumbItem>
-      <BreadcrumbSeparator className="hidden md:block" />
+      <BreadcrumbSeparator className={INTERMEDI} />
       <BreadcrumbItem>
         <BreadcrumbPage>Famiglie</BreadcrumbPage>
       </BreadcrumbItem>
@@ -252,8 +273,13 @@ const PERCORSO = (
  * Non si sceglie il colore pagina per pagina: si sceglie il **ruolo**, e il
  * colore viene dietro.
  *
+ * - **ogni** azione in fascia porta un'icona, e la sua etichetta è marcata
+ *   `data-etichetta`. Non è decorazione: in densità touch, sotto i 1024px, il
+ *   guscio nasconde le etichette con `sr-only` perché altrimenti il guscio non
+ *   ci starebbe nello schermo (misurato: sbordava di 199px a 768). Un'azione
+ *   senza icona, lì, diventa un rettangolo vuoto;
  * - **una sola** azione primaria per pagina, variante `default` (l'arancio del
- *   brand), **sempre con icona**;
+ *   brand);
  * - le azioni che le stanno accanto, `outline`;
  * - le distruttive, `destructive` — e mai come azione primaria di pagina.
  *
@@ -275,10 +301,13 @@ const PERCORSO = (
  */
 const AZIONI_DI_PAGINA = (
   <>
-    <Button variant="outline">Sistema da BC</Button>
+    <Button variant="outline">
+      <RefreshCwIcon />
+      <span data-etichetta>Sistema da BC</span>
+    </Button>
     <Button>
       <PlusIcon />
-      Nuovo prodotto
+      <span data-etichetta>Nuovo prodotto</span>
     </Button>
   </>
 )

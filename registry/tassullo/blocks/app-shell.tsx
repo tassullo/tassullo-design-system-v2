@@ -520,7 +520,43 @@ export function AppShell({
                 <div className="min-w-0 flex-1">{barra}</div>
               </>
             ) : null}
-            {azioni ? <div className="ml-auto flex items-center gap-2">{azioni}</div> : null}
+            {/*
+             * Le azioni della pagina, e la sola cosa che le fa stare su un
+             * tablet in densità touch.
+             *
+             * Il problema, misurato: in touch la colonna vale 384px e le azioni
+             * con l'etichetta scritta per esteso ne valgono 310 che NON si
+             * stringono mai (un bottone è `whitespace-nowrap`). Sommati, il
+             * guscio ha un pavimento di 967px — ma la soglia che toglie la
+             * colonna dal DOM è 768, e non sa niente della densità. Fra 768 e
+             * 966 il guscio non ci stava: sbordava in orizzontale di 199px al
+             * peggio, con le azioni fuori schermo. In densità normale non
+             * succede a nessuna larghezza, ed è perché la colonna ne vale 256.
+             *
+             * Il rimedio è `sr-only` sulle etichette — non `hidden`: il nome
+             * accessibile del bottone resta, cambia solo che non si vede.
+             * Perciò la condizione è doppia e nessuna delle due è di troppo:
+             * **solo in touch** (in normale le etichette servono e c'è posto) e
+             * **solo sotto `lg`** (sopra i 1024 ci stanno anche in touch).
+             *
+             * Si scrive `[[data-density=touch]_&]:` e non `in-data-[density=…]:`,
+             * che sarebbe più leggibile: Tailwind genera `in-*` con `:where()`,
+             * che ha specificità **zero**, e una regola a specificità zero perde
+             * a parità con qualunque utility che l'app metta sullo stesso
+             * elemento. Costato una misura sul percorso della fascia, dove
+             * `md:block` vinceva e il livello intermedio restava visibile.
+             *
+             * Il patto con l'app, ed è la parte da conoscere: l'etichetta va
+             * marcata con `data-etichetta`, e **ogni azione in fascia vuole
+             * un'icona** — un bottone che perde l'etichetta e non ha un'icona
+             * resta un rettangolo vuoto. È la grammatica delle azioni, e vale
+             * per M3.2 quando la `page-header` prenderà in carico questo slot.
+             */}
+            {azioni ? (
+              <div className="ml-auto flex shrink-0 items-center gap-2 max-lg:[[data-density=touch]_&]:[&_[data-etichetta]]:sr-only">
+                {azioni}
+              </div>
+            ) : null}
           </header>
 
           {/*

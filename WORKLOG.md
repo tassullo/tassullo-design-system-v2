@@ -2651,3 +2651,23 @@ Rimedio: **l'altezza al contenitore, il gruppo in `h-full` dentro** — che è q
 **Un avvertimento che vale oltre il caso**: finché la story era collassata a 3px, **axe la scansionava e non trovava niente**, perché non c'era niente da scansionare. Le 868 scansioni restano 0 violazioni ora che i pannelli si vedono davvero — ma il rischio era reale, ed è lo stesso di M2.3 col popup che non si apriva: *una story che non rende non è una story senza difetti*. Il gate non sa distinguere i due casi; `misura:bersagli` nemmeno (1988 bersagli, invariati). Se ne accorge solo chi guarda.
 
 Cinque gate verdi, `lint` pulito. Scatti in `docs/img/M1.6/coda-*.png`.
+
+### Coda di M1.6 (2) — il guscio non ci stava sui tablet in touch (2026-09-10)
+
+Segnalato da Francesco («serve lavorare anche Blocchi > App shell»), trovato misurando larghezza per larghezza invece che a occhio. **In densità touch il guscio sbordava in orizzontale per tutta la fascia dei tablet, da 768 a 966px** — 199px al peggio, con le azioni di pagina fuori schermo e il testo tagliato. In densità normale non succedeva a nessuna larghezza.
+
+**Il meccanismo, e sono due soglie che non si parlano.** In touch la colonna vale 384px (l'override deliberato di M2.5) e le azioni con l'etichetta per esteso ne valgono 310 che **non si stringono mai** — un bottone è `whitespace-nowrap`. Il pavimento del guscio era così **967px**. Ma la soglia che toglie la colonna dal DOM è **768**, e non sa niente della densità: sotto i 768 la colonna sparisce e tutto va bene, sopra i 967 c'è posto, e in mezzo restava una banda di 200px in cui il guscio non ci stava e basta.
+
+Due controprove che hanno indicato il colpevole prima di toccare qualsiasi cosa: `Collassato` (rail da 72px) non sbordava, e `SenzaIcone` nemmeno — perché **non ha azioni in fascia**. Sbordavano solo le forme che le hanno, cioè quelle che useranno le app vere.
+
+**Non è una regressione di M1.6**: pre-M1.6 sbordava di **191px**, dopo 199. La scala nuova ci ha messo 8px, non il problema.
+
+**Rimedio, scelto da Francesco fra tre**: in touch, sotto i 1024, le etichette delle azioni passano a `sr-only` — non `hidden`, così il **nome accessibile del bottone resta** e cambia solo che non si vede. Il guscio non possiede i bottoni («espone slot vuoti»), quindi non può riscriverli: espone il *meccanismo* e chiede all'app un patto, `data-etichetta` sull'etichetta. Da cui una regola nuova nella grammatica delle azioni: **ogni azione in fascia porta un'icona**. Non è un vezzo — un bottone che perde l'etichetta e non ha un'icona è un rettangolo vuoto. La story si adegua: «Sistema da BC», che era senza, prende `RefreshCwIcon`.
+
+**Il residuo, e la coincidenza di soglie che lo produceva.** Ridotte le azioni, restavano **13px** a 768 esatti. Non era il contenuto (min-content della card: 116px): era il **percorso**, che non scende sotto 146. La story faceva già l'idioma di `sidebar-07` — `hidden md:block` sui livelli intermedi — ma **`md` è 768, cioè esattamente la larghezza alla quale la colonna torna nel DOM**: a 768 i livelli intermedi ricomparivano (+146) nello stesso istante in cui ricompariva la colonna (+384 in touch), e i due effetti si sommavano sulla larghezza peggiore. In touch i livelli intermedi restano ora nascosti fino a `lg`, che è **la stessa soglia** delle etichette: sotto i 1024 in touch la fascia è tutta in forma compatta, sopra è tutta per esteso. Una soglia sola, non due.
+
+**Esito: sbordo 0 a ogni larghezza provata** — 375, 600, 767, 768, 800, 900, 1000, 1024, 1180, 1440 — in **entrambe** le densità. Cinque gate verdi, 868 scansioni / 0 violazioni, bersagli invariati (1988, 0 piccoli in entrambe le direzioni), `lint` pulito.
+
+**Una trappola di Tailwind pagata per intero, e vale oltre il caso.** La prima stesura usava `in-data-[density=touch]:`, che è la forma leggibile. **Non funzionava**, e in modo muto: Tailwind genera `in-*` con `:where([data-density=touch]) &`, e **`:where()` ha specificità zero** — la regola pesava quanto `.md\:block`, e a parità vince l'ordine, cioè `block`. Il livello intermedio restava `display: block` a 768 e lo sbordo non si chiudeva; la classe *c'era* nel DOM, quindi guardando il markup sembrava a posto. Si scrive `[[data-density=touch]_&]:`, che genera un selettore d'attributo vero (0,2,0) e vince davvero. Trovato solo perché la misura diceva ancora 13px quando il markup diceva di sì: **è la misura a chiudere un rimedio, non la lettura del markup**.
+
+Scatti: `docs/img/M1.6/coda2-guscio-768-touch.png` e `coda2-guscio-1440-touch.png`.
