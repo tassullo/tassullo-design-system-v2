@@ -2928,3 +2928,15 @@ Uno scostamento dall'esempio di shadcn, e misurato: **`size="icon"` invece di `i
 `npm run check` verde sui cinque gate: **892 scansioni / 4 passate / 0 violazioni** (223 story, +1). Il blocco ora ha **due** popup e le story li aprono **tutti e due, uno per story** — `Fascia Stretta` apre le azioni (`[aria-label="Altre azioni"]`), `Percorso Collassato` apre il percorso (`button:has([data-slot="breadcrumb-ellipsis"])`). Era il punto su cui M2.3 e M2.6 hanno sbagliato due volte: un popup non aperto non è un popup senza violazioni, e qui i selettori dovevano diventare due perché `[data-slot="dropdown-menu-trigger"]` adesso ne trova due e avrebbe sempre e solo aperto il primo.
 `npm run build` ✔ · `build-storybook` ✔ · `lint` 3 avvisi preesistenti · `registry:build` rilanciato.
 `npm run misura:bersagli`: **2015 bersagli su 223 story, 0 piccoli in entrambe le direzioni** — i due grilletti nuovi non abbassano il set.
+
+---
+
+### Coda della coda — due story che erano la stessa scena
+
+**Rilievo di Francesco**: «Fascia Stretta e Percorso Collassato sono la stessa story o sbaglio?» Non sbagliava. Erano lo stesso banco da 320px con lo stesso percorso; le differenze erano un'azione distruttiva in più su una e — la sola che contasse — **quale dei due menu la `play` apriva**. Nel catalogo comparivano come due componenti diversi, e non lo erano.
+
+**Ora sono dichiaratamente due stati di una scena sola**: `STRETTA` è un `args` unico condiviso, `bancoStretto()` un `render` unico, e i nomi dicono cosa è aperto — `Stretta Menu Del Percorso` e `Stretta Menu Delle Azioni`. La didascalia sopra la barra lo ripete, e la prosa spiega **perché non sono una sola**: `apri.ts` apre **un** popup per story, e un popup che il gate non apre è un popup di cui non sa niente. Da quando i menu in barra sono due, servono due story per misurarli entrambi aperti — che è la stessa lezione di M2.3 e M2.6, riapplicata dentro un blocco invece che fra primitive.
+
+La duplicazione è quindi **strumentale e dichiarata**, non accidentale: è la differenza fra due story che si somigliano per caso e due che si somigliano per costruzione.
+
+Gate invariato: **892 scansioni / 0 violazioni**.

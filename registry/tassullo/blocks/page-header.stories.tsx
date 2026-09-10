@@ -9,6 +9,7 @@ import {
   PageHeader,
   type AzionePagina,
   type LivelloPercorso,
+  type PageHeaderProps,
 } from '@/registry/tassullo/blocks/page-header'
 
 /**
@@ -209,55 +210,63 @@ export const PercorsoProfondo: Story = {
 }
 
 /**
- * **La fascia stretta**: 320px in densità normale (`w-80`), cioè meno di
- * tutte e due le soglie — la stessa forma che si vede su uno schermo da 375px.
- * Il percorso perde gli intermedi e le azioni entrano tutte nel bottone «⋯».
+ * **La fascia stretta** e i suoi due menu.
+ *
+ * 320px in densità normale (`w-80`), cioè sotto tutte e due le soglie: la
+ * stessa forma che si ha su uno schermo da 375px, dove la colonna non c&apos;è.
+ * Il percorso raccoglie gli intermedi nel `…` e le azioni entrano nel `⋮`.
  *
  * Non serve cambiare viewport per vederlo: le soglie guardano la fascia, e qui
- * la fascia è stretta perché è dentro un contenitore stretto. È la ragione
+ * la fascia è stretta perché sta in un contenitore stretto. È la ragione
  * pratica per cui `@container` batte `md:`/`lg:` — un blocco che si misura da
  * sé si può anche **provare** da sé.
  *
- * La story apre il menu «⋯», che è il popup del blocco: la passata `aperto` del
- * gate lo misura aperto, quella `chiuso` a riposo.
+ * **Le due story che seguono sono la stessa scena**, con gli stessi identici
+ * `args`: cambia solo **quale dei due menu è aperto**. Non è una duplicazione
+ * per distrazione, ed è il motivo per cui non sono una sola: `apri.ts` apre
+ * **un** popup per story, e un popup che il gate non apre è un popup di cui non
+ * sa niente — «un popup non aperto non è un popup senza violazioni» è la
+ * lezione che la FASE 2 ha pagato due volte (M2.3, M2.6). Da quando i menu in
+ * barra sono due, servono due story per misurarli tutti e due aperti.
  */
-export const FasciaStretta: Story = {
-  args: {
-    percorso: PERCORSO_LUNGO,
-    azioni: [...AZIONI, { titolo: 'Elimina', icona: Trash2Icon, ruolo: 'distruttiva' }],
-  },
-  render: (args) => (
-    <Banco
-      larghezza="w-80"
-      didascalia="Fascia da 320px — la stessa che si ha su uno schermo da 375px, dove la colonna non c'è. Il riquadro è stretto di proposito: le soglie guardano la fascia, non lo schermo."
-    >
-      <PageHeader {...args} />
-    </Banco>
-  ),
-  play: apriCol('[aria-label="Altre azioni"]', 'dropdown-menu-content'),
+const STRETTA = {
+  percorso: PERCORSO_LUNGO,
+  azioni: [...AZIONI, { titolo: 'Elimina', icona: Trash2Icon, ruolo: 'distruttiva' }],
+} satisfies Partial<PageHeaderProps>
+
+const bancoStretto = (didascalia: string) => (args: PageHeaderProps) => (
+  <Banco larghezza="w-80" didascalia={`Fascia da 320px — ${didascalia}`}>
+    <PageHeader {...args} />
+  </Banco>
+)
+
+/**
+ * **Il menu del percorso aperto.** Sotto `@md` i livelli intermedi non
+ * spariscono: si raccolgono nel `…`, che è un grilletto. È il difetto che
+ * questa story esiste per non far tornare — un percorso che a schermo stretto
+ * *perde* dei livelli toglie proprio i salti che servono per risalire, e lì la
+ * colonna non c&apos;è.
+ *
+ * Il glifo è l&apos;ellissi **orizzontale**, quella di `BreadcrumbEllipsis`.
+ */
+export const StrettaMenuDelPercorso: Story = {
+  args: STRETTA,
+  render: bancoStretto('aperto il menu del percorso, che contiene i livelli intermedi.'),
+  play: apriCol('button:has([data-slot="breadcrumb-ellipsis"])', 'dropdown-menu-content'),
 }
 
 /**
- * **Il menu del percorso.** Sotto `@md` i livelli intermedi non spariscono: si
- * raccolgono nel `…`, che è un grilletto e si apre. È il difetto che questa
- * story esiste per non far tornare — un percorso che a schermo stretto *perde*
- * dei livelli toglie proprio i salti che servono per risalire.
+ * **Il menu delle azioni aperto** — stessa scena, stessi `args`, l&apos;altro
+ * menu. Dentro ci sono tutte le azioni della pagina, distruttiva compresa.
  *
- * Il glifo è l&apos;ellissi **orizzontale**, quella di `BreadcrumbEllipsis`;
- * le azioni a destra usano il kebab **verticale**. Due menu nella stessa barra
- * vogliono due segni diversi.
+ * Il glifo è il kebab **verticale**: due menu nella stessa barra vogliono due
+ * segni diversi, perché uno naviga e l&apos;altro agisce, e con lo stesso segno
+ * si distinguerebbero solo per posizione.
  */
-export const PercorsoCollassato: Story = {
-  args: { percorso: PERCORSO_LUNGO, azioni: AZIONI },
-  render: (args) => (
-    <Banco
-      larghezza="w-80"
-      didascalia="Fascia da 320px — il «…» del percorso aperto: dentro ci sono i livelli intermedi."
-    >
-      <PageHeader {...args} />
-    </Banco>
-  ),
-  play: apriCol('button:has([data-slot="breadcrumb-ellipsis"])', 'dropdown-menu-content'),
+export const StrettaMenuDelleAzioni: Story = {
+  args: STRETTA,
+  render: bancoStretto('aperto il menu delle azioni.'),
+  play: apriCol('[aria-label="Altre azioni"]', 'dropdown-menu-content'),
 }
 
 /**
