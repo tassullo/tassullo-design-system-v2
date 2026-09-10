@@ -415,6 +415,74 @@ function tokenDelTema(): Set<string> {
   return new Set([...root.matchAll(/^\s+--([a-z0-9-]+):/gm)].map((m) => m[1]!));
 }
 
+/**
+ * I nomi di corpo che Tailwind espone di suo. Servono a distinguere i due
+ * difetti muti, che hanno rimedi opposti: un `text-4xl` ESISTE come utility e
+ * rende — semplicemente non scala con la densità, perché i due blocchi
+ * `[data-density]` ridichiarano i soli gradini che il tema tara; un `text-md`
+ * non esiste affatto, non emette niente, e il testo eredita la misura del
+ * genitore. Nessuno dei due è un errore di compilazione (M1.6, D16 §30).
+ */
+const CORPI_TAILWIND = new Set([
+  "xs", "sm", "base", "lg", "xl",
+  "2xl", "3xl", "4xl", "5xl", "6xl", "7xl", "8xl", "9xl",
+]);
+
+/**
+ * `text-*` non è solo il corpo: è anche il colore (`text-muted-foreground`),
+ * l'allineamento, l'andare a capo e il troncamento. Quelle qui sotto sono le
+ * utility `text-` che NON sono né un corpo né un colore del tema, e vanno
+ * elencate o il gate le scambierebbe per gradini inventati.
+ */
+const TEXT_NON_CORPO = new Set([
+  "left", "center", "right", "justify", "start", "end",
+  "wrap", "nowrap", "balance", "pretty",
+  "ellipsis", "clip",
+  "transparent", "current", "inherit", "black", "white",
+]);
+
+/** I gradini che il tema tara davvero, letti dal CSS generato. */
+function corpiDelTema(): Set<string> {
+  if (!existsSync(THEME_FILE)) return new Set();
+  const css = readFileSync(THEME_FILE, "utf8");
+  return new Set(
+    [...css.matchAll(/--text-([a-z0-9]+)\s*:/g)].map((m) => m[1]!),
+  );
+}
+
+/**
+ * Regola 3 applicata ai corpi: ogni `text-*` scritto nel registry o è un
+ * gradino che il tema tara, o è un colore, o è una delle utility qui sopra.
+ * Tutto il resto è uno dei due difetti muti, e da qui in poi è un errore.
+ */
+function controllaCorpi(temaColori: Set<string>): void {
+  const corpi = corpiDelTema();
+  for (const path of [...fileUi(), ...fileBlocchi()]) {
+    const nome = basename(path);
+    for (const s of estraiStringhe(readFileSync(path, "utf8"))) {
+      for (const m of s.matchAll(/(?:^|[\s"'`:[])text-([a-z0-9][a-z0-9-]*)/g)) {
+        const n = m[1]!;
+        if (corpi.has(n) || temaColori.has(n) || SHADCN_TOKENS.has(n)) continue;
+        if (TEXT_NON_CORPO.has(n)) continue;
+        if (CORPI_TAILWIND.has(n)) {
+          err(
+            nome,
+            `\`text-${n}\` è un gradino di Tailwind che il tema NON tara: rende, ma ` +
+              `NON scala con la densità — uguale in normale e in touch, senza avviso. ` +
+              `Si tara in TIPOGRAFIA (scripts/hex-to-oklch.ts), o si usa un gradino tarato.`,
+          );
+        } else {
+          err(
+            nome,
+            `\`text-${n}\` non è un'utility Tailwind e il tema non la definisce: ` +
+              `non emette niente, e il testo eredita la misura del genitore. Refuso?`,
+          );
+        }
+      }
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.includes("--snapshot")) {
@@ -440,6 +508,7 @@ function main(): void {
   }
 
   const tema = tokenDelTema();
+  controllaCorpi(tema);
   const mancanti = [...SHADCN_TOKENS].filter((t) => !tema.has(t));
   if (mancanti.length > 0) {
     err(

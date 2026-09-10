@@ -241,7 +241,7 @@ function Tabella({ num, titolo, nota }: { num: string; titolo: string; nota: str
   const scarto = useScartoDecimali(rif)
   return (
     <div>
-      <h3 className="text-md font-semibold">{titolo}</h3>
+      <h3 className="text-sm font-semibold">{titolo}</h3>
       <p className="mt-1 mb-2 text-sm text-muted-foreground">{nota}</p>
       <table ref={rif} className="w-full border-collapse text-base">
         <thead>
@@ -426,7 +426,7 @@ function Pagina() {
     <div className="min-h-dvh bg-background text-foreground">
       <div className="mx-auto max-w-page space-y-8 px-5 py-6">
         <header className="space-y-3">
-          <h1 className="text-title font-semibold">Cifre e dati tabellari</h1>
+          <h1 className="text-2xl font-semibold">Cifre e dati tabellari</h1>
           <p className="text-base text-muted-foreground">
             Le colonne di numeri si allineano con Inter, senza cambiare carattere. Serve una
             utility, <code>tabular-nums</code>, e non un secondo font.

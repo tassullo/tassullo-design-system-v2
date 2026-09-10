@@ -67,7 +67,7 @@ export const DentroUnBottone: Story = {
 /** Accanto a un testo, quando il caricamento riguarda una zona e non un'azione. */
 export const ConEtichetta: Story = {
   render: () => (
-    <p className="flex items-center gap-2 text-md text-muted-foreground">
+    <p className="flex items-center gap-2 text-sm text-muted-foreground">
       <Spinner aria-label="" />
       Sto leggendo le schede tecniche…
     </p>

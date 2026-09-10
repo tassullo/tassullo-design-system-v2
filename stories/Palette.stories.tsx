@@ -266,7 +266,7 @@ function Colonna({ modo, etichetta }: { modo: 'light' | 'dark'; etichetta: strin
       <div className="space-y-6 px-5 py-5">
         {COPPIE.map((g) => (
           <section key={g.titolo}>
-            <h3 className="text-md font-semibold">{g.titolo}</h3>
+            <h3 className="text-sm font-semibold">{g.titolo}</h3>
             {g.testo && <p className="mt-1 text-sm text-muted-foreground">{g.testo}</p>}
             <div className="mt-2 grid grid-cols-2 gap-2">
               {g.tessere.map((t) => (
@@ -278,7 +278,7 @@ function Colonna({ modo, etichetta }: { modo: 'light' | 'dark'; etichetta: strin
 
         {TINTE.map((g) => (
           <section key={g.titolo}>
-            <h3 className="text-md font-semibold">{g.titolo}</h3>
+            <h3 className="text-sm font-semibold">{g.titolo}</h3>
             {g.testo && <p className="mt-1 text-sm text-muted-foreground">{g.testo}</p>}
             <div className="mt-2 grid grid-cols-4 gap-2">
               {g.tessere.map((t) => (
@@ -306,7 +306,7 @@ function Affiancate() {
   return (
     <div className="min-h-dvh bg-background">
       <header className="mx-auto max-w-page px-5 pt-6 pb-2">
-        <h1 className="text-title font-semibold text-foreground">Palette</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Palette</h1>
         <p className="mt-1 text-base text-muted-foreground">
           Tutti i {QUANTI} token del tema, nelle due modalità. Il valore è letto dal DOM; un clic
           sulla riga copia il nome del token.

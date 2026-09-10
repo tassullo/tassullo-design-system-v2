@@ -28,7 +28,7 @@ export const Predefinito: Story = {
 /** Una scorciatoia è un gruppo: i tasti restano `<kbd>` distinti. */
 export const Scorciatoia: Story = {
   render: () => (
-    <div className="flex flex-col gap-3 text-md">
+    <div className="flex flex-col gap-3 text-sm">
       <p className="flex items-center gap-2">
         Cerca <KbdGroup><Kbd>⌘</Kbd><Kbd>K</Kbd></KbdGroup>
       </p>

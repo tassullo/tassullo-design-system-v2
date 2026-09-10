@@ -2376,6 +2376,8 @@ Il filo comune: **ognuna delle tre produceva un rapporto pulito**. Nessuna sareb
 | voci di menu, `select-item`, `combobox-item` | **30.56** × 180÷469 | la famiglia più numerosa |
 | `command-item` | 42 × 454 | |
 
+> **Rettificata da M1.6 (2026-09-10).** La scala tipografica è cambiata e con essa le **interlinee**, che sono ciò da cui dipendono le altezze qui sopra — non `--spacing`, che M1.6 non tocca. I nuovi valori: `breadcrumb-link`, `command-input` e `combobox-chip-input` **20px** (erano 18.56); `tabs-trigger` **27.89** (26.42); le voci di menu, `select-item` e `combobox-item` **32** (30.56); `toggle` 41.56 × **81** (× 77). Il verdetto non cambia — **0 bersagli piccoli in entrambe le direzioni**, su 1988 misurati e 1541 sotto i 44px — e i più bassi si sono alzati, non abbassati.
+
 **Rettifica di due numeri a registro**: la voce di menu era data a **36px** e la voce del combobox a **31px**. Misurate oggi con lo strumento controllato, sono **entrambe 30.56px** — sono lo stesso bersaglio, non due.
 
 **Non si corregge niente, e la ragione non è la prudenza ma la misura.** Il rimedio noto per le voci — `py-1` → `py-2` — le porta a 48px in touch ma le alza **anche in densità normale** (25 → 33px): cambierebbe l'aspetto della scrivania per un criterio nato per il cantiere. E sono 30.56 × 324, cioè lunghe quanto tutto il menu.
@@ -2541,3 +2543,88 @@ Misurato su tre nomi × due scale × due densità: il nome di battesimo non si a
 **5. Il banco tipografico.** Per decidere serviva provare, non guardare screenshot. Costruita una pagina con **i componenti veri**: DOM catturato dalle story, CSS compilato di Storybook e Inter inlinati, nove campioni, tre scale commutabili dal vivo più i sette gradini modificabili, densità e modalità. I caratteri per riga li **misura** con una stringa di 100 caratteri dentro la larghezza utile vera di uno schermo da 375px.
 
 Un difetto trovato e corretto lì dentro, e la causa vale oltre il caso: la colonna della sidebar è `position: fixed`, e dentro un iframe alto quanto tutto il contenuto «fisso» vuol dire **rispetto all'intero documento** — la colonna si allungava su tutte e nove le sezioni e ci si sedeva sopra. Si contiene dando al riquadro un `transform`, che lo rende il blocco di riferimento dei figli fissi. Non era un difetto del guscio: era della vetrina.
+
+---
+
+## M1.6 — Riallineamento della scala tipografica (2026-09-10)
+
+**Attuata D16.** La scala in vigore è `xs 12 / sm 13 / base 15 / lg 16 / xl 19 / 2xl 27 / 3xl 31`, e in touch `13 / 14 / 16 / 17 / 21 / 29 / 33`. **Zero gradini nostri**: `--text-md` è fuso in `sm`, `--text-title` è diventato `2xl`, e `3xl` è tarato accanto perché la FASE 4 non vada a pescare un gradino che la densità non muove. Ogni nome che un componente possa scrivere è ora un nome di Tailwind, e ogni nome di Tailwind che il tema tara scala con la densità.
+
+Fuori dall'ordine delle fasi di proposito: è una modifica al **tema**, cioè l'oggetto della FASE 1.
+
+### Le tre modifiche
+
+**1. La costante, e una fonte in meno.** In `scripts/hex-to-oklch.ts` la tupla era `[nome, normale, touch, nota]`, coi valori touch **scritti a mano** mentre il commento due righe sopra dichiarava che erano `×1.08` arrotondato. Coincidevano tutti e sette, ma erano due fonti per un dato solo — e due fonti divergono al primo ritocco. Ora la tupla è `[nome, normale, nota]` e i valori touch li **deriva** `inTouch()`. Era l'unico dato del tema in quello stato.
+
+**2. `text-md` → `text-sm`, `text-title` → `text-2xl`.** Ventuno occorrenze nel codice vivo, trovate col `grep` e non con gli occhi, perché **nessuna delle due è un errore di compilazione**: sono utility che Tailwind non conosce, non emettono niente, e il testo eredita la misura del genitore. Due nei componenti spediti (`button.tsx`, `button-group.tsx`), il resto fra story e workbench.
+
+**3. Le pagine che documentano la scala.** `Tipografia`, `Carattere` e `Densità` elencano i gradini uno per uno: senza riscriverle mentirebbero. Tolta anche la nota «chip, breadcrumb, testi densi» di `md`, che era **già falsa** prima di questa sessione — il breadcrumb usa `text-sm`, i chip del combobox pure.
+
+### Il gate nuovo, e la prova che sa fallire
+
+`check:registry` controlla ora anche i **corpi**, su `ui/` e su `blocks/`: ogni `text-*` o è un gradino che il tema tara, o è un colore, o è una delle utility `text-` che corpo non sono (allineamento, a capo, troncamento). Tutto il resto è errore. Distingue i due difetti perché hanno rimedi opposti: `text-4xl` **esiste** e rende, ma non scala con la densità (i blocchi `[data-density]` ridichiarano i soli gradini nostri); `text-md` non esiste affatto.
+
+Provato su difetti veri, mai su codice pulito (§27.1): piantato `text-4xl` in `badge.tsx` → uscita **1**; cambiato in `text-md` → uscita **1**; ripristinato → **0**. E la prova migliore è arrivata da sé: girando sui `button.tsx` e `button-group.tsx` **pre-M1.6**, il gate ha segnalato **esattamente i due `text-md` veri**, cioè il difetto che questo task esisteva per chiudere.
+
+Zero falsi positivi su tutto il registry al primo colpo — che era la condizione, perché un gate che grida al lupo si smette di leggere.
+
+### Le misure
+
+**Screenshot prima/dopo**, 217 story × 2 densità, con lo Storybook costruito e i caratteri aspettati (`document.fonts.ready`): **207 story cambiate su 217** in normale, 209 in touch. I confronti affiancati di guscio, tabella, form e bottoni sono in `docs/img/M1.6/`.
+
+**Il bottone non si è mosso di un pixel**, ed era il controllo più veloce che la modifica fosse andata come previsto: `text-md` valeva 13, `text-sm` vale 13. Guardato negli scatti affiancati, le larghezze delle sei varianti coincidono.
+
+**D10 rimisurata — e il righello tarato prima di fidarsene.** Rimisurare la scala *vecchia* con lo strumento nuovo dà 166 / 137 / 50 / 44 contro i 165 / 136 / 49 / 44 di M3.1: la stessa misura a meno di un carattere, che è la differenza fra due stringhe campione. Senza questa taratura non si saprebbe se lo scarto è la scala o il metro.
+
+| cella | larghezza utile | caratteri per riga |
+|---|---|---|
+| 1440 × normale | 1148 *(invariata)* | **156** *(erano 165)* |
+| 1440 × touch | 1008 *(invariata)* | **129** *(136)* |
+| 375 × normale | 343 *(invariata)* | **47** *(49)* |
+| 375 × touch | 327 *(invariata)* | **42** *(44)* |
+
+Le larghezze **non si muovono**, e non è una sorpresa: vengono da `--spacing`, che M1.6 non tocca. Nella cella stretta la scala nuova costa **2 caratteri per riga**, ed è il prezzo che D16 aveva messo in conto scegliendo il «+1» invece dell'allineamento pieno a shadcn, che ne sarebbe costati 5 (44 → ~39). La stima su cui è stata presa la decisione regge alla misura.
+
+**Bersagli**: 1988 su 217 story, 1541 sotto i 44px, 31 tipi, **0 piccoli in entrambe le direzioni** — invariato. I più bassi si sono **alzati**, perché a muoversi è l'interlinea e non `--spacing`: campi di testo e collegamento del breadcrumb da 18.56 a **20px**, `tabs-trigger` da 26.42 a **27.89**, le voci di menu da 30.56 a **32**.
+
+**I cinque gate verdi**, `test:a11y` a **868 scansioni / 0 violazioni**, invariato.
+
+### La fascia a 375px, guardata perché è lì che il testo grande fa danno
+
+A 375px in **touch** la fascia sborda di **38px**: il percorso si taglia e le azioni escono dallo schermo. È brutto, e non è nuovo — **misurato 38px anche sull'albero pre-M1.6**, ricostruito apposta per confrontare. M1.6 non l'ha peggiorata di un pixel.
+
+La ragione è la proprietà stessa di questa sessione: la larghezza minima della fascia la dettano i **due bottoni**, e i bottoni non si sono mossi (13px prima come dopo). A crescere è il **percorso**, che però è l'elemento flessibile — il guscio gli dà `min-w-0` apposta perché a cedere sia lui e non le azioni — quindi assorbe la crescita troncandosi, e il totale non cambia. Lo sbordo viene da `--spacing`, non dal corpo.
+
+È il quinto rilievo di §29 visto un mese dopo e con un numero attaccato. Il rimedio resta dove stava: **nell'app**, coi livelli intermedi del breadcrumb che spariscono sotto i 768px, come nel `sidebar-07` di shadcn. In densità **normale** lo sbordo è **0**.
+
+### Le `incomplete`, che il gate non asserisce mai
+
+L'avvertimento del piano meritava di essere preso sul serio: axe usa una soglia più bassa per il **testo grande** (3:1 sopra 18.66px in grassetto, 24px in tondo), quindi ingrandendo il testo una coppia al limite può smettere di essere segnalata **senza essere stata aggiustata**.
+
+Sulle *violations* l'argomento si chiude da sé: erano **0** prima, e una soglia più larga può solo nascondere ciò che falliva. Non falliva niente.
+
+Sulle *incomplete* il gate non dice nulla — le registra e non le asserisce mai — quindi sono state **contate a mano**, e con lo stesso strumento su entrambi gli alberi (ricostruendo lo Storybook pre-M1.6 apposta: il conto di CLAUDE.md, «6 su Kbd», viene da un'imbracatura diversa e non era confrontabile). Esito: **411 nodi prima, 412 dopo**. Nessuna sparita — una **comparsa**, che è la direzione innocua.
+
+Quella comparsa è `color-contrast` su `Primitive/Popover → Quattro lati`, e non è una coppia di colori: axe la marca `elmPartiallyObscuring`, «non riesco a determinare il fondo perché l'elemento ne sovrappone altri». Nella story ci sono quattro popover aperti insieme; il testo a 13px invece di 12 li fa crescere quel tanto che basta perché due si tocchino. È geometria della vetrina, non un difetto del componente — e la coppia `text-muted-foreground` su `popover` `check:contrast` la verifica per conto suo.
+
+### Uno scostamento dal piano
+
+Il piano si aspettava che il conto di `check:registry` **scendesse**, perché `button` e `button-group` tornano a scrivere `text-sm` come l'originale. **Non è sceso**: 8 e 4 stringhe ri-stilate prima, 8 e 4 dopo, 14 componenti prima e dopo. Il gate conta le **stringhe** di classi divergenti, non le classi, e quelle due stringhe divergono ancora sul **raggio** — `rounded-md` (6px) contro `rounded-lg` (10px) — che è identità di marchio e resta.
+
+La sostanza di D16 regge, e anzi diventa vera alla lettera: su quelle due stringhe **l'unica differenza superstite è il raggio**. Ciò che non regge è la previsione numerica, annotata perché un numero atteso e non arrivato, lasciato correre, la sessione dopo si legge come un guasto.
+
+### Un rilievo di numerazione, per Francesco
+
+In `CHECKLIST.md` ci sono **due decisioni chiamate D16**: la scala tipografica (questa) e la scelta del set d'icone, entrambe chiuse il 2026-09-10. Non ho rinumerato — battezzare una decisione è una scelta, non una pulizia — ma «D16» da oggi è ambiguo in ogni riferimento futuro.
+
+### I numeri corretti altrove
+
+- `docs/DECISIONI.md` **§29** — tabella di D10 coi valori nuovi accanto ai vecchi, più la taratura del righello.
+- `docs/DECISIONI.md` **§30** — riscritta **al presente**: descrive il tema com'è, non una proposta.
+- `docs/DECISIONI.md` **§6** — la leva della densità, coi passi della scala nuova e la derivazione.
+- `docs/DECISIONI.md` **§27.6** e `WORKLOG.md` **M2.9** — la tabella dei bersagli, rettificata in nota invece che riscritta: il diario resta ciò che fu misurato allora.
+- `CLAUDE.md` **§Regole 5**, `§Comandi` (`check:registry`, `misura:bersagli`) e `CHECKLIST.md` righe **M1.6**, **D16**, **D10**.
+
+### Prossimi passi
+
+Il verdetto di **D10** resta di **M4.2**, su una pagina vera, e parte da una cella un po' più stretta di prima: 42 caratteri per riga a 375px in touch. La riserva `3xl` è tarata e **non la usa ancora nessuno**: i numeroni del cruscotto sono M4.4.

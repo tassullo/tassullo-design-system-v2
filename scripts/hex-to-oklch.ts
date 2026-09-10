@@ -520,10 +520,10 @@ function css(value: string): string {
  * `--text-*` scala la LEGGIBILITÀ, e molto meno: ×1.08 arrotondato al pixel.
  * Non è un fattore scelto a occhio, è quello che riproduce il passo del v1,
  * che in touch alzava il testo del bottone di UN gradino della scala
- * (13px → 14px). Applicato all'intera scala dà 11→12, 12→13, 13→14, 14→15 —
- * cioè esattamente «il gradino successivo» dove i gradini distano 1px — e
- * prosegue con la stessa proporzione sui titoli (15→16, 18→19, 26→28), che è
- * ciò che tiene la gerarchia senza collisioni. Un bersaglio deve crescere del
+ * (13px → 14px). Applicato alla scala di M1.6 dà 12→13, 13→14, 15→16, 16→17 —
+ * cioè ancora «il gradino successivo» dove i gradini distano 1px — e prosegue
+ * con la stessa proporzione sui titoli (19→21, 27→29, 31→33), che è ciò che
+ * tiene la gerarchia senza collisioni. Un bersaglio deve crescere del
  * 50% per stare sotto un dito guantato; un testo a 13px è già leggibile, e
  * portarlo a 20px non lo rende più leggibile: rompe le colonne.
  *
@@ -538,26 +538,31 @@ function css(value: string): string {
 const SPACING = { normale: "0.25rem", touch: "0.375rem" } as const;
 
 const TIPOGRAFIA = [
-  ["xs", "11px", "12px", "micro-etichette, sottotitoli sidebar"],
-  ["sm", "12px", "13px", "meta, badge, voci sidebar"],
-  ["md", "13px", "14px", "chip, breadcrumb, testi densi"],
-  ["base", "14px", "15px", "corpo standard, input"],
-  ["lg", "15px", "16px", "titoli card"],
-  ["xl", "18px", "19px", "titoli sezione"],
-  ["title", "26px", "28px", "titolo pagina"],
+  ["xs", "12px", "micro-etichette, etichette di gruppo della sidebar"],
+  ["sm", "13px", "il gradino che regge il 69% dell'interfaccia: voci sidebar, breadcrumb, menu, bottoni"],
+  ["base", "15px", "corpo standard, input"],
+  ["lg", "16px", "titoli card"],
+  ["xl", "19px", "titoli sezione"],
+  ["2xl", "27px", "titolo di pagina"],
+  ["3xl", "31px", "numeroni del cruscotto"],
 ] as const;
+
+/** La leva della leggibilità: ×1.08 arrotondato al pixel — vedi il commento sopra.
+ *  Derivata, non scritta a mano: era l'unico dato del tema con due fonti. */
+const inTouch = (px: string) => `${Math.round(parseFloat(px) * 1.08)}px`;
 
 /** I sette gradini per il blocco `@theme` (densità normale, con le note). */
 function emitScala(): string {
   return TIPOGRAFIA.map(
-    ([nome, normale, , nota]) => `  --text-${nome}: ${normale}; /* ${nota} */`
+    ([nome, normale, nota]) => `  --text-${nome}: ${normale}; /* ${nota} */`
   ).join("\n");
 }
 
 /** Un blocco `[data-density="…"]`: la leva dei bersagli e quella del testo. */
 function emitDensita(modo: "normale" | "touch"): string {
-  const i = modo === "touch" ? 2 : 1;
-  const testo = TIPOGRAFIA.map(([nome, ...v]) => `  --text-${nome}: ${v[i - 1]};`).join("\n");
+  const testo = TIPOGRAFIA.map(
+    ([nome, normale]) => `  --text-${nome}: ${modo === "touch" ? inTouch(normale) : normale};`
+  ).join("\n");
   return `[data-density="${modo}"] {\n  --spacing: ${SPACING[modo]};\n\n${testo}\n}`;
 }
 
@@ -719,7 +724,7 @@ ${colorMap}
 
 /* ── Tipografia: perché sta in un \`@theme\` SEMPLICE e non in \`@theme inline\`
    \`inline\` significa "risolvi il valore in fase di compilazione": in quel
-   blocco Tailwind emette \`.text-sm { font-size: 12px }\`, il valore cotto
+   blocco Tailwind emette \`.text-sm { font-size: 13px }\`, il valore cotto
    dentro l'utility. Ridichiarare \`--text-sm\` a runtime — che è esattamente
    ciò che fa la densità qui sotto — non cambierebbe nulla, e il difetto è
    muto: nessun errore, il testo semplicemente non scatta. Senza \`inline\`
@@ -727,9 +732,11 @@ ${colorMap}
    I colori restano \`inline\` perché lì l'indirezione serve al contrario
    (--color-primary: var(--primary)) e la densità non li tocca. */
 @theme {
-  /* La scala del v1, sette gradini. Sono i soli che i blocchi devono usare:
-     i gradini Tailwind che restano oltre questi (text-2xl in su) non sono
-     tarati su Tassullo. */
+  /* Sette gradini, tutti con nomi Tailwind: dopo M1.6 non ci sono più
+     gradini nostri (\`md\` è fuso in \`sm\`, \`title\` è diventato \`2xl\`). Sono
+     i soli che i blocchi devono usare: i gradini Tailwind oltre questi
+     (\`text-4xl\` in su) NON sono tarati su Tassullo, quindi non scalano con
+     la densità — \`check:registry\` li segnala. */
 ${emitScala()}
 }
 
@@ -776,10 +783,12 @@ ${emitScala()}
    2. \`--text-*\` scala la LEGGIBILITÀ, e molto meno: **×1.08**, arrotondato
       al pixel. Non è un fattore scelto a occhio: è quello che riproduce il
       passo del v1, che in touch alzava il testo del bottone di UN gradino
-      della scala (13px → 14px). Applicato all'intera scala dà 11→12, 12→13,
-      13→14, 14→15 — cioè esattamente "il gradino successivo" dove i gradini
-      distano 1px — e prosegue con la stessa proporzione sui titoli (15→16,
-      18→19, 26→28), che è ciò che tiene la gerarchia senza collisioni.
+      della scala (13px → 14px). Applicato alla scala di M1.6 dà 12→13,
+      13→14, 15→16, 16→17 — cioè ancora "il gradino successivo" dove i
+      gradini distano 1px — e prosegue con la stessa proporzione sui titoli
+      (19→21, 27→29, 31→33), che è ciò che tiene la gerarchia senza
+      collisioni. I valori touch sono DERIVATI dalla scala normale, non
+      scritti a mano: erano l'unico dato del tema con due fonti.
 
       Perché non ×1.5 come i bersagli: un bersaglio deve crescere del 50%
       per stare sotto un dito guantato; un testo a 13px è già leggibile, e

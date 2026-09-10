@@ -153,7 +153,7 @@ function TotaleAlCentro({
   const cy = vb.cy - SCARTO_BLOCCO - (conLegenda ? ALTEZZA_LEGENDA / 2 : 0)
   return (
     <text x={vb.cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground">
-      <tspan x={vb.cx} y={cy} className="fill-foreground text-title font-semibold tabular-nums">
+      <tspan x={vb.cx} y={cy} className="fill-foreground text-2xl font-semibold tabular-nums">
         {totale.toLocaleString('it-IT')}
       </tspan>
       <tspan x={vb.cx} y={cy + RIGA_TOTALE} className="fill-muted-foreground text-sm">
