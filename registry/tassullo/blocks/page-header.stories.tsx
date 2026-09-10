@@ -70,7 +70,10 @@ import {
  * ramificazione**, e la regola vale identica dentro il guscio, fuori dal guscio
  * e a qualunque densità.
  *
- * - **`@md` (448px)** — sotto, i livelli intermedi del percorso diventano `…`;
+ * - **`@md` (448px)** — sotto, i livelli intermedi del percorso entrano dentro
+ *   un `…` che **si apre**: non spariscono, si raccolgono in un menu (è la
+ *   forma «Breadcrumb with Dropdown» di shadcn). Un percorso che perde dei
+ *   livelli su un telefono perde proprio quelli che servono per risalire;
  * - **`@2xl` (672px)** — sotto, le azioni entrano tutte in un solo bottone «⋯».
  *
  * Le soglie misurano il **riquadro di contenuto** della fascia, cioè al netto
@@ -99,6 +102,15 @@ import {
  *
  * **Taglia normale, non `sm` come nel v1**: `sm` in densità touch fa 42px, cioè
  * sotto i 44 di WCAG e sotto i 48 che il v1 dà a `.btn` in cantiere.
+ *
+ * **Il glifo del menu è `⋮`, non `⋯`.** Quando la fascia è stretta i menu in
+ * barra diventano due — il `…` del percorso, che *naviga*, e quello delle
+ * azioni, che *agisce* — e con lo stesso glifo si distinguono solo per
+ * posizione. L&apos;ellissi orizzontale resta al percorso (è quella che shadcn
+ * mette in `BreadcrumbEllipsis`, e in un percorso significa «altri livelli
+ * qui in mezzo»); alle azioni va il **kebab verticale**, che è il segno con cui
+ * una barra raccoglie ciò che non ci sta. Stessa distinzione che fa Material
+ * fra ellissi e overflow della barra.
  */
 const meta = {
   title: 'Blocchi/Intestazione di pagina',
@@ -222,7 +234,30 @@ export const FasciaStretta: Story = {
       <PageHeader {...args} />
     </Banco>
   ),
-  play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+  play: apriCol('[aria-label="Altre azioni"]', 'dropdown-menu-content'),
+}
+
+/**
+ * **Il menu del percorso.** Sotto `@md` i livelli intermedi non spariscono: si
+ * raccolgono nel `…`, che è un grilletto e si apre. È il difetto che questa
+ * story esiste per non far tornare — un percorso che a schermo stretto *perde*
+ * dei livelli toglie proprio i salti che servono per risalire.
+ *
+ * Il glifo è l&apos;ellissi **orizzontale**, quella di `BreadcrumbEllipsis`;
+ * le azioni a destra usano il kebab **verticale**. Due menu nella stessa barra
+ * vogliono due segni diversi.
+ */
+export const PercorsoCollassato: Story = {
+  args: { percorso: PERCORSO_LUNGO, azioni: AZIONI },
+  render: (args) => (
+    <Banco
+      larghezza="w-80"
+      didascalia="Fascia da 320px — il «…» del percorso aperto: dentro ci sono i livelli intermedi."
+    >
+      <PageHeader {...args} />
+    </Banco>
+  ),
+  play: apriCol('button:has([data-slot="breadcrumb-ellipsis"])', 'dropdown-menu-content'),
 }
 
 /**

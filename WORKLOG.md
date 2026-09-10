@@ -2898,3 +2898,33 @@ Due modifiche.
 **Sulla violazione nel pannello.** Lo screenshot del rilievo mostrava `Accessibility 2 / Violations 1 — aria-command-name` e 28 `Passes`. **Sul codice committato quella story è a zero**: pannello riletto sul dev server, `Violations 0 · Passes 25 · Inconclusive 0`, e axe eseguito a mano in Chromium sullo Storybook costruito — chiaro e scuro, popup aperto a quattro tempi di assestamento diversi (0, 60, 150, 400ms) e popup chiuso dopo `Esc` — dà **zero violazioni** in tutti e dieci i casi. I conti diversi (28 passi contro 25) dicono che quel pannello stava misurando un DOM diverso dal committato: un dev server rimasto acceso su uno stato intermedio della sessione. Nessuna modifica fatta per questo; **se ricompare a pagina ricaricata, serve il nodo** — il pannello lo mostra espandendo la riga della violazione — perché senza non è riproducibile.
 
 **Verifiche**: `npm run check` di nuovo verde sui cinque gate, **888 scansioni / 0 violazioni**; `build`, `build-storybook`, `registry:build` ✔; `lint` ai 3 avvisi preesistenti. Guardate a video le cinque story del blocco e il guscio, in chiaro e scuro.
+
+---
+
+## Coda di M3.2 (2) — il «…» del percorso era un vicolo cieco (2026-09-10)
+
+**Il rilievo di Francesco**, con lo screenshot della pagina `Breadcrumb` di shadcn accanto: quando il percorso si accorcia e compaiono i `…`, **quel segno si deve poter cliccare** per arrivare alle sezioni intermedie. Accolto, ed era un difetto vero e non un'omissione estetica.
+
+**Cosa faceva la nostra**: i livelli intermedi erano `display: none`, e `BreadcrumbEllipsis` è `role="presentation" aria-hidden` — cioè un **disegno**. A schermo stretto il percorso non *collassava*: **perdeva** dei livelli, e perdeva proprio quelli che servono per risalire, che su un telefono sono gli unici salti disponibili (la colonna lì non c'è). Un menu che non si apre è peggio di un menu che non c'è: promette una strada e non la dà.
+
+**Cosa fa adesso**: il `…` è il grilletto di un `DropdownMenu` che contiene i livelli nascosti, ognuno col proprio `href` o `render` — quindi navigano davvero, col `<Link>` del router se l'app lo passa. È la composizione che shadcn documenta come «Breadcrumb with Dropdown», presa alla lettera: `DropdownMenuTrigger` che rende attraverso un `Button` fantasma, `BreadcrumbEllipsis` dentro, e l'`sr-only` accanto — che serve perché l'ellissi è `aria-hidden` e il nome accessibile del bottone non può venire da lì. **Scala 4bis ferma al gradino 1.**
+
+Uno scostamento dall'esempio di shadcn, e misurato: **`size="icon"` invece di `icon-sm`**. `icon-sm` fa 28px in normale e **42 in touch** — sotto i 44 di WCAG e sotto i 48 che il v1 dà in cantiere. `icon` fa **32 e 48**, cioè lo stesso bersaglio del menu delle azioni che gli sta accanto nella stessa barra, e la fascia in touch è alta 72: lo spazio c'è.
+
+---
+
+### E allora il glifo delle azioni non poteva restare `⋯`
+
+**La domanda di Francesco** — «sul telefono i `…` sono sicuro l'icona giusta per indicare l'azione?» — arriva mentre il percorso ne acquistava uno suo, e la risposta cambia proprio per questo. `⋯` come *overflow* è la convenzione giusta e da solo non era sbagliato; il problema nasce adesso, che i menu in barra diventano **due**: uno **naviga** (il percorso) e uno **agisce** (le azioni). Con lo stesso glifo si distinguerebbero solo per posizione, cioè per niente.
+
+**Divisi**: l'ellissi **orizzontale** resta al percorso — è quella che shadcn mette in `BreadcrumbEllipsis`, e in un percorso significa «altri livelli qui in mezzo» —; alle azioni va il **kebab verticale** `⋮`, che è il segno con cui una barra raccoglie ciò che non ci sta. È la stessa distinzione che fa Material fra l'ellissi e l'overflow della barra degli strumenti.
+
+**Bersagli misurati**, entrambi i grilletti: **32×32 in normale, 48×48 in touch**, identici fra loro.
+
+---
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **892 scansioni / 4 passate / 0 violazioni** (223 story, +1). Il blocco ora ha **due** popup e le story li aprono **tutti e due, uno per story** — `Fascia Stretta` apre le azioni (`[aria-label="Altre azioni"]`), `Percorso Collassato` apre il percorso (`button:has([data-slot="breadcrumb-ellipsis"])`). Era il punto su cui M2.3 e M2.6 hanno sbagliato due volte: un popup non aperto non è un popup senza violazioni, e qui i selettori dovevano diventare due perché `[data-slot="dropdown-menu-trigger"]` adesso ne trova due e avrebbe sempre e solo aperto il primo.
+`npm run build` ✔ · `build-storybook` ✔ · `lint` 3 avvisi preesistenti · `registry:build` rilanciato.
+`npm run misura:bersagli`: **2015 bersagli su 223 story, 0 piccoli in entrambe le direzioni** — i due grilletti nuovi non abbassano il set.

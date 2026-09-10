@@ -85,7 +85,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react"
-import { EllipsisIcon } from "lucide-react"
+import { EllipsisVerticalIcon } from "lucide-react"
 
 import { cn } from "cn"
 import {
@@ -299,7 +299,36 @@ function Percorso({ livelli }: { livelli: LivelloPercorso[] }) {
         {intermedi.length > 0 ? (
           <>
             <BreadcrumbItem className="shrink-0 @md/fascia:hidden">
-              <BreadcrumbEllipsis />
+              {/*
+               * **I livelli nascosti restano raggiungibili.** Il `…` non è un
+               * segnaposto: è il grilletto di un menu che contiene i livelli
+               * che non ci stanno. È la forma che shadcn documenta come
+               * «Breadcrumb with Dropdown», e senza di essa il percorso a
+               * schermo stretto non *collassa* — **perde** dei livelli, che su
+               * un telefono sono esattamente quelli che servono per risalire.
+               *
+               * `BreadcrumbEllipsis` è `aria-hidden`, quindi il nome
+               * accessibile del bottone non può venire da lì: sta nell'`sr-only`
+               * accanto, come nell'esempio di shadcn.
+               */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="ghost" size="icon" className="-mx-1" />}
+                >
+                  <BreadcrumbEllipsis />
+                  <span className="sr-only">Mostra i livelli nascosti</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" sideOffset={4}>
+                  {intermedi.map((l, i) => (
+                    <DropdownMenuItem
+                      key={`${l.titolo}-${i}`}
+                      render={l.render ?? (l.href ? <a href={l.href} /> : undefined)}
+                    >
+                      {l.titolo}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="shrink-0 @md/fascia:hidden" />
             {intermedi.map((l, i) => (
@@ -371,7 +400,7 @@ function Azioni({ azioni }: { azioni: AzionePagina[] }) {
           <DropdownMenuTrigger
             render={
               <Button variant="ghost" size="icon" aria-label="Altre azioni">
-                <EllipsisIcon />
+                <EllipsisVerticalIcon />
               </Button>
             }
           />
