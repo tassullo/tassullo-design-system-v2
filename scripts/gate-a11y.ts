@@ -67,6 +67,7 @@ const CON_POPUP = [
   "app-shell",
   "combobox",
   "context-menu",
+  "data-table",
   "dialog",
   "drawer",
   "dropdown-menu",

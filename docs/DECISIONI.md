@@ -1326,3 +1326,68 @@ La sostanza di D16 regge lo stesso, e anzi è ora vera alla lettera: su quelle d
 Misurato commutando la densità sul guscio: la colonna ha `transition-[width]`, e con la pagina considerata nascosta la transizione **non avanza**. Il risultato non è un errore, è una lettura **sfasata di una misura** — densità `normale` che riporta una fascia da 1056px (cioè la colonna touch da 384) e densità `touch` che ne riporta 1184 (la colonna normale da 256), con `--spacing` che nel frattempo dichiara il valore giusto. Due tentativi con esiti incrociati prima di riconoscerlo; `getBoundingClientRect` forza il layout, non il tempo.
 
 **La regola operativa**: qualunque misura su qualcosa che **transisce** — larghezze, posizioni, opacità — si prende in un **browser vero**, Chromium di Playwright headless contro lo Storybook costruito. Il pannello resta buono per guardare uno stato fermo e per gli screenshot; non è un banco.
+
+---
+
+## 33. La tabella: TanStack Table v9, e dove passa la riga fra loro e noi (M3.3, 2026-09-10)
+
+**La decisione**: `tassullo-data-table` è un **blocco**, costruito su `@tanstack/react-table` **v9** (9.2.4, la stabile). Le **colonne restano di TanStack**; il **contorno è nostro**.
+
+**Perché non è una primitiva ri-stilata.** Chiesto all'MCP prima di scrivere (regola 4bis, gradino 1): nel registry shadcn `data-table` **non esiste**. C'è `table` — le sei etichette HTML vestite, che abbiamo già — e `data-table-demo`, che è un `registry:example` e per lo stile `base-nova` **non è nemmeno pubblicato** (`shadcn view` risponde *not found*). La pagina «Data Table» è dichiaratamente una **guida**, e la ragione che shadcn dà è esplicita: «ogni tabella che ho scritto era diversa; metterle tutte in un componente vuol dire perdere la flessibilità che l'headless dà».
+
+Quindi: **nessun originale da cui divergere, nessuno snapshot in `registry/.upstream/`, nessuna riga in `componenti-propri.json`** — che è il registro di ciò che sta *al posto* di una primitiva, e questo non sostituisce niente. Sta in `blocks/`, dove `check:registry` verifica la sola regola 3. `componenti-propri.json` **resta vuoto**, ed è la condizione da difendere.
+
+**Perché la guida non basta.** La flessibilità che shadcn non vuole perdere, noi non la vogliamo pagare quattro volte: la guida lascia intero a chi la segue tutto il contorno — caratteristiche, stato, ricerca, paginazione, colonne nascoste, stato vuoto — da riassemblare a mano in ogni pagina. È il meccanismo esatto con cui le app del v1 sono divergite: nessuna ha scritto la tabella *male*, l'hanno scritta ognuna *un po' diversa*. Prodotti, Famiglie, Norme e Pubblicazioni di Anagrafe sono quattro volte la stessa tabella.
+
+**Dove passa la riga**, ed è la parte che decide il costo dei futuri aggiornamenti: `creaColonne()` è `createColumnHelper` di TanStack con la sola generica delle caratteristiche già messa. Chi scrive una colonna scrive **TanStack vero** — `accessor`, `display`, `columns`, `sortFn` — e la documentazione che gli serve è la loro, non una nostra parafrasi in italiano che invecchia. Nostro è ciò che in quattro pagine si copia identico.
+
+### La v9 non è la v8 che si ricorda
+
+È **a caratteristiche**: `tableFeatures()` dichiara ciò che serve e il resto sparisce dal bundle. Cadono i `get*RowModel` fra le opzioni — i modelli di riga si creano con `create*RowModel()` e si registrano lì — e cadono anche le funzioni di filtro e ordinamento incorporate, da registrare una per una sotto `filterFns` / `sortFns`. `useReactTable`, `getCoreRowModel()` e `flexRender(...)` sono v8: qui sono `useTable` e `<table.FlexRender />`.
+
+Le funzioni di ordinamento registrate sono **quattro**, e non per abbondanza: `text`, `alphanumeric` (o `IN-9` finirebbe dopo `IN-10`), `datetime`, `basic`.
+
+### Tre scostamenti dalla guida, tutti misurati
+
+1. **Si cerca in tutta la tabella, non in una colonna.** La guida filtra `email`, cioè una colonna scelta a mano. Qui è `globalFilteringFeature`; le colonne che non devono entrarci dicono `enableGlobalFilter: false` (nella story, `Rev.` e `Aggiornato` — cercare «12» avrebbe pescato mezza tabella).
+2. **L'intestazione ordina con un clic, non con un menu.** `DataTableColumnHeader` di shadcn apre un menu con Asc/Desc/Nascondi: da tastiera sono quattro gesti per la cosa che si fa più spesso. Qui l'intestazione **è** il bottone e cicla a **tre tempi**. Il terzo conta, ed è verificato: dopo il terzo Invio la tabella torna esattamente all'ordine di partenza (`RA-191, MA-528, AD-961`) — senza, una colonna ordinata per sbaglio non si potrebbe più disordinare.
+3. **Il `<th>` dichiara `aria-sort`.** La guida non lo fa e axe non lo pretende; è l'unico modo in cui un lettore di schermo sa che la tabella è ordinata e come.
+
+### Gli stati vuoti sono due, e non è un dettaglio
+
+La guida ne ha uno, `No results.`, che su una tabella **appena creata** dice la cosa sbagliata. «Nessun risultato» dopo una ricerca ha un rimedio — e il blocco offre il bottone che lo esegue — mentre «non c'è ancora niente» no, e il suo rimedio lo conosce solo la pagina (che passa l'azione). Quando **M3.5** stabilirà lo standard unico, il punto in cui intervenire è `TabellaVuota`, uno solo.
+
+### `onSelezione` non esiste, ed è la trappola di `CLAUDE.md` evitata all'origine
+
+La selezione esce dalla tabella attraverso `barra` nella **forma a funzione**, che riceve le righe scelte. Una `onSelezione` si notificherebbe per forza da un `useEffect` le cui dipendenze oneste sono **un array nuovo a ogni render** e una funzione che la pagina scrive quasi sempre inline: l'effetto riparte, chiama `setState`, il render riparte, e React non interrompe il ciclo e non stampa niente. Con la funzione è una chiamata in fase di render, pura, e le azioni di massa stanno dove servono davvero — nella barra. **Nota di strumento**: `oxlint` **ha** la regola `react-hooks(exhaustive-deps)` e l'aveva segnalata; il repo resta ai suoi 3 avvisi preesistenti e **senza la prima soppressione di lint della sua storia**.
+
+### Il difetto che il pannello del browser nascondeva, di nuovo
+
+`DropdownMenuLabel` **vuole un `DropdownMenuGroup` attorno**: in Base UI è `Menu.GroupLabel`, che senza `Menu.Group` **lancia**. Era già scritto in `dropdown-menu.stories.tsx` da M2.x, e qui è stato rifatto lo stesso. Ciò che vale la pena verbalizzare è **come si è manifestato**: nel pannello del browser dell'app la story sembrava sana e il menu «non si apriva», perché l'errore scatta quando il pannello **monta** — e il montaggio Base UI lo schedula in `requestAnimationFrame`, che lì non scatta mai (§22, §32). In Chromium vero la stessa story non renderizzava affatto: `rows: 3, buttons: 3` e il riquadro d'errore di Storybook al posto della tabella. **Il gate l'ha preso** (4 violazioni, categoria `imbracatura`, su `Menu Di Riga` e `Menu Delle Colonne`), e il pannello no. È la terza volta che la stessa causa produce un sintomo che non le somiglia.
+
+### Quel che si misura, si misura in Chromium
+
+Tastiera, sullo Storybook servito, viewport 1440×900:
+
+| gesto | esito |
+|---|---|
+| 1 Tab dall'inizio | il fuoco è nella casella di ricerca |
+| digitare «Marmorino» | 500 → **59 righe**; 9 Backspace → 500 |
+| 4 Tab | il fuoco è su «Ordina per Codice: crescente» |
+| Invio ×1 | `aria-sort="ascending"`, `AD-104, AD-108, AD-127` |
+| Invio ×2 | `aria-sort="descending"`, `RA-996/R, RA-995, RA-967` |
+| Invio ×3 | `aria-sort="none"`, e l'ordine di partenza è tornato |
+| Invio su «Pagina successiva» | Pagina 1 di 20 → **2 di 20** |
+
+Il fuoco **non si perde** in nessuno dei passaggi.
+
+Larghezze e altezze, quattro celle:
+
+| cella | riquadro | tabella | riga | la pagina sborda? |
+|---|---|---|---|---|
+| 1440 normale | 1406 | 1406 | 41 | no |
+| 1440 touch | 1406 | 1406 | 61 | no |
+| 375 normale | 341 | **746** | 41 | no — scorre **dentro** il riquadro |
+| 375 touch | 341 | **918** | 61 | no — scorre **dentro** il riquadro |
+
+**A 375px la pagina non sborda, ma la tabella nemmeno degrada**: scorre in orizzontale dentro il proprio riquadro, che è ciò che il `overflow-x-auto` della primitiva `table` fa da sé. Funziona e non rompe niente, ma «più della metà delle colonne è fuori dallo schermo senza un segno che lo dica» non è un degrado progettato. **È il lavoro della seconda sessione di M3.3**, insieme al conto dei bersagli in touch.

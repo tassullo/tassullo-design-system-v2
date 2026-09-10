@@ -2940,3 +2940,100 @@ Uno scostamento dall'esempio di shadcn, e misurato: **`size="icon"` invece di `i
 La duplicazione è quindi **strumentale e dichiarata**, non accidentale: è la differenza fra due story che si somigliano per caso e due che si somigliano per costruzione.
 
 Gate invariato: **892 scansioni / 0 violazioni**.
+
+---
+
+## M3.3 (1 di 2) — La tabella di dati: il contorno è nostro, le colonne restano di TanStack (2026-09-10)
+
+M3.3 è l'unico task doppio del piano. Questa è la **prima** sessione: la libreria, il blocco, i dati di prova, le story, l'item nel registry, i cinque gate. La **seconda** ha il degrado a 375px e il conto dei bersagli in touch — vedi «Prossimi passi».
+
+### Prima domanda, sempre: ce l'ha già shadcn?
+
+Chiesto all'MCP, non presunto. **`data-table` nel registry non c'è.** Ci sono `table` — le sei etichette HTML vestite, che abbiamo dal M2.4 — e `data-table-demo`, che è un `registry:example` e per lo stile `base-nova` **non è nemmeno pubblicato**: `npx shadcn view @shadcn/data-table-demo` risponde *not found*. La pagina «Data Table» del sito è dichiaratamente una **guida**, e shadcn ne dà la ragione: «ogni tabella che ho scritto era diversa; metterle tutte in un componente vuol dire perdere la flessibilità che l'headless dà».
+
+Conseguenze operative, e sono quelle che decidono il costo dei futuri aggiornamenti: **nessun originale da cui divergere**, quindi nessuno snapshot in `registry/.upstream/` e nessuna riga in `componenti-propri.json` — che è il registro di ciò che sta *al posto* di una primitiva, e una tabella di dati non sostituisce niente. Il blocco sta in `blocks/`, dove `check:registry` verifica la sola regola 3. **`componenti-propri.json` resta vuoto.**
+
+### Perché però la guida da sola non basta
+
+La flessibilità che shadcn non vuole perdere, **noi non la vogliamo pagare quattro volte**. La guida lascia intero a chi la segue tutto il contorno — caratteristiche, stato, ricerca, ordinamento, paginazione, selezione, colonne nascoste, stato vuoto — da riassemblare a mano in ogni pagina. È il meccanismo esatto con cui le app del v1 sono divergite: nessuna ha scritto la tabella *male*, l'hanno scritta ognuna *un po' diversa*. Prodotti, Famiglie, Norme e Pubblicazioni di Anagrafe sono quattro volte la stessa tabella.
+
+**La riga passa quindi qui: le colonne restano di TanStack, il contorno è nostro.** `creaColonne()` è il loro `createColumnHelper` con la sola generica delle caratteristiche già messa — chi scrive una colonna scrive TanStack vero (`accessor`, `display`, `columns`, `sortFn`), e la documentazione che gli serve è la loro, non una nostra parafrasi in italiano che invecchia al primo aggiornamento.
+
+### TanStack Table v9, e cosa non è più vero
+
+Installata `@tanstack/react-table` **9.2.4** (la stabile; la v9 è quella che i doc di shadcn usano oggi). È **a caratteristiche**: `tableFeatures()` dichiara ciò che serve e il resto sparisce dal bundle. Cadono i `get*RowModel` fra le opzioni — i modelli di riga si creano con `create*RowModel()` e si registrano lì dentro — e cadono anche le funzioni di filtro e ordinamento incorporate, da registrare una per una. `useReactTable`, `getCoreRowModel()` e `flexRender(...)` sono **v8**; qui sono `useTable` e `<table.FlexRender />`.
+
+Le funzioni di ordinamento registrate sono **quattro**, e non per abbondanza: `text`, `alphanumeric` (o `IN-9` finirebbe dopo `IN-10`), `datetime`, `basic`. Sono le quattro nature delle colonne di Anagrafe.
+
+### Tre scostamenti dalla guida, tutti voluti
+
+1. **Si cerca in tutta la tabella, non in una colonna.** La guida filtra `email`, cioè una colonna scelta a mano; le pagine di Anagrafe hanno una casella sola che guarda tutto. Qui è `globalFilteringFeature`, e le colonne che non devono entrarci dicono `enableGlobalFilter: false` — nella story `Rev.` e `Aggiornato`, dove cercare «12» avrebbe pescato mezza tabella.
+2. **L'intestazione ordina con un clic, non con un menu.** `DataTableColumnHeader` di shadcn apre un menu con Asc/Desc/Nascondi: da tastiera sono **quattro gesti** per la cosa che si fa più spesso. Qui l'intestazione *è* il bottone e cicla a **tre tempi** — crescente, decrescente, nessun ordine. Il criterio del piano («ordinabile e filtrabile **da tastiera**») è quello a decidere fra le due forme. Nascondere una colonna resta possibile, dal menu «Colonne», che è dove si va quando si vuole quello.
+3. **Il `<th>` dichiara `aria-sort`.** La guida non lo fa e axe non lo pretende, ma è l'unico modo in cui un lettore di schermo sa che la tabella è ordinata e come. Costa un attributo.
+
+### Due stati vuoti, non uno
+
+La guida ne ha uno, `No results.`, e su una tabella **appena creata** dice la cosa sbagliata. «Nessun risultato» dopo una ricerca ha un rimedio — e il blocco offre il bottone che lo esegue — mentre «non c'è ancora niente» no, e il suo rimedio lo conosce solo la pagina, che passa l'azione. Il blocco sa distinguerli perché conosce sia le righe filtrate sia quelle totali.
+
+Nota per **M3.5** (`empty-state`): oggi i due stati usano la primitiva `empty` così com'è; quando M3.5 stabilirà lo standard unico il punto in cui intervenire è `TabellaVuota`, **uno solo**.
+
+### `onSelezione` non esiste, e la mancanza è la cosa più importante del file
+
+La selezione esce dalla tabella attraverso `barra` nella **forma a funzione**, che riceve le righe scelte. La prima stesura aveva una `onSelezione` notificata da un `useEffect` con `[scelte]` fra le dipendenze — e **`oxlint` l'ha segnalata**, perché la regola `react-hooks(exhaustive-deps)` in questo repo c'è (il commento che avevo scritto diceva il contrario: corretto). Le dipendenze oneste sarebbero state un array nuovo a ogni render e una funzione che la pagina scrive quasi sempre inline: l'effetto riparte, chiama `setState`, il render riparte, e React non interrompe il ciclo e non stampa niente — la trappola di `CLAUDE.md`, quella dell'8 settembre.
+
+Invece di sopprimere l'avviso, **l'effetto è sparito**: `barra` come funzione è una chiamata in fase di render, pura, e le azioni di massa stanno dove servono davvero. Il repo resta ai suoi **3 avvisi preesistenti** e senza la prima soppressione di lint della sua storia.
+
+### Il difetto che il pannello del browser ha nascosto, per la terza volta
+
+`DropdownMenuLabel` **vuole un `DropdownMenuGroup` attorno**: in Base UI è `Menu.GroupLabel`, che senza `Menu.Group` **lancia**. Era già scritto in `dropdown-menu.stories.tsx` da M2.x, e l'ho rifatto lo stesso — la nota è mia.
+
+Ciò che vale il verbale è **come si è manifestato**. Nel pannello del browser dell'app la story sembrava sana — la tabella c'era, il grilletto pure — e il menu «non si apriva»: `aria-expanded="true"` e nessun contenuto. Sembrava l'ennesimo caso di §22 (Base UI schedula il montaggio in `requestAnimationFrame`, che lì non scatta), e in un certo senso lo era: l'errore scatta **quando il pannello monta**, quindi il pannello lo stava nascondendo. In Chromium vero la stessa story **non renderizzava affatto** — `rows: 3, buttons: 3`, cioè la tabella di Storybook e il riquadro d'errore al posto della nostra.
+
+**Il gate l'ha preso e il pannello no**: 4 violazioni in categoria `imbracatura` (le due passate `aperto`, su `Menu Di Riga` e `Menu Delle Colonne`), perché la `play` andava in timeout aspettando `dropdown-menu-content`. È la terza volta che la stessa causa produce un sintomo che non le somiglia.
+
+### Un rilievo che non chiudo, e che è materia di palette
+
+**`Badge` non ha varianti semantiche.** Le sue varianti sono quelle di shadcn — `default`, `secondary`, `destructive`, `outline`, `ghost`, `link` — mentre il tema ha da M1.1 le terne `success-*`, `warning-*`, `info-*`. Una colonna «Stato» è il caso d'uso naturale di quei token, e oggi non può usarli: nella story `pubblicato` finisce sull'arancio del brand (che è corretto come uso di `--primary` e passa il contrasto, ma è il colore *dell'identità*, non quello di uno *stato*) e tutto il resto è grigio. Aggiungere una variante è **gradino 4** della scala 4bis, quindi si propone e non si fa: se serve, è una decisione da prendere, non da scrivere di iniziativa. Segnalato qui, non chiuso.
+
+### Verifiche eseguite
+
+`npm run check` verde sui **cinque** gate: `check:contrast` ✔ 48 coppie · `check:registry` **0 errori**, 52 avvisi (arbitrari *ereditati da shadcn*, preesistenti), **3 blocchi Tassullo**, **0 componenti nostri** · `check:font` ✔ · `check:logo` ✔ · `test:a11y` **916 scansioni / 4 passate / 0 violazioni** (229 story, +6).
+`npm run build` ✔ · `build-storybook` ✔ · `lint` **3 avvisi preesistenti** · `shadcn registry validate` ✔ (**57 item**) · `registry:build` rilanciato.
+`npm run misura:bersagli`: **2170 bersagli su 229 story, 47 popup aperti, 1650 sotto i 44px, 32 tipi distinti, 0 piccoli in entrambe le direzioni** — nessun bersaglio nuovo sotto soglia.
+
+**Tastiera**, in Chromium di Playwright sullo Storybook servito, 1440×900 — è il criterio di accettazione del piano, quindi provato e non dichiarato:
+
+| gesto | esito |
+|---|---|
+| 1 Tab dall'inizio | il fuoco è nella casella di ricerca |
+| digitare «Marmorino» | 500 → **59 righe**; 9 Backspace → 500 |
+| 4 Tab | il fuoco è su «Ordina per Codice: crescente» |
+| Invio ×1 | `aria-sort="ascending"`, `AD-104, AD-108, AD-127` |
+| Invio ×2 | `aria-sort="descending"`, `RA-996/R, RA-995, RA-967` |
+| Invio ×3 | `aria-sort="none"`, **e l'ordine di partenza è tornato** |
+| Invio su «Pagina successiva» | Pagina 1 di 20 → **2 di 20** |
+
+Il fuoco non si perde in nessuno dei passaggi. Le prime tre righe crescenti confermano anche che `alphanumeric` lavora.
+
+**Larghezze e altezze**, quattro celle in Chromium:
+
+| cella | riquadro | tabella | riga | la pagina sborda? |
+|---|---|---|---|---|
+| 1440 normale | 1406 | 1406 | 41 | no |
+| 1440 touch | 1406 | 1406 | **61** | no |
+| 375 normale | 341 | **746** | 41 | no — scorre **dentro** il riquadro |
+| 375 touch | 341 | **918** | **61** | no — scorre **dentro** il riquadro |
+
+La densità arriva alla tabella senza che il blocco faccia niente: la riga passa da 41 a 61px perché `p-2` di `TableCell` deriva da `--spacing`. **Avvertenza di strumento, costata una misura**: il global della densità nell'URL di Storybook si chiama `density`, non `densita` (modalità e superficie sono in italiano, questo no) — con il nome sbagliato la pagina risponde, non dà errore, e riporta la densità normale sotto un'altra etichetta: 41px in tutte e quattro le celle.
+
+Guardate a video le sei story, in chiaro e in scuro, a 1440 e a 375, nelle due densità.
+
+### Resta aperto
+
+1. **Il degrado a 375px non è progettato.** La pagina non sborda — merito dell'`overflow-x-auto` che la primitiva `table` ha già — ma la tabella *scorre* in orizzontale e più della metà delle colonne è fuori dallo schermo **senza un segno che lo dica**. Funziona, non rompe niente, e non è un degrado. È il cuore della seconda sessione.
+2. **I bersagli in touch della barra.** Il grilletto «Colonne» è un `Button size="sm"`, cioè **41.56px** in touch: sotto i 44 di WCAG, e sopravvive al gate solo perché è largo 114. I bottoni della paginazione sono `size="icon"` (32 normale, **48** touch) proprio per non cascarci. Da rimettere in riga nella seconda sessione, insieme al punto 1.
+3. **`Badge` senza varianti semantiche** — vedi sopra: proposta, non decisione.
+
+### Prossimi passi
+
+**M3.3 (2 di 2)**: il degrado a 375px, e cioè la sola domanda di disegno vera di questo blocco — a 327px utili (la cifra di D10, misurata in M3.1) le colonne che si possono mostrare sono due, forse tre. Le strade da pesare sono tre e vanno pesate *guardandole*: (a) lo scorrimento orizzontale con la prima colonna fissa e un segno che dica che c'è dell'altro; (b) le colonne che si spengono per soglia, con `@container` sul riquadro della tabella — la lezione di M3.2, dove la soglia sulla fascia ha tolto la ramificazione per densità; (c) la riga che smette di essere una riga e diventa una scheda, che è ciò che fa `dashboard-01` di shadcn sotto una certa larghezza. Da portarci dentro la misura di M3.1: **in touch, a 1440px, il vincolo alla larghezza non è `--container-page` ma la colonna** (1008px utili contro i 1180 del tetto).

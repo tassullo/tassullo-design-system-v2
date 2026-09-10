@@ -991,6 +991,35 @@
         "@tassullo/tema"
       ],
       "docs": "La pagina dichiara la propria intestazione; la fascia in alto del guscio la rende:\n\n  <PageHeader\n    percorso={[{ titolo: \"Prodotti\", href: \"/prodotti\" }, { titolo: \"Famiglie\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n  />\n\n<PageHeader> non occupa spazio dove sta scritta: rende dentro la fascia attraverso\nun portale. Serve perche <AppShell> si monta una volta sola attorno all'<Outlet />,\nquindi la pagina non ha modo di passargli delle prop.\n\nNon c'e un titolo che si vede: il nome della pagina e gia la voce attiva in colonna\ne l'ultimo livello del percorso. Resta come <h1> in sr-only, per chi non vede lo\nschermo, ricavato dall'ultimo livello del percorso.\n\nLe azioni si dichiarano e non si disegnano — { titolo, icona, ruolo } — perche\nl'intestazione le rende in due forme: bottoni interi quando la fascia e larga, un\nsolo bottone «...» quando e stretta. Una sola azione `primaria` per pagina.\n\nLe soglie sono container query sulla fascia (@md per il percorso, @2xl per le\nazioni), non media query sulla viewport: sotto i 768px la colonna esce dal DOM,\nquindi lo schermo si allarga di 1px e la fascia si restringe di 255.\n\nFuori dal guscio serve <IntestazioneProvider> attorno e <FasciaIntestazione /> dove\nva la barra: e quello che AppShell monta da se."
+    },
+    {
+      "name": "tassullo-data-table",
+      "type": "registry:block",
+      "title": "Tabella di dati",
+      "description": "La tabella di dati delle app Tassullo: ricerca su tutta la tabella, ordinamento con un clic, paginazione, selezione, colonne nascondibili e due stati vuoti distinti. Le colonne restano di TanStack Table v9, il contorno lo tiene il blocco.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/checkbox",
+        "@tassullo/dropdown-menu",
+        "@tassullo/empty",
+        "@tassullo/input-group",
+        "@tassullo/select",
+        "@tassullo/table",
+        "@tassullo/tema"
+      ],
+      "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8."
     }
   ]
 }
