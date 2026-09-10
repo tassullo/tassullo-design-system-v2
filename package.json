@@ -12,11 +12,13 @@
     "check:contrast": "node scripts/hex-to-oklch.ts",
     "theme:build": "node scripts/hex-to-oklch.ts --write",
     "check:registry": "node scripts/check-registry.ts",
-    "check": "npm run check:contrast && npm run check:registry && npm run check:font",
+    "check": "npm run check:contrast && npm run check:registry && npm run check:font && npm run test:a11y",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "font:build": "node scripts/build-font-css.ts --write",
-    "check:font": "node scripts/build-font-css.ts"
+    "check:font": "node scripts/build-font-css.ts",
+    "test:a11y": "node scripts/gate-a11y.ts",
+    "misura:bersagli": "node scripts/misura-bersagli.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -39,6 +41,7 @@
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/addon-docs": "^10.6.0",
     "@storybook/addon-themes": "^10.6.0",
+    "@storybook/addon-vitest": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/culori": "^4.0.1",
@@ -46,12 +49,16 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/browser-playwright": "^4.1.11",
     "culori": "^4.0.2",
     "oxlint": "^1.79.0",
+    "playwright": "^1.63.0",
     "shadcn": "^4.21.0",
     "storybook": "^10.6.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }

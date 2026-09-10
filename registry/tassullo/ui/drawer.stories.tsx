@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
+import { apriCol } from '@/prove/apri'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
   Drawer,
@@ -48,6 +49,9 @@ import {
 const meta = {
   title: 'Primitive/Drawer',
   component: Drawer,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriCol('[data-slot="drawer-trigger"]', 'drawer-content'),
 } satisfies Meta<typeof Drawer>
 
 export default meta

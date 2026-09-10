@@ -1041,3 +1041,89 @@ Story `Scostamenti`, sull'esempio shadcn `chart-bar-negative`. Sta in una story 
 | legenda | mostra il nome e **un quadratino vuoto**, perché il colore della pastiglia lo legge dal `fill` del `Bar` e lì non c'era (lo mette la `shape`, una barra per volta) | un `fill` sul `Bar`, che nessuna barra usa ma la legenda sì |
 
 E una quarta che non è di Recharts ma nostra: la voce **`delta` va dichiarata nel `config`**, o la legenda resta senza testo. È la conferma della regola già scritta — il `config` è l'unico posto dove i nomi in italiano stanno scritti.
+
+---
+
+## 27. Il gate axe in CI, e tre modi diversi di ottenere un rapporto pulito sbagliato (M2.9, 2026-09-10)
+
+### 27.1 Un gate nuovo si prova su un difetto noto, mai su codice pulito
+
+Scritta nel modo ovvio, l'imbracatura Vitest **passava senza misurare niente**:
+
+```ts
+// SBAGLIATO — il gate tace
+import preview from './preview'
+setProjectAnnotations([preview, { initialGlobals: { modalita } }])
+```
+
+213 story, zero violazioni, e il `combobox` — che M2.6 aveva misurato con **16 `button-name` di gravità *critical*** — dava zero come tutti gli altri.
+
+La causa: **axe non lo monta il preview, lo monta `addon-a11y`**, con annotazioni proprie. Importando `preview.tsx` a mano si prende il nostro file e si perdono quelle degli addon, e con esse il gate. La forma giusta prende la composizione **intera**, la stessa che Storybook monta nel canvas:
+
+```ts
+import { getProjectAnnotations } from 'virtual:/@storybook/builder-vite/project-annotations.js'
+setProjectAnnotations([getProjectAnnotations(), { initialGlobals: { modalita }, parameters }])
+```
+
+Storybook stesso incoraggia l'errore: stampa un avviso che invita a **togliere** `setProjectAnnotations` dal file di setup, e chi lo toglie perde i globali personalizzati; chi lo tiene scritto a mano perde axe.
+
+**La lezione, che vale oltre il caso**: un controllo automatico nuovo non si valida su codice pulito, perché un gate rotto e un progetto sano danno **la stessa identica uscita**. Si valida su un difetto **di cui si conosce già il numero**. Qui l'ha salvato solo il fatto che M2.6 avesse scritto «16 `button-name` sul combobox»: senza quella riga a verbale, il gate sarebbe nato cieco e nessuno se ne sarebbe accorto.
+
+### 27.2 La matrice è due per due, e le due dimensioni trovano cose diverse
+
+Il gate gira **quattro volte**: `{chiaro, scuro} × {popup chiuso, aperto}`, 852 scansioni.
+
+- **Modalità**, perché `variant: link` dava 1.79:1 in chiaro e in scuro *non compariva affatto*.
+- **Stato del popup**, e qui i due versi sono entrambi necessari: le `aria-hidden-focus` si vedono **solo aperto**; il `button-name` di D14 si vede **solo chiuso**, perché a elenco aperto Base UI rende inerte il grilletto e axe lo salta.
+
+Le leve sono `VITE_MODALITA` e `VITE_POPUP`, lette in `.storybook/vitest.setup.ts`. Il prefisso `VITE_` non è decorativo: in modalità browser il codice gira dentro la pagina, dove `process.env` non esiste.
+
+### 27.3 Storybook esegue le `play` anche nel canvas — e uno strumento che clicca richiude
+
+`scripts/misura-bersagli.ts` apriva i popup cliccando il grilletto, prima di misurare. Ma le story arrivano **già aperte**, perché Storybook esegue le `play` anche fuori dai test: il clic le **richiudeva**.
+
+Misurato, ed è la prova che chiude il caso: `aria-expanded` valeva **`true` prima** del clic e **`false` dopo**.
+
+Il rapporto perdeva le voci di menu proprio dei componenti che credeva d'aver aperto, mentre sui modali il clic finiva sull'overlay e per caso non faceva danno — al punto di **contraddirsi da solo**, dichiarando «Dialog 0/6 aperti» mentre misurava il bottone di chiusura *dentro* il dialogo aperto.
+
+Forma giusta: **non toccare niente e aspettare il pannello**. Due eccezioni, `tooltip` e `hover-card`, che vogliono un puntatore **vero** — il puntatore sintetico della `play` non li tiene aperti.
+
+Corollario su Playwright: **il successo di un'apertura si giudica dal contenuto, non dal gesto**. Aprendo un modale l'overlay copre il grilletto, quindi Playwright ritenta il clic che ha già funzionato e alla fine dichiara un timeout. E `force: true` non è la soluzione: sui popup **non modali** salta i controlli di azionabilità e li apre e richiude nello stesso gesto — 0 su 11 con `force`, 11 su 11 senza.
+
+### 27.4 Le due esenzioni: si escludono i nodi, non si spengono le regole
+
+**`aria-hidden-focus`**, spenta **solo nella passata `aperto`**: lì Base UI rende inerte lo sfondo marcandolo `aria-hidden`, e quello sfondo contiene roba focalizzabile perché fino a un attimo prima era l'interfaccia. A popup **chiuso** nessuno sfondo è inerte, quindi lì la regola resta armata — un `aria-hidden-focus` a riposo sarebbe **nostro**.
+
+**Rettifica al registro**: la famiglia era data sui *guardiani del fuoco* (`data-base-ui-focus-guard`). Ricontato: le guardie ci sono ancora — **6 sul menu aperto** — ma ora portano `data-base-ui-inert` e **axe non le segnala più**. I nodi che restano sono quelli **dello sfondo**. Stessa natura, posto diverso: il registro cambia sotto i piedi, e va **rimisurato** invece che ricopiato.
+
+**`button-name` di D14**: si **escludono i due nodi** del combobox (`input-group-button`, `combobox-chip-remove`), non si spegne la regola. Spegnerla avrebbe reso il gate cieco su qualsiasi bottone senza nome finito in quelle story, **compreso uno nostro e nuovo**. Il costo residuo è dichiarato: dentro quei due slot un difetto *diverso* non verrebbe più visto.
+
+### 27.5 Il gate asserisce le `violations`, mai le `incomplete`
+
+Letto nel sorgente di `addon-a11y`: il test fallisce su `result.violations`; le `incomplete` finiscono nel rapporto e **non vengono mai asserite**, e **non c'è parametro** che lo cambi. Restano quindi una lettura **a mano**.
+
+Non è un dettaglio: in M2.8 il difetto vero della sessione — il `#666` degli assi, 2.97:1 in scuro — stava **dentro una `incomplete`**, in una riga identica alle altre, *serious* e senza numero. Il gate non copre quel caso.
+
+### 27.6 Un controllo di accessibilità non misura i bersagli, e le misure vanno controllate
+
+axe non guarda **quanto è grande** un bersaglio: una voce alta 31px passa ogni regola. Da cui `npm run misura:bersagli`, con due accorgimenti che sono la differenza fra una misura e un numero:
+
+- **Aspettare `document.fonts.ready`.** L'altezza di un controllo dipende dalla riga di testo che contiene, e Inter arriva in data URI dentro il CSS del tema. Senza l'attesa lo stesso bottone dava **47.88px** in una esecuzione e **47.48px** in quella dopo — misure che cambiano da sole. Con l'attesa: **48 tondi**.
+- **Un controllo dello strumento.** Il bottone di default in touch *deve* fare 48px; se non li fa, la densità non è stata applicata e lo script **esce con errore** invece di stampare la densità normale con un'altra etichetta.
+
+Esito: **31 tipi di bersaglio sotto i 44px** di WCAG 2.5.5 (AAA), e **nessuno piccolo in entrambe le direzioni**. Il set passa 2.5.8 (AA).
+
+**E un terzo accorgimento, imparato sbagliando nella stessa giornata: distinguere «basso» da «piccolo».** La prima stesura segnalava *cinque* bersagli sotto i 24px di AA, e la segnalazione è finita a verbale prima di essere verificata. Controllati uno per uno, due erano **falsi positivi dello strumento**:
+
+- l'«`input` 22×22» è il campo `type="range"` che Base UI tiene **dietro** al pomello dello slider perché funzioni da tastiera — il bersaglio vero è il pomello, **24×24**;
+- lo «`switch` 21×36» è la variante **`size="sm"`**, che compare solo nella story «Taglie» e che esiste apposta per essere piccola; il default è 27×48.
+
+Il segno che distingue i campi nativi della libreria da quelli che vestiamo noi è che **i primi non hanno classi**. Il filtro iniziale scartava i trasparenti e gli alti un pixel, ma non questo, che è visibile e sta sotto il pomello.
+
+Gli altri tre — un collegamento e due campi di testo, 18.56px alti ma **larghi 48, 239 e 416** — sono formalmente sotto i 24×24 e in pratica coperti dall'eccezione di spaziatura. Da cui la regola nel rapporto: `!!` per ciò che è piccolo in **entrambe** le direzioni, `!` per ciò che è solo basso. Confonderli è ciò che ha prodotto l'allarme.
+
+**Morale, che vale oltre il caso**: uno strumento di misura nuovo produce anche **falsi positivi**, non solo falsi negativi, e i due si scoprono in modi opposti — il falso negativo lo prende un difetto noto (§27.1), il falso positivo lo prende solo andando a **guardare cosa sia davvero** ogni cosa segnalata. Un numero non verificato messo a verbale diventa una decisione da prendere che non esisteva.
+
+**Rettifica di due numeri a registro**: la voce di menu era data a 36px e la voce del combobox a 31px. Sono **entrambe 30.56px** — lo stesso bersaglio, non due.
+
+Le voci di menu restano come sono: il rimedio (`py-1` → `py-2`) le alza **anche in densità normale**, cioè cambierebbe l'aspetto della scrivania per un criterio nato per il cantiere. Sono 30.56 × 324: basse, ma lunghe quanto tutto il menu.

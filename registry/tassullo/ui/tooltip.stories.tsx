@@ -1,3 +1,4 @@
+import { apriPassandoci } from '@/prove/apri'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { CopyIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 
@@ -48,6 +49,9 @@ const meta = {
       </TooltipProvider>
     ),
   ],
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriPassandoci('[data-slot="tooltip-trigger"]', 'tooltip-content'),
 } satisfies Meta<typeof Tooltip>
 
 export default meta

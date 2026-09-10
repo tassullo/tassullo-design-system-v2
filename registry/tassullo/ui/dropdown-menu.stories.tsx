@@ -9,6 +9,7 @@ import {
   UserIcon,
 } from 'lucide-react'
 
+import { apriCol } from '@/prove/apri'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
   DropdownMenu,
@@ -101,6 +102,9 @@ import {
 const meta = {
   title: 'Primitive/Dropdown Menu',
   component: DropdownMenu,
+  // Il menu si misura **aperto**: chiuso non c'è niente da guardare, e
+  // l'imbracatura deve dichiarare quali popup apre (`@/prove/apri`).
+  play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 } satisfies Meta<typeof DropdownMenu>
 
 export default meta

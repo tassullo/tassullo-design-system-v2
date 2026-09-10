@@ -226,9 +226,13 @@ const preview: Preview = {
       },
     },
 
-    // axe-core su ogni story. Passerà a 'error' in M2.9, quando l'audit
-    // diventa automatico e continuo e fa fallire la CI.
-    a11y: { test: 'todo' },
+    /**
+     * axe-core su ogni story, e da M2.9 **fa fallire la CI**: `'error'` è
+     * l'interruttore che trasforma il pannello da cosa-da-ricordarsi in
+     * gate. Il pannello resta dov'era — questo non aggiunge lo strumento,
+     * aggiunge l'obbligo.
+     */
+    a11y: { test: 'error' },
   },
 }
 

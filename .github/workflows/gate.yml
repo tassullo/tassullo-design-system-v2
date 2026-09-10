@@ -1,0 +1,47 @@
+# Il gate del registry, in CI.
+#
+# ── Perché questo file è qui prima di poter girare ──────────────────────
+#
+# Il repo **non ha un `git remote`**, ed è una decisione (D4, aperta), non
+# una dimenticanza: finché non si sceglie dove pubblicare, resta locale.
+# Quindi oggi questo workflow non parte mai — non c'è nessun GitHub che lo
+# legga. È scritto lo stesso perché il criterio di M2.9 è che l'audit
+# diventi **automatico e continuo**, e la differenza fra «lo faremo» e
+# «è fatto» è un file committato che parte da sé il giorno in cui il remote
+# esiste. Chi chiude D4 non deve anche ricordarsi di scrivere la CI.
+#
+# Fino ad allora il gate si esegue in locale, con lo stesso comando:
+#   npm run check
+name: Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Solo Chromium: il gate misura il contrasto e il comportamento dei
+      # popup, non la compatibilità fra browser. `--with-deps` serve perché
+      # l'immagine di GitHub non porta le librerie di sistema che Chromium
+      # si aspetta.
+      - run: npx playwright install --with-deps chromium
+
+      # I tre controlli statici — palette, aggiornabilità, font — e poi le
+      # quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto}.
+      - run: npm run check
+
+      # La style guide deve anche **costruirsi**: una story che compila nel
+      # dev server e non nel build statico è rotta per chi la consulta.
+      - run: npm run build-storybook

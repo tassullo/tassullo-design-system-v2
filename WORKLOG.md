@@ -2304,3 +2304,111 @@ Tre trappole di Recharts, tutte sullo stesso rettangolo, tutte trovate guardando
 **M2.9 — Gate di fase: audit del set.** Da portarci dentro, oltre a quanto già a registro: che l'imbracatura axe dichiari **quali popup apre davvero**; che le *incomplete* non si archivino in blocco (M2.8 ne ha trovata una vera dentro); e i due residui manuali che axe non vede, **D15** (tastiera del calendario) e la verifica dei selettori Recharts a ogni aggiornamento.
 
 **In attesa di decisione di Francesco**: **D13** (l'item `tema-logo`).
+
+---
+
+## Correzione su M2.5 — il filo del `SidebarRail` prendeva il colore sbagliato
+
+Segnalato da Francesco guardando la story `Primitive/Sidebar → Aperta`: passando col mouse sul bordo destro compare un cursore di ridimensionamento `<->` e il bordo verticale «si muove di qualche pixel per tornare in posizione». E, giustamente, il rilievo che sulla demo `blocks` di shadcn non succede — quindi il sospetto che il difetto fosse nostro.
+
+**Misurato in Chromium su tutti e due, alla stessa larghezza.** Il `SidebarRail` è una striscia trasparente di 16px a cavallo del bordo (x 247→263, bordo a 256) che fa da bottone per chiudere e riaprire la colonna; in hover accende un `::after` di 2px a 255→257, cioè un pixel sul bordo e un pixel sulla pagina.
+
+- **Il cursore è identico al loro**: `w-resize`, e le stringhe di classi del rail di `ui.shadcn.com/view/new-york-v4/sidebar-07` coincidono con le nostre parola per parola. Non è una nostra deriva. Che il cursore prometta un ridimensionamento che non esiste è una scelta di upstream, e resta.
+- **Il bordo che si sposta è invece un difetto nostro, ed è una questione di token.** Il filo era `hover:after:bg-sidebar-border`, ma il bordo su cui poggia è un `border-r` nudo, cioè `--border`. Da shadcn i due valori **coincidono** — entrambi `rgb(229,229,229)` — quindi il filo si posa sul bordo e non si vede nascere nulla. Da noi no: la colonna è antracite in entrambe le modalità, quindi `--sidebar-border` vale `rgb(38,38,38)` (giusto, per i divisori *dentro* la colonna) mentre `--border` vale `rgb(221,219,219)`. Il filo scuro finiva **sulla pagina chiara**, e la colonna sembrava ingrassare di 2px e tornare indietro.
+
+**Correzione, gradino 2 della scala 4bis — una stringa di classi**: `hover:after:bg-sidebar-border` → `hover:after:bg-border`. Il filo ora dichiara lo stesso token del bordo su cui si posa, quindi i due non possono più divergere in nessuna modalità: verificato con hover reale, filo e bordo entrambi `rgb(221,219,219)`. `npm run check` verde (0 errori), `registry:build` rilanciato.
+
+**La lezione oltre il caso**: `--sidebar-border` è il bordo *interno* alla colonna, non il suo perimetro. Il perimetro confina con la pagina e va vestito coi token della pagina. È la stessa famiglia di errore delle due trappole in testa a `CLAUDE.md` — un token preso per il suo nome invece che per il suo posto — e qui era invisibile da leggere, perché da shadcn i due valori sono uguali e lo sbaglio non si manifesta.
+
+**Resta aperto, deciso da Francesco**: se continuare a montare `<SidebarRail />` nel guscio. È ridondante — il grilletto in testata resta visibile anche a colonna chiusa, `Ctrl`/`Cmd`+`B` funziona, e il rail ha `tabIndex={-1}` quindi da tastiera non ci si arriva mai — ed è l'unico dei tre modi che mente sul cursore. Toglierlo è una scelta di composizione, non una modifica al componente: nessuna divergenza da riportare al prossimo aggiornamento di shadcn. Ricade su **M3.1** (`tassullo-app-shell`), che eredita questo guscio.
+
+---
+
+## M2.9 — Gate di fase: l'audit smette di essere una cosa da ricordarsi
+
+**Il compito**: `parameters.a11y.test = 'error'`, axe-core in CI, e poi il residuo che axe non vede — tastiera, bersagli ≥44px in touch, resa in scuro. Criterio: `build-storybook` più i test a11y verdi, audit scritto, zero scostamenti non motivati.
+
+**L'esito, in una riga**: **852 scansioni, 0 violazioni**, quattro gate in `npm run check`, CI scritta e dormiente. E tre trappole di misura trovate strada facendo, che valgono più del numero verde.
+
+### Cosa è stato costruito
+
+- **`@storybook/addon-vitest` + Vitest 4 + Playwright/Chromium**, con `vitest.config.ts` e `.storybook/vitest.setup.ts`. Browser vero, non jsdom: metà di ciò che axe misura — il contrasto su token `oklch()`, i popup che spostano il fuoco dentro `requestAnimationFrame` — in jsdom non esiste. L'imbracatura che M2.3 teneva in una cartella temporanea entra nel repo, ed è la differenza fra una misura ripetibile e una che si rifà a mano ogni volta.
+- **`scripts/gate-a11y.ts`** (`npm run test:a11y`): quattro passate, `{chiaro, scuro} × {popup chiuso, aperto}`, 213 story ciascuna. Stampa la matrice e **dichiara quali popup apre davvero**, segnalando i componenti con popup che non lo dichiarano.
+- **`.storybook/prove/apri.ts`** e le `play` sulle 11 primitive con popup, con l'alias `@/prove` in entrambi i config Vite. Fuori dal registry: nessun item spedisce le story, quindi l'imbracatura non arriva mai in un'app consumer.
+- **`scripts/misura-bersagli.ts`** (`npm run misura:bersagli`): l'altezza dei bersagli in densità touch, che axe non guarda.
+- **`.github/workflows/gate.yml`**: `npm ci`, Chromium, `npm run check`, `build-storybook`.
+
+### Le tre trappole, perché ognuna dava un verde falso
+
+**1. Il gate che tace.** Scritto nel modo ovvio — `setProjectAnnotations([preview, …])` importando il nostro `preview.tsx` — il gate **passava senza misurare niente**: il `combobox`, che M2.6 aveva misurato con 16 `button-name` *critical*, dava zero. Causa: axe non lo monta il preview, lo monta `addon-a11y` con annotazioni proprie; importando il nostro file si perdono quelle degli addon. Si prende invece la composizione intera dal modulo virtuale del builder. È il difetto peggiore che possa capitare a un gate — non rompe, tace — e l'ha smascherato solo il fatto di **sapere in anticipo un numero che doveva uscire**. Da cui una regola: un gate nuovo si prova su un difetto **noto**, mai solo su codice pulito.
+
+**2. Il popup che non era aperto.** Senza `play`, tutte e 213 le story si misuravano a riposo: la passata era verde e i popup non li aveva guardati nessuno. È la lezione già pagata in M2.3 (8 → 12 violazioni appena l'imbracatura aprì anche il `select`), ripresentata identica al primo giro. Ora ogni componente con popup **dichiara** come si apre, e il gate gira in **tutti e due** gli stati — perché servono entrambi: le `aria-hidden-focus` si vedono solo aperto, il `button-name` di D14 solo chiuso, dato che a elenco aperto Base UI rende inerte il grilletto e axe lo salta.
+
+**3. Lo strumento che chiudeva ciò che diceva di aprire.** `misura-bersagli` cliccava il grilletto prima di misurare. Ma **Storybook esegue le `play` anche nel canvas**: le story arrivavano già aperte, e il clic le **richiudeva**. Misurato: `aria-expanded` valeva `true` *prima* del clic e `false` dopo. Il rapporto perdeva le voci di menu proprio dei componenti che credeva d'aver aperto, mentre sui modali il clic finiva sull'overlay e per caso non faceva danno — cioè si contraddiceva da solo, dichiarando «Dialog 0/6 aperti» mentre misurava il bottone di chiusura *dentro* il dialogo aperto. Lo script ora **non tocca niente e aspetta**; le uniche due eccezioni sono `tooltip` e `hover-card`, che vogliono un puntatore vero perché il puntatore sintetico della `play` non li tiene aperti. Copertura finale: **47 popup su 48**, e il mancante è il `combobox` disabilitato, che un popup non ce l'ha per costruzione.
+
+Il filo comune: **ognuna delle tre produceva un rapporto pulito**. Nessuna sarebbe stata trovata guardando se il gate «passa».
+
+### Le due esenzioni, e perché sono strette
+
+**`aria-hidden-focus`, spenta solo nella passata `aperto`.** Aprendo un popup modale Base UI rende inerte lo sfondo marcandolo `aria-hidden`; quello sfondo è la story, e contiene roba focalizzabile. axe chiama la violazione, e ha torto: quel ramo è nascosto apposta, dalla stessa libreria che gestisce il fuoco. A popup **chiuso** nessuno sfondo è inerte, quindi lì la regola resta armata — un `aria-hidden-focus` a riposo sarebbe nostro. Spegnerla in entrambe le passate l'avrebbe resa cieca per sempre.
+
+**Rettifica a `CLAUDE.md`**: quella famiglia era data sui *guardiani del fuoco* (`data-base-ui-focus-guard`). Ricontato: le guardie ci sono ancora — **6 sul menu aperto** — ma ora portano `data-base-ui-inert` e **axe non le segnala più**. I nodi che restano sono quelli dello sfondo. Stessa natura, posto diverso: il registro cambia sotto i piedi, ed è la ragione per cui va rimisurato invece che ricopiato.
+
+**`button-name` sul `combobox`, D14.** Si **escludono i due nodi** (`input-group-button`, `combobox-chip-remove`), non si spegne la regola: spegnerla avrebbe reso il gate cieco su qualsiasi bottone senza nome finito in quelle story, compreso uno nostro e nuovo. Costo residuo, scritto perché si sappia: dentro quei due slot un difetto *diverso* non verrebbe più visto.
+
+### Il limite del gate, da conoscere
+
+**L'addon fa fallire il test sulle sole `violations`.** Le `incomplete` le registra e non le asserisce **mai**, e non c'è parametro che lo cambi (letto nel sorgente). Restano quindi una lettura **a mano** — e non è un dettaglio: in M2.8 il difetto vero della sessione, il `#666` degli assi a 2.97:1 in scuro, stava dentro una *incomplete*. Il gate non copre quel caso. **Resta aperto e in carico alla prima sessione che tocchi il tema o i grafici.**
+
+### I bersagli in touch — misurati, non dichiarati
+
+1947 bersagli su 213 story, 47 popup aperti. Con un **controllo dello strumento** che è servito: il bottone di default in touch deve fare **48px**, e finché non si aspettava `document.fonts.ready` misurava 47.88 in una esecuzione e 47.48 in quella dopo — misure che cambiano da sole. Ora fa 48 tondo.
+
+**Il criterio dei 44px (WCAG 2.5.5, AAA) non è rispettato da 31 tipi di bersaglio — ma nessuno è piccolo in entrambe le direzioni, e il set passa 2.5.8 (AA).** I più bassi, con la larghezza accanto perché il criterio è un'area:
+
+| bersaglio | in touch | nota |
+|---|---|---|
+| `breadcrumb-link` | 18.56 × **48** | basso ma largo |
+| `command-input`, `combobox-chip-input` | 18.56 × **416 / 239** | campi di testo, larghi |
+| `switch` | 21 × 36 | è la variante `size="sm"`; il default è **27 × 48** |
+| `checkbox`, `radio-group-item` | 24 × 24 | esattamente su AA |
+| `tabs-trigger` | 26.42 × 234 | |
+| voci di menu, `select-item`, `combobox-item` | **30.56** × 180÷469 | la famiglia più numerosa |
+| `command-item` | 42 × 454 | |
+
+**Rettifica di due numeri a registro**: la voce di menu era data a **36px** e la voce del combobox a **31px**. Misurate oggi con lo strumento controllato, sono **entrambe 30.56px** — sono lo stesso bersaglio, non due.
+
+**Non si corregge niente, e la ragione non è la prudenza ma la misura.** Il rimedio noto per le voci — `py-1` → `py-2` — le porta a 48px in touch ma le alza **anche in densità normale** (25 → 33px): cambierebbe l'aspetto della scrivania per un criterio nato per il cantiere. E sono 30.56 × 324, cioè lunghe quanto tutto il menu.
+
+### La rettifica in giornata: due dei cinque allarmi erano dello strumento, non del set
+
+La prima stesura di questo blocco diceva **cinque bersagli sotto i 24px di AA**, e l'ho scritto a verbale prima di verificarlo. Andando a guardare *cosa fossero davvero*, due non esistevano:
+
+- **`input` 22×22** è il campo `type="range"` che Base UI tiene **dietro** al pomello dello slider, perché funzioni da tastiera. Il bersaglio vero è il pomello: **24×24**.
+- **`switch` 21×36** è la variante **`size="sm"`**, presente solo nella story «Taglie» perché serve a mostrare le taglie. Il default è **27×48**.
+
+Il filtro scartava i campi nativi trasparenti o alti un pixel, ma non questo, che è visibile e sta sotto il pomello. Il segno che li distingue tutti: **i campi che genera la libreria non hanno classi**, quelli che vestiamo noi sì. Corretto, e il rapporto ora separa due segni — `!!` piccolo in **entrambe** le direzioni, `!` solo basso.
+
+Restano tre campi di testo e un collegamento, bassi ma larghi 48÷416, coperti dall'eccezione di spaziatura. **Zero bersagli piccoli in entrambe le direzioni, nessuna modifica al set, nessuna decisione pendente.**
+
+**La morale, che vale oltre il caso**: uno strumento nuovo produce anche **falsi positivi**, non solo falsi negativi, e i due si scoprono in modi opposti. Il falso negativo lo prende un difetto di cui si conosce il numero (è così che si è scoperto il gate che taceva); il falso positivo lo prende **solo andando a guardare** cosa sia ogni cosa segnalata. Un numero non verificato, messo a verbale, diventa una decisione da prendere che non esisteva.
+
+### Verifiche eseguite
+
+`npm run test:a11y` **852 scansioni / 4 passate / 0 violazioni** · `check:contrast` verde · `check:registry` **0 errori**, 52 avvisi (valori arbitrari *ereditati da shadcn*, preesistenti), 0 componenti nostri, 14 ri-stilati su forma intatta · `check:font` verde · `npm run build` verde · `npm run build-storybook` verde · `npm run lint` 3 avvisi preesistenti (`set-state-in-effect` su `use-mobile` e `carousel`, uno dei quali nell'originale upstream).
+
+### Deciso in coda alla sessione, da Francesco
+
+**D13 — il marchio nel registry: la (c), `mask-image` nel CSS del tema.** Il tracciato in data URI, sulla scia di `tema-font`. Due ragioni: `registry/componenti-propri.json` **resta vuoto** — la (a), il componente `<MarchioT />`, l'avrebbe rotto al primo componente nostro senza originale shadcn — e il colore **segue il testo** senza doppioni, mentre la (b) avrebbe voluto un file per fondo chiaro e uno per scuro, cioè due copie da tenere allineate. **La decisione è chiusa, l'item `tema-logo` è ancora da costruire.**
+
+**Il menù utente che esce dallo schermo sul telefono** (segnalato da Francesco guardando `Primitive/Sidebar → Aperta` a 375px in touch): **non si sistemava da sé** con una larghezza massima. `DropdownMenuContent` aveva `side="right"` fisso, e su una colonna da 256px dentro uno schermo da 375 il pannello finisce tagliato. Corretto in `side={isMobile ? 'bottom' : 'right'}`, che è il pattern del blocco `sidebar-07` di shadcn; `isMobile` lo espone già `useSidebar()` e la `Testata` lo usa due righe più su per i tooltip. **È composizione, non componente**: nessuna divergenza da riportare, semmai un allineamento.
+
+### Resta aperto
+
+1. **D15** (tastiera del calendario) resta chiusa «si accetta», e il gate **non la vede**: zero violazioni su una griglia non navigabile. È il residuo manuale, ed è ora scritto in `CLAUDE.md`.
+2. **Le `incomplete`**, che il gate non asserisce: se valga la pena costruire una seconda misura o se restino lettura a mano.
+3. **L'item `tema-logo`**, ora che D13 è decisa.
+
+### Prossimi passi
+
+FASE 3, **M3.1 `tassullo-app-shell`**, che eredita anche la coda di M2.5 (se montare `<SidebarRail />`) e prende la prima misura di **D10**. Prima, o dentro, va costruito l'item **`tema-logo`** deciso qui sopra.

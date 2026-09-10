@@ -20,6 +20,7 @@
        Gli import interni al registry usano SEMPRE `@/registry/...` (CLAUDE.md). */
     "paths": {
       "@/registry/*": ["./registry/*"],
+      "@/prove/*": ["./.storybook/prove/*"],
       "@/*": ["./src/*"]
     },
 

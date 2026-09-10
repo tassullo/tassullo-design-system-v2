@@ -2,7 +2,12 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023"],
+    /* `DOM` accanto a `ES2023` perché `scripts/misura-bersagli.ts` guida un
+       browser vero: i corpi passati a `page.evaluate()` sono codice che gira
+       **dentro la pagina**, non in Node, e senza i tipi del DOM non
+       compilano. Il prezzo, dichiarato: qui dentro un refuso tipo `document`
+       in uno script puramente Node non verrebbe più segnalato dal tipo. */
+    "lib": ["ES2023", "DOM"],
     "types": ["node"],
     "skipLibCheck": true,
 

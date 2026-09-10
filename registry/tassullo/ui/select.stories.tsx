@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
+import { apriCol } from '@/prove/apri'
 import { Label } from '@/registry/tassullo/ui/label'
 import {
   Select,
@@ -60,6 +61,9 @@ import {
 const meta = {
   title: 'Primitive/Select',
   component: Select,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriCol('[data-slot="select-trigger"]', 'select-content'),
 } satisfies Meta<typeof Select>
 
 export default meta

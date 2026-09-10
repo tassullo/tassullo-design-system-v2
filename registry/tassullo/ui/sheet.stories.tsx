@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
+import { apriCol } from '@/prove/apri'
 import { Button } from '@/registry/tassullo/ui/button'
 import { Field, FieldLabel } from '@/registry/tassullo/ui/field'
 import { Input } from '@/registry/tassullo/ui/input'
@@ -37,6 +38,9 @@ import { Switch } from '@/registry/tassullo/ui/switch'
 const meta = {
   title: 'Primitive/Sheet',
   component: Sheet,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriCol('[data-slot="sheet-trigger"]', 'sheet-content'),
 } satisfies Meta<typeof Sheet>
 
 export default meta

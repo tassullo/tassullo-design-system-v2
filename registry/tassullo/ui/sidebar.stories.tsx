@@ -329,8 +329,24 @@ function Testata() {
   )
 }
 
-/** Il piede: l'utente e le sue opzioni. Collassato resta il solo avatar. */
+/**
+ * Il piede: l'utente e le sue opzioni. Collassato resta il solo avatar.
+ *
+ * **Il menù si apre a destra sulla scrivania e in basso sul telefono**, ed è
+ * il pattern che shadcn scrive nel proprio blocco `sidebar-07`. Non è un
+ * dettaglio di gusto: `side="right"` fisso chiede al menù di aprirsi fuori
+ * da una colonna larga 256px dentro uno schermo da 375, e il pannello
+ * finisce tagliato dal bordo (segnalato da Francesco guardando la story a
+ * 375px in densità touch). Non si risolve da sé con una larghezza massima:
+ * la posizione la decide questa riga.
+ *
+ * `isMobile` non è una novità da introdurre — `useSidebar()` lo espone già, e
+ * la `Testata` qui sopra lo usa per spegnere i tooltip. È una scelta di
+ * **composizione**, non una modifica al componente: nessuna divergenza da
+ * riportare al prossimo aggiornamento di shadcn, anzi un allineamento al loro.
+ */
 function Utente() {
+  const { isMobile } = useSidebar()
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -357,7 +373,12 @@ function Utente() {
             </div>
             <ChevronsUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="end" sideOffset={4} className="w-56">
+          <DropdownMenuContent
+            side={isMobile ? 'bottom' : 'right'}
+            align="end"
+            sideOffset={4}
+            className="w-56"
+          >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
                 fsartori@covicostruzioni.it

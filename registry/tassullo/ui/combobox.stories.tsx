@@ -8,6 +8,7 @@ import {
   FieldError,
   FieldLabel,
 } from '@/registry/tassullo/ui/field'
+import { apriCol } from '@/prove/apri'
 import { InputGroupAddon } from '@/registry/tassullo/ui/input-group'
 import { Label } from '@/registry/tassullo/ui/label'
 import {
@@ -119,6 +120,43 @@ import {
 const meta = {
   title: 'Primitive/Combobox',
   component: Combobox,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  //
+  // Il grilletto si cerca per `aria-haspopup`, non per `data-slot`:
+  // `ComboboxTrigger` rende attraverso `InputGroupButton`, che si riprende
+  // lo slot, e nel DOM `combobox-trigger` non esiste. È anche il bottone su
+  // cui cade il `button-name` di D14 — che infatti si vede solo nella
+  // passata `chiuso`, perché ad elenco aperto Base UI lo rende inerte.
+  play: apriCol('[aria-haspopup="listbox"]', 'combobox-content'),
+
+  /**
+   * **D14, chiusa il 2026-09-09: i bottoni-icona del combobox restano senza
+   * nome accessibile.** Sono il chevron che apre l'elenco e le crocette
+   * delle pillole — 16 `button-name` di gravità *critical*, e a differenza
+   * dei guardiani del fuoco **queste si chiuderebbero**: basterebbe un
+   * `aria-label`. Non si chiudono per scelta, e la motivazione vale oltre il
+   * caso: le app Tassullo sono strumenti interni e i lettori di schermo non
+   * sono un requisito. Misurata la gravità vera: la crocetta ha
+   * `tabindex="-1"`, il fuoco da tastiera non ci passa mai, e le pillole si
+   * tolgono con `Backspace`. Se un domani un'app diventasse rivolta al
+   * pubblico, si riapre.
+   *
+   * Si **escludono i nodi**, non si spegne la regola. La differenza conta:
+   * spegnere `button-name` su questo file renderebbe cieco il gate su
+   * *qualsiasi* bottone senza nome che finisse in una story del combobox,
+   * anche uno nostro e nuovo. Escludendo i due `data-slot` si perde la
+   * misura esattamente sugli elementi che D14 ha accettato, e su nient'altro.
+   * Il costo residuo, scritto perché si sappia: dentro questi due slot un
+   * difetto diverso non verrebbe più visto.
+   */
+  parameters: {
+    a11y: {
+      context: {
+        exclude: ['[data-slot="input-group-button"]', '[data-slot="combobox-chip-remove"]'],
+      },
+    },
+  },
 } satisfies Meta<typeof Combobox>
 
 export default meta

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
+import { apriCol } from '@/prove/apri'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
   Dialog,
@@ -45,6 +46,9 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
 const meta = {
   title: 'Primitive/Dialog',
   component: Dialog,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriCol('[data-slot="dialog-trigger"]', 'dialog-content'),
 } satisfies Meta<typeof Dialog>
 
 export default meta

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { InfoIcon, SettingsIcon } from 'lucide-react'
 
+import { apriCol } from '@/prove/apri'
 import { Button } from '@/registry/tassullo/ui/button'
 import { Field, FieldLabel } from '@/registry/tassullo/ui/field'
 import { Input } from '@/registry/tassullo/ui/input'
@@ -50,6 +51,9 @@ import { Slider } from '@/registry/tassullo/ui/slider'
 const meta = {
   title: 'Primitive/Popover',
   component: Popover,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
 } satisfies Meta<typeof Popover>
 
 export default meta

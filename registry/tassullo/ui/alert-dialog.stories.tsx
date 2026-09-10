@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/registry/tassullo/ui/alert-dialog'
+import { apriCol } from '@/prove/apri'
 import { Button } from '@/registry/tassullo/ui/button'
 
 /**
@@ -40,6 +41,9 @@ import { Button } from '@/registry/tassullo/ui/button'
 const meta = {
   title: 'Primitive/Alert Dialog',
   component: AlertDialog,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriCol('[data-slot="alert-dialog-trigger"]', 'alert-dialog-content'),
 } satisfies Meta<typeof AlertDialog>
 
 export default meta

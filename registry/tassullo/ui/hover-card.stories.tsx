@@ -1,3 +1,4 @@
+import { apriPassandoci } from '@/prove/apri'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import { Avatar, AvatarFallback } from '@/registry/tassullo/ui/avatar'
@@ -32,6 +33,9 @@ import { Separator } from '@/registry/tassullo/ui/separator'
 const meta = {
   title: 'Primitive/Hover Card',
   component: HoverCard,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriPassandoci('[data-slot="hover-card-trigger"]', 'hover-card-content'),
 } satisfies Meta<typeof HoverCard>
 
 export default meta

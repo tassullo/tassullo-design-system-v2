@@ -1,3 +1,4 @@
+import { apriColDestro } from '@/prove/apri'
 import * as React from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
@@ -45,6 +46,9 @@ import {
 const meta = {
   title: 'Primitive/Context Menu',
   component: ContextMenu,
+  // Si misura **aperto**: chiuso il popup non esiste e axe non ha niente
+  // da guardare. L'imbracatura dichiara qui quale popup apre (`@/prove/apri`).
+  play: apriColDestro('[data-slot="context-menu-trigger"]', 'context-menu-content'),
 } satisfies Meta<typeof ContextMenu>
 
 export default meta
