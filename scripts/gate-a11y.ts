@@ -71,6 +71,7 @@ const CON_POPUP = [
   "drawer",
   "dropdown-menu",
   "hover-card",
+  "page-header",
   "popover",
   "select",
   "sheet",

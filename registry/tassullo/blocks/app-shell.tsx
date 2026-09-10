@@ -33,9 +33,12 @@
  * — mostra `w-resize`, cioè promette un ridimensionamento che non esiste. È il
  * solo dei tre modi di aprire la colonna che ha tutti e tre i difetti.
  *
- * **La `page-header`** — titolo, breadcrumb, azioni di pagina. È M3.2, e sta
- * dentro `children`. Qui c'è solo lo slot `barra`, che è la fascia in alto di
- * `sidebar-07`: grilletto, filo, e ciò che l'app ci mette.
+ * **Il contenuto della fascia.** Il guscio disegna la fascia — grilletto,
+ * altezza, la garanzia che resti una riga sola — ma percorso e azioni sono
+ * della **pagina**, che li dichiara con `<PageHeader>`
+ * (`tassullo-page-header`, M3.2), reso nella fascia attraverso un portale. Il
+ * guscio si monta una volta sola attorno all'`<Outlet />`: una prop non ci
+ * arriverebbe mai.
  *
  * **Il percorso corrente.** Il guscio non sa che rotte esistono: `attiva` è un
  * dato che passa l'app, e i collegamenti si passano con `render` — un
@@ -49,7 +52,7 @@ import type {
   ReactElement,
   ReactNode,
 } from "react"
-import { ChevronRightIcon, ChevronsUpDownIcon, EllipsisIcon } from "lucide-react"
+import { ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react"
 
 import { cn } from "cn"
 import { Avatar, AvatarFallback } from "@/registry/tassullo/ui/avatar"
@@ -62,13 +65,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/registry/tassullo/ui/dropdown-menu"
-import { Button } from "@/registry/tassullo/ui/button"
-import { Separator } from "@/registry/tassullo/ui/separator"
 import {
   Sidebar,
   SidebarContent,
@@ -89,6 +89,10 @@ import {
   useSidebar,
 } from "@/registry/tassullo/ui/sidebar"
 import { TooltipProvider } from "@/registry/tassullo/ui/tooltip"
+import {
+  FasciaIntestazione,
+  IntestazioneProvider,
+} from "@/registry/tassullo/blocks/page-header"
 
 /**
  * Le due larghezze della colonna, riscritte in unità di `--spacing` così che
@@ -418,95 +422,6 @@ function Navigazione({ sezioni }: { sezioni: SezioneNav[] }) {
   )
 }
 
-/**
- * Un'azione di pagina, come la dichiara chi rende la pagina.
- *
- * `icona` non è facoltativa per vezzo: sul telefono l'azione diventa una riga
- * di menu, e una riga senza icona dentro un elenco che ne ha resta disallineata.
- */
-const VARIANTE = {
-  primaria: "default",
-  secondaria: "outline",
-  distruttiva: "destructive",
-} as const
-
-/**
- * Le azioni della pagina, in due forme e una fonte sola.
- *
- * **Sopra `lg` (1024px): bottoni interi.** Sotto: **un solo bottone «⋯»** con
- * dentro tutte le azioni. Non è una preferenza estetica, è aritmetica misurata
- * a 375px: due bottoni con l'etichetta per esteso occupano 283px dei 375
- * disponibili, e al nome della pagina ne restano **7** — sparisce. Con una sola
- * azione ne restano 149, che bastano per «Famiglie» ma non per un titolo vero:
- * «Malta strutturale R4 fibrorinforzata» si taglia comunque. Il numero delle
- * azioni non era il problema, e ridurle a icone era una risposta parziale che
- * non scala: cinque icone in touch fanno 328px di 375.
- *
- * **Perché 1024 e non 768**, che è la soglia della colonna: perché in densità
- * touch la colonna vale 384px e a 768 non resterebbe niente. Una soglia sola
- * per tutte e due le densità, invece di una regola che si ramifica: la
- * ramificazione l'avevamo scritta e ci è costata una trappola di specificità.
- *
- * Le due forme stanno **entrambe nel DOM**, una spenta con `hidden`. `hidden`
- * è `display: none`, quindi la forma spenta esce anche dall'albero di
- * accessibilità: nessuna azione viene annunciata due volte.
- */
-function AzioniDiPagina({ azioni }: { azioni: AzionePagina[] }) {
-  if (azioni.length === 0) return null
-  return (
-    <>
-      <div className="ml-auto hidden shrink-0 items-center gap-2 lg:flex">
-        {azioni.map((a) => (
-          <Button
-            key={a.titolo}
-            variant={VARIANTE[a.ruolo ?? "secondaria"]}
-            disabled={a.disabilitata}
-            onClick={a.onClick}
-            {...(a.href ? { render: <a href={a.href} /> } : {})}
-          >
-            <a.icona />
-            {a.titolo}
-          </Button>
-        ))}
-      </div>
-      <div className="ml-auto shrink-0 lg:hidden">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="ghost" size="icon" aria-label="Altre azioni">
-                <EllipsisIcon />
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end" sideOffset={4} className="w-56">
-            {azioni.map((a) => (
-              <DropdownMenuItem
-                key={a.titolo}
-                disabled={a.disabilitata}
-                onClick={a.onClick}
-                className={cn(a.ruolo === "distruttiva" && "text-destructive")}
-              >
-                <a.icona />
-                {a.titolo}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </>
-  )
-}
-
-export type AzionePagina = {
-  titolo: string
-  icona: Icona
-  /** Il ruolo, non il colore. Una sola `primaria` per pagina. */
-  ruolo?: "primaria" | "secondaria" | "distruttiva"
-  onClick?: () => void
-  href?: string
-  disabilitata?: boolean
-}
-
 export type AppShellProps = {
   /** Il nome dell'applicativo, accanto al marchio. «Anagrafe», «Officina». */
   applicazione: string
@@ -516,23 +431,15 @@ export type AppShellProps = {
   utente?: UtenteShell
   /** Le voci del menù utente: `<DropdownMenuItem>` e separatori. */
   azioniUtente?: ReactNode
-  /** Il contenuto della fascia in alto, dopo il grilletto: di norma il breadcrumb. */
-  barra?: ReactNode
-  /** Ciò che sta a destra nella fascia in alto: ricerca, notifiche, tema. */
   /**
-   * Le azioni della pagina, **dichiarate e non già disegnate**.
+   * **Il contenuto della fascia non si passa da qui**, e non è una dimenticanza.
    *
-   * Il guscio deve poter rendere la stessa azione in due forme — bottone
-   * intero sulla scrivania, riga di menu sul telefono — e per farlo deve
-   * sapere *cosa* è un'azione, non riceverla già fatta. È il motivo per cui
-   * qui c'è un elenco e non del JSX: con del JSX opaco l'unica strada sarebbe
-   * disegnarlo due volte, cioè dei bottoni dentro le righe di un menu — markup
-   * sbagliato, e ogni azione annunciata due volte da un lettore di schermo.
-   *
-   * Si dichiara il **ruolo**, non il colore: è la grammatica delle azioni, e
-   * il colore viene dietro. Una sola `primaria` per pagina.
+   * Percorso e azioni sono della **pagina**, non del guscio, e il guscio si
+   * monta una volta sola attorno all'`<Outlet />`: la pagina non avrebbe modo
+   * di passargli niente. Li dichiara con `<PageHeader>` (blocco
+   * `tassullo-page-header`), che rende dentro la fascia attraverso un portale.
+   * Una forma sola, per tutte le pagine di tutte le app.
    */
-  azioni?: AzionePagina[]
   /**
    * Come si comprime la colonna. `icona` la riduce al rail delle sole icone —
    * e presuppone che le voci **abbiano** un'icona; `fuori` la fa sparire del
@@ -575,8 +482,6 @@ export function AppShell({
   sezioni,
   utente,
   azioniUtente,
-  barra,
-  azioni,
   collassa = "icona",
   defaultAperta = true,
   larghezza = "piena",
@@ -592,119 +497,88 @@ export function AppShell({
      * tooltip su tre `Tab` e su un hover da nove decimi di secondo.
      */
     <TooltipProvider>
-      <SidebarProvider defaultOpen={defaultAperta} style={LARGHEZZE}>
-        <Sidebar collapsible={collassa === "icona" ? "icon" : "offcanvas"}>
-          <SidebarHeader>
-            <Testata applicazione={applicazione} render={testataRender} />
-          </SidebarHeader>
-          <SidebarContent>
-            <Navigazione sezioni={sezioni} />
-          </SidebarContent>
-          {utente ? (
-            <SidebarFooter>
-              <Utente utente={utente} azioni={azioniUtente} />
-            </SidebarFooter>
-          ) : null}
-        </Sidebar>
-
-        {/*
-         * `min-w-0` sull'inset, ed è la riga che impedisce al guscio di
-         * sbordare in orizzontale — qualunque cosa ci si metta dentro.
-         *
-         * Un elemento flex ha `min-width: auto`, cioè **non scende sotto il
-         * proprio contenuto minimo**. Senza questa riga il contenuto minimo
-         * dell'inset diventa il pavimento del documento, e il guscio si allarga
-         * oltre lo schermo invece di stringere ciò che ha dentro. È il
-         * meccanismo che stava sotto tutti gli sbordi misurati in questa coda:
-         * a 1024 in touch la fascia riceveva 789px di spazio dove ce n'erano
-         * 640, e il percorso — che si tronca correttamente, misurato — se ne
-         * prendeva 319 invece dei 170 che gli spettavano.
-         *
-         * Con `min-w-0` il guscio non sborda mai: a cedere è il contenuto,
-         * che sa come farlo (il percorso si tronca, le azioni entrano nel menu).
-         */}
-        <SidebarInset className="min-w-0">
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger />
-            {barra ? (
-              <>
-                {/*
-                 * Il filo verticale: `Separator` in verticale si stira su tutta
-                 * l'altezza del genitore, e qui ne serve un pezzo alto quanto il
-                 * testo. È la forma di `sidebar-07`.
-                 */}
-                <Separator
-                  orientation="vertical"
-                  className="data-vertical:h-4 data-vertical:self-auto"
-                />
-                {/*
-                 * `min-w-0` non è ornamentale: senza, un contenuto lungo nella
-                 * fascia non si stringe — la larghezza minima predefinita di un
-                 * elemento flex è quella del suo contenuto — e spinge le azioni
-                 * fuori dallo schermo.
-                 *
-                 * **Ma `min-w-0` da solo NON basta, e la versione precedente di
-                 * questo commento prometteva una garanzia che il codice non
-                 * dava.** Stretto abbastanza, il testo non si limita a
-                 * stringersi: **va a capo**. E siccome l'header è `h-12` fisso,
-                 * la seconda riga non alza la barra, le esce fuori. Misurato con
-                 * un titolo di pagina lungo («Malta strutturale R4
-                 * fibrorinforzata») a 375px: due righe in **entrambe** le
-                 * densità e con **una sola** azione in fascia — cioè il numero
-                 * delle azioni non c'entrava, come aveva intuito Francesco.
-                 *
-                 * La garanzia che il guscio deve dare è che **la fascia sia una
-                 * riga sola, sempre**: `overflow-hidden` più `whitespace-nowrap`
-                 * su tutta la discendenza. Quello che il guscio NON può decidere
-                 * è *dove* tagliare — dipende dal contenuto, che è dell'app: i
-                 * puntini di sospensione se li mette l'app sull'elemento giusto
-                 * (`truncate` sull'ultimo livello del percorso, come fa la
-                 * story). Il guscio garantisce l'altezza, l'app la leggibilità.
-                 */}
-                <div className="min-w-0 flex-1 overflow-hidden [&_*]:whitespace-nowrap">
-                  {barra}
-                </div>
-              </>
+      {/*
+       * Il contesto della fascia sta dentro tutto il resto: l'ancora è nella
+       * fascia, chi ci rende dentro sta nel contenuto, e i due devono vedersi.
+       */}
+      <IntestazioneProvider>
+        <SidebarProvider defaultOpen={defaultAperta} style={LARGHEZZE}>
+          <Sidebar collapsible={collassa === "icona" ? "icon" : "offcanvas"}>
+            <SidebarHeader>
+              <Testata applicazione={applicazione} render={testataRender} />
+            </SidebarHeader>
+            <SidebarContent>
+              <Navigazione sezioni={sezioni} />
+            </SidebarContent>
+            {utente ? (
+              <SidebarFooter>
+                <Utente utente={utente} azioni={azioniUtente} />
+              </SidebarFooter>
             ) : null}
-            {azioni?.length ? <AzioniDiPagina azioni={azioni} /> : null}
-          </header>
+          </Sidebar>
 
           {/*
-           * L'area di contenuto. **Una utility soltanto** di suo — `p-4` — ed è
-           * deliberato: il respiro attorno alla pagina lo possiede il guscio,
-           * non le pagine, ed è l'unico modo perché un form e una tabella
-           * comincino allo stesso punto in tutte le app.
+           * `min-w-0` sull'inset, ed è la riga che impedisce al guscio di
+           * sbordare in orizzontale — qualunque cosa ci si metta dentro.
            *
-           * Il tetto `max-w-page` c'è solo se lo si **chiede**, con
-           * `larghezza="pagina"`. Di suo il contenuto si adatta alla larghezza
-           * della pagina: col tetto acceso, collassare la colonna non dava un
-           * pixel di contenuto in più — i 208px liberati andavano ai margini, e
-           * la card scivolava a sinistra invece di crescere.
+           * Un elemento flex ha `min-width: auto`, cioè **non scende sotto il
+           * proprio contenuto minimo**. Senza questa riga il contenuto minimo
+           * dell'inset diventa il pavimento del documento, e il guscio si allarga
+           * oltre lo schermo invece di stringere ciò che ha dentro. È il
+           * meccanismo che stava sotto tutti gli sbordi misurati in questa coda:
+           * a 1024 in touch la fascia riceveva 789px di spazio dove ce n'erano
+           * 640, e il percorso — che si tronca correttamente, misurato — se ne
+           * prendeva 319 invece dei 170 che gli spettavano.
            *
-           * `p-4` segue la densità: 16px in normale, 24 in touch. È qui che si
-           * misura D10 — su uno schermo da 375 il padding è l'unica cosa che
-           * mangia larghezza, perché sotto i 768px la colonna non c'è più.
-           *
-           * **È un `div`, e va saputo perché**: il punto di riferimento `main`
-           * lo mette già `SidebarInset`, che *è* un `<main>`. Un secondo `main`
-           * qui dentro dava tre violazioni axe per story — `landmark-unique`,
-           * `landmark-no-duplicate-main`, `landmark-main-is-top-level` — e le
-           * ha trovate il gate al primo giro. La fascia in alto sta dentro il
-           * `main` come nel `sidebar-07` di shadcn: è la loro forma, non una
-           * nostra deriva.
+           * Con `min-w-0` il guscio non sborda mai: a cedere è il contenuto,
+           * che sa come farlo (il percorso si tronca, le azioni entrano nel menu).
            */}
-          <div
-            className={cn(
-              "min-w-0 flex-1 p-4",
-              larghezza === "pagina" && "mx-auto w-full max-w-page",
-              className,
-            )}
-            {...props}
-          >
-            {children}
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+          <SidebarInset className="min-w-0">
+            {/*
+             * La fascia in alto. Il guscio la **disegna** — grilletto, altezza,
+             * e la garanzia che resti una riga sola; ciò che ci va dentro,
+             * percorso e azioni, lo dichiara la **pagina** con `<PageHeader>`,
+             * che ci rende attraverso un portale. È M3.2.
+             */}
+            <FasciaIntestazione grilletto={<SidebarTrigger />} />
+
+            {/*
+             * L'area di contenuto. **Una utility soltanto** di suo — `p-4` — ed è
+             * deliberato: il respiro attorno alla pagina lo possiede il guscio,
+             * non le pagine, ed è l'unico modo perché un form e una tabella
+             * comincino allo stesso punto in tutte le app.
+             *
+             * Il tetto `max-w-page` c'è solo se lo si **chiede**, con
+             * `larghezza="pagina"`. Di suo il contenuto si adatta alla larghezza
+             * della pagina: col tetto acceso, collassare la colonna non dava un
+             * pixel di contenuto in più — i 208px liberati andavano ai margini, e
+             * la card scivolava a sinistra invece di crescere.
+             *
+             * `p-4` segue la densità: 16px in normale, 24 in touch. È qui che si
+             * misura D10 — su uno schermo da 375 il padding è l'unica cosa che
+             * mangia larghezza, perché sotto i 768px la colonna non c'è più.
+             *
+             * **È un `div`, e va saputo perché**: il punto di riferimento `main`
+             * lo mette già `SidebarInset`, che *è* un `<main>`. Un secondo `main`
+             * qui dentro dava tre violazioni axe per story — `landmark-unique`,
+             * `landmark-no-duplicate-main`, `landmark-main-is-top-level` — e le
+             * ha trovate il gate al primo giro. La fascia in alto sta dentro il
+             * `main` come nel `sidebar-07` di shadcn: è la loro forma, non una
+             * nostra deriva.
+             */}
+            <div
+              className={cn(
+                "min-w-0 flex-1 p-4",
+                larghezza === "pagina" && "mx-auto w-full max-w-page",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </IntestazioneProvider>
     </TooltipProvider>
   )
 }

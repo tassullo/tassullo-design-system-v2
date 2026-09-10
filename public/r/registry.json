@@ -960,12 +960,37 @@
         "@tassullo/avatar",
         "@tassullo/collapsible",
         "@tassullo/dropdown-menu",
-        "@tassullo/separator",
         "@tassullo/sidebar",
+        "@tassullo/tassullo-page-header",
         "@tassullo/tema",
         "@tassullo/tooltip"
       ],
       "docs": "Un solo componente attorno a tutta l'app:\n\n  <AppShell applicazione=\"Anagrafe\" sezioni={SEZIONI} utente={me} barra={<Percorso />}>\n    <Outlet />\n  </AppShell>\n\nIl guscio possiede il respiro di pagina (p-4, che segue la densita) e la larghezza\nmassima del contenuto (max-w-page, 1180px): le pagine non se li riscrivono.\nlarghezza=\"piena\" toglie il limite, per tabelle grandi e cruscotti.\n\nLe voci di navigazione sono un dato, non JSX: titolo, icona, href/render, attiva,\nbadge, disabilitata, figli. I collegamenti si passano con `render` — un <NavLink>\ndi react-router, un <Link>, o niente e la voce resta un bottone. Il guscio non sa\nquali rotte esistano: `attiva` la calcola l'app.\n\nSenza icone sulle voci si passa collassa=\"fuori\": la colonna sparisce invece di\nridursi a una fila di quadrati vuoti.\n\nIl marchio arriva col tema (item tema-logo, classe .marchio-t): non c'e nessun file\nda mettere in public/."
+    },
+    {
+      "name": "tassullo-page-header",
+      "type": "registry:block",
+      "title": "Intestazione di pagina",
+      "description": "L'intestazione di pagina delle app Tassullo: percorso a sinistra, azioni a destra, dentro la fascia in alto del guscio. La pagina la dichiara, un portale la rende nella fascia. Le soglie guardano la larghezza della fascia, non quella dello schermo.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/page-header.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/page-header.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/breadcrumb",
+        "@tassullo/button",
+        "@tassullo/dropdown-menu",
+        "@tassullo/separator",
+        "@tassullo/tema"
+      ],
+      "docs": "La pagina dichiara la propria intestazione; la fascia in alto del guscio la rende:\n\n  <PageHeader\n    percorso={[{ titolo: \"Prodotti\", href: \"/prodotti\" }, { titolo: \"Famiglie\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n  />\n\n<PageHeader> non occupa spazio dove sta scritta: rende dentro la fascia attraverso\nun portale. Serve perche <AppShell> si monta una volta sola attorno all'<Outlet />,\nquindi la pagina non ha modo di passargli delle prop.\n\nNon c'e un titolo che si vede: il nome della pagina e gia la voce attiva in colonna\ne l'ultimo livello del percorso. Resta come <h1> in sr-only, per chi non vede lo\nschermo, ricavato dall'ultimo livello del percorso.\n\nLe azioni si dichiarano e non si disegnano — { titolo, icona, ruolo } — perche\nl'intestazione le rende in due forme: bottoni interi quando la fascia e larga, un\nsolo bottone «...» quando e stretta. Una sola azione `primaria` per pagina.\n\nLe soglie sono container query sulla fascia (@md per il percorso, @2xl per le\nazioni), non media query sulla viewport: sotto i 768px la colonna esce dal DOM,\nquindi lo schermo si allarga di 1px e la fascia si restringe di 255.\n\nFuori dal guscio serve <IntestazioneProvider> attorno e <FasciaIntestazione /> dove\nva la barra: e quello che AppShell monta da se."
     }
   ]
 }

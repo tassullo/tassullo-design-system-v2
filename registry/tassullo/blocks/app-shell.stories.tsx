@@ -13,28 +13,25 @@ import {
 } from 'lucide-react'
 
 import { apriCol } from '@/prove/apri'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/registry/tassullo/ui/breadcrumb'
 import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/registry/tassullo/ui/dropdown-menu'
-import { AppShell, type AzionePagina, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
+import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
+import {
+  PageHeader,
+  type AzionePagina,
+  type LivelloPercorso,
+} from '@/registry/tassullo/blocks/page-header'
 
 /**
  * Il **guscio** di un'applicazione Tassullo: colonna scura a sinistra, fascia
  * in alto, area di contenuto. Una chiamata sola, attorno a tutta l'app.
  *
  * ```tsx
- * <AppShell applicazione="Anagrafe" sezioni={SEZIONI} utente={me} barra={<Percorso />}>
+ * <AppShell applicazione="Anagrafe" sezioni={SEZIONI} utente={me}>
  *   <Outlet />
  * </AppShell>
  * ```
@@ -83,9 +80,11 @@ import { AppShell, type AzionePagina, type SezioneNav } from '@/registry/tassull
  * È composizione, non componente: `SidebarRail` resta esportato, rimetterlo è
  * una riga.
  *
- * **La `page-header`** — titolo, breadcrumb di pagina, azioni. È M3.2, e sta
- * dentro `children`. Qui c'è lo slot `barra`, che è la fascia in alto di
- * `sidebar-07`.
+ * **Il contenuto della fascia.** Il guscio disegna la fascia — grilletto,
+ * altezza, la garanzia che resti una riga sola — ma percorso e azioni sono
+ * della **pagina**, che li dichiara con `<PageHeader>`
+ * (`Blocchi/Intestazione di pagina`, M3.2). Il guscio si monta una volta sola
+ * attorno all'`<Outlet />`: una prop non ci arriverebbe mai.
  *
  * ## La fascia è l'unica intestazione, e non c'è un titolo di pagina
  *
@@ -198,119 +197,34 @@ const AZIONI_UTENTE = (
 )
 
 /**
- * Il percorso in fascia. In un'app si calcola dalla rotta; qui è dato.
+ * **Percorso e azioni non sono prop del guscio**: sono di `<PageHeader>`, che
+ * la pagina rende dentro `children` e che compare nella fascia attraverso un
+ * portale. La ragione è in `Blocchi/Intestazione di pagina` — il guscio si
+ * monta una volta sola attorno all&apos;`<Outlet />`, quindi la pagina non ha
+ * modo di passargli niente.
  *
- * **I livelli intermedi spariscono sotto i 768px**, ed è il pattern di
- * `sidebar-07`. Non è zelo: misurato a 375px in densità **touch** il percorso
- * intero andava a capo dentro la fascia — il testo cresce dell'8%, i divari del
- * 50%, e la larghezza dello schermo di 0. In densità normale, alla stessa
- * larghezza, ci stava: è la cella `375px × touch` di D10, vista nella fascia
- * invece che nel contenuto.
- *
- * Il rimedio sta **qui e non nel guscio**, perché è l'app a sapere quali livelli
- * del proprio percorso si possono perdere. Il guscio fa la sua parte con
- * `min-w-0` sulla fascia: garantisce che a cedere sia il percorso e non le
- * azioni a destra.
- *
- * **`md` da solo non basta, e il perché è una coincidenza di soglie.** `md` è
- * 768px, cioè *esattamente* la larghezza alla quale la colonna torna nel DOM:
- * a 768 i livelli intermedi ricompaiono (+146px di percorso) nello stesso
- * istante in cui ricompare la colonna (+384px in touch), e i due effetti si
- * sommano sulla larghezza peggiore. Misurato: era l'ultimo residuo di sbordo,
- * 13px, dopo che le etichette delle azioni erano già state ridotte a icone.
- * In touch i livelli intermedi restano quindi nascosti fino a `lg`, che è la
- * stessa soglia delle etichette: sotto i 1024 in touch la fascia è tutta in
- * forma compatta, e sopra è tutta per esteso. Una soglia sola, non due.
+ * Qui sono dati della vetrina, come l&apos;indirizzo dell&apos;utente: «Nuovo
+ * prodotto» è un bottone di *Anagrafe*, non del design system.
  */
-/*
- * `in-data-[density=touch]:` NON basta qui, e la ragione è invisibile a occhio:
- * Tailwind lo genera con `:where([data-density=touch]) &`, e `:where()` ha
- * specificità **zero** — la regola pesa quanto `.md\:block`, e a parità vince
- * l'ordine, cioè `block`. La variante esplicita `[[data-density=touch]_&]:`
- * genera invece un selettore d'attributo vero (0,2,0) e vince davvero.
- * Misurato: col primo il livello intermedio restava `display: block` a 768.
- */
-const INTERMEDI = 'hidden md:block [[data-density=touch]_&]:max-lg:hidden'
+const PERCORSO: LivelloPercorso[] = [
+  { titolo: 'Prodotti', href: '#' },
+  { titolo: 'Famiglie' },
+]
 
-const PERCORSO = (
-  <Breadcrumb>
-    <BreadcrumbList className="flex-nowrap">
-      <BreadcrumbItem className={INTERMEDI}>
-        <BreadcrumbLink href="#">Prodotti</BreadcrumbLink>
-      </BreadcrumbItem>
-      <BreadcrumbSeparator className={INTERMEDI} />
-      <BreadcrumbItem className="min-w-0">
-        {/*
-         * `truncate` qui e non nel guscio: il guscio garantisce che la fascia
-         * resti una riga sola, ma *dove* mettere i puntini di sospensione lo sa
-         * solo chi conosce il contenuto. Su un percorso è l'ultimo livello, che
-         * è il nome della pagina — quello che si vuole leggere anche tagliato.
-         */}
-        <BreadcrumbPage className="truncate">Famiglie</BreadcrumbPage>
-      </BreadcrumbItem>
-    </BreadcrumbList>
-  </Breadcrumb>
-)
-
-/**
- * Le azioni della pagina, nella fascia a destra.
- *
- * ## Perché non c'è un `<h1>` col nome della pagina
- *
- * Perché «Prodotti» comparirebbe **tre volte in 80px di altezza**: voce attiva
- * nella sidebar, ultimo livello del breadcrumb, titolo. Segnalato da Francesco
- * il 2026-09-10 guardando la story accanto a `dashboard-01` di shadcn, che
- * infatti un titolo di pagina non ce l'ha: il nome sta nella fascia. Tolto il
- * titolo, la fascia diventa l'unica riga di intestazione — breadcrumb a
- * sinistra, azioni a destra — e ogni pagina guadagna ~50px di altezza utile,
- * che a 375px non sono pochi.
- *
- * **Conseguenza per M3.2, e non è piccola**: se le azioni stanno nella fascia,
- * la fascia è renderizzata dal guscio ma il suo contenuto è **della pagina**.
- * Con `<AppShell>` montato una volta sola attorno all'`<Outlet />` la pagina
- * non può passargli delle prop: `page-header` dovrà offrire un contesto (o un
- * portale) con cui una pagina *dichiara* il proprio percorso e le proprie
- * azioni. shadcn non ha questo problema perché i suoi blocchi rendono il guscio
- * intero dentro ogni pagina.
- *
- * ## La grammatica delle azioni
- *
- * Non si sceglie il colore pagina per pagina: si sceglie il **ruolo**, e il
- * colore viene dietro.
- *
- * - le azioni si **dichiarano**, non si disegnano: `{ titolo, icona, ruolo }`.
- *   Il guscio le rende in due forme — bottoni interi sopra i 1024px, tutte
- *   dentro un menu «⋯» sotto — e per farlo deve sapere cosa sono. `icona` è
- *   obbligatoria: sul telefono l'azione è una riga di menu, e una riga senza
- *   icona in un elenco che ne ha resta disallineata;
- * - **una sola** azione `primaria` per pagina (l'arancio del brand);
- * - le azioni che le stanno accanto, `outline`;
- * - le distruttive, `destructive` — e mai come azione primaria di pagina.
- *
- * La parte che conta è **«una sola»**: due bottoni arancioni nella stessa
- * intestazione non sono due azioni importanti, sono zero. Anagrafe lo rispetta
- * già — «Sistema da BC» è secondario.
- *
- * **Taglia normale**, non `sm` come nel v1, e la ragione è misurata: `sm` in
- * densità touch fa **42px**, cioè sotto i 44 di WCAG e sotto i 48 che il v1
- * dava a `.btn` in cantiere. La taglia normale fa **32px in normale e 48 in
- * touch** — misurati: è esattamente il bersaglio da cantiere che la densità di
- * M1.4 esiste per produrre. Scelta di Francesco, 2026-09-10. Contrasto del
- * primario **9.49:1** in entrambe le modalità: l'arancio del brand come *fondo*
- * si legge — è come testo che non si usa mai, e per quello c'è `--accent-ink`.
- *
- * **I bottoni concreti restano dell'app**: «Nuovo prodotto» non è un bottone
- * del design system e non compare in nessun'altra pagina. Il guscio non
- * contiene bottoni, espone slot vuoti.
- */
 const AZIONI_DI_PAGINA: AzionePagina[] = [
   { titolo: 'Sistema da BC', icona: RefreshCwIcon, ruolo: 'secondaria' },
   { titolo: 'Nuovo prodotto', icona: PlusIcon, ruolo: 'primaria' },
 ]
 
+/**
+ * Il contenuto di una pagina — che comincia **dichiarando la propria
+ * intestazione**. `<PageHeader>` non occupa spazio dove sta scritta: rende
+ * nella fascia in alto.
+ */
 function Contenuto() {
   return (
     <div className="flex flex-col gap-4">
+      <PageHeader percorso={PERCORSO} azioni={AZIONI_DI_PAGINA} />
       <Card>
         <CardHeader>
           <CardTitle>L&apos;area di contenuto</CardTitle>
@@ -342,8 +256,6 @@ export const Predefinito: Story = {
     sezioni: SEZIONI,
     utente: UTENTE,
     azioniUtente: AZIONI_UTENTE,
-    barra: PERCORSO,
-    azioni: AZIONI_DI_PAGINA,
     children: <Contenuto />,
   },
   /*

@@ -2776,3 +2776,109 @@ Contro: pubblicando, diario, piano e decisioni diventano leggibili da chiunque. 
 - **M5.6** per quello che resta: tag `v2.0.0` e prova d'installazione in un'app fuori dal repo.
 - **M3.2** riprende il piano dove l'aveva lasciato.
 - Da tenere presente da qui in avanti: **il repo è pubblico**. Non è una regola nuova — segreti nel repo non ce ne dovevano essere comunque — ma la disattenzione ora costa di più.
+
+---
+
+## M3.2 — L'intestazione di pagina, e il guscio che smette di sapere cosa c'è dentro la fascia (2026-09-10)
+
+**Il compito**: `page-header`, «una sola forma di intestazione per tutte le pagine di tutte le app». Criterio del piano: titolo + breadcrumb + slot azioni.
+
+**L'esito, in una riga**: blocco in piedi, 56 item, cinque gate verdi (888 scansioni / 0 violazioni), e **due scostamenti dal piano dichiarati** — il titolo non si vede più, e le soglie non guardano più lo schermo.
+
+---
+
+### Il problema vero, che il criterio del piano non nominava
+
+`<AppShell>` si monta **una volta sola**, attorno all'`<Outlet />`. Rimontarlo a ogni rotta vorrebbe dire perdere lo stato della colonna a ogni clic. Ma la fascia in alto sta dentro il guscio, e ciò che ci va — percorso e azioni — è della **pagina**, che sta molte righe più in basso e a cui il guscio non può passare prop. shadcn il problema non ce l'ha perché i suoi blocchi rendono il guscio intero dentro ogni pagina; noi no. Era il rilievo scritto in coda a M3.1, ed è la ragione per cui questo blocco esiste in questa forma.
+
+**La pagina dichiara, un portale rende.**
+
+```tsx
+<PageHeader
+  percorso={[{ titolo: 'Prodotti', href: '/prodotti' }, { titolo: 'Famiglie' }]}
+  azioni={[{ titolo: 'Nuovo prodotto', icona: PlusIcon, ruolo: 'primaria', onClick: apri }]}
+/>
+```
+
+`IntestazioneProvider` (montato dal guscio) tiene il nodo della fascia in uno **stato**, e il *setter* di `useState` fa da `ref` di callback: è una funzione di identità stabile, quindi niente `useCallback` e niente cicli. `FasciaIntestazione` è la barra. `PageHeader` rende lì dentro con `createPortal`.
+
+**La strada dello stato condiviso è stata scartata, e la ragione è una trappola già a verbale.** Un contesto con dentro `{percorso, azioni}` che la pagina aggiorna in un `useEffect` avrebbe come dipendenze proprio `percorso` e `azioni`, cioè **array scritti inline dalla pagina**, nuovi a ogni render: l'effetto riparte, chiama `setState`, il render riparte, e **React non interrompe il ciclo e non stampa niente** (`CLAUDE.md` §Le due trappole, `docs/DECISIONI.md` §17). C'è un secondo difetto, meno noto e peggiore: lo stato conserverebbe gli `onClick` **catturati al momento dell'effetto**, quindi un gestore che legge una variabile di stato della pagina leggerebbe il valore di un render fa. Col portale non c'è né effetto né copia: il contenuto è renderizzato dall'albero della pagina — vede il router, le traduzioni, tutto — e finisce nel DOM della fascia, che è dove serve stia per l'**ordine di tabulazione** (verificato: grilletto → percorso → azioni).
+
+---
+
+### Primo scostamento: il titolo non si vede, ma c'è
+
+`PIANO.md` §M3.2 chiedeva «titolo + breadcrumb + slot azioni». Il titolo visibile era già stato tolto in coda a M3.1 — «Prodotti» compariva **tre volte in 80px** (voce attiva in colonna, ultimo livello del percorso, `<h1>`), ed è la forma di `dashboard-01` di shadcn, che un titolo di pagina non ce l'ha.
+
+Qui il titolo **rientra, in `sr-only`**: un `h1` di 1×1px, ricavato dall'ultimo livello del percorso se non lo si passa. Zero pixel, e la pagina non resta senza intestazione nell'albero dei documenti — che con `landmark`/`heading` è l'unica cosa che il titolo dava e che togliendolo si perdeva davvero. Misurato: `h1` = «Famiglie», 1×1px.
+
+---
+
+### Secondo scostamento, e vale più del primo: le soglie guardano la fascia, non lo schermo
+
+M3.1 aveva ramificato le regole responsive per **densità**, e con dentro una trappola di specificità (`in-data-[density=touch]:` genera `:where()`, che pesa **zero**). La ragione di quella ramificazione era una discontinuità vera: **sotto i 768px la colonna esce dal DOM**, quindi passando da 767 a 768 lo schermo si allarga di 1px e la fascia si **restringe di 255** — di 383 in touch. Una regola sulla viewport quella discontinuità deve inseguirla.
+
+Su `@container/fascia` non esiste: la fascia si misura da sé. **Due soglie, nessuna ramificazione**, e la stessa regola vale dentro il guscio, fuori dal guscio e a qualunque densità.
+
+- **`@md` (448px)** — sotto, i livelli intermedi del percorso diventano `…`;
+- **`@2xl` (672px)** — sotto, le azioni entrano tutte in un solo bottone «⋯».
+
+**Attenzione a quale larghezza si misura**, e costa una misura sbagliata scoprirlo: una container query `inline-size` guarda il **riquadro di contenuto**, cioè al netto del `px-4` — che segue la densità, 32px in tutto in normale e 48 in touch. La prima lettura, fatta sul riquadro di bordo, dava una fascia da 480px che «avrebbe dovuto» mostrare gli intermedi e non li mostrava: erano 432 utili contro una soglia di 448.
+
+Otto celle, misurate in Chromium sullo Storybook costruito. Larghezza **utile** della fascia:
+
+| viewport | densità | colonna | fascia (utile) | percorso | azioni |
+|---|---|---|---|---|---|
+| 1440 | normale | 256 | **1152** | intero | bottoni interi |
+| 1440 | touch | 384 | **1008** | intero | bottoni interi |
+| 1024 | normale | 256 | **736** | intero | bottoni interi |
+| 1024 | touch | 384 | **592** | intero | «⋯» |
+| 768 | normale | 256 | **480** | intero | «⋯» |
+| 768 | touch | 384 | **336** | `…` | «⋯» |
+| 375 | normale | — | **343** | `…` | «⋯» |
+| 375 | touch | — | **327** | `…` | «⋯» |
+
+**343 e 327 sono, alla cifra, le due larghezze di D10 misurate in M3.1 sul contenuto**: è la stessa larghezza vista nella fascia invece che nell'area di pagina. In tutte e otto le celle la fascia resta **una riga sola** (altezza 48 in normale, 72 in touch) e la pagina **non sborda**. È il difetto che M3.1 aveva trovato guardando e non misurando — il percorso che a 375×touch andava a capo dentro una barra ad altezza fissa — e adesso è strutturalmente impedito invece che rimediato nella story.
+
+**Un confine si sposta, e va detto**: a **1024×touch** le azioni ora entrano nel menu, dove la regola `lg:` di M3.1 le teneva intere. Lì la fascia ha 592px utili. I 1024 di M3.1 erano un compromesso **imposto** dalla ramificazione per densità («a 768 in touch non resterebbe niente»), e una soglia sulla fascia quel compromesso non deve farlo. Nelle altre sette celle le due regole danno lo stesso esito.
+
+---
+
+### Cosa esce dal guscio, e perché non restano due strade
+
+`app-shell.tsx` perde `barra`, `azioni`, `AzionePagina` e `AzioniDiPagina`: sono migrati in `page-header.tsx`. Tenerli come «forma alternativa» sarebbe stata la deriva contro cui il criterio del piano è scritto — *una sola* forma di intestazione. Il guscio ora rende `<FasciaIntestazione grilletto={<SidebarTrigger />} />` e non sa più cosa ci sia dentro: garantisce l'altezza e la riga sola, il contenuto è della pagina.
+
+`tassullo-app-shell` dichiara `@tassullo/tassullo-page-header` fra le `registryDependencies` (e non più `@tassullo/separator`, che arriva da lì): **un solo `add` porta tutti e due**. 56 item, `registry validate` verde.
+
+---
+
+### Tre cose prese in corsa, e chi le ha prese
+
+**1. Il gate ha trovato una violazione vera, e nostra.** `scuro/aperto`, `color-contrast`: l'azione distruttiva nel menu «⋯» usava `className="text-destructive"` — ereditato tale e quale dal guscio di M3.1 — e su fondo scuro dà **3.52:1** (`#DC2626` su `#1C1C1C`). È la stessa trappola di `--primary`/`--accent-ink` scritta in `CLAUDE.md`, su un'altra coppia: **`--destructive` è il colore dei fondi, non del testo**. Il rimedio era già in casa e al gradino 1 della scala 4bis — `DropdownMenuItem` ha `variant="destructive"`, che usa `destructive-subtle-foreground`, cioè il rosso *leggibile*. Da notare **perché non era emersa in M3.1**: la story del guscio non aveva un'azione distruttiva. Un colore sbagliato che nessuna story mette in scena è un colore che il gate non può vedere.
+
+**2. Il pannello del browser dell'app non misura le larghezze**, e non solo i popup. Le transizioni CSS sono guidate dal clock dei fotogrammi: con `document.visibilityState` a `hidden` non avanzano, quindi la colonna commutata di densità resta **larga come prima** e ogni lettura è sfasata di una misura. Ci sono voluti due tentativi con esiti incrociati (normale che riportava 1056, touch 1184) per riconoscerlo. È l'estensione naturale di `docs/DECISIONI.md` §22: là erano i popup, qui è qualunque cosa animata. Il banco resta **Chromium di Playwright, headless**.
+
+**3. Tre avvisi di lint, tutti sensati, tutti chiusi cambiando disegno.** Un `useRef` letto in render, la mutazione di un valore di contesto e un componente dichiarato dentro un altro. Il terzo è ovvio; i primi due venivano dal contatore che avverte quando due `<PageHeader>` sono montati insieme (difetto muto: nessun errore, solo un percorso doppio). Il contatore ora **non esiste**: l'effetto conta i nodi `[data-slot="page-header-content"]` già nella fascia. Il DOM il conto ce l'aveva già, e un contesto che si muta non è un contesto — è una variabile globale travestita, che React non sa essere cambiata. Il repo resta ai suoi **3 avvisi preesistenti**, e senza la prima soppressione di lint della sua storia.
+
+**Nota di conduzione**: `prettier` **non è il formattatore di questo repo** — non c'è nessuna configurazione, e passarlo su `app-shell.tsx` gli ha aggiunto 70 punti e virgola che il file non aveva. Ripristinato da git e riapplicate le modifiche a mano.
+
+---
+
+### Verifiche eseguite
+
+`npm run check` verde su **cinque** gate: `check:contrast` ✔ 48 coppie · `check:registry` 0 errori, 52 avvisi (arbitrari *ereditati da shadcn*, preesistenti), 2 blocchi Tassullo, 0 componenti nostri · `check:font` ✔ · `check:logo` ✔ · `test:a11y` **888 scansioni / 4 passate / 0 violazioni** (222 story, +5).
+`npm run build` ✔ · `npm run build-storybook` ✔ · `npm run lint` 3 avvisi preesistenti · `shadcn registry validate` ✔ (56 item) · `registry:build` rilanciato.
+`npm run misura:bersagli`: **2009 bersagli su 222 story, 47 popup aperti, 31 tipi sotto i 44px, 0 piccoli in entrambe le direzioni** — nessun bersaglio nuovo sotto soglia.
+Misure a mano in Chromium sullo Storybook costruito: le **otto celle** viewport × densità della tabella qui sopra, più il percorso a quattro livelli sopra e sotto `@md`, l'ordine di tabulazione della fascia, e l'`h1` in `sr-only`.
+
+---
+
+### Resta aperto
+
+1. **Il `SidebarRail`** (da M3.1): non montato, per tre misure. Se Francesco lo rivuole, è una riga.
+2. **`--destructive` come testo**: qui si è chiuso usando la variante del componente, ma il token resta uno di quelli che `check:contrast` non vede — verifica le coppie `X`/`X-foreground`, non un colore usato come inchiostro su un fondo qualunque. È parente del rilievo 1 della FASE 2 (il contorno dei controlli sotto 3:1), ed è materia di palette.
+3. **D10**, verdetto in M4.2, ora con otto numeri sotto invece che con quattro.
+
+### Prossimi passi
+
+**M3.3 — `data-table` (2 sessioni)**: TanStack Table, ~500 righe finte, ordinabile e filtrabile da tastiera, degrado a 375px. Da portarci dentro la misura di M3.1: **in touch, a 1440px, il vincolo alla larghezza non è `--container-page` ma la colonna** (1008px utili contro i 1180 del tetto). Chi progetta una tabella larga in touch deve saperlo.

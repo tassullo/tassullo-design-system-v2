@@ -1284,3 +1284,45 @@ L'esito è più pulito della situazione di partenza: **zero gradini nostri**, tu
 Il piano di M1.6 si aspettava che `check:registry` calasse, perché `button` e `button-group` tornano a scrivere `text-sm` come l'originale. **Non è successo**, e la ragione è che il gate conta le **stringhe** di classi divergenti, non le classi: quelle due stringhe divergono ancora sul **raggio** — `rounded-md` (6px) contro `rounded-lg` (10px) — che è identità di marchio e resta. Il conto sta a 8 e 4 come prima, e i componenti ri-stilati restano 14.
 
 La sostanza di D16 regge lo stesso, e anzi è ora vera alla lettera: su quelle due stringhe **l'unica differenza superstite è il raggio**. Ciò che non regge è la previsione numerica, ed è annotata qui perché un numero atteso e non arrivato, lasciato correre, la sessione dopo si legge come un guasto.
+
+---
+
+## 31. La fascia si misura da sé: `@container` al posto di `md:`/`lg:` (M3.2, 2026-09-10)
+
+**La decisione**: le soglie responsive dell'intestazione di pagina sono **container query sulla fascia** (`@container/fascia`), non media query sulla viewport.
+
+**Il fatto che la impone**: sotto i 768px la colonna del guscio **esce dal DOM**. Passando da 767 a 768 lo schermo si allarga di 1px e la fascia si **restringe di 255** — di 383 in densità touch. La larghezza dello schermo e la larghezza della fascia non sono monotone l'una nell'altra, quindi una regola scritta sulla prima deve inseguire una discontinuità che la seconda non ha. In M3.1 quell'inseguimento si era espresso come una ramificazione per densità, con dentro una trappola di specificità (`in-data-[density=touch]:` genera `:where()`, che pesa **zero** e perdeva contro `md:block`; ci volle la variante esplicita `[[data-density=touch]_&]:`). Sulla larghezza della fascia la ramificazione **non serve**: due soglie sole, e valgono identiche dentro il guscio, fuori dal guscio e a qualunque densità.
+
+- **`@md` (448px)** — sotto, i livelli intermedi del percorso diventano `…`;
+- **`@2xl` (672px)** — sotto, le azioni entrano tutte in un solo bottone «⋯».
+
+**La cosa da sapere prima di misurare, e che costa una misura sbagliata**: una container query `inline-size` guarda il **riquadro di contenuto**, cioè al netto del padding — qui `px-4`, che segue la densità: 32px in tutto in normale, 48 in touch. Una fascia larga 480px di bordo ne ha 432 utili in touch, quindi **sta sotto** `@md` mentre a occhio sembrerebbe sopra.
+
+**Le otto celle**, misurate in Chromium sullo Storybook costruito — larghezza utile della fascia:
+
+| viewport | densità | colonna | fascia (utile) | percorso | azioni |
+|---|---|---|---|---|---|
+| 1440 | normale | 256 | 1152 | intero | bottoni interi |
+| 1440 | touch | 384 | 1008 | intero | bottoni interi |
+| 1024 | normale | 256 | 736 | intero | bottoni interi |
+| 1024 | touch | 384 | 592 | intero | «⋯» |
+| 768 | normale | 256 | 480 | intero | «⋯» |
+| 768 | touch | 384 | 336 | `…` | «⋯» |
+| 375 | normale | — | 343 | `…` | «⋯» |
+| 375 | touch | — | 327 | `…` | «⋯» |
+
+**343 e 327 sono, alla cifra, le due larghezze di §29**: è la stessa larghezza di D10, vista nella fascia invece che nell'area di contenuto. In tutte e otto le celle la fascia resta **una riga sola** e la pagina non sborda — il difetto che M3.1 aveva trovato guardando (il percorso a capo dentro una barra ad altezza fissa) ora è impedito dalla forma, non rimediato dalla story.
+
+**Un confine si sposta rispetto a §29, ed è deliberato**: a **1024×touch** le azioni entrano nel menu, dove la regola `lg:` le teneva intere; lì la fascia ha 592px utili. I 1024 di M3.1 erano un compromesso *imposto* dalla ramificazione per densità («a 768 in touch non resterebbe niente»), e una soglia sulla fascia quel compromesso non deve farlo. Nelle altre sette celle le due regole coincidono.
+
+**Ricaduta oltre l'intestazione**: un blocco che si misura da sé si può anche **provare** da sé. La story `Fascia stretta` mostra la forma compatta dentro un contenitore da 320px, a qualunque viewport — e questo conta per il gate, dove il runner di `addon-vitest` non ha un modo affidabile di cambiare viewport: un popup che compare solo sotto una media query sarebbe un popup che il gate non apre mai.
+
+---
+
+## 32. Il pannello del browser dell'app non misura nemmeno le larghezze (M3.2, 2026-09-10)
+
+§22 dice che nel pannello del browser dell'app `document.visibilityState` è `hidden`, quindi `requestAnimationFrame` non scatta mai, e che per questo i popup di Base UI sembrano non rispondere alla tastiera. **La conseguenza è più larga di così, e non riguarda solo i popup: le transizioni CSS sono guidate dallo stesso clock di fotogrammi.**
+
+Misurato commutando la densità sul guscio: la colonna ha `transition-[width]`, e con la pagina considerata nascosta la transizione **non avanza**. Il risultato non è un errore, è una lettura **sfasata di una misura** — densità `normale` che riporta una fascia da 1056px (cioè la colonna touch da 384) e densità `touch` che ne riporta 1184 (la colonna normale da 256), con `--spacing` che nel frattempo dichiara il valore giusto. Due tentativi con esiti incrociati prima di riconoscerlo; `getBoundingClientRect` forza il layout, non il tempo.
+
+**La regola operativa**: qualunque misura su qualcosa che **transisce** — larghezze, posizioni, opacità — si prende in un **browser vero**, Chromium di Playwright headless contro lo Storybook costruito. Il pannello resta buono per guardare uno stato fermo e per gli screenshot; non è un banco.
