@@ -2628,3 +2628,26 @@ In `CHECKLIST.md` ci sono **due decisioni chiamate D16**: la scala tipografica (
 ### Prossimi passi
 
 Il verdetto di **D10** resta di **M4.2**, su una pagina vera, e parte da una cella un po' più stretta di prima: 42 caratteri per riga a 375px in touch. La riserva `3xl` è tarata e **non la usa ancora nessuno**: i numeroni del cruscotto sono M4.4.
+
+### Coda di M1.6 — due difetti segnalati da Francesco, e nessuno dei due nasce qui (2026-09-10)
+
+Guardando la style guide dopo il riallineamento, Francesco ha segnalato **`Primitive/Chart → Barre`** col totale «120» tagliato in cima e **`Primitive/Resizable → Verticale`** ridotta a una riga. Prima domanda, e va fatta sempre: li ha causati M1.6? **No, nessuno dei due** — misurato ricostruendo lo Storybook pre-M1.6 apposta invece di dedurlo.
+
+**1. L'etichetta del grafico era già tagliata, M1.6 l'ha peggiorata di 1px.** Il totale della pila si scrive **fuori** dall'area di disegno, a `offset: 12` sopra la barra, ma il margine in cima era `top: 20` — e la barra più alta arriva al tetto dell'asse. Serve `offset` **più il corpo del testo**, ed è la parte che sfugge: il corpo cresce con la densità. Misurato sulla distanza dell'etichetta dal bordo dell'SVG, negativa quando esce:
+
+| | pre-M1.6 (`text-xs` 11px) | dopo M1.6 (12px) | corretto |
+|---|---|---|---|
+| «120» | **−3px** | **−4px** | **+12px** |
+| «118» | +0.5px | −0.5px | +12px |
+
+Il margine in cima diventa **36** quando le etichette vanno davvero in cima — cioè `!orizzontali && ((etichette && !impilato) || (impilato && totale))` — e resta 20 altrimenti. È lo stesso rimedio, con la stessa forma condizionale, che il file già applicava al margine **destro** per le barre orizzontali: lì il difetto era stato visto («118» reso «11»), in cima no. Verificato a **+11px o più** in tutte e tre le combinazioni che portano etichette in alto, in **entrambe** le densità (in touch `text-xs` fa 13px, ed è il caso stretto).
+
+**2. `Resizable` era rotta da prima, e in un modo che nascondeva sé stesso.** `react-resizable-panels` scrive `height: 100%` **inline** sulla radice del gruppo, e uno stile inline batte qualunque classe: `h-72` sul `ResizablePanelGroup` non faceva niente. Senza un'altezza vera sopra, quel `100%` si risolve su un genitore alto `auto` e il gruppo prende l'altezza del **contenuto**.
+
+Da cui due sintomi diversi per una causa sola, ed è la parte istruttiva. `Predefinito` e `TrePannelli` contengono paragrafi, cioè hanno un'altezza intrinseca: rendevano **94px invece di 256** e sembravano soltanto «un po' strette» — nessuno le avrebbe chiamate rotte. `Verticale` contiene una `ScrollArea` in `h-full`, cioè una **percentuale di un genitore senza altezza**: collassava a **3px**, ed è la sola che si vedesse. Il difetto grosso era nelle due che sembravano sane.
+
+Rimedio: **l'altezza al contenitore, il gruppo in `h-full` dentro** — che è quello che shadcn fa nei propri esempi senza spiegarlo. Nessun componente toccato: `resizable.tsx` resta identico all'originale, era la *composizione* a essere sbagliata, e il rilievo sta ora nel commento della story perché lo `split-view` di **M3.9** si comporrà così. Misurato dopo: 256 / 288 / 256 in normale, 384 / 432 / 384 in touch — le altezze derivano da `--spacing`, quindi scalano, ed è corretto.
+
+**Un avvertimento che vale oltre il caso**: finché la story era collassata a 3px, **axe la scansionava e non trovava niente**, perché non c'era niente da scansionare. Le 868 scansioni restano 0 violazioni ora che i pannelli si vedono davvero — ma il rischio era reale, ed è lo stesso di M2.3 col popup che non si apriva: *una story che non rende non è una story senza difetti*. Il gate non sa distinguere i due casi; `misura:bersagli` nemmeno (1988 bersagli, invariati). Se ne accorge solo chi guarda.
+
+Cinque gate verdi, `lint` pulito. Scatti in `docs/img/M1.6/coda-*.png`.

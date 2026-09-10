@@ -483,10 +483,21 @@ export const Barre: Story = {
               accessibilityLayer
               data={perMese}
               layout={args.orizzontali ? 'vertical' : 'horizontal'}
-              // In orizzontale il numero si scrive **a destra della barra**, cioè
-              // fuori dall'area di disegno: senza margine la cifra più lunga
-              // viene tagliata dal bordo della card (misurato: «118» reso «11»).
-              margin={{ top: 20, right: args.orizzontali && (args.etichette || args.totale) ? 56 : 20 }}
+              // Le etichette si scrivono FUORI dall'area di disegno, quindi il
+              // margine da quel lato dev'essere alto quanto `offset` più il corpo
+              // del testo — e il corpo cresce con la densità, che è la parte che
+              // sfugge. In orizzontale il numero va a destra della barra: senza
+              // margine la cifra più lunga è tagliata dal bordo della card
+              // (misurato: «118» reso «11»). In verticale va SOPRA, e la barra
+              // più alta arriva al tetto dell'asse: con `top: 20` contro
+              // `offset: 12` + 12px di testo il totale della pila usciva di 4px
+              // (misurato su «120», e usciva di 3px anche prima di M1.6 — il
+              // difetto è più vecchio della scala nuova). 36 tiene anche in
+              // densità touch, dove `text-xs` fa 13px.
+              margin={{
+                top: !args.orizzontali && ((args.etichette && !args.impilato) || (args.impilato && args.totale)) ? 36 : 20,
+                right: args.orizzontali && (args.etichette || args.totale) ? 56 : 20,
+              }}
             >
               {args.griglia && <CartesianGrid vertical={args.orizzontali} horizontal={!args.orizzontali} />}
               {args.orizzontali ? (
