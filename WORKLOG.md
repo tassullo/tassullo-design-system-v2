@@ -2412,3 +2412,132 @@ Restano tre campi di testo e un collegamento, bassi ma larghi 48÷416, coperti d
 ### Prossimi passi
 
 FASE 3, **M3.1 `tassullo-app-shell`**, che eredita anche la coda di M2.5 (se montare `<SidebarRail />`) e prende la prima misura di **D10**. Prima, o dentro, va costruito l'item **`tema-logo`** deciso qui sopra.
+
+---
+
+## M3.1 — Il guscio, e il marchio che smette di essere incollato in una story
+
+**Il compito**: `tassullo-app-shell`, il sostituto di `Sidebar.tsx` + `Sidebar.css` di Anagrafe. Criterio: shell resa a 1440px e a 375px **in tutte e due le densità** — la matrice è viewport × densità, non viewport soltanto — e la **prima misura di D10**. In carico anche **D13**, l'item `tema-logo`, deciso da Francesco in coda a M2.9 e mai costruito.
+
+**L'esito, in una riga**: guscio in piedi, quattro celle misurate, cinque gate verdi (868 scansioni / 0 violazioni), e una misura di D10 che **ribalta l'assunzione del piano**.
+
+---
+
+### D13 — il marchio è una classe del tema, non un componente
+
+`registry/tassullo/theme/tassullo-logo.css`, item `tema-logo`, dichiarato fra le `registryDependencies` di `tema`: un solo `add @tassullo/tema` porta token, carattere **e** marchio.
+
+```html
+<span class="marchio-t size-6" aria-hidden></span>
+```
+
+Il tracciato fa da **maschera** (`mask-image` in data URI) e il colore lo dà `background-color: currentColor` — quindi il marchio segue il testo che lo circonda, e la stessa classe è giusta sulla sidebar antracite, su una pagina chiara e su una scura. Verificato in Chromium: `background-color` risolto a `oklch(0.9455 0.0027 106.45)`, cioè il token scritto sul `<span>`, in entrambe le modalità.
+
+Il ragionamento completo — le due strade scartate, perché una maschera e non un `background-image`, perché percent-encoding e non base64 — è in `docs/DECISIONI.md` §28. Le tre cose da sapere qui:
+
+- **La sorgente non viaggia**: `theme/marchio/tassullo-t.svg` è il file da cui si genera, come i `.woff2` in `theme/fonts/`. Due differenze dall'originale di Anagrafe, e nessuna è cosmetica: **niente `fill`** (di una maschera conta l'alfa, non il colore — e sparisce l'esadecimale, che la regola 3 vieta anche dentro un SVG) e **`viewBox` al posto di `width`/`height`** (senza, la maschera non saprebbe scalare).
+- **`@layer components`, non regole senza layer**, così le utility Tailwind vincono: `size-*` sovrascrive l'altezza predefinita di `1em` e `text-*` cambia il colore. Senza layer sarebbe il contrario, cioè il contrario di ciò che serve.
+- **Il file è generato e sotto gate.** `npm run logo:build` lo rigenera, `npm run check:logo` fallisce se diverge, ed è il **quinto** gate di `npm run check`. Provato su un difetto vero — un carattere aggiunto in coda — esce con codice 1. La ragione è la stessa del carattere: **un data URI non è ispezionabile a occhio**, quindi una divergenza resterebbe invisibile per sempre.
+
+**E il tracciato è uscito da `sidebar.stories.tsx`.** Era esattamente ciò che D13 chiamava «accettabile per la style guide, la deriva se ogni app se lo ricopiasse»: ora anche la story usa la classe.
+
+**Il marchio esteso: non esiste, e non se ne inventa uno.** D13 chiedeva di chiudere anche quello. Il file non c'è — né in Anagrafe né nel v1 — perché in produzione il marchio esteso è **composto**: la T più il nome dell'applicativo in Inter semibold, che è la forma che il guscio monta in testata. Se un logotipo vero arriverà, è **una riga in più** nell'elenco `MARCHI` dello script: la classe comune e il gate ci sono già. Resta l'eccezione già dichiarata nel v1 — favicon e icona PWA, che un browser serve **prima** del CSS e che quindi non possono leggere né classi né variabili del tema.
+
+---
+
+### Il guscio
+
+`registry/tassullo/blocks/app-shell.tsx`, item `tassullo-app-shell`. Una chiamata sola attorno a tutta l'app; le voci di navigazione sono un **dato**, non JSX, e i collegamenti si passano con `render` — un `<NavLink>`, un `<Link>`, o niente e la voce resta un bottone. Il guscio non sa quali rotte esistano: `attiva` la calcola l'app.
+
+Porta con sé le **sei correzioni misurate in M2.5**, che chi copiasse `sidebar-07` a mano si porterebbe dietro come difetti — e sono tutte e sei **mute**: nessun errore, solo un'interfaccia che si comporta male. Il `TooltipProvider` alla radice; il tooltip **non passato affatto** sotto la soglia mobile (la radice resta montata, si apre col fuoco e si prende il primo `Esc`); `justify-center` sui bottoni `size="lg"` nel rail; il testo spento con `group-data-[collapsible=icon]:hidden`; l'`aria-label` su testata e piede; il menù utente che si apre in basso sul telefono. Più le **larghezze della colonna riscritte sulla scala della densità**, che è l'unica eccezione accertata di M1.4 e che così **nessuna app deve ricopiarsi**.
+
+Due libertà in più rispetto alla story di M2.5, e vengono dal codice vero di Anagrafe: **voci disabilitate** («Famiglie EPD», che lì è un `<span>` con `title="In arrivo"`) e **voci senza icona** — Anagrafe non ne ha nessuna. Senza icone il rail sarebbe una fila di quadrati vuoti, quindi c'è `collassa="fuori"`: la colonna sparisce invece di ridursi. `disabilitata` si esprime con `aria-disabled` e non con `disabled`, perché la voce può essere un `<a>` e su un ancoraggio `disabled` non vuol dire niente.
+
+**Il `SidebarRail` non è montato**, ed è la coda di M2.5 che questo task ereditava. Tre misure, tutte da lì: è **ridondante** (il grilletto in barra resta visibile a colonna chiusa e `Ctrl`/`Cmd`+`B` funziona sempre), è **irraggiungibile da tastiera** (`tabIndex={-1}`), e **mente sul cursore** — mostra `w-resize`, cioè promette un ridimensionamento che non esiste. È il solo dei tre modi di aprire la colonna che abbia tutti e tre i difetti. È composizione, non componente: `SidebarRail` resta esportato da `sidebar.tsx`, rimetterlo è una riga. **Se Francesco lo rivuole, si dica.**
+
+---
+
+### La prima misura di D10, e cosa ribalta
+
+Quattro celle, in Chromium sullo Storybook costruito. I caratteri per riga si **misurano** — una stringa di 100 caratteri a `text-base` dentro l'area di contenuto vera — non si stimano.
+
+| cella | colonna | fascia | padding | larghezza utile | caratteri/riga |
+|---|---|---|---|---|---|
+| 1440 × normale | 256 | 48 | 16 | **1148** | 165 |
+| 1440 × touch | 384 | 72 | 24 | **1008** | 136 |
+| 375 × normale | — | 48 | 16 | **343** | 49 |
+| 375 × touch | — | 72 | 24 | **327** | 44 |
+
+**`PIANO.md` §M3.1 dà per scontato che a mangiare la larghezza sia il padding di pagina** — «sono quelle utility, non le altezze dei controlli». A 375px **non è così**: sotto i 768px la colonna esce dal DOM, quindi il padding è l'unica cosa che toglie larghezza, e ne toglie **16px in tutto**. A perdere il 10,2% di testo per riga non è la larghezza (−4,7%) ma il **corpo**, che passa da 14 a 15px: le due leve di M1.4 tirano nello stesso verso e si sommano. Il rimedio che il piano prevedeva — un `--space-page` che non derivi da `--spacing` — varrebbe **meno della metà** di ciò che si perde.
+
+**E sulla scrivania il colpevole è un terzo ancora.** A 1440 la larghezza utile cala di 140px, e **128 di quei 140 sono la colonna** (256 → 384). Il contenuto scende sotto `--container-page`: 1056 contro 1180, cioè **in touch, a 1440px, la larghezza massima di pagina non è più il vincolo** — lo è la colonna. Chi progetterà una tabella larga in touch (M3.3) deve saperlo.
+
+Il verdetto resta di **M4.2**, su una pagina vera. Questa è la misura, non la decisione.
+
+**Un quinto rilievo, trovato guardando invece che misurando.** A 375px in **touch** il percorso della fascia andava **a capo dentro la barra**; in densità normale, alla stessa larghezza, ci stava. È la stessa cella di D10 vista nella fascia invece che nel contenuto. Il rimedio sta nell'app — i livelli intermedi spariscono sotto i 768px, come nel `sidebar-07` di shadcn — e il guscio fa la sua parte con `min-w-0` sullo slot della fascia: senza, la larghezza minima di un elemento flex è quella del suo contenuto, e il percorso spingerebbe le azioni fuori dallo schermo. Con `min-w-0` a cedere è il percorso, che è la parte che l'app sa come far cedere.
+
+---
+
+### Due gate che guardavano una cartella sola
+
+**`check:registry` non vedeva i blocchi.** Guardava solo `registry/tassullo/ui/`: un valore arbitrario o un esadecimale dentro un blocco non lo avrebbe visto nessuno, e i blocchi saranno **undici**. Ora scandisce anche `blocks/`, con la **sola regola 3** — niente hex, niente arbitrari. Non chiede loro un originale shadcn né una riga in `componenti-propri.json`: un blocco è per costruzione ciò che shadcn non copre, ed è la ragione per cui la FASE 3 esiste. Provato su un difetto vero (`h-[37px]`, `bg-[#F4AC3D]` infilati nel guscio): **3 errori**, poi ripristinato.
+
+**`gate-a11y` cercava le dichiarazioni di popup solo in `ui/`.** Il guscio un popup ce l'ha — il menù utente — e sarebbe passato per «senza popup», che è esattamente il difetto contro cui M2.9 ha costruito quell'elenco. Ora legge `ui/` e `blocks/`, e `app-shell` è in `CON_POPUP`.
+
+---
+
+### Le tre cose che il gate ha preso, e una che ha preso il gate
+
+**1. Un `<main>` dentro un `<main>`.** `SidebarInset` **è** un `<main>`: il mio contenitore di contenuto era un secondo `main` annidato, e dava tre violazioni per story — `landmark-unique`, `landmark-no-duplicate-main`, `landmark-main-is-top-level`, 4 in tutto alla prima passata. Corretto in `div`. La fascia in alto resta **dentro** il `main`, che è la forma di `sidebar-07`: è la loro, non una nostra deriva.
+
+**2. Lo `data-slot` del grilletto, che si guarda e non si deduce.** Avevo scritto il selettore della `play` per analogia col `combobox`, dove `ComboboxTrigger` rende attraverso `InputGroupButton` e nel DOM vince `input-group-button`. Qui la composizione è la stessa — `DropdownMenuTrigger` che rende attraverso `SidebarMenuButton` — e **finisce all'opposto**: vince `dropdown-menu-trigger`. Il gate l'ha preso al primo colpo e per come deve, perché `grilletto()` **lancia** quando il selettore non trova niente invece di lasciar passare la story per «senza popup». Due composizioni che si somigliano e finiscono in modo diverso: è la ragione per cui `apri.ts` vuole un selettore e non un nome di slot.
+
+**3. Il percorso che andava a capo**, di cui sopra — e quello non l'ha preso nessun gate: axe non lo vede, `misura:bersagli` nemmeno. L'ha preso uno **screenshot guardato**.
+
+---
+
+### Verifiche eseguite
+
+`npm run check` verde su **cinque** gate: `check:contrast` ✔ · `check:registry` 0 errori, 52 avvisi (arbitrari *ereditati da shadcn*, preesistenti), 1 blocco Tassullo, 0 componenti nostri · `check:font` ✔ · `check:logo` ✔ · `test:a11y` **868 scansioni / 4 passate / 0 violazioni**.
+`npm run build` ✔ · `npm run build-storybook` ✔ · `npm run lint` 3 avvisi preesistenti · `shadcn registry validate` ✔ (55 item) · `registry:build` rilanciato.
+`npm run misura:bersagli`: **1985 bersagli su 217 story, 47 popup aperti, 31 tipi sotto i 44px, 0 piccoli in entrambe le direzioni** — invariato rispetto a M2.9, il guscio non introduce bersagli nuovi (il suo `sidebar-trigger` a 40.88 × 41px era già a registro).
+
+Misure a mano, in Chromium sullo Storybook costruito: guscio in **quattro celle** viewport × densità, più rail collassato in tutte e due le densità, modalità scura, e la navigazione vera di Anagrafe senza icone. Nel rail il marchio è **centrato con le icone delle voci** — 24 contro 24 in normale, 36 contro 36 in touch: la correzione dei 6px fuori asse di M2.5 tiene anche alla densità che allora non era stata provata.
+
+---
+
+### Resta aperto
+
+1. **Il `SidebarRail`**: non è montato, per tre misure. Se Francesco lo rivuole, è una riga.
+2. **Le `incomplete`** che il gate non asserisce (limite noto da M2.9): il guscio non aggiunge coppie di colori nuove — riusa primitive già misurate e il marchio è decorativo — ma la lettura a mano resta dovuta alla prima sessione che tocchi il tema.
+3. **D10**, verdetto in M4.2, ora con quattro numeri sotto invece che con un'assunzione.
+
+### Prossimi passi
+
+**M3.2 — `page-header`**: titolo, breadcrumb, slot azioni. Da portarci dentro: il percorso che a 375px in touch va a capo — qui il rimedio l'ha messo la story, e `page-header` è il posto dove diventa la forma unica per tutte le app.
+
+---
+
+## Coda di M3.1 — il giro di revisione con Francesco (2026-09-10)
+
+Cinque rilievi guardando la story, tutti accolti. Tre cambiano il blocco, due aprono decisioni.
+
+**1. L'azione primaria di pagina ha una grammatica, non un colore scelto a occhio.** Non si sceglie la variante pagina per pagina: si sceglie il **ruolo**. Una sola azione primaria per pagina, variante `default` (l'arancio del brand), **sempre con icona**; le altre `outline`; le distruttive `destructive` e mai come primaria. La parte che conta è «una sola»: due bottoni arancioni nella stessa intestazione non sono due azioni importanti, sono zero. Anagrafe lo rispetta già (`Prodotti.tsx`: «Sistema da BC» secondario, «Nuovo prodotto» primario). La novità rispetto al v1 è l'icona.
+
+**Taglia normale, non `sm` come nel v1**, e la ragione è misurata: `sm` in touch fa **42px**, sotto i 44 di WCAG e sotto i 48 che il v1 dà a `.btn` in cantiere. La normale fa **32px in normale e 48 in touch** — 32, non 36 come avevo scritto prima di misurare. Contrasto del primario **9.49:1** in entrambe le modalità.
+
+**2. Via il titolo di pagina.** «Prodotti» compariva **tre volte in 80px**: voce attiva in sidebar, ultimo livello del breadcrumb, `<h1>`. È anche la forma di `dashboard-01` di shadcn, che un titolo di pagina non ce l'ha. Tolto: la fascia diventa l'unica riga di intestazione — breadcrumb a sinistra, azioni a destra — e ogni pagina guadagna ~50px di altezza utile.
+
+**Conseguenza per M3.2, e non è piccola.** Se le azioni stanno nella fascia, la fascia la disegna il guscio ma il contenuto è **della pagina**. Con `<AppShell>` montato una volta sola attorno all'`<Outlet />` la pagina non può passargli delle prop: `page-header` dovrà offrire un **contesto** (o un portale) con cui una pagina dichiara percorso e azioni. shadcn non ha il problema perché i suoi blocchi rendono il guscio dentro ogni pagina; noi no.
+
+**Effetto collaterale da tenere d'occhio**: `--text-title` non ha più **nessun consumatore** nel codice spedito. Vive solo nelle story della style guide.
+
+**3. L'utente: nome e cognome sul bottone, email nel menù.** È la forma di `sidebar-07` ed è la mappatura dell'account Microsoft (`givenName`, `surname`, `mail`). `cognome` è un campo a sé, e non per pignoleria: **è il cognome a cadere** quando lo spazio manca, non una parte di parola — `truncate` sull'intera stringa darebbe «Massimiliano Bert…», che non è un nome. Risolto in CSS, senza misurare niente: due elementi, `truncate` solo sul secondo.
+
+Misurato su tre nomi × due scale × due densità: il nome di battesimo non si accorcia **mai**; il cognome si accorcia con «Massimiliano Bertagnolli» alla scala shadcn e con «Pierfrancesco Dallabrida Zambotti» a tutte e due. Dichiarato a Francesco lo scarto dalla sua regola letterale («se non ci stanno entrambi, solo nome»): qui il cognome si accorcia invece di sparire, e la sparizione netta costerebbe una misura in JavaScript dentro il blocco.
+
+**4. I caratteri sono piccoli, ed è sistematico** — vedi `docs/DECISIONI.md` §30 e la decisione **D16**.
+
+**5. Il banco tipografico.** Per decidere serviva provare, non guardare screenshot. Costruita una pagina con **i componenti veri**: DOM catturato dalle story, CSS compilato di Storybook e Inter inlinati, nove campioni, tre scale commutabili dal vivo più i sette gradini modificabili, densità e modalità. I caratteri per riga li **misura** con una stringa di 100 caratteri dentro la larghezza utile vera di uno schermo da 375px.
+
+Un difetto trovato e corretto lì dentro, e la causa vale oltre il caso: la colonna della sidebar è `position: fixed`, e dentro un iframe alto quanto tutto il contenuto «fisso» vuol dire **rispetto all'intero documento** — la colonna si allungava su tutte e nove le sezioni e ci si sedeva sopra. Si contiene dando al riquadro un `transform`, che lo rende il blocco di riferimento dei figli fissi. Non era un difetto del guscio: era della vetrina.

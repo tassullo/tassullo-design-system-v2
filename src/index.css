@@ -16,6 +16,13 @@
    contro una copia e si spedirebbe l'altra (D3, chiusa il 2026-09-08). */
 @import "../registry/tassullo/theme/inter.css";
 
+/* Il marchio Tassullo, come maschera CSS. È GENERATO da
+   scripts/build-logo-css.ts (npm run logo:build) dagli .svg in
+   registry/tassullo/theme/marchio/, e viaggia come item `tema-logo`.
+   Stessa ragione dell'import qui sopra: il workbench prova esattamente il
+   file che ricevono le app (D13, chiusa il 2026-09-10). */
+@import "../registry/tassullo/theme/tassullo-logo.css";
+
 /* ══════════════════════════════════════════════════════════════════════
    IL CARATTERE — Inter sullo schermo, Replica nelle stampe
 

@@ -4,7 +4,8 @@
   "title": "Tema Tassullo",
   "description": "Identità visiva Tassullo: palette chiara e scura, raggi, tipografia, ombre e le due densità. Porta con sé il carattere (Inter). Unico canale di distribuzione del tema.",
   "registryDependencies": [
-    "@tassullo/tema-font"
+    "@tassullo/tema-font",
+    "@tassullo/tema-logo"
   ],
   "files": [
     {

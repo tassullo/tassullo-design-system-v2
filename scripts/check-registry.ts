@@ -33,6 +33,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { basename, join } from "node:path";
 
 const UI_DIR = "registry/tassullo/ui";
+const BLOCCHI_DIR = "registry/tassullo/blocks";
 const UPSTREAM_DIR = "registry/.upstream";
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
 const PROPRI_FILE = "registry/componenti-propri.json";
@@ -189,6 +190,53 @@ function fileUi(): string[] {
   return readdirSync(UI_DIR)
     .filter((f) => f.endsWith(".tsx") && !f.endsWith(".stories.tsx"))
     .map((f) => join(UI_DIR, f));
+}
+
+/**
+ * I blocchi della FASE 3. Non hanno — e non possono avere — un originale
+ * shadcn: sono i pattern che shadcn *non* copre, ed è la ragione per cui la
+ * FASE 3 esiste. Il confronto di forma qui non ha senso, e nemmeno la riga in
+ * `componenti-propri.json`, che è il registro dei **componenti** nostri, cioè
+ * di ciò che sta al posto di una primitiva shadcn.
+ *
+ * Ma la regola 3 vale lo stesso, ed è il motivo di questa funzione: fino a
+ * M3.1 il gate guardava solo `ui/`, quindi un valore arbitrario o un hex
+ * dentro un blocco non lo avrebbe visto nessuno — e i blocchi saranno undici.
+ * Un gate che tace su una cartella intera è peggio di un gate che grida.
+ */
+function fileBlocchi(): string[] {
+  if (!existsSync(BLOCCHI_DIR)) return [];
+  return readdirSync(BLOCCHI_DIR)
+    .filter((f) => f.endsWith(".tsx") && !f.endsWith(".stories.tsx"))
+    .map((f) => join(BLOCCHI_DIR, f));
+}
+
+/** Sui blocchi si controlla la sola regola 3: niente hex, niente arbitrari. */
+function controllaBlocchi(): Set<string> {
+  const tokenUsati = new Set<string>();
+  for (const path of fileBlocchi()) {
+    const nome = basename(path);
+    const testo = readFileSync(path, "utf8");
+    let arbitrari = 0;
+    for (const s of estraiStringhe(testo)) {
+      for (const m of s.matchAll(
+        new RegExp(`(?:^|[\\s"'\`:\\[])(?:${COLOR_PREFIXES.join("|")})-([a-z][a-z0-9-]*)`, "g"),
+      )) {
+        tokenUsati.add(m[1]!);
+      }
+      if (/#[0-9a-fA-F]{3,8}\b/.test(s)) err(nome, `colore esadecimale nel sorgente: ${s}`);
+      for (const m of s.matchAll(ARBITRARIO_RE)) {
+        if (ELENCO_PROPRIETA_RE.test(m[0])) continue;
+        arbitrari++;
+        err(nome, `valore arbitrario in un blocco (regola 3 del CLAUDE.md): ${m[0]}`);
+      }
+    }
+    console.log(
+      `  ▪ ${nome.padEnd(24)} blocco Tassullo — nessun originale shadcn per costruzione` +
+        (arbitrari > 0 ? `, ${arbitrari} valore/i arbitrario/i` : ""),
+    );
+  }
+  return tokenUsati;
 }
 
 function snapshot(nomi: string[]): void {
@@ -377,6 +425,11 @@ function main(): void {
   console.log("\nComponenti — forma rispetto all'originale shadcn\n");
   const { ristilati, token } = controllaComponenti();
   if (fileUi().length === 0) console.log("  (nessun componente: la FASE 2 non è iniziata)");
+
+  if (fileBlocchi().length > 0) {
+    console.log("\nBlocchi — solo regola 3 (niente hex, niente valori arbitrari)\n");
+    for (const t of controllaBlocchi()) token.add(t);
+  }
 
   // Voci del registro che non corrispondono più a un file: si tolgono.
   const presenti = new Set(fileUi().map((f) => basename(f)));

@@ -47,7 +47,13 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const STORIE_DIR = "registry/tassullo/ui";
+/**
+ * Dove stanno le story del registry. Da M3.1 sono **due** cartelle: le
+ * primitive in `ui/`, i blocchi della FASE 3 in `blocks/`. Cercare le
+ * dichiarazioni nella sola `ui/` avrebbe fatto passare per «senza popup» un
+ * blocco che un popup ce l'ha — e il guscio ne ha uno, il menù utente.
+ */
+const STORIE_DIR = ["registry/tassullo/ui", "registry/tassullo/blocks"];
 
 /**
  * I componenti che un popup ce l'hanno. Non si deduce dal codice: un
@@ -58,6 +64,7 @@ const STORIE_DIR = "registry/tassullo/ui";
  */
 const CON_POPUP = [
   "alert-dialog",
+  "app-shell",
   "combobox",
   "context-menu",
   "dialog",
@@ -82,11 +89,14 @@ const PASSATE: Passata[] = [
 /** Quali componenti dichiarano di aprire il proprio popup, e con che gesto. */
 function dichiarazioni(): Map<string, string> {
   const trovate = new Map<string, string>();
-  for (const f of readdirSync(STORIE_DIR)) {
-    if (!f.endsWith(".stories.tsx")) continue;
-    const testo = readFileSync(join(STORIE_DIR, f), "utf8");
-    const m = testo.match(/play: (apri[A-Za-zÀ-ú]*)\(/);
-    if (m) trovate.set(f.replace(".stories.tsx", ""), m[1]);
+  for (const dir of STORIE_DIR) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith(".stories.tsx")) continue;
+      const testo = readFileSync(join(dir, f), "utf8");
+      const m = testo.match(/play: (apri[A-Za-zÀ-ú]*)\(/);
+      if (m) trovate.set(f.replace(".stories.tsx", ""), m[1]);
+    }
   }
   return trovate;
 }

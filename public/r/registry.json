@@ -26,6 +26,23 @@
       "docs": "Inter installato in src/tassullo-inter.css, con l'@import già aggiunto al CSS globale.\n\nI file del carattere sono DENTRO quel CSS, in data URI: nessuna richiesta di rete per la\ntipografia, né a Google né altrove. Sottoinsieme latin (italiano e tedesco), variabile,\nun file per stile che copre i pesi da 300 a 900.\n\nsrc/tassullo-inter-OFL.txt è la licenza SIL Open Font e deve restare accanto al font:\nnon si cancella. Il font è libero di essere usato, modificato e ridistribuito."
     },
     {
+      "name": "tema-logo",
+      "type": "registry:theme",
+      "title": "Marchio Tassullo",
+      "description": "Il marchio T come maschera CSS in data URI: una classe, non un componente e non un file in public/. Il colore segue il testo.",
+      "files": [
+        {
+          "path": "registry/tassullo/theme/tassullo-logo.css",
+          "type": "registry:theme",
+          "target": "src/tassullo-logo.css"
+        }
+      ],
+      "css": {
+        "@import \"./tassullo-logo.css\"": {}
+      },
+      "docs": "Marchio Tassullo installato in src/tassullo-logo.css, con l'@import gia aggiunto al CSS globale.\n\nSi usa come classe su un elemento vuoto e decorativo:\n\n  <span className=\"marchio-t size-6\" aria-hidden />\n\nIl tracciato fa da MASCHERA e il colore lo da currentColor: il marchio prende il\ncolore del testo che lo circonda, quindi la stessa classe e giusta sulla sidebar\nantracite, su una pagina chiara e su una scura. Per cambiarne il colore si usa\nun'utility di testo (text-primary, text-sidebar-accent-foreground), non una di\nsfondo.\n\nLa T e piu alta che larga (24x38): con h-* la larghezza la calcola l'aspect-ratio,\ncon size-* resta stretta dentro il quadrato senza deformarsi.\n\nNon c'e nessun file da mettere in public/ e nessun componente da importare: il\nmarchio viaggia dentro il tema. Chi ha bisogno di una favicon o di un'icona PWA\nresta l'unica eccezione, perche un file servito prima del CSS non puo leggere ne\nle classi ne le variabili del tema."
+    },
+    {
       "name": "tema",
       "type": "registry:theme",
       "title": "Tema Tassullo",
@@ -42,7 +59,8 @@
       },
       "docs": "Tema Tassullo installato in src/tassullo-theme.css, con l'@import già aggiunto al CSS globale.\n\nUN PASSO A MANO, se l'app viene da `shadcn init`: nel CSS globale c'è ancora il blocco\n:root / .dark della palette di partenza. Sta DOPO l'@import e quindi vince — va tolto, o i\ncolori Tassullo non si vedono. Con esso vanno tolte le righe --color-* di @theme inline che\nil tema ridichiara.\n\nDensità touch (cantiere): <html data-density=\"touch\">.\nAggiornamento del tema: lo stesso comando con --overwrite.",
       "registryDependencies": [
-        "@tassullo/tema-font"
+        "@tassullo/tema-font",
+        "@tassullo/tema-logo"
       ]
     },
     {
@@ -921,6 +939,33 @@
       "registryDependencies": [
         "@tassullo/button"
       ]
+    },
+    {
+      "name": "tassullo-app-shell",
+      "type": "registry:block",
+      "title": "Guscio applicativo",
+      "description": "Il guscio di un'applicazione Tassullo: colonna scura collassabile, fascia in alto, area di contenuto con larghezza di pagina. Porta le sei correzioni misurate su sidebar-07 e le larghezze della colonna sulla scala della densita.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/app-shell.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/app-shell.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/avatar",
+        "@tassullo/collapsible",
+        "@tassullo/dropdown-menu",
+        "@tassullo/separator",
+        "@tassullo/sidebar",
+        "@tassullo/tema",
+        "@tassullo/tooltip"
+      ],
+      "docs": "Un solo componente attorno a tutta l'app:\n\n  <AppShell applicazione=\"Anagrafe\" sezioni={SEZIONI} utente={me} barra={<Percorso />}>\n    <Outlet />\n  </AppShell>\n\nIl guscio possiede il respiro di pagina (p-4, che segue la densita) e la larghezza\nmassima del contenuto (max-w-page, 1180px): le pagine non se li riscrivono.\nlarghezza=\"piena\" toglie il limite, per tabelle grandi e cruscotti.\n\nLe voci di navigazione sono un dato, non JSX: titolo, icona, href/render, attiva,\nbadge, disabilitata, figli. I collegamenti si passano con `render` — un <NavLink>\ndi react-router, un <Link>, o niente e la voce resta un bottone. Il guscio non sa\nquali rotte esistano: `attiva` la calcola l'app.\n\nSenza icone sulle voci si passa collassa=\"fuori\": la colonna sparisce invece di\nridursi a una fila di quadrati vuoti.\n\nIl marchio arriva col tema (item tema-logo, classe .marchio-t): non c'e nessun file\nda mettere in public/."
     }
   ]
 }

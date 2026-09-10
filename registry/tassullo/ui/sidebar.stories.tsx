@@ -13,6 +13,7 @@ import {
   UsersIcon,
 } from 'lucide-react'
 
+import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/registry/tassullo/ui/avatar'
 import {
   Breadcrumb,
@@ -147,14 +148,12 @@ import { TooltipProvider } from '@/registry/tassullo/ui/tooltip'
  * il tooltip sulle voci — e per quello serve il `TooltipProvider` di cui
  * sopra.
  *
- * **Il marchio qui è un segnaposto disegnato in `currentColor`, e va
- * sostituito.** Il logo Tassullo è un file del brand, non una classe:
- * distribuirlo è una voce del registry — `tema-logo`, accanto a `tema` e
- * `tema-font` — e non si improvvisa dentro una story. È la **decisione D13**,
- * da chiudere **entro la fine della FASE 2**: l'asset (la T bianca su fondo
- * trasparente) arriva da Roberto. La geometria del segnaposto — barra, asta,
- * traversa — è quella del marchio in uso, e il file vero lo sostituisce senza
- * toccare la composizione.
+ * **Il marchio non è più incollato qui.** Fino a M2.9 il tracciato stava in
+ * questa story, ed era la deriva che la regola permanente vieta: una copia in
+ * ogni app. Ora è una **classe del tema** — `.marchio-t`, l'item `tema-logo`,
+ * che arriva con `add @tassullo/tema` — e il tracciato fa da maschera, quindi
+ * il colore segue il testo. È **D13**, chiusa il 2026-09-10 (`docs/DECISIONI.md`
+ * §28).
  *
  * ## Un requisito d'uso che costa le etichette: serve un `TooltipProvider`
  *
@@ -250,38 +249,17 @@ const larghezze = {
 } as CSSProperties
 
 /**
- * Il marchio Tassullo, **tracciato ufficiale**: è il file che Anagrafe ha già
- * in produzione (`frontend/public/tassullo-t.svg`, 24×38), segnalato da
- * Roberto. Un solo `path` con due sottotracciati — l'asta con la traversa, e
- * la barra sopra — e `fill-rule="evenodd"`.
+ * Il marchio Tassullo. Non è un componente e non è un file in `public/`: è la
+ * classe `.marchio-t` del tema (item `tema-logo`, D13 chiusa il 2026-09-10).
  *
- * L'unica modifica al file è il colore: l'originale è `fill="#FFF"`, qui è
- * **`currentColor`**, perché la regola 3 non ammette hex nemmeno dentro un
- * SVG. Non è pignoleria: così il marchio segue il testo che lo circonda e
- * funziona anche dove il fondo non è antracite — un `#FFF` cotto nel file
- * sparirebbe su fondo chiaro.
- *
- * Il `viewBox` non è quadrato: il marchio è **più alto che largo** (24×38,
- * rapporto 0,63), quindi con `size-*` si allinea all'altezza e resta stretto.
- * Era la cosa che il segnaposto sbagliava di più — Francesco l'ha vista
- * subito, «la T è schiacciata, la gamba è più corta».
- *
- * **Resta da chiudere D13**: qui il tracciato è incollato dentro la story, e
- * una copia in ogni app è esattamente ciò che la regola permanente vieta. Il
- * marchio deve diventare una **voce del registry**.
+ * Il tracciato fa da **maschera** e il colore lo dà `currentColor`, quindi la
+ * stessa classe è giusta sulla sidebar antracite come su una pagina chiara.
+ * `size-6` e non `h-6`: il `viewBox` non è quadrato — la T è più alta che larga
+ * (24×38) — e dentro un quadrato la maschera si allinea all'altezza e resta
+ * stretta, che è come si allinea alle icone quadrate delle voci.
  */
 function MarchioT({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 38"
-      aria-hidden
-      className={className}
-      fill="currentColor"
-      fillRule="evenodd"
-    >
-      <path d="m9.517 38-.414-.415V14.196l-.413-.415H.413L0 13.36V9.189l.413-.421H23.58l.42.42v4.172l-.42.421H15.31l-.42.415v23.389l-.414.415h-4.96Zm5.794-33.086H.413L0 4.493V.415L.413 0H23.58l.42.415v4.078l-.42.42H15.31Z" />
-    </svg>
-  )
+  return <span aria-hidden className={cn('marchio-t', className)} />
 }
 
 const sezioni = [
@@ -319,7 +297,7 @@ function Testata() {
           aria-label="Anagrafe"
           className="group-data-[collapsible=icon]:justify-center"
         >
-          <MarchioT className="size-6! shrink-0 text-sidebar-accent-foreground" />
+          <MarchioT className="size-6 shrink-0 text-sidebar-accent-foreground" />
           <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate font-semibold text-sidebar-accent-foreground">Anagrafe</span>
           </div>

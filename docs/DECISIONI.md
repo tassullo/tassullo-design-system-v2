@@ -1127,3 +1127,134 @@ Gli altri tre — un collegamento e due campi di testo, 18.56px alti ma **larghi
 **Rettifica di due numeri a registro**: la voce di menu era data a 36px e la voce del combobox a 31px. Sono **entrambe 30.56px** — lo stesso bersaglio, non due.
 
 Le voci di menu restano come sono: il rimedio (`py-1` → `py-2`) le alza **anche in densità normale**, cioè cambierebbe l'aspetto della scrivania per un criterio nato per il cantiere. Sono 30.56 × 324: basse, ma lunghe quanto tutto il menu.
+
+---
+
+## 28. Il marchio nel registry: `mask-image` in data URI, e perché non un componente (D13, M3.1, 2026-09-10)
+
+**Conclusione: il marchio è una *classe del tema*, `.marchio-t`, e viaggia dentro un CSS come maschera in data URI.** È la strada (c) di D13, scelta da Francesco il 2026-09-10. L'item è `tema-logo`, dichiarato fra le `registryDependencies` di `tema`: un solo `add @tassullo/tema` porta token, carattere **e** marchio.
+
+```html
+<span class="marchio-t size-6" aria-hidden></span>
+```
+
+### Le due strade scartate, con la ragione che le ha scartate
+
+**(a) Un componente `<MarchioT />`.** È comodo e `currentColor` funziona da sé — ma è un componente **nostro senza originale shadcn**, cioè il gradino 4 della scala 4bis: vorrebbe una riga in `registry/componenti-propri.json`, che oggi è vuoto ed è la condizione che il progetto dichiara «da difendere». Il marchio non è un motivo abbastanza forte per romperla: non ha comportamento, non ha stato, non ha varianti. È un disegno, e un disegno sta nel tema.
+
+**(b) L'`.svg` come `registry:file` con `target` su `public/`.** Zero componenti nostri — ma un `<img>` **non segue il colore del testo**: servirebbe un file per fondo chiaro e uno per fondo scuro, cioè due copie dello stesso tracciato da tenere allineate a mano. Un doppione è la deriva che il registry esiste per impedire.
+
+### Perché una **maschera** e non un `background-image`
+
+Un `background-image` dipingerebbe il marchio col colore scritto dentro il file, e si ricadrebbe nel problema di (b). Una maschera **ritaglia**: del data URI conta solo il canale alfa, e il colore arriva da `background-color: currentColor`. Per questo il tracciato in `theme/marchio/tassullo-t.svg` **non ha `fill`** — il nero di default riempie, cioè alfa 1 dove il tracciato copre, ed è esattamente ciò che serve. Effetto collaterale utile: sparisce anche l'esadecimale, che la regola 3 non ammette nemmeno dentro un SVG.
+
+Verificato in Chromium sullo Storybook costruito: `background-color` risolto a `oklch(0.9455 0.0027 106.45)` — cioè `--sidebar-accent-foreground`, il token scritto sul `<span>` — e `mask-image` col data URI applicato, in chiaro e in scuro.
+
+### Percent-encoding, non base64
+
+Un SVG è testo, e un data URI percent-encoded resta **leggibile**: si apre il CSS e si vede il tracciato. Costa anche meno — base64 gonfia di un terzo, il percent-encoding di un SVG di poco più del 10%. Si codifica **il minimo che serve**: `%` per primo (o ri-codificherebbe le proprie uscite), `#` — che in un URL apre il frammento e **troncherebbe la maschera a metà, senza errore** — le virgolette doppie, `<` e `>`.
+
+### La misura, e perché `size-*` è la classe giusta
+
+Il `viewBox` è 24×38: la T è **più alta che larga**. La classe dichiara `aspect-ratio: 24 / 38`, letto dal `viewBox` dallo script e non scritto a mano. Con `h-*` la larghezza la calcola l'`aspect-ratio`; con `size-*` l'aspect-ratio è inerte (entrambe le dimensioni sono date) e a tenere le proporzioni è `mask-size: contain`, che allinea il marchio all'**altezza** e lo lascia stretto dentro il quadrato — che è come si allinea alle icone delle voci, tutte quadrate. Misurato nel rail: `size-6` dà 24×24 in densità normale e **36×36 in touch**, perché `size-*` deriva da `--spacing`.
+
+### `@layer components`, e non un blocco senza layer
+
+Le regole stanno in `@layer components`, così le utility Tailwind **vincono** su di esse: `size-*` sovrascrive l'altezza predefinita di `1em`, e `text-*` cambia il colore. Senza layer le nostre regole batterebbero le utility, che è il contrario di ciò che serve. Il layer resta CSS valido anche dove Tailwind non ci fosse.
+
+### Il file è **generato**, e sotto gate
+
+`registry/tassullo/theme/tassullo-logo.css` esce da `scripts/build-logo-css.ts` (`npm run logo:build`), e `npm run check:logo` fallisce se diverge — quinto gate di `npm run check`. Stessa disciplina del carattere e per la stessa ragione: **un data URI non è ispezionabile a occhio**, quindi una divergenza resterebbe invisibile per sempre. Il gate è stato provato su un difetto vero — un carattere aggiunto in coda al file — ed esce con codice 1.
+
+La sorgente `theme/marchio/tassullo-t.svg` **non viaggia nel registry**: è il file da cui si genera, come i `.woff2` in `theme/fonts/`.
+
+### Il marchio esteso: non esiste un asset, e non se ne inventa uno
+
+D13 chiedeva di chiudere anche «se serve il marchio esteso accanto alla sola T». **Il file non esiste**: né Anagrafe né il v1 ne hanno uno — in produzione il marchio esteso è *composto*, la T più il nome dell'applicativo in Inter semibold, ed è la forma che `tassullo-app-shell` monta in testata. Se un giorno arriva un logotipo vero, è **una riga in più** nell'elenco `MARCHI` dello script, non un meccanismo nuovo: la classe comune e il gate ci sono già.
+
+**Resta un'eccezione, e va conosciuta**: favicon e icona PWA. Un file servito al browser **prima** del CSS non può leggere né le classi né le variabili del tema, e infatti la favicon di Anagrafe ricopia l'antracite a mano. Quella eccezione era già dichiarata nel v1 e resta.
+
+---
+
+## 29. La prima misura di D10: a schermo stretto il padding non è il colpevole (M3.1, 2026-09-10)
+
+**Conclusione: a 375px la densità touch costa 16px di larghezza utile (−4,7%), ma **10,2%** di testo per riga — e sulla scrivania costa molto di più, per un motivo diverso.** Misurato in Chromium sullo Storybook costruito, sulla story `Blocchi/App shell`, quattro celle viewport × densità.
+
+| cella | colonna | fascia | padding | larghezza utile | caratteri per riga |
+|---|---|---|---|---|---|
+| 1440 × normale | 256 | 48 | 16 | **1148** | 165 |
+| 1440 × touch | 384 | 72 | 24 | **1008** | 136 |
+| 375 × normale | — | 48 | 16 | **343** | 49 |
+| 375 × touch | — | 72 | 24 | **327** | 44 |
+
+I caratteri per riga si misurano, non si stimano: una stringa di 100 caratteri a `text-base` dentro l'area di contenuto vera, e la larghezza utile divisa per la sua.
+
+**Il rilievo che ribalta l'assunzione del piano.** `PIANO.md` §M3.1 dà per scontato che a mangiare la larghezza sia il **padding di pagina** — «sono quelle utility, non le altezze dei controlli». A 375px non è così: sotto i 768px la colonna esce dal DOM, quindi il padding è l'**unica** cosa che toglie larghezza, e toglie 16px in tutto. A perdere il 10% del testo per riga non è la larghezza (−4,7%) ma il **corpo**, che passa da 14 a 15px: le due leve di M1.4 tirano nello stesso verso e si sommano.
+
+**E sulla scrivania il colpevole è un terzo ancora.** A 1440 la larghezza utile cala di 140px (−12,2%) e **128 di quei 140 sono la colonna**, che passa da 256 a 384 — l'override di densità di M2.5, che è deliberato. Il contenuto scende sotto `--container-page` (1056 contro 1180): in touch, a 1440px, **la larghezza massima di pagina non è più il vincolo**, lo è la colonna. Chi progetta una tabella larga in touch deve saperlo.
+
+**Il rimedio che il piano prevedeva — un `--space-page` che non derivi da `--spacing` — non serve al problema che si è misurato**: a 375px varrebbe 16px su 343, cioè meno della metà di ciò che si perde. Il verdetto resta di M4.2, su una pagina vera; questa è la misura, non la decisione.
+
+**Un quinto rilievo, trovato guardando invece che misurando.** A 375px in **touch** il percorso della fascia andava **a capo dentro la barra** — in densità normale, alla stessa larghezza, ci stava. È la stessa cella di D10 vista nella fascia invece che nel contenuto, ed è la prova che la densità su schermo stretto non è un problema del solo corpo pagina. Il rimedio sta nell'app (i livelli intermedi del breadcrumb spariscono sotto i 768px, come nel `sidebar-07` di shadcn), e il guscio fa la sua parte con `min-w-0` sullo slot della fascia: garantisce che a cedere sia il percorso e non le azioni a destra.
+
+---
+
+## 30. La scala tipografica è due punti sotto shadcn, e `text-md` è il gradino del bottone (D16, M3.1, 2026-09-10)
+
+**Conclusione: la scala del v1 rende ogni componente shadcn 2px più piccolo di com'è disegnato, e il rimedio scelto è la scala `12 / 13 / 15 / 16 / 19 / 27` con `--text-md` fuso in `--text-sm`.** Rilevato da Francesco confrontando la style guide con i blocchi di `ui.shadcn.com`; misurato invece che discusso.
+
+### shadcn non tocca la scala, quindi il confronto è esatto
+
+Verificato che il preset non dichiara nessun `--text-*`: shadcn usa la scala di default di Tailwind. Non serve misurare il loro sito.
+
+| gradino | shadcn | Tassullo v2 (v1) | differenza |
+|---|---|---|---|
+| `text-xs` | 12 | 11 | −1 |
+| **`text-sm`** | **14** | **12** | **−2 (−14%)** |
+| `text-base` | 16 | 14 | −2 |
+| `text-lg` | 18 | 15 | −3 |
+| `text-xl` | 20 | 18 | −2 |
+
+**I pesi coincidono** — 400 sulle voci, 500 sull'attiva e sulle etichette, 600 sul nome dell'applicativo: la differenza è tutta di dimensione. In M1.2 abbiamo portato dentro la scala del v1 tenendo i **nomi** di shadcn, ma le loro altezze e i loro padding sono tarati su un `sm` da 14px: chiedere allo stesso riquadro di contenere un testo da 12 dà testo piccolo con troppa aria intorno.
+
+### Tre gradini reggono tutta l'interfaccia
+
+Contati gli usi nei componenti spediti (le story non contano, non le spedisce nessun item):
+
+| gradino | nostri componenti | originali shadcn |
+|---|---|---|
+| `text-sm` | 72 | 68 |
+| `text-xs` | 22 | 21 |
+| `text-base` | 9 | 8 |
+| `text-md` | **2** | — |
+| `lg`, `xl`, `title` | **0** | 0 |
+
+`sm` da solo è il **69%** degli usi. `lg`, `xl` e `title` il tema li tara e **non li usa nessun componente**: vivono nella style guide — e `title` ha perso anche l'ultimo consumatore quando M3.1 ha tolto il titolo di pagina.
+
+### `text-md` è un gradino nostro, ed è il gradino del bottone
+
+Lo usano **due file**, `button.tsx` e `button-group.tsx`, dove l'originale shadcn scrive `text-sm`. Esiste solo per portare il bottone da 12 a 13px, che è la misura del `.btn` del v1. Il commento nel tema — «chip, breadcrumb, testi densi» — è **falso**: il breadcrumb usa `text-sm`, i chip del combobox pure. È un'intenzione del v1 mai realizzata.
+
+Da cui la scelta di **fonderlo in `sm` a 13px**: il bottone resta esattamente i 13px di oggi, e `button`/`button-group` tornano a scrivere `text-sm` come l'originale. **Non aggiunge una divergenza da shadcn: ne toglie due**, e riduce il ri-stile del bottone al solo raggio (`rounded-md` 6px contro `rounded-lg` 10px, che è identità di marchio). Le altezze non erano mai divergenti: `h-8`/`h-6`/`h-7`/`h-9`, identiche all'originale.
+
+### Perché `+1` e non l'allineamento pieno
+
+La scala allineata (`sm` 14, `base` 16) è la più corretta in astratto, e c'è una regola nostra che la sostiene — 4bis punto 3, «se il v1 non ci sta dentro si adatta il v1, non shadcn». Ha però un costo che va **contro** il motivo per cui esiste la densità touch: a 375px in touch il corpo passerebbe da 15 a 17px e i caratteri per riga da 44 a circa 39. In cantiere significa più scorrimento. La scala scelta recupera il grosso della leggibilità senza pagare quel prezzo.
+
+Scelta di Francesco il 2026-09-10, provata sul **banco tipografico** — una pagina coi componenti veri (DOM catturato dalle story, CSS compilato e Inter inlinati) e le tre scale commutabili dal vivo, con i caratteri per riga misurati e non stimati.
+
+### Il buco che nessuno vedrebbe, e che il gate deve chiudere
+
+**Un gradino che il tema non tara non scala con la densità.** I due blocchi `[data-density]` ridichiarano solo i gradini nostri: se un blocco scrivesse `text-2xl`, quello renderebbe 24px in densità normale **e 24px in touch**. Nessun errore, nessun avviso — il testo semplicemente non cresce quando cresce tutto il resto. Oggi il buco non è aperto (nessun componente usa `2xl`) ma è aperto per costruzione, e la FASE 3 ha ancora nove blocchi da scrivere.
+
+Stessa famiglia, e più insidiosa: tolto `--text-md`, la classe `text-md` **non esiste in Tailwind**. Un `text-md` dimenticato in una story non è un errore di compilazione: è un'utility sconosciuta che non emette niente, e il testo eredita la misura del genitore. Muto, di nuovo.
+
+Rimedio in carico al lavoro: **`check:registry` segnala ogni `text-*` usato nel registry che il tema non tara.** Poche righe, e trasforma due difetti muti in un errore.
+
+### Rettifica in giornata: anche `--text-title` esce
+
+Segnalato da Francesco subito dopo: tolto il titolo di pagina, `title` non ha più consumatori nel codice spedito, quindi **si toglie anche lui**. La scala superstite è allora `xs 12 / sm 13 / base 15 / lg 16 / xl 19`, cioè **«+1» esatto su ogni gradino del v1**, con `md` fuso in `sm`.
+
+**A una condizione, però, e non è formale**: qualcosa deve coprire la tipografia di pagina, o la FASE 4 — il titolo del login, i numeroni del cruscotto — andrà a pescare `text-2xl`/`text-3xl` di Tailwind, che il tema **non tara**, e ricadrà esattamente nel buco descritto qui sopra: 24px in normale e 24px in touch. Togliere `title` va quindi accompagnato dal **tarare `2xl` e `3xl`**.
+
+L'esito è più pulito della situazione di partenza: **zero gradini nostri**, tutti i nomi sono quelli di Tailwind, e ogni nome che un componente possa scrivere è tarato dal tema. Che è la definizione operativa di «resa uniforme».
