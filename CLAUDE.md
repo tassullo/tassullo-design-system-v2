@@ -72,7 +72,7 @@ Da sapere per non farci conto a sproposito: l'MCP è **solo lato consumo**. Non 
 
 ## §Conduzione
 
-- **A fine task**: aggiornare la riga in `CHECKLIST.md` e aggiungere la voce in `WORKLOG.md` (attività svolte, modifiche, decisioni tecniche, problemi, test eseguiti, prossimi passi). Non è burocrazia: è ciò che permette alla sessione successiva di leggere tre file invece di ricostruire il contesto.
+- **A fine task**: aggiornare la riga in `CHECKLIST.md` e aggiungere la voce in `WORKLOG.md` (attività svolte, modifiche, decisioni tecniche, problemi, test eseguiti, prossimi passi). Non è burocrazia: è ciò che permette alla sessione successiva di leggere tre file invece di ricostruire il contesto. **I due file non sono lo stesso file**: la riga in `CHECKLIST.md` è una **sintesi di due o tre righe** — verdetto, i numeri che contano, un rimando — e tutto il resto va nel diario. La checklist si legge a colpo d'occhio o non serve a niente: nel settembre 2026 era arrivata a 48 KB con una riga da 3260 caratteri, ed è stata ripulita a 26.
 - Quando una decisione **D** si chiude, si scrive **nel WORKLOG con la motivazione** e si aggiorna la riga in `CHECKLIST.md`. Una decisione chiusa senza motivazione scritta si riapre da sola fra tre mesi.
 - Uno **scostamento** dal piano (un componente che non regge, una libreria scartata, un'eccezione a Base UI) o si corregge, o si annota nel WORKLOG con la ragione. Mai in silenzio.
 - I **criteri di accettazione** dei task del piano si verificano davvero, non si dichiarano: se un criterio dice "cronometrato", si cronometra; se dice "verificato da tastiera", si prova la tastiera.

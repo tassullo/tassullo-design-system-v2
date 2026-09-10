@@ -2714,3 +2714,15 @@ Le due forme stanno entrambe nel DOM, una spenta con `hidden` — che è `displa
 Scatti: `docs/img/M1.6/coda5-telefono-menu.png`, `coda5-scrivania.png`.
 
 **Cosa resta a M3.2**: il contratto con cui una pagina *dichiara* percorso e azioni a un guscio montato una volta sola. Il tipo `AzionePagina` è la forma che quel contratto trasporterà.
+
+### Coda di M1.6 (6) — la checklist torna leggibile (2026-09-10)
+
+Rilievo di Francesco: «una nota CHECKLIST sta diventando illeggibile, troppo testo. Non basta tenere il dettaglio in WORKLOG?». Sì, e la regola c'era già scritta: `CLAUDE.md` dice che `CHECKLIST.md` porta «stato, dipendenze, **criterio sintetico**», e la colonna si chiama letteralmente «Criterio di accettazione **(sintesi)**». La regola era stata ignorata a lungo, e da questa sessione per prima.
+
+**Il numero: da 47.762 a 20.144 byte**, −58%. La riga peggiore (M2.8) da **3260 a 265** caratteri; 19 righe accorciate col taglio al confine di frase più un rimando, 4 riscritte a mano dove il taglio automatico avrebbe spezzato male. Le 69 righe di tabella sono tutte al loro posto, prima e dopo.
+
+**Come, senza perdere niente.** Prima di tagliare ho verificato che il dettaglio esistesse davvero altrove: ogni task da M2.1 a M3.1 ha la sua voce in `WORKLOG.md`, ogni decisione la sua sezione in `docs/DECISIONI.md` (30). Il metodo è stato **troncare al confine di frase e rimandare**, non riscrivere a memoria — le righe aprivano tutte col verdetto, quindi la sintesi era già in testa e la riscrittura avrebbe solo aggiunto il rischio di introdurre errori.
+
+**La prosa fra il titolo di FASE 2 e la sua tabella era il caso peggiore: 7183 caratteri contro i ~200 delle altre fasi** (segnalato da Francesco a parte). Era il registro dei rilievi di fase, tre dei cinque ormai *evasi* da M2.9. Ridotta a **1137**, e la scelta di cosa tenere non è stata di lunghezza: **i due rilievi ancora aperti restano in checklist per intero** — il contorno dei controlli sotto 3:1 (decisione di palette) e i filtri col grigio identico (accettato, si riprende in FASE 4). Un impegno aperto che vive solo in una voce di diario si perde; la storia di ciò che è chiuso no, quella il diario la tiene bene. Stessa cura su FASE 1, da 909 a 380.
+
+**La regola ha ora un tetto misurabile**, in testa a `CHECKLIST.md` e in `CLAUDE.md` §Conduzione: due o tre righe di tabella — verdetto, i numeri che contano, un rimando — e tutto il resto nel diario. Con la ragione scritta accanto, perché una regola senza la sua ragione si riapre da sola: **una riga che non si legge smette di essere una fonte di verità**, ed è esattamente quello che era successo.
