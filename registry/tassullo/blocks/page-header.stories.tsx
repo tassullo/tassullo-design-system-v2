@@ -110,17 +110,41 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /**
- * La fascia da sola, senza il guscio attorno: è ciò che `AppShell` monta, e
- * quello che serve qui per guardare l&apos;intestazione a larghezze diverse
- * senza dover cambiare viewport. Nel vivo il `grilletto` è
- * `<SidebarTrigger />`.
+ * Il banco: la fascia da sola, senza il guscio attorno.
+ *
+ * **Perché un banco e non il guscio intero.** Le soglie di questo blocco
+ * guardano la larghezza della **fascia**, non quella dello schermo, quindi la
+ * forma compatta si può mettere in scena a qualunque viewport — basta stringere
+ * il contenitore. È il vantaggio pratico di `@container` su `md:`/`lg:`, e vale
+ * anche per il gate: il runner di `addon-vitest` non ha un modo affidabile di
+ * cambiare viewport, e un popup che comparisse solo sotto una media query
+ * sarebbe un popup che il gate non apre mai.
+ *
+ * La larghezza del riquadro è **dichiarata sopra la barra**, perché una fascia
+ * stretta dentro uno schermo largo, senza didascalia, si legge come un errore
+ * invece che come una dimostrazione.
+ *
+ * Nel guscio il grilletto è `<SidebarTrigger />`; qui non c'è, e con lui non
+ * c'è il filo verticale che lo separa dal contenuto — è del guscio, non della
+ * pagina.
  */
-function Banco({ larghezza, children }: { larghezza?: string; children: ReactNode }) {
+function Banco({
+  larghezza = 'w-full',
+  didascalia,
+  children,
+}: {
+  larghezza?: string
+  didascalia: string
+  children: ReactNode
+}) {
   return (
     <IntestazioneProvider>
-      <div className={larghezza ?? 'w-full'}>
-        <FasciaIntestazione />
-        {children}
+      <div className="flex flex-col gap-2 p-4">
+        <p className="text-xs text-muted-foreground">{didascalia}</p>
+        <div className={`overflow-hidden rounded-lg border ${larghezza}`}>
+          <FasciaIntestazione />
+          {children}
+        </div>
       </div>
     </IntestazioneProvider>
   )
@@ -151,7 +175,7 @@ const AZIONI: AzionePagina[] = [
 export const Predefinito: Story = {
   args: { percorso: PERCORSO, azioni: AZIONI },
   render: (args) => (
-    <Banco>
+    <Banco didascalia="Fascia larga — la forma piena.">
       <PageHeader {...args} />
     </Banco>
   ),
@@ -166,7 +190,7 @@ export const Predefinito: Story = {
 export const PercorsoProfondo: Story = {
   args: { percorso: PERCORSO_LUNGO, azioni: AZIONI },
   render: (args) => (
-    <Banco>
+    <Banco didascalia="Fascia larga — quattro livelli, tutti visibili.">
       <PageHeader {...args} />
     </Banco>
   ),
@@ -191,7 +215,10 @@ export const FasciaStretta: Story = {
     azioni: [...AZIONI, { titolo: 'Elimina', icona: Trash2Icon, ruolo: 'distruttiva' }],
   },
   render: (args) => (
-    <Banco larghezza="w-80">
+    <Banco
+      larghezza="w-80"
+      didascalia="Fascia da 320px — la stessa che si ha su uno schermo da 375px, dove la colonna non c'è. Il riquadro è stretto di proposito: le soglie guardano la fascia, non lo schermo."
+    >
       <PageHeader {...args} />
     </Banco>
   ),
@@ -205,7 +232,7 @@ export const FasciaStretta: Story = {
 export const SenzaAzioni: Story = {
   args: { percorso: PERCORSO },
   render: (args) => (
-    <Banco>
+    <Banco didascalia="Fascia larga — nessuna azione dichiarata.">
       <PageHeader {...args} />
     </Banco>
   ),
@@ -218,7 +245,7 @@ export const SenzaAzioni: Story = {
 export const LivelloUnico: Story = {
   args: { percorso: [{ titolo: 'Cruscotto' }], azioni: [AZIONI[1]!] },
   render: (args) => (
-    <Banco>
+    <Banco didascalia="Fascia larga — un livello solo, che è la pagina.">
       <PageHeader {...args} />
     </Banco>
   ),

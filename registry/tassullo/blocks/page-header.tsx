@@ -217,7 +217,24 @@ export function FasciaIntestazione({
         className,
       )}
     >
-      {grilletto}
+      {grilletto ? (
+        <>
+          {grilletto}
+          {/*
+           * Il filo verticale fra il grilletto e il contenuto. Sta **qui** e non
+           * in `PageHeader`, dove pure era nato: è il divisorio fra ciò che è
+           * del guscio e ciò che è della pagina, quindi lo possiede il guscio —
+           * e senza grilletto non c'è niente da dividere, mentre in `PageHeader`
+           * finiva come un trattino appoggiato al bordo sinistro. `Separator` in
+           * verticale si stira su tutta l'altezza del genitore, e qui ne serve
+           * un pezzo alto quanto il testo: è la forma di `sidebar-07`.
+           */}
+          <Separator
+            orientation="vertical"
+            className="shrink-0 data-vertical:h-4 data-vertical:self-auto"
+          />
+        </>
+      ) : null}
       <div
         data-slot="page-header-slot"
         ref={setNodo ?? undefined}
@@ -458,20 +475,7 @@ export function PageHeader({
      */
     <div data-slot="page-header-content" className="contents">
       {nome ? <h1 className="sr-only">{nome}</h1> : null}
-      {percorso.length > 0 ? (
-        <>
-          {/*
-           * Il filo verticale fra il grilletto e il percorso: `Separator` in
-           * verticale si stira su tutta l'altezza del genitore, e qui ne serve
-           * un pezzo alto quanto il testo. È la forma di `sidebar-07`.
-           */}
-          <Separator
-            orientation="vertical"
-            className="shrink-0 data-vertical:h-4 data-vertical:self-auto"
-          />
-          <Percorso livelli={percorso} />
-        </>
-      ) : null}
+      {percorso.length > 0 ? <Percorso livelli={percorso} /> : null}
       <Azioni azioni={azioni} />
     </div>,
     nodo,

@@ -2882,3 +2882,19 @@ Misure a mano in Chromium sullo Storybook costruito: le **otto celle** viewport 
 ### Prossimi passi
 
 **M3.3 — `data-table` (2 sessioni)**: TanStack Table, ~500 righe finte, ordinabile e filtrabile da tastiera, degrado a 375px. Da portarci dentro la misura di M3.1: **in touch, a 1440px, il vincolo alla larghezza non è `--container-page` ma la colonna** (1008px utili contro i 1180 del tetto). Chi progetta una tabella larga in touch deve saperlo.
+
+---
+
+## Coda di M3.2 — la story che si leggeva come un errore (2026-09-10)
+
+**Il rilievo di Francesco**, guardando `Fascia Stretta` con la viewport su Scrivania 1440: «non capisco a cosa serva questa pagina, è attiva la modalità desktop e sembra l'interfaccia del telefono». Accolto: la story mostrava una barra da 320px in mezzo a uno schermo da 1440 **senza dire perché**, e una dimostrazione che non si dichiara si legge come un guasto. La spiegazione c'era, ma nella prosa della pagina Docs — cioè non dove la si guarda.
+
+Due modifiche.
+
+**1. Il banco dichiara la propria larghezza, sopra la barra.** «Fascia da 320px — la stessa che si ha su uno schermo da 375px, dove la colonna non c'è. Il riquadro è stretto di proposito: le soglie guardano la fascia, non lo schermo.» E la barra sta dentro un riquadro con un bordo, invece di galleggiare sul fondo della pagina. Anche le altre quattro story hanno la loro didascalia, così la stretta non è l'unica con un'etichetta e la differenza si legge nel confronto.
+
+**2. Il filo verticale passa dalla pagina al guscio.** Era in `PageHeader`, prima del percorso, ed è la forma di `sidebar-07` — ma lì è il divisorio **fra il grilletto della colonna e il contenuto**, cioè fra ciò che è del guscio e ciò che è della pagina. Fuori dal guscio, dove un grilletto non c'è, finiva come un trattino appoggiato al bordo sinistro: si vede nello screenshot del rilievo. Ora sta in `FasciaIntestazione` e compare **solo se c'è un grilletto**. Il guscio non cambia di un pixel; il banco perde un segno che non voleva dire niente.
+
+**Sulla violazione nel pannello.** Lo screenshot del rilievo mostrava `Accessibility 2 / Violations 1 — aria-command-name` e 28 `Passes`. **Sul codice committato quella story è a zero**: pannello riletto sul dev server, `Violations 0 · Passes 25 · Inconclusive 0`, e axe eseguito a mano in Chromium sullo Storybook costruito — chiaro e scuro, popup aperto a quattro tempi di assestamento diversi (0, 60, 150, 400ms) e popup chiuso dopo `Esc` — dà **zero violazioni** in tutti e dieci i casi. I conti diversi (28 passi contro 25) dicono che quel pannello stava misurando un DOM diverso dal committato: un dev server rimasto acceso su uno stato intermedio della sessione. Nessuna modifica fatta per questo; **se ricompare a pagina ricaricata, serve il nodo** — il pannello lo mostra espandendo la riga della violazione — perché senza non è riproducibile.
+
+**Verifiche**: `npm run check` di nuovo verde sui cinque gate, **888 scansioni / 0 violazioni**; `build`, `build-storybook`, `registry:build` ✔; `lint` ai 3 avvisi preesistenti. Guardate a video le cinque story del blocco e il guscio, in chiaro e scuro.
