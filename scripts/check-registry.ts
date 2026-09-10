@@ -245,7 +245,15 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
       )) {
         tokenUsati.add(m[1]!);
       }
-      if (/#[0-9a-fA-F]{3,8}\b/.test(s)) err(nome, `colore esadecimale nel sorgente: ${s}`);
+      // Un hex dentro un selettore d'attributo — `[stroke='#ccc']` — non è un
+      // colore che scriviamo: è un colore che *intercettiamo*. Recharts cuce
+      // #ccc e #fff nel proprio SVG, e la sola via per rimpiazzarli coi token
+      // è agganciarli per attributo (`chart.tsx`, M2.8). Toglierli non
+      // ripulirebbe niente: spegnerebbe l'override e lascerebbe il grigio di
+      // Recharts sulla griglia. Contati come colori nostri erano un falso
+      // positivo, e un gate che ne dà si smette di leggere.
+      if (/#[0-9a-fA-F]{3,8}\b/.test(s.replace(/\[[a-z-]+=['"]?#[0-9a-fA-F]{3,8}['"]?\]/g, "")))
+        err(nome, `colore esadecimale nel sorgente: ${s}`);
     }
 
     if (!existsSync(originalePath)) {

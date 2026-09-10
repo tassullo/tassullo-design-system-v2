@@ -22,7 +22,18 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-import { oklch, wcagContrast, formatHex, converter } from "culori";
+import {
+  oklch,
+  wcagContrast,
+  wcagLuminance,
+  formatHex,
+  converter,
+  clampChroma,
+  differenceCiede2000,
+  filterDeficiencyDeuter,
+  filterDeficiencyProt,
+  filterDeficiencyTrit,
+} from "culori";
 
 const MIN_RATIO = 4.5;
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
@@ -128,16 +139,26 @@ const light: Palette = {
   // ── Velo delle modali ────────────────────────────────────────────────────
   overlay: "#14141473", // v1 --color-overlay: rgba(20, 20, 20, 0.45)
 
-  // ── Serie dei grafici — PROVVISORI ───────────────────────────────────────
-  // Ereditati dal preset `nova`, scala di grigi. Il v1 non ha una palette
-  // categorica: la definisce M2.8, che deve renderne 5 distinguibili anche in
-  // scala di grigi. Restano qui perché senza di loro le primitive che li
-  // referenziano non renderebbero; non sono token Tassullo.
-  "chart-1": "#C9C9C9",
-  "chart-2": "#8F8F8F",
-  "chart-3": "#6D6D6D",
-  "chart-4": "#575757",
-  "chart-5": "#3C3C3C",
+  // ── Serie dei grafici (M2.8) ─────────────────────────────────────────────
+  // DERIVATI — riempiti da deriveSerie(). Vedi il blocco «la scala delle
+  // serie» più sotto: non sono cinque colori scelti, sono cinque pioli di
+  // una scala il cui passo è quello che l'arancio e il verde Tassullo hanno
+  // già fra loro.
+  "chart-1": "",
+  "chart-2": "",
+  "chart-3": "",
+  "chart-4": "",
+  "chart-5": "",
+
+  // ── La rampa monocroma del brand (M2.8) ──────────────────────────────────
+  // DERIVATI — gli stessi cinque pioli, tutti alla tinta dell'arancio. Servono
+  // quando le categorie sono **ordinate** (poco → molto) o quando la serie è
+  // una sola e il grafico deve restare del colore dell'app.
+  "chart-mono-1": "",
+  "chart-mono-2": "",
+  "chart-mono-3": "",
+  "chart-mono-4": "",
+  "chart-mono-5": "",
 };
 
 /**
@@ -249,15 +270,24 @@ const dark: Palette = {
   // velo al 45% dello stesso colore della pagina non separa più niente.
   overlay: "#141414B3",
 
-  // ── Serie dei grafici — PROVVISORI, come nel chiaro ──────────────────────
-  // Rampa ribaltata: quella chiara scende fino a #3C3C3C, che sul fondo scuro
-  // non si vedrebbe. Cinque gradini, il più scuro ancora a 3.4:1. M2.8 li
-  // sostituisce con la palette categorica vera.
-  "chart-1": "#EDEDEB",
-  "chart-2": "#C9C9C9",
-  "chart-3": "#A8A8A8",
-  "chart-4": "#8F8F8F",
-  "chart-5": "#6D6D6D",
+  // ── Serie dei grafici (M2.8) — stessa scala, salita di un piolo ──────────
+  // DERIVATI — riempiti da deriveSerie(). Le tinte sono le stesse del chiaro;
+  // cambia solo l'altezza della scala, vedi il blocco «la scala delle serie».
+  "chart-1": "",
+  "chart-2": "",
+  "chart-3": "",
+  "chart-4": "",
+  "chart-5": "",
+
+  // ── La rampa monocroma del brand (M2.8) ──────────────────────────────────
+  // DERIVATI — gli stessi cinque pioli, tutti alla tinta dell'arancio. Servono
+  // quando le categorie sono **ordinate** (poco → molto) o quando la serie è
+  // una sola e il grafico deve restare del colore dell'app.
+  "chart-mono-1": "",
+  "chart-mono-2": "",
+  "chart-mono-3": "",
+  "chart-mono-4": "",
+  "chart-mono-5": "",
 };
 
 const THEMES: Array<{ name: string; selector: string; palette: Palette }> = [
@@ -283,6 +313,143 @@ function deriveInfoBorder(p: Palette): string {
   const h = oklch(p["info-subtle"])!.h ?? 0;
   return formatHex({ mode: "oklch", l, c, h })!;
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// M2.8 — la scala delle serie dei grafici (`--chart-1..5`).
+//
+// Il v1 non ha una palette categorica: questa è costruita, non tradotta. Il
+// requisito che la determina non è estetico ed è quello del piano: **cinque
+// serie che restino distinguibili anche in scala di grigi**, cioè per chi
+// stampa in bianco e nero e per chi ha un deficit di percezione del colore.
+// Distinguerle in grigio significa una cosa sola: che abbiano **luminanze
+// diverse e regolarmente spaziate**. La tinta viene dopo.
+//
+//  1. **Il passo non è scelto: è quello che l'arancio e il verde Tassullo
+//     hanno già fra loro.** `--primary` #F4AC3D e `--success` #1CAC7C stanno
+//     a 1.4935:1 di contrasto WCAG l'uno dall'altro — misurato, non deciso.
+//     Quel rapporto diventa il passo di tutta la scala: cinque pioli in
+//     progressione geometrica, e i primi due sono i due colori Tassullo veri,
+//     usati tali e quali. Se un giorno cambia il brand, cambia il passo e la
+//     scala si riallinea da sola, come `deriveInfoBorder`.
+//  2. **La tinta viene da un token Tassullo, la luminanza dal piolo.** Ogni
+//     serie prende tinta e croma da un token esistente (`SERIE`) e conserva
+//     solo quelli: la sua chiarezza è quella che il piolo impone, risolta per
+//     bisezione e con la croma riportata dentro sRGB dove il piolo non la
+//     regge. Le serie 4 e 5 sono lo stesso neutro caldo a due pioli diversi —
+//     è voluto: due grigi separati dalla sola chiarezza sono, per costruzione,
+//     la coppia più sicura di tutte in scala di grigi e per il daltonismo.
+//  3. **Sullo scuro la scala sale di un piolo esatto.** Non di un fattore
+//     inventato: dello stesso passo. All'altezza chiara il piolo più basso
+//     starebbe a **1.78:1** dalla card scura, cioè una barra che non si vede;
+//     salito di uno sta a 2.64:1. Più su non si può, ed è misurato: a un
+//     piolo e mezzo la serie più chiara supererebbe in contrasto il **testo**
+//     di pagina (16.13:1 contro 15.71:1), e un dato più marcato del testo non
+//     è più un dato. È il controllo `serie mai oltre il testo` qui sotto.
+//
+// Quello che la scala **non** garantisce, e che va detto: la serie più chiara
+// sta a 1.91:1 dalla card in chiaro e la più scura a 2.64:1 in scuro, cioè
+// sotto i 3:1 che la WCAG 1.4.11 chiede a un oggetto grafico *quando il
+// colore è l'unico mezzo*. Qui non lo è mai, e non deve diventarlo: le story
+// mostrano legenda, etichette diritte sui dati e tratteggi diversi per linea.
+// Cinque pioli da 3:1 non stanno fra il fondo e il testo — è aritmetica, non
+// una rinuncia: 3^4 = 81:1 contro i 21:1 che l'intera gamma sRGB permette.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Tinta e croma di ogni serie: cinque token Tassullo esistenti. */
+const SERIE: Array<{ da: () => string; nota: string }> = [
+  { da: () => light.primary, nota: "arancio del brand" },
+  { da: () => light.success, nota: "verde istituzionale" },
+  { da: () => dark.info, nota: "blu Tassullo, la versione che si vede (M1.3)" },
+  { da: () => light["muted-foreground"], nota: "neutro caldo" },
+  { da: () => light["muted-foreground"], nota: "neutro caldo, un piolo sotto" },
+];
+
+/** Il contrasto WCAG di un colore contro il nero assoluto: Y + 0.05. */
+const alt = (hex: string) => wcagLuminance(hex) + 0.05;
+
+/** Il colore alla tinta e croma di `sorgente`, portato all'altezza `piolo`. */
+function serieAlPiolo(sorgente: string, piolo: number): string {
+  // Un colore che sta già sul piolo non si ricalcola: è così che `--chart-1` e
+  // `--chart-2` restano esattamente #F4AC3D e #1CAC7C e non un arrotondamento.
+  if (Math.abs(alt(sorgente) - piolo) < 0.002) return sorgente.toUpperCase();
+
+  const { c, h } = oklch(sorgente)!;
+  const aLuminanza = (l: number) =>
+    formatHex(clampChroma({ mode: "oklch", l, c, h: h ?? 0 }, "oklch", "rgb"))!;
+
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (alt(aLuminanza(mid)) < piolo) lo = mid;
+    else hi = mid;
+  }
+  return aLuminanza((lo + hi) / 2).toUpperCase();
+}
+
+/** I cinque pioli di una palette. `salita`: 0 sul chiaro, 1 sullo scuro. */
+function pioli(p: Palette, salita: number): number[] {
+  const passo = alt(p.primary) / alt(p.success);
+  const cima = alt(p.primary) * passo ** salita;
+  return [0, 1, 2, 3, 4].map((i) => cima / passo ** i);
+}
+
+/**
+ * Le cinque serie categoriche: un piolo ciascuna, ognuna alla tinta di un token
+ * Tassullo diverso.
+ */
+function deriveSerie(p: Palette, salita: number): string[] {
+  const scala = pioli(p, salita);
+  return SERIE.map((s, i) => serieAlPiolo(s.da(), scala[i]!));
+}
+
+/**
+ * La rampa monocroma: **gli stessi pioli**, tutti alla tinta dell'arancio del
+ * brand. Non è una seconda palette da mantenere — è la stessa scala guardata a
+ * tinta unita, quindi eredita per costruzione il passo in grigio, e con esso la
+ * leggibilità in bianco e nero e sotto i tre deficit di percezione del colore.
+ *
+ * Serve dove la palette categorica è la scelta sbagliata: quando le categorie
+ * sono **ordinate** — poco, medio, molto — perché cinque tinte diverse su una
+ * scala ordinata dicono «cinque cose diverse» invece di «la stessa cosa, di
+ * più»; e quando la serie è **una sola** e il grafico deve restare del colore
+ * dell'app invece di prendere un arancio, un verde e un blu senza motivo.
+ */
+function deriveMono(p: Palette, salita: number): string[] {
+  return pioli(p, salita).map((piolo) => serieAlPiolo(p.primary, piolo));
+}
+
+/** Le tre simulazioni di deficit di percezione del colore che si misurano. */
+const DEFICIT: ReadonlyArray<readonly [string, (hex: string) => string]> = [
+  ["visione piena", (hex) => hex],
+  ["deuteranopia", (hex) => formatHex(filterDeficiencyDeuter(1)(oklch(hex)!))!],
+  ["protanopia", (hex) => formatHex(filterDeficiencyProt(1)(oklch(hex)!))!],
+  ["tritanopia", (hex) => formatHex(filterDeficiencyTrit(1)(oklch(hex)!))!],
+];
+
+// Soglie della scala. Il passo costruito è 1.4935: la soglia sta appena sotto
+// perché l'arrotondamento a 8 bit per canale sposta i pioli di qualche
+// millesimo (misurato: fra 1.483 e 1.506). Non è una soglia scelta per
+// passare — se qualcuno cambia l'arancio o il verde, il passo cambia davvero e
+// il gate lo dice.
+const PASSO_MIN = 1.45;
+/** Ogni serie contro la superficie su cui sta (la card). */
+const SERIE_SU_CARD_MIN = 1.5;
+/**
+ * Distanza percettiva minima fra due serie, ΔE2000, sotto ogni deficit.
+ *
+ * Non è questo il garante della distinzione — quello è il passo in grigio qui
+ * sopra, che vale per tutti e tre i deficit insieme perché nessuno di essi
+ * tocca la luminanza. Questo controllo serve a un caso solo: accorgersi se una
+ * coppia **collassa**, cioè se due serie diverse a occhio pieno diventano lo
+ * stesso colore per chi non distingue rosso e verde. ΔE 1 è la soglia di
+ * percezione: 5 è cinque volte quella. Misurato oggi: il minimo assoluto è
+ * **8.5** (chart-1/chart-2 in scuro, protanopia), il che dice che nessuna
+ * coppia è nemmeno vicina a collassare.
+ */
+const SERIE_DELTA_E_MIN = 5;
+
+const dE = differenceCiede2000();
 
 // ───────────────────────────────────────────────────────────────────────────
 // Le coppie da verificare: [fondo, testo, a cosa serve].
@@ -672,6 +839,61 @@ function checkParity(): number {
   return 1;
 }
 
+/**
+ * Il gate della scala delle serie. Verifica quattro cose, e ognuna corrisponde
+ * a una riga del blocco «la scala delle serie»:
+ *   1. il passo fra pioli adiacenti in scala di grigi;
+ *   2. che nessuna serie sparisca nella card su cui sta;
+ *   3. che nessuna serie superi in contrasto il testo di pagina;
+ *   4. che nessuna coppia di serie collassi sotto uno dei tre deficit di
+ *      percezione del colore.
+ */
+function checkSerie(palette: Palette, theme: string, prefisso: string): number {
+  const serie = [1, 2, 3, 4, 5].map((i) => palette[`${prefisso}${i}`]);
+  const rows: string[] = [];
+  let failures = 0;
+
+  const riga = (ok: boolean, misura: string, cosa: string) => {
+    if (!ok) failures++;
+    rows.push(`  ${ok ? "✔" : "✖"} ${misura.padStart(8)}  ${cosa}`);
+  };
+
+  for (let i = 1; i < serie.length; i++) {
+    const r = wcagContrast(serie[i - 1], serie[i]);
+    riga(r >= PASSO_MIN, `${r.toFixed(3)}:1`, `passo in grigio ${prefisso}${i}/${prefisso}${i + 1} (min ${PASSO_MIN})`);
+  }
+
+  serie.forEach((hex, i) => {
+    const r = wcagContrast(hex, palette.card);
+    riga(r >= SERIE_SU_CARD_MIN, `${r.toFixed(2)}:1`, `${prefisso}${i + 1} ${hex} sulla card (min ${SERIE_SU_CARD_MIN})`);
+  });
+
+  const testo = wcagContrast(palette.foreground, palette.background);
+  serie.forEach((hex, i) => {
+    const r = wcagContrast(hex, palette.background);
+    riga(r <= testo, `${r.toFixed(2)}:1`, `${prefisso}${i + 1} mai oltre il testo di pagina (${testo.toFixed(2)}:1)`);
+  });
+
+  for (const [nome, filtro] of DEFICIT) {
+    let peggiore = Infinity;
+    let coppia = "";
+    for (let i = 0; i < serie.length; i++) {
+      for (let j = i + 1; j < serie.length; j++) {
+        const d = dE(filtro(serie[i]), filtro(serie[j]));
+        if (d < peggiore) {
+          peggiore = d;
+          coppia = `${prefisso}${i + 1}/${prefisso}${j + 1}`;
+        }
+      }
+    }
+    riga(peggiore >= SERIE_DELTA_E_MIN, `ΔE ${peggiore.toFixed(1)}`, `${nome}: coppia più vicina ${coppia} (min ${SERIE_DELTA_E_MIN})`);
+  }
+
+  console.log(`\n${theme} — ${prefisso}1..5, passo ${(alt(palette.primary) / alt(palette.success)).toFixed(4)}\n`);
+  console.log(rows.join("\n"));
+  return failures;
+}
+
 function check(palette: Palette, theme: string): number {
   let failures = 0;
   const rows: string[] = [];
@@ -704,6 +926,10 @@ function main(): void {
   const args = process.argv.slice(2);
   light["info-border"] = deriveInfoBorder(light);
   dark["info-border"] = deriveInfoBorder(dark);
+  deriveSerie(light, 0).forEach((hex, i) => (light[`chart-${i + 1}`] = hex));
+  deriveSerie(dark, 1).forEach((hex, i) => (dark[`chart-${i + 1}`] = hex));
+  deriveMono(light, 0).forEach((hex, i) => (light[`chart-mono-${i + 1}`] = hex));
+  deriveMono(dark, 1).forEach((hex, i) => (dark[`chart-mono-${i + 1}`] = hex));
 
   if (args.includes("--self-test")) {
     // Prova del gate stesso (criterio di accettazione di M1.1): forzando
@@ -746,6 +972,8 @@ function main(): void {
       continue;
     }
     failures += check(palette, name);
+    failures += checkSerie(palette, name, "chart-");
+    failures += checkSerie(palette, name, "chart-mono-");
   }
 
   // Il file del tema è generato: se qualcuno lo modifica a mano, la modifica
@@ -768,7 +996,12 @@ function main(): void {
     `\n${failures === 0 ? "✔" : "✖"} ${failures} violazione/i sopra soglia` +
       (esenti ? `, ${esenti} coppia/e esente/i con motivazione.` : "."),
   );
-  console.log(`  --info-border derivato: ${light["info-border"]} (chiaro), ${dark["info-border"]} (scuro)\n`);
+  console.log(`  --info-border derivato: ${light["info-border"]} (chiaro), ${dark["info-border"]} (scuro)`);
+  for (const pre of ["chart-", "chart-mono-"]) {
+    console.log(`  ${pre}1..5: ${[1, 2, 3, 4, 5].map((i) => light[`${pre}${i}`]).join(" ")} (chiaro)`);
+    console.log(`  ${" ".repeat(pre.length + 5)} ${[1, 2, 3, 4, 5].map((i) => dark[`${pre}${i}`]).join(" ")} (scuro)`);
+  }
+  console.log("");
   if (failures > 0) process.exit(1);
 }
 

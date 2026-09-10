@@ -753,6 +753,22 @@
       ]
     },
     {
+      "name": "chart",
+      "type": "registry:ui",
+      "title": "Chart",
+      "description": "Grafici (Recharts) sui token del tema. Le cinque serie --chart-1..5 sono i pioli di una scala di chiarezza: restano distinguibili anche in scala di grigi.",
+      "dependencies": [
+        "recharts",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/chart.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "use-mobile",
       "type": "registry:hook",
       "title": "useIsMobile",

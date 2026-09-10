@@ -2144,3 +2144,163 @@ Il gradino 3 — adattare il design system — è stato valutato e proposto: `ba
 Collocazione naturale quando toccherà: **M3.7**, accanto a `version-timeline`. La timeline verticale delle revisioni di un documento e la barra orizzontale dello stato sono lo stesso dominio — il flusso di approvazione di Anagrafe, quello attorno a cui ruota anche `diff-view` (M3.9) — e vanno progettate coerenti in una sessione sola. Il consumatore previsto è l'intestazione «stato e azioni» di `pagina-scheda` (M4.3).
 
 Forma abbozzata, da confermare quando si farà: sola lettura e **non cliccabile** (se si clicca è un'altra cosa e va chiamata in un altro modo), tre stati per pallino — fatta / attuale / futura — con l'arancio `--primary` **solo** sull'attuale, e degrado a incolonnato sotto i 375px.
+
+## 2026-09-10 — M2.8 Dati: la scala delle serie, e un selettore che Recharts ha reso stale
+
+### Attività
+
+`chart` installato da shadcn (`@shadcn/chart`, Recharts 3.8), snapshot dell'originale preso **prima** di toccarlo. `--chart-1..5` ridefiniti in `scripts/hex-to-oklch.ts`, che li **deriva** invece di elencarli. Le story dei tipi di grafico, con il criterio di accettazione verificabile dentro ognuna (vedi i due giri di rilievi più sotto). Item aggiunto a `registry.json` (**53**), `registry:build` rilanciato.
+
+### La scala, e perché il passo non l'ho scelto
+
+Il piano chiedeva una palette categorica «arancio, verde `#1CAC7C`, neutri caldi» con cinque serie distinguibili in scala di grigi. Distinguerle in grigio vuol dire **luminanze diverse e regolarmente spaziate**: la tinta viene dopo, e questo cambia l'ordine del ragionamento.
+
+Il passo è quello che i due colori Tassullo hanno **già** fra loro: `--primary` `#F4AC3D` e `--success` `#1CAC7C` stanno a **1.4935:1**. Misurato, non deciso — e da lì la scala prosegue geometrica. I primi due pioli sono i due colori veri (`serieAlPiolo` restituisce la sorgente se sta già sul piolo, così `--chart-1` è esattamente `#F4AC3D`), gli altri tre prendono tinta e croma da `--info` scuro e da `--muted-foreground`, e solo la chiarezza dal piolo.
+
+| | chiaro | scuro |
+|---|---|---|
+| chart-1 | **#F4AC3D** | #FFDDB0 |
+| chart-2 | **#1CAC7C** | #4FD09D |
+| chart-3 | #0180BF | #39A0E2 |
+| chart-4 | #615E5A | #7C7975 |
+| chart-5 | #474541 | #615E5A |
+
+Sullo scuro la scala **sale di un piolo esatto** — dello stesso passo, non di un fattore inventato — e i due limiti tolgono la scelta invece di lasciarla: all'altezza chiara `chart-5` starebbe a **1.78:1** dalla card scura (una barra che non si vede), e a un piolo e mezzo `chart-1` supererebbe in contrasto il **testo** di pagina, 16.13 contro 15.71. Un dato più marcato del testo non è più un dato.
+
+Detto anche ciò che la scala **non** dà: la serie più chiara sta a **1.91:1** dalla card in chiaro, la più scura a **2.64:1** in scuro, sotto i 3:1 della WCAG 1.4.11 *quando il colore è l'unico mezzo*. Non lo è mai — legenda, etichette diritte sui dati, cinque tratteggi diversi per le linee — e non è una rinuncia: cinque pioli da 3:1 fanno 81:1 contro i **21:1** che sRGB permette.
+
+### Il gate è cresciuto di quattro controlli
+
+`npm run check:contrast` ha ora una sezione «scala delle serie» per modalità: passo in grigio fra pioli adiacenti (soglia 1.45, misurato **1.483–1.506**), ogni serie contro la card (≥ 1.5), nessuna serie oltre il testo di pagina, e ΔE2000 ≥ 5 fra ogni coppia sotto **deuteranopia, protanopia, tritanopia**.
+
+Sull'ultimo vale la pena essere espliciti, perché la soglia sembra bassa: **non è quello il garante della distinzione**. Il garante è il passo in grigio, che copre tutti e tre i deficit insieme perché nessuno di essi tocca la luminanza. Il ΔE serve a un caso solo — accorgersi se una coppia **collassa** — e il minimo misurato è **8.5** (`chart-1`/`chart-2` in scuro, protanopia), cioè nessuna coppia è vicina a collassare. Una soglia scelta appena sotto la misura sarebbe stata una tautologia; questa dice una cosa diversa da quello che dice il passo.
+
+Il passo, invece, **non** è tautologico pur essendo costruito dallo script: se qualcuno cambia l'arancio o il verde, il passo cambia davvero e il gate lo dice.
+
+### Il rilievo della sessione: un selettore shadcn stale contro Recharts 3
+
+`chart.tsx` esce da shadcn con `[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground`. **In Recharts 3 quel gruppo si chiama diversamente** — `recharts-cartesian-axis-tick-label` dentro `recharts-cartesian-axis-tick-labels` — quindi il selettore non aggancia niente e il testo degli assi resta al `fill="#666"` che Recharts cuce nel proprio SVG.
+
+Misurato coi colori risolti dal motore di resa: **5.64:1 in chiaro, 2.97:1 in scuro**. Testo sotto soglia in modalità scura, su tutti i grafici, in ogni app che installasse il componente così com'è.
+
+**axe non lo vede**: lo classifica `color-contrast` *incomplete* perché è testo SVG. È l'ennesima volta che la misura a mano trova ciò che lo strumento automatico non trova — dopo il primo `Esc` mangiato dal tooltip (M2.5), la maniglia dello `slider` senza anello (M2.2) e la tastiera del calendario (M2.7) — e questa volta con un aggravante utile a M2.9: qui l'automatismo **c'era e ha detto «non so»**, non «tutto bene». Le *incomplete* non sono rumore da archiviare in blocco.
+
+Corretto ri-stilando la sola stringa (gradino 2), agganciando la classe del **testo** invece di quella del gruppo: dopo, **5.37:1 e 7.17:1**, cioè `--muted-foreground` in entrambe le modalità. Gli altri quattro selettori a colore cotto del preset — griglia, cursore del tooltip, settori della torta, punti — sono stati verificati uno per uno e **agganciano ancora**. Da rifare a ogni aggiornamento maggiore di Recharts: sono selettori su classi di una libreria terza, la parte più fragile del componente.
+
+### Sesta normalizzazione del gate, e la regola dei falsi positivi
+
+`check:registry` segnalava come «colore esadecimale nel sorgente» gli `#ccc` e `#fff` di quei selettori. Falso positivo: lì l'hex non è un colore che scriviamo, è un colore che **intercettiamo**, e toglierlo spegnerebbe l'override lasciando il grigio di Recharts. La normalizzazione ora ignora gli hex dentro un selettore d'attributo (`[stroke='#ccc']`) e continua a rifiutare tutto il resto — `bg-[#F4AC3D]` resta un errore.
+
+### Un secondo ri-stile, e uno non fatto
+
+`ChartTooltipContent`: `bg-background` → `bg-popover`. Il tooltip fluttua sopra il grafico e il grafico sta quasi sempre dentro una card: col colore di pagina sarebbe **più scuro** della card su cui galleggia. Misurato dopo: il riquadro è ora esattamente il colore della card (1.00:1) e si stacca con bordo e ombra, come ogni altro popup del set — con `bg-background` erano 1.06:1, cioè lo stesso nulla ma dalla parte sbagliata.
+
+**Non** ri-stilati `rounded-[2px]` e `border-[1.5px]`, i due valori arbitrari ereditati: nessun token li sostituisce al pixel (il gradino `sm` è 4px) e non rompono niente — non seguono la densità, ma sono una pastiglia di legenda e un bordo tratteggiato, non un bersaglio. Restano segnalati come avvisi dal gate, che è il posto giusto.
+
+### Legenda e tooltip: Recharts ordina in ordine alfabetico
+
+`Legend` ha `itemSorter: "value"`, `Tooltip` ha `itemSorter: "name"`. Nel grafico a linee le curve stanno in ordine di grandezza e la legenda diceva «Additivi, Calcestruzzi, Inerti, Malte, Prefabbricati» — un ordine che nel disegno non esiste. Spento **in composizione**: `null` per la legenda, e per il tooltip un comparatore costante, perché l'ordinamento di Recharts è stabile. Da sapere prima di comporre un grafico: la legenda giusta va chiesta.
+
+### Verifiche
+
+`npm run check` verde su tutti e tre i gate (contrasto 0 sopra soglia, **scala delle serie 36 controlli verdi**; registry **0 errori / 52 avvisi / 14 ri-stilati**; font allineato); `npx shadcn registry validate` verde su **53 item**; `tsc -b`, `npm run build`, `npm run build-storybook`, `oxlint` (3 avvisi ereditati) verdi.
+
+**axe: 10 scansioni (5 story × 2 modalità), 0 violazioni.** 112 *incomplete* `color-contrast`, tutte testo SVG, misurate a mano: etichette d'asse **5.37 / 7.17**, etichette sui dati e sulle fette **18.11 / 14.54**, voci del tooltip **5.37 / 7.17** e valori **18.11 / 14.54**. Minimo vero **5.37:1**. Il conto noto di progetto resta **36**, invariato.
+
+**Tastiera provata a mano**, che è la lezione di M2.7: con `accessibilityLayer` il grafico prende il fuoco col `Tab` e le frecce spostano il tooltip di mese in mese (verificato in Chromium sullo Storybook costruito, in entrambe le modalità). Nessun difetto tipo D15 qui.
+
+**Una nota di banco**: il pannello del browser dell'app resta inservibile per questi componenti, e questa volta il sintomo è nuovo — `requestAnimationFrame` non scatta a pannello nascosto, e Recharts ci schedula dentro l'animazione d'ingresso, per cui **assi e legenda si vedono e le barre no**. Un grafico vuoto che sembra un difetto di dati. Misurato in Chromium di Playwright dalla cartella temporanea, come in M2.3 e M2.7, sempre senza aggiungere Playwright al repo.
+
+### Tre rilievi di Francesco a fine sessione, tutti e tre chiusi
+
+**1. Le etichette della torta erano incollate alle fette.** La prima stesura usava `LabelList` con `position="outside"`, che appoggia il testo sul bordo. L'esempio shadcn `chart-pie-label` fa un'altra cosa: usa il `label` di Recharts, che disegna una **lineetta di richiamo** e tiene il testo staccato. Passato a quello — gradino 1, la strada che shadcn indica — con la funzione che traduce la chiave leggendo il `config`, perché il `label` scrive `nameKey` così com'è. Il colore del testo viene dal ri-stile che shadcn stesso documenta, `[&_.recharts-pie-label-text]:fill-foreground`: le etichette della torta sono l'unico testo del set che Recharts non lascia ereditare.
+
+**2. La ciambella non è un altro grafico: è `innerRadius`.** Chiesto all'MCP prima di rispondere (regola 4bis, gradino 1): nel registry shadcn `chart-pie-donut` e `chart-pie-donut-text` sono **esempi**, non componenti — la torta e la ciambella sono lo stesso `Pie` e la differenza è una prop. Aggiunta la story `Ciambella`, e il buco serve a qualcosa: ci sta il **totale**, che su una ripartizione è il numero che manca sempre, in cifre tabellari.
+
+Un difetto mio trovato misurando: il `<text>` centrale non dichiarava il proprio `fill` e prendeva il nero del motore di resa — invisibile perché entrambi i `tspan` figli il colore ce l'hanno, ma **1.23:1 in scuro** se un giorno qualcuno ci scrivesse dentro senza `tspan`. Chiuso con `fill-foreground` sull'elemento padre.
+
+**3. Un banco con i controlli**, su indicazione di Francesco. La story `Banco` monta gli stessi dati su tutti e quattro i tipi con gli interruttori nel pannello `Controls` — tipo, quante serie (1–5), legenda, griglia, etichette sui dati, pallini, tratteggi. Non è una vetrina: serve a **provare** la regola del colore invece di leggerla, spegnendo la legenda su cinque linee e guardando cosa resta. Le quattro story narrative hanno `controls: { disable: true }`, perché mostrano un caso ciascuna ed è il punto.
+
+Conseguenza sul meta: **tolto `component: ChartContainer`**. La tabella delle props generata era l'elenco degli attributi di un `div` (280 righe), e gli argomenti che contano ora sono quelli del banco.
+
+### E la domanda che sta sotto tutte e tre: cosa è già dentro il componente
+
+Vale la pena scriverlo perché tornerà a ogni grafico nuovo. **La legenda c'è già** — `ChartLegend` e `ChartLegendContent` sono esportati da `chart.tsx` — ma **va messa**: Recharts non la disegna da sé. Stessa cosa per il tooltip, la griglia (`CartesianGrid`) e le etichette sui dati (`LabelList`). Il componente shadcn dà il **vestito** (token, etichette in italiano dal `config`, cifre tabellari), Recharts dà i **pezzi**: quello che non si scrive non compare. La sola cosa che il vestito non copre è l'ordine, che è alfabetico finché non glielo si toglie.
+
+### I «warning» che si vedono nel pannello Accessibility
+
+Segnalati da Francesco. Non sono violazioni: sono le **`color-contrast` *incomplete***, e axe dice esattamente perché — «Element's background color could not be determined because element contains an image node», cioè c'è un SVG dietro il testo e lo strumento non sa che colore ci sia sotto. Su un grafico è la norma, non l'eccezione.
+
+Misurate tutte a mano, coi colori risolti dal motore di resa (canvas 1×1), su **5 story × 2 modalità**:
+
+| | chiaro | scuro |
+|---|---|---|
+| etichette d'asse (`muted-foreground`) | 5.37 | 7.17 |
+| etichette sui dati e sulle fette (`foreground`) | 18.11 | 14.54 |
+| totale al centro della ciambella | 18.11 | 14.54 |
+| «schede», sotto il totale (`muted-foreground`) | 5.37 | 7.17 |
+| voci del tooltip / valori | 5.37 / 18.11 | 7.17 / 14.54 |
+
+Minimo vero **5.37:1**, cioè sopra soglia ovunque e in entrambe le modalità. **Ed è proprio una di queste «incomplete» ad aver nascosto il difetto vero della sessione** — il `#666` degli assi, 2.97:1 in scuro: fino alla correzione la riga nel pannello era identica a queste, *serious* e senza numero. È il rilievo da portare in M2.9: le *incomplete* non si archiviano in blocco, si misurano.
+
+### Secondo giro sui rilievi di Francesco: aree, controlli, rampa arancio
+
+**Il grafico ad area, e la regola che ne è uscita.** Aggiunta la story `Aree`. Gli esempi shadcn riempiono a `fillOpacity={0.4}` perché le aree sovrapposte devono lasciarsi attraversare; da noi quel valore **rompe il requisito di M2.8**. Misurato sui colori composti dal motore di resa, con cinque aree:
+
+| | passi in grigio |
+|---|---|
+| piene | 1.493 · 1.496 · 1.486 · 1.483 |
+| traslucide 0.4, chiaro | **1.166 · 1.146 · 1.061 · 1.118** |
+| traslucide 0.4, scuro | **1.285 · 1.238 · 1.199 · 1.171** |
+
+A 1.06 due serie adiacenti sono lo stesso grigio. Regola Tassullo: **le aree si riempiono piene e si impilano** — impilate non si sovrappongono, non c'è niente da attraversare, la scala resta intera. Servono serie sovrapposte? Allora il grafico giusto è quello a **linee**. L'interruttore `impilato` lascia comunque vedere il caso sbagliato, che è il modo più rapido di capire perché è sbagliato. Quarta volta dell'opacità che cambia un colore in composizione senza che nessun token la dichiari (`DECISIONI.md` §26.6).
+
+**`--chart-mono-1..5`, la rampa monocroma del brand.** Richiesta di Francesco, sul modello degli esempi shadcn che usano sfumature del colore d'accento. Non è una seconda palette: sono **gli stessi cinque pioli**, tutti alla tinta dell'arancio (`deriveMono` chiama `serieAlPiolo(primary, …)` sulle altezze di `deriveSerie`), quindi eredita per costruzione il passo in grigio e passa gli stessi quattro controlli — misurato: passo 1.490–1.501, ΔE minimo 9.0. Chiaro `#F4AC3D → #603D00`, scuro `#FFDDB0 → #815500`.
+
+Quando si usa è una scelta di significato: le cinque tinte categoriche dicono «cinque cose diverse», la rampa dice «la stessa cosa, di più». Su categorie **ordinate** la categorica è sbagliata, e su una serie sola prendere un arancio, un verde e un blu non ha senso.
+
+**I controlli sono passati dentro le story.** La prima stesura aveva un `Banco` unico con tutti gli interruttori; su indicazione di Francesco ogni grafico porta i propri e nasconde quelli che non lo riguardano. Un controllo che non fa niente è peggio di un controllo che manca. Nove argomenti, ognuno una scelta vera: `serie`, `colori` (categorici / arancio / grigio), `legenda`, `griglia`, `etichette`, `pallini`, `tratteggi`, `impilato`, `orizzontali`, `curva`. Il `grigio` non è una terza palette — è il filtro CSS sulla categorica, cioè la prova di leggibilità fatta **sul grafico che si sta guardando** invece che su una story a parte.
+
+Due cose imparate scrivendoli, che valgono oltre `chart`: `layout="vertical"` in Recharts vuol dire **barre orizzontali**, cioè il nome al contrario; e `type="linear"` contro `type="natural"` non è estetica — una spezzata dice «ho misurato qui, qui e qui», una curva morbida suggerisce un andamento che nessuno ha misurato, quindi su dati mensili radi il default resta la spezzata.
+
+**Le etichette sui dati erano troppo vicine alla linea**, rilievo di Francesco a confronto con shadcn. Causa: `LabelList` ha `offset` 5 di default, e gli esempi shadcn passano `offset={12}`. Corretto ovunque, verificato a occhio in un browser vero.
+
+**Tolta la story `In scala di grigi`**, su indicazione di Francesco, ed è la conseguenza giusta del controllo `colori`: finché il grigio stava in una story a parte, il criterio si vedeva su **un** caso costruito apposta; ora si prova su qualsiasi grafico, con qualunque numero di serie e qualunque tipo. Il criterio di accettazione di M2.8 non si è indebolito — ha cambiato posto, e la prova col numero resta `check:contrast`, che misura la luminanza vera invece dei pesi che il filtro CSS applica ai valori sRGB non linearizzati.
+
+### Terzo giro: quattro difetti dallo Storybook, e il tetto della scala
+
+**Il totale della ciambella non era centrato con la legenda accesa.** Misurato: accendendo la legenda Recharts riduce l'`outerRadius` che passa al `Label` (124 → 113.3) ma **lascia `cy` a 160**, mentre l'anello sale di 13.3px; lo stesso `viewBox` riporta `innerRadius: 0` su una ciambella, cioè non è quello della torta. Provato anche coi raggi in pixel invece che in percentuale: identico. Rimedio senza indovinare niente — la legenda ha un'altezza che **dichiariamo noi**, l'area si accorcia di quella, il centro sale di metà. Più una seconda correzione indipendente: il blocco è di due righe e il suo baricentro cade **5.1px** sotto la prima, non a metà stacco, perché la riga grande è alta il doppio. Scarto finale **0.1px**, uguale con e senza legenda.
+
+**Le barre impilate avevano gli angoli tondi anche in mezzo alla pila** — un intaglio fra una serie e l'altra. Corretto sulla forma di `chart-bar-stacked`, generalizzata a n serie e alle due orientazioni.
+
+**Assi X e Y su interruttori separati** (`asseX`, `asseY`) per barre, linee e aree, con `hide` sull'asse: togliendo il componente si perderebbe anche la scala, non solo le etichette.
+
+**`sfumatura` sulle aree**, l'esempio `chart-area-gradient`. Ha lo stesso difetto della traslucidità e più radicale: dentro una sola area il colore cambia dall'alto in basso, quindi il piolo non esiste più come valore unico. Si usa su **una o due serie**, e il controllo serve a vederlo.
+
+**Quante serie regge la scala, misurato**: **sei pioli**, non cinque. Applicando lo stesso passo finché i due vincoli del gate tengono, il sesto passa in entrambe le modalità (chiaro `#2C2A26`, 14.08:1 dalla card; scuro `#474541`, 1.78:1) e il settimo esce da tutte e due — in chiaro finirebbe oltre il testo di pagina (19.41 contro 17.03), in scuro sparirebbe nella card (1.19:1). Se ne spediscono cinque perché `--chart-1..5` è la convenzione shadcn e ogni esempio del registry si aspetta quei nomi; sopra le cinque categorie un grafico non si legge comunque, e la risposta è raggruppare la coda in «Altro». Il margine di **un** piolo è scritto a verbale perché il giorno che servisse si sappia quanto è.
+
+### Il totale della pila
+
+Ultima richiesta di Francesco. Chiesto all'MCP prima di scrivere: shadcn ha `chart-bar-stacked` e `chart-bar-label`, ma **nessun esempio col totale della pila**. Non serve però niente di nuovo — un secondo `LabelList` appeso all'**ultima** serie, quella in cima, con un `valueAccessor` che somma la riga invece di leggerne un campo. Composizione, come `etichettaFetta`: `componenti-propri.json` resta vuoto.
+
+Ha senso averlo perché impilando si guadagna il totale e si perde il confronto fra le serie: se il totale è la ragione per cui si impila, tanto vale scriverlo invece di stimarlo a occhio sull'asse.
+
+**Un difetto trovato subito dopo, guardando**: in orizzontale il numero si scrive fuori dall'area di disegno e la cifra più lunga veniva tagliata dal bordo della card — «118» reso «11». Il margine destro ora dipende dall'orientazione e da se c'è qualcosa da scrivere. Secondo taglio di etichetta della sessione dopo il «214» della prima stesura: Recharts non allarga il margine da sé, e axe non se ne accorge.
+
+### Quarto giro: la legenda che «non si accendeva», e le barre col segno
+
+**«La legenda non si accende», segnalato tre volte — su linee, aree e barre — ed era sempre lo stesso.** Misurato: la legenda **c'era**, disegnata, coi nomi e le pastiglie giuste, a 26px dal fondo della card. Il punto è che la card finiva a **674px** in un viewport da 900, e il canvas di Storybook ne mostra meno: `layout: 'centered'` (globale) centra una card alta e ne spinge la metà inferiore fuori dall'area visibile.
+
+Due correzioni, entrambe nel meta di `chart`: `layout: 'padded'`, che allinea in alto, e i contenitori cartesiani a **`h-72`** invece dell'`aspect-video` del preset — che su una card larga 672px dà un grafico alto 378. Dopo: la card va da 16 a 392px, ci sta in qualunque pannello.
+
+Vale la pena tenerlo a mente oltre `chart`: **una story che non ci sta nel canvas sembra una story rotta**, e il difetto che si va a cercare non è quello che c'è.
+
+**Barre con valori negativi** (`Scostamenti`, sull'esempio `chart-bar-negative`), con il segno detto dalla **posizione** e non dal colore — c'è la linea dello zero, e `coloreUnico` toglie il secondo colore quando non serve. I due colori **non** sono verde e rosso: un calo non è un errore, e gli stati semantici si tengono per ciò che è davvero un esito.
+
+Tre trappole di Recharts, tutte sullo stesso rettangolo, tutte trovate guardando e misurando (`DECISIONI.md` §26.10): su una barra negativa `y` è il **fondo** e `height` è **negativa**, quindi l'etichetta finiva sopra la barra con qualunque `position`, gli angoli si arrotondavano sulla linea dello zero, e la legenda mostrava il nome con un quadratino vuoto. Rimedi: il testo si disegna dentro la `shape` con `min`/`max`, i raggi sono `[4,4,0,0]` per entrambi i segni, e un `fill` sul `Bar` che nessuna barra usa ma la legenda sì.
+
+### Prossimi passi
+
+**M2.9 — Gate di fase: audit del set.** Da portarci dentro, oltre a quanto già a registro: che l'imbracatura axe dichiari **quali popup apre davvero**; che le *incomplete* non si archivino in blocco (M2.8 ne ha trovata una vera dentro); e i due residui manuali che axe non vede, **D15** (tastiera del calendario) e la verifica dei selettori Recharts a ogni aggiornamento.
+
+**In attesa di decisione di Francesco**: **D13** (l'item `tema-logo`).
