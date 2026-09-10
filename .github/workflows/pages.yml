@@ -1,0 +1,58 @@
+# La style guide su GitHub Pages.
+#
+# Esiste da quando D4 si è chiusa (2026-09-10): il repo è pubblico, e su piano
+# free di GitHub Pages funziona **solo** sui repo pubblici — è metà della
+# ragione per cui la visibilità è quella. L'altra metà è che la scorciatoia
+# `tassullo/tassullo-design-system-v2/<item>` della CLI shadcn vale solo lì.
+#
+# `storybook-static/` è in `.gitignore` e resta lì: il sito si **costruisce**
+# qui, non si committa. Un artefatto committato diverge dal sorgente al primo
+# che si dimentica di rigenerarlo.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Una pubblicazione alla volta, e senza annullare quella in corso: un deploy
+# interrotto a metà lascerebbe il sito in uno stato che nessuno ha scritto.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build-storybook
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: storybook-static
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

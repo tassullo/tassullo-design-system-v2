@@ -97,7 +97,7 @@ Dipendenze di fase: FASE 4.
 | M5.3 `INTEGRAZIONE.md` v2 (app nuova) | TODO | M5.2 | seguendo **solo** il documento si porta un'app Vite vuota a una pagina in stile; tempo effettivo in WORKLOG |
 | M5.4 Regole per `CLAUDE.md` e piani delle app | TODO | M5.3 | blocco di regole copiabile senza adattamenti; `DECISIONI.md` motiva no-npm, Base UI, `primary`≠`accent`, oklch, font non distribuito |
 | M5.5 `GUIDA-MIGRAZIONE.md` (app esistente) | TODO | M5.4 | **passo 0 eseguito davvero su Anagrafe** (solo `components.json` + `.mcp.json`, zero modifiche a codice e stili); guida verificata a secco sulle sue 10 pagine |
-| M5.6 Pubblicazione su GitHub + Pages | BLOCKED | M5.5; **D4** | install da GitHub riuscita fuori dal repo con tag `v2.0.0`; Storybook raggiungibile su Pages. La storia è **già stata ripulita** il 2026-09-09 (i font in base64 tolti da tutti i commit con `git-filter-repo`) → dettaglio in `WORKLOG.md` |
+| M5.6 Pubblicazione su GitHub + Pages | IN_PROGRESS | M5.5 | **Repo online e Pages attivo dal 2026-09-10** (D4 chiusa e anticipata). Restano: tag `v2.0.0` e install da GitHub riuscita fuori dal repo. La storia è **già stata ripulita** il 2026-09-09 (i font in base64 tolti da tutti i commit con `git-filter-repo`) → dettaglio in `WORKLOG.md` |
 
 ## Decisioni
 
@@ -105,7 +105,7 @@ Dipendenze di fase: FASE 4.
 |---|---|---|---|
 | D2 valori della palette scura | **CHIUSA** 2026-09-07 | — | chiusa guardandola affiancata al chiaro, non al buio. Neutri dalla sidebar v1, brand invariato, tenui specchiati a gradini fissi; tre scostamenti misurati (`--sidebar`, `--info`, `--warning`). Motivazione in `WORKLOG.md` e `PIANO.md` §2bis |
 | D3 come si servono i font alle app | **DONE** (2026-09-08) | nessuno | **Chiusa**: Inter va nel registry, item `tema-font`, coi file in **data URI** dentro il CSS — perché `shadcn build` legge i file come testo e un `.woff2` arriverebbe corrotto senza errore (73.016 byte → 69.186 caratteri, misurato). → dettaglio in `docs/DECISIONI.md` e in `WORKLOG.md` |
-| D4 quando pubblicare su GitHub | TODO | **M5.6** (solo) | tutto il resto funziona col registry locale via percorso di file |
+| D4 quando pubblicare su GitHub | **CHIUSA** 2026-09-10 — **subito, pubblico** | — | Forzata più che scelta: org su piano **free**, dove Pages vive solo sui repo pubblici, e la scorciatoia `owner/repo/item` della CLI shadcn è documentata solo per il pubblico. Privato avrebbe messo un token GitHub in ogni app, CI ed editor. Tolto dal repo `public/fonts/` per intero (nota Lineto). → `WORKLOG.md`, voce **D4** |
 | D5 destino di `components.css` e `stylelint-config.cjs` v1 | TODO | nessuno | fuori dal perimetro: si dismettono a ultima app migrata |
 | D6 quando migrano Anagrafe / Studio / Officina | TODO | nessuno | ognuna decide per sé con la guida M5.5; nessuna scadenza |
 | D7 se `docx/` resti nel repo v1 | TODO | nessuno | nessuna urgenza, mai |

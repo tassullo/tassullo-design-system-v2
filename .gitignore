@@ -36,8 +36,10 @@ storybook-static
 # registry:build`, cioè l'artefatto che la CLI e l'MCP leggono davvero e che
 # GitHub servirà come registry a D4 chiusa (docs/DECISIONI.md §9).
 
-# I file del font Replicall non entrano nel repo: licenza Webflow del sito
-# istituzionale (D3). La cartella e le istruzioni sì, i binari no — servono
-# solo al workbench, per mostrare la style guide nella tipografia vera.
-public/fonts/*
-!public/fonts/LEGGIMI.md
+# I file del font Replica LL non entrano nel repo: licenza Lineto (D3). Dal
+# 2026-09-10, con la chiusura di D4 e la pubblicazione del repo, **non ci entra
+# più nemmeno il `LEGGIMI.md`**: quel file mette per iscritto una conversione
+# dei binari di fonderia con la licenza ancora da confermare con Lineto, e su
+# un repo pubblico non è una nota di lavoro, è una dichiarazione. Resta sul
+# Mac di chi sviluppa, dove serve. La cartella intera è fuori.
+public/fonts/

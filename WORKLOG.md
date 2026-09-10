@@ -2726,3 +2726,53 @@ Rilievo di Francesco: «una nota CHECKLIST sta diventando illeggibile, troppo te
 **La prosa fra il titolo di FASE 2 e la sua tabella era il caso peggiore: 7183 caratteri contro i ~200 delle altre fasi** (segnalato da Francesco a parte). Era il registro dei rilievi di fase, tre dei cinque ormai *evasi* da M2.9. Ridotta a **1137**, e la scelta di cosa tenere non è stata di lunghezza: **i due rilievi ancora aperti restano in checklist per intero** — il contorno dei controlli sotto 3:1 (decisione di palette) e i filtri col grigio identico (accettato, si riprende in FASE 4). Un impegno aperto che vive solo in una voce di diario si perde; la storia di ciò che è chiuso no, quella il diario la tiene bene. Stessa cura su FASE 1, da 909 a 380.
 
 **La regola ha ora un tetto misurabile**, in testa a `CHECKLIST.md` e in `CLAUDE.md` §Conduzione: due o tre righe di tabella — verdetto, i numeri che contano, un rimando — e tutto il resto nel diario. Con la ragione scritta accanto, perché una regola senza la sua ragione si riapre da sola: **una riga che non si legge smette di essere una fonte di verità**, ed è esattamente quello che era successo.
+
+---
+
+## D4 — Il repo esce di casa, e lo fa pubblico (2026-09-10)
+
+**Perché adesso e non in M5.6.** Francesco ha bisogno di condividere il design con Roberto. D4 bloccava solo M5.6, che è in fondo alla FASE 5, e aspettarlo avrebbe significato tenere la style guide su un `localhost` per settimane. La decisione è stata anticipata; **M5.6 non è stato eseguito** e resta aperto per la parte che conta davvero — il tag `v2.0.0` e la prova d'installazione da fuori.
+
+### La verifica preliminare: cosa ci bloccava davvero
+
+Fatta prima di toccare qualsiasi cosa, perché pubblicare è irreversibile nel senso che conta: quello che finisce su GitHub è stato visto.
+
+- `npm run check` — **verde**, tutti e cinque i gate: contrasto 48/48, registry, font, logo, e **868 scansioni axe su 4 passate, 0 violazioni**.
+- `npx shadcn@latest registry validate` — verde, **55 item**; `npm run registry:build` rilanciato, `public/r/` allineato, zero diff.
+- Storia git: 283 file tracciati, blob più grosso **0,6 MB** (`docs/img/M1.3-palette-chiaro-scuro.png`), `.git` a 7,1 MB. La ripulitura del 2026-09-09 con `git-filter-repo` regge: nessun font in base64 rimasto nei commit.
+- Segreti: grep su tutti i file tracciati per chiavi, token, `BEGIN PRIVATE KEY`, host interni, indirizzi Azure — **niente**. Nessun `.env` tracciato.
+- Font Replica LL: **non tracciati**, `.gitignore` li teneva già fuori. Inter c'è, con la sua OFL accanto.
+
+Insomma: **niente ci bloccava tecnicamente.** Ciò che mancava era una decisione, più tre file.
+
+### Pubblico o privato — e perché la scelta era meno libera di quanto sembri
+
+L'org `tassullo` è su **piano free** (verificato via API: `plan.name: "free"`, 3 membri). Da lì discendono due vincoli che nessun accorgimento aggira:
+
+1. **GitHub Pages, su piano free, esiste solo sui repo pubblici.** Niente URL della style guide su un repo privato — e nemmeno l'ipotesi intermedia «Pages protetto», che richiede Enterprise Cloud.
+2. **La scorciatoia `owner/repo/item` della CLI shadcn è documentata solo per i repo pubblici.** Su privato serve la forma con namespace: URL raw completo e `Authorization: Bearer ${TOKEN}` dentro il `components.json` di **ogni** app. Il download passa da `raw.githubusercontent.com`, che del login `gh` e della chiave SSH non sa niente.
+
+Il secondo è il costo vero, ed è ricorrente: quel token andrebbe messo sulla macchina di chi sviluppa, nei secret della CI di Anagrafe **e** di Studio **e** di Officina, e nell'ambiente dell'editor — perché senza, `shadcn mcp` non riesce a sfogliare il registry, cioè si perde proprio il meccanismo per cui «prima di scrivere un componente, chiedilo all'MCP». Quando il token scade si rompono tutte e tre insieme, con un `404` che non nomina il token.
+
+Contro: pubblicando, diario, piano e decisioni diventano leggibili da chiunque. Francesco ha scelto di **lasciarli** — è anche il modo in cui si capisce perché le cose stanno così. Pesa a favore che **il v1 `tassullo/tassullo-design-system` è già pubblico**, palette compresa: l'argomento «il design è riservato» era in larga parte già speso.
+
+**Tolto invece un file**: `public/fonts/LEGGIMI.md`. Non per pudore — metteva per iscritto la conversione degli `.otf` **Lineto** in `.ttf` con, testualmente, la licenza *da confermare con Lineto*. Su un repo locale è una nota di lavoro; su un repo pubblico è una dichiarazione. `.gitignore` adesso esclude `public/fonts/` per intero e il file resta sul Mac, dove serve. (Era anche **stale**: diceva che il tema dichiara ancora lo stack `'Replicall'`, mentre da §14 il tema è Inter.)
+
+### Un accertamento che corregge un'impressione di §9
+
+`docs/DECISIONI.md` §9 lascia intendere che la CLI legga *sempre* i JSON compilati in `public/r/`. Vero per la forma **namespace**. Ma la **scorciatoia GitHub** legge il **`registry.json` alla radice**, e il pin di versione si scrive con `#`: `…/button#v2.0.0`, che accetta tag, ramo o SHA. Entrambe le strade funzionano; nei documenti per le app va messa la scorciatoia, che non chiede configurazione.
+
+**Ricaduta su M5.5**: il passo 0 su Anagrafe non è più da ripensare. L'indirizzo `tassullo/tassullo-design-system-v2` esiste, e il problema del percorso locale — che §9 aveva accertato non risolvibile — sparisce da sé.
+
+### Cosa è stato aggiunto
+
+- **`README.md`** — non c'era. È la prima cosa che apre chi arriva: cos'è, come si guarda la style guide, come si installa un item, i gate, e i rimandi ai documenti di conduzione. Con la sezione licenze, che era la cosa da mettere in chiaro pubblicando: codice **tutti i diritti riservati** (il repo è pubblico per meccanica, non per rilascio), Inter sotto OFL, Replica LL fuori dal repo.
+- **`.github/workflows/pages.yml`** — `build-storybook` e pubblicazione su Pages a ogni push su `main`. `storybook-static/` **resta in `.gitignore`**: il sito si costruisce in CI, non si committa, o diverge dal sorgente al primo che dimentica di rigenerarlo.
+- **`sync.sh` + `.claude/settings.json`** — l'aggiornamento di `main` a inizio sessione, copiato da Anagrafe su richiesta di Francesco. Hook `SessionStart`: `fetch`, poi `pull --ff-only` se sei su `main` e pulito, altrimenti aggiorna il **solo ref** di `main` senza toccare i file del worktree corrente, e stampa il diff dei documenti di conduzione. L'unica differenza dall'originale è l'elenco: qui sono `CLAUDE.md PIANO.md CHECKLIST.md WORKLOG.md docs/DECISIONI.md` — non c'è `ROADMAP.md`, non c'è `docs/INTERFACCE.md`, e c'è `PIANO.md`, che è il documento unico. A metà sessione va rilanciato a mano.
+- **`gate.yml` si sveglia.** Era scritto e dormiente per mancanza di remote; ora gira su ogni push a `main` e su ogni PR. Era stato scritto apposta perché chi chiudeva D4 non dovesse anche ricordarsi della CI, ed è servito.
+
+### Prossimi passi
+
+- **M5.6** per quello che resta: tag `v2.0.0` e prova d'installazione in un'app fuori dal repo.
+- **M3.2** riprende il piano dove l'aveva lasciato.
+- Da tenere presente da qui in avanti: **il repo è pubblico**. Non è una regola nuova — segreti nel repo non ce ne dovevano essere comunque — ma la disattenzione ora costa di più.
