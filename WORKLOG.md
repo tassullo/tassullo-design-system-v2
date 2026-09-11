@@ -3037,3 +3037,69 @@ Guardate a video le sei story, in chiaro e in scuro, a 1440 e a 375, nelle due d
 ### Prossimi passi
 
 **M3.3 (2 di 2)**: il degrado a 375px, e cioè la sola domanda di disegno vera di questo blocco — a 327px utili (la cifra di D10, misurata in M3.1) le colonne che si possono mostrare sono due, forse tre. Le strade da pesare sono tre e vanno pesate *guardandole*: (a) lo scorrimento orizzontale con la prima colonna fissa e un segno che dica che c'è dell'altro; (b) le colonne che si spengono per soglia, con `@container` sul riquadro della tabella — la lezione di M3.2, dove la soglia sulla fascia ha tolto la ramificazione per densità; (c) la riga che smette di essere una riga e diventa una scheda, che è ciò che fa `dashboard-01` di shadcn sotto una certa larghezza. Da portarci dentro la misura di M3.1: **in touch, a 1440px, il vincolo alla larghezza non è `--container-page` ma la colonna** (1008px utili contro i 1180 del tetto).
+
+---
+
+## Coda di M3.3 (1) — l'intestazione prende terra, e le colonne smettono di saltare (2026-09-11)
+
+Due rilievi di Francesco guardando la tabella su scrivania, più uno che resta aperto.
+
+### 1. L'intestazione era dello stesso colore delle righe
+
+**Il rilievo**: «Tassullo V1 prevedeva un header di colore differente. Qua rimane dello stesso colore delle righe della tabella e non si distingue.» Vero, e il v1 lo dice alla lettera — `components.css` §345: `.table th { background: var(--color-surface-3) }`.
+
+`--color-surface-3` del v1 è `#F4F3F1`, che nella mappa di `PIANO.md` §2bis è **`--accent`**. Qui però la scelta fra `--accent` e `--muted` non si decide sulla mappa, e la ragione è di **composizione**: il bottone dell'intestazione ordinabile è un `Button variant="ghost"`, il cui hover è `hover:bg-muted`. Su un'intestazione `bg-muted` **l'hover sparirebbe** — stesso colore sotto e sopra. Con `bg-accent` (`#F4F3F1`, più chiaro) l'hover `muted` (`#ECEAE8`) si legge come una macchia più scura. Il valore del v1 è quindi anche quello giusto, ma per una ragione che il v1 non aveva modo di conoscere.
+
+Sta in **`TableHeader` della primitiva**, non nel blocco: una tabella con l'intestazione che non si distingue è sbagliata dovunque, non solo dentro `data-table`. È **gradino 2** della scala 4bis — sola stringa di classi — e il gate lo conferma: *«table.tsx — forma identica all'originale, 2 stringhe di classi ri-stilate»*.
+
+Misurato reso: intestazione `oklch(0.9644 0.0029 84.56)` = `#F4F3F1` in chiaro, `#2E2E2E` in scuro, contro righe trasparenti su `--card` (`#FDFDFD` / `#1C1C1C`). Si distingue in entrambe.
+
+### 2. Le colonne saltavano a ogni ordinamento — ed era un difetto vero
+
+**Il rilievo**: «Per la story Prodotti se vario l'ordinamento delle righe cliccando sull'header cambia la larghezza delle colonne.» Confermato dai due screenshot affiancati: `Famiglia` a x≈1085 prima e x≈1130 dopo.
+
+**La causa non è la demo, è il blocco**: un `<table>` è a **larghezza automatica**, quindi il browser dimensiona ogni colonna sul contenuto *della pagina corrente*. Cambia l'ordinamento, cambiano le dieci righe visibili, cambia la stringa più lunga, e **tutte le colonne si spostano**. Lo stesso salto lo dà il voltare pagina e il filtrare — cioè i tre gesti che una tabella paginata fa in continuazione. Su 500 righe in 20 pagine è un salto a ogni clic.
+
+**Il rimedio è `table-fixed`**, dove comandano le larghezze dichiarate nella prima riga di intestazioni e il contenuto non ha più voce in capitolo. Le larghezze si dichiarano nel `meta` della colonna, come **utility Tailwind** e non come pixel:
+
+```tsx
+col.accessor('codice', { meta: { titolo: 'Codice', larghezza: 'w-32' }, … })
+```
+
+È la regola 3 del `CLAUDE.md`, che vale anche negli `style` inline — e in più le misure derivano da `--spacing`, quindi **seguono la densità da sé**. Il tipo `MetaColonna` è esportato, così le due chiavi sono una dichiarazione e non una convenzione da ricordare.
+
+Il blocco si dà da sé la larghezza della colonna delle caselle (`w-10`); `truncate` sulle celle è il prezzo di `table-fixed`, perché un testo più lungo della sua colonna sborderebbe in quella accanto invece di allargarla.
+
+**Una cosa presa misurando, e che va scritta perché è silenziosa**: se **tutte** le colonne dichiarano una larghezza e la somma non torna con la tabella, il browser non protesta — **le comprime tutte in proporzione**. Con sette larghezze su otto per 1452px in una tabella da 1406, `w-48` (288px dichiarati) rendeva **279**. Non è un guasto: è un modo di non ottenere ciò che si è chiesto senza che nessuno lo dica. Quindi **una colonna va lasciata senza `larghezza`**, ed è quella che assorbe l'avanzo — nella story è `Famiglia`, la più elastica.
+
+**Misura del rimedio**, Chromium 1440×900, larghezze dei sette `<th>` a ogni passaggio:
+
+| gesto | larghezze |
+|---|---|
+| partenza | `40, 128, —, 224, 128, 80, 128, 48` |
+| ordina crescente | identiche |
+| ordina decrescente | identiche |
+| pagina 2 | identiche |
+| filtro «Marmorino» | identiche |
+
+Prima della modifica le stesse cinque letture erano tutte diverse.
+
+### 3. Resta aperto: il badge e le quattro famiglie semantiche
+
+Francesco: «Per i badge possiamo aggiungere i 4 colori utilizzati anche per gli alert (4 varianti semantiche)». La capacità serve e non è in discussione; **il meccanismo sì**, perché c'è un precedente misurato che va nella direzione opposta.
+
+`alert.stories.tsx`, scritto in M2.4: *«Provata anche la strada opposta, e misurata: aggiungere `info`, `success` e `warning` come nomi di variante nel `cva` manda `check:registry` in rosso — "diverge dall'originale FUORI dalle stringhe di classi: nomi di varianti". Il gate ha fatto esattamente il suo mestiere.»* Gli alert hanno quindi le quattro famiglie **via `className`**, con le terne di token del tema, e `alert.tsx` resta identico a shadcn.
+
+Ma fra alert e badge c'è una differenza che conta: un alert si scrive **una volta per pagina**, a mano; un badge di stato si scrive **dentro la definizione di colonna di ogni tabella di ogni app**. Ripetere lì la terna di classi è esattamente la deriva che il progetto esiste per impedire.
+
+La domanda è quindi posta a Francesco, non decisa: si aggiunge un item **nostro** che esporta le quattro terne come costanti (nessuna primitiva tocca, gate verde), oppure si aggiungono le varianti a `badge.tsx` e si insegna al gate a distinguere una divergenza **dichiarata** da una sopravvenuta. Non implementato.
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **916 scansioni / 0 violazioni** (229 story, invariate). `check:registry` **0 errori**, `table.tsx` a forma identica con 2 stringhe ri-stilate.
+`build` ✔ · `build-storybook` ✔ · `lint` **3 avvisi preesistenti** · `registry:build` rilanciato.
+`misura:bersagli`: **2170 bersagli, 0 piccoli in entrambe le direzioni** — invariato.
+
+### Nota sulla sessione 2
+
+Francesco ha ridefinito l'ordine: il degrado a 375px si guarda **dopo** che la tabella è a posto su scrivania. La sessione 2 di M3.3 comincia quindi dal collaudo desktop — questi due rilievi ne sono già parte — e il degrado viene in coda.

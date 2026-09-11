@@ -128,7 +128,7 @@ const col = creaColonne<Prodotto>()
 const COLONNE = col.columns([
   col.accessor('codice', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
-    meta: { titolo: 'Codice' },
+    meta: { titolo: 'Codice', larghezza: 'w-32' },
     // `alphanumeric` e non `text`: con `text` il codice `IN-9` verrebbe dopo
     // `IN-10`, perché confronterebbe i caratteri e non i numeri.
     sortFn: 'alphanumeric',
@@ -138,7 +138,7 @@ const COLONNE = col.columns([
   }),
   col.accessor('nome', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
-    meta: { titolo: 'Nome' },
+    meta: { titolo: 'Nome', larghezza: 'w-52' },
     sortFn: 'text',
     cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
   }),
@@ -149,7 +149,7 @@ const COLONNE = col.columns([
   }),
   col.accessor('stato', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
-    meta: { titolo: 'Stato' },
+    meta: { titolo: 'Stato', larghezza: 'w-32' },
     sortFn: 'text',
     cell: ({ getValue }) => {
       const stato = getValue<Prodotto['stato']>()
@@ -160,7 +160,7 @@ const COLONNE = col.columns([
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Rev." allinea="fine" />
     ),
-    meta: { titolo: 'Revisione' },
+    meta: { titolo: 'Revisione', larghezza: 'w-20' },
     sortFn: 'basic',
     // I numeri in colonna si allineano a destra e si incolonnano coi decimali:
     // `tabular-nums` ce l'ha già `Table`, per tutta la tabella.
@@ -173,7 +173,7 @@ const COLONNE = col.columns([
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
     ),
-    meta: { titolo: 'Aggiornato' },
+    meta: { titolo: 'Aggiornato', larghezza: 'w-32' },
     sortFn: 'datetime',
     cell: ({ getValue }) => (
       <div className="text-right">{DATA.format(getValue<Date>())}</div>
@@ -182,6 +182,7 @@ const COLONNE = col.columns([
   }),
   col.display({
     id: 'azioni',
+    meta: { larghezza: 'w-12' },
     header: () => <span className="sr-only">Azioni</span>,
     cell: ({ row }) => (
       <DropdownMenu>

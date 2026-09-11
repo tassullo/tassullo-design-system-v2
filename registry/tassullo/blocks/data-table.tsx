@@ -221,6 +221,31 @@ export function creaColonne<TDato extends RowData>() {
   return createColumnHelper<CaratteristicheTabella, TDato>()
 }
 
+/**
+ * Ciò che una colonna dichiara **oltre** a TanStack, nel suo campo `meta`.
+ *
+ * Due sole chiavi, e nessuna delle due è facoltativa per capriccio:
+ *
+ * - `titolo` è l'etichetta leggibile, usata dal menu «Colonne». Senza, quel
+ *   menu ricadrebbe sull'`id`, che è una chiave di dato (`aggiornatoIl`) e non
+ *   una parola italiana;
+ * - `larghezza` è una **utility Tailwind** (`"w-28"`, `"w-1/4"`), non un
+ *   numero di pixel. È la regola 3 del `CLAUDE.md`, che vale anche negli
+ *   `style` inline: le misure escono da `--spacing`, quindi seguono la densità
+ *   da sé.
+ *
+ * **Una colonna va lasciata senza `larghezza`**, ed è quella che assorbe lo
+ * spazio che avanza — di solito il nome, che è anche la più elastica. Se tutte
+ * la dichiarano e la somma non torna, il browser non se ne lamenta: **le
+ * comprime tutte in proporzione**, e le larghezze scritte non sono più quelle
+ * rese (misurato: `w-48` che valeva 288 rendeva 279). Non è un guasto, è un
+ * modo silenzioso di non ottenere ciò che si è chiesto.
+ */
+export type MetaColonna = {
+  titolo?: string
+  larghezza?: string
+}
+
 /** Una colonna già tipizzata sulle caratteristiche di casa. */
 export type ColonnaTabella<TDato extends RowData> = ColumnDef<
   CaratteristicheTabella,
@@ -356,6 +381,7 @@ export function colonnaSelezione<TDato extends RowData>() {
     enableSorting: false,
     enableHiding: false,
     enableGlobalFilter: false,
+    meta: { larghezza: "w-10" } satisfies MetaColonna,
   })
 }
 
@@ -431,7 +457,7 @@ function VisibilitaColonne<TDato extends RowData>({
               checked={c.getIsVisible()}
               onCheckedChange={(v) => c.toggleVisibility(!!v)}
             >
-              {(c.columnDef.meta as { titolo?: string } | undefined)?.titolo ?? c.id}
+              {(c.columnDef.meta as MetaColonna | undefined)?.titolo ?? c.id}
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuGroup>
@@ -745,13 +771,31 @@ export function DataTable<TDato extends RowData>({
       ) : null}
 
       <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
+        {/*
+          `table-fixed`, e non è un dettaglio di impaginazione.
+
+          A larghezza **automatica** il browser dimensiona ogni colonna sul
+          contenuto *della pagina corrente*: basta ordinare, o voltare pagina,
+          e le righe visibili cambiano, cambia la stringa più lunga, e tutte le
+          colonne **saltano**. Su una tabella paginata è un salto a ogni clic —
+          preso guardando la story `Prodotti` e ordinando per codice.
+
+          A larghezza fissa comandano le larghezze dichiarate nella **prima
+          riga** di intestazioni, e il contenuto non ha più voce in capitolo: le
+          colonne stanno ferme. Chi non dichiara `meta.larghezza` si spartisce
+          ciò che avanza, in parti uguali.
+        */}
+        <Table className="table-fixed">
           <TableHeader>
             {tabella.getHeaderGroups().map((gruppo) => (
               <TableRow key={gruppo.id} className="hover:bg-transparent">
                 {gruppo.headers.map((intestazione) => (
                   <TableHead
                     key={intestazione.id}
+                    className={
+                      (intestazione.column.columnDef.meta as MetaColonna | undefined)
+                        ?.larghezza
+                    }
                     aria-sort={
                       intestazione.column.getCanSort()
                         ? ariaSort(intestazione.column.getIsSorted())
@@ -774,7 +818,11 @@ export function DataTable<TDato extends RowData>({
                   data-state={riga.getIsSelected() ? "selected" : undefined}
                 >
                   {riga.getVisibleCells().map((cella) => (
-                    <TableCell key={cella.id}>
+                    // `truncate` è il prezzo di `table-fixed`: con le larghezze
+                    // decise dalle intestazioni, un testo più lungo della sua
+                    // colonna **sborda** nella colonna accanto invece di
+                    // allargarla: meglio tagliarlo coi puntini.
+                    <TableCell key={cella.id} className="truncate">
                       <tabella.FlexRender cell={cella} />
                     </TableCell>
                   ))}
