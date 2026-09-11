@@ -97,6 +97,22 @@
       ]
     },
     {
+      "name": "toni",
+      "type": "registry:lib",
+      "title": "Toni semantici",
+      "description": "Le quattro famiglie semantiche del tema come stringhe di classi, piu il neutro: <Badge className={TONO.success}>. E la forma che shadcn documenta per badge e alert (Custom Colors), con i token Tassullo in un posto solo invece che riscritti in ogni punto d'uso.",
+      "files": [
+        {
+          "path": "registry/tassullo/lib/toni.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/tema"
+      ],
+      "docs": "shadcn dice la stessa cosa su `badge` e su `alert`: i colori semantici si\nfanno con `className`, non con varianti nel `cva` — e l'API Reference di\n`badge` elenca sei varianti, nessuna semantica. La strada opposta era stata\nprovata e misurata in M2.4: manda `check:registry` in rosso, perche un nome\ndi variante in piu non si distingue da cio che ha cambiato shadcn.\n\nQuesto file fa l'ultimo passo che shadcn non fa: il suo esempio scrive\n`bg-green-50` a mano nel punto d'uso, mentre qui i token stanno in un posto\nsolo — o la terna si riscriverebbe in ogni colonna di stato di ogni app.\n\n  import { TONO } from '@/lib/toni'\n\n  <Badge className={TONO.success}>Attivo</Badge>\n\n  const TONO_STATO = {\n    pubblicato: TONO.success,\n    'in revisione': TONO.info,\n    bozza: TONO.warning,\n    archiviato: TONO.neutro,\n  } as const\n\n`TONO_ALERT` e la stessa terna con in piu la classe che colora la descrizione\ndell'alert, che altrimenti resterebbe grigia dentro un riquadro colorato.\n\nI quattro pesano uguale: nella modalita scura i tenui si specchiano a gradini\nfissi uguali per tutte le famiglie, o uno stato sembrerebbe piu grave degli\naltri. Tutte le coppie fondo/testo sono verificate da `check:contrast`."
+    },
+    {
       "name": "badge",
       "type": "registry:ui",
       "title": "Badge",

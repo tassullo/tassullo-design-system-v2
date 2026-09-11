@@ -3103,3 +3103,46 @@ La domanda è quindi posta a Francesco, non decisa: si aggiunge un item **nostro
 ### Nota sulla sessione 2
 
 Francesco ha ridefinito l'ordine: il degrado a 375px si guarda **dopo** che la tabella è a posto su scrivania. La sessione 2 di M3.3 comincia quindi dal collaudo desktop — questi due rilievi ne sono già parte — e il degrado viene in coda.
+
+---
+
+## Coda di M3.3 (2) — i toni semantici, e una story che non diceva cosa mostrava (2026-09-11)
+
+### Il badge: la risposta ce l'aveva shadcn, e l'ha trovata Francesco
+
+La domanda posta nella coda precedente — item nostro, varianti vere, o `className` a mano — **si è chiusa prima di essere decisa**, perché Francesco ha indicato la pagina giusta: `ui.shadcn.com/docs/components/base/badge`, sezione **Custom Colors**. Lì shadcn scrive, con le stesse parole della pagina di `alert`: *«You can customize the colors of a badge by adding custom classes such as `bg-green-50 dark:bg-green-800`»*. E l'API Reference elenca sei varianti — `default`, `secondary`, `destructive`, `outline`, `ghost`, `link` — e **nessuna semantica**.
+
+Quindi non era una scelta fra tre strade con tre costi: era **gradino 1** della scala 4bis, e non me n'ero accorto. La lezione è quella scritta in `CLAUDE.md` e che vale la pena riconoscere quando la si sbaglia: *prima domanda sempre, quello che serve shadcn ce l'ha già? Si chiede, non si presume* — e io avevo chiesto all'MCP, che elenca gli **item**, non alla documentazione, che spiega gli **usi**. Le due cose non si sostituiscono.
+
+Conferma di contorno: la stessa strada era già stata **provata e misurata** in M2.4 sugli alert — aggiungere `info`, `success` e `warning` ai nomi di variante manda `check:registry` in rosso, «diverge dall'originale FUORI dalle stringhe di classi: nomi di varianti». Le due evidenze puntano nello stesso posto.
+
+### Ma shadcn si ferma un passo prima di dove serve a noi
+
+Il suo esempio scrive `bg-green-50` **a mano, nel punto d'uso**. Due cose non vanno: la regola 3 (i colori escono dai token del tema, non dalla tavolozza di Tailwind), e — che pesa di più — un badge di stato si scrive **dentro la definizione di colonna di ogni tabella di ogni app**. Una terna di classi ripetuta lì è il punto esatto da cui le app del v1 hanno cominciato a divergere.
+
+Quindi: **la forma di shadcn, coi nostri token in un posto solo.** Nuovo item `toni` (`registry/tassullo/lib/toni.ts`), che esporta `TONO` — le quattro terne `X-border` / `X-subtle` / `X-subtle-foreground` più il **neutro** — e `TONO_ALERT`, la stessa terna con in più la classe che colora la descrizione dell'alert, che altrimenti resterebbe grigia dentro un riquadro colorato.
+
+```tsx
+<Badge className={TONO.success}>Attivo</Badge>
+```
+
+**Nessuna primitiva è stata toccata**: `badge.tsx` e `alert.tsx` restano identici all'originale nella forma, `componenti-propri.json` resta vuoto, il gate resta verde. È un **helper**, non un componente: non sta al posto di niente.
+
+Il **neutro** merita una riga: non è una famiglia semantica e non ha token propri (sotto ci sono i neutri di shadcn, gli stessi di `secondary`). Sta nella mappa perché è lo stato che *non dice niente* — «archiviato», «non applicabile» — e una tabella di stati che lo lascia fuori costringe a uscire dal file per un caso solo.
+
+Ricaduta sulla story `Prodotti`: la colonna Stato non è più `variant`, è `TONO_STATO`, e ci si guadagna anche **sul significato** — prima `pubblicato` prendeva `variant="default"`, cioè l'arancio del brand, e un colore d'identità usato come esito è un colore che dice la cosa sbagliata. Ora bozza è ambra, in revisione azzurro, pubblicato verde, archiviato grigio, e l'arancio torna a essere solo il marchio.
+
+### Il gate cresce di una cartella
+
+`lib/toni.ts` è un file fatto **di sole stringhe di classi**, cioè esattamente ciò che la regola 3 governa — e `lib/` era l'unica cartella del registry che il gate non guardava. `check:registry` ora copre **`ui/`, `blocks/` e `lib/`**; le ultime due con la sola regola 3, e la stampa distingue «blocco Tassullo» da «helper Tassullo». Un esadecimale lì dentro sarebbe passato liscio per sempre.
+
+### La story «Minima» non diceva cosa mostrava
+
+**Il rilievo di Francesco**: «La Story minima cosa vuole mostrarmi?» Nessuna risposta possibile guardandola — era la stessa tabella con meno roba sopra, senza una riga che dicesse perché. È il rilievo identico a quello di `Fascia Stretta` in M3.2, e la stessa lezione: **una dimostrazione che non si dichiara si legge come un caso qualsiasi, o come un guasto.**
+
+Rinominata **`Elenco Corto`** e dotata di uno scopo scritto: prova che tutto il contorno è **facoltativo** — `cerca={false}`, `colonneNascondibili={false}`, restano tabella e paginazione — cioè che il blocco non impone la propria barra a chi lo installa. La prosa dice anche con cosa va confrontata (`Prodotti`, la stessa tabella col contorno acceso): la differenza fra le due *è* il contenuto della story.
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **920 scansioni / 4 passate / 0 violazioni** (230 story, +1 — la nuova `Primitive/Badge → Toni Semantici`, che è anche la prova di contrasto dei quattro toni nelle due modalità).
+`check:registry` **0 errori**, 52 avvisi preesistenti, ora su tre cartelle. `shadcn registry validate` ✔ **58 item**. `build` ✔ · `build-storybook` ✔ · `lint` **3 avvisi preesistenti** · `registry:build` rilanciato.

@@ -34,6 +34,7 @@ import { basename, join } from "node:path";
 
 const UI_DIR = "registry/tassullo/ui";
 const BLOCCHI_DIR = "registry/tassullo/blocks";
+const LIB_DIR = "registry/tassullo/lib";
 const UPSTREAM_DIR = "registry/.upstream";
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
 const PROPRI_FILE = "registry/componenti-propri.json";
@@ -203,12 +204,22 @@ function fileUi(): string[] {
  * M3.1 il gate guardava solo `ui/`, quindi un valore arbitrario o un hex
  * dentro un blocco non lo avrebbe visto nessuno — e i blocchi saranno undici.
  * Un gate che tace su una cartella intera è peggio di un gate che grida.
+ *
+ * **Da M3.3 guarda anche `lib/`**, e per la stessa ragione portata all'estremo:
+ * `lib/toni.ts` è un file fatto **di sole stringhe di classi**, cioè esattamente
+ * ciò che la regola 3 governa, e restava l'unica cartella del registry in cui
+ * un esadecimale sarebbe passato liscio.
  */
 function fileBlocchi(): string[] {
-  if (!existsSync(BLOCCHI_DIR)) return [];
-  return readdirSync(BLOCCHI_DIR)
-    .filter((f) => f.endsWith(".tsx") && !f.endsWith(".stories.tsx"))
-    .map((f) => join(BLOCCHI_DIR, f));
+  const fuori: string[] = [];
+  for (const dir of [BLOCCHI_DIR, LIB_DIR]) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (!/\.tsx?$/.test(f) || f.endsWith(".stories.tsx")) continue;
+      fuori.push(join(dir, f));
+    }
+  }
+  return fuori.sort();
 }
 
 /** Sui blocchi si controlla la sola regola 3: niente hex, niente arbitrari. */
@@ -232,7 +243,7 @@ function controllaBlocchi(): Set<string> {
       }
     }
     console.log(
-      `  ▪ ${nome.padEnd(24)} blocco Tassullo — nessun originale shadcn per costruzione` +
+      `  ▪ ${nome.padEnd(24)} ${path.startsWith(LIB_DIR) ? "helper Tassullo" : "blocco Tassullo"} — nessun originale shadcn per costruzione` +
         (arbitrari > 0 ? `, ${arbitrari} valore/i arbitrario/i` : ""),
     );
   }

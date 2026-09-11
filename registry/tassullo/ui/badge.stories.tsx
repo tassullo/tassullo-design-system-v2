@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { CheckIcon, ClockIcon, TriangleAlertIcon } from 'lucide-react'
 
+import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 
 /**
@@ -72,6 +73,66 @@ export const StatiDiScheda: Story = {
       <Badge variant="default">Pubblicato</Badge>
       <Badge variant="outline">Archiviato</Badge>
       <Badge variant="destructive">Revocato</Badge>
+    </div>
+  ),
+}
+
+/**
+ * **I quattro toni semantici si fanno con `className`, non con quattro
+ * varianti** — ed è la risposta di shadcn stesso, scritta nella sezione
+ * *Custom Colors* della pagina del badge: «You can customize the colors of a
+ * badge by adding custom classes such as `bg-green-50 dark:bg-green-800`». La
+ * sua API Reference elenca sei varianti — `default`, `secondary`,
+ * `destructive`, `outline`, `ghost`, `link` — e nessuna semantica. La scala
+ * della regola 4bis si ferma quindi al **gradino 1**, e `badge.tsx` resta
+ * identico all&apos;originale nella forma.
+ *
+ * La strada opposta era già stata **provata e misurata**, in M2.4 sugli alert:
+ * aggiungere `info`, `success` e `warning` ai nomi di variante del `cva` manda
+ * `check:registry` in rosso — «diverge dall&apos;originale FUORI dalle
+ * stringhe di classi: nomi di varianti». Il gate fa il suo mestiere: un nome
+ * di variante in più non si distingue da ciò che ha cambiato shadcn quando
+ * esce una versione nuova, e la scelta diventa «riscrivo tutto» oppure «resto
+ * indietro per sempre».
+ *
+ * Shadcn però si ferma un passo prima di dove serve a noi: il suo esempio
+ * scrive `bg-green-50` **a mano, nel punto d&apos;uso**. Da noi i colori
+ * escono dai token del tema (regola 3), e soprattutto un badge di stato si
+ * scrive **dentro la definizione di colonna di ogni tabella di ogni app** —
+ * una terna di classi ripetuta lì è il punto esatto da cui le app del v1 hanno
+ * cominciato a divergere. Le terne stanno quindi in `lib/toni`, in un posto
+ * solo:
+ *
+ * ```tsx
+ * import { TONO } from '@/lib/toni'
+ *
+ * <Badge className={TONO.success}>Attivo</Badge>
+ * ```
+ *
+ * `destructive` c&apos;è **anche** come variante, ed è la sola delle quattro:
+ * chi ne usa una sola usi quella. `TONO.destructive` serve a chi mappa tutti e
+ * quattro gli stati dalla stessa parte e non vuole che uno solo arrivi per
+ * un&apos;altra strada.
+ *
+ * Il **neutro** non è una famiglia semantica e non ha token propri: è lo stato
+ * che non dice niente — «archiviato», «non applicabile» — e sta nella mappa
+ * perché una tabella di stati che lo lascia fuori costringe a uscire dal file
+ * per un caso solo.
+ *
+ * I quattro **pesano uguale**, ed è costruito: nella modalità scura i tenui si
+ * specchiano a gradini fissi, uguali per tutte le famiglie. Se una saltasse
+ * all&apos;occhio più delle altre, quello stato sembrerebbe più grave di
+ * quello che è. Da guardare commutando la modalità, che è la prova.
+ */
+export const ToniSemantici: Story = {
+  name: 'Toni Semantici',
+  render: () => (
+    <div className="flex flex-wrap items-center gap-3">
+      <Badge className={TONO.success}>Attivo</Badge>
+      <Badge className={TONO.info}>In revisione</Badge>
+      <Badge className={TONO.warning}>In scadenza</Badge>
+      <Badge className={TONO.destructive}>Scaduto</Badge>
+      <Badge className={TONO.neutro}>Archiviato</Badge>
     </div>
   ),
 }

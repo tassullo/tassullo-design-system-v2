@@ -7,6 +7,7 @@ import {
   IntestazioneColonna,
   creaColonne,
 } from '@/registry/tassullo/blocks/data-table'
+import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
@@ -112,11 +113,21 @@ const DATA = new Intl.DateTimeFormat('it-IT', {
   year: 'numeric',
 })
 
-const TONO: Record<Prodotto['stato'], 'default' | 'secondary' | 'outline'> = {
-  bozza: 'outline',
-  'in revisione': 'secondary',
-  pubblicato: 'default',
-  archiviato: 'outline',
+/**
+ * Dallo stato del dominio al tono semantico, dichiarato **una volta** accanto
+ * alle colonne. I quattro toni sono `TONO` di `lib/toni`, cioè le terne di
+ * token del tema in un posto solo: è la forma che shadcn documenta per il
+ * badge (*Custom Colors*, «adding custom classes»), con i nostri token al
+ * posto di `bg-green-50`.
+ *
+ * `archiviato` prende il **neutro** di proposito: è lo stato che non dice
+ * niente, e dargli un colore semantico lo farebbe sembrare un esito.
+ */
+const TONO_STATO: Record<Prodotto['stato'], string> = {
+  bozza: TONO.warning,
+  'in revisione': TONO.info,
+  pubblicato: TONO.success,
+  archiviato: TONO.neutro,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -153,7 +164,7 @@ const COLONNE = col.columns([
     sortFn: 'text',
     cell: ({ getValue }) => {
       const stato = getValue<Prodotto['stato']>()
-      return <Badge variant={TONO[stato]}>{stato}</Badge>
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
     },
   }),
   col.accessor('revisione', {
@@ -396,10 +407,20 @@ export const SenzaDati: Story = {
 }
 
 /**
- * **La tabella minima**: niente ricerca, niente selezione, niente menu delle
- * colonne. Per gli elenchi corti, dove cercare costa più che leggere.
+ * **Tutto il contorno è facoltativo, e questa story è il banco che lo prova.**
+ *
+ * Sei righe, `cerca={false}` e `colonneNascondibili={false}`: restano la sola
+ * tabella e la riga di paginazione. È la forma da usare per un elenco corto
+ * incastonato in una scheda — dove una casella di ricerca su sei righe costa
+ * più che leggerle — e serve a dire che il blocco **non impone la propria
+ * barra**: chi lo installa non si trova addosso della chrome che non ha
+ * chiesto.
+ *
+ * Da guardare accanto a `Prodotti`, che è la stessa tabella col contorno
+ * acceso: la differenza fra le due *è* il contenuto di questa story.
  */
-export const Minima: Story = {
+export const ElencoCorto: Story = {
+  name: 'Elenco Corto',
   args: {
     colonne: COLONNE.filter((c) => c.id !== 'azioni'),
     dati: PRODOTTI.slice(0, 6),
