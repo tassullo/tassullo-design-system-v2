@@ -3146,3 +3146,55 @@ Rinominata **`Elenco Corto`** e dotata di uno scopo scritto: prova che tutto il 
 
 `npm run check` verde sui cinque gate: **920 scansioni / 4 passate / 0 violazioni** (230 story, +1 — la nuova `Primitive/Badge → Toni Semantici`, che è anche la prova di contrasto dei quattro toni nelle due modalità).
 `check:registry` **0 errori**, 52 avvisi preesistenti, ora su tre cartelle. `shadcn registry validate` ✔ **58 item**. `build` ✔ · `build-storybook` ✔ · `lint` **3 avvisi preesistenti** · `registry:build` rilanciato.
+
+---
+
+## M3.3 (2 di 2) — Il degrado a schermo stretto: shadcn scorre, e noi scorriamo meglio (2026-09-11)
+
+Seconda e ultima sessione del task doppio. Il collaudo su scrivania è chiuso — i suoi due rilievi sono nelle code (1) e (2) — e resta la domanda che era stata messa da parte: cosa fa questa tabella a 375px.
+
+### Prima: cosa fa shadcn, chiesto e non presunto
+
+`dashboard-01` è l'unico blocco shadcn con una tabella dentro, ed è la sua risposta al problema. Letto il sorgente con `shadcn view`: **non nasconde nessuna colonna sotto nessuna soglia.** Le uniche classi responsive intorno alla tabella sono sulla **chrome di paginazione** — `hidden flex-1 … lg:flex` sul conto delle righe, `hidden size-8 lg:flex` sui salti a prima e ultima pagina — cioè esattamente ciò che questo blocco già faceva da M3.3 (1) con `hidden sm:inline-flex`. La tabella **scorre**, punto.
+
+Quindi il comportamento che avevo annotato come «non è un degrado progettato» era già, alla lettera, la risposta documentata. Il rilievo resta valido come giudizio di qualità, ma la base di partenza non era un'omissione: era una scelta, e loro l'hanno fatta.
+
+### Poi: un buco del gate che sospettavo, e che non c'era
+
+L'ipotesi era che `test:a11y` misurasse solo alla viewport predefinita e quindi non vedesse mai il caso stretto — in particolare la regola `scrollable-region-focusable`, che chiede che un riquadro scorrevole sia raggiungibile da tastiera. Verificato con axe-core in Chromium a **375 e 1440 px, per entrambe le densità**: la regola **non scatta**, e correttamente — axe non la applica a un riquadro che contiene già controlli a fuoco, e qui dentro ci sono caselle e bottoni, quindi tabulando il contenuto si porta in vista da sé.
+
+Le tre violazioni che una scansione grezza riporta (`landmark-one-main`, `page-has-heading-one`, `region`) sono artefatti dell'imbracatura di Storybook, che la configurazione del gate disattiva. **Nessuna correzione fatta**: si annota che l'ipotesi è stata verificata e smentita, perché un sospetto non verbalizzato torna.
+
+### Cosa si è fatto: scorrere, ma senza perdere il segno
+
+Il difetto vero di «scorre e basta» si vede solo provandolo a 320px: con due terzi di tabella fuori dal riquadro si finisce a **leggere una data senza sapere di che prodotto sia**. Non è un problema di quantità di colonne, è di **riferimento**.
+
+`bloccaPrimaColonna` tiene ferme a sinistra la casella di selezione e la colonna che identifica la riga. Tre cose che una cella bloccata deve fare, e nessuna la fa da sé:
+
+1. **un fondo opaco proprio.** Le righe sono trasparenti sul `bg-card` del riquadro: una cella `sticky` senza fondo lascia scorrere il testo delle altre colonne **sotto** il proprio. Non sembra un difetto di impaginazione, sembra un guasto di resa;
+2. **seguire lo stato della riga.** Quel fondo opaco vince su `hover:bg-muted/50` e su `data-[state=selected]:bg-muted` della riga, quindi la colonna ferma resterebbe bianca mentre il resto si tinge. Si riprendono dal gruppo della riga (`group/riga`), e lo stack di colori resta lo stesso — un velo di `muted` sopra `card`;
+3. **dire che è bloccata.** Il bordo destro è il segno, e non serve altro: il contenuto passa **sotto** quel filo, e una cosa che si vede scorrere non ha bisogno della scritta «scorri».
+
+`left-0` e `left-10` non sono numeri scelti a occhio: `10` è la larghezza della colonna di selezione (`w-10`), quindi la seconda bloccata si appoggia esattamente al bordo della prima — ed entrambe derivano da `--spacing`, quindi **il blocco regge anche in densità touch**, dove le stesse utility valgono il 50% in più.
+
+**Misurato** in Chromium, riquadro da 320px: `scrollWidth` 760 su `clientWidth` 300; portando `scrollLeft` a 260, casella e `Codice` restano a x=26 e x=66 con `position: sticky`, mentre `Nome` è scivolato a **x=−66**, cioè sotto di loro. Il bordo è 1px del token `--border` sulla seconda colonna bloccata, verificato sul calcolato e non a occhio (nello screenshot a quella scala è quasi invisibile, ed è il motivo per cui si misura).
+
+### Una scelta che lascio sindacabile
+
+`bloccaPrimaColonna` è acceso anche su `Prodotti`, cioè a schermo intero, dove **niente scorre**. Guardato a 1440: il filo verticale dopo `Codice` non legge come rumore, legge come il separatore fra la colonna che *identifica* e quelle che *descrivono*. Ma è una scelta di disegno, non una necessità: a schermo intero un bordo «di blocco» promette uno scorrimento che non sta avvenendo. Se Francesco lo preferisce via a piena larghezza è un flag, e la strada tecnica per accenderlo solo quando serve davvero (cioè quando il riquadro scorre) richiede JavaScript, perché «la tabella sborda» non è una soglia di larghezza e nessuna container query lo sa.
+
+### La nuova story, e perché è stretta di proposito
+
+`Stretta` mette la tabella in un riquadro da **320px a qualunque viewport**, come la `Fascia Stretta` di `page-header` e per la stessa ragione tecnica: l'imbracatura del gate non ha un modo affidabile di cambiare viewport, quindi un caso che esiste solo sotto una media query è un caso che il gate non misura mai. La didascalia sopra il riquadro dichiara la larghezza e il perché — è la lezione della coda di M3.2, dove una dimostrazione non dichiarata si leggeva come un guasto.
+
+### Il confine che questa sessione NON attraversa
+
+**Se 375×touch sia un bersaglio è D10, e il verdetto è di M4.2**, su una pagina lista vera. Qui si è fatta la parte che è della tabella: che scorrere sia onesto. Se M4.2 deciderà che a quella larghezza una tabella non ci va, la risposta non sarà una soglia dentro questo blocco — sarà una **pagina** diversa, e il posto dove scriverla è lì.
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **924 scansioni / 4 passate / 0 violazioni** (231 story, +1).
+`build` ✔ · `build-storybook` ✔ · `lint` **3 avvisi preesistenti** · `registry:build` rilanciato.
+`misura:bersagli`: **2203 bersagli su 231 story, 0 piccoli in entrambe le direzioni**.
+axe-core a mano in Chromium, **quattro celle** 375/1440 × normale/touch: nessuna violazione oltre agli artefatti dell'imbracatura.
+Misure di scorrimento e di blocco: vedi sopra, tutte prese in Chromium headless e non nel pannello.

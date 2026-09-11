@@ -341,9 +341,70 @@ export const Prodotti: Story = {
     dati: PRODOTTI,
     cerca: 'Cerca per codice, nome o famiglia…',
     selezione: true,
+    bloccaPrimaColonna: true,
     perPagina: 25,
     vuoto: { titolo: 'Nessun prodotto in archivio' },
   },
+}
+
+/**
+ * **La stessa tabella dentro 320px** — la larghezza che resta su uno schermo da
+ * 375px, dove la colonna del guscio non c&apos;è. Il riquadro è stretto di
+ * proposito e a qualunque viewport, come la `Fascia Stretta` di `page-header`:
+ * serve che il caso stretto si possa **misurare**, e l&apos;imbracatura del
+ * gate non ha un modo affidabile di cambiare viewport.
+ *
+ * ## Qui la tabella scorre, ed è la risposta di shadcn
+ *
+ * `dashboard-01` non nasconde nessuna colonna sotto una soglia: lascia scorrere
+ * la tabella e mette `hidden lg:flex` solo sulla **chrome di paginazione** — il
+ * conto delle righe e i salti a prima e ultima pagina. Chiesto guardando il suo
+ * sorgente, non presunto, e qui è lo stesso: sotto `sm` restano avanti,
+ * indietro e la scelta delle righe.
+ *
+ * ## Quello che shadcn non fa, e che serve
+ *
+ * Scorrere e basta ha un difetto che si vede solo provandolo: a due terzi di
+ * tabella fuori dallo schermo si legge **una data senza sapere di che prodotto
+ * sia**. `bloccaPrimaColonna` tiene ferme a sinistra la casella e il codice, e
+ * il contenuto passa **sotto** il loro bordo destro — che è anche il solo segno
+ * necessario: non c&apos;è bisogno di scrivere «scorri» se si vede qualcosa
+ * scorrere.
+ *
+ * Il fondo delle celle bloccate non è decorazione: senza, il testo delle altre
+ * colonne passerebbe **sotto** il loro e si leggerebbe come un guasto di resa.
+ * E segue lo stato della riga — sorvolo e selezione — o la colonna ferma
+ * resterebbe bianca mentre il resto si tinge.
+ *
+ * ## Cosa resta a M4.2
+ *
+ * **Se 375×touch sia un bersaglio è D10, e il verdetto è di M4.2**, su una
+ * pagina lista vera. Qui si è fatta la parte della tabella: che scorrere sia
+ * onesto. Se M4.2 deciderà che a quella larghezza la tabella non ci va, la
+ * risposta non sarà una soglia dentro questo blocco ma una **pagina** diversa.
+ */
+export const Stretta: Story = {
+  args: {
+    colonne: COLONNE,
+    dati: PRODOTTI.slice(0, 12),
+    cerca: 'Cerca…',
+    selezione: true,
+    bloccaPrimaColonna: true,
+    colonneNascondibili: false,
+    perPagina: 10,
+  },
+  render: (args) => (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm text-muted-foreground">
+        Riquadro da 320px — la larghezza utile di uno schermo da 375px, dove la
+        colonna del guscio non c&apos;è. Stretto di proposito: le soglie di una
+        tabella guardano la tabella, non lo schermo.
+      </p>
+      <div className="w-80 rounded-lg border border-dashed p-2">
+        <DataTable {...args} />
+      </div>
+    </div>
+  ),
 }
 
 /**

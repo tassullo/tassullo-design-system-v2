@@ -583,6 +583,37 @@ function PaginazioneTabella<TDato extends RowData>({
   )
 }
 
+/**
+ * Le classi che bloccano a sinistra le prime colonne.
+ *
+ * Tre cose che una cella bloccata deve fare, e che nessuna fa da sé:
+ *
+ * 1. **avere un fondo opaco proprio.** Le righe sono trasparenti sul `bg-card`
+ *    del riquadro; una cella `sticky` senza fondo lascerebbe scorrere il testo
+ *    delle altre colonne **sotto** il proprio, che è illeggibile e sembra un
+ *    guasto di resa;
+ * 2. **seguire lo stato della riga.** Il fondo opaco vince su `hover:bg-muted/50`
+ *    e su `data-[state=selected]:bg-muted` della riga, quindi la cella bloccata
+ *    resterebbe bianca mentre il resto si tinge. Si riprendono dal gruppo della
+ *    riga, e lo stack di colori è lo stesso — un velo di `muted` sopra `card`;
+ * 3. **dire che è bloccata.** Il bordo a destra è il segno: lo scorrimento fa
+ *    passare il contenuto **sotto** quel filo, e a quel punto la cosa si spiega
+ *    da sé senza che nessuno scriva «scorri».
+ *
+ * `left-0` e `left-10` non sono numeri scelti: `10` è la larghezza della colonna
+ * di selezione (`w-10` in `colonnaSelezione`), quindi la seconda colonna bloccata
+ * si appoggia esattamente al bordo della prima. Entrambe derivano da `--spacing`,
+ * quindi il blocco regge anche in densità touch.
+ */
+function classiBloccate(indice: number, conSelezione: boolean): string | undefined {
+  const quante = conSelezione ? 2 : 1
+  if (indice >= quante) return undefined
+  const base =
+    "sticky z-10 bg-card group-hover/riga:bg-muted/50 group-data-[state=selected]/riga:bg-muted"
+  const bordo = indice === quante - 1 ? " border-r" : ""
+  return `${base}${bordo} ${indice === 0 ? "left-0" : "left-10"}`
+}
+
 /** I due stati vuoti, che non sono lo stesso stato. */
 function TabellaVuota({
   filtrata,
@@ -657,6 +688,17 @@ export type DataTableProps<TDato extends RowData> = {
   /** Il menu «Colonne». Acceso di default. */
   colonneNascondibili?: boolean
   /**
+   * Blocca a sinistra la colonna che identifica la riga — e la casella di
+   * selezione, se c'è — così scorrendo in orizzontale non si perde di vista
+   * *quale* riga si sta leggendo.
+   *
+   * Serve sotto una certa larghezza, e sotto quella larghezza serve **molto**:
+   * a 341px di riquadro la tabella della story ne occupa 918, cioè due terzi
+   * stanno fuori, e senza un riferimento fermo si legge una data senza sapere
+   * di che prodotto sia.
+   */
+  bloccaPrimaColonna?: boolean
+  /**
    * Cosa mettere accanto alla ricerca: i filtri della pagina, le azioni di
    * massa.
    *
@@ -698,6 +740,7 @@ export function DataTable<TDato extends RowData>({
   perPagina = 25,
   selezione = false,
   colonneNascondibili = true,
+  bloccaPrimaColonna = false,
   barra,
   className,
 }: DataTableProps<TDato>) {
@@ -789,13 +832,15 @@ export function DataTable<TDato extends RowData>({
           <TableHeader>
             {tabella.getHeaderGroups().map((gruppo) => (
               <TableRow key={gruppo.id} className="hover:bg-transparent">
-                {gruppo.headers.map((intestazione) => (
+                {gruppo.headers.map((intestazione, indice) => (
                   <TableHead
                     key={intestazione.id}
-                    className={
+                    className={cn(
                       (intestazione.column.columnDef.meta as MetaColonna | undefined)
-                        ?.larghezza
-                    }
+                        ?.larghezza,
+                      bloccaPrimaColonna &&
+                        classiBloccate(indice, selezione)?.replace("bg-card", "bg-accent")
+                    )}
                     aria-sort={
                       intestazione.column.getCanSort()
                         ? ariaSort(intestazione.column.getIsSorted())
@@ -815,14 +860,21 @@ export function DataTable<TDato extends RowData>({
               righe.map((riga) => (
                 <TableRow
                   key={riga.id}
+                  className="group/riga"
                   data-state={riga.getIsSelected() ? "selected" : undefined}
                 >
-                  {riga.getVisibleCells().map((cella) => (
+                  {riga.getVisibleCells().map((cella, indice) => (
                     // `truncate` è il prezzo di `table-fixed`: con le larghezze
                     // decise dalle intestazioni, un testo più lungo della sua
                     // colonna **sborda** nella colonna accanto invece di
                     // allargarla: meglio tagliarlo coi puntini.
-                    <TableCell key={cella.id} className="truncate">
+                    <TableCell
+                      key={cella.id}
+                      className={cn(
+                        "truncate",
+                        bloccaPrimaColonna && classiBloccate(indice, selezione)
+                      )}
+                    >
                       <tabella.FlexRender cell={cella} />
                     </TableCell>
                   ))}
