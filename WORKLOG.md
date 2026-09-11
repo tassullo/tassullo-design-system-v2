@@ -3233,3 +3233,110 @@ I criteri del piano — «tabella di prova su ~500 righe finte, ordinabile e fil
 ### Prossimi passi
 
 **M3.4** — `form-field`, `confirm-dialog`, `responsive-dialog`. Il criterio è il più netto della fase: *la stessa chiamata rende come dialog a 1440px e come drawer a 375px, **senza `if` nella pagina***. Da portarci dentro due cose imparate qui: che le soglie si scrivono sull'**elemento** e non sulla viewport (§31), e che un componente con un popup va misurato **in tutti e due gli stati**, o il gate non sa niente di metà del suo comportamento.
+
+---
+
+## M3.4 — i moduli e i dialoghi: tre blocchi, e una soglia che non è nostra (2026-09-11)
+
+Tre item nuovi — `tassullo-form-field`, `tassullo-confirm-dialog`, `tassullo-responsive-dialog` — e il registry passa a **61**. Nessuna primitiva toccata, `registry/componenti-propri.json` resta vuoto.
+
+### Prima cosa: cosa ha detto l'MCP
+
+La scala di `CLAUDE.md` §4bis comincia sempre dalla stessa domanda, e la risposta qui è stata parziale, che è il caso più interessante.
+
+- **`form-field`** — `field` di shadcn c'è ed è installato. `@shadcn/form` esiste ancora come *nome* nel registry, ma nello stile `base-nova` è un **guscio vuoto**: `curl` sul suo JSON restituisce un item senza `files` e senza dipendenze. Non è una svista loro, è la scelta: in 4.x il `form.tsx` è stato ritirato e la strada documentata è `Controller` + `Field`, scritti a mano campo per campo (`docs/forms/react-hook-form`).
+- **`responsive-dialog`** — esiste `@shadcn/drawer-dialog`, ed è un **esempio**, non un componente installabile. Il suo sorgente (letto dagli stili `default` e `new-york`, perché in `base-nova` l'esempio non è pubblicato) è la coppia `useMediaQuery` + `if`.
+- **`confirm-dialog`** — cercando `confirm`: **nessun risultato**. `alert-dialog` è la primitiva, e sopra non c'è niente.
+
+Quindi: gradino 1 dà le primitive, che erano già in casa; gradino 2 non ha niente da ri-stilare; e ciò che manca non è un componente ma **il contorno**, esattamente come per `data-table` in M3.3. Sono blocchi, non componenti nostri — la riga in `componenti-propri.json` non serve, e il gate infatti non la chiede.
+
+### `form-field` — cinque collegamenti, e la quinta shadcn non la fa
+
+L'esempio ufficiale di shadcn è **quindici righe per campo**, di cui dodici identiche al campo precedente. Dentro quelle dodici stanno quattro cose che, dimenticate, **non danno errore**: `data-invalid` sul `Field`, `aria-invalid` sul controllo, `htmlFor`/`id` appaiati, e `<FieldError>` reso solo quando serve.
+
+E ce n'è una **quinta, che l'esempio di shadcn non fa affatto**: `aria-describedby`. Una `<FieldDescription>` non collegata è testo che sta lì accanto e che un lettore di schermo non legge quando il fuoco entra nel campo, cioè nel momento in cui serviva. Qui descrizione ed errore hanno un `id` derivato da quello del campo, e il controllo li dichiara entrambi.
+
+**L'`id` non è il `name`.** Due moduli nella stessa pagina — la scheda e il dialogo che la modifica, che è proprio lo scenario di questa sessione — avrebbero due `id="nome"`, e il secondo `htmlFor` punterebbe al primo campo: nel DOM è legale, nel browser il clic sull'etichetta mette il fuoco nel campo sbagliato, e non lo segnala nessuno. `useId()` per istanza.
+
+**I figli sono una funzione, non del JSX**, e non è estetica. Un prop `tipo="testo" | "select" | …` dovrebbe crescere di un ramo a ogni controllo nuovo, e ogni ramo sarebbe una prop in più da inoltrare: è la strada per cui un blocco finisce per reimplementare, peggio, le prop dei componenti che avvolge. La funzione tiene anche onesto un dettaglio che si sarebbe scoperto tardi: `Checkbox` e `Switch` di Base UI parlano `checked`/`onCheckedChange`, e `{...campo}` sputato dentro non funziona. Nella story `Scelte` si vede la rimappatura, in due righe.
+
+### `confirm-dialog` — l'attesa è la ragione, non l'impacchettamento
+
+L'impacchettamento da solo non avrebbe giustificato un blocco. La ragione è la **macchina a stati dell'attesa**, che serve una volta per tutte le app invece che una per pagina: `onConferma` può restituire una promessa, e finché non si risolve il dialogo resta aperto, la conferma mostra l'indicatore e si disabilita, l'annullo si disabilita, `Esc` e il clic fuori non chiudono. Se la promessa è **rifiutata** il dialogo resta aperto e riprovabile.
+
+Senza, il comportamento diffuso è: si chiude subito, la richiesta fallisce in silenzio, l'utente crede di aver cancellato.
+
+**Misurato** in Chromium sulla story `In Corso`, quattro letture dello stesso dialogo:
+
+| stato | indicatore | conferma | annullo | aperto |
+|---|---|---|---|---|
+| a riposo | no | attiva | attivo | sì |
+| durante l'attesa (400ms) | **sì** | **disabilitata** | **disabilitato** | sì |
+| `Esc` durante l'attesa | sì | disabilitata | disabilitato | **sì** |
+| a cose fatte | — | — | — | **no** |
+| dopo un **rifiuto** | no | attiva | attivo | **sì** |
+
+L'ordine dei bottoni è verificato sul calcolato e non a occhio: annulla a x=752, conferma a x=825, cioè annulla a sinistra. Il colore della conferma distruttiva è `oklch(0.5771 0.2152 27.33)` — il **fondo** `--destructive`, applicato dalla variante del componente, non `text-destructive`, che su fondo scuro dà 3.52:1 (M3.2).
+
+**La forma controllata non è un di più.** Il caso vero delle app Tassullo è la voce di un menu di riga della tabella, e lì il grilletto non può stare dentro: cliccando la voce il menu si chiude e si smonta, e con lui si smonterebbe il dialogo che stava per aprire. È il `dropdown-menu-dialog` di shadcn, ed è la story `Da Un Menu Di Riga`.
+
+### `responsive-dialog` — il criterio del piano, misurato
+
+Il criterio era il più netto della fase: *«la stessa chiamata rende come dialog a 1440px e come drawer a 375px, senza `if` nella pagina»*. **Misurato in Chromium**, sei celle, sulla story `Automatico` — che è una chiamata sola, senza rami:
+
+| cella | forma | larghezza | posizione | respiro del corpo | intestazione |
+|---|---|---|---|---|---|
+| 1440 × normale | **dialog** | 384px | centrato (266 sopra, 266 sotto) | 0 (è il `p-4` del pannello) | `start` |
+| 1440 × touch | **dialog** | 384px | centrato (197/197) | 0 | `start` |
+| 768 × normale | **dialog** | 384px | centrato | 0 | `start` |
+| **767** × normale | **drawer** | 767px | appoggiato in fondo (fondo = **0**) | **16px** | `left` |
+| 375 × normale | **drawer** | 375px | fondo = 0 | 16px | `left` |
+| 375 × touch | **drawer** | 375px | fondo = 0 | **24px** | `left` |
+
+Il salto è **esattamente** fra 768 e 767. Il respiro del corpo segue la densità (16 → 24px), che è `px-4` con `--spacing` a 0.375rem.
+
+**La soglia non è nostra, ed è la cosa migliore di questo blocco.** È `useIsMobile()`, l'hook che shadcn installa insieme a `sidebar` e che il registry ha già. Il vantaggio non è risparmiare dieci righe: è che **il dialogo cambia forma allo stesso pixel in cui il guscio toglie la colonna**. Due soglie scritte in due posti sarebbero rimaste uguali per un po' e poi si sarebbero staccate, e un'interfaccia che cambia grammatica a 40px di distanza si legge come un guasto. Per la stessa ragione **non c'è una prop `soglia`**: una soglia che ogni app può spostare è una soglia che in tre app vale tre numeri.
+
+Ero partito scrivendo un lettore di `matchMedia` con `useSyncExternalStore` — tecnicamente migliore dell'hook di shadcn, che legge in un `useEffect` e quindi torna sempre «scrivania» al primo render. L'ho buttato: il primo fotogramma qui è quello del pannello **chiuso**, non c'è niente da vedere, e il difetto morde in un caso solo — un dialogo già aperto al montaggio. Se capita, il rimedio non è una copia locale: è correggere `use-mobile.ts`, dove `sidebar` ne beneficia insieme a noi. È la regola permanente di `CLAUDE.md` applicata a un hook invece che a un token.
+
+### Perché qui la media query è giusta, e §31 non è smentita
+
+`docs/DECISIONI.md` §31 dice il contrario per il guscio, la fascia e la tabella: le soglie guardano l'**elemento**, perché sotto i 768px la colonna esce dal DOM e lo schermo che si allarga di 1px restringe l'area utile di 255. Quel ragionamento vale per ciò che sta **dentro** il guscio.
+
+Un dialogo non ci sta dentro: è reso in un portale appeso alla radice, `position: fixed` — misurato, `position` vale `fixed` in tutte e sei le celle. La colonna non gli toglie niente e il suo contenitore *è* la viewport, quindi la discontinuità che rendeva sbagliata la media query negli altri tre casi qui **non esiste**. Una container query, per di più, non avrebbe su cosa appoggiarsi: il contenitore da interrogare non è ancora montato nel momento in cui si decide.
+
+Si è valutato di leggere il **puntatore** (`(pointer: coarse)`), che è più vicino alla domanda vera — «che forma ha il dispositivo» invece di «quanto spazio ho» — ma sbaglia i due casi che contano per noi: il portatile col touch screen in cantiere, che riceverebbe un cassetto su quindici pollici, e il telefono collegato a una tastiera.
+
+### Due difetti presi misurando, e non guardando
+
+**Il primo è nostro, ed è chiuso.** `<DrawerHeader className="text-left">` — che è letteralmente ciò che scrive l'esempio di shadcn — **non funziona** con la nostra primitiva: `DrawerHeader` centra con `group-data-[swipe-axis=y]/drawer-popup:text-center`, e tailwind-merge non riconosce come coppia due classi di cui una porta una variante, quindi le tiene entrambe e vince la più specifica. Misurato: `textAlign` restava `center` in tutte e tre le celle a cassetto, mentre la documentazione del blocco diceva «a sinistra». Si sovrascrive con **la stessa variante**. È lo stesso genere di trappola di specificità di M3.1 (`in-data-[density=touch]:` che genera `:where()` e pesa zero), in un'altra forma: **una classe nuda non batte una classe con variante, e nessuno lo segnala.**
+
+**Il secondo non è nostro, ed è dichiarato.** Il fuoco, nella forma a **dialogo**, esce dal pannello per due stop prima di rientrare dalla guardia: `… → Close → ·guardia· → ‹FUORI› → ‹FUORI: grilletto› → ·guardia· → primo campo`. Prima di attribuirselo si è confrontato con le story della **primitiva**: `Primitive/Dialog → Fuoco Intrappolato` e `→ Con Form` danno **lo stesso identico giro**, stop per stop. È comportamento di Base UI, non di questo blocco, e va letto insieme al registro delle `aria-hidden-focus` di `CLAUDE.md`. La forma a **cassetto** invece intrappola davvero: otto `Tab` e il fuoco non esce mai. `Esc` chiude in tutte e due le forme.
+
+Vale la pena notare *perché* la misura è stata possibile: axe su questo non dice niente — è la stessa famiglia di D15, la tastiera del calendario, dove zero violazioni convivevano con una griglia non navigabile.
+
+### Un inciampo di strumento, per chi rifarà queste misure
+
+Il primo giro di misure dava il cassetto con `top: 902` in una viewport da 900, cioè fuori schermo. Non era un difetto: era la transizione di entrata, letta a metà. La `waitFor` che confrontava due fotogrammi consecutivi passava troppo presto, perché su una curva in uscita il movimento per fotogramma diventa piccolo molto prima che finisca. Con 1200ms di attesa il fondo del cassetto è **0** in tutte e tre le celle. È §32 un'altra volta: **qualunque misura su qualcosa che transisce si prende a pagina ferma**, e «ferma» non è «quasi ferma».
+
+Secondo inciampo, più banale: Storybook esegue le `play` anche nel canvas, quindi le story dei dialoghi arrivano **già aperte** e un `click` sul grilletto va a sbattere contro lo sfondo inerte. Lo script non clicca, aspetta — è la stessa lezione che `misura:bersagli` porta scritta in testa.
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **972 scansioni / 4 passate / 0 violazioni** (243 story, +12).
+`check:contrast` 48 coppie ✔ · `check:registry` 0 errori, 0 componenti nostri ✔ · `check:font` ✔ · `check:logo` ✔.
+`tsc -b` ✔ · `build` ✔ · `build-storybook` ✔ · `lint` **3 avvisi preesistenti** · `registry validate` **61 item** ✔ · `registry:build` rilanciato.
+`misura:bersagli`: **2241 bersagli su 243 story, 47 popup aperti, 0 piccoli in entrambe le direzioni**.
+Le misure di forma, attesa e tastiera: vedi sopra, tutte in Chromium headless contro lo Storybook costruito, **senza aggiungere Playwright al repo** (è già una devDependency dal gate).
+
+### Una nota sui tipi, perché è l'unica scorciatoia del blocco
+
+`Dialog` e `Drawer` di Base UI hanno la stessa *forma* ma due tipi **nominalmente** distinti: il `handle` del cassetto porta un marchio `__drawerBrand`, il suo `onOpenChange` riceve un `reason` con un caso in più, lo stato del popup ha campi diversi. TypeScript ha ragione a rifiutare l'unione. Ciò che il blocco espone è però il **sottoinsieme comune** — apertura, grilletto, chiusura, titolo, descrizione, classi — e lì le due API coincidono davvero. I quattro `as` stanno tutti in cima al file, uno per famiglia, con il prezzo scritto accanto: passare un `handle` o un `payload` a `<ResponsiveDialog>` non viene fermato dal compilatore e non funzionerebbe nella forma a cassetto. Non è una prop che il blocco documenta.
+
+### Dipendenze nuove
+
+`react-hook-form` ^7.87 come **dipendenza** (il blocco importa `Controller`), e `zod` ^4.6 più `@hookform/resolvers` ^5.9 come **devDependencies**: lo schema e il resolver restano dell'app, e le story servono a dimostrare che il blocco ci lavora insieme senza saperne niente.
+
+### Prossimi passi
+
+**M3.5** — gli stati: `empty-state`, `page-skeleton`, `error-state`, lo standard unico per caricamento/errore/vuoto/successo che `docs/INTERFACCE.md` §1 di Anagrafe impone e che oggi ogni pagina reimplementa. Da portarci dentro: che `empty` è una primitiva già installata e già usata da `data-table` per i suoi **due** stati vuoti distinti — quindi la prima domanda non è «come si disegna», è «cosa aggiunge un blocco a `empty`», e la risposta dev'essere misurabile come lo è stata qui.

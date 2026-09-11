@@ -1036,6 +1036,72 @@
         "@tassullo/tema"
       ],
       "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8."
+    },
+    {
+      "name": "tassullo-form-field",
+      "type": "registry:block",
+      "title": "Campo di modulo",
+      "description": "La riga di un modulo — etichetta, campo, aiuto, errore — con i cinque collegamenti fatti da se: data-invalid, aria-invalid, htmlFor/id appaiati, l'errore reso solo quando c'e, e l'aria-describedby che la guida di shadcn non fa. Compone la primitiva field, non la sostituisce.",
+      "dependencies": [
+        "react-hook-form"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/form-field.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/form-field.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/field",
+        "@tassullo/tema"
+      ],
+      "docs": "Una riga di modulo, con react-hook-form e uno schema Zod:\n\n  <FormField control={form.control} nome=\"codice\" etichetta=\"Codice\"\n             descrizione=\"Univoco in tutta l'anagrafe.\">\n    {(campo) => <Input {...campo} autoComplete=\"off\" />}\n  </FormField>\n\nNon sostituisce la primitiva `field` di shadcn: la compone. Chi vuole comporre\na mano continua a importare Field/FieldLabel/FieldError da @tassullo/field.\n\nQuello che aggiunge sono i collegamenti, cioe le cinque cose che nell'esempio\nufficiale di shadcn vanno scritte a mano su ogni campo e che, se si\ndimenticano, non danno errore: data-invalid sul Field, aria-invalid sul\ncontrollo, htmlFor e id appaiati, <FieldError> reso solo quando c'e un errore,\ne aria-describedby verso aiuto ed errore — che l'esempio di shadcn non fa\naffatto, quindi il testo d'aiuto non viene letto quando il fuoco entra nel\ncampo.\n\nL'id non e il nome del campo: due moduli nella stessa pagina avrebbero due\nid=\"nome\", e il clic sull'etichetta porterebbe il fuoco nel campo sbagliato.\nUn useId() da un prefisso unico per istanza; il `name` resta il nome del dato.\n\nI figli sono una funzione e non del JSX, perche il blocco non sa ne deve sapere\nse dentro c'e un Input, un Textarea, un Select o una Checkbox. I controlli\nacceso/spento di Base UI parlano checked/onCheckedChange, non value/onChange:\nsi scompone il campo e si rimappa.\n\norientamento: verticale (default), orizzontale, adattiva. `adattiva` e una\ncontainer query sul FieldGroup che lo contiene, non una media query.\n\nVuole react-hook-form (>= 7). Lo schema e il resolver restano dell'app: zod,\nvalibot o qualunque Standard Schema."
+    },
+    {
+      "name": "tassullo-confirm-dialog",
+      "type": "registry:block",
+      "title": "Dialogo di conferma",
+      "description": "«Sei sicuro?» in una forma sola: titolo, spiegazione, due bottoni — e l'attesa, che e la ragione vera per cui esiste. Se onConferma restituisce una promessa il dialogo resta aperto, mostra l'indicatore e si chiude solo a cose fatte.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/confirm-dialog.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/confirm-dialog.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/alert-dialog",
+        "@tassullo/spinner",
+        "@tassullo/tema"
+      ],
+      "docs": "Una conferma non e una composizione, e una domanda:\n\n  <ConfirmDialog titolo=\"Eliminare il prodotto?\"\n                 descrizione=\"La scheda e i suoi allegati non si possono recuperare.\"\n                 conferma=\"Elimina\" tono=\"distruttivo\"\n                 onConferma={() => api.elimina(id)}>\n    <Button variant=\"destructive\"><Trash2Icon />Elimina</Button>\n  </ConfirmDialog>\n\nLa primitiva alert-dialog resta intatta: questo blocco la compone. Scritta a\nmano la stessa conferma e quattordici righe di JSX in cui cambiano due\nstringhe, e con la ripetizione arrivano tre difetti.\n\nIl colore: l'azione distruttiva e variant=\"destructive\", non\nclassName=\"text-destructive\" — --destructive e il colore dei fondi, e come\ntesto su fondo scuro da 3.52:1.\n\nL'ordine: annulla a sinistra, conferma a destra; in colonna, conferma sopra.\n\nL'attesa: onConferma puo restituire una promessa. Finche non si risolve il\ndialogo resta aperto, la conferma mostra l'indicatore e si disabilita, Esc e il\nclic fuori non chiudono. Se la promessa e rifiutata il dialogo resta aperto e\nriprovabile — l'errore lo racconta l'app.\n\nForma controllata (aperto / onApertoChange, senza figli) per il caso piu\nfrequente: la voce di un menu di riga, dove il grilletto non puo stare dentro\nperche cliccandolo il menu si chiude e si smonta."
+    },
+    {
+      "name": "tassullo-responsive-dialog",
+      "type": "registry:block",
+      "title": "Dialogo adattivo",
+      "description": "Una chiamata sola: dialogo sulla scrivania, cassetto dal basso sul telefono. Il pattern che shadcn documenta in drawer-dialog, impacchettato una volta qui invece di riassemblato a mano — senza if nella pagina e senza il contenuto scritto due volte.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/responsive-dialog.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/responsive-dialog.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/dialog",
+        "@tassullo/drawer",
+        "@tassullo/tema",
+        "@tassullo/use-mobile"
+      ],
+      "docs": "Una chiamata sola, e nessuna if nella pagina:\n\n  <ResponsiveDialog>\n    <ResponsiveDialogTrigger render={<Button>Modifica</Button>} />\n    <ResponsiveDialogContent>\n      <ResponsiveDialogHeader>\n        <ResponsiveDialogTitle>Modifica prodotto</ResponsiveDialogTitle>\n        <ResponsiveDialogDescription>...</ResponsiveDialogDescription>\n      </ResponsiveDialogHeader>\n      <ResponsiveDialogBody><ModuloProdotto /></ResponsiveDialogBody>\n      <ResponsiveDialogFooter>\n        <ResponsiveDialogClose render={<Button variant=\"outline\">Annulla</Button>} />\n        <Button type=\"submit\">Salva</Button>\n      </ResponsiveDialogFooter>\n    </ResponsiveDialogContent>\n  </ResponsiveDialog>\n\nL'esempio drawer-dialog di shadcn e corretto e non e riusabile: duplica il\ncontenuto e vive nella pagina, quindi la soglia finisce scritta in trenta\npunti. Qui la scelta la fa un contesto e i figli si scrivono una volta sola.\n\nLa soglia non e scritta nel blocco: e useIsMobile(), l'hook che shadcn installa\ninsieme a sidebar, a 768px. Cosi il dialogo cambia forma allo stesso pixel in\ncui il guscio toglie la colonna, e non c'e una prop `soglia` che ogni app possa\nspostare. E una media query sulla viewport — che qui e corretto, a differenza\ndel guscio e della tabella: un dialogo e reso in un portale appeso alla radice,\nposition fixed, quindi il suo contenitore e la viewport e la discontinuita\ndella colonna non lo tocca.\n\nforma=\"dialog\" | \"drawer\" forza una delle due, per le pagine che ne vogliono\nsempre una e per poter mettere in scena entrambe senza cambiare viewport.\n\nResponsiveDialogBody esiste perche il respiro orizzontale non e lo stesso nelle\ndue forme: nel dialogo arriva dal p-4 del pannello, nel cassetto non c'e.\n\nPrezzo dichiarato: attraversare la soglia col dialogo aperto smonta un albero e\nne monta un altro, quindi lo stato di un campo non controllato si perde. Con\nreact-hook-form lo stato sta in useForm() e non nel DOM, e il problema non si\npone."
     }
   ]
 }
