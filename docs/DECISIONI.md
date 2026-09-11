@@ -1394,9 +1394,15 @@ Larghezze e altezze, quattro celle:
 
 ---
 
-## 34. Il resize delle colonne: la porta si tiene aperta, non si attraversa (D17, aperta in M3.3, 2026-09-11)
+## 34. Il resize delle colonne: no per ora, e il grilletto è scritto (D17, aperta e **chiusa** in M3.3, 2026-09-11)
 
-**Lo stato**: **aperta**, deliberatamente. Non si costruisce finché una tabella vera non lo chiede. Aperta da Francesco il 2026-09-11: «non abbiamo idea di che tabelle svilupperemo in futuro, potrebbe diventare necessario il resize **limitatamente a desktop**».
+**La decisione**: **non si fa**, chiusa da Francesco il 2026-09-11 in coda a M3.3.
+
+Non è un rinvio indefinito, ed è la differenza che conta: **è scritto cosa la riapre** — la prima tabella in cui dichiarare le larghezze non basta, cioè dati di lunghezza imprevedibile a priori. Fino ad allora la risposta del design system è `meta.larghezza` più `bloccaPrimaColonna`, tutte e due già in casa e a costo zero.
+
+**Il ragionamento che l'ha chiusa**: il resize risolve **un** problema — una colonna troppo stretta per il suo contenuto — e da M3.3 quel problema si risolve già dichiarando la larghezza. Contro, la maniglia da trascinare non esiste in shadcn e sarebbe il **primo componente nostro in assoluto**, in un `componenti-propri.json` che oggi è vuoto ed è la condizione da difendere. Costruire il primo pezzo proprio per un problema già risolto è il peggior momento possibile per farlo.
+
+Aperta, poche ore prima, da Francesco stesso: «non abbiamo idea di che tabelle svilupperemo in futuro, potrebbe diventare necessario il resize **limitatamente a desktop**». Il resto di questa sezione è l'analisi fatta allora, e resta scritta **apposta**: chi riaprirà D17 non ricomincia da zero.
 
 ### Chi ce l'ha
 
@@ -1427,4 +1433,6 @@ Se e quando si farà, la soglia **non** è una media query sulla viewport: è un
 
 ### Perché è scritta qui e non lasciata in chat
 
-Perché è esattamente ciò per cui `PIANO.md` §4 tiene le decisioni aperte: *«promemoria scritti perché non riemergano come sorprese fra tre mesi»*. La colonna che conta è **quando**, e qui è: *quando una tabella lo chiederà davvero*.
+Perché è esattamente ciò per cui `PIANO.md` §4 tiene le decisioni: *«promemoria scritti perché non riemergano come sorprese fra tre mesi»*. Una decisione chiusa senza motivazione scritta si riapre da sola, e una decisione chiusa **senza il proprio grilletto** si riapre nel momento sbagliato — o non si riapre affatto quando servirebbe.
+
+**Il grilletto, per esteso**: una tabella i cui dati non hanno una lunghezza prevedibile, dove quindi nessuna `meta.larghezza` è quella giusta per tutte le righe. Se e quando capita, si rilegge questa sezione — i quattro costi sono già misurati — e si decide di nuovo, non da capo.

@@ -3198,3 +3198,38 @@ Il difetto vero di «scorre e basta» si vede solo provandolo a 320px: con due t
 `misura:bersagli`: **2203 bersagli su 231 story, 0 piccoli in entrambe le direzioni**.
 axe-core a mano in Chromium, **quattro celle** 375/1440 × normale/touch: nessuna violazione oltre agli artefatti dell'imbracatura.
 Misure di scorrimento e di blocco: vedi sopra, tutte prese in Chromium headless e non nel pannello.
+
+---
+
+## D17 chiusa — il resize delle colonne non entra, ma il grilletto è scritto (2026-09-11)
+
+Aperta e chiusa nella stessa giornata, e va bene così: il giro serviva a sapere cosa costava.
+
+**La decisione di Francesco: no per ora.**
+
+**Il ragionamento.** Il resize risolve **un** problema — una colonna troppo stretta per il suo contenuto — e da M3.3 quel problema si risolve già dichiarando `meta.larghezza`, a costo zero. Contro, la maniglia da trascinare non esiste in shadcn (verificato su `table.tsx` e sul suo originale: zero occorrenze) e sarebbe il **primo componente nostro in assoluto**, in un `registry/componenti-propri.json` che oggi è vuoto ed è la condizione che il progetto difende. Scrivere il primo pezzo proprio per un problema già risolto è il peggior momento possibile per cominciare.
+
+**Ciò che la distingue da un rinvio: è scritto cosa la riapre.** Una tabella i cui dati non hanno una lunghezza prevedibile, dove quindi nessuna larghezza dichiarata è quella giusta per tutte le righe. Se capita, si rilegge `docs/DECISIONI.md` §34 — i quattro costi sono già misurati, non da riscoprire — e si decide di nuovo, non da capo.
+
+**Nota di conduzione, su di me.** La prima volta che ho messo questa decisione a Francesco l'ho fatto con una domanda che lui ha respinto così: «Si fa fatica a capire cosa scrivi». Era vero — quattro costi tecnici impacchettati in un paragrafo, con dentro `columnSizingFeature`, «gradino 4», «regola 3 anche negli style inline». Rifatta in cinque righe di italiano, la decisione è arrivata al primo colpo. **Una decisione che l'interlocutore non riesce a leggere non è una decisione che gli è stata posta**, ed è un difetto mio di scrittura, non suo di lettura. Vale anche per questi documenti.
+
+---
+
+## M3.3 chiusa — riepilogo del task doppio
+
+| | |
+|---|---|
+| **Sessioni** | 2, più 2 code di collaudo |
+| **Item nuovi** | `tassullo-data-table` (blocco), `toni` (helper) — **58 item** |
+| **Dipendenza nuova** | `@tanstack/react-table` 9.2.4 |
+| **Primitive toccate** | `table.tsx`, una stringa di classi (l'intestazione prende terra). Forma identica all'originale |
+| **Componenti nostri** | **zero** — `componenti-propri.json` resta vuoto |
+| **Gate** | 924 scansioni / 4 passate / **0 violazioni**, 231 story |
+| **Decisioni** | **D17 chiusa** (no al resize, col grilletto scritto) |
+| **Aperto e passato oltre** | **D10**, se 375×touch sia un bersaglio: verdetto in **M4.2**, su una pagina lista vera |
+
+I criteri del piano — «tabella di prova su ~500 righe finte, ordinabile e filtrabile da tastiera; degrado a 375px verificato» — sono stati **provati e non dichiarati**: 500 righe generate con seme fisso, tastiera cronometrata in Chromium (1 Tab alla ricerca, 4 all'intestazione, Invio ×3 e l'ordine di partenza torna), degrado misurato a 320px di riquadro.
+
+### Prossimi passi
+
+**M3.4** — `form-field`, `confirm-dialog`, `responsive-dialog`. Il criterio è il più netto della fase: *la stessa chiamata rende come dialog a 1440px e come drawer a 375px, **senza `if` nella pagina***. Da portarci dentro due cose imparate qui: che le soglie si scrivono sull'**elemento** e non sulla viewport (§31), e che un componente con un popup va misurato **in tutti e due gli stati**, o il gate non sa niente di metà del suo comportamento.
