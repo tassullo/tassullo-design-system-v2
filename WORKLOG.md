@@ -3394,3 +3394,43 @@ Aperta da Francesco a `confirm-dialog` appena scritto: «mettiamo un alert o son
 **Metà della regola era già scritta e non me ne ero ricordato**: la story `Primitive/Sonner → Con Azione`, dalla FASE 2, dice «l'azione dentro un toast è **sempre ridondante**: il toast sparisce, e chi non fa in tempo dev'essere in grado di fare la stessa cosa dalla pagina». È un vincolo che vale a prescindere dall'esito di D18 — un annullo che è l'**unica** via di rientro non è accettabile, perché sette secondi non sono una garanzia.
 
 `confirm-dialog` resta come consegnato in M3.4: nessun toast dentro, e l'errore che l'app racconta dove sa cosa dire.
+
+---
+
+## Coda di M3.4 (2) — il respiro fra i campi scende di un gradino (2026-09-11)
+
+Rilievo di Francesco, sollevato due volte: «c'è tanto spazio fra titolo campo e campo digitabile e fra un campo e il successivo, è normale?».
+
+**Misurato prima di rispondere**, e la prima risposta è stata: sì, è normale nel senso stretto che era **il default di shadcn intatto** — `field.tsx` non aveva ricevuto nessun ri-stile.
+
+| | prima | shadcn di serie |
+|---|---|---|
+| etichetta → campo (`Field`, `gap-2`) | 8px | 8px |
+| campo → campo (`FieldGroup`, `gap-5`) | 20px | 20px |
+
+**Una mia spiegazione sbagliata, e vale la pena scriverla.** Avevo attribuito la percezione allo zoom dello screenshot; Francesco ha risposto che il browser era già al 100%, e aveva ragione. Lo screenshot arriva a 2× perché lo schermo è Retina, non perché la pagina sia ingrandita — sono due cose diverse e le avevo confuse. La lezione di conduzione è la stessa di M3.3: **una misura mia non vince su un'osservazione sua**, perché le due non parlavano della stessa cosa. Il numero era giusto (8 e 20px, fissi) e la domanda era di disegno, non di misura.
+
+### Cosa è cambiato, e perché quel gradino e non un altro
+
+`FieldGroup`: `gap-5` → **`gap-4`** (20 → 16px), e i gruppi annidati `gap-4` → `gap-3` per non perdere la distinzione fra livello esterno e interno. `Field` resta `gap-2`: 8px dentro il campo erano già stretti.
+
+Il numero da guardare non è 16, è il **rapporto**: 8 dentro il campo e 16 fra i campi tengono il 2:1 che fa leggere il modulo come **gruppi** invece che come un elenco uniforme di righe. Provato anche 6/12, ed è troppo: a quei valori l'etichetta del campo successivo comincia a sembrare la didascalia del campo precedente. Il rapporto sopravvive, la densità informativa sale.
+
+Misurato dopo, nelle due densità:
+
+| | normale | touch |
+|---|---|---|
+| etichetta → campo | 8px | 12px |
+| campo → campo | **16px** | **24px** |
+| altezza del gruppo (4 campi) | 351 → **339px** | 488 → **470px** |
+
+Dodici pixel su quattro campi non sono niente; su una scheda prodotto di Anagrafe da quindici campi sono **una sessantina**, cioè una schermata che si scorre in meno.
+
+### È un ri-stile, ed è il gradino 2
+
+Solo stringhe di classi, forma identica all'originale: `check:registry` lo conta come **«field.tsx — forma identica all'originale, 4 stringhe di classi ri-stilate»**, che è esattamente lo stato in cui un componente resta aggiornabile. Non serviva chiedere niente a nessuno secondo §4bis, ma **cambia ogni modulo di tutte e tre le app**, quindi è annotato qui invece che passato in silenzio: chi aprirà una scheda e la troverà più fitta di `ui.shadcn.com` deve poter sapere che è voluto e quanto vale.
+
+### Verifiche
+
+`npm run check` verde: **972 scansioni / 0 violazioni**, 243 story. `tsc -b` ✔ · `build-storybook` ✔.
+Spaziature rimisurate in Chromium, densità normale e touch: vedi tabella sopra.
