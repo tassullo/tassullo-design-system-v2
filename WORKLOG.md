@@ -3377,3 +3377,20 @@ La riga sta in tre posti, perché sono tre lettori diversi: il JSDoc della prop 
 
 `npm run check` verde: **972 scansioni / 0 violazioni**, 243 story. `tsc -b` ✔ · `lint` 3 avvisi preesistenti · `registry:build` rilanciato.
 Larghezze rimisurate in Chromium a 1440px: `Predefinito` 448px, `Adattiva` 512/288, `Scelte` 448.
+
+---
+
+## D18 aperta — conferma o annullo: si decide ora, si costruisce in M3.5 (2026-09-11)
+
+Aperta da Francesco a `confirm-dialog` appena scritto: «mettiamo un alert o sonner con es. la possibilità per l'elimina di annullarlo? Vale la pena definirlo ora».
+
+**Sì vale la pena ora; no, non dentro `confirm-dialog` e non in M3.4.** Le quattro ragioni, ciascuna verificabile, stanno in `docs/DECISIONI.md` §35. In breve:
+
+1. **Non sono complementari, sono alternative.** Rispondono alla stessa domanda — «e se non volevo?» — e insieme fanno due interruzioni per un'azione sola. Peggio: se tanto si può annullare, il dialogo si clicca via senza leggerlo, cioè smette di proteggere proprio nel momento per cui esiste.
+2. **Quale dei due lo decide il dato, e Anagrafe la regola ce l'ha già scritta**: `PIANO.md` di Anagrafe dice «soft delete solo dove indicato, tutto ciò che è dichiarato verso l'esterno non si cancella mai, **si supera**». Quindi la gran parte delle azioni che *sembrano* distruzioni sono passaggi di stato reversibili — il caso da **annullo**, dove un dialogo è attrito che non compra niente — e restano poche cancellazioni vere, dove il dialogo serve.
+3. **Un vincolo tecnico che il disegno non aggira**: un «Annulla» nel toast è una bugia se l'API ha già cancellato e non sa ricreare. O l'azione è **differita** (il toast è la finestra) o l'API espone un **ripristino**. È la domanda che resta a Francesco, ed è l'ingresso di M3.5.
+4. **Il posto esiste già**: M3.5 è lo standard unico per caricamento, errore, vuoto e **successo**, e l'annullo è una forma del successo. `INTERFACCE.md` §1.1 di Anagrafe ha già scritto la regola d'ingaggio — «Toast: si adotta UN solo pattern in questo file prima di usarlo, non uno diverso per pagina» — e un toast infilato dentro `confirm-dialog` sarebbe esattamente quello, per di più diffuso in tre applicazioni in un colpo solo.
+
+**Metà della regola era già scritta e non me ne ero ricordato**: la story `Primitive/Sonner → Con Azione`, dalla FASE 2, dice «l'azione dentro un toast è **sempre ridondante**: il toast sparisce, e chi non fa in tempo dev'essere in grado di fare la stessa cosa dalla pagina». È un vincolo che vale a prescindere dall'esito di D18 — un annullo che è l'**unica** via di rientro non è accettabile, perché sette secondi non sono una garanzia.
+
+`confirm-dialog` resta come consegnato in M3.4: nessun toast dentro, e l'errore che l'app racconta dove sa cosa dire.

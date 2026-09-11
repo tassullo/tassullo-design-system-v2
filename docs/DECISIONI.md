@@ -1436,3 +1436,50 @@ Se e quando si farà, la soglia **non** è una media query sulla viewport: è un
 Perché è esattamente ciò per cui `PIANO.md` §4 tiene le decisioni: *«promemoria scritti perché non riemergano come sorprese fra tre mesi»*. Una decisione chiusa senza motivazione scritta si riapre da sola, e una decisione chiusa **senza il proprio grilletto** si riapre nel momento sbagliato — o non si riapre affatto quando servirebbe.
 
 **Il grilletto, per esteso**: una tabella i cui dati non hanno una lunghezza prevedibile, dove quindi nessuna `meta.larghezza` è quella giusta per tutte le righe. Se e quando capita, si rilegge questa sezione — i quattro costi sono già misurati — e si decide di nuovo, non da capo.
+
+---
+
+## 35. Conferma o annullo: due risposte alla stessa domanda (D18, **aperta** in M3.4, 2026-09-11)
+
+**Aperta da Francesco**, a `confirm-dialog` appena scritto: «mettiamo un alert o sonner con es. la possibilità per l'elimina di annullarlo? Vale la pena definirlo ora».
+
+**Sì, vale la pena definirlo ora. No, non va dentro `confirm-dialog`, e non si costruisce in M3.4.** Qui sta il perché, perché la decisione è di Francesco e va posta con i fatti già raccolti.
+
+### 1. Non sono complementari: sono alternative
+
+Confermare prima e poter annullare dopo rispondono alla **stessa** domanda — «e se non volevo?» — e messe insieme sono peggio di ciascuna delle due. Chi ha già confermato in un dialogo non legge il toast che compare un istante dopo; chi ha il toast non voleva il dialogo. Il risultato sono **due interruzioni per un'azione sola**, e soprattutto una conferma che si svuota: se tanto si può annullare, il dialogo si clicca via senza leggerlo, ed è esattamente il momento in cui smette di proteggere qualcuno.
+
+La scelta quindi non è «aggiungiamo anche l'annullo», è **quale dei due, per quale tipo di azione**.
+
+### 2. Quale dei due lo decide il dato — e in Anagrafe il dato ha già una regola
+
+`docs/PIANO.md` di Anagrafe, §sullo schema: *«soft delete solo dove indicato, **tutto ciò che è dichiarato verso l'esterno non si cancella mai, si supera**»*.
+
+È dirimente. La gran parte delle azioni che in interfaccia sembrano distruzioni — archiviare una scheda, superare una revisione, ritirare una pubblicazione — in Anagrafe **non sono cancellazioni**: sono passaggi di stato, reversibili. Sono il caso da **annullo**, e per quelle un dialogo di conferma è un attrito che non compra niente. Restano poche cancellazioni vere — una bozza mai pubblicata, un allegato caricato per sbaglio — ed è lì che il dialogo serve.
+
+### 3. C'è un vincolo tecnico che il disegno non aggira
+
+Un «Annulla» dentro un toast è **una bugia** se l'API ha già cancellato e non sa ricreare. Le strade sono due, e nessuna delle due è una scelta del design system:
+
+- **differita**: l'azione non parte, il toast *è* la finestra, e si committa allo scadere. Costa un annullo che funziona sempre e un'attesa di qualche secondo prima che la cosa sia davvero fatta;
+- **ripristino**: l'azione parte subito e l'API espone il rientro (soft delete, o passaggio di stato inverso). Costa un endpoint.
+
+**È la domanda per Francesco**, e nessuno la può rispondere al posto suo: per le cose che in Anagrafe si «eliminano» davvero, l'API farà un soft delete ripristinabile, o l'annullo va costruito come azione differita lato client?
+
+### 4. Il posto dove scriverlo esiste già, ed è M3.5
+
+`PIANO.md` §M3.5: *«`empty-state`, `page-skeleton`, `error-state`: sono lo standard vincolante unico per caricamento, errore, vuoto e **successo** che `docs/INTERFACCE.md` §1 di Anagrafe impone»*. L'annullo è una forma del **successo**, non una forma della conferma.
+
+E `INTERFACCE.md` §1.1 di Anagrafe ha già scritto la regola di ingaggio, prima ancora che il problema si ponesse: *«Toast: non ancora introdotti … Se una fase futura introduce un flusso che richiede un messaggio sopravvissuto alla navigazione, **si adotta UN solo pattern in questo file prima di usarlo**, non uno diverso per pagina.»*
+
+Infilare un toast dentro `confirm-dialog` sarebbe letteralmente il «uno diverso per pagina» che quel paragrafo vieta — e lo sarebbe nel posto peggiore, perché un blocco lo diffonde in tre applicazioni in un colpo solo.
+
+### Cosa c'è già, e non va rifatto
+
+`sonner` è installato, e la sua story `ConAzione` porta scritta **metà della regola**, dalla FASE 2: *«L'azione dentro un toast è sempre ridondante: il toast sparisce, e chi non fa in tempo dev'essere in grado di fare la stessa cosa dalla pagina. Annulla qui è una comodità, non l'unica via.»* Quella riga vincola già il disegno: un annullo che è **l'unico** modo di rientrare non è accettabile, perché il toast dura sette secondi e chi si distrae ha perso il dato.
+
+### Verdetto: M3.5
+
+Con, in ingresso, la risposta alla domanda del punto 3. Se la risposta è «soft delete ripristinabile», l'item è sottile e sta in una funzione sopra `sonner`; se è «differita lato client», è una piccola macchina a stati con un timer e va guardata con la stessa cura dell'attesa di `confirm-dialog`.
+
+**Ciò che questa sezione impegna a non fare**, qualunque sia la risposta: non si mettono **tutti e due** sulla stessa azione.
