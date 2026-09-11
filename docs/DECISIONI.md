@@ -1391,3 +1391,40 @@ Larghezze e altezze, quattro celle:
 | 375 touch | 341 | **918** | 61 | no — scorre **dentro** il riquadro |
 
 **A 375px la pagina non sborda, ma la tabella nemmeno degrada**: scorre in orizzontale dentro il proprio riquadro, che è ciò che il `overflow-x-auto` della primitiva `table` fa da sé. Funziona e non rompe niente, ma «più della metà delle colonne è fuori dallo schermo senza un segno che lo dica» non è un degrado progettato. **È il lavoro della seconda sessione di M3.3**, insieme al conto dei bersagli in touch.
+
+---
+
+## 34. Il resize delle colonne: la porta si tiene aperta, non si attraversa (D17, aperta in M3.3, 2026-09-11)
+
+**Lo stato**: **aperta**, deliberatamente. Non si costruisce finché una tabella vera non lo chiede. Aperta da Francesco il 2026-09-11: «non abbiamo idea di che tabelle svilupperemo in futuro, potrebbe diventare necessario il resize **limitatamente a desktop**».
+
+### Chi ce l'ha
+
+**TanStack Table v9: sì, nativamente**, con due caratteristiche distinte che vanno accese insieme — ed è utile sapere che sono due, perché i nomi si somigliano e fanno cose diverse:
+
+- **`columnSizingFeature`** tiene le larghezze **acquisite**: `columnSizing: Record<string, number>`, più `size` / `minSize` / `maxSize` per colonna, `setColumnSizing`, `resetColumnSizing`;
+- **`columnResizingFeature`** tiene il **trascinamento**, che è transitorio: `header.getResizeHandler()` (installa e ripulisce da sé i listener di drag), `columnResizeMode: 'onChange' | 'onEnd'`, `column.getCanResize()`, `getIsResizing()`, `enableResizing` per colonna.
+
+**shadcn: no, e non parzialmente.** Verificato su `registry/tassullo/ui/table.tsx` e sull'originale in `registry/.upstream/table.tsx`: **zero occorrenze**. È sei etichette HTML vestite, e la guida `data-table` non tocca l'argomento. La **maniglia** — il nodo nell'angolo del `<th>`, il cursore, il filo verticale durante il trascinamento — non esiste da nessuna parte: è **gradino 4** della scala 4bis, un componente nostro, da proporre e da tracciare in `registry/componenti-propri.json`. Sarebbe **il primo**, e oggi quel file è vuoto: la condizione da difendere.
+
+### La cosa che contava verificare subito: M3.3 non preclude niente
+
+Il rischio vero di una porta lasciata aperta è costruirci davanti. Non è successo, e anzi:
+
+- **`table-fixed` è un prerequisito del resize, non un ostacolo.** A larghezza automatica il contenuto ha voce in capitolo e una larghezza imposta dall'utente verrebbe contraddetta dalla riga più lunga; a larghezza fissa comandano le intestazioni, che è esattamente ciò su cui il resize scrive. La modifica fatta per fermare il salto delle colonne è la stessa che serve per poterle trascinare.
+- **`meta.larghezza` convive**: la utility dichiarata resta il valore **di partenza**, e una larghezza acquisita la scavalca con uno stile inline. Il solo lavoro il giorno che si farà è seminare `columnSizing` dal valore reso, perché `larghezza` è una stringa di classi e `columnSizing` vuole un numero — o si aggiunge a `MetaColonna` un `size` numerico facoltativo accanto.
+
+### I quattro costi, da avere in mano prima di riaprirla
+
+1. **I pixel.** Il resize produce numeri, che finiscono in `style={{ width }}`. La **regola 3** del `CLAUDE.md` li vieta, e lo dice esplicitamente anche per gli `style` inline. Non è un cavillo: è la regola che tiene le misure agganciate a `--spacing`. Attraversare questa porta vuol dire scriverne un'eccezione motivata e circoscritta — «larghezze acquisite dall'utente», non «larghezze» in generale — e insegnarla al gate, o il gate smette di servire.
+2. **Le larghezze acquisite non seguono la densità.** Sono pixel: commutando su touch una colonna trascinata a mano resta com'era mentre tutto il resto cresce del 50%. In un tema la cui densità è una delle **due sole leve**, è una crepa da progettare, non da scoprire.
+3. **Se non si conserva è peggio di non averlo.** Un ridimensionamento che sparisce a ogni ricarica irrita più di una colonna stretta. Implica esporre `columnSizing` perché l'app lo salvi — cioè un'API in più sul blocco, e una decisione su dove (`localStorage`? profilo utente?).
+4. **La tastiera non arriva gratis, e axe non lo direbbe.** È la lezione di **D15**: una griglia completamente non navigabile da tastiera dà **zero violazioni**. Una maniglia di trascinamento è un affordance da puntatore; renderla azionabile da tastiera è lavoro a parte, e non farlo è una scelta da mettere a verbale, non da omettere.
+
+### «Limitatamente a desktop», e come si scrive
+
+Se e quando si farà, la soglia **non** è una media query sulla viewport: è una **container query sulla tabella**, per la ragione già misurata in §31 — sotto i 768px la colonna del guscio esce dal DOM, quindi lo schermo si allarga di 1px e l'area utile si restringe di 255 (383 in touch). Ciò che decide se c'è spazio per trascinare è la larghezza della **tabella**, non quella dello schermo.
+
+### Perché è scritta qui e non lasciata in chat
+
+Perché è esattamente ciò per cui `PIANO.md` §4 tiene le decisioni aperte: *«promemoria scritti perché non riemergano come sorprese fra tre mesi»*. La colonna che conta è **quando**, e qui è: *quando una tabella lo chiederà davvero*.
