@@ -95,7 +95,18 @@ export type FormFieldProps<
   nome: N
   /** L'etichetta. Sempre visibile: un campo senza etichetta è un campo indovinato. */
   etichetta: ReactNode
-  /** L'aiuto sotto il campo. Collegato con `aria-describedby`, non solo appoggiato lì. */
+  /**
+   * L'aiuto sotto il campo — collegato con `aria-describedby`, non solo
+   * appoggiato lì.
+   *
+   * **Quasi sempre non si usa.** Una riga d'aiuto sotto ogni campo raddoppia
+   * l'altezza del modulo e lo fa leggere come documentazione invece che come
+   * una cosa da compilare; chi lo usa tutti i giorni la salta dopo la seconda
+   * volta. Un campo che ha bisogno di essere spiegato ha quasi sempre
+   * **l'etichetta sbagliata**, e l'etichetta costa zero pixel. Resta per il
+   * vincolo che il campo non mostra da sé: un limite di caratteri, un formato
+   * obbligato, una conseguenza non reversibile.
+   */
   descrizione?: ReactNode
   /**
    * Come stanno etichetta e controllo. `verticale` è il modulo normale;
@@ -125,7 +136,7 @@ const ORIENTAMENTO = {
  * Una riga di modulo.
  *
  * ```tsx
- * <FormField control={form.control} nome="codice" etichetta="Codice" descrizione="Univoco.">
+ * <FormField control={form.control} nome="codice" etichetta="Codice">
  *   {(campo) => <Input {...campo} autoComplete="off" />}
  * </FormField>
  * ```

@@ -29,7 +29,7 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * collegamenti fatti da sé.
  *
  * ```tsx
- * <FormField control={form.control} nome="codice" etichetta="Codice" descrizione="Univoco.">
+ * <FormField control={form.control} nome="codice" etichetta="Codice">
  *   {(campo) => <Input {...campo} autoComplete="off" />}
  * </FormField>
  * ```
@@ -61,6 +61,20 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  *    errore hanno un `id` derivato da quello del campo, e il controllo li
  *    dichiara entrambi.
  *
+ * ## La descrizione è l&apos;eccezione, non la regola
+ *
+ * `descrizione` c&apos;è, e quasi sempre **non si usa**. Una riga d&apos;aiuto
+ * sotto ogni campo raddoppia l&apos;altezza del modulo e lo fa leggere come
+ * documentazione invece che come una cosa da compilare: chi lo usa tutti i
+ * giorni la salta dopo la seconda volta, e allora tanto vale che non ci sia. Un
+ * campo che ha bisogno di essere spiegato ha quasi sempre **l&apos;etichetta
+ * sbagliata**, e l&apos;etichetta costa zero pixel.
+ *
+ * Resta per il caso in cui c&apos;è un **vincolo che il campo non mostra da
+ * sé** — il limite di 2048 caratteri che impone BC, un formato obbligato, una
+ * conseguenza non reversibile. In questa vetrina ne è rimasta **una**, sulle
+ * note tecniche, ed è quella.
+ *
  * ## L&apos;`id` non è il nome del campo
  *
  * Due moduli nella stessa pagina — la scheda e il dialogo che la modifica —
@@ -86,7 +100,17 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
 const meta = {
   title: 'Blocchi/Campo di modulo',
   component: FormField,
-  parameters: { layout: 'centered' },
+  /*
+   * `padded`, non `centered`, ed è una correzione presa **misurando**.
+   * Con `layout: 'centered'` Storybook rende `#storybook-root` un **flex
+   * item** (`flex: 0 1 auto`), quindi la sua larghezza la decide il
+   * contenuto: un `w-full` lì dentro è circolare, `max-w-md` fa da tetto e
+   * non da larghezza, e il modulo collassa sulla larghezza intrinseca dei
+   * campi. Misurato a 1440px: root 193px, modulo **129px**. Il blocco era
+   * sano, la vetrina no — e i dialoghi non lo mostravano perché stanno in
+   * un portale, fuori da quella catena.
+   */
+  parameters: { layout: 'padded' },
 } satisfies Meta<typeof FormField>
 
 export default meta
@@ -122,7 +146,7 @@ function ModuloScheda({ precompila = false }: { precompila?: boolean }) {
 
   return (
     <form
-      className="w-full max-w-md"
+      className="max-w-md"
       onSubmit={form.handleSubmit(() => {})}
       noValidate
     >
@@ -133,7 +157,6 @@ function ModuloScheda({ precompila = false }: { precompila?: boolean }) {
             control={form.control}
             nome="codice"
             etichetta="Codice"
-            descrizione="Univoco in tutta l'anagrafe. Non si cambia dopo la pubblicazione."
           >
             {(campo) => <Input {...campo} autoComplete="off" />}
           </FormField>
@@ -152,7 +175,6 @@ function ModuloScheda({ precompila = false }: { precompila?: boolean }) {
             control={form.control}
             nome="famiglia"
             etichetta="Famiglia"
-            descrizione="Determina quali caratteristiche tecniche sono obbligatorie."
           >
             {({ onChange, value, ...campo }) => (
               <Select value={value} onValueChange={onChange}>
@@ -241,13 +263,12 @@ export const ConErrori: Story = {
       void form.trigger()
     }, [form])
     return (
-      <form className="w-full max-w-md" noValidate>
+      <form className="max-w-md" noValidate>
         <FieldGroup>
           <FormField
             control={form.control}
             nome="codice"
             etichetta="Codice"
-            descrizione="Univoco in tutta l'anagrafe."
           >
             {(campo) => <Input {...campo} autoComplete="off" />}
           </FormField>
@@ -279,13 +300,12 @@ export const Scelte: Story = {
       defaultValues: { obsoleto: false, pubblicato: true },
     })
     return (
-      <form className="w-full max-w-md" noValidate>
+      <form className="max-w-md" noValidate>
         <FieldGroup>
           <FormField
             control={form.control}
             nome="obsoleto"
             etichetta="Prodotto obsoleto"
-            descrizione="Resta consultabile, ma non si può usare in una nuova voce di capitolato."
             orientamento="orizzontale"
             etichettaInCoda
           >
@@ -301,7 +321,6 @@ export const Scelte: Story = {
             control={form.control}
             nome="pubblicato"
             etichetta="Visibile sul sito"
-            descrizione="La scheda tecnica compare nel catalogo pubblico."
             orientamento="orizzontale"
             etichettaInCoda
           >
@@ -361,7 +380,7 @@ export const Adattiva: Story = {
           <p className="text-xs text-muted-foreground">
             Gruppo largo (32rem) — etichetta accanto al campo.
           </p>
-          <div className="w-full max-w-lg rounded-lg border p-4">{campi}</div>
+          <div className="max-w-lg rounded-lg border p-4">{campi}</div>
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-xs text-muted-foreground">

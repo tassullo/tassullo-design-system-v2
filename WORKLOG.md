@@ -3340,3 +3340,40 @@ Le misure di forma, attesa e tastiera: vedi sopra, tutte in Chromium headless co
 ### Prossimi passi
 
 **M3.5** — gli stati: `empty-state`, `page-skeleton`, `error-state`, lo standard unico per caricamento/errore/vuoto/successo che `docs/INTERFACCE.md` §1 di Anagrafe impone e che oggi ogni pagina reimplementa. Da portarci dentro: che `empty` è una primitiva già installata e già usata da `data-table` per i suoi **due** stati vuoti distinti — quindi la prima domanda non è «come si disegna», è «cosa aggiunge un blocco a `empty`», e la risposta dev'essere misurabile come lo è stata qui.
+
+---
+
+## Coda di M3.4 — la vetrina stretta, e le descrizioni di troppo (2026-09-11)
+
+Due rilievi di Francesco sulla story `Blocchi/Campo di modulo → Predefinito`, entrambi giusti, e il primo istruttivo perché **non era del blocco**.
+
+### «Perché tutto in una colonna strettissima in modalità desktop?»
+
+Il modulo, a 1440px, rendeva largo **129px**. Non è un difetto di `form-field`: è la vetrina. Misurato risalendo la catena dei genitori:
+
+| nodo | larghezza | display |
+|---|---|---|
+| `body.sb-main-centered` | 1440px | **flex** |
+| `#storybook-root` | **193px** | block, ma è un *flex item* (`flex: 0 1 auto`) |
+| `form.w-full.max-w-md` | **129px** | block |
+
+`layout: 'centered'` rende `#storybook-root` un flex item la cui larghezza la decide il **contenuto**. Lì dentro `w-full` è circolare — la percentuale si risolve su un genitore che a sua volta aspetta il contenuto — e `max-w-md` fa da **tetto**, non da larghezza, quindi non partecipa: il modulo collassa sulla larghezza intrinseca dei campi.
+
+Correzione: `layout: 'padded'` sul meta e `max-w-md` **senza** `w-full`. Rimisurato: root 1408, modulo **448px**, campi 448. La combinazione `w-full` dentro un contenitore che si stringe è stata tolta anche dalla story `Adattiva`, dove c'era lo stesso innesco.
+
+Perché non si era visto prima: i tre gate che girano su queste story — axe, contrasto, bersagli — misurano **colori e altezze**, non larghezze; e `misura:bersagli` guarda i bersagli, che in un modulo stretto restano alti uguale. Una story può essere verde su tutti e cinque i gate e **sembrare rotta**, ed è il limite che vale la pena ricordare: i gate dicono che non c'è un difetto noto, non che la vetrina sia guardabile.
+
+Vale anche il rovescio: i tre blocchi a dialogo non mostravano il problema perché rendono in un **portale**, cioè fuori da quella catena di genitori.
+
+### «Non metterei una descrizione fra un campo e l'altro»
+
+Accolto, e la regola è scritta nel blocco invece che nella sola story. Una riga d'aiuto sotto ogni campo raddoppia l'altezza del modulo e lo fa leggere come documentazione invece che come una cosa da compilare: chi lo usa tutti i giorni la salta dopo la seconda volta, e allora tanto vale che non ci sia. **Un campo che ha bisogno di essere spiegato ha quasi sempre l'etichetta sbagliata**, e l'etichetta costa zero pixel.
+
+`descrizione` resta — non è la stessa cosa di un'etichetta — ma per il **vincolo che il campo non mostra da sé**: un limite di caratteri, un formato obbligato, una conseguenza non reversibile. Nella vetrina ne è rimasta **una** su cinque campi, sulle note tecniche, dove il limite di 2048 caratteri è una regola di BC e non una spiegazione.
+
+La riga sta in tre posti, perché sono tre lettori diversi: il JSDoc della prop (chi scrive il codice), la pagina della story (chi guarda la style guide) e il campo `docs` dell'item (chi installa il blocco in un'app).
+
+### Verifiche
+
+`npm run check` verde: **972 scansioni / 0 violazioni**, 243 story. `tsc -b` ✔ · `lint` 3 avvisi preesistenti · `registry:build` rilanciato.
+Larghezze rimisurate in Chromium a 1440px: `Predefinito` 448px, `Adattiva` 512/288, `Scelte` 448.
