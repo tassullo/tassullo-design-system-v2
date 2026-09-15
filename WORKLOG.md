@@ -3873,3 +3873,19 @@ Provato in Chromium: scorrimento reale del mouse (non solo script) sul contenito
 ### Prossimi passi
 
 D19 chiusa. Nessuno scostamento aperto. Resta com'era: FASE 4 — Pagine modello.
+
+---
+
+## Coda di D19 — il riquadro che non si restringe, la riga tagliata (2026-09-15)
+
+Due rilievi di Francesco sulla stessa story, entrambi da screenshot reali.
+
+**1. Il riquadro non si restringeva sotto poche righe.** Un filtro che lascia 4-5 righe su 220 lasciava comunque il riquadro alto quanto tutto lo spazio disponibile — lo stesso vuoto che `perPagina="infinito"` doveva togliere, spostato da "sotto la tabella" a "dentro il riquadro". Causa: `flex-1` sul riquadro bordato lo forzava a **crescere sempre** fino allo spazio disponibile, indipendentemente da quante righe ci fossero davvero. Tolto `flex-1` (restano `flex` e `min-h-0`): un elemento flex ha `flex-shrink: 1` di suo, senza bisogno di dichiararlo — il riquadro ora prende solo l'altezza che il contenuto chiede, e si restringe fino allo spazio disponibile solo quando le righe lo superano davvero.
+
+**2. Una riga tagliata a metà sembrava una barra fuori posto.** Rilievo iniziale letto come "la barra di scorrimento non si allinea alle righe" — corretto da Francesco con uno screenshot dopo aver scorso di poco: non era una barra nativa, era una **riga vera tagliata dal bordo del riquadro**, perché lo scorrimento libero può fermarsi a qualunque pixel, non solo sui confini di riga. Corretto con `scroll-snap`: `snap-y snap-proximity` su `table-container` (raggiunto con un selettore discendente, `[&_[data-slot=table-container]]:`, perché quel `<div>` di `ui/table.tsx` non espone un `className` proprio) e `snap-start` su ogni `TableRow` quando `perPagina="infinito"`. `proximity` e non `mandatory`: si assesta sul confine più vicino solo se lo scorrimento **finisce** lì accanto, senza risucchiare un piccolo gesto di scorrimento verso la riga più vicina.
+
+Provato in Chromium: un filtro a 4 righe (`Bio Adesivi`) — il riquadro alto esattamente 4 righe, il conto («4 prodotti») subito sotto, zero vuoto. Uno scorrimento reale del mouse sull'elenco intero (220 righe) fermato a metà — la vista si assesta su un confine di riga, prima riga in cima intera, non più tagliata.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi · `build-storybook` ✔. `misura:bersagli`: 2340 bersagli su 273 story, invariato, **0 piccoli in entrambe le direzioni**.

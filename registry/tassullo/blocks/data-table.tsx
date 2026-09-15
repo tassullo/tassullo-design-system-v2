@@ -987,13 +987,39 @@ export function DataTable<TDato extends RowData>({
         ref={contenitoreRef}
         className={cn(
           "overflow-hidden rounded-lg border bg-card",
-          infinito && "flex min-h-0 flex-1 flex-col"
+          infinito &&
+            "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity"
         )}
       >
         {/*
           `overflow-hidden` — non `-y-auto` — perché qui basta **arrotondare
           l'angolo e ritagliare**: chi scorre davvero è `table-container`, un
           livello più dentro (v. il commento dell'effetto qui sopra).
+
+          **Niente `flex-1`, di proposito.** Senza crescita forzata il
+          riquadro prende solo l'altezza che il contenuto chiede — poche
+          righe, riquadro basso, senza un vuoto sotto — e resta comunque
+          capace di **restringersi** fino allo spazio che il genitore gli dà
+          (`flex-shrink: 1` è il predefinito di un elemento flex, non c'è
+          bisogno di dichiararlo): quando le righe superano lo spazio
+          disponibile, il riquadro si ferma lì e `table-container` prende il
+          sopravvento con lo scorrimento vero. `min-h-0` resta: è lui a
+          togliere il pavimento «non scendo sotto il mio contenuto» che
+          altrimenti impedirebbe la restrizione.
+
+          **`snap-y`/`snap-proximity` su `table-container`**, non sul
+          riquadro: senza, uno scorrimento libero può fermarsi a metà di una
+          riga — rilievo di Francesco, la riga tagliata in cima che sembrava
+          un'altra barra. `proximity` e non `mandatory`: si assesta sul
+          confine più vicino solo quando lo scorrimento **finisce** lì
+          accanto, non forza un salto a ogni gesto — con `mandatory` uno
+          scorrimento breve verrebbe risucchiato alla riga più vicina anche
+          quando si voleva solo scorrere di poco.
+
+          `[&_[data-slot=table-container]]:` e non una prop, perché quel
+          `<div>` è dentro `Table` (`ui/table.tsx`) e non espone un
+          `className` proprio — è lo stesso selettore per `data-slot` che
+          l'osservatore usa poco sopra per trovarlo.
         */}
         {/*
           `table-fixed`, e non è un dettaglio di impaginazione.
@@ -1050,7 +1076,7 @@ export function DataTable<TDato extends RowData>({
                 {righe.map((riga) => (
                   <TableRow
                     key={riga.id}
-                    className="group/riga"
+                    className={cn("group/riga", infinito && "snap-start")}
                     data-state={riga.getIsSelected() ? "selected" : undefined}
                   >
                     {riga.getVisibleCells().map((cella, indice) => (
