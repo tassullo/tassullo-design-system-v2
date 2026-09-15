@@ -962,30 +962,54 @@ export function DataTable<TDato extends RowData>({
           </TableHeader>
           <TableBody>
             {righe.length > 0 ? (
-              righe.map((riga, indiceRiga) => (
-                <TableRow
-                  key={riga.id}
-                  ref={indiceRiga === 0 ? primaRigaRef : undefined}
-                  className="group/riga"
-                  data-state={riga.getIsSelected() ? "selected" : undefined}
-                >
-                  {riga.getVisibleCells().map((cella, indice) => (
-                    // `truncate` è il prezzo di `table-fixed`: con le larghezze
-                    // decise dalle intestazioni, un testo più lungo della sua
-                    // colonna **sborda** nella colonna accanto invece di
-                    // allargarla: meglio tagliarlo coi puntini.
-                    <TableCell
-                      key={cella.id}
-                      className={cn(
-                        "truncate",
-                        bloccaPrimaColonna && classiBloccate(indice, selezione)
-                      )}
-                    >
-                      <tabella.FlexRender cell={cella} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              <>
+                {righe.map((riga, indiceRiga) => (
+                  <TableRow
+                    key={riga.id}
+                    ref={indiceRiga === 0 ? primaRigaRef : undefined}
+                    className="group/riga"
+                    data-state={riga.getIsSelected() ? "selected" : undefined}
+                  >
+                    {riga.getVisibleCells().map((cella, indice) => (
+                      // `truncate` è il prezzo di `table-fixed`: con le larghezze
+                      // decise dalle intestazioni, un testo più lungo della sua
+                      // colonna **sborda** nella colonna accanto invece di
+                      // allargarla: meglio tagliarlo coi puntini.
+                      <TableCell
+                        key={cella.id}
+                        className={cn(
+                          "truncate",
+                          bloccaPrimaColonna && classiBloccate(indice, selezione)
+                        )}
+                      >
+                        <tabella.FlexRender cell={cella} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+                {/*
+                  L'ultima pagina — o un filtro che lascia poche righe — ne rende
+                  meno di `righeAuto`: senza riempimento resterebbe un vuoto
+                  **dentro** il riquadro bordato, sotto l'ultima riga vera, ed è
+                  peggio del vuoto che `perPagina="auto"` doveva togliere — un
+                  bordo che si interrompe a metà sembra un guasto, non uno spazio
+                  libero. Righe di riempimento **vuote e decorative**
+                  (`aria-hidden`, niente testo, nessun hover): stessa altezza di
+                  una riga vera — la misura che ha calcolato `righeAuto` — così il
+                  riquadro arriva sempre a filo del bordo inferiore.
+                */}
+                {auto && righe.length < righeAuto
+                  ? Array.from({ length: righeAuto - righe.length }, (_, i) => (
+                      <TableRow
+                        key={`riempimento-${i}`}
+                        aria-hidden
+                        className="pointer-events-none hover:bg-transparent"
+                      >
+                        <TableCell colSpan={colonneVisibili}>&nbsp;</TableCell>
+                      </TableRow>
+                    ))
+                  : null}
+              </>
             ) : (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={colonneVisibili} className="p-0">

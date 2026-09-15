@@ -3833,3 +3833,19 @@ Quarta nota: le pagine dimostrative devono usare le sezioni/voci **di produzione
 ### Prossimi passi
 
 Nessuno scostamento aperto. Resta com'era: FASE 4 — Pagine modello.
+
+---
+
+## Coda della coda di M3.10 — il vuoto sull'ultima pagina (2026-09-15)
+
+Rilievo di Francesco su uno screenshot: pagina 3 di 3, cinque righe vere, e sotto un vuoto **dentro** il riquadro bordato — visibile perché il bordo si interrompe a metà, che sembra un guasto più di quanto sembrasse il vuoto **sotto** il blocco che `perPagina="auto"` doveva togliere.
+
+**Causa**: `righeAuto` è quante righe entrano in una pagina *piena* — l'ultima pagina, o un filtro che lascia poche righe, ne rende sempre meno, e il riquadro (altezza ferma, `flex-1`) non si restringe di conseguenza.
+
+**Rimedio**: righe di riempimento — vuote, decorative, `aria-hidden`, senza `hover:` — fino a `righeAuto`, della stessa altezza di una riga vera (stessa `TableCell` con `p-2`, un `&nbsp;` al posto del contenuto). Non toccano il conto («37 prodotti» resta 37, non 40): sono solo la parte del riquadro che nessuna riga vera occupa più, resa visibile invece che lasciata bianca a metà bordo.
+
+Provato in Chromium su `ConDati` a 1440×900: pagina 3 di 3 (5 righe vere su ~18 possibili) — il riquadro arriva a filo del bordo inferiore, in chiaro e in scuro.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato — le righe di riempimento sono `aria-hidden`, axe non le vede. `tsc -b` ✔.
