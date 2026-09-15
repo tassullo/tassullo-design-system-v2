@@ -972,7 +972,6 @@ export function DataTable<TDato extends RowData>({
   }, [infinito, caricate])
 
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
-  const primaRigaRef = React.useRef<HTMLTableRowElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
 
   const radiceRef = React.useRef<HTMLDivElement>(null)
@@ -987,10 +986,6 @@ export function DataTable<TDato extends RowData>({
    * screenshot: dopo l'ultima riga intera si vedeva la barra grigia del suo
    * bordo, poi uno spazio bianco — l'inizio della riga successiva, tagliata
    * — poi il bordo del riquadro.
-   *
-   * Si **misura**, non si calcola a tavolino: l'altezza di riga segue la
-   * densità (`h-10`/`p-2` derivano da `--spacing`), quindi un numero scritto
-   * qui mentirebbe alla prima densità diversa.
    *
    * **`max-height`, non `height`.** Un `max-height` non forza nessuna
    * crescita: un elenco più corto del tetto resta a restringersi come già
@@ -1015,10 +1010,27 @@ export function DataTable<TDato extends RowData>({
    * e sotto di lui — la barra di ricerca (la sua posizione, non la sua
    * altezza: `contenitore.getBoundingClientRect().top`, che dipende da cosa
    * viene *prima*, mai dall'altezza del riquadro stesso) e il piede della
-   * paginazione (`piePaginaRef`, la sua altezza vera). Nessuno di questi tre
+   * paginazione (`piePaginaRef`, la sua altezza vera). Nessuno di questi
    * numeri dipende da quanto abbiamo appena scritto in `altezzaMax`: la
    * misura non può più mentire a se stessa, in un ridimensionamento singolo
    * come in uno continuo.
+   *
+   * **Il tetto è dove finisce davvero l'ultima riga che entra, non
+   * `testata + N × riga` — terzo bug preso da Francesco sulla stessa
+   * storia.** Moltiplicare un'altezza di riga (sottopixel,
+   * `getBoundingClientRect` torna float) per N **amplifica** l'errore invece
+   * di limitarlo a uno solo, e arrotondare il risultato per eccesso o per
+   * difetto sposta il bordo del riquadro di una frazione di pixel rispetto
+   * al bordo vero dell'ultima riga — due righe grigie a un pixel di
+   * distanza, non allineate. Nascondere il bordo del riquadro in quel caso
+   * era un rattoppo, non una correzione: si vedeva che mancava, non che era
+   * allineato. Si scorre l'elenco delle righe **vere già rese** (non la
+   * sentinella) e si prende il fondo esatto (`getBoundingClientRect().bottom`)
+   * dell'ultima che entra nello spazio disponibile — lo stesso numero che
+   * il bordo di quella riga sta già disegnando, non un multiplo ricostruito
+   * a tavolino. Il bordo del riquadro **coincide** col bordo della riga,
+   * non gli sta a un pixel di distanza: sembra una riga sola perché è quasi
+   * la stessa riga.
    */
   React.useEffect(() => {
     if (!infinito) return
@@ -1029,24 +1041,29 @@ export function DataTable<TDato extends RowData>({
 
     const ricalcola = () => {
       const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
-      const altezzaRiga = primaRigaRef.current?.getBoundingClientRect().height || altezzaTestata
-      if (altezzaRiga <= 0) return
-
+      const contenitoreTop = contenitore.getBoundingClientRect().top
       const scarto = parseFloat(getComputedStyle(radice).rowGap) || 0
       const disponibileTotale =
-        radice.getBoundingClientRect().bottom -
-        contenitore.getBoundingClientRect().top -
-        piePagina.getBoundingClientRect().height -
-        scarto
-      const disponibile = disponibileTotale - altezzaTestata
+        radice.getBoundingClientRect().bottom - contenitoreTop - piePagina.getBoundingClientRect().height - scarto
 
-      // `Math.ceil` sul risultato finale, non sugli addendi: `getBoundingClientRect`
-      // torna sottopixel, e un tetto troncato lasciava 1px di riquadro scoperto
-      // sotto il bordo dell'ultima riga — preso zoomando su uno screenshot. Un
-      // pixel in più non svela mai una riga in più: è sempre meno di un'intera
-      // altezza di riga.
-      const tetto = Math.ceil(altezzaTestata + Math.floor(disponibile / altezzaRiga) * altezzaRiga)
-      setAltezzaMax((prima) => (prima === tetto ? prima : tetto))
+      const righeVere = [...contenitore.querySelectorAll<HTMLTableRowElement>("tbody tr")].filter(
+        (riga) => !riga.hasAttribute("aria-hidden")
+      )
+      if (righeVere.length === 0) return
+
+      let tetto = altezzaTestata
+      for (const riga of righeVere) {
+        const fondoRiga = riga.getBoundingClientRect().bottom - contenitoreTop
+        if (fondoRiga > disponibileTotale) break
+        tetto = fondoRiga
+      }
+      if (tetto <= altezzaTestata) return
+
+      // Mezzo pixel di margine sul confronto: due misure dello stesso valore,
+      // prese in momenti diversi, possono differire di un centesimo per il
+      // sottopixel — senza il margine il `ResizeObserver` si rifarebbe
+      // vedere all'infinito per un rumore che non è mai stato un cambiamento.
+      setAltezzaMax((prima) => (prima !== undefined && Math.abs(prima - tetto) < 0.5 ? prima : tetto))
     }
 
     ricalcola()
@@ -1160,10 +1177,9 @@ export function DataTable<TDato extends RowData>({
           <TableBody>
             {righe.length > 0 ? (
               <>
-                {righe.map((riga, indiceRiga) => (
+                {righe.map((riga) => (
                   <TableRow
                     key={riga.id}
-                    ref={indiceRiga === 0 ? primaRigaRef : undefined}
                     className={cn("group/riga", infinito && "snap-start")}
                     data-state={riga.getIsSelected() ? "selected" : undefined}
                   >

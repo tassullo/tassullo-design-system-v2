@@ -3939,3 +3939,19 @@ Provato in Chromium **simulando un trascinamento vero**: sei passi di altezza in
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
+
+---
+
+## Coda: nascondere il bordo era un rattoppo, non la correzione (2026-09-15)
+
+Rilievo tagliente di Francesco, e giusto: la coda precedente aveva tolto il bordo inferiore del riquadro quando c'era altro sotto la piega, per non mostrare due righe grigie vicine. **Toglierlo non allineava niente — nascondeva solo il sintomo**, e uno screenshot successivo lo mostrava: senza bordo, il riquadro finiva nel vuoto, senza un fondo visibile.
+
+**Causa vera del disallineamento**: il tetto si calcolava come `testata + N × altezza-di-riga` — una moltiplicazione. `getBoundingClientRect` torna valori sottopixel, e moltiplicarli per N **amplifica** l'errore invece di limitarlo a uno solo; il `Math.ceil` messo nella coda ancora precedente per un altro pixel scoperto spostava il bordo del riquadro di una frazione rispetto al bordo vero dell'ultima riga — da cui le due righe grigie a un pixel di distanza.
+
+**Corretto misurando dove finisce davvero l'ultima riga, non ricostruendo la cifra a tavolino.** Si scorrono le righe vere già rese (non la sentinella) e si prende il `getBoundingClientRect().bottom` dell'ultima che entra nello spazio disponibile: lo stesso numero che il bordo di quella riga sta già disegnando. Il tetto del riquadro diventa quel numero, non un multiplo calcolato — il bordo del riquadro e il bordo della riga **coincidono**, non stanno a un pixel di distanza. Il bordo inferiore del riquadro torna **sempre presente**, nessuna condizione in più da ricordare.
+
+Provato in Chromium: a 1440×900 il bordo del riquadro e il bordo dell'ultima riga visibile (`Idro Adesivi`) misurano la **stessa coordinata esatta** (`boxBottom - lastRowBottom = 0`, non più 1-2px). Il filtro a 4 righe e il ridimensionamento a più passi (il test della coda precedente) restano corretti.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
