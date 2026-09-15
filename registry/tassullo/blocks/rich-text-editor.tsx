@@ -398,7 +398,7 @@ export function RichTextEditor({
           editor={editor}
           data-slot="rich-text-editor-content"
           className={cn(
-            "min-h-24 rounded-b-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
+            "min-h-24 rounded-b-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/30",
             "[&_.tiptap]:outline-none",
             "[&_p]:my-1 first:[&_p]:mt-0 last:[&_p]:mb-0",
             "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",

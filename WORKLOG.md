@@ -3694,3 +3694,20 @@ Provato in Chromium (via DOM, non solo letto nel codice): selezionata una letter
 `npm run check` verde su tutti e cinque i gate: **a11y 1060 scansioni (4 passate) / 0 violazioni**, invariato; **registry** 0 errori, ancora 69 item (nessun item nuovo, solo il file del blocco cresciuto). `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti. `registry validate`: 69 item ✔. `misura:bersagli`: 2297 bersagli su 265 story (+8 dai 2289 di M3.8, i due bottoni nuovi), **0 piccoli in entrambe le direzioni**.
 
 Dipendenza nuova: `@tiptap/extension-subscript` (^3).
+
+
+---
+
+## L'anello di focus più sottile su tutta l'interfaccia (2026-09-15)
+
+Rilievo di Francesco su una story di `rich-text-editor`: l'anello arancio di focus (`--ring`, lo stesso arancio del brand) è pesante — 3px di spessore al 50% di opacità, il default che shadcn stesso applica in ogni primitiva. Non è un artefatto del sistema operativo: è `focus-visible:ring-3 focus-visible:ring-ring/50` (o `focus-within:` dove il focus è sul contenitore, non sul controllo), ripetuto identico in ogni primitiva focus-abile.
+
+Prova isolata su `rich-text-editor` prima (`ring-1`/30%, non un token condiviso — solo classi Tailwind locali), confermata in Chromium via `getComputedStyle`, poi estesa — su richiesta esplicita — a tutto il resto: **16 file**, `accordion`, `badge`, `button`, `checkbox`, `combobox`, `field`, `input-group`, `input`, `radio-group`, `select`, `slider`, `switch`, `textarea`, più due story (`card.stories.tsx`, `sheet.stories.tsx`) che ridefinivano lo stesso stile su un elemento proprio. `slider` è diverso dagli altri: l'anello ci sta sempre (al posto giusto un doppio anello attorno alla manopola), lo spessore lo aggiungono `hover:`/`has-[:focus-visible]:`/`active:` — le tre condizioni sono passate da `ring-3` a `ring-1` insieme, e l'opacità di base da `ring-ring/50` a `ring-ring/30`, per restare coerenti fra i tre stati.
+
+**Non toccato**: l'anello di errore (`aria-invalid:ring-3 aria-invalid:ring-destructive/20`) — è un segnale diverso (stato non valido, non focus), a un colore diverso, e il rilievo era sul solo arancio.
+
+Regola 4bis, gradino 2 (ri-stile delle sole stringhe di classi): non serve una conferma per farlo, cambia solo il valore delle utility — nessuna struttura, nessun prop, nessun export toccato. `check:registry` lo conferma classificando tutti e 14→17 i file come "ri-stilati sopra una forma shadcn intatta", non come divergenza di struttura.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1060 scansioni (4 passate) / 0 violazioni**, invariato — la regola axe sul focus visibile guarda che *esista* un indicatore, non il suo spessore; **registry** 0 errori (17 ri-stilati, +3 da 14); **contrasto**, **font**, **logo** allineati. `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti. `registry validate`: 69 item ✔. Verificato in Chromium con `getComputedStyle` su `Primitive/Button`: `box-shadow` passa da un anello a piena intensità a `0 0 0 1px` al 30% dell'arancio — la prova che non è un residuo dell'outline nativo del browser (quello resta soppresso da `outline-none`, invariato).

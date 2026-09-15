@@ -136,7 +136,7 @@ export const ContenutoLungo: Story = {
         <ul
           tabIndex={0}
           aria-label="Elenco delle voci di capitolato"
-          className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-2 text-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:outline-none"
         >
           {Array.from({ length: 12 }, (_, i) => (
             <li key={i} className="flex flex-col gap-0.5">

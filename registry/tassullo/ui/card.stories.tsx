@@ -131,7 +131,7 @@ export const Cliccabile: Story = {
             <CardTitle>
               <a
                 href="#scheda-4021"
-                className="rounded-sm underline-offset-3 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="rounded-sm underline-offset-3 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-ring/30"
               >
                 Guaina bituminosa TS-40
               </a>
