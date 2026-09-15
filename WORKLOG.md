@@ -3742,3 +3742,17 @@ Dipendenza nuova: `diff` (^9, zero dipendenze proprie).
 ### Prossimi passi
 
 M3.10 — Gate di FASE 3: ricostruire in Storybook la pagina Prodotti di Anagrafe con soli blocchi, zero CSS di pagina, screenshot a confronto.
+
+---
+
+## Coda di M3.9 — la story `Confrontabile` di `version-timeline` non dimostrava l'aggancio (2026-09-15)
+
+Rilievo di Francesco: la story `Confrontabile` di `version-timeline` (M3.7), dopo aver premuto "Confronta", mostrava ancora la frase segnaposto scritta **prima** che `diff-view` esistesse — «la diff vera è `diff-view` (M3.9), non questo blocco» — invece di aprire un confronto vero. Il testo era corretto quando fu scritto (M3.9 non esisteva ancora), ma la sessione che chiude M3.9 è esattamente il momento in cui quel segnaposto va sostituito: altrimenti resta a mentire per sempre sul primo consumatore reale del blocco appena scritto.
+
+**Il blocco resta disaccoppiato apposta** — `VersionTimeline` non guadagna una `registryDependency` su `diff-view`: un'app che vuole solo lo storico non si porta dietro `diff`. Cambiata solo la *story*, `registry/tassullo/blocks/version-timeline.stories.tsx`: `DemoConfronto` ora tiene le due voci scelte (non più una stringa) e monta un `DiffView` vero (`modo="affiancato"`) sul testo delle due revisioni — un `Record<string, string>` locale alla story, perché `VersionTimelineEntry` porta solo la `descrizione` breve, non il testo intero del documento.
+
+Provato in Chromium, non solo letto nel codice: selezionate Rev. 4 e Rev. 5, cliccato "Confronta Rev. 4 → Rev. 5" — sotto la timeline compare `DiffView` affiancato vero, con «verificata sui campioni di agosto 2026» evidenziato in verde nella colonna destra, non più la frase fissa.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1084 scansioni (4 passate) / 0 violazioni**, invariato (nessuna story nuova, solo il render della `Confrontabile` esistente); **registry** 0 errori, ancora 71 item. `tsc -b` ✔ · `build-storybook` ✔.
