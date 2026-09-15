@@ -971,6 +971,60 @@ export function DataTable<TDato extends RowData>({
     return () => oss.disconnect()
   }, [infinito, caricate])
 
+  const testataRef = React.useRef<HTMLTableSectionElement>(null)
+  const primaRigaRef = React.useRef<HTMLTableRowElement>(null)
+  const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
+
+  /**
+   * **Il riquadro finisce sempre su un confine di riga.** `flex-shrink`
+   * (sopra) dà al riquadro l'altezza disponibile in pixel grezzi — non un
+   * multiplo dell'altezza di riga — e senza questo effetto l'ultima striscia
+   * mostra il **bordo di una riga in più**, tagliata: la stessa riga a metà
+   * di prima, spostata dalla cima al fondo. Rilievo di Francesco su uno
+   * screenshot: dopo l'ultima riga intera si vedeva la barra grigia del suo
+   * bordo, poi uno spazio bianco — l'inizio della riga successiva, tagliata
+   * — poi il bordo del riquadro.
+   *
+   * Si **misura**, non si calcola a tavolino: l'altezza di riga segue la
+   * densità (`h-10`/`p-2` derivano da `--spacing`), quindi un numero scritto
+   * qui mentirebbe alla prima densità diversa. Due `ResizeObserver`, la
+   * stessa coppia della coda di M3.10 — sul riquadro, che cambia con la
+   * finestra, e sulla testata, che cambia con la densità senza che il
+   * riquadro stesso cambi — e la formula arrotonda per difetto: `testata +
+   * ⌊(disponibile − testata) / riga⌋ × riga`.
+   *
+   * **`max-height`, non `height`.** Un `max-height` non forza nessuna
+   * crescita: un elenco più corto del tetto resta a restringersi come già
+   * fa `flex-shrink` (§ sopra), invariato — qui si limita solo il caso in
+   * cui il riquadro *vorrebbe* essere più alto di un multiplo esatto di riga.
+   *
+   * **Converge da sé, non gira all'infinito.** Il riquadro misurato dopo
+   * aver applicato il tetto è già un multiplo esatto — l'arrotondamento
+   * rifatto sullo stesso valore dà lo stesso risultato — quindi il
+   * `ResizeObserver` sul riquadro si rifà vedere una volta e poi tace, per
+   * la guardia `prima === tetto` più sotto.
+   */
+  React.useEffect(() => {
+    if (!infinito) return
+    const contenitore = contenitoreRef.current
+    if (!contenitore) return
+
+    const ricalcola = () => {
+      const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
+      const altezzaRiga = primaRigaRef.current?.getBoundingClientRect().height || altezzaTestata
+      if (altezzaRiga <= 0) return
+      const disponibile = contenitore.getBoundingClientRect().height - altezzaTestata
+      const tetto = altezzaTestata + Math.floor(disponibile / altezzaRiga) * altezzaRiga
+      setAltezzaMax((prima) => (prima === tetto ? prima : tetto))
+    }
+
+    ricalcola()
+    const ro = new ResizeObserver(ricalcola)
+    ro.observe(contenitore)
+    if (testataRef.current) ro.observe(testataRef.current)
+    return () => ro.disconnect()
+  }, [infinito, righe.length])
+
   return (
     <div className={cn("flex min-h-0 flex-col gap-4", className)}>
       {cerca !== false || barra || colonneNascondibili ? (
@@ -985,6 +1039,7 @@ export function DataTable<TDato extends RowData>({
 
       <div
         ref={contenitoreRef}
+        style={infinito ? { maxHeight: altezzaMax } : undefined}
         className={cn(
           "overflow-hidden rounded-lg border bg-card",
           infinito &&
@@ -1044,7 +1099,7 @@ export function DataTable<TDato extends RowData>({
             lo scorrimento infinito è della pagina intera, e la testata se ne
             va con lei.
           */}
-          <TableHeader className={cn(infinito && "sticky top-0 z-10")}>
+          <TableHeader ref={testataRef} className={cn(infinito && "sticky top-0 z-10")}>
             {tabella.getHeaderGroups().map((gruppo) => (
               <TableRow key={gruppo.id} className="hover:bg-transparent">
                 {gruppo.headers.map((intestazione, indice) => (
@@ -1073,9 +1128,10 @@ export function DataTable<TDato extends RowData>({
           <TableBody>
             {righe.length > 0 ? (
               <>
-                {righe.map((riga) => (
+                {righe.map((riga, indiceRiga) => (
                   <TableRow
                     key={riga.id}
+                    ref={indiceRiga === 0 ? primaRigaRef : undefined}
                     className={cn("group/riga", infinito && "snap-start")}
                     data-state={riga.getIsSelected() ? "selected" : undefined}
                   >

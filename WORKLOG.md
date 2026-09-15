@@ -3889,3 +3889,19 @@ Provato in Chromium: un filtro a 4 righe (`Bio Adesivi`) — il riquadro alto es
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi · `build-storybook` ✔. `misura:bersagli`: 2340 bersagli su 273 story, invariato, **0 piccoli in entrambe le direzioni**.
+
+---
+
+## Coda: il vuoto residuo dopo l'ultima riga intera (2026-09-15)
+
+Rilievo di Francesco, con screenshot: `flex-shrink` (coda precedente) dà al riquadro l'altezza **grezza** disponibile in pixel, non un multiplo dell'altezza di riga — l'ultima striscia mostrava quindi la barra grigia dell'ultima riga intera, poi un accenno bianco della riga successiva **tagliata**, poi il bordo del riquadro. La stessa riga a metà di prima (in cima, corretta con `scroll-snap`), ora al fondo.
+
+**Aggiunto un `max-height` misurato, arrotondato per difetto a un multiplo esatto di riga**: `testata + ⌊(disponibile − testata) / riga⌋ × riga`, con la stessa coppia di `ResizeObserver` (riquadro + testata) già scritta per l'esperimento `perPagina="auto"` di prima — riletta e riadattata, non semplicemente incollata: qui **non** calcola un numero di righe da caricare, si limita a un **tetto di CSS**. `max-height` e non `height`: un elenco più corto del tetto resta a restringersi come già faceva `flex-shrink`, invariato — il tetto conta solo quando il riquadro vorrebbe essere più alto di un multiplo esatto.
+
+Provato in Chromium: `scrollTop` portato a metà elenco (220 righe) e lasciato assestare — l'ultima riga visibile («Calce Rasanti») finisce esatta a filo del bordo, zero accenno della riga dopo; il caso già corretto (`Bio Adesivi`, 4 righe) resta identico, nessuna regressione.
+
+**Limite noto, non del prodotto ma dell'imbracatura**: un **primo montaggio** con la densità già `touch` via URL (`?globals=density:touch`, ricaricando la pagina) misura ancora coi numeri di `normale`, perché il decorator di densità di Storybook scrive l'attributo in un proprio `useEffect` — un giro di rendering dopo il mio, che nella stessa scarica gira prima (gli effetti dei discendenti prima di quelli degli antenati). Un **cambio dal vivo** — toolbar, mentre la story è già montata — ricalcola giusto, provato: 60/55/170px, resto zero. In produzione l'attributo di densità lo scrive l'app una volta sola in `index.html`, non un effetto React: la corsa non esiste fuori da questo banco di prova, e non è quindi un difetto da rincorrere qui.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
