@@ -468,6 +468,9 @@ function VisibilitaColonne<TDato extends RowData>({
 
 const PER_PAGINA = [10, 25, 50, 100]
 
+/** Quante righe in più a ogni caricamento, in `perPagina="infinito"`. */
+const PASSO_INFINITO = 40
+
 /**
  * La paginazione: quante righe per pagina, a che pagina si è, e i quattro
  * salti.
@@ -479,13 +482,17 @@ const PER_PAGINA = [10, 25, 50, 100]
 function PaginazioneTabella<TDato extends RowData>({
   tabella,
   conSelezione,
-  auto,
+  infinito,
   nomeRighe,
 }: {
   tabella: IstanzaTabella<TDato>
   conSelezione: boolean
-  /** Il menu «Righe» sparisce: `perPagina="auto"` decide da sé. */
-  auto: boolean
+  /**
+   * Con `perPagina="infinito"` non c'è una «pagina»: sparisce tutta la fascia
+   * di destra — il menu «Righe», «Pagina X di Y», i quattro salti — e resta
+   * solo il conto, che è l'unica cosa ancora vera.
+   */
+  infinito: boolean
   nomeRighe: NomeRighe
 }) {
   const perPagina = tabella.state.pagination?.pageSize ?? 10
@@ -507,8 +514,8 @@ function PaginazioneTabella<TDato extends RowData>({
           : `${filtrate} ${nome}`}
       </p>
 
-      <div className="flex items-center gap-x-4">
-        {auto ? null : (
+      {infinito ? null : (
+        <div className="flex items-center gap-x-4">
           <div className="flex items-center gap-2">
             <label
               htmlFor="righe-per-pagina"
@@ -540,53 +547,53 @@ function PaginazioneTabella<TDato extends RowData>({
               </SelectContent>
             </Select>
           </div>
-        )}
 
-        <p className="text-sm font-medium whitespace-nowrap tabular-nums">
-          Pagina {pagina} di {pagine}
-        </p>
+          <p className="text-sm font-medium whitespace-nowrap tabular-nums">
+            Pagina {pagina} di {pagine}
+          </p>
 
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="hidden sm:inline-flex"
-            onClick={() => tabella.setPageIndex(0)}
-            disabled={!tabella.getCanPreviousPage()}
-            aria-label="Prima pagina"
-          >
-            <ChevronsLeftIcon aria-hidden />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => tabella.previousPage()}
-            disabled={!tabella.getCanPreviousPage()}
-            aria-label="Pagina precedente"
-          >
-            <ChevronLeftIcon aria-hidden />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => tabella.nextPage()}
-            disabled={!tabella.getCanNextPage()}
-            aria-label="Pagina successiva"
-          >
-            <ChevronRightIcon aria-hidden />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="hidden sm:inline-flex"
-            onClick={() => tabella.setPageIndex(pagine - 1)}
-            disabled={!tabella.getCanNextPage()}
-            aria-label="Ultima pagina"
-          >
-            <ChevronsRightIcon aria-hidden />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden sm:inline-flex"
+              onClick={() => tabella.setPageIndex(0)}
+              disabled={!tabella.getCanPreviousPage()}
+              aria-label="Prima pagina"
+            >
+              <ChevronsLeftIcon aria-hidden />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => tabella.previousPage()}
+              disabled={!tabella.getCanPreviousPage()}
+              aria-label="Pagina precedente"
+            >
+              <ChevronLeftIcon aria-hidden />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => tabella.nextPage()}
+              disabled={!tabella.getCanNextPage()}
+              aria-label="Pagina successiva"
+            >
+              <ChevronRightIcon aria-hidden />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden sm:inline-flex"
+              onClick={() => tabella.setPageIndex(pagine - 1)}
+              disabled={!tabella.getCanNextPage()}
+              aria-label="Ultima pagina"
+            >
+              <ChevronsRightIcon aria-hidden />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -708,30 +715,32 @@ export type DataTableProps<TDato extends RowData> = {
    */
   nomeRighe?: NomeRighe
   /**
-   * Righe per pagina. Una di 10, 25, 50, 100 — oppure **`"auto"`**: le righe
-   * che entrano nell'altezza disponibile, ricalcolate quando la finestra
-   * cambia o la densità cambia.
+   * Righe per pagina. Una di 10, 25, 50, 100 — oppure **`"infinito"`**: niente
+   * pagine, si carica altro scorrendo.
    *
-   * È la forma delle pagine **sola lista** — Prodotti, Norme, Certificazioni
-   * — dove sotto la tabella non c'è altro, e un numero fisso lascia un vuoto
-   * sotto il piede su uno schermo alto o costringe a scorrere su uno basso
-   * (M3.10, coda). Vuole una **misura vera**, non un calcolo a tavolino: il
-   * blocco misura l'altezza dell'intestazione e di una riga vera col
-   * `ResizeObserver`, non indovina un'altezza di riga in pixel — la riga
-   * segue la densità, e un numero scritto a mano la seconda che la densità
-   * cambia mentirebbe.
+   * È la forma delle pagine **sola lista** — Prodotti, Norme, Certificazioni,
+   * sidebar → lista → scheda — dove sotto la tabella non c'è altro (D19,
+   * `docs/DECISIONI.md`; M3.10, coda). **Non** `"auto"` — una prima versione
+   * pensava a righe-per-pagina calcolate per riempire lo schermo, scartata:
+   * si discostava troppo dalla forma di shadcn (righe di riempimento per
+   * pareggiare l'ultima pagina) mentre `anagrafe.tassullo.it` ha già lo
+   * scorrimento infinito in produzione — la stessa lista, la stessa mole di
+   * dati, un meccanismo noto e già collaudato.
    *
-   * **Vuole un contenitore ad altezza ferma per funzionare**: `className`
-   * deve passare `flex-1 min-h-0` (il blocco stesso occupa lo spazio che il
-   * genitore gli concede, non lo decide da sé), e il genitore deve avere
-   * un'altezza vera a cui arrivare — `<AppShell contenuto="riempie">`. Senza,
-   * il contenitore non ha un'altezza da misurare e la tabella resta sul
-   * numero con cui è montata la prima volta.
+   * L'unico difetto di quell'implementazione — la testata scorre via con la
+   * pagina, e si perde il nome delle colonne — è quello che questo blocco
+   * corregge: la testata è `sticky` sul **contenitore** che scorre, non sulla
+   * pagina.
    *
-   * Il menu «Righe» sparisce: non ha senso scegliere un numero che il
-   * blocco ricalcola da sé un istante dopo.
+   * **Vuole un contenitore ad altezza ferma per funzionare** (altrimenti non
+   * c'è niente da far scorrere): `className` deve passare `flex-1 min-h-0`,
+   * e il genitore deve avere un'altezza vera a cui arrivare —
+   * `<AppShell contenuto="riempie">`.
+   *
+   * Il menu «Righe» e i salti di pagina spariscono: non c'è una pagina da
+   * saltare. Resta solo il conto, in fondo.
    */
-  perPagina?: (typeof PER_PAGINA)[number] | "auto"
+  perPagina?: (typeof PER_PAGINA)[number] | "infinito"
   /** Aggiunge la colonna delle caselle. */
   selezione?: boolean
   /** Il menu «Colonne». Acceso di default. */
@@ -794,15 +803,19 @@ export function DataTable<TDato extends RowData>({
   barra,
   className,
 }: DataTableProps<TDato>) {
-  const auto = perPagina === "auto"
+  const infinito = perPagina === "infinito"
   const [ordinamento, setOrdinamento] = React.useState<SortingState>([])
   const [filtri, setFiltri] = React.useState<ColumnFiltersState>([])
   const [ricerca, setRicerca] = React.useState("")
   const [visibilita, setVisibilita] = React.useState<ColumnVisibilityState>({})
   const [scelte, setScelte] = React.useState({})
 
-  /** Le righe che entrano nell'altezza disponibile. Solo `perPagina="auto"`. */
-  const [righeAuto, setRigheAuto] = React.useState(10)
+  /**
+   * Quante righe sono caricate. Solo `perPagina="infinito"`: cresce di
+   * `PASSO_INFINITO` alla volta, quando la sentinella in fondo alla tabella
+   * entra nel contenitore che scorre (v. l'effetto più sotto).
+   */
+  const [caricate, setCaricate] = React.useState(PASSO_INFINITO)
 
   /**
    * La colonna delle caselle si aggiunge qui e non la scrive la pagina: è
@@ -827,7 +840,9 @@ export function DataTable<TDato extends RowData>({
     onGlobalFilterChange: setRicerca,
     onColumnVisibilityChange: setVisibilita,
     onRowSelectionChange: setScelte,
-    initialState: { pagination: { pageIndex: 0, pageSize: auto ? righeAuto : perPagina } },
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: infinito ? caricate : perPagina },
+    },
     state: {
       sorting: ordinamento,
       columnFilters: filtri,
@@ -856,49 +871,105 @@ export function DataTable<TDato extends RowData>({
   }
 
   // `setPageSize` e non `initialState`: `initialState` conta solo al
-  // montaggio, e `righeAuto` cambia dopo — a ogni misura del contenitore.
+  // montaggio, e `caricate` cambia dopo — a ogni passo dello scorrimento.
   React.useEffect(() => {
-    if (auto) tabella.setPageSize(righeAuto)
-  }, [auto, righeAuto, tabella])
-
-  const contenitoreRef = React.useRef<HTMLDivElement>(null)
-  const testataRef = React.useRef<HTMLTableSectionElement>(null)
-  const primaRigaRef = React.useRef<HTMLTableRowElement>(null)
+    if (infinito) tabella.setPageSize(caricate)
+  }, [infinito, caricate, tabella])
 
   /**
-   * Quante righe entrano, misurato — non calcolato a tavolino. L'altezza di
-   * riga segue la densità (`h-10`/`p-2` derivano da `--spacing`), quindi un
-   * numero di pixel scritto qui mentirebbe alla prima densità diversa da
-   * quella con cui è stato scritto.
+   * Una ricerca o un filtro cambiano **l'insieme**, non solo l'ordine: senza
+   * azzerare `caricate`, un filtro che lascia poche righe erediterebbe il
+   * conto di un elenco molto più lungo, e tutte le righe rimaste
+   * comparirebbero insieme invece che a passi di `PASSO_INFINITO`.
    *
-   * Due `ResizeObserver`: sul contenitore, che cambia con la finestra — e
-   * sulla testata, che cambia con la densità **senza** che il contenitore
-   * stesso cambi altezza (`flex-1` gliel'ha già data il genitore). Senza il
-   * secondo, passare a `touch` lascerebbe il conto delle righe di `normale`.
+   * **Aggiustato in fase di render, non in un `useEffect`**: è il pattern che
+   * React stesso documenta per "resettare uno stato quando cambia un altro
+   * valore" — un confronto con l'ultimo valore visto, e se è cambiato si
+   * chiama `setState` **durante il render**, prima del commit, così non c'è
+   * un giro di rendering in più né un effetto che tocca sempre `setState`.
+   * `filtri` è un array nuovo a ogni render (`CLAUDE.md`, la trappola delle
+   * dipendenze non primitive) — la chiave lo appiattisce in una stringa,
+   * l'unica cosa confrontabile con `===`.
+   */
+  const chiaveFiltro = `${ricerca}|${filtri.map((f) => `${f.id}:${String(f.value)}`).join(",")}`
+  const [chiaveFiltroVista, setChiaveFiltroVista] = React.useState(chiaveFiltro)
+  if (infinito && chiaveFiltro !== chiaveFiltroVista) {
+    setChiaveFiltroVista(chiaveFiltro)
+    setCaricate(PASSO_INFINITO)
+  }
+
+  const contenitoreRef = React.useRef<HTMLDivElement>(null)
+  const sentinellaRef = React.useRef<HTMLTableRowElement>(null)
+
+  /**
+   * Il totale delle righe filtrate e ordinate — non solo quelle già
+   * caricate. Sta in una `ref` e non in una dipendenza dell'effetto qui
+   * sotto: cambia a ogni render (filtro, ordinamento) e l'effetto non deve
+   * ripartire per questo, solo l'osservatore deve vedere il valore fresco
+   * quando la sentinella entra in vista. Si aggiorna in un effetto **senza
+   * dipendenze** — gira a ogni commit — e non durante il render: mutare una
+   * `ref` mentre si rende è il genere di cosa che una doppia invocazione di
+   * `StrictMode` rende visibile nel modo sbagliato.
+   */
+  const totaleRef = React.useRef(0)
+  const totaleFiltrate = tabella.getFilteredRowModel().rows.length
+  React.useEffect(() => {
+    totaleRef.current = totaleFiltrate
+  })
+
+  /**
+   * **Lo scorrimento infinito di `anagrafe.tassullo.it`, con la testata
+   * ferma.** La produzione lo ha già, e funziona; il solo difetto — la
+   * testata scorre via con la pagina, e si perde il nome delle colonne — è
+   * un problema di **dove** scorre la pagina, non del meccanismo. Qui a
+   * scorrere non è il documento: è `[data-slot="table-container"]`, il `<div
+   * overflow-x-auto>` che `Table` (`ui/table.tsx`) già disegna attorno a ogni
+   * tabella.
    *
-   * `righe.length` fra le dipendenze: a tabella vuota non c'è una riga da
-   * misurare, e quando la prima riga monta va ricalcolato.
+   * **Non il riquadro bordato qui sotto** (`overflow-y-auto`), anche se è lì
+   * che sembra scorrere. La CSS ha una regola poco nota (CSS Overflow
+   * Module): un asse impostato e l'altro lasciato `visible` fa **calcolare
+   * l'altro come `auto`** — quindi `overflow-x-auto` di `table-container`
+   * porta con sé, gratis, un `overflow-y: auto` che nessuna classe dichiara.
+   * Dentro un riquadro ad altezza ferma, è `table-container` — non il
+   * riquadro — a restringersi e a prendersi lo scorrimento verticale vero: è
+   * per questo che la testata `sticky top-0` sta ferma **senza** che il
+   * riquadro debba scorrere lui, ed è per questo che l'osservatore guarda
+   * `table-container`, preso col suo `data-slot` — lo stesso modo in cui
+   * `page-header.tsx` trova la propria ancora — e non il riquadro attorno.
+   *
+   * La sentinella è l'ultima riga del corpo, vuota; quando entra in vista, si
+   * caricano altre `PASSO_INFINITO` righe.
+   *
+   * **Si ricrea l'osservatore a ogni `caricate`**, e non è ridondanza: un
+   * `IntersectionObserver` invoca il proprio callback una volta subito dopo
+   * `observe()`, con lo stato attuale. Se l'elenco è più corto del
+   * contenitore la sentinella resta visibile anche dopo aver caricato un
+   * passo, e senza ricrearsi l'osservatore non se ne accorgerebbe mai —
+   * ricreandosi, il callback riparte da solo finché la sentinella esce
+   * davvero dalla vista o le righe finiscono. È il modo in cui un elenco
+   * corto si riempie da sé, senza un caso a parte da scrivere.
    */
   React.useEffect(() => {
-    if (!auto) return
-    const contenitore = contenitoreRef.current
-    if (!contenitore) return
+    if (!infinito) return
+    const sentinella = sentinellaRef.current
+    const radice = contenitoreRef.current?.querySelector<HTMLElement>(
+      '[data-slot="table-container"]'
+    )
+    if (!sentinella || !radice) return
 
-    const ricalcola = () => {
-      const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
-      const altezzaRiga = primaRigaRef.current?.getBoundingClientRect().height || altezzaTestata
-      if (altezzaRiga <= 0) return
-      const disponibile = contenitore.clientHeight - altezzaTestata
-      const quante = Math.max(1, Math.floor(disponibile / altezzaRiga))
-      setRigheAuto((prima) => (prima === quante ? prima : quante))
-    }
-
-    ricalcola()
-    const ro = new ResizeObserver(ricalcola)
-    ro.observe(contenitore)
-    if (testataRef.current) ro.observe(testataRef.current)
-    return () => ro.disconnect()
-  }, [auto, righe.length])
+    const oss = new IntersectionObserver(
+      (voci) => {
+        if (!voci[0]?.isIntersecting) return
+        setCaricate((prima) =>
+          prima < totaleRef.current ? Math.min(prima + PASSO_INFINITO, totaleRef.current) : prima
+        )
+      },
+      { root: radice, rootMargin: "200px" }
+    )
+    oss.observe(sentinella)
+    return () => oss.disconnect()
+  }, [infinito, caricate])
 
   return (
     <div className={cn("flex min-h-0 flex-col gap-4", className)}>
@@ -916,9 +987,14 @@ export function DataTable<TDato extends RowData>({
         ref={contenitoreRef}
         className={cn(
           "overflow-hidden rounded-lg border bg-card",
-          auto && "flex min-h-0 flex-1 flex-col"
+          infinito && "flex min-h-0 flex-1 flex-col"
         )}
       >
+        {/*
+          `overflow-hidden` — non `-y-auto` — perché qui basta **arrotondare
+          l'angolo e ritagliare**: chi scorre davvero è `table-container`, un
+          livello più dentro (v. il commento dell'effetto qui sopra).
+        */}
         {/*
           `table-fixed`, e non è un dettaglio di impaginazione.
 
@@ -934,7 +1010,15 @@ export function DataTable<TDato extends RowData>({
           ciò che avanza, in parti uguali.
         */}
         <Table className="table-fixed">
-          <TableHeader ref={testataRef}>
+          {/*
+            `sticky top-0`: la testata resta ferma mentre **`table-container`**
+            scorre — il `<div overflow-x-auto>` di `Table` qui sotto, che
+            l'effetto in testa al componente spiega. Non la pagina: è il
+            difetto di `anagrafe.tassullo.it` che questa forma corregge — lì
+            lo scorrimento infinito è della pagina intera, e la testata se ne
+            va con lei.
+          */}
+          <TableHeader className={cn(infinito && "sticky top-0 z-10")}>
             {tabella.getHeaderGroups().map((gruppo) => (
               <TableRow key={gruppo.id} className="hover:bg-transparent">
                 {gruppo.headers.map((intestazione, indice) => (
@@ -963,10 +1047,9 @@ export function DataTable<TDato extends RowData>({
           <TableBody>
             {righe.length > 0 ? (
               <>
-                {righe.map((riga, indiceRiga) => (
+                {righe.map((riga) => (
                   <TableRow
                     key={riga.id}
-                    ref={indiceRiga === 0 ? primaRigaRef : undefined}
                     className="group/riga"
                     data-state={riga.getIsSelected() ? "selected" : undefined}
                   >
@@ -988,27 +1071,24 @@ export function DataTable<TDato extends RowData>({
                   </TableRow>
                 ))}
                 {/*
-                  L'ultima pagina — o un filtro che lascia poche righe — ne rende
-                  meno di `righeAuto`: senza riempimento resterebbe un vuoto
-                  **dentro** il riquadro bordato, sotto l'ultima riga vera, ed è
-                  peggio del vuoto che `perPagina="auto"` doveva togliere — un
-                  bordo che si interrompe a metà sembra un guasto, non uno spazio
-                  libero. Righe di riempimento **vuote e decorative**
-                  (`aria-hidden`, niente testo, nessun hover): stessa altezza di
-                  una riga vera — la misura che ha calcolato `righeAuto` — così il
-                  riquadro arriva sempre a filo del bordo inferiore.
+                  La sentinella di `perPagina="infinito"`: una riga vuota,
+                  invisibile (altezza di un pixel, `aria-hidden`), che
+                  l'`IntersectionObserver` guarda per sapere quando caricare il
+                  passo successivo. Sta **dopo** l'ultima riga vera, così entra
+                  in vista solo quando ci si è avvicinati davvero al fondo — non
+                  a ogni fotogramma. `righe.length < totaleFiltrate`: quando è
+                  già tutto caricato non c'è più niente da aspettare, e la
+                  sentinella sparisce.
                 */}
-                {auto && righe.length < righeAuto
-                  ? Array.from({ length: righeAuto - righe.length }, (_, i) => (
-                      <TableRow
-                        key={`riempimento-${i}`}
-                        aria-hidden
-                        className="pointer-events-none hover:bg-transparent"
-                      >
-                        <TableCell colSpan={colonneVisibili}>&nbsp;</TableCell>
-                      </TableRow>
-                    ))
-                  : null}
+                {infinito && righe.length < totaleFiltrate ? (
+                  <TableRow
+                    ref={sentinellaRef}
+                    aria-hidden
+                    className="border-0 hover:bg-transparent"
+                  >
+                    <TableCell colSpan={colonneVisibili} className="h-px p-0" />
+                  </TableRow>
+                ) : null}
               </>
             ) : (
               <TableRow className="hover:bg-transparent">
@@ -1028,7 +1108,7 @@ export function DataTable<TDato extends RowData>({
       <PaginazioneTabella
         tabella={tabella}
         conSelezione={selezione}
-        auto={auto}
+        infinito={infinito}
         nomeRighe={nomeRighe}
       />
     </div>

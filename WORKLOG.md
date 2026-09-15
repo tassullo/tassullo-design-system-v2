@@ -3849,3 +3849,27 @@ Provato in Chromium su `ConDati` a 1440×900: pagina 3 di 3 (5 righe vere su ~18
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato — le righe di riempimento sono `aria-hidden`, axe non le vede. `tsc -b` ✔.
+
+---
+
+## Coda: `perPagina="auto"` ripensato come `perPagina="infinito"` (D19, 2026-09-15)
+
+Rilievo di Francesco, deciso: le righe di riempimento **non vanno bene** — si discostano troppo dalla forma di shadcn, che quella soluzione non la offre da nessuna parte. E non serviva inventare niente: `anagrafe.tassullo.it/caratteristiche` ha già lo scorrimento infinito in produzione (di Roberto), collaudato sulla stessa mole di dati. L'unico difetto — la testata scorre via con la pagina, perdendo il nome delle colonne — è quello da correggere, non il meccanismo da sostituire. Ragionamento per esteso in `docs/DECISIONI.md` §37 (**D19**, aperta e chiusa nella stessa sessione).
+
+**`perPagina="auto"` esce dal blocco, `perPagina="infinito"` prende il suo posto** — stesso requisito d'ingresso (`className="flex-1 min-h-0"` più `<AppShell contenuto="riempie">`, invariato dalla coda precedente), meccanismo diverso: niente più `ResizeObserver` che misura righe ed intestazione, niente righe di riempimento. Un `IntersectionObserver` su una sentinella vuota in fondo al corpo, che carica altre `PASSO_INFINITO` (40) righe quando entra in vista; il menu «Righe» **e** i quattro salti di pagina spariscono interamente (non solo il primo), perché non c'è più una pagina da saltare — resta solo il conto (`nomeRighe`), sempre il totale filtrato vero.
+
+**Una sottigliezza CSS ha reso la testata ferma più semplice del previsto, e vale la pena saperla per il resto del registry.** `ui/table.tsx` (primitiva, non toccata) avvolge da sempre la propria `<table>` in `<div data-slot="table-container" className="overflow-x-auto">`. Per una regola del CSS Overflow Module — un asse impostato esplicitamente e l'altro lasciato `visible` fa *calcolare* l'altro come `auto` — quel div ha sempre avuto, gratis, un `overflow-y: auto` che nessuna classe dichiara mai; è rimasto innocuo finché nessuno gli dava un'altezza ferma da eccedere. Dentro il riquadro `flex-1 min-h-0` di `perPagina="infinito"`, è **quel div interno** — non il riquadro bordato attorno — a restringersi e a prendersi lo scorrimento verticale vero. `sticky top-0` sulla testata si aggancia lì da solo, senza bisogno di dichiarare niente in più; l'`IntersectionObserver` prende lo stesso div per il suo `data-slot`, come `page-header.tsx` fa con la propria ancora. Preso **misurando**, non leggendo il codice: un primo giro con `root` il riquadro bordato dava `scrollHeight === clientHeight` — zero overflow secondo il riquadro — mentre `document.querySelector('table').getBoundingClientRect()` mostrava un contenuto alto 4500px; la caccia ha portato dritti alla regola CSS, non a un bug del componente.
+
+**Due avvisi lint presi e corretti prima di chiudere**, entrambi genuini e non preesistenti: un `setState` dentro un `useEffect` per azzerare `caricate` a ogni ricerca/filtro — sostituito con l'aggiustamento **in fase di render** che React stessa documenta per questo caso (confronto con l'ultima chiave di filtro vista, `setState` durante il render se è cambiata, prima del commit) — e una lettura di `ref.current` durante il render per decidere se mostrare la sentinella — sostituita con la variabile calcolata nello stesso render (`totaleFiltrate`), la stessa cosa senza il giro per la `ref`. `npm run lint` torna ai tre avvisi preesistenti, zero nuovi.
+
+Dataset della story portato da 37 a **220** prodotti finti: con 37 (sotto il passo di caricamento, 40) lo scorrimento non avrebbe dimostrato niente — tutto sarebbe entrato al primo giro.
+
+Provato in Chromium: scorrimento reale del mouse (non solo script) sul contenitore — la testata resta ferma, le righe caricate salgono a passi di 40 superando PF139 dopo pochi giri di rotella; una ricerca («Bio», 29 risultati su 220) azzera il caricamento e lo riempie di nuovo da sé, restando sotto il passo; zero violazioni axe in chiaro e scuro.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, **zero nuovi** (due presi e corretti, sopra). `build-storybook` ✔. `misura:bersagli`: 2340 bersagli su 273 story (−4 da 2344: sparite le quattro voci del menu «Righe» e dei salti di pagina, ora assenti nella story `infinito`), **0 piccoli in entrambe le direzioni**.
+
+### Prossimi passi
+
+D19 chiusa. Nessuno scostamento aperto. Resta com'era: FASE 4 — Pagine modello.

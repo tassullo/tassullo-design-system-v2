@@ -1519,3 +1519,29 @@ Tre ragioni, in ordine di peso.
 Prima versione di `rich-text-editor`: un `useEffect` risincronizzava `value` (controllato) dentro l'editor confrontandolo con `serializza(editor)` — la serializzazione **corrente**. Provato in Chromium (non dichiarato): digitare in `VicinoAlLimite`, la storia col pattern controllato, **non inseriva mai nessun carattere** — ogni tasto spariva. Causa: `shouldRerenderOnTransaction: true` (necessario perché la barra e il contatore leggano lo stato aggiornato) fa ri-renderizzare il componente **nello stesso istante** della transazione, un giro prima che `onChange` risalga a `value` attraverso lo stato del chiamante. In quella finestra l'effetto vede `editor` già aggiornato ma `value` ancora vecchio, li trova diversi e richiama `setContent(value-vecchio)` — cancellando il carattere appena scritto, a ogni tasto. Corretto confrontando con un ref di "l'ultimo valore emesso da noi" (aggiornato in modo sincrono dentro `onUpdate`, non dal giro di rendering) invece che con lo stato live dell'editor. Riprovato: la digitazione arriva, il contatore sale un carattere alla volta e si ferma esatto a 2048/2048 passando al colore `destructive`.
 
 Il posto è quello previsto — M3.5, non `confirm-dialog` — e la regola del punto 1 resta rispettata: nessun punto d'uso mette conferma e annullo sulla stessa azione.
+
+---
+
+## 37. Righe delle pagine sola-lista: scorrimento infinito, non pagine calcolate (D19, aperta e chiusa in M3.10, coda, 2026-09-15)
+
+**La domanda**: come rendere righe-per-pagina alte quanto lo schermo, senza un numero fisso che lascia un vuoto su uno schermo alto o costringe a scorrere su uno basso — per le pagine **sola lista** (Prodotti, Norme, Certificazioni: sidebar → lista → scheda).
+
+### Prima risposta, scartata: `perPagina="auto"`
+
+Righe-per-pagina **calcolate** — misurate col `ResizeObserver`, non indovinate — per riempire il contenitore, restando comunque a **pagine**: menu «Righe» spento, ma «Pagina X di Y» e i quattro salti restavano. L'ultima pagina (o un filtro con pochi risultati) rendeva sempre meno righe della piena, lasciando un vuoto **dentro** il riquadro bordato — corretto con righe di riempimento vuote e `aria-hidden`, della stessa altezza di una riga vera.
+
+**Verdetto di Francesco: no.** Le righe di riempimento si discostano troppo dalla forma di shadcn — nessun blocco della guida ne ha, ed è esattamente il genere di divergenza silenziosa che la regola 4bis vuole evitare. E soprattutto: non serviva reinventarlo. `anagrafe.tassullo.it/caratteristiche` ha già lo scorrimento infinito in produzione, di Roberto, sulla stessa mole di dati — un meccanismo noto, già collaudato, che gli utenti già conoscono.
+
+### Verdetto: `perPagina="infinito"`, correggendo il solo difetto noto
+
+Lo scorrimento infinito di produzione ha un difetto: la testata scorre via con la pagina, e si perde il nome delle colonne. È un problema di **dove** scorre la pagina — l'intero documento — non del meccanismo in sé. `tassullo-data-table` lo riproduce facendo scorrere **il contenitore della tabella**, non il documento, con la testata `sticky top-0` rispetto a quel contenitore: non se ne va mai.
+
+Il caricamento a passi (`PASSO_INFINITO = 40`) usa un `IntersectionObserver` su una sentinella vuota in fondo al corpo, con `root` il contenitore che scorre — non la finestra. **Una sottigliezza CSS l'ha resa più semplice del previsto**: la primitiva `Table` (`ui/table.tsx`, non toccata) avvolge sempre la propria `<table>` in un `<div overflow-x-auto>`. Per una regola del CSS Overflow Module — un asse impostato esplicitamente e l'altro lasciato `visible` fa *calcolare* l'altro come `auto` — quel div ha già, gratis, un `overflow-y: auto` che nessuna classe dichiara mai. Dentro un riquadro ad altezza ferma (`flex-1 min-h-0`), è quel div interno — non il riquadro attorno — a restringersi e a prendersi lo scorrimento verticale vero. Il riquadro esterno resta `overflow-hidden`: serve solo a dare al div interno un'altezza da rispettare, non a scorrere lui stesso. L'osservatore prende quel div per il suo `data-slot="table-container"`, lo stesso modo in cui `page-header.tsx` trova la propria ancora.
+
+**Vuole un contenitore ad altezza ferma per funzionare** — la stessa condizione di `"auto"`, ereditata: `<AppShell contenuto="riempie">` (D di M3.10, coda: `min-h-svh` → `h-svh` quando la pagina lo chiede, predefinito invariato) e la pagina rende una colonna `flex h-full min-h-0` con la tabella `flex-1 min-h-0`.
+
+Il menu «Righe» e i quattro salti di pagina spariscono del tutto (non solo il primo, come nella risposta scartata): non c'è una pagina da saltare. Resta solo il conto («N prodotti», `nomeRighe`), sempre il totale filtrato vero, non quanto è già caricato.
+
+### Cosa resta uguale a qualunque tabella `data-table`
+
+Ricerca, ordinamento, colonne nascondibili, selezione multipla: tutto il resto del blocco non cambia. `perPagina="infinito"` è una terza forma accanto a un numero fisso, non un blocco diverso — la stessa API, `colonne`/`dati`/`cerca`/`barra`, la stessa storia di gate (1092 scansioni, 0 violazioni).

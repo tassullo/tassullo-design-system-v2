@@ -48,8 +48,14 @@ import {
  *   a mano) diventano tre `Select` del tema, passati nella barra del blocco
  *   `DataTable` — stesso posto, stessa fila, componente del design system invece
  *   che uno stile di pagina.
- * - **Il contatore** (`prd-conta`) è la riga «N righe» che `DataTable` scrive già
- *   da sé nella paginazione: non va ridichiarato.
+ * - **Il contatore** (`prd-conta`) è la riga «N prodotti» che `DataTable` scrive
+ *   già da sé (`nomeRighe`, M3.10 coda): non va ridichiarato.
+ * - **La divisione in pagine (`Prodotti.tsx` non ne aveva, l'API restituisce
+ *   tutto in un colpo) diventa `perPagina="infinito"`**: la stessa lista,
+ *   la stessa mole di dati di `anagrafe.tassullo.it` in produzione, con la
+ *   correzione al solo difetto noto di quell'implementazione — qui la testata
+ *   resta `sticky` mentre il **contenitore** scorre, non la pagina intera, e
+ *   non si perde mai il nome delle colonne (M3.10, coda).
  * - **Lo stato vuoto per filtro** (`prd-vuoto`, un `<p>`) e quello per «non
  *   esiste ancora niente» erano lo stesso paragrafo nell'originale. Il blocco li
  *   distingue: il primo lo rende `DataTable` internamente (ricerca senza esito,
@@ -207,7 +213,11 @@ function generaProdotti(quanti: number): Prodotto[] {
   })
 }
 
-const PRODOTTI = generaProdotti(37)
+// 220, non 37: sopra il passo di caricamento di `perPagina="infinito"` (40),
+// così lo scorrimento si vede davvero fare qualcosa — con meno righe di un
+// passo solo, tutto entrerebbe al primo caricamento e la story non
+// proverebbe niente.
+const PRODOTTI = generaProdotti(220)
 
 /* ────────────────────────────────────────────────────────────────────────
  * Le colonne — le stesse sette dell'originale
@@ -394,7 +404,7 @@ function PaginaProdotti({ dati }: { dati: Prodotto[] }) {
   return (
     // «Sola lista»: la pagina è una colonna alta quanto lo spazio che
     // `<AppShell contenuto="riempie">` le concede, con la tabella sola
-    // figlia a `flex-1 min-h-0` — è la cooperazione che `perPagina="auto"`
+    // figlia a `flex-1 min-h-0` — è la cooperazione che `perPagina="infinito"`
     // chiede (commento di testa di `DataTableProps.perPagina`, M3.10 coda).
     <div className="flex h-full min-h-0 flex-col gap-4">
       <PageHeader percorso={[{ titolo: 'Prodotti' }]} azioni={AZIONI_DI_PAGINA} />
@@ -419,7 +429,7 @@ function PaginaProdotti({ dati }: { dati: Prodotto[] }) {
           colonne={COLONNE}
           dati={filtrati}
           cerca="Cerca nome, variante, codice…"
-          perPagina="auto"
+          perPagina="infinito"
           className="min-h-0 flex-1"
           vuoto={{ titolo: 'Nessun prodotto in anagrafica' }}
           nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
@@ -455,9 +465,9 @@ function Guscio({ dati }: { dati: Prodotto[] }) {
 }
 
 /**
- * La pagina com'è oggi in produzione: 37 prodotti finti, ricerca, i tre
- * filtri, ordinamento da tastiera su ogni colonna. Da confrontare con lo
- * screenshot dell'originale in `WORKLOG.md`.
+ * La pagina com'è oggi in produzione: 220 prodotti finti, scorrimento
+ * infinito, ricerca, i tre filtri, ordinamento da tastiera su ogni colonna.
+ * Da confrontare con lo screenshot dell'originale in `WORKLOG.md`.
  */
 export const ConDati: Story = {
   render: () => <Guscio dati={PRODOTTI} />,
