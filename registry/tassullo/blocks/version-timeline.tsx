@@ -135,6 +135,10 @@ export function VersionTimeline({
               <div className="flex flex-col items-center">
                 <span
                   aria-hidden="true"
+                  className={cn("h-1 w-px shrink-0", indice !== 0 && "bg-border")}
+                />
+                <span
+                  aria-hidden="true"
                   className={cn(
                     "size-3 shrink-0 rounded-full border-2 bg-background border-border",
                     revisione.stato === "approvato" && "border-success",

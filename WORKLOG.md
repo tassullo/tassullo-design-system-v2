@@ -3606,3 +3606,15 @@ Tolto `mt-1`: il pallino torna a combaciare con la cima della propria colonna, c
 ### Verifiche
 
 `tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato. Riprovato in Chromium in densità Normale **e** Touch: la linea tocca ogni pallino in entrambe.
+
+---
+
+## Coda di M3.7 (4) — riportata la centratura ottica senza rompere la linea (2026-09-15)
+
+Rilievo di Francesco sulla coda (3): tolto `mt-1`, il pallino torna a combaciare con la linea ma non è più centrato sulla riga di testo — "Rev. X" — resta più in alto. Giusto: `mt-1` faceva due cose insieme, l'offset ottico **e** (per errore) la disconnessione dalla linea; andava tolta solo la seconda.
+
+**Fix**: l'offset non è più un margine sul pallino ma un segmento di linea vero, della stessa altezza (`h-1`, lo stesso gradino di `mt-1`), messo **prima** del pallino nella colonna. Per gli item dopo il primo è colorato (`bg-border`): continua la linea dell'item precedente dentro il nuovo pallino, senza soluzione di continuità. Per il primo item è trasparente (stessa `h-1`, niente `bg-border`): sposta il pallino in basso della stessa misura per centrarlo, senza un moncone di linea appeso sopra il nulla. La colonna-pallino di ogni item occupa sempre l'intera altezza della sua `<li>` — la proprietà che garantisce la continuità — cambia solo *dove dentro quell'altezza* sta il pallino.
+
+### Verifiche
+
+`tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato. Riprovato in Chromium in Normale e Touch: pallini allineati alla riga di testo, linea continua su tutte le righe, nessun segmento sospeso sopra il primo pallino.
