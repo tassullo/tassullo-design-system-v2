@@ -3564,3 +3564,15 @@ Dipendenze nuove: `react-pdf` ^11.0.0, `pdfjs-dist` ^6.3.289.
 M3.8 `rich-text-editor` — la terza scelta di D8 (editor).
 
 ---
+
+## Coda di M3.7 — la pagina tagliata a 100% (2026-09-15)
+
+Rilievo di Francesco su Storybook: a zoom 100% la pagina usciva tagliata a destra e in basso, senza modo di allargare la cornice col mouse.
+
+**Causa**: `<Page scale={zoom}>` con `zoom` iniziale a `1` disegnava la pagina alla sua **dimensione reale** — un A4 a 96dpi è più largo della cornice (`max-w-lg`, 512px) — non "adattata". 100% non voleva dire "combacia", voleva dire "grandezza vera", ed era quasi sempre più grande del riquadro.
+
+Corretto misurando la cornice con un `ResizeObserver` e passando a `<Page width={larghezzaContenitore * zoom}>` invece di `scale`: a `zoom = 1` la pagina ora **combacia** esattamente con lo spazio disponibile, lo zoom è relativo a quella misura. Riprovato in Chromium: 100% non trabocca più, 125% scrolla dentro la cornice come atteso.
+
+### Verifiche
+
+`tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato.

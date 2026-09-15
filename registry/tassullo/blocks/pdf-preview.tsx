@@ -45,8 +45,16 @@
  * a intercettarla. `error` copre i PDF che si scaricano ma non si parsano;
  * il confine di errore React qui sotto copre il resto, con lo stesso
  * `ErrorState`.
+ *
+ * **La pagina si adatta alla cornice, non a una scala assoluta.** Prima
+ * versione: `<Page scale={zoom}>` con `zoom` iniziale a `1`, cioè la
+ * dimensione reale del PDF (spesso più larga della cornice) — a 100% la
+ * pagina usciva tagliata, rilievo di Francesco su Storybook. Un
+ * `ResizeObserver` misura la larghezza disponibile e `<Page width={…}>`
+ * ci scala dentro: `zoom` è ora relativo a quella misura, non alla pagina
+ * reale — a 100% la pagina **combacia** con la cornice, non trabocca.
  */
-import { Component, useState, type ReactNode } from "react"
+import { Component, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
 import { Document, Page, pdfjs, type DocumentProps } from "react-pdf"
 // eslint-disable-next-line import/no-unresolved -- risolto da Vite in ogni app: sintassi `?url`, non un pacchetto a parte.
@@ -103,6 +111,19 @@ export function PdfPreview({
   const [numeroPagine, setNumeroPagine] = useState<number | null>(null)
   const [pagina, setPagina] = useState(1)
   const [zoom, setZoom] = useState(1)
+  const [larghezzaContenitore, setLarghezzaContenitore] = useState<number | null>(null)
+  const contenitoreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = contenitoreRef.current
+    if (!el) return
+    const osservatore = new ResizeObserver(([voce]) => {
+      const larghezza = voce?.contentRect.width
+      if (larghezza) setLarghezzaContenitore(larghezza)
+    })
+    osservatore.observe(el)
+    return () => osservatore.disconnect()
+  }, [])
 
   return (
     <div
@@ -162,7 +183,10 @@ export function PdfPreview({
         </span>
       </div>
 
-      <div className="flex justify-center overflow-auto rounded-md bg-background p-4">
+      <div
+        ref={contenitoreRef}
+        className="flex justify-center overflow-auto rounded-md bg-background p-4"
+      >
         <ConfineDocumento
           key={typeof file === "string" ? file : undefined}
           messaggio={messaggioErrore}
@@ -174,13 +198,17 @@ export function PdfPreview({
             error={<ErrorState messaggio={messaggioErrore} onRiprova={onRiprova} />}
             onLoadSuccess={({ numPages }) => setNumeroPagine(numPages)}
           >
-            <Page
-              pageNumber={pagina}
-              scale={zoom}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-              loading={<Skeleton className="h-96 w-full max-w-md" />}
-            />
+            {larghezzaContenitore ? (
+              <Page
+                pageNumber={pagina}
+                width={larghezzaContenitore * zoom}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                loading={<Skeleton className="h-96 w-full max-w-md" />}
+              />
+            ) : (
+              <Skeleton className="h-96 w-full max-w-md" />
+            )}
           </Document>
         </ConfineDocumento>
       </div>
