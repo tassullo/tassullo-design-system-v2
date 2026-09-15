@@ -1188,6 +1188,31 @@
         "@tassullo/tema"
       ],
       "docs": "Il successo annullabile, in una funzione sola:\n\n  toastConAnnullo(() => api.archivia(id), {\n    messaggio: 'Scheda archiviata',\n    descrizione: 'Tassullo T30 non compare più nell’elenco attivo.',\n  })\n\nVerdetto di D18 (docs/DECISIONI.md §35, chiusa il 2026-09-15): conferma e\nannullo rispondono alla stessa domanda — «e se non volevo?» — e messi\ninsieme sulla stessa azione sono due interruzioni che svuotano la conferma.\nPer i passaggi di stato reversibili (Anagrafe: «tutto ciò che è dichiarato\nverso l'esterno non si cancella mai, si supera») si usa questo; le poche\ncancellazioni vere restano il caso di confirm-dialog. Non si mettono tutti e\ndue sulla stessa azione.\n\nDifferita lato client, non ripristino via API — provvisorio, da rivedere con\nRoberto a design system finito: azione non parte finché il toast non si\nchiude da sé o viene scartato senza cliccare «Annulla». Cliccare «Annulla»\ncancella l'azione senza mai eseguirla. Nessun contratto di soft-delete\nrichiesto al backend.\n\n<Toaster /> va montato una volta sola in cima all'app (primitiva sonner)."
+    },
+    {
+      "name": "tassullo-file-upload",
+      "type": "registry:block",
+      "title": "Caricamento file",
+      "description": "Dropzone con trascinamento e selezione multipla, validazione di tipo e dimensione con errori tradotti per riga, ed elenco degli allegati — in coda, in corso con barra di avanzamento, riusciti o falliti. Utilizzabile da tastiera senza trascinamento (D8: react-dropzone).",
+      "dependencies": [
+        "cn",
+        "lucide-react",
+        "react-dropzone"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/file-upload.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/file-upload.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/empty",
+        "@tassullo/progress",
+        "@tassullo/button",
+        "@tassullo/tema"
+      ],
+      "docs": "Due componenti che si usano insieme:\n\n  <FileUpload\n    onFile={(file) => avviaCaricamento(file)}\n    onRifiutati={(rifiutati) => mostraErrori(rifiutati)}\n    accetta={{ 'application/pdf': ['.pdf'], 'image/*': [] }}\n    dimensioneMassima={5 * 1024 * 1024}\n  />\n  <FileUploadList file={file} onRimuovi={rimuovi} />\n\n`FileUpload` valida e seleziona — tipo e dimensione, errore già tradotto —\nma non carica niente da sé: l'upload vero (endpoint, retry) resta dell'app.\n`FileUploadList` renderizza la coda che l'app tiene in stato\n(`FileUploadItem[]`: in-coda | in-corso | riuscito | fallito, con\n`progresso` 0-100); la stessa forma serve per l'elenco degli allegati già\ncaricati in precedenza, passati come `riuscito` e senza `onRimuovi`.\n\nD8 (PIANO.md, M3.6): react-dropzone è un hook puro — solo\n`getRootProps`/`getInputProps`, niente markup proprio — quindi la forma resta\nnostra e sostituibile senza toccare l'API del blocco. `getRootProps` dà già\ntastiera e apertura del selettore nativo con Invio/Spazio, senza\ntrascinamento; `getErrorMessage` traduce i codici di rifiuto una volta sola."
     }
   ]
 }

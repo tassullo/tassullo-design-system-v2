@@ -3463,3 +3463,60 @@ Ambiente ricostruito da zero in questa sessione (Mac riformattato): installato H
 ### Prossimi passi
 
 M3.6 `file-upload`. `componenti-propri.json` resta la condizione da difendere.
+
+---
+
+## M3.6 — `file-upload`: dropzone e elenco (2026-09-15)
+
+Il caricamento allegati che `INTERFACCE.md` di Anagrafe non ha ancora: `allegati` ×10 e `caricamento` ×16 nella sua roadmap — documenti, foto TDS, asset REN/RES/IM1-9.
+
+### D8, la prima delle quattro: `react-dropzone`
+
+Chiesto all'MCP prima di scrivere codice (regola 4bis, gradino 1): shadcn non ha né `file-upload` né `dropzone`. Riusate due primitive già installate — `empty` per la cornice tratteggiata dello stato inattivo, `progress` per la barra — e scelto `react-dropzone` (v20.1.2) per il trascinamento vero e proprio: è un **hook puro**, `useDropzone` restituisce solo `getRootProps`/`getInputProps`/`open`, senza markup proprio da disfare, quindi la forma resta interamente nostra — la condizione che D8 chiede per essere sostituibile senza toccare l'API del blocco. `getErrorMessage` traduce i codici di rifiuto (tipo, dimensione, troppi file) una volta sola, qui: l'app non vede mai `"file-too-large"`.
+
+D8 resta **TODO** in `CHECKLIST.md`: si chiude solo dopo M3.9, quando le altre tre scelte (PDF, editor, diff) sono fatte.
+
+### Un errore preso dal gate, non a occhio
+
+Prima versione: la cornice aveva `role="button"` e `tabIndex` (la forma di default che `getRootProps` darebbe da sé), con l'`<input type="file">` nascosto **dentro**. `test:a11y` l'ha presa subito: **`nested-interactive` ×2**, su tutte e quattro le passate — un `input` è interattivo di suo, e annidarlo in un contenitore reso interattivo da `role`/`tabIndex` è la violazione, non risolvibile ri-stilando (non è un colore, è la struttura, quindi 4bis non c'entra).
+
+Corretto togliendo alla cornice ogni comportamento interattivo — `noClick`/`noKeyboard` a `useDropzone`, la cornice resta bersaglio di solo trascinamento — e mettendo un **bottone vero** (`<Button onClick={open}>`, `open` è la funzione che la libreria espone apposta) per l'apertura del selettore. `Tab` porta il fuoco dritto sul bottone, verificato in Chromium leggendo `document.activeElement` — non sulla cornice, che ora non è più focalizzabile. Tornato a **0 violazioni**, 1028 scansioni.
+
+### I due componenti
+
+- **`FileUpload`** (`registry/tassullo/blocks/file-upload.tsx`) — valida e seleziona (`accetta`, `dimensioneMassima`, `multiplo`), non carica niente da sé: l'upload vero (endpoint, retry, annullamento a metà) resta dell'app, che lo sa fare per il proprio backend — stesso confine di `error-state` sulla traduzione dei messaggi server.
+- **`FileUploadList`** — renderizza un elenco di `FileUploadItem` (`in-coda | in-corso | riuscito | fallito`, `progresso` 0-100) che l'app tiene in stato. La stessa forma serve per l'elenco degli allegati già caricati in precedenza — passati come `riuscito`, senza `onRimuovi`.
+
+Nessuno dei due è nostro nel senso della regola 4bis: compongono primitive shadcn esistenti (`empty`, `progress`, `button`), non sostituiscono una primitiva. `registry/componenti-propri.json` resta vuoto.
+
+### L'accettazione, verificata e non dichiarata
+
+Story `ConAvanzamentoEUnErrore`: bottone "Simula 5 caricamenti (uno fallisce)" che avvia cinque righe con una barra ciascuna. Provato in Chromium contro lo Storybook costruito: le cinque righe compaiono subito (`in-corso`, 0%), quattro arrivano a `riuscito`, `planimetria.pdf` si ferma al 60% e passa a `fallito` con **"Caricamento interrotto: il server non risponde. Riprova."** — schermo alla mano, non solo letto nel codice. Tastiera senza trascinamento: verificato sopra.
+
+### Verifiche
+
+`npm run check` verde: **1028 scansioni / 0 violazioni** (66 item, +1 dai 65 di M3.5). `check:registry`: 0 errori — `file-upload.tsx` passa la regola 3, `componenti-propri.json` non tocco. `check:contrast`, `check:font`, `check:logo` verdi. `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti, nessuno sui file nuovi. `registry validate`: **66 item** ✔. `misura:bersagli`: 2250 bersagli su 257 story, **0 piccoli in entrambe le direzioni**.
+
+Dipendenza nuova: `react-dropzone` ^20.1.2.
+
+### Prossimi passi
+
+M3.7 `pdf-preview` e `version-timeline` — la seconda scelta di D8, una libreria PDF.
+
+---
+
+## Coda di M3.6 — la X che non toglieva niente (2026-09-15)
+
+Rilievo di Francesco: «il bottone "Simula 5 caricamenti" non fa nulla, e nemmeno la X per cancellare un allegato in "Allegati già caricati"».
+
+**La X era davvero rotta, ed era della story, non del blocco.** `AllegatiGiaCaricati` passava `onRimuovi={() => {}}` — un elenco statico, senza stato: cliccare la X non poteva togliere niente perché non c'era una lista React da aggiornare. Corretto rendendola stateful come `ConAvanzamentoEUnErrore`: `onRimuovi` ora filtra l'array e il rimosso sparisce davvero.
+
+**Il bottone "Simula" invece funzionava**, e il falso allarme è istruttivo. Riprovato in Chromium contro `npm run storybook` (dev server, non `storybook-static/` a doppio clic): le cinque righe compaiono nel DOM nell'istante del click — verificato leggendo `document.getElementById('storybook-preview-iframe').contentDocument`, cinque `[data-slot="file-upload-item"]`, `planimetria.pdf` già con l'errore. Il primo screenshot preso a ridosso del click ne mostrava però **una sola**: non un bug del componente, un artefatto di misura — lo stesso genere di trappola di §32 in `CLAUDE.md` (misurare qualcosa che sta ancora transendo/montando prima che si sia fermato). Aspettando qualche secondo, tutte e cinque comparivano correttamente. Resta però un'ipotesi più concreta per Francesco da verificare sul suo schermo: se sta aprendo `storybook-static/index.html` con un doppio clic invece di servirlo via HTTP, il bundle non parte affatto e **tutti e due** i bottoni sembrerebbero morti — è l'avvertimento già scritto in `CLAUDE.md` su `npm run storybook`/`build-storybook`.
+
+### Verifiche
+
+`tsc -b` ✔ · `build-storybook` ✔ · `test:a11y`: **1028 scansioni / 0 violazioni**, invariato. Riprovato a mano in Chromium: click sulla X di `scheda-tecnica-t30.pdf` in `AllegatiGiaCaricati` — la riga sparisce, resta solo `certificato-ce.pdf`.
+
+**Il rilievo è tornato**: «Simula» restava morto anche a schermo suo, quindi il verdetto sopra era incompleto. La causa vera, confermata da Francesco: stava servendo Storybook da un host **diverso da `localhost`**. `avvia()` genera l'id di ogni riga con `crypto.randomUUID()`, ed è la **prima** istruzione della funzione — su un'origine che il browser non tratta come *secure context* (`localhost`/`127.0.0.1` lo sono, un altro host in rete no) `crypto.randomUUID` non esiste sull'oggetto `crypto`, la chiamata lancia, e tutto ciò che segue — il primo `setFile` compreso — non parte mai. Nessun log visibile senza aprire la console: da fuori è indistinguibile da un bottone che non fa niente, il sintomo esatto riportato due volte.
+
+Tolta la dipendenza da `crypto.randomUUID()` nella story: un contatore locale (`nuovoIdDemo`) genera l'id, senza bisogno di un contesto sicuro. Non è **il** bug di `file-upload.tsx` — è nella story di dimostrazione, non nel blocco — ma vale la correzione perché lo stesso pattern (id generato con `crypto.randomUUID()` al primo passo di un handler) sarebbe tornato a rompersi silenziosamente ovunque uno storybook o un workbench giri fuori da `localhost`. Riverificato: `tsc -b` ✔, `build-storybook` ✔, `test:a11y` **1028/0** invariato.
