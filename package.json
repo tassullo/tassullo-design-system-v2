@@ -25,6 +25,11 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@tanstack/react-table": "^9.2.4",
+    "@tiptap/extension-character-count": "^3.31.3",
+    "@tiptap/extension-subscript": "^3.31.3",
+    "@tiptap/extension-superscript": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "cn": "^0.2.6",

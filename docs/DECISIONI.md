@@ -1490,4 +1490,32 @@ Francesco, interrogato sulla domanda del punto 3 in apertura di M3.5, non aveva 
 
 Costruito in M3.5: `tassullo-toast-con-annullo` (`registry/tassullo/blocks/toast-con-annullo.tsx`). `azione` non parte finché il toast non si chiude da sé (`onAutoClose`) o viene scartato senza cliccare «Annulla» (`onDismiss` — verificato nella sorgente di sonner che il clic sull'azione non passa da lì, solo lo swipe e la X: `node_modules/sonner/dist/index.mjs`, il bottone azione chiama solo `deleteToast`). Cliccare «Annulla» marca un flag e basta: `azione` non viene mai invocata.
 
+---
+
+## 36. D11, verdetto: non si adotta il generatore `typeset` di shadcn (M3.8, 2026-09-15)
+
+**La domanda posta in §20**: il testo lungo — editor, diff, MDX — ha bisogno di un preset di leggibilità che oggi non esiste, e shadcn ne offre uno (`typeset`). Il vincolo di adozione (§20, "i preset stanno nel registry, nessuna app li modifica") era già deciso **a prescindere** dall'esito; restava solo il sì/no. Qui il sì/no.
+
+### Verdetto: no, non in questa forma
+
+Tre ragioni, in ordine di peso.
+
+**1. Non è uno script, è un builder interattivo.** `tema.css`, `inter.css` e `tassullo-logo.css` — i tre precedenti di "file generato che il registry distribuisce" — nascono tutti da uno script in `scripts/`, rilanciabile, con una sola fonte a monte (la palette, i `.woff2`, gli `.svg`). `typeset.css` non ha un endpoint o un comando: si ottiene componendo scelte in una pagina web (`ui.shadcn.com/typeset`) e scaricando il risultato a mano. Il file che ne uscirebbe sarebbe l'unico, in tutto il registry, senza un modo di verificare che sia ancora quello — lo stesso problema che `check:font`/`check:logo`/`check:contrast` esistono per non lasciare aperto altrove.
+
+**2. Il caso d'uso reale di M3.8 non ne ha bisogno.** `typeset` risponde al contenuto **reso da markdown** — titoli, citazioni, tabelle, codice. Lo schema di `rich-text-editor` (sopra, in questo stesso file) non ha nessuno di questi: due marcatori (grassetto, corsivo), un marcatore in più (apice), due liste, un link. È deliberatamente **fuori dalla forma** che `typeset` stila. Le regole di rendering che servono davvero — spaziatura fra paragrafi, indentazione delle liste, colore e sottolineato dei link — sono sei righe di utility scritte a mano nel blocco stesso (`rich-text-editor.tsx`), sui token del tema, senza bisogno di un secondo sistema di leggibilità che si sovrappone al primo.
+
+**3. Il punto di attrito misurato in §20 resta aperto, e la sua stessa causa (D10) non è ancora chiusa.** `typeset` porta una leva responsiva propria (+12,5% sotto 768px) che si compone con la densità touch; il verdetto su come le due leve devono comportarsi insieme è di **M4.2**, non ancora raggiunto. Adottare ora un sistema la cui interazione con la densità è nota per essere sbagliata, per un caso d'uso che non lo richiede, sarebbe comprare un problema prima che serva la soluzione.
+
+### Cosa resta aperto
+
+`Primitive/Tipografia` (M2.1, §20) resta l'unica risposta del design system al testo dell'**interfaccia** — sei parti enumerate, per elemento. Il testo **lungo** reso da markdown vero (le pagine MDX di questa stessa style guide, un'eventuale nota tecnica multi-paragrafo in Anagrafe) resta senza standard: se un consumatore concreto lo chiede, si riapre la domanda con in mano un caso reale — e a quel punto, se la risposta resta "sì", il builder va rifatto come script proprio (stessa fonte, stesso confronto binario di `check:font`), non scaricato a mano. Annotato qui perché non sia letto come una dimenticanza.
+
+### D8, di passaggio: la terza scelta
+
+`@tiptap/react` (v3, `@tiptap/starter-kit`, `@tiptap/extension-character-count`, `@tiptap/extension-superscript`) per `rich-text-editor` — stessa ragione delle prime due (`react-dropzone`, `react-pdf`): è headless, la barra resta interamente nostra. `StarterKit` include già `link` e `underline`, quindi non serve `@tiptap/extension-link` come pacchetto separato — installato e poi disinstallato in questa sessione, appena verificato. `underline` è spento nello schema (non è nella barra ridotta di M3.8, e lasciarlo accettabile dallo schema senza un bottone per toglierlo sarebbe stata un'incoerenza). D8 resta **TODO** in `CHECKLIST.md`: chiude dopo M3.9 (`diff-view`, l'ultima libreria).
+
+### Un bug preso testando davvero, non leggendo il codice
+
+Prima versione di `rich-text-editor`: un `useEffect` risincronizzava `value` (controllato) dentro l'editor confrontandolo con `serializza(editor)` — la serializzazione **corrente**. Provato in Chromium (non dichiarato): digitare in `VicinoAlLimite`, la storia col pattern controllato, **non inseriva mai nessun carattere** — ogni tasto spariva. Causa: `shouldRerenderOnTransaction: true` (necessario perché la barra e il contatore leggano lo stato aggiornato) fa ri-renderizzare il componente **nello stesso istante** della transazione, un giro prima che `onChange` risalga a `value` attraverso lo stato del chiamante. In quella finestra l'effetto vede `editor` già aggiornato ma `value` ancora vecchio, li trova diversi e richiama `setContent(value-vecchio)` — cancellando il carattere appena scritto, a ogni tasto. Corretto confrontando con un ref di "l'ultimo valore emesso da noi" (aggiornato in modo sincrono dentro `onUpdate`, non dal giro di rendering) invece che con lo stato live dell'editor. Riprovato: la digitazione arriva, il contatore sale un carattere alla volta e si ferma esatto a 2048/2048 passando al colore `destructive`.
+
 Il posto è quello previsto — M3.5, non `confirm-dialog` — e la regola del punto 1 resta rispettata: nessun punto d'uso mette conferma e annullo sulla stessa azione.

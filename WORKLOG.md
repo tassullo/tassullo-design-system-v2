@@ -3632,3 +3632,65 @@ Due rilievi di Francesco nella stessa tornata.
 ### Verifiche
 
 `tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato.
+
+
+---
+
+## M3.8 — `rich-text-editor` (2026-09-15)
+
+L'editor per i testi che Anagrafe oggi affida a un `<textarea>`: testi di famiglia, voce di capitolato, note tecniche (`editor` ×20 nella sua roadmap).
+
+### D8, la terza delle quattro: `@tiptap/react`
+
+Chiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha un `editor` o `rich-text` — solo `toggle`/`toggle-group`, riusati per la barra, e `popover`, riusato per l'inserimento del link. `@tiptap/react` (v3) è headless per lo stesso motivo di `react-dropzone` e `react-pdf`: `useEditor` restituisce un'istanza su cui si legge lo stato e si comandano i cambi, nessuna barra di libreria da disfare.
+
+**La barra ridotta è lo schema del documento, non solo la scelta dei bottoni.** `StarterKit` porta di suo titoli, citazioni, codice, riga orizzontale e sottolineato — tutti spenti nella configurazione (`heading`, `blockquote`, `codeBlock`, `horizontalRule`, `underline`, `code`: `false`). Non è solo che la barra non li offre: lo schema del documento non li accetta, quindi un testo incollato da Word che porta uno di questi non lo trascina dentro "declassato" — ProseMirror lo scarta per costruzione all'analisi dell'HTML incollato, senza una riga di pulizia scritta a mano. `link` (`openOnClick: false`, si legge non si segue da dentro l'editor) e `superscript` (`@tiptap/extension-superscript`, non in `StarterKit`) restano gli unici due marcatori oltre a grassetto e corsivo. `StarterKit` include già `link` — installato e poi disinstallato `@tiptap/extension-link` come pacchetto a parte, appena verificato ridondante.
+
+### La serializzazione stabile
+
+Il valore che entra ed esce dal componente è **JSON** (`JSON.stringify(editor.getJSON())`), non HTML: l'albero di ProseMirror ha un ordine di chiavi fisso per costruzione, quindi lo stesso contenuto produce sempre la stessa stringa — la condizione che `diff-view` (M3.9) chiederà per confrontare due revisioni.
+
+### Il limite di BC
+
+`@tiptap/extension-character-count`, `mode: 'textSize'`: conta il testo, non i marcatori — lo stesso significato di `z.string().max(2048)` su `form-field` (M3.4). Il contatore cambia colore prima del limite, non al limite: `text-warning-subtle-foreground` da 50 caratteri residui, `text-destructive-subtle-foreground` a zero (mai `text-destructive`, la trappola del CLAUDE.md). Oltre il limite l'estensione impedisce la digitazione.
+
+### Un bug preso testando davvero, non dichiarato dal codice
+
+Prima versione: un `useEffect` risincronizzava `value` (il pattern controllato) confrontandolo con la serializzazione **corrente** dell'editor. Provato in Chromium — non dichiarato, verificato: digitare nella storia `VicinoAlLimite` (pattern controllato) **non inseriva mai un carattere**, ogni tasto spariva. Causa: `shouldRerenderOnTransaction: true` (necessario perché la barra e il contatore leggano lo stato aggiornato a ogni transazione, altrimenti `useEditor` non ri-renderizza da sé) fa ri-renderizzare il componente **nello stesso istante** della transazione, un giro prima che `onChange` risalga a `value` attraverso lo stato del chiamante. In quella finestra l'effetto vede `editor` già aggiornato ma `value` ancora vecchio, li trova diversi e richiama `setContent(value-vecchio)` — cancellando il carattere appena scritto, a ogni tasto, per sempre. Corretto confrontando con un ref di "l'ultimo valore emesso da noi" (`ultimoEmesso`, aggiornato in modo sincrono dentro `onUpdate`) invece che con lo stato live dell'editor: un giro di rendering non lo sposta. Riprovato in Chromium: la digitazione arriva, il contatore sale un carattere alla volta e si ferma esatto a **2048/2048**, colore `destructive`.
+
+Un secondo scostamento minore, preso nello stesso giro: la prima versione usava `content-[attr(data-placeholder)]` (il trucco CSS standard di Tiptap per il placeholder) — `check:registry` lo respinge come valore arbitrario, regola 3, e a ragione: è un blocco nostro, non uno ereditato da shadcn. Sostituito con un overlay React vero (`editor.isEmpty` più uno `<span>` posizionato), che è anche più semplice da leggere.
+
+### D11, di passaggio: chiusa, non si adotta `typeset`
+
+La domanda aperta in M2.1 (`docs/DECISIONI.md` §20) trovava qui il suo consumatore reale. Verdetto: **no**. Tre ragioni a verbale in `docs/DECISIONI.md` §36 — il builder di shadcn non è uno script (rompe il pattern `check:font`/`check:logo`: nessun modo di verificare che il file sia ancora quello), lo schema ridotto di questo editor non ha bisogno della stilizzazione che `typeset` offre (niente titoli, citazioni, tabelle, codice), e la leva responsiva di `typeset` si compone con la densità touch in un modo che D10 (M4.2) non ha ancora giudicato — adottarlo ora comprerebbe un problema noto prima che serva la soluzione. Resta aperto per un consumatore di testo lungo vero (le pagine MDX di questa style guide, ad esempio), da riprendere con un caso reale in mano.
+
+### L'accettazione, verificata in Chromium
+
+Incolla reale (evento `paste`, `clipboardData` con `text/html` che porta colore, `<font>`, sottolineato e un `<h1>`) in `IncollaDaWord`: il risultato tiene solo `<strong>` — nessuno stile inline, nessun `<u>`, nessun `<h1>`, nessun `<font>`. Link su selezione vera (`ConCollegamento`, provato a mano oltre alla `play`): `<a href="…">` sul testo selezionato, non un marcatore fantasma. Limite: verificato sopra.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **contrasto** 0 violazioni; **registry** 0 errori (69 item, +1 da 68); **font**, **logo** allineati; **a11y** **1060 scansioni (4 passate) / 0 violazioni**. `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti. `registry validate`: **69 item** ✔. `misura:bersagli`: 2289 bersagli su 265 story (47 popup aperti), 32 tipi distinti, **0 piccoli in entrambe le direzioni**.
+
+Dipendenze nuove: `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-character-count`, `@tiptap/extension-superscript` (tutte ^3).
+
+### Prossimi passi
+
+M3.9 `diff-view` e `split-view` — la quarta e ultima scelta di D8 (diff), che chiude anche D8 stessa.
+
+
+---
+
+## Coda di M3.8 — pedice e "rimuovi formattazione" (2026-09-15)
+
+Rilievo di Francesco, in revisione: la barra aveva l'apice ma non il pedice, e nessuna via d'uscita per un testo che finisce con marcatori in più del previsto.
+
+Aggiunti `@tiptap/extension-subscript` (pedice, `Ctrl` di fabbrica non incluso — nessuno dei due in `StarterKit`, stesso trattamento di `superscript`) e un bottone "Rimuovi formattazione" (`unsetAllMarks().clearNodes()`, icona `Eraser`). **Le due estensioni non si escludono a vicenda di fabbrica**: senza un mark proprio con `excludes` scritto a mano — costo che il caso d'uso (apice/pedice di formule o unità di misura, non testo matematico vero) non giustifica — un testo può finire con apice e pedice applicati insieme, il che non ha un significato tipografico. È esattamente il motivo per cui il bottone "Rimuovi formattazione" serve, non solo un vezzo in più: è la via d'uscita quando capita. Annotato nel commento di testa del componente.
+
+Provato in Chromium (via DOM, non solo letto nel codice): selezionata una lettera dentro "CO2", cliccato "Pedice" — risultato `C<sub>O</sub>2`; selezionato tutto il paragrafo, cliccato "Rimuovi formattazione" — torna piatto, `<p>CO2 test</p>`.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1060 scansioni (4 passate) / 0 violazioni**, invariato; **registry** 0 errori, ancora 69 item (nessun item nuovo, solo il file del blocco cresciuto). `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti. `registry validate`: 69 item ✔. `misura:bersagli`: 2297 bersagli su 265 story (+8 dai 2289 di M3.8, i due bottoni nuovi), **0 piccoli in entrambe le direzioni**.
+
+Dipendenza nuova: `@tiptap/extension-subscript` (^3).

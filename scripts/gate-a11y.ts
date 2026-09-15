@@ -76,6 +76,7 @@ const CON_POPUP = [
   "page-header",
   "popover",
   "responsive-dialog",
+  "rich-text-editor",
   "select",
   "sheet",
   "tooltip",
