@@ -3793,3 +3793,43 @@ Provato in Chromium (via preview del workbench, non solo build): `ConDati` e `Se
 ### Prossimi passi
 
 FASE 4 — Pagine modello (6 sessioni): pagine intere installabili sul modello di `ui.shadcn.com/blocks`, sopra i blocchi appena chiusi.
+
+---
+
+## Coda di M3.10 — `perPagina="auto"` e il nome delle righe (2026-09-15)
+
+Due rilievi di Francesco in revisione sulla pagina Prodotti.
+
+### `perPagina="auto"` in `data-table`
+
+**Decisione presa con Francesco**: le pagine **sola lista** — Prodotti, Norme, Certificazioni, tutte quelle sul modello sidebar → lista → scheda (clic sul nome, si apre la scheda) — avranno di default righe-per-pagina **automatiche**, non un numero fisso. Un numero fisso (10, 25…) lascia un vuoto sotto il piede su uno schermo alto e costringe a scorrere su uno basso: lo spazio della finestra c'è, la tabella deve usarlo.
+
+**Misurato, non calcolato**: il blocco non indovina un'altezza di riga in pixel — la riga segue la densità (`h-10`/`p-2` derivano da `--spacing`, D di M1.4) — ma la misura col `ResizeObserver`, su due elementi: il contenitore (cambia con la finestra) **e** la testata (cambia con la densità, senza che il contenitore stesso cambi altezza — quella gliel'ha già data il genitore via `flex-1`). Senza il secondo osservatore, passare a `touch` avrebbe lasciato il conto delle righe di `normale`, ed è stato preso proprio così alla prima stesura, corretto osservando anche `testataRef`.
+
+**Vuole un contenitore ad altezza ferma**, e qui è dove la modifica esce da `data-table` e tocca `app-shell`: senza un'altezza vera a cui arrivare, `flex-1` non ha un numero a cui appoggiarsi. Aggiunta `contenuto?: "scorre" | "riempie"` all'`AppShell` (predefinito `scorre`, **nessuna pagina esistente cambia comportamento**): `riempie` porta il guscio da `min-h-svh` a `h-svh` — la pagina non scorre più, il contenuto sotto la fascia diventa una colonna `flex min-h-0 overflow-hidden` che dà spazio vero al `flex-1` di chi ci sta dentro. La pagina che lo chiede deve fare lo stesso, rendendo una colonna `flex h-full min-h-0` con la tabella come solo figlio `flex-1 min-h-0` — documentato nel commento di testa di entrambe le prop.
+
+Il menu «Righe» sparisce in modalità auto: non ha senso scegliere un numero che il blocco ricalcola da sé un istante dopo.
+
+Provato in Chromium, tre condizioni: **1440×900** → 18 righe, «Pagina 1 di 3»; **1440×1400** → 31 righe, «Pagina 1 di 2», tabella ancora a filo del bordo inferiore, zero scorrimento; **1440×700** → 11 righe, «Pagina 1 di 4». Poi la densità **da sola**, senza toccare la finestra (1440×700 fermo): passando a `touch` le righe scendono da 11 a 5, «Pagina 1 di 8» — la prova che il secondo `ResizeObserver` (sulla testata) serve davvero, non è prudenza in eccesso.
+
+Applicato in `stories/PaginaProdotti.stories.tsx`: `<AppShell contenuto="riempie">`, `<DataTable perPagina="auto" className="min-h-0 flex-1">`.
+
+### Il nome della riga: «37 prodotti», non «37 righe»
+
+Rilievo diretto sullo screenshot della pagina: il conto in fondo diceva «37 righe», un nome tecnico che non dice *cosa* sono quelle 37 cose. Aggiunta `nomeRighe?: { singolare: string; plurale: string }` a `DataTableProps` (predefinito `riga`/`righe`, invariato per ogni punto d'uso esistente), che sostituisce sia il conto («37 prodotti») sia la riga di selezione multipla («N di M prodotti selezionati»). `PaginaProdotti` passa `{ singolare: 'prodotto', plurale: 'prodotti' }`.
+
+### Il varco sidebar → lista → scheda
+
+Terza nota di Francesco, applicata sulla stessa story: cliccare sul nome apre la scheda del prodotto. La colonna Nome diventa `<Button variant="link" render={<a href="#" />}>` — `variant="link"` e non un colore scritto a mano, la stessa ragione di `text-accent-ink` nel resto del tema (`--primary` non è mai testo). Nessuna pagina scheda esiste ancora in Storybook: è la FASE 4 a costruirla, qui conta la forma del varco, non la destinazione.
+
+### Il menù della sidebar allineato a quello vero di Anagrafe
+
+Quarta nota: le pagine dimostrative devono usare le sezioni/voci **di produzione**, non un'approssimazione. Letto `frontend/src/components/Sidebar.tsx` di Anagrafe (sola lettura): mancava «Traduzioni» nella sezione Distribuzione — aggiunta. Le sezioni di `stories/PaginaProdotti.stories.tsx` ora coincidono esattamente con `NAV_SEZIONI` del sorgente vero.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato (nessuna story nuova, solo la stessa `ConDati`/`SenzaProdotti` con più righe rese); **registry** 0 errori, 71 item (nessun item nuovo — `data-table` e `app-shell` sono gli stessi due blocchi, ampliati). `tsc -b` ✔ · `lint`: solo i 3 avvisi preesistenti · `build-storybook` ✔. `misura:bersagli`: 2344 bersagli su 273 story, **0 piccoli in entrambe le direzioni** — invariato, il bottone-link di Nome eredita l'altezza di `size="sm"` già misurata altrove.
+
+### Prossimi passi
+
+Nessuno scostamento aperto. Resta com'era: FASE 4 — Pagine modello.

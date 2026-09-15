@@ -479,15 +479,21 @@ const PER_PAGINA = [10, 25, 50, 100]
 function PaginazioneTabella<TDato extends RowData>({
   tabella,
   conSelezione,
+  auto,
+  nomeRighe,
 }: {
   tabella: IstanzaTabella<TDato>
   conSelezione: boolean
+  /** Il menu «Righe» sparisce: `perPagina="auto"` decide da sé. */
+  auto: boolean
+  nomeRighe: NomeRighe
 }) {
   const perPagina = tabella.state.pagination?.pageSize ?? 10
   const pagina = (tabella.state.pagination?.pageIndex ?? 0) + 1
   const pagine = Math.max(tabella.getPageCount(), 1)
   const filtrate = tabella.getFilteredRowModel().rows.length
   const scelte = tabella.getFilteredSelectedRowModel().rows.length
+  const nome = filtrate === 1 ? nomeRighe.singolare : nomeRighe.plurale
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -497,42 +503,44 @@ function PaginazioneTabella<TDato extends RowData>({
         aria-live="polite"
       >
         {conSelezione
-          ? `${scelte} di ${filtrate} righe selezionate`
-          : `${filtrate} ${filtrate === 1 ? "riga" : "righe"}`}
+          ? `${scelte} di ${filtrate} ${nomeRighe.plurale} selezionate`
+          : `${filtrate} ${nome}`}
       </p>
 
       <div className="flex items-center gap-x-4">
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="righe-per-pagina"
-            className="hidden text-sm font-medium sm:block"
-          >
-            Righe
-          </label>
-          <Select
-            value={String(perPagina)}
-            onValueChange={(v) => tabella.setPageSize(Number(v))}
-            items={PER_PAGINA.map((n) => ({ value: String(n), label: String(n) }))}
-          >
-            <SelectTrigger
-              id="righe-per-pagina"
-              size="sm"
-              aria-label="Righe per pagina"
-              className="w-18"
+        {auto ? null : (
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="righe-per-pagina"
+              className="hidden text-sm font-medium sm:block"
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {PER_PAGINA.map((n) => (
-                  <SelectItem key={n} value={String(n)}>
-                    {n}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+              Righe
+            </label>
+            <Select
+              value={String(perPagina)}
+              onValueChange={(v) => tabella.setPageSize(Number(v))}
+              items={PER_PAGINA.map((n) => ({ value: String(n), label: String(n) }))}
+            >
+              <SelectTrigger
+                id="righe-per-pagina"
+                size="sm"
+                aria-label="Righe per pagina"
+                className="w-18"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {PER_PAGINA.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <p className="text-sm font-medium whitespace-nowrap tabular-nums">
           Pagina {pagina} di {pagine}
@@ -671,6 +679,18 @@ export type StatoVuoto = {
   azione?: React.ReactNode
 }
 
+/**
+ * Il nome della riga, per il conto in fondo alla tabella.
+ *
+ * **«Righe» è un nome tecnico, non quello con cui l'utente pensa i propri
+ * dati** — rilievo di Francesco su Prodotti: «37 righe» non dice cosa sono
+ * quelle 37 cose, «37 prodotti» sì. Il predefinito resta `riga`/`righe`,
+ * generico per le tabelle che il piano non prevede di nominare (le story del
+ * blocco, un elenco di appoggio dentro una scheda); ogni pagina che sa cosa
+ * elenca lo dichiara.
+ */
+export type NomeRighe = { singolare: string; plurale: string }
+
 export type DataTableProps<TDato extends RowData> = {
   colonne: ColonnaTabella<TDato>[]
   dati: TDato[]
@@ -681,8 +701,37 @@ export type DataTableProps<TDato extends RowData> = {
   cerca?: string | false
   /** Cosa dire quando `dati` è vuoto. */
   vuoto?: StatoVuoto
-  /** Righe per pagina all'apertura. Dev'essere una di 10, 25, 50, 100. */
-  perPagina?: (typeof PER_PAGINA)[number]
+  /**
+   * Il nome di una riga, per il conto in fondo — «37 prodotti», non «37
+   * righe». Predefinito generico (`riga`/`righe`); ogni pagina che sa cosa
+   * elenca lo dichiara.
+   */
+  nomeRighe?: NomeRighe
+  /**
+   * Righe per pagina. Una di 10, 25, 50, 100 — oppure **`"auto"`**: le righe
+   * che entrano nell'altezza disponibile, ricalcolate quando la finestra
+   * cambia o la densità cambia.
+   *
+   * È la forma delle pagine **sola lista** — Prodotti, Norme, Certificazioni
+   * — dove sotto la tabella non c'è altro, e un numero fisso lascia un vuoto
+   * sotto il piede su uno schermo alto o costringe a scorrere su uno basso
+   * (M3.10, coda). Vuole una **misura vera**, non un calcolo a tavolino: il
+   * blocco misura l'altezza dell'intestazione e di una riga vera col
+   * `ResizeObserver`, non indovina un'altezza di riga in pixel — la riga
+   * segue la densità, e un numero scritto a mano la seconda che la densità
+   * cambia mentirebbe.
+   *
+   * **Vuole un contenitore ad altezza ferma per funzionare**: `className`
+   * deve passare `flex-1 min-h-0` (il blocco stesso occupa lo spazio che il
+   * genitore gli concede, non lo decide da sé), e il genitore deve avere
+   * un'altezza vera a cui arrivare — `<AppShell contenuto="riempie">`. Senza,
+   * il contenitore non ha un'altezza da misurare e la tabella resta sul
+   * numero con cui è montata la prima volta.
+   *
+   * Il menu «Righe» sparisce: non ha senso scegliere un numero che il
+   * blocco ricalcola da sé un istante dopo.
+   */
+  perPagina?: (typeof PER_PAGINA)[number] | "auto"
   /** Aggiunge la colonna delle caselle. */
   selezione?: boolean
   /** Il menu «Colonne». Acceso di default. */
@@ -737,6 +786,7 @@ export function DataTable<TDato extends RowData>({
   dati,
   cerca = "Cerca…",
   vuoto = { titolo: "Non c'è ancora niente" },
+  nomeRighe = { singolare: "riga", plurale: "righe" },
   perPagina = 25,
   selezione = false,
   colonneNascondibili = true,
@@ -744,11 +794,15 @@ export function DataTable<TDato extends RowData>({
   barra,
   className,
 }: DataTableProps<TDato>) {
+  const auto = perPagina === "auto"
   const [ordinamento, setOrdinamento] = React.useState<SortingState>([])
   const [filtri, setFiltri] = React.useState<ColumnFiltersState>([])
   const [ricerca, setRicerca] = React.useState("")
   const [visibilita, setVisibilita] = React.useState<ColumnVisibilityState>({})
   const [scelte, setScelte] = React.useState({})
+
+  /** Le righe che entrano nell'altezza disponibile. Solo `perPagina="auto"`. */
+  const [righeAuto, setRigheAuto] = React.useState(10)
 
   /**
    * La colonna delle caselle si aggiunge qui e non la scrive la pagina: è
@@ -773,7 +827,7 @@ export function DataTable<TDato extends RowData>({
     onGlobalFilterChange: setRicerca,
     onColumnVisibilityChange: setVisibilita,
     onRowSelectionChange: setScelte,
-    initialState: { pagination: { pageIndex: 0, pageSize: perPagina } },
+    initialState: { pagination: { pageIndex: 0, pageSize: auto ? righeAuto : perPagina } },
     state: {
       sorting: ordinamento,
       columnFilters: filtri,
@@ -801,8 +855,53 @@ export function DataTable<TDato extends RowData>({
     setFiltri([])
   }
 
+  // `setPageSize` e non `initialState`: `initialState` conta solo al
+  // montaggio, e `righeAuto` cambia dopo — a ogni misura del contenitore.
+  React.useEffect(() => {
+    if (auto) tabella.setPageSize(righeAuto)
+  }, [auto, righeAuto, tabella])
+
+  const contenitoreRef = React.useRef<HTMLDivElement>(null)
+  const testataRef = React.useRef<HTMLTableSectionElement>(null)
+  const primaRigaRef = React.useRef<HTMLTableRowElement>(null)
+
+  /**
+   * Quante righe entrano, misurato — non calcolato a tavolino. L'altezza di
+   * riga segue la densità (`h-10`/`p-2` derivano da `--spacing`), quindi un
+   * numero di pixel scritto qui mentirebbe alla prima densità diversa da
+   * quella con cui è stato scritto.
+   *
+   * Due `ResizeObserver`: sul contenitore, che cambia con la finestra — e
+   * sulla testata, che cambia con la densità **senza** che il contenitore
+   * stesso cambi altezza (`flex-1` gliel'ha già data il genitore). Senza il
+   * secondo, passare a `touch` lascerebbe il conto delle righe di `normale`.
+   *
+   * `righe.length` fra le dipendenze: a tabella vuota non c'è una riga da
+   * misurare, e quando la prima riga monta va ricalcolato.
+   */
+  React.useEffect(() => {
+    if (!auto) return
+    const contenitore = contenitoreRef.current
+    if (!contenitore) return
+
+    const ricalcola = () => {
+      const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
+      const altezzaRiga = primaRigaRef.current?.getBoundingClientRect().height || altezzaTestata
+      if (altezzaRiga <= 0) return
+      const disponibile = contenitore.clientHeight - altezzaTestata
+      const quante = Math.max(1, Math.floor(disponibile / altezzaRiga))
+      setRigheAuto((prima) => (prima === quante ? prima : quante))
+    }
+
+    ricalcola()
+    const ro = new ResizeObserver(ricalcola)
+    ro.observe(contenitore)
+    if (testataRef.current) ro.observe(testataRef.current)
+    return () => ro.disconnect()
+  }, [auto, righe.length])
+
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
+    <div className={cn("flex min-h-0 flex-col gap-4", className)}>
       {cerca !== false || barra || colonneNascondibili ? (
         <div className="flex flex-wrap items-center gap-3">
           {cerca !== false ? (
@@ -813,7 +912,13 @@ export function DataTable<TDato extends RowData>({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <div
+        ref={contenitoreRef}
+        className={cn(
+          "overflow-hidden rounded-lg border bg-card",
+          auto && "flex min-h-0 flex-1 flex-col"
+        )}
+      >
         {/*
           `table-fixed`, e non è un dettaglio di impaginazione.
 
@@ -829,7 +934,7 @@ export function DataTable<TDato extends RowData>({
           ciò che avanza, in parti uguali.
         */}
         <Table className="table-fixed">
-          <TableHeader>
+          <TableHeader ref={testataRef}>
             {tabella.getHeaderGroups().map((gruppo) => (
               <TableRow key={gruppo.id} className="hover:bg-transparent">
                 {gruppo.headers.map((intestazione, indice) => (
@@ -857,9 +962,10 @@ export function DataTable<TDato extends RowData>({
           </TableHeader>
           <TableBody>
             {righe.length > 0 ? (
-              righe.map((riga) => (
+              righe.map((riga, indiceRiga) => (
                 <TableRow
                   key={riga.id}
+                  ref={indiceRiga === 0 ? primaRigaRef : undefined}
                   className="group/riga"
                   data-state={riga.getIsSelected() ? "selected" : undefined}
                 >
@@ -895,7 +1001,12 @@ export function DataTable<TDato extends RowData>({
         </Table>
       </div>
 
-      <PaginazioneTabella tabella={tabella} conSelezione={selezione} />
+      <PaginazioneTabella
+        tabella={tabella}
+        conSelezione={selezione}
+        auto={auto}
+        nomeRighe={nomeRighe}
+      />
     </div>
   )
 }

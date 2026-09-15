@@ -463,6 +463,24 @@ export type AppShellProps = {
    * male — un form, un testo. Si chiede, non si subisce.
    */
   larghezza?: "pagina" | "piena"
+  /**
+   * Se la pagina **scorre** (il predefinito) o **riempie** esattamente lo
+   * schermo.
+   *
+   * `scorre` è la forma di sempre: il guscio ha un'altezza minima — una
+   * pagina più corta dello schermo non lascia un vuoto sotto il piede — ma
+   * cresce con un form lungo o una scheda con molte sezioni.
+   *
+   * `riempie` blocca il guscio all'altezza esatta della finestra
+   * (`h-svh` invece di `min-h-svh`): serve alle pagine **sola lista** —
+   * Prodotti, Norme, Certificazioni — il cui contenuto è `<DataTable
+   * perPagina="auto">` (M3.10, coda): senza un'altezza *ferma* a cui
+   * appoggiarsi, `flex-1` non avrebbe un numero a cui arrivare e la tabella
+   * non saprebbe quante righe entrano. La pagina che lo chiede deve rendere
+   * a sua volta una colonna flex alta quanto il contenuto (`flex h-full
+   * min-h-0 flex-col`), con la tabella come solo figlio `flex-1 min-h-0`.
+   */
+  contenuto?: "scorre" | "riempie"
   className?: string
   children: ReactNode
 } & Omit<ComponentProps<"div">, "children" | "className">
@@ -485,6 +503,7 @@ export function AppShell({
   collassa = "icona",
   defaultAperta = true,
   larghezza = "piena",
+  contenuto = "scorre",
   className,
   children,
   ...props
@@ -502,7 +521,11 @@ export function AppShell({
        * fascia, chi ci rende dentro sta nel contenuto, e i due devono vedersi.
        */}
       <IntestazioneProvider>
-        <SidebarProvider defaultOpen={defaultAperta} style={LARGHEZZE}>
+        <SidebarProvider
+          defaultOpen={defaultAperta}
+          style={LARGHEZZE}
+          className={contenuto === "riempie" ? "h-svh overflow-hidden" : undefined}
+        >
           <Sidebar collapsible={collassa === "icona" ? "icon" : "offcanvas"}>
             <SidebarHeader>
               <Testata applicazione={applicazione} render={testataRender} />
@@ -533,7 +556,7 @@ export function AppShell({
            * Con `min-w-0` il guscio non sborda mai: a cedere è il contenuto,
            * che sa come farlo (il percorso si tronca, le azioni entrano nel menu).
            */}
-          <SidebarInset className="min-w-0">
+          <SidebarInset className={cn("min-w-0", contenuto === "riempie" && "min-h-0")}>
             {/*
              * La fascia in alto. Il guscio la **disegna** — grilletto, altezza,
              * e la garanzia che resti una riga sola; ciò che ci va dentro,
@@ -570,6 +593,7 @@ export function AppShell({
               className={cn(
                 "min-w-0 flex-1 p-4",
                 larghezza === "pagina" && "mx-auto w-full max-w-page",
+                contenuto === "riempie" && "flex min-h-0 flex-col overflow-hidden",
                 className,
               )}
               {...props}

@@ -106,6 +106,7 @@ const SEZIONI: SezioneNav[] = [
     voci: [
       { titolo: 'Norme', href: '#' },
       { titolo: 'Change set', href: '#' },
+      { titolo: 'Traduzioni', href: '#' },
       { titolo: 'Pubblicazioni', href: '#' },
     ],
   },
@@ -219,7 +220,16 @@ const COLONNE = col.columns([
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
     meta: { titolo: 'Nome', larghezza: 'w-48' },
     sortFn: 'text',
-    cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+    // Sidebar > lista > scheda: il nome è il varco alla scheda di prodotto —
+    // `variant="link"` e non un colore a mano, per la stessa ragione di
+    // `text-accent-ink` nel resto del tema (`--primary` non è mai testo).
+    // Senza una pagina scheda da aprire in Storybook resta un `#`: qui conta
+    // la forma, non la destinazione — è la FASE 4 a costruire la pagina vera.
+    cell: ({ getValue }) => (
+      <Button variant="link" size="sm" className="h-auto p-0 font-medium" render={<a href="#" />}>
+        {getValue<string>()}
+      </Button>
+    ),
   }),
   col.accessor('variante', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Variante" />,
@@ -382,7 +392,11 @@ function PaginaProdotti({ dati }: { dati: Prodotto[] }) {
   )
 
   return (
-    <>
+    // «Sola lista»: la pagina è una colonna alta quanto lo spazio che
+    // `<AppShell contenuto="riempie">` le concede, con la tabella sola
+    // figlia a `flex-1 min-h-0` — è la cooperazione che `perPagina="auto"`
+    // chiede (commento di testa di `DataTableProps.perPagina`, M3.10 coda).
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <PageHeader percorso={[{ titolo: 'Prodotti' }]} azioni={AZIONI_DI_PAGINA} />
 
       {dati.length === 0 ? (
@@ -405,8 +419,10 @@ function PaginaProdotti({ dati }: { dati: Prodotto[] }) {
           colonne={COLONNE}
           dati={filtrati}
           cerca="Cerca nome, variante, codice…"
-          perPagina={10}
+          perPagina="auto"
+          className="min-h-0 flex-1"
           vuoto={{ titolo: 'Nessun prodotto in anagrafica' }}
+          nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
           barra={
             <BarraFiltri
               famiglia={famiglia}
@@ -419,7 +435,7 @@ function PaginaProdotti({ dati }: { dati: Prodotto[] }) {
           }
         />
       )}
-    </>
+    </div>
   )
 }
 
@@ -428,6 +444,7 @@ function Guscio({ dati }: { dati: Prodotto[] }) {
     <AppShell
       applicazione="Anagrafe"
       collassa="fuori"
+      contenuto="riempie"
       utente={UTENTE}
       azioniUtente={AZIONI_UTENTE}
       sezioni={SEZIONI}
