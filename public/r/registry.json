@@ -1213,6 +1213,57 @@
         "@tassullo/tema"
       ],
       "docs": "Due componenti che si usano insieme:\n\n  <FileUpload\n    onFile={(file) => avviaCaricamento(file)}\n    onRifiutati={(rifiutati) => mostraErrori(rifiutati)}\n    accetta={{ 'application/pdf': ['.pdf'], 'image/*': [] }}\n    dimensioneMassima={5 * 1024 * 1024}\n  />\n  <FileUploadList file={file} onRimuovi={rimuovi} />\n\n`FileUpload` valida e seleziona — tipo e dimensione, errore già tradotto —\nma non carica niente da sé: l'upload vero (endpoint, retry) resta dell'app.\n`FileUploadList` renderizza la coda che l'app tiene in stato\n(`FileUploadItem[]`: in-coda | in-corso | riuscito | fallito, con\n`progresso` 0-100); la stessa forma serve per l'elenco degli allegati già\ncaricati in precedenza, passati come `riuscito` e senza `onRimuovi`.\n\nD8 (PIANO.md, M3.6): react-dropzone è un hook puro — solo\n`getRootProps`/`getInputProps`, niente markup proprio — quindi la forma resta\nnostra e sostituibile senza toccare l'API del blocco. `getRootProps` dà già\ntastiera e apertura del selettore nativo con Invio/Spazio, senza\ntrascinamento; `getErrorMessage` traduce i codici di rifiuto una volta sola."
+    },
+    {
+      "name": "tassullo-pdf-preview",
+      "type": "registry:block",
+      "title": "Anteprima PDF",
+      "description": "Anteprima PDF incorporata con navigazione pagine e zoom (react-pdf, D8: la seconda scelta dopo react-dropzone). Nessuna richiesta di rete per il worker — importato via Vite dal pacchetto — caricamento ed errore sullo standard di M3.5.",
+      "dependencies": [
+        "cn",
+        "lucide-react",
+        "react-pdf",
+        "pdfjs-dist"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/pdf-preview.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/pdf-preview.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/button-group",
+        "@tassullo/skeleton",
+        "@tassullo/error-state",
+        "@tassullo/tema"
+      ],
+      "docs": "Un blocco, un uso:\n\n  <PdfPreview file={urlDelDocumento} onRiprova={() => ricarica()} />\n\n`file` è lo stesso prop di `react-pdf`: URL, `File`/`Blob` o `ArrayBuffer`.\nLa cornice, la paginazione e lo zoom sono interamente nostri — `react-pdf`\nnon renderizza una propria barra strumenti, solo `<Document>`/`<Page>` su\nun `<canvas>` — la condizione che D8 chiede per essere sostituibile senza\ntoccare l'API del blocco.\n\nD8 (PIANO.md, M3.7): il worker di pdf.js non viene da una CDN (`unpkg`,\nla via più comune) — farebbe dipendere l'anteprima da una richiesta di rete\na ogni apertura, lo stesso principio per cui `tema-font` porta Inter in data\nURI. Si importa con la sintassi `?url` di Vite, che lo stack uniforme del\nprogetto rende sempre disponibile. Livello di testo e annotazioni spenti\n(`renderTextLayer`/`renderAnnotationLayer` a `false`): è un'anteprima, non\nun lettore con testo selezionabile, e il CSS che quei livelli chiederebbero\nnon è un file che il registry sa distribuire.\n\nCaricamento ed errore riusano lo standard di M3.5: uno `Skeleton` alto come\nuna pagina, `ErrorState` col messaggio già tradotto da chi chiama — questo\nblocco non sa nulla del perché un PDF non si è aperto."
+    },
+    {
+      "name": "tassullo-version-timeline",
+      "type": "registry:block",
+      "title": "Timeline delle revisioni",
+      "description": "Timeline verticale delle revisioni di un documento: stato, autore, data e selezione di due versioni da confrontare. Compone badge, avatar, checkbox e button — nessuna dipendenza pesante.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/version-timeline.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/version-timeline.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/avatar",
+        "@tassullo/badge",
+        "@tassullo/button",
+        "@tassullo/checkbox",
+        "@tassullo/tema"
+      ],
+      "docs": "Un blocco, due modalità:\n\n  <VersionTimeline revisioni={revisioni} />\n  <VersionTimeline revisioni={revisioni} confrontabile onConfronta={(a, b) => apriConfronto(a, b)} />\n\nCinque stati (`bozza | in-revisione | approvato | rifiutato | superato`),\nognuno con la propria tripletta di token (`success`/`warning`/`destructive`\n+ `-subtle`/`-border`), come badge ed errori altrove nel design system.\n\n**Il confronto è una selezione, non una diff.** In `confrontabile` due\ncheckbox per riga scelgono due revisioni — la terza si disabilita finché non\nse ne scarta una — e `onConfronta` riceve le due voci scelte quando l'app\nclicca \"Confronta\". Renderizzare la differenza vera è compito di `diff-view`\n(M3.9): questo blocco si ferma alla scelta, come `FileUpload` non carica\nniente da sé.\n\nChiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha\n`timeline` né `stepper`. Compone primitive esistenti — badge, avatar,\ncheckbox, button — quindi resta un blocco, non un componente proprio:\nnessuna riga in `componenti-propri.json`, come gli altri blocchi di FASE 3."
     }
   ]
 }

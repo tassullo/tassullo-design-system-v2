@@ -3520,3 +3520,47 @@ Rilievo di Francesco: «il bottone "Simula 5 caricamenti" non fa nulla, e nemmen
 **Il rilievo è tornato**: «Simula» restava morto anche a schermo suo, quindi il verdetto sopra era incompleto. La causa vera, confermata da Francesco: stava servendo Storybook da un host **diverso da `localhost`**. `avvia()` genera l'id di ogni riga con `crypto.randomUUID()`, ed è la **prima** istruzione della funzione — su un'origine che il browser non tratta come *secure context* (`localhost`/`127.0.0.1` lo sono, un altro host in rete no) `crypto.randomUUID` non esiste sull'oggetto `crypto`, la chiamata lancia, e tutto ciò che segue — il primo `setFile` compreso — non parte mai. Nessun log visibile senza aprire la console: da fuori è indistinguibile da un bottone che non fa niente, il sintomo esatto riportato due volte.
 
 Tolta la dipendenza da `crypto.randomUUID()` nella story: un contatore locale (`nuovoIdDemo`) genera l'id, senza bisogno di un contesto sicuro. Non è **il** bug di `file-upload.tsx` — è nella story di dimostrazione, non nel blocco — ma vale la correzione perché lo stesso pattern (id generato con `crypto.randomUUID()` al primo passo di un handler) sarebbe tornato a rompersi silenziosamente ovunque uno storybook o un workbench giri fuori da `localhost`. Riverificato: `tsc -b` ✔, `build-storybook` ✔, `test:a11y` **1028/0** invariato.
+
+---
+
+## M3.7 — `pdf-preview` e `version-timeline` (2026-09-15)
+
+Il cuore documentale di Anagrafe: `pdf` ×59 e `anteprima` ×9 nella sua roadmap per il primo, `storico` ×9 per il secondo.
+
+### D8, la seconda delle quattro: `react-pdf`
+
+Chiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha un `pdf-viewer` o `document-preview`, né `timeline`/`stepper` (quest'ultimo già accertato il 2026-09-09, nota a parte più sotto). Scelto `react-pdf` (v11.0.0, `pdfjs-dist` 6.3.289): è un wrapper sottile su `pdfjs-dist` — `<Document>` carica, `<Page>` disegna su un `<canvas>`, senza una propria barra strumenti — quindi cornice, paginazione e zoom restano interamente nostri, la condizione che D8 chiede per essere sostituibile senza toccare l'API del blocco. D8 resta **TODO**: si chiude dopo M3.9 (editor, diff).
+
+**Il worker non viene da una CDN.** La via più comune per `react-pdf` è puntare `pdfjs.GlobalWorkerOptions.workerSrc` a `unpkg.com` — scartata: farebbe dipendere ogni apertura di anteprima da una richiesta di rete, lo stesso principio per cui `tema-font` porta Inter in data URI invece di Google Fonts. Lo stack è uniformemente Vite, quindi il worker si importa con la sintassi `?url` (`pdfjs-dist/build/pdf.worker.min.mjs?url`); `pdfjs-dist` è dipendenza diretta di `react-pdf` ma è stata installata anche come dipendenza diretta del progetto (regola 7 del CLAUDE.md: un import diretto da un pacchetto va dichiarato, non lasciato alla risoluzione transitiva).
+
+Livello di testo e annotazioni spenti apposta (`renderTextLayer`/`renderAnnotationLayer` a `false`): richiederebbero un CSS di pacchetto (`AnnotationLayer.css`) che il registry non sa distribuire, e questo blocco è un'anteprima, non un lettore con testo selezionabile.
+
+### Un errore preso in Chromium, non a occhio
+
+Prima versione: solo `error` su `<Document>` per il caricamento fallito. Provato con un URL a 404 nella story `Errore`: la story **crashava**, non mostrava `ErrorState`. Console: `react-pdf` *lancia* durante il render quando il `fetch` del file fallisce — la promessa interna rifiuta prima che il componente riesca a intercettarla con `onLoadError`. `error` copre solo i PDF che si scaricano ma non si parsano.
+
+Corretto con un piccolo confine d'errore React (`ConfineDocumento`, classe con `getDerivedStateFromError`) attorno a `<Document>`, che renderizza lo stesso `ErrorState` degli altri standard di M3.5. Riverificato in Chromium: la story `Errore` mostra ora "Qualcosa non ha funzionato" con "Riprova", nessun crash.
+
+### L'asset: un PDF vero, non un segnaposto
+
+L'accettazione chiede "PDF reale dei riferimenti FileMaker di Anagrafe aperto e sfogliato". Chiesta conferma a Francesco prima di committare un documento reale in un repo pubblico su GitHub (CLAUDE.md §Confini: "quello che si scrive qui si legge da fuori") — confermato di procedere. Copiata `TASSULLO-FORTE CALCE-TDS-01-IT.pdf` (scheda tecnica, 4 pagine, 294 KB) da `Anagrafe/docs/riferimenti/filemaker/Esempio PRODOTTO/` a `public/esempi/scheda-tecnica-esempio.pdf` — a differenza di `public/fonts/` (escluso per intero, binari di fonderia) qui il contenuto è documentazione di prodotto Tassullo già pensata per la distribuzione a terzi.
+
+### `version-timeline`
+
+Compone primitive esistenti — `badge`, `avatar`, `checkbox`, `button` — nessuna dipendenza pesante, quindi resta un blocco e non entra in `componenti-propri.json` (quel registro serve solo a `registry/tassullo/ui/`, non ai blocchi di FASE 3 — stesso trattamento di `file-upload`). Cinque stati (`bozza | in-revisione | approvato | rifiutato | superato`), ciascuno con la propria tripletta di token semantici già nel tema (`success`/`warning`/`destructive` + `-subtle`/`-border`).
+
+**Il confronto è una selezione, non una diff**: due checkbox per riga, la terza si disabilita finché non se ne scarta una, `onConfronta(a, b)` riceve le due voci scelte. Renderizzare la differenza vera resta compito di `diff-view` (M3.9) — lo stesso confine già scritto per `FileUpload`, che non carica niente da sé. Provato in Chromium (via DOM, non solo letto nel codice): selezionate due checkbox, la terza risulta `disabled`, il bottone passa a "Confronta Rev. 4 → Rev. 5" e diventa cliccabile; al click il testo "Confronto richiesto: Rev. 4 → Rev. 5" compare nella story.
+
+**Nota su uno scostamento evitato.** La nota del 2026-09-09 collocava lo *stepper* orizzontale del flusso di approvazione "accanto a `version-timeline`" in M3.7. Non costruito qui: quello stepper è un componente proprio autorizzato solo **in linea di principio**, non un ordine di scriverlo, e l'accettazione di M3.7 in `PIANO.md`/`CHECKLIST.md` chiede solo `pdf-preview` e `version-timeline`. Resta da riprendere quando un consumatore vero lo chiede (M4.3, l'intestazione «stato e azioni» di `pagina-scheda`) — annotato qui perché non sia letto come una dimenticanza.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **contrasto** 0 violazioni; **registry** 0 errori (`pdf-preview.tsx` aveva un `aspect-[…]` — anche solo nel commento del file, che il controllo legge come testo, non solo come classi — tolto: regola 3); **font**, **logo** allineati; **a11y** **1044 scansioni (4 passate) / 0 violazioni**, 68 item (+2 dai 66 di M3.6). `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti. `registry validate`: **68 item** ✔. `misura:bersagli`: 2265 bersagli su 261 story (47 popup aperti), 32 tipi distinti, **0 piccoli in entrambe le direzioni**.
+
+Dipendenze nuove: `react-pdf` ^11.0.0, `pdfjs-dist` ^6.3.289.
+
+### Prossimi passi
+
+M3.8 `rich-text-editor` — la terza scelta di D8 (editor).
+
+---
