@@ -3756,3 +3756,40 @@ Provato in Chromium, non solo letto nel codice: selezionate Rev. 4 e Rev. 5, cli
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1084 scansioni (4 passate) / 0 violazioni**, invariato (nessuna story nuova, solo il render della `Confrontabile` esistente); **registry** 0 errori, ancora 71 item. `tsc -b` ✔ · `build-storybook` ✔.
+
+---
+
+## M3.10 — Gate di FASE 3 (2026-09-15)
+
+Prompt del piano: ricostruire in Storybook la pagina Prodotti di Anagrafe usando **solo** `app-shell` + `page-header` + `data-table` + `empty-state`, zero CSS di pagina, e confrontarla con l'originale.
+
+### Letto in sola lettura: `frontend/src/pages/Prodotti.tsx` + `Prodotti.css` di Anagrafe
+
+190 righe di componente, ~120 di CSS di pagina (`prd-*`). Struttura: `<h1>` + due bottoni («Sistema da BC», «Nuovo prodotto») in testa; una riga di filtri — ricerca, tre `<select className="input">` scritti a mano (famiglia/tipo/stato) e un contatore; una `<table className="table">` con sette colonne (Nome linkato, Variante, Tipo in badge, Famiglia, Codice interno monospazio, BC monospazio, Stato in badge success/warn); due modali CSS-a-mano per creare un prodotto o agganciare un sistema da Business Central.
+
+### La ricostruzione: `stories/PaginaProdotti.stories.tsx`, due story in `Pagine/`
+
+Non un item di registry: è una pagina di verifica, quindi vive in `stories/` come le pagine trasversali della style guide (regola 6 di `CLAUDE.md`), non in `registry/tassullo/blocks/`. `ConDati` (37 prodotti finti, LCG a seme fisso) e `SenzaProdotti` (array vuoto).
+
+**Cosa cambia, e perché resta equivalente** (motivato per esteso nel commento di testa della story, non ripetuto qui):
+- il titolo `<h1>` sparisce dallo schermo — è la forma di `page-header` (M3.2), resta in `sr-only`;
+- i tre `<select>` a mano diventano tre `Select` del tema, passati nella `barra` di `DataTable` come stato locale della pagina che pre-filtra l'array prima di passarlo al blocco — la ricerca libera resta a `DataTable`;
+- il contatore (`prd-conta`) è la riga «N righe» che `DataTable` scrive già da sé;
+- **due stati vuoti, non uno**, dove l'originale ne aveva uno (`prd-vuoto`, un `<p>`): «nessun risultato per questo filtro» lo rende `DataTable` da sé (bottone che pulisce i filtri), «non esiste ancora nessun prodotto» è `EmptyState` (`tassullo-empty-state`, M3.5) al posto dell'intera tabella — `INTERFACCE.md` §1.1 vieta esplicitamente «una tabella con la sola intestazione», e i due stati del v1 erano lo stesso paragrafo;
+- le due modali CSS-a-mano restano **fuori dal gate**: sono `responsive-dialog` + `form-field` (M3.4), già nel registry — comporle avrebbe raddoppiato la story senza rispondere alla domanda del gate, cioè se i quattro blocchi bastano per l'**elenco**. I due bottoni di testata restano come dati di vetrina.
+
+Colonne: le stesse sette, coi due badge (`variant="secondary"` per il Tipo — l'originale non gli dà un tono; `TONO.success`/`TONO.warning` per lo Stato, dalla mappa di `lib/toni`, come già in `data-table.stories.tsx`).
+
+### Verifiche
+
+**Zero classi `prd-*` nel codice, zero valori arbitrari**: `grep -n 'prd-\|className="[^"]*\['` trova solo le sei citazioni nel commento di testa della story, che *nomina* le classi dell'originale per spiegare la corrispondenza — nessuna nel JSX. `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni** (+8 da 1084, le due story nuove); `check:registry` non tocca `stories/` (non è né `ui/` né `blocks/`) e resta a 71 item, 0 errori; `check:contrast` 0 violazioni sopra soglia. `tsc -b` ✔ · `lint`: solo i 3 avvisi preesistenti · `build-storybook` ✔. `misura:bersagli`: **2343 bersagli su 273 story, 0 piccoli in entrambe le direzioni**.
+
+Provato in Chromium (via preview del workbench, non solo build): `ConDati` e `SenzaProdotti` a 1440px in chiaro **e** scuro — resa corretta in entrambe; degrado a 375px verificato — colonna del guscio sostituita dallo `Sheet`, azioni di testata nel kebab `⋮`, tabella che scorre in orizzontale. Il pannello Accessibility manuale segnalava un *incomplete* `color-contrast` su «Pubblicazioni» in una passata: verificato con `getBoundingClientRect` che l'elemento sta interamente dentro il viewport — l'*incomplete* è un artefatto del pannello degli addon dockato sopra il canvas al momento della scansione manuale, non del prodotto; il gate reale (`test:a11y`, Chromium headless a tutta pagina) lo conferma a **0 violazioni** e **0 incomplete**.
+
+### Verdetto
+
+**Gate superato.** I quattro blocchi bastano per ricostruire l'elenco di Prodotti senza una riga di CSS di pagina; gli unici scostamenti dall'originale sono miglioramenti già decisi altrove (titolo in `sr-only` da M3.2, i due stati vuoti distinti da M3.5) e non perdite di funzione. Chiude la **FASE 3** — undici sessioni, dodici blocchi (`app-shell`, `page-header`, `data-table`, `form-field`, `confirm-dialog`, `responsive-dialog`, `empty-state`, `page-skeleton`, `error-state`, `toast-con-annullo`, `file-upload`, `pdf-preview`, `version-timeline`, `rich-text-editor`, `diff-view`, `split-view` — 71 item di registry in tutto, contando anche le primitive della FASE 2).
+
+### Prossimi passi
+
+FASE 4 — Pagine modello (6 sessioni): pagine intere installabili sul modello di `ui.shadcn.com/blocks`, sopra i blocchi appena chiusi.
