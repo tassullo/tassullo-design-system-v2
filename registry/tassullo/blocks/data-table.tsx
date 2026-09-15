@@ -862,6 +862,7 @@ export function DataTable<TDato extends RowData>({
       : []
 
   const righe = tabella.getRowModel().rows
+  const conRighe = righe.length > 0
   const conFiltri = ricerca.length > 0 || filtri.length > 0
   const colonneVisibili = tabella.getVisibleFlatColumns().length
 
@@ -1059,11 +1060,15 @@ export function DataTable<TDato extends RowData>({
       }
       if (tetto <= altezzaTestata) return
 
-      // Mezzo pixel di margine sul confronto: due misure dello stesso valore,
-      // prese in momenti diversi, possono differire di un centesimo per il
-      // sottopixel — senza il margine il `ResizeObserver` si rifarebbe
-      // vedere all'infinito per un rumore che non è mai stato un cambiamento.
-      setAltezzaMax((prima) => (prima !== undefined && Math.abs(prima - tetto) < 0.5 ? prima : tetto))
+      // Qualche pixel di margine sul confronto: due misure dello stesso
+      // valore, prese in momenti diversi, possono differire di qualche
+      // sottopixel per come il browser arrotonda un `sticky` appena si
+      // aggancia — senza il margine il riquadro si vedeva scattare di un
+      // paio di pixel mentre si scorreva, rilievo di Francesco («guarda come
+      // si sposta "220 prodotti"»). Resta ben sotto un'altezza di riga vera
+      // (30 px e oltre), quindi non nasconde mai una riga che è davvero
+      // entrata o uscita.
+      setAltezzaMax((prima) => (prima !== undefined && Math.abs(prima - tetto) < 4 ? prima : tetto))
     }
 
     ricalcola()
@@ -1072,7 +1077,19 @@ export function DataTable<TDato extends RowData>({
     ro.observe(piePagina)
     if (testataRef.current) ro.observe(testataRef.current)
     return () => ro.disconnect()
-  }, [infinito, righe.length])
+    /*
+     * `conRighe` (`righe.length > 0`), non `righe.length`: il numero cresce a ogni passo
+     * dello scorrimento infinito (`caricate`), e prima di questa riga
+     * l'effetto si smontava e rimontava **a ogni passo** — l'osservatore
+     * vecchio si disconnetteva, quello nuovo richiamava `ricalcola()` subito,
+     * spesso un fotogramma prima che il layout del nuovo pezzo di righe si
+     * fosse assestato del tutto: la causa vera del piccolo scatto durante lo
+     * scorrimento. Le posizioni delle righe già rese non cambiano quando se
+     * ne aggiungono altre dopo — l'osservatore non ha bisogno di ripartire
+     * per quello, solo quando si passa da «zero righe» (lo stato vuoto) a
+     * «almeno una», o viceversa.
+     */
+  }, [infinito, conRighe])
 
   return (
     <div ref={radiceRef} className={cn("flex min-h-0 flex-col gap-4", className)}>

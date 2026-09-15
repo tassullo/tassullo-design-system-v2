@@ -3955,3 +3955,35 @@ Provato in Chromium: a 1440×900 il bordo del riquadro e il bordo dell'ultima ri
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
+
+---
+
+## Il pannello mobile della sidebar più largo del previsto fra 640 e 768px (2026-09-15)
+
+Rilievo di Francesco, non legato a M3.10: restringendo la finestra dell'app e riaprendo la colonna, il pannello risultava più largo dei consueti 18rem (288px). Non era una regressione di questa sessione — un difetto latente di `ui/sidebar.tsx`/`ui/sheet.tsx`, primitive non toccate, mai preso perché l'unica story che misura la soglia mobile (`Blocchi/App shell`, story `Telefono`) fissa il viewport a 375px, sotto la fascia dove il difetto si vede.
+
+**Causa**: `SheetContent` (in `sheet.tsx`) dà al pannello `data-[side=left]:w-3/4` — un selettore con l'attributo `data-side`, più specifico del semplice `w-(--sidebar-width)` che `sidebar.tsx` aggiunge per fissare i suoi 18rem — quindi è `w-3/4` a vincere la proprietà `width`. Sotto i 640px la differenza non si vede quasi (75% di una finestra stretta è comunque vicino a 288px); sopra i 640px entra in gioco anche `sm:max-w-sm` (24rem = 384px), che diventa il tetto vero perché più piccolo di `3/4` a quelle larghezze — ed è la cifra misurata: **384px, non 288**.
+
+**Corretto con `!` su entrambe le utility** (`w-(--sidebar-width)! sm:max-w-(--sidebar-width)!`): forza la nostra larghezza a vincere a prescindere dalla specificità. Resta un ri-stile di classi, non una modifica di struttura — regola 4bis, gradino 2; `componenti-propri.json` non ne parla, giustamente.
+
+Provato in Chromium: 288px esatti sia a 700px di finestra (la fascia mai testata) sia a 375px (il caso già coperto) — nessuna regressione.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
+
+---
+
+## Coda di M3.10: il riquadro scattava di un paio di pixel scorrendo (2026-09-15)
+
+Rilievo di Francesco, con due screenshot a distanza: scorrendo l'elenco intero, la riga «220 prodotti» in fondo si spostava verticalmente — il riquadro cambiava altezza da solo, non solo a scroll fermo.
+
+**Causa**: l'effetto che ricalcola il tetto dipende da `[infinito, righe.length]` (ora `conRighe`, sotto). `righe.length` cresce **a ogni passo dello scorrimento infinito** — ogni volta che `perPagina="infinito"` carica altre `PASSO_INFINITO` righe, l'effetto si smontava e rimontava da zero: l'osservatore vecchio si disconnetteva, quello nuovo richiamava `ricalcola()` subito, spesso un fotogramma prima che il layout del nuovo pezzo di righe fosse del tutto assestato — misurato in Chromium, uno scatto di ~2px catturato con un `MutationObserver` sullo `style` del riquadro, proprio durante uno scorrimento reale col mouse (non riprodotto scrivendo `scrollTop` a mano, che passa dallo stesso codice ma senza il rumore di un vero evento di scorrimento).
+
+**Corretto su due fronti**: la dipendenza diventa `conRighe` (`righe.length > 0`), non `righe.length` — le posizioni delle righe già rese non cambiano quando se ne aggiungono altre dopo, quindi l'osservatore non ha bisogno di ripartire a ogni passo, solo quando si passa da «zero righe» (lo stato vuoto) a «almeno una» o viceversa. E il margine di rumore sul confronto finale sale da 0.5 a 4px — resta ben sotto un'altezza di riga vera (30px e oltre), quindi non nasconde mai una riga che è davvero entrata o uscita, ma assorbe il sottopixel del `sticky` che si aggancia.
+
+Provato in Chromium: `MutationObserver` armato, scorrimento reale del mouse attraverso più passi di caricamento (fino a 164 righe rese) — **zero mutazioni** di `style.maxHeight` durante lo scorrimento, contro le due registrate prima della correzione.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi (il nuovo avviso `exhaustive-deps` su un'espressione complessa nelle dipendenze, preso subito, è quello che ha portato a estrarre `conRighe`).

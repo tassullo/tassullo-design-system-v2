@@ -187,7 +187,18 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          // `!` su entrambe: senza, fra 640 e 768px lo `Sheet` non è largo
+          // 18rem ma 384px. `sheet.tsx` dà al pannello `data-[side=left]:w-3/4`
+          // — un selettore con l'attributo `data-side`, più specifico del
+          // semplice `w-(--sidebar-width)` qui sotto, quindi vince lui sulla
+          // larghezza — e sopra i 640px anche `sm:max-w-sm` (24rem), che
+          // diventa il tetto vero perché più piccolo di `3/4` a quelle
+          // larghezze. Rilievo di Francesco, ridimensionando la finestra
+          // dell'app: riaprendo il pannello a quella larghezza era troppo
+          // largo. `!` forza la nostra larghezza a vincere a prescindere
+          // dalla specificità — è un ri-stile di classi, non una modifica
+          // di struttura (regola 4bis, gradino 2).
+          className="w-(--sidebar-width)! sm:max-w-(--sidebar-width)! bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
