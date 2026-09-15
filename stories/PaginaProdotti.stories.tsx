@@ -1,11 +1,16 @@
 import { useMemo, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import {
+  BookOpenIcon,
+  BoxesIcon,
+  FolderTreeIcon,
   LogOutIcon,
   PackagePlusIcon,
   PlusIcon,
   RefreshCwIcon,
+  SendIcon,
   SettingsIcon,
+  ShieldIcon,
   UserIcon,
 } from 'lucide-react'
 
@@ -86,35 +91,59 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /* ────────────────────────────────────────────────────────────────────────
- * Il guscio: le sezioni vere di Anagrafe, senza icone — come in produzione
- * oggi (`Blocchi/App shell`, story `SenzaIcone`).
+ * Il guscio: le quattro sezioni di Anagrafe come gruppi con icona e
+ * sottomenu — la forma di `sidebar-07` già dimostrata in
+ * `Primitive/Sidebar` (story `ConGruppi`): un `VoceNav` con `figli` è un
+ * `Collapsible` che si apre da sé, non una sezione a parte. `attiva` sale dal
+ * figlio al genitore — «Prodotti» apre ed evidenzia «Qualifica» — così il
+ * gruppo che contiene la pagina corrente non si scopre solo aprendolo a mano.
  * ──────────────────────────────────────────────────────────────────────── */
 
 const SEZIONI: SezioneNav[] = [
   {
-    titolo: 'Qualifica',
     voci: [
-      { titolo: 'Materie prime', href: '#' },
-      { titolo: 'Prodotti', href: '#', attiva: true },
-      { titolo: 'Kit', href: '#' },
+      {
+        titolo: 'Riferimenti',
+        icona: BookOpenIcon,
+        figli: [
+          { titolo: 'Norme', href: '#' },
+          { titolo: 'Caratteristiche', href: '#' },
+          { titolo: 'Organismi notificati', href: '#' },
+        ],
+      },
+      {
+        titolo: 'Qualifica',
+        icona: BoxesIcon,
+        attiva: true,
+        figli: [
+          { titolo: 'Materie prime', href: '#' },
+          { titolo: 'Prodotti', href: '#', attiva: true },
+          { titolo: 'Kit', href: '#' },
+        ],
+      },
+      {
+        titolo: 'Classificazione',
+        icona: FolderTreeIcon,
+        figli: [
+          { titolo: 'Famiglie TDS', href: '#' },
+          { titolo: 'Famiglie EPD', disabilitata: true },
+          { titolo: 'Sistemi', href: '#' },
+        ],
+      },
+      {
+        titolo: 'Distribuzione',
+        icona: SendIcon,
+        figli: [
+          { titolo: 'Change set', href: '#' },
+          { titolo: 'Traduzioni', href: '#' },
+          { titolo: 'Pubblicazioni', href: '#' },
+        ],
+      },
     ],
   },
   {
-    titolo: 'Classificazione',
-    voci: [
-      { titolo: 'Famiglie TDS', href: '#' },
-      { titolo: 'Famiglie EPD', disabilitata: true },
-      { titolo: 'Sistemi', href: '#' },
-    ],
-  },
-  {
-    titolo: 'Distribuzione',
-    voci: [
-      { titolo: 'Norme', href: '#' },
-      { titolo: 'Change set', href: '#' },
-      { titolo: 'Traduzioni', href: '#' },
-      { titolo: 'Pubblicazioni', href: '#' },
-    ],
+    voci: [{ titolo: 'Admin', icona: ShieldIcon, href: '#' }],
+    className: 'mt-auto',
   },
 ]
 
@@ -122,7 +151,7 @@ const UTENTE = {
   nome: 'Francesco',
   cognome: 'Sartori',
   email: 'fsartori@covicostruzioni.it',
-  ruolo: 'Sola lettura',
+  ruolo: 'Admin',
 }
 
 const AZIONI_UTENTE = (
@@ -453,7 +482,7 @@ function Guscio({ dati }: { dati: Prodotto[] }) {
   return (
     <AppShell
       applicazione="Anagrafe"
-      collassa="fuori"
+      collassa="icona"
       contenuto="riempie"
       utente={UTENTE}
       azioniUtente={AZIONI_UTENTE}

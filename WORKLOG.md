@@ -4003,3 +4003,26 @@ Annotato in due posti, non uno solo: il commento di testa di `DataTableProps.per
 ### Verifiche
 
 Nessuna modifica di comportamento — solo commenti e decisione. `tsc -b` ✔.
+
+---
+
+## Coda di M3.10: la sidebar della story Prodotti allineata a uno screenshot reale, e un difetto vero trovato nel blocco (2026-09-15)
+
+Francesco, a gate chiuso: uno screenshot della sidebar reale di Anagrafe (Riferimenti, Qualifica, Classificazione, Distribuzione, poi Admin, poi l'utente) da riportare in `stories/PaginaProdotti.stories.tsx`.
+
+**Le sezioni non bastavano.** `SEZIONI` aveva tre gruppi a titolo (Qualifica, Classificazione, Distribuzione) con `Norme` infilata dentro Distribuzione — lo screenshot mostra una quarta sezione, **Riferimenti** (Norme, Caratteristiche, Organismi notificati), e un **Admin** in coda prima del piede utente. Riscontro: il `Sidebar.tsx` **oggi in Anagrafe** (letto in sola lettura) non ha ancora Riferimenti — tre sole sezioni, Norme dentro Distribuzione — quindi lo screenshot è una versione più avanti di quella nel checkout locale. Annotato qui perché non passi per una svista di lettura: si è seguito lo screenshot, che è la fonte che Francesco ha dato, non il codice.
+
+**Poi la richiesta è salita di un gradino**: "trasformare le sezioni in gruppi con la loro icona più appropriata", sul modello già dimostrato in `Primitive/Sidebar` (story con `figli` — `Prodotti` che si apre su `Famiglie`/`Sistemi`/`Norme`). Non serviva nessun componente nuovo: `VoceNav.figli` e `VoceNav.icona` del blocco `tassullo-app-shell` già bastavano — le quattro sezioni sono diventate quattro voci di primo livello con icona (`BookOpenIcon`, `BoxesIcon`, `FolderTreeIcon`, `SendIcon`) e sottomenu, `Admin` una quinta voce piatta con `ShieldIcon`. Puro dato di story, zero registro toccato in questo primo passo.
+
+**Due rilievi di Francesco, in coda, hanno invece toccato il blocco:**
+
+1. *"Admin allineato in basso sopra il nome utente"* — `SezioneNav` non aveva modo di dirlo: le sezioni finiscono dove finiscono nel flusso. Aggiunto un `className?: string` opzionale su `SezioneNav`, passato alla `SidebarGroup` — `SidebarContent` è già `flex flex-col`, quindi `mt-auto` sulla sezione di Admin basta. Non è stata una decisione da 4bis-gradino-4: `SidebarGroup` accetta già `className` di suo, qui si espone solo un canale già esistente nella primitiva — gradino 2.
+2. *"manca la vista compatta della sidebar con le sole icone"* — la story passava ancora `collassa="fuori"`, ereditato da quando Anagrafe non aveva icone. Con le sezioni ora tutte iconate, passato a `collassa="icona"`: il rail da 48px torna a funzionare, provato in Chromium.
+
+**Il difetto vero, trovato guardando il rail**: con tutte le sezioni ora un `Collapsible`, `defaultOpen={voce.attiva}` (in `app-shell.tsx`) apriva **solo** il gruppo marcato attivo — Qualifica aperta, le altre tre chiuse. Francesco l'ha preso subito: *"da decidere se apertura default con tutti i sottomenu aperti o chiusi, sicuramente non una via di mezzo"*. Aveva ragione a chiamarlo un difetto e non un gusto — quella via di mezzo è un comportamento di *stato*, non di stile, e non è nel gradino 2 di 4bis: non si può correggere ri-stilando una classe.
+
+**Deciso: tutti aperti di default**, non tutti chiusi. `defaultOpen` è stato scollegato da `attiva` — ogni gruppo con `figli` si apre da sé, `attiva` resta a governare solo l'evidenziazione (chiaro nel commento lasciato in `app-shell.tsx`). Motivo della scelta e non del contrario: con quattro gruppi da 2-3 voci ciascuno l'albero intero sta su uno schermo senza scorrere, e vedere subito dove si è (`Prodotti` evidenziato dentro `Qualifica`, aperta insieme alle altre) costa meno click che aprire a mano ogni volta. È un comportamento del **blocco**, non della story: cambia per chiunque installi `tassullo-app-shell` con voci a `figli` — inclusa la story-dimostrazione `Blocchi/App shell` (il gruppo `Documenti`, prima chiuso perché non `attiva`, ora si apre anche lui). Nessuna regressione: provato in Chromium chiuso/aperto/rail, e `test:a11y --una` è tornato **0 violazioni** subito dopo la modifica.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti (`set-state-in-effect` su file non toccati), zero nuovi. `componenti-propri.json` resta vuoto: `className` su `SezioneNav` e lo scollegamento di `defaultOpen` sono comportamento del blocco esistente, non un componente nuovo.

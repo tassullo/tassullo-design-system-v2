@@ -163,6 +163,12 @@ export type VoceNav = {
 export type SezioneNav = {
   titolo?: string
   voci: VoceNav[]
+  /**
+   * Passata alla `SidebarGroup`. Serve per una cosa sola: `mt-auto`, che
+   * ancora una sezione — tipicamente `Admin` — al fondo della colonna,
+   * sopra il piede. `SidebarContent` è già `flex flex-col`: non serve altro.
+   */
+  className?: string
 }
 
 /**
@@ -364,7 +370,14 @@ function Voci({ voci }: { voci: VoceNav[] }) {
           return (
             <Collapsible
               key={voce.titolo}
-              defaultOpen={voce.attiva}
+              /*
+               * Aperto di default per **tutti** i gruppi, non solo quello
+               * attivo: legarlo ad `attiva` dava una via di mezzo — un solo
+               * gruppo aperto e gli altri collassati — che non è né «tutto
+               * visibile» né «tutto compatto», ed è la forma peggiore delle
+               * due. `attiva` resta a governare solo l'evidenziazione.
+               */
+              defaultOpen
               className="group/collapsible"
               render={<SidebarMenuItem />}
             >
@@ -413,7 +426,7 @@ function Navigazione({ sezioni }: { sezioni: SezioneNav[] }) {
   return (
     <>
       {sezioni.map((sezione, i) => (
-        <SidebarGroup key={sezione.titolo ?? i}>
+        <SidebarGroup key={sezione.titolo ?? i} className={sezione.className}>
           {sezione.titolo ? <SidebarGroupLabel>{sezione.titolo}</SidebarGroupLabel> : null}
           <Voci voci={sezione.voci} />
         </SidebarGroup>
