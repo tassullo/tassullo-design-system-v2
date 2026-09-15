@@ -1295,6 +1295,49 @@
         "@tassullo/tema"
       ],
       "docs": "Un blocco, un uso:\n\n  <RichTextEditor\n    defaultValue={testoEsistente}\n    onChange={(json) => salva(json)}\n    limite={2048}\n  />\n\nIl valore è **JSON** (`JSON.stringify(editor.getJSON())`), non HTML: la\nstessa struttura produce sempre la stessa stringa — la condizione che\n`diff-view` (M3.9) chiederà per confrontare due revisioni.\n\nD8 (PIANO.md, M3.8, la terza scelta): `@tiptap/react` è headless, come\n`react-dropzone` e `react-pdf` prima di lui — `useEditor` restituisce\nun'istanza su cui si legge lo stato e si comandano i cambi, senza una barra\ndi libreria da disfare.\n\n**La barra ridotta è lo schema del documento, non solo la scelta dei\nbottoni.** `StarterKit` porta di suo titoli, citazioni, codice, riga\norizzontale e sottolineato — tutti spenti nella configurazione — quindi un\nincolla da Word non li trascina dentro \"declassati\": ProseMirror li scarta\nall'analisi dell'HTML incollato, per costruzione. Restano grassetto,\ncorsivo, apice e pedice (`@tiptap/extension-superscript`,\n`@tiptap/extension-subscript`, nessuno dei due in `StarterKit` — non si\nescludono a vicenda di fabbrica, da cui il bottone \"Rimuovi formattazione\",\n`unsetAllMarks` + `clearNodes`) e collegamento (`openOnClick: false`: si\nlegge, non si segue, da dentro l'editor — il click apre invece il popover\nper modificarlo).\n\nIl limite è `@tiptap/extension-character-count`, `mode: 'textSize'`: conta\nil testo, non i marcatori — lo stesso significato di `z.string().max(2048)`\nsu `form-field` (M3.4). Il contatore cambia colore da 50 caratteri residui\n(`warning`) e a zero (`destructive`, sulla variante `-subtle-foreground`:\nmai `text-destructive`, la stessa trappola del CLAUDE.md)."
+    },
+    {
+      "name": "tassullo-split-view",
+      "type": "registry:block",
+      "title": "Vista affiancata",
+      "description": "Due colonne affiancate con scorrimento sincronizzabile per frazione, che sotto 448px di contenitore (misurato, non la viewport) si impilano. Base di diff-view; riusabile per confronti in genere.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/split-view.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/split-view.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/resizable",
+        "@tassullo/tema"
+      ],
+      "docs": "Due colonne, un layout che si misura da sé:\n\n  <SplitView\n    sinistra={<TestoPrima />}\n    destra={<TestoDopo />}\n    etichettaSinistra=\"Rev. 3\"\n    etichettaDestra=\"Rev. 4\"\n    sincronizzato\n  />\n\nSotto SOGLIA_AFFIANCATO (448px, la stessa soglia @md della fascia di\npage-header) un ResizeObserver sul contenitore passa a colonne impilate:\nla soglia guarda l'elemento, non lo schermo (docs/DECISIONI.md §31).\n`sincronizzato` lega lo scorrimento delle due colonne per frazione\npercorsa, non per pixel — corretto anche quando le due colonne non hanno\nla stessa lunghezza. Ogni colonna è una regione raggiungibile da tastiera\n(`role=\"region\"`, `tabIndex=0`, `aria-label` dall'etichetta).\n\nChiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha\nun blocco così, solo la primitiva `resizable` che è la sua base. Compone\nresizable, quindi resta un blocco: nessuna riga in componenti-propri.json."
+    },
+    {
+      "name": "tassullo-diff-view",
+      "type": "registry:block",
+      "title": "Confronto testi",
+      "description": "Confronto prima/dopo evidenziato parola per parola (D8: `diff`/jsdiff, zero dipendenze), in un paragrafo unico o affiancato in due colonne sincronizzate via split-view.",
+      "dependencies": [
+        "cn",
+        "diff"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/diff-view.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/diff-view.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/split-view",
+        "@tassullo/tema"
+      ],
+      "docs": "Un blocco, due modalità:\n\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} />\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} modo=\"affiancato\" />\n\n`diffWords` (non diffLines né diffChars) è il livello giusto per prosa:\nisola \"100\" da \"80\" dentro la stessa frase senza spezzare le parole.\n`inline` (default) fonde il confronto in un paragrafo solo — `<del>`\nbarrato per il tolto, `<ins>` colorato per l'aggiunto, i tag semantici\nHTML5 di una modifica. `affiancato` compone `SplitView` (M3.9, stessa\nsessione): tolto a sinistra, aggiunto a destra, scorrimento sincronizzato.\n\nChiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha\nun `diff` o un confronto testi già pronto. `diffWords` è una funzione pura, non un widget:\nil rendering resta interamente nostro, come per react-dropzone e react-pdf.\nResta un blocco, non un componente proprio: nessuna riga in\ncomponenti-propri.json."
     }
   ]
 }

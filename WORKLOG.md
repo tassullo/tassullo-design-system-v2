@@ -3711,3 +3711,34 @@ Regola 4bis, gradino 2 (ri-stile delle sole stringhe di classi): non serve una c
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1060 scansioni (4 passate) / 0 violazioni**, invariato — la regola axe sul focus visibile guarda che *esista* un indicatore, non il suo spessore; **registry** 0 errori (17 ri-stilati, +3 da 14); **contrasto**, **font**, **logo** allineati. `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti. `registry validate`: 69 item ✔. Verificato in Chromium con `getComputedStyle` su `Primitive/Button`: `box-shadow` passa da un anello a piena intensità a `0 0 0 1px` al 30% dell'arancio — la prova che non è un residuo dell'outline nativo del browser (quello resta soppresso da `outline-none`, invariato).
+
+
+---
+
+## M3.9 — `diff-view` e `split-view` (2026-09-15)
+
+Ultimo task della FASE 3: confronto prima/dopo parola per parola e vista a due colonne — `diff` ×15 nella roadmap di Anagrafe, il change set **è** il meccanismo del flusso di approvazione, e `version-timeline` (M3.7) manda già qui le due revisioni scelte da confrontare. Chiude anche **D8**, la scelta di libreria di terze parti per i blocchi: l'ultima delle quattro.
+
+### D8, la quarta e ultima: `diff` (jsdiff)
+
+Chiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha un confronto testi. `diff` — zero dipendenze proprie (`npm view diff dependencies` non stampa niente) — espone solo `diffWords(prima, dopo)`, una funzione pura: nessun widget da disfare, il rendering resta interamente nostro, come `react-dropzone` e `react-pdf` prima di lei. **Parola, non riga**: il piano lo chiede esplicito perché una scheda tecnica è prosa, non codice — un diff a riga intera su "sovrapposizione minima ai bordi 80 mm" → "100 mm" mostrerebbe l'intera frase come cambiata, nascondendo la sola parola che conta. `diffWords` isola "80" da "100" senza spezzare "sovrapposizione" in lettere.
+
+`DiffView` ha due modalità, non due componenti: `inline` (l'accettazione di M3.9) fonde il confronto in un paragrafo con `<del>` barrato e `<ins>` colorato — i tag semantici HTML5 di una modifica, non `<span>` a caso; `affiancato` compone `SplitView` (v. sotto), tolto a sinistra e aggiunto a destra. Il colore non basta da solo: il tolto resta barrato oltre che rosso, la stessa cautela già presa su `version-timeline` con badge e icona insieme.
+
+### `split-view`: la soglia guarda il contenitore, non lo schermo
+
+`resizable` (M2.4) era già dichiarata "la base dello split-view di M3.9" nel proprio commento di testa. `SplitView` la compone: due `ResizablePanel` affiancati sopra `SOGLIA_AFFIANCATO` (448px, la stessa soglia `@md` della fascia di `page-header`), colonne impilate sotto — misurato con un `ResizeObserver` sul **contenitore**, non una media query sulla viewport, per lo stesso motivo di D…/§31: il blocco vive dentro un layout (una colonna del guscio, una scheda), e la larghezza dello schermo non è quella del contenitore. Provato in Chromium: a 375px di contenitore le due colonne sono già impilate (story `Contenitore Stretto`), l'accettazione del piano.
+
+**Bug preso da `test:a11y`, non dichiarato.** Prima versione: `tabIndex`/`role="region"`/`onScroll`/`elementRef` passati direttamente a `ResizablePanel`. `npm run check` è uscito con **4 violazioni** (`scrollable-region-focusable`, una per passata) mai viste nelle sessioni precedenti. Causa, letta nel sorgente di `react-resizable-panels`: `Panel` rende **due** `<div>` — uno esterno, a cui vanno tutte le prop passate (`overflow: visible`, non scorre mai), uno interno generato dalla libreria con `overflow: auto` (quello che scorre davvero), irraggiungibile dall'esterno. Le mie prop finivano sul div sbagliato: axe vedeva giustamente una regione scorribile senza un modo di arrivarci da tastiera. Corretto con lo stesso principio già scritto in `resizable.stories.tsx` per `ScrollArea` — non fidarsi dello scorrimento automatico del pannello, mettere **dentro** un elemento scorribile e a fuoco nostro (`h-full overflow-auto`, `tabIndex={0}`, `role="region"`). Riprovato: `test:a11y` torna a **0 violazioni**, e in Chromium (`querySelector` sull'iframe di Storybook + `dispatchEvent` di `KeyboardEvent('keydown', {key:'ArrowLeft'})` sulla maniglia) la maniglia risponde ancora alle frecce come da `resizable.stories.tsx` — 15 pressioni portano il pannello sinistro da 382.5px a 0.
+
+**La sincronia è per rapporto, non per pixel** (`sincronizzato`): due colonne di lunghezza diversa non hanno lo stesso `scrollHeight`, quindi si sincronizza `scrollTop / (scrollHeight - clientHeight)` — la frazione percorsa — non il valore assoluto. Provato in Chromium: portata la colonna sinistra al fondo (`scrollTop = scrollHeight - clientHeight`, evento `scroll` sintetico), la destra arriva anch'essa al proprio fondo nello stesso passaggio, pur avendo un `scrollHeight` diverso (524 contro un'altezza propria diversa). Un flag (`sincroniaInCorso`) evita il ping-pong fra i due handler `onScroll`.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1084 scansioni (4 passate) / 0 violazioni** (+24 da 1060, le due story nuove); **registry** 0 errori (71 item, +2 da 69); **contrasto**, **font**, **logo** allineati. `tsc -b` ✔ · `build-storybook` ✔ · `lint`: solo i 3 avvisi preesistenti, nessuno nuovo. `registry validate`: 71 item ✔. `misura:bersagli`: 2297 bersagli su 271 story (invariato da M3.8 — nessun bersaglio piccolo nuovo, la maniglia di `resizable` era già misurata). Verificato in Chromium: diff inline e affiancato renderizzati sulla coppia di schede tecniche reali dell'accettazione (Rev. 3/Rev. 4, "80 mm" → "100 mm", "coperture piane e inclinate" → "coperture piane, inclinate e giardini pensili"); split-view a 375px impilato; tastiera e sincronia dello scorrimento provate come sopra.
+
+Dipendenza nuova: `diff` (^9, zero dipendenze proprie).
+
+### Prossimi passi
+
+M3.10 — Gate di FASE 3: ricostruire in Storybook la pagina Prodotti di Anagrafe con soli blocchi, zero CSS di pagina, screenshot a confronto.
