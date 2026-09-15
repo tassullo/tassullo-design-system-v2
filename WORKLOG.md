@@ -3905,3 +3905,21 @@ Provato in Chromium: `scrollTop` portato a metà elenco (220 righe) e lasciato a
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
+
+---
+
+## Coda: il tetto a cricchetto — bug preso da Francesco (2026-09-15)
+
+**Due bug**, uno dei quali serio, trovati da Francesco con due screenshot: rimpicciolire la finestra e riallargarla, o applicare un filtro e poi toglierlo, **non facevano più tornare il riquadro alla sua altezza piena** — restava incollato all'ultimo tetto piccolo.
+
+Causa: `ricalcola()` misurava `contenitore.getBoundingClientRect().height` con lo `style.maxHeight` della volta prima **ancora scritto addosso all'elemento**. Un tetto piccolo (4 righe filtrate, o una finestra bassa) tagliava la misura successiva **alla radice** — non importa quanto spazio tornasse disponibile, la misura vedeva sempre al più il vecchio tetto, mai lo spazio vero. Un difetto a **cricchetto**: scende, non risale mai. Preso su una story reale, non su un caso sintetico — esattamente il genere di bug che una singola misura "prova e basta" non avrebbe mai trovato.
+
+**Corretto togliendo il tetto prima di misurare**: `contenitore.style.maxHeight = "none"`, si legge lo spazio vero che il genitore concede, si rimette il tetto precedente, si ricalcola il nuovo — tutto sincrono, prima che il browser dipinga, scrivendo lo `style` direttamente sul nodo invece che aspettare un giro di React (che avrebbe lasciato il tetto vecchio a schermo per un fotogramma).
+
+**Terzo rilievo, più piccolo, nello stesso giro**: 1px di riquadro scoperto sotto il bordo dell'ultima riga — `getBoundingClientRect` torna sottopixel (716.266…) e un tetto troncato a quella cifra lascia una fessura. `Math.ceil` sul risultato finale (non sugli addendi) la chiude: un pixel in più non svela mai una riga in più, perché è sempre meno di un'intera altezza di riga.
+
+Provato in Chromium, i due casi esatti degli screenshot: finestra ristretta a 400px e riallargata a 900 — il riquadro torna a ~18 righe, non resta a 3; un filtro (`Tassullo Intonaci`, 4 righe) tolto con la crocetta — il riquadro torna a riempire tutta l'altezza («220 prodotti»), non resta a 4 righe.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.

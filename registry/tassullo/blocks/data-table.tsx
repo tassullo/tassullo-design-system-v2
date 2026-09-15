@@ -998,11 +998,28 @@ export function DataTable<TDato extends RowData>({
    * fa `flex-shrink` (§ sopra), invariato — qui si limita solo il caso in
    * cui il riquadro *vorrebbe* essere più alto di un multiplo esatto di riga.
    *
-   * **Converge da sé, non gira all'infinito.** Il riquadro misurato dopo
-   * aver applicato il tetto è già un multiplo esatto — l'arrotondamento
-   * rifatto sullo stesso valore dà lo stesso risultato — quindi il
-   * `ResizeObserver` sul riquadro si rifà vedere una volta e poi tace, per
-   * la guardia `prima === tetto` più sotto.
+   * **Il tetto va tolto prima di misurare, non solo applicato dopo — bug
+   * preso da Francesco, non letto nel codice.** La prima stesura misurava
+   * `contenitore.getBoundingClientRect().height` con lo `style.maxHeight`
+   * della volta prima **ancora addosso**: allargare la finestra, o togliere
+   * un filtro che aveva ristretto l'elenco, non faceva mai *crescere* il
+   * tetto — il riquadro restava incollato all'ultimo valore piccolo, perché
+   * ogni misura ripartiva da un'altezza già tagliata dalla misura
+   * precedente. Un difetto a **cricchetto**: scende, non risale mai.
+   *
+   * Si toglie il tetto, si misura lo spazio **vero** che il genitore
+   * concede (quello che `flex-shrink` darebbe senza vincoli), si
+   * ricalcola, e solo allora si rimette — tutto nello stesso giro
+   * sincrono, prima che il browser dipinga: la manipolazione diretta dello
+   * `style` qui non passa da React apposta, o il tetto vecchio resterebbe
+   * a schermo per un fotogramma mentre si aspetta il render successivo.
+   *
+   * **Converge da sé, non gira all'infinito.** Con il tetto tolto ogni
+   * volta prima di misurare, il valore letto è sempre lo spazio vero —
+   * l'arrotondamento non può più mentire a se stesso, e il
+   * `ResizeObserver` sul riquadro si rifà vedere una volta sola dopo il
+   * proprio giro (la nostra stessa scrittura di stile), poi tace per la
+   * guardia `prima === tetto` più sotto.
    */
   React.useEffect(() => {
     if (!infinito) return
@@ -1010,11 +1027,19 @@ export function DataTable<TDato extends RowData>({
     if (!contenitore) return
 
     const ricalcola = () => {
+      const tettoPrecedente = contenitore.style.maxHeight
+      contenitore.style.maxHeight = "none"
       const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
       const altezzaRiga = primaRigaRef.current?.getBoundingClientRect().height || altezzaTestata
-      if (altezzaRiga <= 0) return
       const disponibile = contenitore.getBoundingClientRect().height - altezzaTestata
-      const tetto = altezzaTestata + Math.floor(disponibile / altezzaRiga) * altezzaRiga
+      contenitore.style.maxHeight = tettoPrecedente
+      if (altezzaRiga <= 0) return
+      // `Math.ceil` sul risultato finale, non sugli addendi: `getBoundingClientRect`
+      // torna sottopixel (716.266…), e un tetto troncato a quella cifra lasciava
+      // 1px di riquadro scoperto sotto il bordo dell'ultima riga — preso da
+      // Francesco, zoomando sullo screenshot. Un pixel in più non svela mai una
+      // riga in più: è sempre meno di un'intera altezza di riga.
+      const tetto = Math.ceil(altezzaTestata + Math.floor(disponibile / altezzaRiga) * altezzaRiga)
       setAltezzaMax((prima) => (prima === tetto ? prima : tetto))
     }
 
