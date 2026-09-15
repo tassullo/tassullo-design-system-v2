@@ -4026,3 +4026,27 @@ Francesco, a gate chiuso: uno screenshot della sidebar reale di Anagrafe (Riferi
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti (`set-state-in-effect` su file non toccati), zero nuovi. `componenti-propri.json` resta vuoto: `className` su `SezioneNav` e lo scollegamento di `defaultOpen` sono comportamento del blocco esistente, non un componente nuovo.
+
+---
+
+## M4.1 — `pagina-login`, prima pagina modello della FASE 3.10 → FASE 4 (2026-09-15)
+
+Chiusa la FASE 3 (M3.10, gate di fase), si apre la FASE 4 — pagine intere, non spezzoni. `Login.tsx` di Anagrafe (letto in sola lettura, `frontend/src/pages/Login.tsx`, 24 righe) è il riferimento: logo, titolo, un bottone «Accedi con Microsoft» che chiama `instance.loginRedirect(loginRequest)` di MSAL, e un avviso quando l'app registration Entra ID non è ancora configurata.
+
+**Nuovo file `registry/tassullo/pages/pagina-login.tsx`** — `PaginaLogin`, componendo `Card`/`Alert`/`Button`/`Spinner` già nel registry, zero primitive nuove. Tre decisioni prese scrivendolo:
+
+1. **`onAccedi` è la sola cucitura verso MSAL**, non un import di `@azure/msal-react`. Portare quella libreria nel blocco obbligherebbe ogni consumatore del registry a quella dipendenza specifica anche senza fare autenticazione, o facendola con un provider diverso — il blocco non deve sapere qual è.
+2. **`stato` è un solo prop a tre valori** (`inattivo` | `in-corso` | `errore`), non tre booleani indipendenti che potrebbero contraddirsi (`inCorso && errore` insieme, per dire) — gli stessi tre che Anagrafe già distingue nel proprio flusso.
+3. **`configurato` è ortogonale a `stato`**, esattamente come `isAuthConfigured` nell'originale: un'app senza app registration può trovarsi in `inattivo` o in `errore` indipendentemente, e a `configurato={false}` il bottone resta disabilitato con l'avviso sotto, a prescindere da `stato`.
+
+Il messaggio d'errore arriva già tradotto — stessa regola di `tassullo-error-state` — e si mostra con `Alert variant="destructive"`, non un testo tinto `text-destructive`: la prima delle due trappole del `CLAUDE.md`.
+
+**Rilievo di Francesco a caldo, guardando la story**: la T del logo usciva arancione (`text-primary` sullo `span.marchio-t`). Sbagliato — il marchio segue `currentColor`, e forzarlo a `--primary` lo tinge di brand ovunque, mentre l'identità visiva vuole la T **bianca o nera**, mai arancio come colore di testo (è la stessa famiglia della prima trappola: `--primary` non si usa mai per il testo). Tolta la classe: la T eredita il colore ambiente del `CardHeader` (`text-card-foreground`), nero in chiaro e bianco in scuro — provato in Chromium in entrambe le modalità dopo la correzione.
+
+**`check:registry` esteso a `registry/tassullo/pages/`**, prima cartella di FASE 4: stessa funzione `fileBlocchi()` che già copriva `blocks/` e `lib/` (sola regola 3, nessun originale shadcn per costruzione, nessuna riga in `componenti-propri.json`) — senza l'estensione sarebbe stata la prima cartella del registry a restare invisibile al gate fin dal primo file.
+
+Item aggiunto a `registry.json`: `tassullo-pagina-login` (`registry:block`, target `components/pages/pagina-login.tsx`), `registryDependencies` su `alert`/`button`/`card`/`spinner`/`tema`. `npm run registry:build` rilanciato.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1112 scansioni (4 passate, con la nuova pagina) / 0 violazioni**; `test:a11y -- --una` dopo la correzione del logo, **278 scansioni / 0 violazioni**. `tsc -b` ✔ · `build` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: stati `Predefinito`/`InCorso`/`Errore`/`NonConfigurato`/`Interattiva`, logo nero in chiaro e bianco in scuro.

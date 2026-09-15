@@ -78,7 +78,7 @@ Dipendenze di fase: FASE 3. Ogni pagina è un `registry:block` con dati finti ti
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
-| M4.1 `pagina-login` | TODO | M3.4, M3.5 | schermata di accesso predisposta per MSAL/Entra ID, con errore e "accesso in corso" |
+| M4.1 `pagina-login` | **DONE** 2026-09-15 | M3.4, M3.5 | ✔ **1 pagina, 72 item.** `PaginaLogin`: logo, nome app, `onAccedi` come sola cucitura verso MSAL/Entra ID (nessuna dipendenza `@azure/msal-react`). Tre stati (`inattivo`/`in-corso`/`errore`) più `configurato` ortogonale. `check:registry` esteso a `pages/` (nuova cartella, stessa regola-3-sola dei blocchi). `check` verde sui cinque gate, a11y 278 scansioni/0 violazioni. → dettaglio in `WORKLOG.md`, voce **M4.1** |
 | M4.2 `pagina-lista` | TODO | M3.3, M3.5, M2.6 | intestazione + barra filtri + `data-table` paginata + stati vuoto/caricamento/errore, provata nelle **quattro celle viewport × densità**; **chiude D10** sulla cella `375px × touch` |
 | M4.3 `pagina-scheda` | TODO | M3.2, M3.4, M3.7 | breadcrumb, stato e azioni, tab anagrafica/documenti/storico, form lettura↔modifica, timeline in coda |
 | M4.4 `pagina-dashboard` | TODO | M2.8, M3.3 | indicatori, due grafici, tabella attività recenti, area avvisi |

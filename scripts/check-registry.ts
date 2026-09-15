@@ -34,6 +34,7 @@ import { basename, join } from "node:path";
 
 const UI_DIR = "registry/tassullo/ui";
 const BLOCCHI_DIR = "registry/tassullo/blocks";
+const PAGINE_DIR = "registry/tassullo/pages";
 const LIB_DIR = "registry/tassullo/lib";
 const UPSTREAM_DIR = "registry/.upstream";
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
@@ -209,10 +210,15 @@ function fileUi(): string[] {
  * `lib/toni.ts` è un file fatto **di sole stringhe di classi**, cioè esattamente
  * ciò che la regola 3 governa, e restava l'unica cartella del registry in cui
  * un esadecimale sarebbe passato liscio.
+ *
+ * **Da M4.1 guarda anche `pages/`**: le pagine modello della FASE 4 sono
+ * composizioni di blocchi, non hanno un originale shadcn per la stessa
+ * ragione dei blocchi, e senza questa riga sarebbero state la prima cartella
+ * del registry a restare invisibile al gate fin dal primo file che ci finiva.
  */
 function fileBlocchi(): string[] {
   const fuori: string[] = [];
-  for (const dir of [BLOCCHI_DIR, LIB_DIR]) {
+  for (const dir of [BLOCCHI_DIR, PAGINE_DIR, LIB_DIR]) {
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
       if (!/\.tsx?$/.test(f) || f.endsWith(".stories.tsx")) continue;
@@ -243,7 +249,7 @@ function controllaBlocchi(): Set<string> {
       }
     }
     console.log(
-      `  ▪ ${nome.padEnd(24)} ${path.startsWith(LIB_DIR) ? "helper Tassullo" : "blocco Tassullo"} — nessun originale shadcn per costruzione` +
+      `  ▪ ${nome.padEnd(24)} ${path.startsWith(LIB_DIR) ? "helper Tassullo" : path.startsWith(PAGINE_DIR) ? "pagina Tassullo" : "blocco Tassullo"} — nessun originale shadcn per costruzione` +
         (arbitrari > 0 ? `, ${arbitrari} valore/i arbitrario/i` : ""),
     );
   }
