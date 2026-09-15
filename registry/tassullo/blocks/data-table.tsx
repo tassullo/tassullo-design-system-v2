@@ -975,6 +975,9 @@ export function DataTable<TDato extends RowData>({
   const primaRigaRef = React.useRef<HTMLTableRowElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
 
+  const radiceRef = React.useRef<HTMLDivElement>(null)
+  const piePaginaRef = React.useRef<HTMLDivElement>(null)
+
   /**
    * **Il riquadro finisce sempre su un confine di riga.** `flex-shrink`
    * (sopra) dà al riquadro l'altezza disponibile in pixel grezzi — non un
@@ -987,71 +990,75 @@ export function DataTable<TDato extends RowData>({
    *
    * Si **misura**, non si calcola a tavolino: l'altezza di riga segue la
    * densità (`h-10`/`p-2` derivano da `--spacing`), quindi un numero scritto
-   * qui mentirebbe alla prima densità diversa. Due `ResizeObserver`, la
-   * stessa coppia della coda di M3.10 — sul riquadro, che cambia con la
-   * finestra, e sulla testata, che cambia con la densità senza che il
-   * riquadro stesso cambi — e la formula arrotonda per difetto: `testata +
-   * ⌊(disponibile − testata) / riga⌋ × riga`.
+   * qui mentirebbe alla prima densità diversa.
    *
    * **`max-height`, non `height`.** Un `max-height` non forza nessuna
    * crescita: un elenco più corto del tetto resta a restringersi come già
    * fa `flex-shrink` (§ sopra), invariato — qui si limita solo il caso in
    * cui il riquadro *vorrebbe* essere più alto di un multiplo esatto di riga.
    *
-   * **Il tetto va tolto prima di misurare, non solo applicato dopo — bug
-   * preso da Francesco, non letto nel codice.** La prima stesura misurava
-   * `contenitore.getBoundingClientRect().height` con lo `style.maxHeight`
-   * della volta prima **ancora addosso**: allargare la finestra, o togliere
-   * un filtro che aveva ristretto l'elenco, non faceva mai *crescere* il
-   * tetto — il riquadro restava incollato all'ultimo valore piccolo, perché
-   * ogni misura ripartiva da un'altezza già tagliata dalla misura
-   * precedente. Un difetto a **cricchetto**: scende, non risale mai.
+   * **Non si misura il riquadro stesso — bug preso da Francesco, due volte.**
+   * Una prima stesura leggeva `contenitore.getBoundingClientRect().height`:
+   * ridimensionare la finestra, o togliere un filtro, non faceva più
+   * *crescere* il tetto — un difetto a **cricchetto**. Corretto togliendo il
+   * tetto prima di misurare; ma il rimedio manipolava lo `style` dentro lo
+   * stesso `ResizeObserver` che osservava **quell'elemento**, e in un
+   * ridimensionamento continuo (il trascinamento del bordo della finestra,
+   * non lo scatto singolo di un test) la scrittura poteva restare intrappolata
+   * nel proprio giro di notifiche — a volte tornava all'altezza piena, a
+   * volte no.
    *
-   * Si toglie il tetto, si misura lo spazio **vero** che il genitore
-   * concede (quello che `flex-shrink` darebbe senza vincoli), si
-   * ricalcola, e solo allora si rimette — tutto nello stesso giro
-   * sincrono, prima che il browser dipinga: la manipolazione diretta dello
-   * `style` qui non passa da React apposta, o il tetto vecchio resterebbe
-   * a schermo per un fotogramma mentre si aspetta il render successivo.
-   *
-   * **Converge da sé, non gira all'infinito.** Con il tetto tolto ogni
-   * volta prima di misurare, il valore letto è sempre lo spazio vero —
-   * l'arrotondamento non può più mentire a se stesso, e il
-   * `ResizeObserver` sul riquadro si rifà vedere una volta sola dopo il
-   * proprio giro (la nostra stessa scrittura di stile), poi tace per la
-   * guardia `prima === tetto` più sotto.
+   * La misura giusta **non tocca mai l'elemento che sta misurando**: si
+   * osserva la **radice** (`radiceRef`, il guscio di tutto il blocco, alto
+   * quanto glielo dà il genitore — non cambia mai per colpa nostra) e si
+   * calcola quanto spazio resta per il riquadro sottraendo ciò che sta sopra
+   * e sotto di lui — la barra di ricerca (la sua posizione, non la sua
+   * altezza: `contenitore.getBoundingClientRect().top`, che dipende da cosa
+   * viene *prima*, mai dall'altezza del riquadro stesso) e il piede della
+   * paginazione (`piePaginaRef`, la sua altezza vera). Nessuno di questi tre
+   * numeri dipende da quanto abbiamo appena scritto in `altezzaMax`: la
+   * misura non può più mentire a se stessa, in un ridimensionamento singolo
+   * come in uno continuo.
    */
   React.useEffect(() => {
     if (!infinito) return
+    const radice = radiceRef.current
     const contenitore = contenitoreRef.current
-    if (!contenitore) return
+    const piePagina = piePaginaRef.current
+    if (!radice || !contenitore || !piePagina) return
 
     const ricalcola = () => {
-      const tettoPrecedente = contenitore.style.maxHeight
-      contenitore.style.maxHeight = "none"
       const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
       const altezzaRiga = primaRigaRef.current?.getBoundingClientRect().height || altezzaTestata
-      const disponibile = contenitore.getBoundingClientRect().height - altezzaTestata
-      contenitore.style.maxHeight = tettoPrecedente
       if (altezzaRiga <= 0) return
+
+      const scarto = parseFloat(getComputedStyle(radice).rowGap) || 0
+      const disponibileTotale =
+        radice.getBoundingClientRect().bottom -
+        contenitore.getBoundingClientRect().top -
+        piePagina.getBoundingClientRect().height -
+        scarto
+      const disponibile = disponibileTotale - altezzaTestata
+
       // `Math.ceil` sul risultato finale, non sugli addendi: `getBoundingClientRect`
-      // torna sottopixel (716.266…), e un tetto troncato a quella cifra lasciava
-      // 1px di riquadro scoperto sotto il bordo dell'ultima riga — preso da
-      // Francesco, zoomando sullo screenshot. Un pixel in più non svela mai una
-      // riga in più: è sempre meno di un'intera altezza di riga.
+      // torna sottopixel, e un tetto troncato lasciava 1px di riquadro scoperto
+      // sotto il bordo dell'ultima riga — preso zoomando su uno screenshot. Un
+      // pixel in più non svela mai una riga in più: è sempre meno di un'intera
+      // altezza di riga.
       const tetto = Math.ceil(altezzaTestata + Math.floor(disponibile / altezzaRiga) * altezzaRiga)
       setAltezzaMax((prima) => (prima === tetto ? prima : tetto))
     }
 
     ricalcola()
     const ro = new ResizeObserver(ricalcola)
-    ro.observe(contenitore)
+    ro.observe(radice)
+    ro.observe(piePagina)
     if (testataRef.current) ro.observe(testataRef.current)
     return () => ro.disconnect()
   }, [infinito, righe.length])
 
   return (
-    <div className={cn("flex min-h-0 flex-col gap-4", className)}>
+    <div ref={radiceRef} className={cn("flex min-h-0 flex-col gap-4", className)}>
       {cerca !== false || barra || colonneNascondibili ? (
         <div className="flex flex-wrap items-center gap-3">
           {cerca !== false ? (
@@ -1212,12 +1219,14 @@ export function DataTable<TDato extends RowData>({
         </Table>
       </div>
 
-      <PaginazioneTabella
-        tabella={tabella}
-        conSelezione={selezione}
-        infinito={infinito}
-        nomeRighe={nomeRighe}
-      />
+      <div ref={piePaginaRef}>
+        <PaginazioneTabella
+          tabella={tabella}
+          conSelezione={selezione}
+          infinito={infinito}
+          nomeRighe={nomeRighe}
+        />
+      </div>
     </div>
   )
 }

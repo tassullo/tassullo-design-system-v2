@@ -3923,3 +3923,19 @@ Provato in Chromium, i due casi esatti degli screenshot: finestra ristretta a 40
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
+
+---
+
+## Coda: il cricchetto non era chiuso del tutto (2026-09-15)
+
+Rilievo di Francesco: la coda precedente aveva corretto il caso semplice, ma **«col resize della finestra non sempre torno a vedere tutte le righe»** — un ridimensionamento *continuo* (il trascinamento del bordo di una finestra vera, non lo scatto singolo di un test) tornava a incollarsi a un'altezza piccola, a volte sì e a volte no.
+
+**Causa vera, più a monte di quella corretta prima.** Il rimedio precedente toglieva il tetto, misurava, lo rimetteva — ma lo faceva scrivendo `style.maxHeight` **sullo stesso elemento che il `ResizeObserver` stava osservando**, dentro il suo stesso callback. In un ridimensionamento a scatto singolo il giro fa in tempo a chiudersi pulito; in una sequenza di notifiche ravvicinate (il trascinamento) la scrittura può restare intrappolata nel meccanismo di ri-consegna di `ResizeObserver` — a seconda di quando cade rispetto alle notifiche del browser, il tetto nuovo a volte non arriva.
+
+**Corretto togliendo la misura dalla propria influenza, non riprovando la stessa strada meglio.** Il riquadro non si misura più da solo: si osserva la **radice** del blocco (`radiceRef`, alta quanto il genitore gliela dà — mai per colpa nostra) e si calcola lo spazio per il riquadro sottraendo quello che sta sopra e sotto di lui, con tre misure che **non dipendono mai** da `altezzaMax`: la posizione del riquadro (`getBoundingClientRect().top`, decisa da cosa viene prima, mai dalla sua stessa altezza), l'altezza vera del piede della paginazione (nuovo `piePaginaRef`, che avvolge `<PaginazioneTabella>`), e il bordo inferiore della radice. Nessuna scrittura di `style` dentro il `ResizeObserver`: la misura è **pura lettura**, quindi non c'è più un giro da cui restare intrappolati, a prescindere da quanto le notifiche arrivino fitte.
+
+Provato in Chromium **simulando un trascinamento vero**: sei passi di altezza in sequenza, 900→850→780→650→720→800→900px — il riquadro torna sempre a ~18 righe alla fine, ripetuto due volte di seguito. Il caso già corretto (filtro a 4 righe, tolto con la crocetta) resta identico.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi.
