@@ -3576,3 +3576,19 @@ Corretto misurando la cornice con un `ResizeObserver` e passando a `<Page width=
 ### Verifiche
 
 `tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato.
+
+---
+
+## Coda di M3.7 (2) — la linea della timeline non toccava il pallino allo stesso pixel (2026-09-15)
+
+Rilievo di Francesco su `version-timeline`: la linea grigia fra un pallino e l'altro non raggiungeva sempre il bordo — a volte un gap, a volte la passava — visibile confrontando Rev. 3 e Rev. 1 nelle due story.
+
+**Causa**: il pallino disegnava l'anello colorato con `ring-2` — un `box-shadow`, che non occupa spazio nel layout — sopra un `border-2 border-background` che faceva da "alone". La linea sotto era invece un elemento di flusso normale, adiacente al pallino: l'anello (box-shadow) sporge 2px fuori dalla scatola reale del pallino e si sovrapponeva alla linea in un punto che dipende dall'arrotondamento dei subpixel — diverso riga per riga a seconda dell'altezza del contenuto sopra.
+
+Corretto sostituendo l'anello con un **bordo vero** (`border-2 border-{colore}` su `bg-background`, `size-3`): partecipa al box model, quindi la linea comincia esattamente dove il pallino finisce, per costruzione — niente più dipendenza dall'ordine di dipintura fra box-shadow e fratello successivo.
+
+**Sulla domanda di fondo**: l'altezza cresce linearmente col numero di revisioni, com'è normale per una timeline verticale — non è un artefatto, è la lista che si allunga (la pagina che la contiene scorre). Nessun segno di degrado con più righe nelle prove fatte finora.
+
+### Verifiche
+
+`tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato. Riprovato in Chromium: la linea tocca il bordo del pallino uniformemente su tutte le righe di `CinqueRevisioni`.

@@ -136,10 +136,10 @@ export function VersionTimeline({
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "mt-1 size-2.5 shrink-0 rounded-full border-2 border-background ring-2 ring-border",
-                    revisione.stato === "approvato" && "ring-success",
-                    revisione.stato === "rifiutato" && "ring-destructive",
-                    revisione.stato === "in-revisione" && "ring-warning-border"
+                    "mt-1 size-3 shrink-0 rounded-full border-2 bg-background border-border",
+                    revisione.stato === "approvato" && "border-success",
+                    revisione.stato === "rifiutato" && "border-destructive",
+                    revisione.stato === "in-revisione" && "border-warning-border"
                   )}
                 />
                 {ultima ? null : (
