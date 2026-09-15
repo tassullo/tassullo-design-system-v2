@@ -3987,3 +3987,19 @@ Provato in Chromium: `MutationObserver` armato, scorrimento reale del mouse attr
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1092 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: tre avvisi preesistenti, zero nuovi (il nuovo avviso `exhaustive-deps` su un'espressione complessa nelle dipendenze, preso subito, è quello che ha portato a estrarre `conRighe`).
+
+---
+
+## Quanto costa ripetere `perPagina="infinito"` altrove (2026-09-15)
+
+Francesco, a gate chiuso: valutare quanto sia replicabile la forma di Prodotti su altre pagine sola-lista (Norme, Certificazioni), e a che costo.
+
+**Risposta: poco, in codice.** Tre righe bastano — `<AppShell contenuto="riempie">`, la pagina in `flex h-full min-h-0 flex-col` attorno a `PageHeader` + tabella, `<DataTable perPagina="infinito" className="min-h-0 flex-1">`. Le tre correzioni prese in coda oggi (cricchetto, bordo doppio, scatto in scorrimento) non si ripetono: vivono dentro `data-table.tsx`/`app-shell.tsx`, condivise gratis da chi installa il blocco.
+
+**Confine annotato, non scoperto adesso ma reso esplicito ora perché non passasse per «zero sforzo» senza condizioni**: `perPagina="infinito"` rivela progressivamente un array **già tutto in `dati`** — non chiede altro al server durante lo scorrimento. Va bene finché la pagina riceve l'elenco intero in una chiamata sola, com'è oggi per Prodotti (e come `generaProdotti` lo simula nella story). Una pagina futura con un elenco **paginato lato server** chiederebbe un `onCaricaAltro`/`fetchNextPage` che il blocco oggi non ha — lavoro da preventivare, non da assumere incluso.
+
+Annotato in due posti, non uno solo: il commento di testa di `DataTableProps.perPagina` (`data-table.tsx`) — il primo posto in cui chi replica la forma guarda — e `docs/DECISIONI.md` §37 (D19), a chiusura del ragionamento che aveva aperto la domanda.
+
+### Verifiche
+
+Nessuna modifica di comportamento — solo commenti e decisione. `tsc -b` ✔.

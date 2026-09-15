@@ -739,6 +739,19 @@ export type DataTableProps<TDato extends RowData> = {
    *
    * Il menu «Righe» e i salti di pagina spariscono: non c'è una pagina da
    * saltare. Resta solo il conto, in fondo.
+   *
+   * **Confine accertato, da conoscere prima di promettere «stessa forma,
+   * zero sforzo» su un'altra pagina**: `perPagina="infinito"` rivela
+   * progressivamente un array **già tutto in `dati`** — non richiede altro
+   * al server mentre si scorre. Va bene finché l'API della pagina restituisce
+   * l'elenco intero in una chiamata sola (`generaProdotti` nella story lo
+   * simula così, ed è anche il caso di Anagrafe oggi per Prodotti). Se una
+   * futura pagina **sola lista** avesse un elenco paginato lato server — non
+   * tutto scaricato in un colpo — «carica altro mentre scorro» diventerebbe
+   * lavoro vero: un `onCaricaAltro`/`fetchNextPage` che questo blocco oggi
+   * non ha. Verificare come arrivano i dati **prima** di assumere che il
+   * pattern costi zero su una pagina nuova (valutazione del 2026-09-15,
+   * `WORKLOG.md`).
    */
   perPagina?: (typeof PER_PAGINA)[number] | "infinito"
   /** Aggiunge la colonna delle caselle. */

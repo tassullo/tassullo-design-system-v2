@@ -1545,3 +1545,9 @@ Il menu «Righe» e i quattro salti di pagina spariscono del tutto (non solo il 
 ### Cosa resta uguale a qualunque tabella `data-table`
 
 Ricerca, ordinamento, colonne nascondibili, selezione multipla: tutto il resto del blocco non cambia. `perPagina="infinito"` è una terza forma accanto a un numero fisso, non un blocco diverso — la stessa API, `colonne`/`dati`/`cerca`/`barra`, la stessa storia di gate (1092 scansioni, 0 violazioni).
+
+### Confine accertato: replicabile a basso costo, ma solo per dati già in memoria
+
+Chiesto da Francesco, a gate chiuso: quanto costa ripetere la forma su un'altra pagina sola-lista? **Poco, in codice**: tre righe — `<AppShell contenuto="riempie">`, la pagina che rende `flex h-full min-h-0 flex-col` attorno a `PageHeader` + tabella, `<DataTable perPagina="infinito" className="min-h-0 flex-1">`. Nessuna delle tre correzioni prese in coda (il cricchetto, il bordo doppio, lo scatto in scorrimento) va ripetuta altrove: vivono dentro il blocco, non nella pagina che lo consuma.
+
+**Ma il meccanismo rivela progressivamente un array già interamente in `dati`** — non chiede altro al server mentre si scorre. Regge finché l'API della pagina risponde con l'elenco intero in una chiamata sola, com'è oggi per Prodotti in Anagrafe (e come lo simula `generaProdotti` nella story). Una pagina sola-lista futura con un elenco **paginato lato server** — non tutto scaricato in un colpo — chiederebbe un `onCaricaAltro`/`fetchNextPage` che questo blocco oggi non ha: non è un'estensione gratuita, è lavoro in più da preventivare. Annotato nel commento di testa di `DataTableProps.perPagina`, perché è lì che chi replica la forma guarda per primo — non solo qui.
