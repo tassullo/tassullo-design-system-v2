@@ -3434,3 +3434,32 @@ Solo stringhe di classi, forma identica all'originale: `check:registry` lo conta
 
 `npm run check` verde: **972 scansioni / 0 violazioni**, 243 story. `tsc -b` ✔ · `build-storybook` ✔.
 Spaziature rimisurate in Chromium, densità normale e touch: vedi tabella sopra.
+
+---
+
+## M3.5 — Stati: `empty-state`, `error-state`, `page-skeleton`, `toast-con-annullo` (2026-09-15)
+
+Lo standard vincolante unico che `INTERFACCE.md` §1.1 di Anagrafe impone per caricamento, errore, vuoto e successo — oggi reimplementato da ogni pagina (`prd-vuoto`, `pdt-vuoto`, …). Quattro item, non tre: il quarto è il verdetto di **D18**, rimasta aperta da M3.4, che andava chiuso qui perché l'annullo è una forma del successo (`docs/DECISIONI.md` §35).
+
+### D18 chiusa prima di scrivere codice
+
+Aperta a Francesco la domanda del punto 3 di §35 — soft-delete ripristinabile lato API, o azione differita lato client? — la risposta è stata **«non so, spiegami cosa comporta ogni scelta»**. Spiegati i due costi (nessun contratto backend nella strada differita, contro un endpoint che oggi non esiste per Anagrafe nella strada del ripristino), la scelta è **differita lato client**, **esplicitamente provvisoria**: da rivedere con Roberto a design system finito. Verdetto e motivazione a verbale in `docs/DECISIONI.md` §35.
+
+### I quattro item
+
+- **`tassullo-empty-state`** (`registry/tassullo/blocks/empty-state.tsx`) — compone la primitiva `empty` (M3.5 l'aveva già anticipata come mattone, `Primitive/Empty`), fissando l'unico default che quella lascia aperto: il bordo tratteggiato acceso, forma che ogni punto d'uso finora sceglieva a mano.
+- **`tassullo-error-state`** (`error-state.tsx`) — **la stessa primitiva del vuoto**, non `alert`: lo diceva già la story `Errore` di `Primitive/Empty`, scritta apposta in una sessione precedente come traccia per questo blocco. Un errore che sostituisce un'intera sezione è uno stato della pagina, non una riga di testo accanto al contenuto. La traduzione del messaggio (mai uno stack trace, mai un codice HTTP nudo, un 403 sempre "Non hai i permessi per questa azione") resta dell'app, che sa cosa il server ha davvero risposto — il blocco dà solo la forma.
+- **`tassullo-page-skeleton`** (`page-skeleton.tsx`) — tre `variante`: `tabella` (default), `scheda`, `elenco`. Compone `skeleton`: le larghezze di colonna sono deliberatamente disuguali fra loro, perché è quel disallineamento leggero a leggersi come "sta arrivando" e non come una griglia già disegnata.
+- **`tassullo-toast-con-annullo`** (`toast-con-annullo.tsx`) — il verdetto di D18. `toastConAnnullo(azione, opzioni)`: `azione` non parte finché il toast non si chiude da sé o viene scartato senza cliccare «Annulla». Verificato nella sorgente di `sonner` (`node_modules/sonner/dist/index.mjs`) che il clic sul bottone d'azione **non** passa da `onDismiss` — solo lo swipe e la X ci passano — quindi il flag `annullato` è la guardia giusta e basta, senza doppio conteggio.
+
+Nessuno dei quattro è nostro nel senso della regola 4bis: sono blocchi (composizione sopra primitive shadcn esistenti — `empty`, `skeleton`, `sonner`, `alert-dialog` per riferimento), non sostituti di una primitiva. `registry/componenti-propri.json` resta vuoto.
+
+### Verifiche
+
+Ambiente ricostruito da zero in questa sessione (Mac riformattato): installato Homebrew Node (v26.8.2) e i `chromium`/`chromium-headless-shell` di Playwright, mancanti dopo il reset — senza quelli `test:a11y` restituiva silenziosamente **0 scansioni** invece di fallire, ed è un falso "verde" da non fidarsi mai: il numero di scansioni va sempre letto, non solo il conto delle violazioni.
+
+`npm run check` verde: **1016 scansioni / 0 violazioni** (da 868 a 1016: le quattro nuove story hanno margine, nessuna dichiara popup e nessuna doveva). `check:registry`: 0 errori, i quattro blocchi passano la regola 3 (niente hex, niente valori arbitrari) — `componenti-propri.json` non tocco. `check:contrast`, `check:font`, `check:logo` verdi. `tsc -b` ✔ · `lint`: solo i 3 avvisi preesistenti su `use-mobile.ts`/`carousel.tsx`, nessuno sui file nuovi. `misura:bersagli`: 2245 bersagli su 254 story, **0 piccoli in entrambe le direzioni** — i quattro blocchi non introducono bersagli tattili nuovi (nessun controllo di taglia inedita).
+
+### Prossimi passi
+
+M3.6 `file-upload`. `componenti-propri.json` resta la condizione da difendere.

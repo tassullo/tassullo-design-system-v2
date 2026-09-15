@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tassullo-page-skeleton",
+  "title": "Skeleton di pagina",
+  "description": "Il «caricamento» dello standard unico di M3.5: skeleton al posto del contenuto, mai una pagina bianca e mai uno spinner isolato senza contesto. Tre varianti — tabella, scheda, elenco — perché l'altezza dev'essere coerente col contenuto atteso.",
+  "dependencies": [
+    "cn"
+  ],
+  "registryDependencies": [
+    "@tassullo/skeleton",
+    "@tassullo/tema"
+  ],
+  "files": [
+    {
+      "path": "registry/tassullo/blocks/page-skeleton.tsx",
+      "content": "/**\n * `tassullo-page-skeleton` — il «caricamento» dello standard unico di M3.5.\n *\n * `INTERFACCE.md` §1.1 di Anagrafe chiede, per il caricamento: skeleton al\n * posto del contenuto, **mai** una pagina bianca e **mai** uno spinner isolato\n * senza contesto; l'altezza dello skeleton coerente col contenuto atteso —\n * «una riga di tabella, una card». Da cui le tre `variante`: la forma cambia\n * con ciò che sta arrivando, non è un rettangolo unico buono per tutto.\n *\n * Compone `skeleton`, non lo sostituisce: ogni riga qui sotto è un `<Skeleton\n * className=\"h-4 w-...\" />`, e le larghezze sono le stesse in ogni riga di\n * `tabella` proprio perché una tabella vera non le avrebbe uguali — è quel\n * disallineamento leggero a leggersi come «sta arrivando», invece che come una\n * griglia già disegnata.\n */\nimport { cn } from \"cn\"\nimport { Skeleton } from \"@/registry/tassullo/ui/skeleton\"\n\nexport type PageSkeletonProps = {\n  /** `tabella` (default), `scheda` o `elenco` — la forma del contenuto atteso. */\n  variante?: \"tabella\" | \"scheda\" | \"elenco\"\n  /** Quante righe/voci finte mostrare. */\n  righe?: number\n  className?: string\n}\n\nconst LARGHEZZE_COLONNA = [\"w-32\", \"w-24\", \"w-20\"]\n\nexport function PageSkeleton({\n  variante = \"tabella\",\n  righe = 5,\n  className,\n}: PageSkeletonProps) {\n  if (variante === \"scheda\") {\n    return (\n      <div\n        data-slot=\"page-skeleton\"\n        data-variante={variante}\n        className={cn(\"flex flex-col gap-4 rounded-xl border p-6\", className)}\n      >\n        <Skeleton className=\"h-6 w-2/5\" />\n        <Skeleton className=\"h-4 w-3/5\" />\n        <div className=\"flex flex-col gap-2 pt-2\">\n          {Array.from({ length: righe }).map((_, i) => (\n            <Skeleton key={i} className=\"h-4 w-full\" />\n          ))}\n        </div>\n      </div>\n    )\n  }\n\n  if (variante === \"elenco\") {\n    return (\n      <div\n        data-slot=\"page-skeleton\"\n        data-variante={variante}\n        className={cn(\"flex flex-col gap-3\", className)}\n      >\n        {Array.from({ length: righe }).map((_, i) => (\n          <div key={i} className=\"flex items-center gap-3\">\n            <Skeleton className=\"size-8 shrink-0 rounded-full\" />\n            <Skeleton className=\"h-4 flex-1\" />\n          </div>\n        ))}\n      </div>\n    )\n  }\n\n  return (\n    <div\n      data-slot=\"page-skeleton\"\n      data-variante={variante}\n      className={cn(\"flex flex-col gap-2\", className)}\n    >\n      <div className=\"flex gap-4 border-b pb-2\">\n        {LARGHEZZE_COLONNA.map((larghezza, i) => (\n          <Skeleton\n            key={i}\n            className={cn(\"h-4\", larghezza, i === LARGHEZZE_COLONNA.length - 1 && \"ml-auto\")}\n          />\n        ))}\n      </div>\n      {Array.from({ length: righe }).map((_, riga) => (\n        <div key={riga} className=\"flex items-center gap-4 py-2\">\n          {LARGHEZZE_COLONNA.map((larghezza, i) => (\n            <Skeleton\n              key={i}\n              className={cn(\"h-4\", larghezza, i === LARGHEZZE_COLONNA.length - 1 && \"ml-auto\")}\n            />\n          ))}\n        </div>\n      ))}\n    </div>\n  )\n}\n",
+      "type": "registry:component",
+      "target": "components/blocks/page-skeleton.tsx"
+    }
+  ],
+  "docs": "Il caricamento, in una forma sola:\n\n  <PageSkeleton variante=\"tabella\" righe={8} />\n\nÈ lo standard unico che INTERFACCE.md §1.1 di Anagrafe impone per il\ncaricamento: skeleton al posto del contenuto, mai una pagina bianca e mai uno\nspinner isolato senza contesto; l'altezza coerente col contenuto atteso — «una\nriga di tabella, una card».\n\nvariante: \"tabella\" (default) | \"scheda\" | \"elenco\". Compone skeleton, non lo\nsostituisce: ogni riga è uno Skeleton con una larghezza fissa per colonna —\nle larghezze sono deliberatamente disuguali fra loro, perché è quel\ndisallineamento leggero a leggersi come «sta arrivando», non come una griglia\ngià disegnata.",
+  "type": "registry:block"
+}

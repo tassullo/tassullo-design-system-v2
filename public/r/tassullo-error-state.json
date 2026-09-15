@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tassullo-error-state",
+  "title": "Stato di errore",
+  "description": "L'«errore» dello standard unico di M3.5: un messaggio già tradotto per chi legge, mai uno stack trace, mai un codice HTTP nudo in UI. La stessa primitiva del vuoto, tinta di destructive-subtle — non alert, perché sostituisce un'intera sezione, non una riga accanto al contenuto.",
+  "dependencies": [
+    "cn",
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "@tassullo/empty",
+    "@tassullo/button",
+    "@tassullo/tema"
+  ],
+  "files": [
+    {
+      "path": "registry/tassullo/blocks/error-state.tsx",
+      "content": "/**\n * `tassullo-error-state` — l'«errore» dello standard unico di M3.5.\n *\n * `INTERFACCE.md` §1.1 di Anagrafe chiede, per l'errore: un messaggio del\n * server quando è in italiano e specifico, uno generico altrimenti; mai uno\n * stack trace, mai un codice HTTP nudo in UI; un 403 diventa sempre «Non hai\n * i permessi per questa azione», mai il messaggio grezzo del backend. Quella\n * traduzione resta dell'app, che sa cosa il server ha davvero risposto —\n * questo blocco dà solo la forma in cui il messaggio, già tradotto, si mostra.\n *\n * È **la stessa primitiva del vuoto**, non `alert`: lo dice già la story\n * `Errore` di `Primitive/Empty`, scritta apposta in M3.5 come traccia per\n * questo blocco. Un errore che sostituisce un'intera sezione — la tabella non\n * si è caricata, la scheda non si è aperta — è uno **stato della pagina**,\n * non una riga di testo accanto al contenuto: la stessa composizione del\n * vuoto, tinta di `destructive-subtle`.\n */\nimport type { ReactNode } from \"react\"\nimport { OctagonXIcon } from \"lucide-react\"\n\nimport { cn } from \"cn\"\nimport { Button } from \"@/registry/tassullo/ui/button\"\nimport {\n  Empty,\n  EmptyContent,\n  EmptyDescription,\n  EmptyHeader,\n  EmptyMedia,\n  EmptyTitle,\n} from \"@/registry/tassullo/ui/empty\"\n\nexport type ErrorStateProps = {\n  /** L'icona nel cerchio in testa. `OctagonXIcon` di default. */\n  icona?: ReactNode\n  titolo?: ReactNode\n  /** Il messaggio già tradotto per chi legge: mai un codice, mai uno stack. */\n  messaggio: ReactNode\n  /** La CTA per riprovare, quando l'errore è transitorio. */\n  onRiprova?: () => void\n  etichettaRiprova?: string\n  className?: string\n}\n\nexport function ErrorState({\n  icona = <OctagonXIcon />,\n  titolo = \"Qualcosa non ha funzionato\",\n  messaggio,\n  onRiprova,\n  etichettaRiprova = \"Riprova\",\n  className,\n}: ErrorStateProps) {\n  return (\n    <Empty\n      data-slot=\"error-state\"\n      className={cn(\n        \"border border-destructive-border bg-destructive-subtle text-destructive-subtle-foreground\",\n        className\n      )}\n    >\n      <EmptyHeader>\n        <EmptyMedia\n          variant=\"icon\"\n          className=\"bg-destructive-subtle-foreground/10\"\n        >\n          {icona}\n        </EmptyMedia>\n        <EmptyTitle>{titolo}</EmptyTitle>\n        <EmptyDescription className=\"text-destructive-subtle-foreground\">\n          {messaggio}\n        </EmptyDescription>\n      </EmptyHeader>\n      {onRiprova ? (\n        <EmptyContent>\n          <Button variant=\"outline\" size=\"sm\" onClick={onRiprova}>\n            {etichettaRiprova}\n          </Button>\n        </EmptyContent>\n      ) : null}\n    </Empty>\n  )\n}\n",
+      "type": "registry:component",
+      "target": "components/blocks/error-state.tsx"
+    }
+  ],
+  "docs": "L'errore, in una forma sola:\n\n  <ErrorState\n    messaggio=\"Il servizio schede non risponde. Riprova fra qualche minuto.\"\n    onRiprova={() => ricarica()}\n  />\n\nÈ lo standard unico che INTERFACCE.md §1.1 di Anagrafe impone per l'errore:\nun messaggio del server quando è in italiano e specifico, uno generico\naltrimenti; mai uno stack trace, mai un codice HTTP nudo in UI; un 403\ndiventa sempre «Non hai i permessi per questa azione», mai il messaggio\ngrezzo del backend. Quella traduzione resta dell'app, che sa cosa il server\nha davvero risposto — questo blocco dà solo la forma in cui il messaggio,\ngià tradotto, si mostra.\n\nÈ la stessa primitiva del vuoto (empty), non alert: un errore che sostituisce\nun'intera sezione — la tabella non si è caricata, la scheda non si è aperta —\nè uno stato della pagina, non una riga di testo accanto al contenuto.",
+  "type": "registry:block"
+}

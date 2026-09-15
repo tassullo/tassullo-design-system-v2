@@ -1439,7 +1439,7 @@ Perché è esattamente ciò per cui `PIANO.md` §4 tiene le decisioni: *«promem
 
 ---
 
-## 35. Conferma o annullo: due risposte alla stessa domanda (D18, **aperta** in M3.4, 2026-09-11)
+## 35. Conferma o annullo: due risposte alla stessa domanda (D18, **chiusa** in M3.5, 2026-09-15)
 
 **Aperta da Francesco**, a `confirm-dialog` appena scritto: «mettiamo un alert o sonner con es. la possibilità per l'elimina di annullarlo? Vale la pena definirlo ora».
 
@@ -1483,3 +1483,11 @@ Infilare un toast dentro `confirm-dialog` sarebbe letteralmente il «uno diverso
 Con, in ingresso, la risposta alla domanda del punto 3. Se la risposta è «soft delete ripristinabile», l'item è sottile e sta in una funzione sopra `sonner`; se è «differita lato client», è una piccola macchina a stati con un timer e va guardata con la stessa cura dell'attesa di `confirm-dialog`.
 
 **Ciò che questa sezione impegna a non fare**, qualunque sia la risposta: non si mettono **tutti e due** sulla stessa azione.
+
+### Verdetto (2026-09-15): differita lato client — provvisorio
+
+Francesco, interrogato sulla domanda del punto 3 in apertura di M3.5, non aveva una risposta pronta («non so, spiegami cosa comporta ogni scelta»); dopo il confronto sui due costi — nessun contratto backend richiesto per la strada differita, contro un endpoint di soft-delete/ripristino che oggi non esiste per Anagrafe nella strada del ripristino — ha scelto **differita lato client**, esplicitamente **provvisoria**: da rivedere con Roberto a design system finito, per la conversazione dov'è un backend a decidere se un soft-delete generalizzato ha senso per altre ragioni.
+
+Costruito in M3.5: `tassullo-toast-con-annullo` (`registry/tassullo/blocks/toast-con-annullo.tsx`). `azione` non parte finché il toast non si chiude da sé (`onAutoClose`) o viene scartato senza cliccare «Annulla» (`onDismiss` — verificato nella sorgente di sonner che il clic sull'azione non passa da lì, solo lo swipe e la X: `node_modules/sonner/dist/index.mjs`, il bottone azione chiama solo `deleteToast`). Cliccare «Annulla» marca un flag e basta: `azione` non viene mai invocata.
+
+Il posto è quello previsto — M3.5, non `confirm-dialog` — e la regola del punto 1 resta rispettata: nessun punto d'uso mette conferma e annullo sulla stessa azione.

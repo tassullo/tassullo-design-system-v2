@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tassullo-empty-state",
+  "title": "Stato vuoto",
+  "description": "Il «vuoto» dello standard unico di M3.5: card guidata con una frase e, quando c'è un'azione sensata, la CTA per uscirne. Compone la primitiva empty, con un default che quella lascia aperto: il bordo tratteggiato acceso.",
+  "dependencies": [
+    "cn"
+  ],
+  "registryDependencies": [
+    "@tassullo/empty",
+    "@tassullo/tema"
+  ],
+  "files": [
+    {
+      "path": "registry/tassullo/blocks/empty-state.tsx",
+      "content": "/**\n * `tassullo-empty-state` — il «vuoto» dello standard unico di M3.5.\n *\n * `INTERFACCE.md` §1.1 di Anagrafe chiede, per il vuoto: «card guidata con una\n * frase e, quando c'è un'azione sensata, la CTA per uscirne. Mai una tabella\n * con la sola intestazione.» La primitiva `empty` (M3.5, appoggiata su\n * `Empty`/`EmptyHeader`/`EmptyMedia`/`EmptyTitle`/`EmptyDescription`/\n * `EmptyContent`) dà la forma nuda; questo blocco fissa la composizione che si\n * userebbe altrimenti riscritta uguale in ogni pagina — icona, titolo,\n * descrizione, azione — con **un** default che la primitiva lascia aperto:\n * il bordo tratteggiato è acceso, perché è la forma che ogni punto d'uso\n * finora ha scelto a mano (vedi `Primitive/Empty`, story `ConBordo`).\n */\nimport type { ReactNode } from \"react\"\n\nimport { cn } from \"cn\"\nimport {\n  Empty,\n  EmptyContent,\n  EmptyDescription,\n  EmptyHeader,\n  EmptyMedia,\n  EmptyTitle,\n} from \"@/registry/tassullo/ui/empty\"\n\nexport type EmptyStateProps = {\n  /** L'icona nel cerchio in testa. Assente, lo stato resta senza icona. */\n  icona?: ReactNode\n  /** La frase, non un titolo tecnico: «Nessuna scheda in questa cartella». */\n  titolo: ReactNode\n  /** Cosa aspettarsi, o come cercare altrove. */\n  descrizione?: ReactNode\n  /** La CTA per uscire dal vuoto, quando ce n'è una sensata. */\n  azione?: ReactNode\n  className?: string\n}\n\nexport function EmptyState({\n  icona,\n  titolo,\n  descrizione,\n  azione,\n  className,\n}: EmptyStateProps) {\n  return (\n    <Empty data-slot=\"empty-state\" className={cn(\"border\", className)}>\n      <EmptyHeader>\n        {icona ? <EmptyMedia variant=\"icon\">{icona}</EmptyMedia> : null}\n        <EmptyTitle>{titolo}</EmptyTitle>\n        {descrizione ? (\n          <EmptyDescription>{descrizione}</EmptyDescription>\n        ) : null}\n      </EmptyHeader>\n      {azione ? <EmptyContent>{azione}</EmptyContent> : null}\n    </Empty>\n  )\n}\n",
+      "type": "registry:component",
+      "target": "components/blocks/empty-state.tsx"
+    }
+  ],
+  "docs": "Il vuoto, in una forma sola:\n\n  <EmptyState\n    icona={<FolderOpenIcon />}\n    titolo=\"Nessuna scheda in questa cartella\"\n    descrizione=\"Le schede tecniche pubblicate compariranno qui.\"\n  />\n\nÈ lo standard unico che INTERFACCE.md §1.1 di Anagrafe impone per il vuoto:\ncard guidata con una frase e, quando c'è un'azione sensata, la CTA per\nuscirne — mai una tabella con la sola intestazione.\n\nCompone la primitiva empty (Empty/EmptyHeader/EmptyMedia/EmptyTitle/\nEmptyDescription/EmptyContent), non la sostituisce. Fissa un solo default\nche la primitiva lascia aperto: il bordo tratteggiato è acceso, perché è la\nforma che ogni punto d'uso finora ha scelto a mano.",
+  "type": "registry:block"
+}
