@@ -3592,3 +3592,17 @@ Corretto sostituendo l'anello con un **bordo vero** (`border-2 border-{colore}` 
 ### Verifiche
 
 `tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato. Riprovato in Chromium: la linea tocca il bordo del pallino uniformemente su tutte le righe di `CinqueRevisioni`.
+
+---
+
+## Coda di M3.7 (3) — la linea non raggiungeva il pallino sotto, di più in touch (2026-09-15)
+
+Il fix precedente (bordo vero invece di `ring`) risolveva l'arrotondamento dei subpixel ma non il difetto vero: screenshot di Francesco a confronto, normale e touch, mostravano la linea che partiva bene dal pallino sopra ma si fermava **prima** del pallino sotto — e lo scarto era più largo in touch, segno che dipendeva da un token di spaziatura, non da un valore fisso. Giusta la lettura: la linea deve restare continua qualunque sia l'altezza del contenuto (0, 1 o 4 righe di descrizione) o la densità.
+
+**Causa**: il pallino aveva `mt-1` per centrarlo otticamente sulla prima riga di testo (più alta di lui). Ogni `<li>` è un elemento di flusso indipendente, adiacente al successivo senza spazio fra loro — quindi il fondo della linea di un item tocca esattamente la cima della colonna-pallino dell'item dopo. Ma quella cima non era il pallino: era `mt-1` di spazio vuoto **prima** del pallino, che a densità touch (`--spacing` più largo) cresce — lo scarto che si vedeva aumentare nello screenshot è esattamente quel token.
+
+Tolto `mt-1`: il pallino torna a combaciare con la cima della propria colonna, cioè col fondo della linea dell'item precedente, per costruzione — non dipende più da nessuna misura, quindi resta corretto qualunque numero di righe di descrizione o densità. La perdita di centratura ottica sulla prima riga di testo è minima e preferibile a una linea spezzata.
+
+### Verifiche
+
+`tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato. Riprovato in Chromium in densità Normale **e** Touch: la linea tocca ogni pallino in entrambe.

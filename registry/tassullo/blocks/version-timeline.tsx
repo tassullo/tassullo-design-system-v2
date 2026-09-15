@@ -136,7 +136,7 @@ export function VersionTimeline({
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "mt-1 size-3 shrink-0 rounded-full border-2 bg-background border-border",
+                    "size-3 shrink-0 rounded-full border-2 bg-background border-border",
                     revisione.stato === "approvato" && "border-success",
                     revisione.stato === "rifiutato" && "border-destructive",
                     revisione.stato === "in-revisione" && "border-warning-border"
