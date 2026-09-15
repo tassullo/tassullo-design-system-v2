@@ -3618,3 +3618,17 @@ Rilievo di Francesco sulla coda (3): tolto `mt-1`, il pallino torna a combaciare
 ### Verifiche
 
 `tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato. Riprovato in Chromium in Normale e Touch: pallini allineati alla riga di testo, linea continua su tutte le righe, nessun segmento sospeso sopra il primo pallino.
+
+---
+
+## Coda di M3.7 (5) — h-1 non bastava, e il bottone "Confronta" sdoppiato in transizione (2026-09-15)
+
+Due rilievi di Francesco nella stessa tornata.
+
+**Il pallino era allineato all'estremo superiore del testo, non al centro.** Misurato in Chromium (non a occhio): il centro del pallino stava 2px sopra il centro verticale della prima riga di testo, su tutte le righe — uno scarto costante, quindi un token sbagliato, non un problema di struttura. `h-1` in questo tema vale 4px; serviva **6px**. Cambiato in `h-1.5`: riverificato via `getBoundingClientRect`, scarto **0px** su tutte le righe.
+
+**Il bottone "Confronta" sembrava sdoppiarsi sul bordo destro** al passaggio fra `"Confronta le due versioni"` e `"Confronta Rev. X → Rev. Y"` (selezione, poi deselezione). Causa, confermata leggendo lo stile computato: il bottone eredita `transition-all` da `button.tsx`, e la sua larghezza — un numero di pixel concreto, non `auto`, per un elemento `inline-flex` — **rientra** in quella transizione. Quando il testo cambia lunghezza, React lo aggiorna subito ma il box anima la nuova larghezza in 150ms: per la durata dell'animazione il contorno del bottone e il testo non sono allineati, ed è quello a leggersi come un doppione sul lato che si sta restringendo o allargando. Corretto restringendo la transizione ai soli colori (`transition-colors` dopo `self-start` nel `className`, che tailwind-merge — dietro il pacchetto `cn` — sostituisce a `transition-all` invece di sommarlo): verificato lo stile computato dopo la modifica, `transitionProperty` non contiene più `width`.
+
+### Verifiche
+
+`tsc -b` ✔ · `check:registry` 0 errori · `test:a11y` **1044/0**, invariato.

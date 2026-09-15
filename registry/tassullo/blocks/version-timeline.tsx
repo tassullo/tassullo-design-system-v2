@@ -135,7 +135,7 @@ export function VersionTimeline({
               <div className="flex flex-col items-center">
                 <span
                   aria-hidden="true"
-                  className={cn("h-1 w-px shrink-0", indice !== 0 && "bg-border")}
+                  className={cn("h-1.5 w-px shrink-0", indice !== 0 && "bg-border")}
                 />
                 <span
                   aria-hidden="true"
@@ -192,7 +192,7 @@ export function VersionTimeline({
         <Button
           type="button"
           size="sm"
-          className="self-start"
+          className="self-start transition-colors"
           disabled={!dueSelezionate}
           onClick={() => dueSelezionate && onConfronta?.(dueSelezionate[1], dueSelezionate[0])}
         >
