@@ -4550,3 +4550,45 @@ Installato `npx playwright install webkit` (assente finora, solo Chromium era sc
 - **WebKit**: stesso incolla, stesso risultato — le 4 celle si scrivono correttamente e il fuoco torna alla cella attiva. La rilettura della copia con `readText()` fallisce **nello script di verifica stesso** (`NotAllowedError`) — la stessa assenza che ha causato il difetto originale, qui però è la mia verifica a non poter rileggere, non il prodotto a non poter scrivere: la copia passa dall'evento nativo `copy` sulla textarea, indipendente da `readText()`.
 
 `npm run check`: invariato, **1176 scansioni (4 passate) / 0 violazioni**. `tsc -b`/`lint`: nessun avviso nuovo. Script di verifica nello scratchpad di sessione, mai committato.
+
+---
+
+## M3bis.5 sessione 3/3 — Persistenza e prova end-to-end (2026-09-16)
+
+Ultima sessione della fase: `useGridChanges`, `aggiungiRiga`/`rimuoviRighe` sul motore, e la story `Computo` — 500 righe finte, dove il criterio di accettazione di `PIANO.md` si verifica per intero.
+
+### `useGridChanges`: un confronto puro, non un registro incrementale
+
+`useGridChanges(righeCorrenti, righeSalvate, idRiga)` calcola `creati`/`aggiornati`/`cancellati`/`cePendente` confrontando **due istantanee** — `motore.righe` e l'ultimo salvataggio, che la pagina tiene lei (un `useState` aggiornato dopo un salvataggio riuscito) — non accumulando un registro a ogni commit. La ragione è la stessa della trappola sulle dipendenze derivate già a verbale in `CLAUDE.md`: un registro incrementale dovrebbe disfare la propria contabilità a ogni `annulla` (una riga "creata" seguita da un annulla dev'essere di nuovo "non c'era"), ed è facile sbagliarlo. Un confronto puro non ha questo problema per costruzione: qualunque stato la griglia raggiunga, il change-set è sempre "cosa differisce adesso".
+
+### `aggiungiRiga`/`rimuoviRighe`: commit come tutti gli altri, annullabili
+
+Aggiungono/tolgono righe passando dalla stessa `registraCommit` delle modifiche di cella — stessa cronologia, stesso `annulla`/`ripeti`. Due nuovi valori in `CommitGriglia["tipo"]` (`"creazione"`/`"cancellazione"`). `rimuoviRighe` prende id, non indici — coerente col resto del motore, dove l'identità di una riga è sempre `idRiga`, mai la posizione.
+
+### Uno scarto accertato, non un rinvio silenzioso: niente righe annidate
+
+Il file dichiarava (dalla sessione 1) che le righe annidate di M3bis.1 sarebbero arrivate qui. **Non arrivano, e non è un rinvio**: verificato che la Data Grid non può comporre con `getSottoRighe` per un motivo strutturale, non di tempo. La tastiera della griglia naviga per indice su `motore.righe`, un array **piatto**; con `getSottoRighe` TanStack produce un modello reso in ordine ad albero (righe madri e figlie intrecciate) che **non coincide** con quell'array piatto — la stessa classe di scostamento per cui la griglia non ha ricerca/ordinamento, ma strutturale e non evitabile con un `cerca={false}`. Annotato nel file (`CLAUDE.md`: uno scostamento dal piano si corregge o si annota con la ragione, mai in silenzio): la story `Computo` usa un dataset **piatto** — una riga per voce di misurazione, la forma che la maggior parte dei computi ha comunque.
+
+### Un bug preso a 500 righe, invisibile a 60: la virtualizzazione non reggeva
+
+La story `Computo` (500 righe) montava **469 `<tr>`**, non una finestra — la virtualizzazione promessa da `perPagina="virtuale"` semplicemente non stava succedendo, e a 60 righe (le story di sessione 1-2) il difetto non si vedeva perché anche renderle tutte "sembra" funzionare.
+
+**Causa**: `<DataGrid>` è sempre `altezza="ferma"`/`perPagina="virtuale"` — una combinazione che, in `data-table.tsx`, richiede un **genitore ad altezza vera** per calcolare quanto spazio c'è (lo stesso prerequisito che la story `Virtualizzata` di `data-table.stories.tsx` rispetta con `<div className="flex h-140 flex-col">`). Le story di questa fase non lo rispettavano — `<DataGrid>` veniva reso nudo — **e il `<div>` proprio di `<DataGrid>`** (quello con `contenitoreRef`, per clipboard/maniglia di riempimento) non aveva `flex-1`: anche avvolgendolo in un contenitore ad altezza ferma, quel `<div>` non si sarebbe comunque allargato a riempirlo, e il vincolo non sarebbe mai arrivato al `<DataTable>` innestato sotto — che continuava a crescere con tutte le righe, senza errore, senza avviso.
+
+**Corretto in due punti**: `flex-1` sul `<div>` di `<DataGrid>` (`data-grid.tsx`), e le tre story (`Editabile`, `Celle Tipizzate`, `Computo`) ora avvolgono `<DataGrid>` in `<div className="flex h-140 flex-col">` con `className="min-h-0 flex-1"` sul componente. Documentato nel commento di testa a `<DataGrid>`, con l'esempio esatto — non lasciato all'intuizione di chi installa il blocco.
+
+### La story `Computo`
+
+500 voci finte (`generaVociComputo`, generatore deterministico), colonne `Codice`/`Descrizione`/`U.M.` (select)/`Quantità` (numero, validata)/`Prezzo unitario` (valuta, validata), più una colonna `azioni` — un bottone «elimina» per riga, **non** costruita con `colonnaXGriglia`: è un `col.display` semplice, fuori da `colonneId` (non editabile, non nella navigazione a frecce), che arriva al motore con `useContestoDataGrid` — la stessa via che usano le celle tipizzate, ora **esportata** come via d'uscita per una pagina che ha bisogno di una colonna che le sei celle di questo file non coprono.
+
+Barra: `DataGridUndo`/`DataGridRedo`, «Aggiungi riga» (`motore.aggiungiRiga`), tre `Badge` (creat-e/modificat-e/cancellat-e, da `useGridChanges`) e un bottone «Salva» (`disabled={!changeSet.cePendente}`) che aggiorna lo stato "ultimo salvataggio" — finto, nessun server dietro questa story, ma il giro intero (modifica → contatore sale → Salva → contatore torna a zero) si prova per davvero.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1180 scansioni (4 passate, +4 dalla story `Computo`) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi quattro avvisi preesistenti, zero nuovi. `check:registry`: 0 errori. `misura:bersagli`: 2636 bersagli su 295 story, 0 piccoli in entrambe le direzioni — nessuna regressione.
+
+**Verificato in Playwright** (Chromium): dopo la correzione, **21 righe montate** su 500 (prima: 469) — la virtualizzazione regge davvero. Modifica di una cella → badge "1 modificata" e bottone Salva attivo; «Aggiungi riga» → badge "1 creata", conteggio "501 voci"; Salva → entrambi i contatori tornano a 0, Salva torna disabilitato; bottone elimina → conteggio "500 voci" e badge "1 cancellata"; `Ctrl+Z` (dopo aver riportato il fuoco su una cella) → conteggio torna a "501 voci", la cancellazione si annulla come qualunque altro commit.
+
+**Raggiungibilità da tastiera verificata a mano, non solo con axe** — il criterio esplicito di `PIANO.md` per questa fase (niko-table non certifica WCAG sulla Data Grid), e la stessa disciplina di `D15` (`CLAUDE.md`): dal bottone «Annulla», cinque `Tab` in sequenza raggiungono nell'ordine «Ripeti» → «Aggiungi riga» → «Salva» → «Colonne» → la prima cella della griglia — i tre `Badge` (non interattivi) vengono saltati correttamente, nessuna zona morta.
+
+Con questa sessione **M3bis.5 è chiusa** (3/3). Prossimo passo: M3bis.6 (filtri sfaccettati), stesso worktree, dipende da M3bis.0.

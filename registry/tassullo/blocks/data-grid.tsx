@@ -1,6 +1,7 @@
 /**
  * `tassullo-data-grid` — motore di editing per `tassullo-data-table`
- * (M3bis.5, sessione 1 di 3: motore + composizione minima).
+ * (M3bis.5, tre sessioni: motore + composizione minima, celle tipizzate +
+ * Zod, persistenza + prova end-to-end — tutte e tre chiuse).
  *
  * Porting da niko-table `data-grid`, adattato al bypass di `DataTableRoot`
  * già deciso in M3bis.0: lì la Data Grid si compone dentro
@@ -63,13 +64,22 @@
  * "Incolla un foglio di calcolo (Ctrl/Cmd+V)…" (annotato nell'inventario di
  * M3bis.0) un'istruzione onesta e non un vezzo.
  *
- * ── Cosa NON c'è ancora, di proposito ────────────────────────────────────
+ * ── Cosa NON c'è, di proposito — e resta così ────────────────────────────
  *
- * Celle tipizzate (numero/valuta/checkbox/data/select) e validazione Zod:
- * M3bis.5 sessione 2. Persistenza (`useGridChanges`, creazione/aggiornamento/
- * cancellazione come change-set) e la prova end-to-end sul computo finto:
- * sessione 3 — è lì che il criterio di accettazione di `PIANO.md` si
- * verifica per intero.
+ * **Righe annidate (`getSottoRighe`, l'albero di M3bis.1) non compongono
+ * con la Data Grid.** Non un rinvio a una sessione futura: uno scarto
+ * accertato e circoscritto qui. La tastiera della griglia naviga **per
+ * indice sull'array piatto del motore** (`motore.righe`) — lo stesso motivo
+ * per cui non c'è ricerca/ordinamento (sopra). Con `getSottoRighe`, TanStack
+ * flatten-izza in un ordine ad albero che **non è** `motore.righe`: righe
+ * annidate e figlie compaiono nel modello reso, non nell'array su cui la
+ * tastiera conta gli indici — la stessa classe di scostamento di un
+ * ordinamento, ma strutturale, non evitabile con un `cerca={false}`. Un
+ * computo con voci-madre e voci-figlie editabili resta quindi fuori da
+ * questo blocco: la prova end-to-end di sessione 3, sotto, usa un computo
+ * **piatto** (una riga per voce di misurazione, senza subtotali annidati) —
+ * la forma che la maggior parte dei computi ha comunque, e quella su cui
+ * l'edificio di navigazione per indice regge senza sotterfugi.
  *
  * ── Sessione 2: celle tipizzate + validazione Zod ───────────────────────
  *
@@ -104,6 +114,27 @@
  * stringa grezza della cella — non serve un adattatore che la converta
  * prima: è la stessa ragione per cui i validatori si passano allo schema, non
  * al valore già interpretato.
+ *
+ * ── Sessione 3: persistenza e prova end-to-end ───────────────────────────
+ *
+ * `useGridChanges(righeCorrenti, righeSalvate, idRiga)` — un confronto
+ * **puro** fra `motore.righe` e l'ultimo salvataggio, non un registro
+ * accumulato per-commit: v. il commento sull'implementazione per il perché
+ * (un registro incrementale dovrebbe disfare la propria contabilità a ogni
+ * `annulla`, la stessa classe di bug delle dipendenze derivate che
+ * `CLAUDE.md` mette in guardia altrove). Restituisce `creati`/`aggiornati`/
+ * `cancellati` — righe vere, non solo id, tranne per i cancellati (di quelli
+ * non resta altro).
+ *
+ * `aggiungiRiga`/`rimuoviRighe` sul motore: creazione e cancellazione come
+ * commit annullabili/ripetibili, la stessa cronologia delle modifiche di
+ * cella. `rimuoviRighe` prende id, non indici — coerente con tutto il resto
+ * del motore (`idRiga`, non la posizione, è l'identità di una riga).
+ *
+ * La prova sul criterio di accettazione di `PIANO.md` (~500 righe, editing,
+ * incolla, annulla/ripeti, celle di un computo finto) è la story `Computo`,
+ * non un test a parte: qui non c'è altro codice, solo il motore che quella
+ * story esercita.
  */
 import * as React from "react"
 import type { CellContext, RowData } from "@tanstack/react-table"
@@ -135,9 +166,16 @@ import {
  * cambia se una sessione futura aggiunge/toglie righe), quale colonna. */
 export type CellaGrigliaId = { rigaId: string; colonnaId: string }
 
-/** Cosa è successo per ultimo, per un'eventuale barra di stato (sessione 3). */
+/** Cosa è successo per ultimo, per un'eventuale barra di stato. */
 export type CommitGriglia = {
-  tipo: "modifica" | "incolla" | "riempimento" | "annulla" | "ripeti"
+  tipo:
+    | "modifica"
+    | "incolla"
+    | "riempimento"
+    | "annulla"
+    | "ripeti"
+    | "creazione"
+    | "cancellazione"
   sequenza: number
 }
 
@@ -170,6 +208,10 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
   eInModifica: (id: CellaGrigliaId) => boolean
   eSelezionata: (id: CellaGrigliaId) => boolean
   eInAnteprimaRiempimento: (id: CellaGrigliaId) => boolean
+  /** Aggiunge una riga in fondo — v. il commento sull'implementazione. */
+  aggiungiRiga: (rigaVuota: TDato) => void
+  /** Toglie le righe con questi id — v. il commento sull'implementazione. */
+  rimuoviRighe: (ids: readonly string[]) => void
   vaiA: (id: CellaGrigliaId, opzioni?: { estendi?: boolean }) => void
   apriModifica: (id?: CellaGrigliaId, valoreIniziale?: string) => void
   aggiornaDraft: (valore: string) => void
@@ -347,6 +389,45 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     registraCommit(nuoveRighe, "modifica")
     if (eInModifica(id)) setCellaInModifica(null)
     return true
+  }
+
+  /**
+   * Aggiunge una riga in fondo — pensata per un bottone "Aggiungi riga"
+   * nella barra, non per l'incolla: quello resta clampato ai confini
+   * esistenti (v. `incolla`, sotto), di proposito. La riga la crea chi
+   * chiama (`creaRigaVuota`, nella pagina): il motore non sa cosa sia un
+   * campo obbligatorio o un valore di partenza sensato per `TDato`.
+   */
+  const aggiungiRiga = (rigaVuota: TDato) => {
+    registraCommit([...righe, rigaVuota], "creazione")
+    if (colonneId.length > 0) {
+      const id = { rigaId: idRiga(rigaVuota), colonnaId: colonneId[0]! }
+      setCellaAttiva(id)
+      setAncora(id)
+    }
+  }
+
+  /**
+   * Toglie le righe con questi id — un bottone «elimina» per riga, non un
+   * tasto: `Delete`/`Backspace` da tastiera già significano "svuota le
+   * celle selezionate" (v. `cancellaSelezione`), e sovrapporci "elimina la
+   * riga" sullo stesso tasto sarebbe ambiguo, non un'estensione naturale.
+   * Se la cella attiva era su una riga tolta, si sposta sulla prima riga
+   * rimasta — o a `null` se non ne resta nessuna, lo stesso stato di una
+   * griglia appena creata senza dati.
+   */
+  const rimuoviRighe = (ids: readonly string[]) => {
+    const daTogliere = new Set(ids)
+    const nuoveRighe = righe.filter((r) => !daTogliere.has(idRiga(r)))
+    registraCommit(nuoveRighe, "cancellazione")
+    if (cellaAttiva && daTogliere.has(cellaAttiva.rigaId)) {
+      const id =
+        nuoveRighe.length > 0 && colonneId.length > 0
+          ? { rigaId: idRiga(nuoveRighe[0]!), colonnaId: colonneId[0]! }
+          : null
+      setCellaAttiva(id)
+      setAncora(id)
+    }
   }
 
   const vaiA = (id: CellaGrigliaId, opzioni?: { estendi?: boolean }) => {
@@ -672,6 +753,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     eInModifica,
     eSelezionata,
     eInAnteprimaRiempimento,
+    aggiungiRiga,
+    rimuoviRighe,
     vaiA,
     apriModifica,
     aggiornaDraft: setDraftModifica,
@@ -691,6 +774,84 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Persistenza — `useGridChanges` (sessione 3)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export type ChangeSetGriglia<TDato> = {
+  /** Righe presenti ora ma non nell'ultimo salvataggio — nuove per intero. */
+  creati: TDato[]
+  /** Righe che c'erano già, ma diverse da come le teneva l'ultimo salvataggio. */
+  aggiornati: TDato[]
+  /** Id delle righe che c'erano nell'ultimo salvataggio e non ci sono più. */
+  cancellati: string[]
+  /** Comodo per un bottone "Salva" — `false` quando non c'è niente da mandare. */
+  cePendente: boolean
+}
+
+/** Uguaglianza per campi di primo livello — quanto basta per `TDato`, che
+ * qui è sempre un oggetto piatto (`scriviCella` lo ricostruisce con
+ * `{...riga, [colonna]: valore}`, mai annidato). */
+function righeUguali<TDato>(a: TDato, b: TDato): boolean {
+  if (a === b) return true
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false
+  const chiaviA = Object.keys(a)
+  const chiaviB = Object.keys(b as object)
+  if (chiaviA.length !== chiaviB.length) return false
+  return chiaviA.every(
+    (chiave) =>
+      (a as Record<string, unknown>)[chiave] === (b as Record<string, unknown>)[chiave]
+  )
+}
+
+/**
+ * Il change-set fra le righe **correnti** del motore e le righe
+ * dell'**ultimo salvataggio** — un confronto puro, ricalcolato a ogni
+ * chiamata (`useMemo`), non un registro tenuto incrementalmente. La
+ * differenza conta: un registro accumulato per-commit dovrebbe sapere
+ * disfare la propria contabilità a ogni `annulla`/`ripeti` (un "creata"
+ * seguito da un "annulla" dev'essere di nuovo "non c'era"), e sbagliarla è
+ * facile quanto il caso che la trappola dell'`useEffect` di `CLAUDE.md`
+ * descrive per un motivo diverso — uno stato derivato che si scosta
+ * silenziosamente dalla verità che dovrebbe rispecchiare. Un confronto puro
+ * non ha questo problema: qualunque stato la griglia raggiunga — dopo dieci
+ * modifiche, o dopo altrettanti annulla — il change-set è sempre "cosa
+ * differisce adesso", mai "cosa è successo strada facendo".
+ *
+ * `righeSalvate` non la tiene questo hook: la pagina la aggiorna a
+ * `motore.righe` dopo un salvataggio riuscito (un `useState`/`useRef` suo),
+ * e finché non lo fa il change-set resta quello che è — utile per un
+ * bottone "Salva" disabilitato da `!cePendente`, o per riprovare un
+ * salvataggio fallito senza perdere il conto di cosa mandare.
+ */
+export function useGridChanges<TDato>(
+  righeCorrenti: TDato[],
+  righeSalvate: TDato[],
+  idRiga: (riga: TDato) => string
+): ChangeSetGriglia<TDato> {
+  return React.useMemo(() => {
+    const mappaSalvate = new Map(righeSalvate.map((r) => [idRiga(r), r]))
+    const mappaCorrenti = new Map(righeCorrenti.map((r) => [idRiga(r), r]))
+    const creati: TDato[] = []
+    const aggiornati: TDato[] = []
+    mappaCorrenti.forEach((riga, id) => {
+      const precedente = mappaSalvate.get(id)
+      if (!precedente) creati.push(riga)
+      else if (!righeUguali(precedente, riga)) aggiornati.push(riga)
+    })
+    const cancellati: string[] = []
+    mappaSalvate.forEach((_riga, id) => {
+      if (!mappaCorrenti.has(id)) cancellati.push(id)
+    })
+    return {
+      creati,
+      aggiornati,
+      cancellati,
+      cePendente: creati.length > 0 || aggiornati.length > 0 || cancellati.length > 0,
+    }
+  }, [righeCorrenti, righeSalvate, idRiga])
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Il contesto — motore + riferimenti condivisi con le celle e i comandi
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -705,7 +866,14 @@ type ContestoDataGridValore = {
 
 const ContestoDataGrid = React.createContext<ContestoDataGridValore | null>(null)
 
-function useContestoDataGrid<TDato>() {
+/**
+ * La via d'uscita per una colonna che le sei celle di questo file non
+ * coprono — una colonna di azioni con un bottone «elimina», per dire (v. la
+ * story `Computo`). Qualunque `cell` renderizzato dentro `<DataGrid>` può
+ * chiamarlo per arrivare al motore, esattamente come fanno `CellaTestoGriglia`
+ * e le altre: non è un'API interna travestita, è la stessa che usano loro.
+ */
+export function useContestoDataGrid<TDato>() {
   const contesto = React.useContext(ContestoDataGrid)
   if (!contesto) throw new Error("Questo componente va usato dentro <DataGrid>.")
   return contesto as unknown as {
@@ -1358,6 +1526,22 @@ export function colonnaSelectGriglia<TDato extends RowData>(
 
 /* ────────────────────────────────────────────────────────────────────────
  * `<DataGrid>`
+ *
+ * **Vuole un genitore ad altezza vera**, sempre — non un'opzione come in
+ * `<DataTable altezza="ferma">`, perché `<DataGrid>` quella combinazione la
+ * sceglie lei, incondizionata (v. sotto). Lo stesso pattern della story
+ * `Virtualizzata` di `data-table.stories.tsx`:
+ *
+ *   <div className="flex h-140 flex-col">
+ *     <DataGrid motore={motore} colonne={COLONNE} className="min-h-0 flex-1">
+ *       …
+ *     </DataGrid>
+ *   </div>
+ *
+ * Senza — provato a 500 righe nella story `Computo`, non a occhio — il
+ * vincolo di altezza non arriva mai al `<DataTable>` innestato, che cresce
+ * con tutte le righe: la virtualizzazione promessa non regge, in silenzio
+ * (poche righe non lo rivelano).
  * ──────────────────────────────────────────────────────────────────────── */
 
 export type DataGridProps<TDato extends RowData> = Omit<
@@ -1404,7 +1588,18 @@ export function DataGrid<TDato extends RowData>({
     >
       <div
         ref={contenitoreRef}
-        className="relative flex min-h-0 flex-col gap-4"
+        // `flex-1`: `<DataGrid>` nasce sempre `altezza="ferma"`/`perPagina=
+        // "virtuale"` (v. sotto), che vogliono un genitore ad altezza vera —
+        // lo stesso prerequisito che `DataTable` documenta per quella
+        // combinazione, non diverso qui. Senza `flex-1` questo `<div>` non
+        // parteciperebbe al layout flex del contenitore che lo ospita anche
+        // quando quello **ha** un'altezza ferma: il vincolo non
+        // arriverebbe mai fino al `<DataTable>` innestato sotto, che
+        // continuerebbe a crescere con tutte le righe — nessuna
+        // virtualizzazione vera, un difetto silenzioso perché a poche
+        // righe non si vede (preso solo a 500, misurando: 469 righe
+        // montate invece di una finestra).
+        className="relative flex min-h-0 flex-1 flex-col gap-4"
         onFocusCapture={() => {
           interagitoRef.current = true
         }}
