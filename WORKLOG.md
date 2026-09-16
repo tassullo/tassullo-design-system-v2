@@ -4495,3 +4495,39 @@ Una cella non in modifica (`<div>`, non un campo di testo) non genera `copy`/`pa
 **Tastiera, clipboard, riempimento e cronologia verificati in Playwright** (Chromium reale, non il pannello del browser di questa sessione — stesso limite già a verbale: `document.visibilityState` vi risulta `hidden`, e i tasti non hanno mosso il fuoco in modo osservabile con quell'imbracatura). Con `context.grantPermissions(['clipboard-read','clipboard-write'])`: clic+frecce spostano la cella attiva; un carattere qualunque apre la modifica scrivendolo; Invio conferma e scende di una riga; Escape annulla senza scrivere; Ctrl+Z/Ctrl+Shift+Z annullano/ripetono; Ctrl+C su una selezione di due righe e Ctrl+V altrove incolla gli stessi due valori nell'ordine giusto; Ctrl+Invio su una selezione di tre celle le riempie tutte col valore della prima; Tab conferma la modifica in corso e sposta a destra; Home/End si fermano ai bordi della riga. Script di verifica scritto nello scratchpad di sessione, mai committato.
 
 Prossimo passo: M3bis.5 sessione 2/3 (celle tipizzate — numero/valuta `it-IT`/checkbox/data/select — e validazione per cella con Zod), stesso worktree, dipende da questa sessione.
+
+---
+
+## M3bis.5 sessione 2/3 — Celle tipizzate e validazione Zod (2026-09-16)
+
+Esteso lo stesso `registry/tassullo/blocks/data-grid.tsx` di sessione 1. Sei celle: `colonnaTestoGriglia` (già c'era, ora con `validazione` opzionale), `colonnaNumeroGriglia`, `colonnaValutaGriglia`, `colonnaCheckboxGriglia`, `colonnaDataGriglia`, `colonnaSelectGriglia`.
+
+### Il confine resta lo stesso di sessione 1: il motore parla solo stringhe
+
+`useDataGrid` non sa cos'è un numero o una data — `leggiCella`/`scriviCella` restano il confine di stringhe già fissato. È la **cella** a formattare per la vista (`Intl.NumberFormat('it-IT')` per numero/valuta, `toLocaleDateString('it-IT')` per la data) e a interpretare ciò che l'utente scrive. Checkbox e select non passano da `apriModifica`/`commitModifica`: un gesto solo (spuntare, scegliere) scrive subito con un nuovo metodo del motore, `impostaValore(id, valore)` — niente testo intermedio da confermare, e se la cella era in modifica (il `select` aperto) la richiude anche lei.
+
+### La data: `<input type="date">`, non il `Calendar` del registry
+
+Scelta esplicita, non un rinvio silenzioso: la tastiera di un calendario a griglia dentro una griglia è un problema a sé — la stessa `D15` di `CLAUDE.md` (zero violazioni axe su una griglia del tutto non navigabile) è il motivo per cui non si presume che regga senza misurarla apposta, e questa sessione non è quella misura. Il controllo nativo tiene comunque la stringa grezza in `AAAA-MM-GG`, la stessa forma con cui la colonna la conserva — nessun adattamento in più quando (o se) una sessione futura vorrà il `Calendar` vero.
+
+### Validazione: `validaConZod`, coerente con `tassullo-form-field` (M3.4)
+
+`validaConZod(schema)` adatta uno schema Zod a validatore di cella — `z.coerce.number()`/`z.coerce.date()` accettano **direttamente** la stringa grezza della cella, senza un passaggio di conversione in mezzo. Stessa disciplina di `FormField` (`aria-invalid`, `aria-describedby`) ma senza l'etichetta accanto a cui mettere l'errore in chiaro che un campo di modulo ha: qui il segnale per chi vede è l'anello rosso, per chi non vede è un `aria-describedby` verso un testo `sr-only`.
+
+**Un commit invalido non chiude la modifica.** `commitModificaInterno`/`impostaValore` ora restituiscono `boolean` — `false` se il validatore della colonna rifiuta il valore, e in quel caso non scrivono niente. `onKeyDownCella` controlla il valore di ritorno: Invio/Tab restano aperti sulla cella (l'errore resta a schermo, si corregge senza aver perso dov'era il fuoco); `Escape` invece annulla **sempre**, valido o no — è la via d'uscita che non deve mai bloccarsi. Sul `blur` (cliccare via, o `Tab` verso un controllo fuori dalla griglia) un commit rifiutato **scarta** il draft invece di restare bloccato: il fuoco è già uscito dalla cella a quel punto, non c'è modo onesto di "restare".
+
+### Il validatore è per colonna, letto in due posti diversi apposta
+
+Il motore tiene un registro dei validatori (`validatoriRef`, una `Map` dentro una `ref`, popolata da un `useEffect` di ogni cella tipizzata montata — `registraValidatore`) usato **solo** da `commitModificaInterno`/`impostaValore`, dentro un gestore d'evento. L'errore mostrato a schermo **non** passa da lì: ogni cella lo calcola da sé chiamando la propria `validazione` (già nella sua chiusura) sul `draftModifica` corrente del motore. Scelta presa da un avviso di `lint` (`react/refs`, "Cannot access refs during render"): la prima stesura esponeva un `erroreModifica` calcolato **in fase di render** leggendo la stessa `Map` — corretto perché il letta è una `ref` che cambia dentro l'effetto di *un'altra* cella, senza che nulla dica a questo render di ripartire quando succede. Non un falso positivo da liquidare: un vero rischio di schermata stantia, evitato smettendo di derivare la vista da quella `ref`.
+
+### Il `Select` in modifica: `onValueChange` e `onOpenChange` non si distinguono, e non serve
+
+Scegliere una voce chiude il popup: `onValueChange` (scrive con `impostaValore`, che chiude già la modifica) e `onOpenChange(false)` (che chiamerebbe `annullaModifica`) scattano entrambi sulla stessa interazione, in un ordine che Base UI non promette. Non è un problema: quando `onOpenChange(false)` arriva, `cellaInModifica` è già `null` per mano di `impostaValore` (se è arrivato prima) — e `annullaModifica` su una modifica già chiusa è un no-op. Funziona in entrambi gli ordini, senza bisogno di distinguere "chiuso perché scelto" da "chiuso con `Escape`".
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1176 scansioni (4 passate, +4 dalla story `Celle Tipizzate`) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi quattro avvisi preesistenti, zero nuovi — corretto anche il `react/refs` preso durante lo sviluppo (v. sopra, mai arrivato a `main`). `check:registry`: 0 errori, `checkbox`/`select` aggiunti a `registryDependencies`, `zod` alle `dependencies` npm (`registry.json`, `registry:build` rilanciato).
+
+**Verificato in Playwright** (Chromium reale, stesso motivo di sessione 1 per non usare il pannello di questa sessione): scrivere `-5` in `Quantità` (validata `z.coerce.number().min(0)`) marca `aria-invalid="true"` mentre si scrive, e Invio **non sposta** la cella (resta un `<input>` a fuoco) finché non si corregge a un valore valido; `Escape` su un draft invalido (`"abc"`) scarta e il valore resta quello di partenza; `Prezzo unitario` mostra `22,59 €` (formattazione `it-IT`, non l'input grezzo); un clic sul checkbox `Disp.` lo commuta subito (`aria-checked` `true`→`false`, nessuna modifica intermedia); `U.M.` apre un `role="listbox"` vero (il `Select` del registry, non un elenco a parte) e la scelta scrive nella cella; `Scadenza` è un `<input type="date">` reale; `Ctrl+Z` dopo una scelta di `select` la annulla correttamente.
+
+Prossimo passo: M3bis.5 sessione 3/3 — `useGridChanges` (persistenza: creazione/aggiornamento/cancellazione come change-set) e la prova end-to-end sul dataset finto a forma di computo (voci con subtotale, da M3bis.1) — è lì che il criterio di accettazione di `PIANO.md` si verifica per intero. Stesso worktree, dipende da questa sessione.

@@ -1042,12 +1042,13 @@
       "name": "tassullo-data-grid",
       "type": "registry:block",
       "title": "Data Grid editabile",
-      "description": "Il motore di editing su tassullo-data-table: navigazione da tastiera cella per cella, copia/incolla da foglio di calcolo, riempimento, annulla/ripeti. Nasce virtualizzata. Celle tipizzate e validazione Zod in una sessione successiva.",
+      "description": "Il motore di editing su tassullo-data-table: navigazione da tastiera cella per cella, copia/incolla da foglio di calcolo, riempimento, annulla/ripeti. Celle tipizzate (testo/numero/valuta it-IT/checkbox/data/select) e validazione per cella con Zod. Nasce virtualizzata. Persistenza (useGridChanges) in una sessione successiva.",
       "dependencies": [
         "@tanstack/react-table",
         "@tanstack/react-virtual",
         "cn",
-        "lucide-react"
+        "lucide-react",
+        "zod"
       ],
       "files": [
         {
@@ -1058,10 +1059,12 @@
       ],
       "registryDependencies": [
         "@tassullo/button",
+        "@tassullo/checkbox",
         "@tassullo/data-table",
+        "@tassullo/select",
         "@tassullo/tema"
       ],
-      "docs": "`useDataGrid` tiene le righe in uno stato suo, seminato una volta sola da\n`righeIniziali` e mai piu risincronizzato - non controllato, come\n`defaultValue`: uno stato controllato ricalcolerebbe il modello a ogni\ntasto e romperebbe l'annulla/ripeti. Si osserva `onModifica`, non si\nimpone `dati`.\n\n  const motore = useDataGrid({\n    righeIniziali: voci,\n    colonneId: ['descrizione', 'quantita'],\n    idRiga: (v) => v.id,\n    leggiCella: (v, c) => String(v[c] ?? ''),\n    scriviCella: (v, c, valore) => ({ ...v, [c]: valore }),\n  })\n  const col = creaColonne<Voce>()\n  <DataGrid motore={motore} colonne={col.columns([\n    colonnaTestoGriglia(col, 'descrizione', 'Descrizione'),\n  ])} barra={<><DataGridUndo /><DataGridRedo /></>}>\n    <DataGridClipboard />\n    <DataGridFillHandle />\n  </DataGrid>\n\n`<DataGrid>` innesta `<DataTable perPagina=\"virtuale\" altezza=\"ferma\">` -\nla stessa tabella, non una seconda: nasce gia virtualizzata (M3bis.4).\nNiente ricerca/ordinamento/filtri qui - la tastiera naviga per indice\nsull'array del motore, e un ordine diverso da quello visibile porterebbe\nla freccia sulla riga sbagliata.\n\nOgni cella e `role=\"gridcell\"` con fuoco mobile proprio (roving tabindex),\nnon la riga: `DataTableVirtualizedBody` riceve `senzaFocoRiga` per\nspegnere il proprio giro riga-per-riga, altrimenti i due userebbero lo\nstesso tasto per due cose diverse. Copia/incolla passa da\n`navigator.clipboard`, non dall'evento nativo: una cella non in modifica\nnon genera `copy`/`paste` da sola.\n\nSolo `CellaTestoGriglia`/`colonnaTestoGriglia` in questa sessione: celle\ntipizzate (numero/valuta/checkbox/data/select) e validazione Zod arrivano\nnella sessione 2, la persistenza (`useGridChanges`) nella 3."
+      "docs": "`useDataGrid` tiene le righe in uno stato suo, seminato una volta sola da\n`righeIniziali` e mai piu risincronizzato - non controllato, come\n`defaultValue`: uno stato controllato ricalcolerebbe il modello a ogni\ntasto e romperebbe l'annulla/ripeti. Si osserva `onModifica`, non si\nimpone `dati`.\n\n  const motore = useDataGrid({\n    righeIniziali: voci,\n    colonneId: ['descrizione', 'quantita', 'unita'],\n    idRiga: (v) => v.id,\n    leggiCella: (v, c) => String(v[c] ?? ''),\n    scriviCella: (v, c, valore) => ({ ...v, [c]: valore }),\n  })\n  const col = creaColonne<Voce>()\n  <DataGrid motore={motore} colonne={col.columns([\n    colonnaTestoGriglia(col, 'descrizione', 'Descrizione'),\n    colonnaNumeroGriglia(col, 'quantita', 'Quantita', { validazione: validaConZod(z.coerce.number().min(0)) }),\n    colonnaSelectGriglia(col, 'unita', 'U.M.', [{ valore: 'm2', etichetta: 'm2' }, { valore: 'kg', etichetta: 'kg' }]),\n  ])} barra={<><DataGridUndo /><DataGridRedo /></>}>\n    <DataGridClipboard />\n    <DataGridFillHandle />\n  </DataGrid>\n\n`<DataGrid>` innesta `<DataTable perPagina=\"virtuale\" altezza=\"ferma\">` -\nla stessa tabella, non una seconda: nasce gia virtualizzata (M3bis.4).\nNiente ricerca/ordinamento/filtri qui - la tastiera naviga per indice\nsull'array del motore, e un ordine diverso da quello visibile porterebbe\nla freccia sulla riga sbagliata.\n\nOgni cella non in modifica ha un fuoco mobile proprio (roving tabindex),\nnon la riga: `DataTableVirtualizedBody` riceve `senzaFocoRiga` per\nspegnere il proprio giro riga-per-riga, altrimenti i due userebbero lo\nstesso tasto per due cose diverse. Copia/incolla passa da\n`navigator.clipboard`, non dall'evento nativo: una cella non in modifica\nnon genera `copy`/`paste` da sola.\n\nSei celle: `colonnaTestoGriglia`/`colonnaNumeroGriglia`/`colonnaValutaGriglia`\n(Intl.NumberFormat it-IT)/`colonnaCheckboxGriglia`/`colonnaDataGriglia`\n(input nativo, non il Calendar del registry)/`colonnaSelectGriglia`. Il\nmotore resta agnostico di tipo: conosce solo `leggiCella`/`scriviCella`\ncome confine di stringhe, e la cella tipizzata formatta/interpreta.\n\n`validaConZod(schema)` valida una cella per colonna - `z.coerce.number()`/\n`z.coerce.date()` accettano direttamente la stringa grezza. Un commit\ninvalido non chiude la modifica (Invio/Tab restano aperti sull'errore);\nEscape annulla sempre. Stessa disciplina aria-invalid/aria-describedby di\n`tassullo-form-field`.\n\nPersistenza (`useGridChanges`, creazione/aggiornamento/cancellazione come\nchange-set) in una sessione successiva."
     },
     {
       "name": "tassullo-form-field",

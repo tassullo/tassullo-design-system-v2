@@ -69,21 +69,63 @@
  * M3bis.5 sessione 2. Persistenza (`useGridChanges`, creazione/aggiornamento/
  * cancellazione come change-set) e la prova end-to-end sul computo finto:
  * sessione 3 — è lì che il criterio di accettazione di `PIANO.md` si
- * verifica per intero. Qui c'è solo `CellaTestoGriglia`, la cella minima che
- * basta a provare motore, clipboard, riempimento e cronologia.
+ * verifica per intero.
+ *
+ * ── Sessione 2: celle tipizzate + validazione Zod ───────────────────────
+ *
+ * `colonnaTestoGriglia`/`colonnaNumeroGriglia`/`colonnaValutaGriglia`/
+ * `colonnaCheckboxGriglia`/`colonnaDataGriglia`/`colonnaSelectGriglia` —
+ * porting da "Cell Types" di niko-table. Il confine fra motore e cella resta
+ * quello di sessione 1: `useDataGrid` non sa cos'è un numero o una data,
+ * conosce solo `leggiCella`/`scriviCella` come confine di **stringhe** — è
+ * la cella tipizzata a formattare per la vista (`Intl.NumberFormat('it-IT')`
+ * per numero/valuta, `toLocaleDateString('it-IT')` per la data) e a
+ * interpretare ciò che l'utente scrive. Il checkbox e il select non passano
+ * da `apriModifica`/`commitModifica` — un gesto solo (spuntare, scegliere)
+ * si scrive subito con `impostaValore`, senza un testo intermedio da
+ * confermare.
+ *
+ * **La data usa `<input type="date">`**, non il `Calendar` del registry: la
+ * tastiera di un calendario a griglia dentro una griglia è un problema a
+ * sé — la stessa `D15` di `CLAUDE.md` (zero violazioni axe su una griglia
+ * del tutto non navigabile) è il motivo per cui non si presume che regga
+ * senza misurarlo apposta, e questa sessione non è quella misura. Il
+ * controllo nativo tiene comunque la stringa grezza in `AAAA-MM-GG`, la
+ * stessa forma con cui la colonna la conserva.
+ *
+ * **Validazione — `validaConZod`, coerente con `tassullo-form-field`
+ * (M3.4)**: come `FormField` collega `aria-invalid`/`data-invalid`/
+ * `aria-describedby` senza che la pagina debba ricordarsene, qui
+ * `validaConZod(schema)` fa la stessa cosa per una cella — la differenza è
+ * che una cella non ha un'etichetta accanto a cui mettere l'errore in
+ * chiaro: il colore (anello rosso) è il segnale per chi vede, un
+ * `aria-describedby` verso un testo `sr-only` è il segnale per chi non
+ * vede. `z.coerce.number()`/`z.coerce.date()` accettano direttamente la
+ * stringa grezza della cella — non serve un adattatore che la converta
+ * prima: è la stessa ragione per cui i validatori si passano allo schema, non
+ * al valore già interpretato.
  */
 import * as React from "react"
 import type { CellContext, RowData } from "@tanstack/react-table"
 import { Redo2Icon, Undo2Icon } from "lucide-react"
+import type { ZodType } from "zod"
 
 import { cn } from "cn"
-import { Button } from "@/registry/tassullo/ui/button"
 import {
   DataTable,
   creaColonne,
   type ColonnaTabella,
   type DataTableProps,
 } from "@/registry/tassullo/blocks/data-table"
+import { Button } from "@/registry/tassullo/ui/button"
+import { Checkbox } from "@/registry/tassullo/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/registry/tassullo/ui/select"
 
 /* ────────────────────────────────────────────────────────────────────────
  * Il motore — `useDataGrid`
@@ -131,7 +173,9 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
   vaiA: (id: CellaGrigliaId, opzioni?: { estendi?: boolean }) => void
   apriModifica: (id?: CellaGrigliaId, valoreIniziale?: string) => void
   aggiornaDraft: (valore: string) => void
-  commitModifica: () => void
+  /** `false` quando la validazione della colonna rifiuta `draftModifica`: la
+   * modifica **resta aperta**, non si scarta da sola (v. `registraValidatore`). */
+  commitModifica: () => boolean
   annullaModifica: () => void
   onKeyDownCella: (evento: React.KeyboardEvent, id: CellaGrigliaId) => void
   annulla: () => void
@@ -139,6 +183,22 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
   /** Anteprima del trascinamento della maniglia (`DataGridFillHandle`). */
   evidenziaRiempimento: (id: CellaGrigliaId) => void
   confermaRiempimento: () => void
+  /**
+   * Scrive una cella **subito**, senza passare da `apriModifica`/
+   * `commitModifica`: le celle che si "modificano" con un solo gesto —
+   * spuntare un checkbox, scegliere una voce di un `select` — non hanno un
+   * testo intermedio da confermare. Se `cellaInModifica` punta già a `id`
+   * (il `select` era aperto), lo richiude anche lui.
+   */
+  impostaValore: (id: CellaGrigliaId, valore: string) => boolean
+  /**
+   * Registra il validatore di una colonna (`colonnaNumeroGriglia` e affini
+   * lo fanno da sé in un effetto, non è per uso diretto dalle pagine). Una
+   * sola funzione per colonna, non per cella: ogni riga montata della
+   * stessa colonna registra la stessa funzione, la registrazione successiva
+   * è un no-op.
+   */
+  registraValidatore: (colonnaId: string, f: ((valore: string) => string | undefined) | null) => void
   /** Wiring privata per `<DataGrid>`: v. il commento in testa al file. */
   registraSpostamentoVerticale: (f: ((indiceRiga: number) => void) | null) => void
 }
@@ -214,6 +274,26 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   const rettangoloSelezione = rettangolo(ancora, cellaAttiva)
   const rettangoloAnteprima = rettangolo(cellaAttiva, obiettivoRiempimento)
 
+  /**
+   * I validatori sono **per colonna**, non per cella: una `Map` in una
+   * `ref` (non `useState`) perché registrarla non deve far ripartire un
+   * render — la registrazione avviene già dentro un `useEffect` di ogni
+   * cella tipizzata montata. Serve **solo** a `commitModificaInterno`/
+   * `impostaValore`, dentro un gestore d'evento: letta lì, non in fase di
+   * render, dove una `ref` che cambia dentro l'effetto di *un'altra* cella
+   * non farebbe ripartire questo render da sola. L'errore mostrato a
+   * schermo non passa da qui — ogni cella tipizzata lo calcola da sé,
+   * chiamando la propria `validazione` (v. `useStatoCellaGriglia`).
+   */
+  const validatoriRef = React.useRef(new Map<string, (valore: string) => string | undefined>())
+  const registraValidatore = React.useCallback(
+    (colonnaId: string, f: ((valore: string) => string | undefined) | null) => {
+      if (f) validatoriRef.current.set(colonnaId, f)
+      else validatoriRef.current.delete(colonnaId)
+    },
+    []
+  )
+
   const eAttiva = (id: CellaGrigliaId) =>
     cellaAttiva?.rigaId === id.rigaId && cellaAttiva?.colonnaId === id.colonnaId
   const eInModifica = (id: CellaGrigliaId) =>
@@ -231,24 +311,45 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     onModifica?.(nuoveRighe)
   }
 
-  const commitModificaInterno = () => {
-    if (!cellaInModifica) return
+  /**
+   * `false` se la colonna ha un validatore e lo rifiuta: **non scrive
+   * niente e non chiude la modifica** — il chiamante decide cosa fare (v.
+   * `onKeyDownCella` per Invio/Tab, che restano aperti; `onBlur` nelle
+   * celle tipizzate, che invece scartano con `annullaModifica`).
+   */
+  const commitModificaInterno = (): boolean => {
+    if (!cellaInModifica) return false
+    if (validatoriRef.current.get(cellaInModifica.colonnaId)?.(draftModifica)) return false
     const idx = indiceRiga.get(cellaInModifica.rigaId)
     if (idx == null) {
       setCellaInModifica(null)
-      return
+      return true
     }
     const nuoveRighe = righe.slice()
     nuoveRighe[idx] = scriviCella(nuoveRighe[idx]!, cellaInModifica.colonnaId, draftModifica)
     registraCommit(nuoveRighe, "modifica")
     setCellaInModifica(null)
+    return true
+  }
+
+  const impostaValore = (id: CellaGrigliaId, valore: string): boolean => {
+    if (validatoriRef.current.get(id.colonnaId)?.(valore)) return false
+    const idx = indiceRiga.get(id.rigaId)
+    if (idx == null) return false
+    const nuoveRighe = righe.slice()
+    nuoveRighe[idx] = scriviCella(nuoveRighe[idx]!, id.colonnaId, valore)
+    registraCommit(nuoveRighe, "modifica")
+    if (eInModifica(id)) setCellaInModifica(null)
+    return true
   }
 
   const vaiA = (id: CellaGrigliaId, opzioni?: { estendi?: boolean }) => {
     // Spostarsi via da una modifica in corso la commit — come in un foglio
     // di calcolo vero: cliccare un'altra cella non butta via ciò che si è
-    // appena scritto.
-    if (cellaInModifica && !eAttiva(id)) commitModificaInterno()
+    // appena scritto. Se non valido, si scarta (v. `commitModificaInterno`):
+    // un clic altrove è la stessa via d'uscita del blur, non c'è modo di
+    // "restare" sulla cella che si sta per lasciare.
+    if (cellaInModifica && !eAttiva(id) && !commitModificaInterno()) annullaModifica()
     setCellaAttiva(id)
     if (!opzioni?.estendi) setAncora(id)
   }
@@ -436,17 +537,21 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   const onKeyDownCella = (evento: React.KeyboardEvent, id: CellaGrigliaId) => {
     const mod = evento.metaKey || evento.ctrlKey
     if (cellaInModifica) {
+      // Invio/Tab non si spostano se la modifica è invalida — l'errore
+      // resta a schermo (ogni cella tipizzata lo calcola da sé, v.
+      // `useStatoCellaGriglia`) e la modifica resta aperta, così si può
+      // correggere senza aver perso dov'era il fuoco. `Escape` invece
+      // annulla sempre, valido o no: è la via d'uscita che non deve mai
+      // bloccarsi.
       if (evento.key === "Enter") {
         evento.preventDefault()
-        commitModificaInterno()
-        spostaVerticale(1)
+        if (commitModificaInterno()) spostaVerticale(1)
       } else if (evento.key === "Escape") {
         evento.preventDefault()
         annullaModifica()
       } else if (evento.key === "Tab") {
         evento.preventDefault()
-        commitModificaInterno()
-        spostaOrizzontale(evento.shiftKey ? -1 : 1)
+        if (commitModificaInterno()) spostaOrizzontale(evento.shiftKey ? -1 : 1)
       }
       return
     }
@@ -581,6 +686,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     ripeti,
     evidenziaRiempimento,
     confermaRiempimento,
+    impostaValore,
+    registraValidatore,
     registraSpostamentoVerticale,
   }
 }
@@ -611,50 +718,73 @@ function useContestoDataGrid<TDato>() {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
- * La cella minima — testo semplice, sessione 1
+ * Ciò che ogni cella condivide — stato, fuoco, validazione, l'accessor
  * ──────────────────────────────────────────────────────────────────────── */
 
-function CellaTestoGriglia<TDato extends RowData>({
-  info,
-  colonnaId,
-}: {
-  info: CellContext<any, TDato, unknown>
-  colonnaId: string
-}) {
+/**
+ * L'indirizzo e lo stato di una cella, letti dal motore una volta sola —
+ * ogni cella tipizzata parte da qui invece di ripetere le cinque righe.
+ *
+ * `errore` **non** viene dal motore: si calcola qui, chiamando `validazione`
+ * (la funzione della colonna, già nella chiusura della cella) sul draft
+ * corrente. Il motore tiene comunque il proprio registro dei validatori
+ * (`registraValidatore`/`validatoriRef`) per rifiutare un commit non valido
+ * da `commitModificaInterno` — ma quella lettura avviene in un gestore
+ * d'evento, non in fase di render. Farla anche qui, per mostrare l'errore a
+ * schermo, avrebbe voluto leggere una `ref` mentre si rende — un valore che
+ * cambia dentro l'effetto di registrazione di *un'altra* cella, senza che
+ * nulla dica a questa di ri-renderizzare quando succede. Calcolarlo dalla
+ * stessa `validazione` che la cella già ha in chiusura evita la `ref` del
+ * tutto: l'unica cosa reattiva di cui ha bisogno, `draftModifica`, è già
+ * stato del motore.
+ */
+function useStatoCellaGriglia<TDato>(
+  riga: TDato,
+  colonnaId: string,
+  validazione?: (valore: string) => string | undefined
+) {
   const { motore, interagitoRef } = useContestoDataGrid<TDato>()
-  const riga = info.row.original
   const rigaId = motore.idRiga(riga)
   const id: CellaGrigliaId = { rigaId, colonnaId }
-  const attiva = motore.eAttiva(id)
   const inModifica = motore.eInModifica(id)
-  const selezionata = motore.eSelezionata(id)
-  const inAnteprima = motore.eInAnteprimaRiempimento(id)
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const divRef = React.useRef<HTMLDivElement>(null)
+  return {
+    motore,
+    interagitoRef,
+    rigaId,
+    id,
+    attiva: motore.eAttiva(id),
+    inModifica,
+    selezionata: motore.eSelezionata(id),
+    inAnteprima: motore.eInAnteprimaRiempimento(id),
+    errore: inModifica ? validazione?.(motore.draftModifica) : undefined,
+  }
+}
 
-  React.useEffect(() => {
-    if (inModifica) inputRef.current?.focus()
-  }, [inModifica])
-
-  /**
-   * Riporta il fuoco reale del browser sulla cella attiva. Non basta
-   * guardare se il vecchio nodo è sparito (`document.activeElement ===
-   * document.body`): cambiare `tabIndex` da 0 a -1 su un elemento **che ha
-   * già il fuoco non lo sposta da solo** — il nodo resta a fuoco, il suo
-   * `tabIndex` conta solo per il prossimo `Tab`. Preso su uno spostamento
-   * `ArrowRight` in un browser vero: la cella nuova diventava attiva nello
-   * stato, ma il fuoco reale restava sulla vecchia finché non si cliccava di
-   * nuovo. Il bersaglio giusto è quindi "il fuoco è da qualche parte dentro
-   * la griglia" — la cella di prima (`data-riga-id`) o `document.body`
-   * (l'uscita da una modifica con `Escape`/`Invio`, o il rimontaggio dopo
-   * uno scorrimento fuori dalla finestra virtualizzata, dove il vecchio nodo
-   * è stato smontato) — non solo il caso "sparito".
-   *
-   * `interagitoRef` evita di farlo al primissimo render, prima che l'utente
-   * abbia mai toccato la griglia (altrimenti la griglia si ruberebbe il
-   * fuoco dalla pagina appena montata) — lo stesso pattern già usato in
-   * `DataTableVirtualizedBody`.
-   */
+/**
+ * Riporta il fuoco reale del browser sulla cella attiva. Non basta guardare
+ * se il vecchio nodo è sparito (`document.activeElement === document.body`):
+ * cambiare `tabIndex` da 0 a -1 su un elemento **che ha già il fuoco non lo
+ * sposta da solo** — il nodo resta a fuoco, il suo `tabIndex` conta solo per
+ * il prossimo `Tab`. Preso su uno spostamento `ArrowRight` in un browser
+ * vero: la cella nuova diventava attiva nello stato, ma il fuoco reale
+ * restava sulla vecchia finché non si cliccava di nuovo. Il bersaglio giusto
+ * è quindi "il fuoco è da qualche parte dentro la griglia" — la cella di
+ * prima (`data-riga-id`) o `document.body` (l'uscita da una modifica con
+ * `Escape`/`Invio`, o il rimontaggio dopo uno scorrimento fuori dalla
+ * finestra virtualizzata, dove il vecchio nodo è stato smontato) — non solo
+ * il caso "sparito".
+ *
+ * `interagitoRef` evita di farlo al primissimo render, prima che l'utente
+ * abbia mai toccato la griglia (altrimenti la griglia si ruberebbe il fuoco
+ * dalla pagina appena montata) — lo stesso pattern già usato in
+ * `DataTableVirtualizedBody`.
+ */
+function useFuocoCellaGriglia(
+  divRef: React.RefObject<HTMLElement | null>,
+  attiva: boolean,
+  inModifica: boolean,
+  interagitoRef: React.RefObject<boolean>
+) {
   React.useEffect(() => {
     if (!interagitoRef.current || !attiva || inModifica) return
     const fuocoNellaGriglia =
@@ -665,18 +795,126 @@ function CellaTestoGriglia<TDato extends RowData>({
       divRef.current?.focus()
     }
   })
+}
+
+/**
+ * Registra il validatore della colonna presso il motore mentre la cella è
+ * montata — un effetto per riga montata, ma la `Map` del motore assorbe la
+ * ripetizione (v. `registraValidatore`). La dipendenza `validazione` è la
+ * funzione passata da `colonnaXGriglia`: se la pagina la ridefinisce a ogni
+ * render (un errore comune, non specifico di questo componente) l'effetto
+ * si ripete più spesso del necessario ma resta corretto, mai stantio.
+ */
+function useValidatoreCellaGriglia<TDato>(
+  motore: DataGridEngine<TDato>,
+  colonnaId: string,
+  validazione: ((valore: string) => string | undefined) | undefined
+) {
+  React.useEffect(() => {
+    if (!validazione) return
+    motore.registraValidatore(colonnaId, validazione)
+  }, [motore, colonnaId, validazione])
+}
+
+/** Un id univoco per il render corrente, per `aria-describedby` verso il
+ * messaggio d'errore — `sr-only`, letto solo da chi non vede l'anello rosso. */
+function nodoErroreCella(erroreId: string, errore: string | undefined) {
+  if (!errore) return null
+  return (
+    <span id={erroreId} role="alert" className="sr-only">
+      {errore}
+    </span>
+  )
+}
+
+/**
+ * Adatta uno schema Zod a validatore di cella: `validaConZod(z.coerce.
+ * number().min(0))` legge direttamente la stringa grezza della cella —
+ * `z.coerce` la converte lui, non serve un passaggio in mezzo. Il messaggio
+ * mostrato è il primo problema che Zod segnala, o una frase generica se lo
+ * schema non ne scrive uno.
+ */
+export function validaConZod(schema: ZodType): (valore: string) => string | undefined {
+  return (valore) => {
+    const risultato = schema.safeParse(valore)
+    if (risultato.success) return undefined
+    return risultato.error.issues[0]?.message ?? "Valore non valido"
+  }
+}
+
+function accessorGriglia<TDato extends RowData>(col: ReturnType<typeof creaColonne<TDato>>) {
+  return col.accessor as (
+    id: string,
+    def: {
+      header: string
+      meta: { titolo: string }
+      size?: number
+      enableSorting: boolean
+      enableColumnFilter: boolean
+      enableGlobalFilter: boolean
+      cell: (info: CellContext<any, TDato, unknown>) => React.ReactNode
+    }
+  ) => ColonnaTabella<TDato>
+}
+
+/** Le classi condivise dalla vista non-in-modifica di ogni cella. */
+function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: string) {
+  return cn(
+    "block h-full w-full truncate outline-none",
+    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+    selezionata && "bg-accent/40",
+    inAnteprima && "outline-primary outline-1 outline-dashed",
+    extra
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Testo
+ * ──────────────────────────────────────────────────────────────────────── */
+
+function CellaTestoGriglia<TDato extends RowData>({
+  info,
+  colonnaId,
+  validazione,
+}: {
+  info: CellContext<any, TDato, unknown>
+  colonnaId: string
+  validazione?: (valore: string) => string | undefined
+}) {
+  const riga = info.row.original
+  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+    useStatoCellaGriglia(riga, colonnaId, validazione)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const divRef = React.useRef<HTMLDivElement>(null)
+  const erroreId = React.useId()
+
+  useValidatoreCellaGriglia(motore, colonnaId, validazione)
+  useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
+  React.useEffect(() => {
+    if (inModifica) inputRef.current?.focus()
+  }, [inModifica])
 
   if (inModifica) {
     return (
-      <input
-        ref={inputRef}
-        value={motore.draftModifica}
-        onChange={(evento) => motore.aggiornaDraft(evento.target.value)}
-        onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-        onBlur={() => motore.commitModifica()}
-        className="block h-full w-full truncate bg-transparent outline-none"
-        aria-label={colonnaId}
-      />
+      <>
+        <input
+          ref={inputRef}
+          value={motore.draftModifica}
+          onChange={(evento) => motore.aggiornaDraft(evento.target.value)}
+          onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
+          onBlur={() => {
+            if (!motore.commitModifica()) motore.annullaModifica()
+          }}
+          aria-invalid={!!errore}
+          aria-describedby={errore ? erroreId : undefined}
+          className={cn(
+            "block h-full w-full truncate bg-transparent outline-none",
+            errore && "text-destructive"
+          )}
+          aria-label={colonnaId}
+        />
+        {nodoErroreCella(erroreId, errore)}
+      </>
     )
   }
 
@@ -699,59 +937,424 @@ function CellaTestoGriglia<TDato extends RowData>({
       // Niente `onFocus`: il fuoco mobile fa sì che la cella tabbabile sia
       // **sempre** quella già attiva nello stato — sincronizzarla di nuovo
       // al fuoco sarebbe ridondante quando il click l'ha già fatto
-      // (`onMouseDown`), e **dannoso** quando è l'effetto qui sopra a
-      // spostare il fuoco reale dopo una freccia: quel fuoco programmato
-      // farebbe scattare `onFocus`, che richiamerebbe `vaiA` senza sapere
-      // che lo spostamento era un'estensione di selezione (`Shift+Freccia`)
-      // e ne cancellerebbe l'ancora. Preso in un browser vero: `Shift+
-      // ArrowDown` spostava la cella attiva ma non estendeva mai la
-      // selezione, perché il fuoco riassegnato dall'effetto azzerava
+      // (`onMouseDown`), e **dannoso** quando è l'effetto di `useFuocoCella
+      // Griglia` a spostare il fuoco reale dopo una freccia: quel fuoco
+      // programmato farebbe scattare `onFocus`, che richiamerebbe `vaiA`
+      // senza sapere che lo spostamento era un'estensione di selezione
+      // (`Shift+Freccia`) e ne cancellerebbe l'ancora. Preso in un browser
+      // vero: `Shift+ArrowDown` spostava la cella attiva ma non estendeva
+      // mai la selezione, perché il fuoco riassegnato dall'effetto azzerava
       // l'ancora un istante dopo che la tastiera l'aveva impostata.
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-      className={cn(
-        "block h-full w-full truncate outline-none",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        selezionata && "bg-accent/40",
-        inAnteprima && "outline-primary outline-1 outline-dashed"
-      )}
+      className={classiVistaCella(selezionata, inAnteprima)}
     >
       {motore.leggiCella(riga, colonnaId)}
     </div>
   )
 }
 
-/**
- * Costruisce una colonna testuale editabile per `<DataGrid>` — la sola cella
- * tipizzata che questa sessione porta (numero/valuta/checkbox/data/select
- * arrivano in M3bis.5 sessione 2). `col` è lo stesso `creaColonne<TDato>()`
- * già usato altrove nel registry.
- */
+/** Costruisce una colonna testuale editabile per `<DataGrid>`. `col` è lo
+ * stesso `creaColonne<TDato>()` già usato altrove nel registry. */
 export function colonnaTestoGriglia<TDato extends RowData>(
   col: ReturnType<typeof creaColonne<TDato>>,
   id: Extract<keyof TDato, string>,
   titolo: string,
-  opzioni?: { size?: number }
+  opzioni?: { size?: number; validazione?: (valore: string) => string | undefined }
 ): ColonnaTabella<TDato> {
-  const accessor = col.accessor as (
-    id: string,
-    def: {
-      header: string
-      meta: { titolo: string }
-      size?: number
-      enableSorting: boolean
-      enableColumnFilter: boolean
-      enableGlobalFilter: boolean
-      cell: (info: CellContext<any, TDato, unknown>) => React.ReactNode
-    }
-  ) => ColonnaTabella<TDato>
-  return accessor(id, {
+  return accessorGriglia(col)(id, {
     header: titolo,
     meta: { titolo },
     size: opzioni?.size,
     enableSorting: false,
     enableColumnFilter: false,
     enableGlobalFilter: false,
-    cell: (info) => <CellaTestoGriglia info={info} colonnaId={id} />,
+    cell: (info) => (
+      <CellaTestoGriglia info={info} colonnaId={id} validazione={opzioni?.validazione} />
+    ),
+  })
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Numero e valuta — stessa cella, una differenza di formattazione
+ * ──────────────────────────────────────────────────────────────────────── */
+
+function CellaNumericaGriglia<TDato extends RowData>({
+  info,
+  colonnaId,
+  validazione,
+  valuta,
+}: {
+  info: CellContext<any, TDato, unknown>
+  colonnaId: string
+  validazione?: (valore: string) => string | undefined
+  valuta?: boolean
+}) {
+  const riga = info.row.original
+  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+    useStatoCellaGriglia(riga, colonnaId, validazione)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const divRef = React.useRef<HTMLDivElement>(null)
+  const erroreId = React.useId()
+  const formattatore = React.useMemo(
+    () =>
+      new Intl.NumberFormat("it-IT", valuta ? { style: "currency", currency: "EUR" } : undefined),
+    [valuta]
+  )
+
+  useValidatoreCellaGriglia(motore, colonnaId, validazione)
+  useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
+  React.useEffect(() => {
+    if (inModifica) inputRef.current?.focus()
+  }, [inModifica])
+
+  if (inModifica) {
+    return (
+      <>
+        <input
+          ref={inputRef}
+          value={motore.draftModifica}
+          onChange={(evento) => motore.aggiornaDraft(evento.target.value)}
+          onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
+          onBlur={() => {
+            if (!motore.commitModifica()) motore.annullaModifica()
+          }}
+          aria-invalid={!!errore}
+          aria-describedby={errore ? erroreId : undefined}
+          inputMode="decimal"
+          className={cn(
+            "block h-full w-full truncate bg-transparent text-right tabular-nums outline-none",
+            errore && "text-destructive"
+          )}
+          aria-label={colonnaId}
+        />
+        {nodoErroreCella(erroreId, errore)}
+      </>
+    )
+  }
+
+  const raw = motore.leggiCella(riga, colonnaId)
+  const numero = raw === "" ? null : Number(raw)
+  return (
+    <div
+      ref={divRef}
+      data-riga-id={rigaId}
+      data-colonna-id={colonnaId}
+      tabIndex={attiva ? 0 : -1}
+      onMouseDown={() => motore.vaiA(id)}
+      onDoubleClick={() => motore.apriModifica(id)}
+      onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
+      className={classiVistaCella(selezionata, inAnteprima, "text-right tabular-nums")}
+    >
+      {numero === null || Number.isNaN(numero) ? raw : formattatore.format(numero)}
+    </div>
+  )
+}
+
+export function colonnaNumeroGriglia<TDato extends RowData>(
+  col: ReturnType<typeof creaColonne<TDato>>,
+  id: Extract<keyof TDato, string>,
+  titolo: string,
+  opzioni?: { size?: number; validazione?: (valore: string) => string | undefined }
+): ColonnaTabella<TDato> {
+  return accessorGriglia(col)(id, {
+    header: titolo,
+    meta: { titolo },
+    size: opzioni?.size,
+    enableSorting: false,
+    enableColumnFilter: false,
+    enableGlobalFilter: false,
+    cell: (info) => (
+      <CellaNumericaGriglia info={info} colonnaId={id} validazione={opzioni?.validazione} />
+    ),
+  })
+}
+
+/** Come `colonnaNumeroGriglia`, ma la vista formatta in euro (`Intl.
+ * NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })`) — la
+ * cella in modifica resta un numero semplice: si scrive "12.5", non "€
+ * 12,50". */
+export function colonnaValutaGriglia<TDato extends RowData>(
+  col: ReturnType<typeof creaColonne<TDato>>,
+  id: Extract<keyof TDato, string>,
+  titolo: string,
+  opzioni?: { size?: number; validazione?: (valore: string) => string | undefined }
+): ColonnaTabella<TDato> {
+  return accessorGriglia(col)(id, {
+    header: titolo,
+    meta: { titolo },
+    size: opzioni?.size,
+    enableSorting: false,
+    enableColumnFilter: false,
+    enableGlobalFilter: false,
+    cell: (info) => (
+      <CellaNumericaGriglia info={info} colonnaId={id} validazione={opzioni?.validazione} valuta />
+    ),
+  })
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Checkbox — un gesto solo, niente modifica intermedia
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** I soli tasti che questa cella lascia al motore: la spunta li intercetta
+ * prima (Spazio/Invio), e un carattere qualunque non deve aprire una
+ * modifica di testo che questa cella non sa mostrare. */
+const TASTI_NAVIGAZIONE_GRIGLIA = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+  "Tab",
+  "Delete",
+  "Backspace",
+])
+
+function CellaCheckboxGriglia<TDato extends RowData>({
+  info,
+  colonnaId,
+}: {
+  info: CellContext<any, TDato, unknown>
+  colonnaId: string
+}) {
+  const riga = info.row.original
+  const { motore, interagitoRef, rigaId, id, attiva, selezionata, inAnteprima } =
+    useStatoCellaGriglia(riga, colonnaId)
+  const divRef = React.useRef<HTMLDivElement>(null)
+  useFuocoCellaGriglia(divRef, attiva, false, interagitoRef)
+
+  const spuntato = motore.leggiCella(riga, colonnaId) === "true"
+  const commuta = () => motore.impostaValore(id, spuntato ? "false" : "true")
+
+  return (
+    <div
+      ref={divRef}
+      data-riga-id={rigaId}
+      data-colonna-id={colonnaId}
+      tabIndex={attiva ? 0 : -1}
+      onMouseDown={() => motore.vaiA(id)}
+      onClick={commuta}
+      onKeyDown={(evento) => {
+        if (evento.key === " " || evento.key === "Enter") {
+          evento.preventDefault()
+          commuta()
+          return
+        }
+        // Un tasto qualunque non finisce in `onKeyDownCella`: lì un
+        // carattere stampabile apre una modifica di testo (la convenzione
+        // "scrivere per modificare" delle celle testuali), e questa cella
+        // non ha un'edizione di testo da mostrare — resterebbe una modifica
+        // aperta senza schermo, e il primo Invio ci scriverebbe dentro il
+        // carattere digitato come valore grezzo. Si delega solo la
+        // navigazione vera.
+        if (TASTI_NAVIGAZIONE_GRIGLIA.has(evento.key) || evento.metaKey || evento.ctrlKey) {
+          motore.onKeyDownCella(evento, id)
+        }
+      }}
+      className={classiVistaCella(selezionata, inAnteprima, "flex items-center justify-center")}
+    >
+      <Checkbox checked={spuntato} onCheckedChange={commuta} tabIndex={-1} aria-hidden />
+    </div>
+  )
+}
+
+export function colonnaCheckboxGriglia<TDato extends RowData>(
+  col: ReturnType<typeof creaColonne<TDato>>,
+  id: Extract<keyof TDato, string>,
+  titolo: string,
+  opzioni?: { size?: number }
+): ColonnaTabella<TDato> {
+  return accessorGriglia(col)(id, {
+    header: titolo,
+    meta: { titolo },
+    size: opzioni?.size,
+    enableSorting: false,
+    enableColumnFilter: false,
+    enableGlobalFilter: false,
+    cell: (info) => <CellaCheckboxGriglia info={info} colonnaId={id} />,
+  })
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Data — `<input type="date">`, v. il commento in testa al file
+ * ──────────────────────────────────────────────────────────────────────── */
+
+function CellaDataGriglia<TDato extends RowData>({
+  info,
+  colonnaId,
+  validazione,
+}: {
+  info: CellContext<any, TDato, unknown>
+  colonnaId: string
+  validazione?: (valore: string) => string | undefined
+}) {
+  const riga = info.row.original
+  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+    useStatoCellaGriglia(riga, colonnaId, validazione)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const divRef = React.useRef<HTMLDivElement>(null)
+  const erroreId = React.useId()
+
+  useValidatoreCellaGriglia(motore, colonnaId, validazione)
+  useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
+  React.useEffect(() => {
+    if (inModifica) inputRef.current?.focus()
+  }, [inModifica])
+
+  if (inModifica) {
+    return (
+      <>
+        <input
+          ref={inputRef}
+          type="date"
+          value={motore.draftModifica}
+          onChange={(evento) => motore.aggiornaDraft(evento.target.value)}
+          onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
+          onBlur={() => {
+            if (!motore.commitModifica()) motore.annullaModifica()
+          }}
+          aria-invalid={!!errore}
+          aria-describedby={errore ? erroreId : undefined}
+          className={cn(
+            "block h-full w-full bg-transparent outline-none",
+            errore && "text-destructive"
+          )}
+          aria-label={colonnaId}
+        />
+        {nodoErroreCella(erroreId, errore)}
+      </>
+    )
+  }
+
+  const raw = motore.leggiCella(riga, colonnaId)
+  // Mezzogiorno e non mezzanotte: `new Date("AAAA-MM-GG")` la legge in UTC,
+  // e un fuso indietro rispetto a UTC la farebbe cadere sul giorno prima
+  // una volta formattata in locale — mezzogiorno resta lo stesso giorno in
+  // ogni fuso plausibile per le app Tassullo.
+  const testo = raw ? new Date(`${raw}T12:00:00`).toLocaleDateString("it-IT") : ""
+  return (
+    <div
+      ref={divRef}
+      data-riga-id={rigaId}
+      data-colonna-id={colonnaId}
+      tabIndex={attiva ? 0 : -1}
+      onMouseDown={() => motore.vaiA(id)}
+      onDoubleClick={() => motore.apriModifica(id)}
+      onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
+      className={classiVistaCella(selezionata, inAnteprima)}
+    >
+      {testo}
+    </div>
+  )
+}
+
+export function colonnaDataGriglia<TDato extends RowData>(
+  col: ReturnType<typeof creaColonne<TDato>>,
+  id: Extract<keyof TDato, string>,
+  titolo: string,
+  opzioni?: { size?: number; validazione?: (valore: string) => string | undefined }
+): ColonnaTabella<TDato> {
+  return accessorGriglia(col)(id, {
+    header: titolo,
+    meta: { titolo },
+    size: opzioni?.size,
+    enableSorting: false,
+    enableColumnFilter: false,
+    enableGlobalFilter: false,
+    cell: (info) => (
+      <CellaDataGriglia info={info} colonnaId={id} validazione={opzioni?.validazione} />
+    ),
+  })
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Select — un gesto solo, come il checkbox
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export type OpzioneSelectGriglia = { valore: string; etichetta: string }
+
+function CellaSelectGriglia<TDato extends RowData>({
+  info,
+  colonnaId,
+  opzioni,
+}: {
+  info: CellContext<any, TDato, unknown>
+  colonnaId: string
+  opzioni: OpzioneSelectGriglia[]
+}) {
+  const riga = info.row.original
+  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima } =
+    useStatoCellaGriglia(riga, colonnaId)
+  const divRef = React.useRef<HTMLDivElement>(null)
+  useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
+
+  const raw = motore.leggiCella(riga, colonnaId)
+  const etichetta = opzioni.find((o) => o.valore === raw)?.etichetta ?? raw
+
+  if (inModifica) {
+    return (
+      <Select
+        value={raw}
+        open
+        // `onOpenChange(false)` scatta sia scegliendo una voce sia con
+        // `Escape` — nel primo caso `onValueChange` ha già chiuso la
+        // modifica lui (`impostaValore`), quindi `annullaModifica` qui
+        // trova `cellaInModifica` già `null` e non fa niente: nessun
+        // bisogno di distinguere i due casi, il secondo è un no-op sul
+        // primo.
+        onOpenChange={(aperto) => {
+          if (!aperto) motore.annullaModifica()
+        }}
+        onValueChange={(valore) => {
+          if (valore != null) motore.impostaValore(id, valore)
+        }}
+      >
+        <SelectTrigger className="h-full w-full border-0" aria-label={colonnaId}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {opzioni.map((o) => (
+            <SelectItem key={o.valore} value={o.valore}>
+              {o.etichetta}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  return (
+    <div
+      ref={divRef}
+      data-riga-id={rigaId}
+      data-colonna-id={colonnaId}
+      tabIndex={attiva ? 0 : -1}
+      onMouseDown={() => motore.vaiA(id)}
+      onDoubleClick={() => motore.apriModifica(id)}
+      onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
+      className={classiVistaCella(selezionata, inAnteprima)}
+    >
+      {etichetta}
+    </div>
+  )
+}
+
+export function colonnaSelectGriglia<TDato extends RowData>(
+  col: ReturnType<typeof creaColonne<TDato>>,
+  id: Extract<keyof TDato, string>,
+  titolo: string,
+  opzioni: OpzioneSelectGriglia[],
+  extra?: { size?: number }
+): ColonnaTabella<TDato> {
+  return accessorGriglia(col)(id, {
+    header: titolo,
+    meta: { titolo },
+    size: extra?.size,
+    enableSorting: false,
+    enableColumnFilter: false,
+    enableGlobalFilter: false,
+    cell: (info) => <CellaSelectGriglia info={info} colonnaId={id} opzioni={opzioni} />,
   })
 }
 
