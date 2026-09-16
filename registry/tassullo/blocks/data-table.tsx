@@ -558,6 +558,65 @@ export function CellaAlbero<TDato extends RowData>({
   )
 }
 
+/**
+ * Il bottone che apre/chiude il pannello di dettaglio di una riga (M3bis.2,
+ * "Row Expansion") — una colonna a sé, non dentro `CellaAlbero`: a differenza
+ * dell'albero (M3bis.1), qui non c'è una colonna che «identifica» la riga più
+ * delle altre, e il pannello non è mai innestato nella struttura del dato —
+ * è sempre un fratello della riga, mai un figlio (`getSottoRighe` resta
+ * l'unica via per righe vere nel modello dati). Si aggiunge da sé quando
+ * `pannelloRiga` è passato al blocco, come `colonnaSelezione` con `selezione`
+ * — la pagina non la scrive.
+ *
+ * **Nessun bottone sulle righe che il pannello non copre**: `getCanExpand()`
+ * segue `getRowCanExpand`, che il blocco imposta su `pannelloRiga(riga) !=
+ * null` — una riga per cui la funzione non ha niente da mostrare non prende
+ * un chevron che aprirebbe il vuoto.
+ *
+ * Stessa classe di `CellaAlbero` per il segno di apertura — niente sfondo,
+ * niente bordo a riposo, hover comunque tinto — per la stessa ragione a
+ * verbale lì: la freccia ruotata è già il segno di stato, un secondo sul
+ * bottone sarebbe ridondante.
+ */
+export function colonnaEspansione<TDato extends RowData>() {
+  const col = creaColonne<TDato>()
+  return col.display({
+    id: "espansione",
+    header: () => <span className="sr-only">Dettaglio</span>,
+    cell: ({ row }) => {
+      if (!row.getCanExpand()) return null
+      const espansa = row.getIsExpanded()
+      return (
+        // `flex items-center`: senza, il bottone (inline-flex) si allinea
+        // alla riga di base del testo della cella invece che al suo centro
+        // — lo stesso pareggio verticale che `CellaAlbero` fa col proprio
+        // `<span className="flex items-center …">` (rilievo di Francesco:
+        // il chevron stava più in alto delle altre celle della riga).
+        <span className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={row.getToggleExpandedHandler()}
+            aria-expanded={espansa}
+            aria-controls={`pannello-riga-${row.id}`}
+            aria-label={espansa ? "Comprimi dettaglio riga" : "Espandi dettaglio riga"}
+            className="-my-2 -ml-2 aria-expanded:bg-transparent aria-expanded:hover:bg-muted dark:aria-expanded:hover:bg-muted/50"
+          >
+            <ChevronRightIcon
+              aria-hidden
+              className={cn("transition-transform", espansa && "rotate-90")}
+            />
+          </Button>
+        </span>
+      )
+    },
+    enableSorting: false,
+    enableHiding: false,
+    enableGlobalFilter: false,
+    meta: { larghezza: "w-10" } satisfies MetaColonna,
+  })
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Il contorno
  * ──────────────────────────────────────────────────────────────────────── */
@@ -996,6 +1055,26 @@ export type DataTableProps<TDato extends RowData> = {
    */
   getSottoRighe?: (riga: TDato) => readonly TDato[] | undefined
   /**
+   * Il pannello di dettaglio di una riga (M3bis.2, "Row Expansion",
+   * porting da niko-table): contenuto **libero**, a differenza del
+   * subtotale di `meta.sottototale`, che è sempre un numero formattato.
+   * Restituire `null`/`undefined` per una riga toglie il chevron da quella
+   * riga — non ogni riga deve avere per forza un dettaglio.
+   *
+   * Aggiunge da sé una colonna col chevron (`colonnaEspansione`), come
+   * `selezione` aggiunge la propria: la pagina non la scrive. **Non è
+   * `getSottoRighe`**: quello innesta righe vere nel modello dati (l'albero
+   * di M3bis.1, il "Computo" con le sue misurazioni); questo apre una riga
+   * in più, sempre fratella mai figlia, con qualunque markup la pagina
+   * voglia — la scheda di un cliente sotto la sua riga d'elenco, non un
+   * altro giro di celle della stessa tabella.
+   *
+   * La riga di dettaglio prende tutta la larghezza (`colSpan`) ed esce dalla
+   * paginazione/dallo scorrimento infinito come farebbe qualunque riga in
+   * più: apre e chiude, non pagina a parte.
+   */
+  pannelloRiga?: (riga: TDato) => React.ReactNode
+  /**
    * Cosa mettere accanto alla ricerca: i filtri della pagina, le azioni di
    * massa.
    *
@@ -1042,6 +1121,7 @@ export function DataTable<TDato extends RowData>({
   colonneNascondibili = true,
   bloccaPrimaColonna = false,
   getSottoRighe,
+  pannelloRiga,
   barra,
   className,
 }: DataTableProps<TDato>) {
@@ -1068,10 +1148,12 @@ export function DataTable<TDato extends RowData>({
    * Il `useMemo` non è ottimizzazione: `colonne` che cambia identità a ogni
    * render farebbe ricostruire la tabella e perdere ordinamento e pagina.
    */
-  const colonneEffettive = React.useMemo(
-    () => (selezione ? [colonnaSelezione<TDato>(), ...colonne] : colonne),
-    [colonne, selezione]
-  )
+  const colonneEffettive = React.useMemo(() => {
+    let risultato = colonne
+    if (pannelloRiga) risultato = [colonnaEspansione<TDato>(), ...risultato]
+    if (selezione) risultato = [colonnaSelezione<TDato>(), ...risultato]
+    return risultato
+  }, [colonne, selezione, pannelloRiga])
 
   const tabella = useTable({
     features: caratteristiche,
@@ -1083,6 +1165,11 @@ export function DataTable<TDato extends RowData>({
     // questo componente ha bisogno di leggerlo — a differenza di
     // `rowSelection`, letto per il conto in `PaginazioneTabella`.
     getSubRows: getSottoRighe ? (riga) => getSottoRighe(riga) : undefined,
+    // Senza `pannelloRiga` resta `undefined`: `getCanExpand()` ricade sul
+    // predefinito di TanStack (righe con `subRows`, l'albero di M3bis.1).
+    getRowCanExpand: pannelloRiga
+      ? (riga) => pannelloRiga(riga.original) != null
+      : undefined,
     onSortingChange: setOrdinamento,
     onColumnFiltersChange: setFiltri,
     onGlobalFilterChange: setRicerca,
@@ -1446,44 +1533,60 @@ export function DataTable<TDato extends RowData>({
             {righe.length > 0 ? (
               <>
                 {righe.map((riga) => (
-                  <TableRow
-                    key={riga.id}
-                    className={cn("group/riga", fermo && "snap-start")}
-                    data-state={riga.getIsSelected() ? "selected" : undefined}
-                  >
-                    {riga.getVisibleCells().map((cella, indice) => {
-                      // Il subtotale (M3bis.1, `meta.sottototale`) prende il
-                      // posto della cella normale **solo sulle righe che
-                      // hanno figli** — su una riga foglia non c'è niente da
-                      // sommare, e `tabella.FlexRender` resta la via giusta.
-                      const sottototale = riga.subRows.length
-                        ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)
-                            ?.sottototale
-                        : undefined
-                      return (
-                        // `truncate` è il prezzo di `table-fixed`: con le larghezze
-                        // decise dalle intestazioni, un testo più lungo della sua
-                        // colonna **sborda** nella colonna accanto invece di
-                        // allargarla: meglio tagliarlo coi puntini.
-                        <TableCell
-                          key={cella.id}
-                          className={cn(
-                            "truncate",
-                            bloccaPrimaColonna && classiBloccate(indice, selezione)
-                          )}
-                        >
-                          {sottototale ? (
-                            sottototale(
-                              riga.subRows.map((r) => r.original),
-                              riga.original
-                            )
-                          ) : (
-                            <tabella.FlexRender cell={cella} />
-                          )}
+                  <React.Fragment key={riga.id}>
+                    <TableRow
+                      className={cn("group/riga", fermo && "snap-start")}
+                      data-state={riga.getIsSelected() ? "selected" : undefined}
+                    >
+                      {riga.getVisibleCells().map((cella, indice) => {
+                        // Il subtotale (M3bis.1, `meta.sottototale`) prende il
+                        // posto della cella normale **solo sulle righe che
+                        // hanno figli** — su una riga foglia non c'è niente da
+                        // sommare, e `tabella.FlexRender` resta la via giusta.
+                        const sottototale = riga.subRows.length
+                          ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)
+                              ?.sottototale
+                          : undefined
+                        return (
+                          // `truncate` è il prezzo di `table-fixed`: con le larghezze
+                          // decise dalle intestazioni, un testo più lungo della sua
+                          // colonna **sborda** nella colonna accanto invece di
+                          // allargarla: meglio tagliarlo coi puntini.
+                          <TableCell
+                            key={cella.id}
+                            className={cn(
+                              "truncate",
+                              bloccaPrimaColonna && classiBloccate(indice, selezione)
+                            )}
+                          >
+                            {sottototale ? (
+                              sottototale(
+                                riga.subRows.map((r) => r.original),
+                                riga.original
+                              )
+                            ) : (
+                              <tabella.FlexRender cell={cella} />
+                            )}
+                          </TableCell>
+                        )
+                      })}
+                    </TableRow>
+                    {pannelloRiga && riga.getIsExpanded() ? (
+                      // Riga fratella, non figlia: subito dopo la riga che
+                      // apre, colSpan su tutte le colonne visibili — è il
+                      // pannello di M3bis.2, non l'albero di M3bis.1 (quello
+                      // aggiunge righe vere al modello dati, questo ne
+                      // disegna una in più solo per la vista).
+                      <TableRow
+                        id={`pannello-riga-${riga.id}`}
+                        className={cn("hover:bg-transparent", fermo && "snap-start")}
+                      >
+                        <TableCell colSpan={colonneVisibili} className="bg-muted/30">
+                          {pannelloRiga(riga.original)}
                         </TableCell>
-                      )
-                    })}
-                  </TableRow>
+                      </TableRow>
+                    ) : null}
+                  </React.Fragment>
                 ))}
                 {/*
                   La sentinella di `perPagina="infinito"`: una riga vuota,

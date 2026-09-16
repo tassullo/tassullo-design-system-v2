@@ -4286,3 +4286,33 @@ Domanda di Francesco sul confronto con niko-table: l'ordinamento delle colonne u
 **Aggiunta `ETICHETTE_ORDINE`** in `data-table.tsx`: una mappa da `sortFn` (la chiave che la colonna già dichiara a TanStack per ordinare) alle due frasi del proprio verso — `basic` → «dal più piccolo al più grande»/«dal più grande al più piccolo», `datetime` → «dal meno recente al più recente»/«dal più recente al meno recente». Nessuna prop nuova su `IntestazioneColonna`: la chiave è `colonna.columnDef.sortFn`, già dichiarata dalla colonna una volta sola — dichiararla una seconda volta all'intestazione sarebbe la duplicazione che il resto del blocco evita apposta (`meta.titolo`, non due etichette). `alphanumeric`/`text` restano `crescente`/`decrescente`, la stessa frase generica di niko per il testo. Nessuna colonna booleana oggi (nessuna `sortFn` in `caratteristiche` la copre): la coppia False/True first di niko resta annotata nel commento, non scritta come codice morto.
 
 Provato nel pannello del browser sulla story `Prodotti`: «Ordina per Codice: crescente» (alphanumeric, invariato), «Ordina per Rev.: dal più piccolo al più grande» (basic), «Ordina per Aggiornato: dal meno recente al più recente» (datetime). `npm run check`: invariato, 0 violazioni.
+
+---
+
+## M3bis.2 — Espansione righe, "Row Expansion" (2026-09-16)
+
+Estesa ancora `registry/tassullo/blocks/data-table.tsx`, stesso blocco di M3bis.1 e per la stessa ragione: il pannello di dettaglio per riga è una capacità in più del blocco esistente, non un pattern a sé.
+
+**Distinto dall'Albero (M3bis.1), e il confine è nel commento a verbale**: `getSottoRighe` innesta righe *vere* nel modello dati (le misurazioni di una voce di computo); `pannelloRiga` apre una riga *in più solo per la vista*, sempre fratella mai figlia, con markup libero deciso dalla pagina — la scheda di un cliente sotto la sua riga d'elenco, non un altro giro di celle. Entrambi condividono `rowExpandingFeature`/`getIsExpanded`/`getToggleExpandedHandler` (sempre registrata, M3bis.0), ma la determinazione di *quali* righe possano espandersi cambia: verificato sul sorgente di TanStack v9 (`row_getCanExpand`, `node_modules/@tanstack/table-core`) che `getCanExpand()` ricade su `options.getRowCanExpand?.(row) ?? (!!row.subRows.length)` — quindi `getRowCanExpand: pannelloRiga ? (riga) => pannelloRiga(riga.original) != null : undefined` basta a innestare il pattern senza toccare quello dell'Albero, che resta sul suo predefinito.
+
+**`colonnaEspansione`** si aggiunge da sé quando `pannelloRiga` è passato — come `colonnaSelezione` per `selezione` — e non la scrive la pagina. Il chevron nasce da `row.getCanExpand()`: una riga per cui `pannelloRiga` risponde `null`/`undefined` non ha bottone, non solo un bottone disattivato — verificato nella story sulle righe `archiviato`. Stessa classe di stato di `CellaAlbero` (`aria-expanded:bg-transparent`, `aria-expanded:hover:bg-muted`) per la stessa ragione già a verbale in M3bis.1: la freccia ruotata è già il segno di apertura.
+
+**Riga di dettaglio**: `colSpan={colonneVisibili}`, subito dopo la riga che apre (stesso `React.Fragment` per tenerle insieme nella `key`, non due `.map()` separati — un primo tentativo con due mappe separate avrebbe messo tutti i pannelli dopo tutte le righe, sbagliato, corretto prima di provarlo in pagina). `id={pannello-riga-${riga.id}}` più `aria-controls` sul bottone: non un popup, non c'è portale né guardia di Base UI da intrappolare — una riga di tabella in più, sempre navigabile con `Tab` come le altre.
+
+**Presa una violazione axe in corsa, prima della story**: la colonna `colonnaEspansione` senza `header` rendeva un `<th>` vuoto — regola `empty-table-header`, 1 violazione × 4 passate. Corretto con `header: () => <span className="sr-only">Dettaglio</span>`, lo stesso pattern già usato per la colonna «azioni» nelle story.
+
+### La story `Espansione`
+
+10 prodotti (stessa fonte di `Prodotti`), `pannelloRiga` che riepiloga famiglia/stato/data — un `<dl>` semplice — e restituisce `null` per `stato === 'archiviato'`: 7 righe su 10 hanno il chevron, 3 no.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1156 scansioni (4 passate) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi.
+
+**Tastiera verificata in Chromium reale**, non nel pannello del browser di questa sessione: lì `Return`/`Spazio` sul chevron non toglievano/mettevano `aria-expanded` in modo osservabile con l'imbracatura usata — lo stesso genere di limite già a verbale in `CLAUDE.md` (`document.visibilityState` nascosto, tasti che non arrivano alla pagina prima di un clic vero). Costruito `build-storybook` (non committato) e provato con **Playwright** (`node_modules/playwright`, già dipendenza del progetto per il gate a11y) contro un server statico locale: `Enter` apre (`aria-expanded: false→true`, pannello `#pannello-riga-0` visibile), un secondo `Enter` chiude, `Spazio` riapre — tre esiti, tutti corretti. Script di verifica scritto nello scratchpad di sessione, mai committato.
+
+Nessun altro file di registro toccato. Prossimo passo: M3bis.3 (resize e pin colonne generalizzato) — **blocca sulla conferma esplicita di Francesco** prima di scrivere codice, tocca `ui/table.tsx` e riapre D17.
+
+### Coda: rilievo di Francesco, il chevron non centrato sulla riga
+
+Il bottone di `colonnaEspansione` non aveva il `<span className="flex items-center">` che `CellaAlbero` già usa (M3bis.1) — senza, il bottone (`inline-flex`) si allinea alla riga di base del testo della cella e non al suo centro: nella story `Espansione` il chevron stava visibilmente più in alto delle altre celle. Corretto avvolgendolo nello stesso `<span className="flex items-center">`. Verificato via `getBoundingClientRect` in un browser vero: centro della riga e centro del bottone coincidono a **0px di scarto**. `npm run check`: invariato, 0 violazioni.

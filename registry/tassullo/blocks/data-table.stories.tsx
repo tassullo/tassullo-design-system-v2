@@ -710,3 +710,48 @@ export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
     vuoto: { titolo: 'Nessuna voce nel computo' },
   },
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+ * L'espansione (M3bis.2) — pannello di dettaglio per riga
+ *
+ * Diverso dall'Albero qui sopra: lì `figli` sono righe vere del dato
+ * (misurazioni di una voce), qui il pannello non è un dato — è markup libero,
+ * sempre fratello della riga che lo apre, mai un figlio. Il caso qui è un
+ * riepilogo tecnico del prodotto, quello che oggi in Anagrafe costerebbe
+ * aprire la scheda solo per leggere due righe.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * **Il pannello di dettaglio, aperto/chiuso da un chevron proprio** —
+ * porting da "Row Expansion Table" di niko-table. La colonna del chevron la
+ * aggiunge il blocco da sé (`pannelloRiga` come prop, come `colonnaSelezione`
+ * per `selezione`): la pagina scrive solo cosa mostrare.
+ *
+ * **Non tutte le righe hanno un chevron**: `pannelloRiga` restituisce `null`
+ * per i prodotti `archiviato` — niente da riepilogare su un prodotto ritirato
+ * — e quella riga resta senza controllo, `getCanExpand()` risulta falso.
+ *
+ * **Da tastiera**: `Tab` porta al chevron della prima riga espandibile,
+ * `Invio` o `Spazio` apre il pannello sotto — una riga in più nella tabella,
+ * non un popup: nessun fuoco da intrappolare, nessuna guardia di Base UI.
+ */
+export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
+  args: {
+    colonne: COLONNE.filter((c) => c.id !== 'azioni'),
+    dati: PRODOTTI.slice(0, 10),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    pannelloRiga: (prodotto: Prodotto) =>
+      prodotto.stato === 'archiviato' ? null : (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
+          <dt className="text-muted-foreground">Famiglia</dt>
+          <dd>{prodotto.famiglia}</dd>
+          <dt className="text-muted-foreground">Stato</dt>
+          <dd>{prodotto.stato}</dd>
+          <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+          <dd>{DATA.format(prodotto.aggiornato)}</dd>
+        </dl>
+      ),
+  },
+}
