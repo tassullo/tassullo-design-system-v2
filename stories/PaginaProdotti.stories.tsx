@@ -459,6 +459,7 @@ function PaginaProdotti({ dati }: { dati: Prodotto[] }) {
           dati={filtrati}
           cerca="Cerca nome, variante, codice…"
           perPagina="infinito"
+          altezza="ferma"
           className="min-h-0 flex-1"
           vuoto={{ titolo: 'Nessun prodotto in anagrafica' }}
           nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}

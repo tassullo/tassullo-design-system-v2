@@ -732,10 +732,12 @@ export type DataTableProps<TDato extends RowData> = {
    * corregge: la testata è `sticky` sul **contenitore** che scorre, non sulla
    * pagina.
    *
-   * **Vuole un contenitore ad altezza ferma per funzionare** (altrimenti non
-   * c'è niente da far scorrere): `className` deve passare `flex-1 min-h-0`,
-   * e il genitore deve avere un'altezza vera a cui arrivare —
-   * `<AppShell contenuto="riempie">`.
+   * **Vuole `altezza="ferma"` per funzionare** (altrimenti non c'è niente
+   * da far scorrere, e le righe oltre lo spazio disponibile restano
+   * invisibili): quel prop calcola il tetto e apre lo scorrimento interno,
+   * qui serve solo a dire che senza non ha senso. `className` deve inoltre
+   * passare `flex-1 min-h-0`, e il genitore deve avere un'altezza vera a cui
+   * arrivare — `<AppShell contenuto="riempie">`.
    *
    * Il menu «Righe» e i salti di pagina spariscono: non c'è una pagina da
    * saltare. Resta solo il conto, in fondo.
@@ -754,6 +756,36 @@ export type DataTableProps<TDato extends RowData> = {
    * `WORKLOG.md`).
    */
   perPagina?: (typeof PER_PAGINA)[number] | "infinito"
+  /**
+   * Il riquadro della tabella, in una di due forme — indipendente da
+   * `perPagina`, che sceglie *come si caricano* le righe, non *quanto spazio
+   * prende* il riquadro. `"naturale"` (default): l'altezza segue il
+   * contenuto, la pagina intorno scorre — corretto quando la tabella è
+   * **una sezione fra altre** (una `pagina-scheda`, dove sopra c'è un
+   * breadcrumb, un'intestazione, magari un'altra tabella). `"ferma"`:
+   * altezza calcolata sullo spazio che il genitore concede (la stessa misura
+   * che finora girava solo per `"infinito"`, v. l'effetto più sotto),
+   * intestazione ferma, scorrimento interno su `table-container`, piè
+   * sempre visibile. È la forma corretta quando la tabella **è** la pagina —
+   * `pagina-lista`, dentro `<AppShell contenuto="riempie">` — a
+   * prescindere da come `perPagina` carica le righe: prima di questa
+   * distinzione, la paginazione numerica non aveva mai il riquadro fermo, e
+   * con più righe di quante ne stiano a schermo il piè — conteggio, salti di
+   * pagina — usciva dalla vista finché non si scorreva **tutta** la pagina
+   * (rilievo di Francesco, coda di M4.2). Con poche righe (`"ferma"`, 10
+   * righe) il riquadro si restringe fino al contenuto — nessuno spazio
+   * vuoto sotto, `flex-shrink` è già il predefinito di un elemento flex.
+   */
+  altezza?: "naturale" | "ferma"
+  /**
+   * Il piè — conteggio righe, e la fascia di paginazione se `perPagina` non
+   * è `"infinito"` — si toglie del tutto per le tabelle **imbarcate**, di
+   * appoggio dentro un'altra pagina (una scheda con più tabelle piccole,
+   * dove il conteggio non aggiunge niente e i controlli di pagina
+   * costerebbero più spazio di quanto la tabella stessa ne occupa). `true`
+   * di default.
+   */
+  piePagina?: boolean
   /** Aggiunge la colonna delle caselle. */
   selezione?: boolean
   /** Il menu «Colonne». Acceso di default. */
@@ -810,6 +842,8 @@ export function DataTable<TDato extends RowData>({
   vuoto = { titolo: "Non c'è ancora niente" },
   nomeRighe = { singolare: "riga", plurale: "righe" },
   perPagina = 25,
+  altezza = "naturale",
+  piePagina = true,
   selezione = false,
   colonneNascondibili = true,
   bloccaPrimaColonna = false,
@@ -817,6 +851,7 @@ export function DataTable<TDato extends RowData>({
   className,
 }: DataTableProps<TDato>) {
   const infinito = perPagina === "infinito"
+  const fermo = altezza === "ferma"
   const [ordinamento, setOrdinamento] = React.useState<SortingState>([])
   const [filtri, setFiltri] = React.useState<ColumnFiltersState>([])
   const [ricerca, setRicerca] = React.useState("")
@@ -1047,18 +1082,21 @@ export function DataTable<TDato extends RowData>({
    * la stessa riga.
    */
   React.useEffect(() => {
-    if (!infinito) return
+    if (!fermo) return
     const radice = radiceRef.current
     const contenitore = contenitoreRef.current
-    const piePagina = piePaginaRef.current
-    if (!radice || !contenitore || !piePagina) return
+    // Il piè è facoltativo (`piePagina={false}`, le tabelle imbarcate):
+    // quando manca, la sua altezza vale zero invece di bloccare la misura.
+    const elPiePagina = piePaginaRef.current
+    if (!radice || !contenitore) return
 
     const ricalcola = () => {
       const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
       const contenitoreTop = contenitore.getBoundingClientRect().top
       const scarto = parseFloat(getComputedStyle(radice).rowGap) || 0
+      const altezzaPiePagina = elPiePagina?.getBoundingClientRect().height ?? 0
       const disponibileTotale =
-        radice.getBoundingClientRect().bottom - contenitoreTop - piePagina.getBoundingClientRect().height - scarto
+        radice.getBoundingClientRect().bottom - contenitoreTop - altezzaPiePagina - scarto
 
       const righeVere = [...contenitore.querySelectorAll<HTMLTableRowElement>("tbody tr")].filter(
         (riga) => !riga.hasAttribute("aria-hidden")
@@ -1087,7 +1125,7 @@ export function DataTable<TDato extends RowData>({
     ricalcola()
     const ro = new ResizeObserver(ricalcola)
     ro.observe(radice)
-    ro.observe(piePagina)
+    if (elPiePagina) ro.observe(elPiePagina)
     if (testataRef.current) ro.observe(testataRef.current)
     return () => ro.disconnect()
     /*
@@ -1102,7 +1140,7 @@ export function DataTable<TDato extends RowData>({
      * per quello, solo quando si passa da «zero righe» (lo stato vuoto) a
      * «almeno una», o viceversa.
      */
-  }, [infinito, conRighe])
+  }, [fermo, conRighe])
 
   return (
     <div ref={radiceRef} className={cn("flex min-h-0 flex-col gap-4", className)}>
@@ -1118,10 +1156,10 @@ export function DataTable<TDato extends RowData>({
 
       <div
         ref={contenitoreRef}
-        style={infinito ? { maxHeight: altezzaMax } : undefined}
+        style={fermo ? { maxHeight: altezzaMax } : undefined}
         className={cn(
           "overflow-hidden rounded-lg border bg-card",
-          infinito &&
+          fermo &&
             "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity"
         )}
       >
@@ -1178,7 +1216,7 @@ export function DataTable<TDato extends RowData>({
             lo scorrimento infinito è della pagina intera, e la testata se ne
             va con lei.
           */}
-          <TableHeader ref={testataRef} className={cn(infinito && "sticky top-0 z-10")}>
+          <TableHeader ref={testataRef} className={cn(fermo && "sticky top-0 z-10")}>
             {tabella.getHeaderGroups().map((gruppo) => (
               <TableRow key={gruppo.id} className="hover:bg-transparent">
                 {gruppo.headers.map((intestazione, indice) => (
@@ -1210,7 +1248,7 @@ export function DataTable<TDato extends RowData>({
                 {righe.map((riga) => (
                   <TableRow
                     key={riga.id}
-                    className={cn("group/riga", infinito && "snap-start")}
+                    className={cn("group/riga", fermo && "snap-start")}
                     data-state={riga.getIsSelected() ? "selected" : undefined}
                   >
                     {riga.getVisibleCells().map((cella, indice) => (
@@ -1265,14 +1303,16 @@ export function DataTable<TDato extends RowData>({
         </Table>
       </div>
 
-      <div ref={piePaginaRef}>
-        <PaginazioneTabella
-          tabella={tabella}
-          conSelezione={selezione}
-          infinito={infinito}
-          nomeRighe={nomeRighe}
-        />
-      </div>
+      {piePagina ? (
+        <div ref={piePaginaRef}>
+          <PaginazioneTabella
+            tabella={tabella}
+            conSelezione={selezione}
+            infinito={infinito}
+            nomeRighe={nomeRighe}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
