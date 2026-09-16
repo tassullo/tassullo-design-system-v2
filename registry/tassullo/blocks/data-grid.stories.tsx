@@ -392,6 +392,12 @@ function ComputoEndToEnd() {
         colonne={COLONNE_COMPUTO}
         nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
         className="min-h-0 flex-1"
+        // Fa leggere a TanStack le `size` già dichiarate su ogni colonna
+        // (M3bis.3, già pronta): senza, `table-fixed` spartisce lo spazio
+        // in parti uguali e ogni colonna prende la stessa larghezza,
+        // qualunque contenuto abbia — rilievo di Francesco, il cestino
+        // «elimina» galleggiava lontano dal bordo destro.
+        ridimensionabile
         barra={
           <div className="flex flex-1 flex-wrap items-center gap-2">
             <DataGridUndo />
