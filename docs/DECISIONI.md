@@ -1551,3 +1551,33 @@ Ricerca, ordinamento, colonne nascondibili, selezione multipla: tutto il resto d
 Chiesto da Francesco, a gate chiuso: quanto costa ripetere la forma su un'altra pagina sola-lista? **Poco, in codice**: tre righe — `<AppShell contenuto="riempie">`, la pagina che rende `flex h-full min-h-0 flex-col` attorno a `PageHeader` + tabella, `<DataTable perPagina="infinito" className="min-h-0 flex-1">`. Nessuna delle tre correzioni prese in coda (il cricchetto, il bordo doppio, lo scatto in scorrimento) va ripetuta altrove: vivono dentro il blocco, non nella pagina che lo consuma.
 
 **Ma il meccanismo rivela progressivamente un array già interamente in `dati`** — non chiede altro al server mentre si scorre. Regge finché l'API della pagina risponde con l'elenco intero in una chiamata sola, com'è oggi per Prodotti in Anagrafe (e come lo simula `generaProdotti` nella story). Una pagina sola-lista futura con un elenco **paginato lato server** — non tutto scaricato in un colpo — chiederebbe un `onCaricaAltro`/`fetchNextPage` che questo blocco oggi non ha: non è un'estensione gratuita, è lavoro in più da preventivare. Annotato nel commento di testa di `DataTableProps.perPagina`, perché è lì che chi replica la forma guarda per primo — non solo qui.
+
+## 38. D10, verdetto: la densità touch regge a 375px così com'è (M4.2, 2026-09-15)
+
+La prima misura (§29, M3.1) aveva già ribaltato l'assunzione del piano — a 375px il colpevole non è la larghezza massima di pagina ma la colonna — senza però un verdetto: mancava una pagina vera, densa quanto basta, su cui prenderlo. `pagina-lista` (M4.2) lo è: filtri, ricerca, tabella con sette colonne potenziali, paginazione.
+
+**Misura**: `pagina-lista` (story `Pagine/Lista`, dati Norme) a 375×812, densità touch. La colonna di contenuto resta **327px** — la stessa identica cifra di §29 (343 → 327, il padding di pagina che toglie 16px in tutto). Nessun bersaglio sotto soglia, nessuna rottura di layout; la tabella scorre in orizzontale com'è il comportamento già gated di `data-table` a larghezze strette (`bloccaPrimaColonna` esiste apposta).
+
+**Verdetto: (a) — non si tocca niente.** La densità touch a schermo stretto è già quella giusta sulla pagina più impegnativa che il registry abbia: il padding di pagina non va scorporato dallo scaling (uscita b, mai servita) e il fattore di densità non va ridotto sotto una soglia di larghezza (uscita c, scartata a monte — avrebbe reintrodotto una dipendenza dal viewport in un meccanismo pensato come scelta dell'app, non del dispositivo).
+
+Provate per completezza anche le altre tre celle (375×normale, 1440×touch, 1440×normale): tutte pulite. `test:a11y` conferma zero violazioni sulle quattro nuove story in entrambe le modalità.
+
+**Ricade su D11 (§36)**: la riserva lì lasciata aperta — l'interazione fra la leva responsiva di `typeset` e la densità touch, giudicabile solo dopo D10 — non si pone più nei termini previsti, perché D10 chiude senza toccare `--space-page` o il fattore di scala: non c'è una seconda leva con cui `typeset` dovrebbe comporsi. D11 resta comunque chiusa per le sue ragioni proprie.
+
+## 39. `tassullo-data-table`: il riquadro ad altezza ferma diventa indipendente da `perPagina` (2026-09-16)
+
+Rilievo di Francesco su `pagina-lista` in uso: con 10 righe il riquadro restava molto più corto dello schermo, con 25 (il default) superava lo schermo e senza scorrere **la pagina intera** il piè — conteggio, salti di pagina — restava fuori vista. Chiesto un riscontro con le best practice di settore prima di intervenire.
+
+**Ricerca** (Pencil & Paper, LogRocket, Setproduct): una tabella dati densa vuole un solo scroll, non due; il piè con conteggio e paginazione sempre visibile, tipicamente `sticky` in fondo; l'intestazione ferma mentre il corpo scorre.
+
+**Diagnosi**: il blocco aveva già questo pattern — riquadro ad altezza calcolata (`altezzaMax`), scorrimento interno su `table-container`, piè sempre fuori dall'area che scorre — ma **solo per `perPagina="infinito"`**. La paginazione numerica non l'aveva mai ricevuto: non un uso scorretto del consumatore, un buco nel blocco.
+
+**Corretto scorporando due decisioni che stavano cucite insieme**: `perPagina` resta *come si caricano le righe* (`"infinito"` a scorrimento, un numero a pagine — invariato); un nuovo `altezza?: "naturale" | "ferma"` (default `"naturale"`, compatibile con l'uso esistente) sceglie *quanto spazio prende il riquadro*, indipendente da `perPagina`. `"ferma"` applica a qualunque paginazione la stessa meccanica che prima girava solo per `"infinito"`. Aggiunto anche `piePagina?: boolean` (default `true`) per togliere conteggio e paginazione dalle tabelle **imbarcate** — non ancora usato, ma previsto per M4.3 (`pagina-scheda`), dove più tabelle piccole condivideranno la stessa pagina senza bisogno del conteggio.
+
+`PaginaLista` passa sempre `altezza="ferma"`: è sempre la pagina intera (a differenza di una tabella dentro una scheda), quindi il riquadro fermo è corretto a prescindere da come `perPagina` carica le righe — la dipendenza dalla sessione precedente (`h-full min-h-0` solo se `infinito`) risolveva il sintomo, non la causa, ed è stata tolta.
+
+**Regressione presa nello stesso giro**: la story `Pagine/Prodotti (Anagrafe)` (M3.10) chiama `DataTable` direttamente con `perPagina="infinito"` ma, scritta prima che le due prop si separassero, non passava `altezza="ferma"`. Il riquadro restava alto quanto prima (per un effetto collaterale di `overflow-hidden` sul modello flessibile — l'altezza automatica di un elemento flex con overflow diverso da `visible` è 0, non quella del contenuto) ma **senza scorrimento interno**: `table-container` cresceva al proprio contenuto (8305px) dentro un genitore che lo ritagliava senza offrire una barra di scorrimento. Corretto aggiungendo il prop mancante.
+
+Tre case reali riportati da Francesco, a guidare la forma finale: **(1)** più tabelle ad altezza fissa nella stessa `pagina-scheda`, senza bisogno del piè — `altezza="ferma"` + `piePagina={false}`, da cablare in M4.3; **(2)** una tabella dentro una `pagina-scheda` fra altro contenuto — `altezza="naturale"` (il default, la pagina scorre); **(3)** `pagina-lista`, la tabella è la pagina — `altezza="ferma"`, cablato ora.
+
+Fonti: [Data Table Design UX Patterns & Best Practices — Pencil & Paper](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables), [Data table design: Best practices for better UX — LogRocket](https://blog.logrocket.com/ux-design/data-table-design-best-practices/), [Data table UI design reference guide for 2026 — Setproduct](https://www.setproduct.com/blog/data-table-ui-design).

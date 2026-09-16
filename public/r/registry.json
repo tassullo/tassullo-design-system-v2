@@ -1035,7 +1035,7 @@
         "@tassullo/table",
         "@tassullo/tema"
       ],
-      "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8."
+      "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8.\n\n`altezza=\"ferma\"` (default `\"naturale\"`) apre il riquadro ad altezza\ncalcolata con scorrimento interno e piede sempre visibile - indipendente\nda `perPagina`, che sceglie solo come si caricano le righe. `piePagina={false}`\ntoglie del tutto conteggio e paginazione, per le tabelle imbarcate dentro\nun'altra pagina."
     },
     {
       "name": "tassullo-form-field",
@@ -1363,6 +1363,32 @@
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaLogin\n    applicazione=\"Anagrafe\"\n    descrizione=\"Anagrafica tecnica e documentale di prodotto\"\n    stato={statoAccesso}\n    onAccedi={() => instance.loginRedirect(loginRequest)}\n  />\n\n`onAccedi` è la sola cucitura verso il provider: il blocco non importa\n`@azure/msal-react` né alcun'altra libreria di autenticazione, perché\nfarlo obbligherebbe ogni consumatore del registry a quella dipendenza\nanche senza farne uso. `stato` distingue i tre casi che Anagrafe già ha\n(`inattivo` | `in-corso` | `errore`); `configurato` è ortogonale — un'app\nsenza app registration Entra ID può trovarsi in uno qualsiasi dei tre.\nIl messaggio d'errore arriva già tradotto: mai un codice del provider in UI."
+    },
+    {
+      "name": "tassullo-pagina-lista",
+      "type": "registry:block",
+      "title": "Pagina elenco",
+      "description": "La pagina più ripetuta in assoluto: intestazione con azione primaria, barra filtri, data-table con paginazione, stati vuoto/caricamento/errore. Seconda pagina modello della FASE 4.",
+      "dependencies": [
+        "cn",
+        "@tanstack/react-table"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-lista.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-lista.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/data-table",
+        "@tassullo/empty-state",
+        "@tassullo/error-state",
+        "@tassullo/page-header",
+        "@tassullo/page-skeleton",
+        "@tassullo/tema"
+      ],
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaLista\n    percorso={[{ titolo: \"Prodotti\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n    colonne={COLONNE}\n    dati={prodotti}\n    stato={statoCaricamento}\n    vuotoIniziale={{ titolo: \"Nessun prodotto in anagrafica\", azione: <Button size=\"sm\">Nuovo prodotto</Button> }}\n    cerca=\"Cerca nome, variante, codice…\"\n    perPagina=\"infinito\"\n    barra={<BarraFiltri />}\n  />\n\nCompone i blocchi già nel registry — `page-header`, `data-table`,\n`empty-state`, `error-state`, `page-skeleton` — zero primitive nuove.\n`stato` sceglie fra `pronto` (default, l'unico in cui `dati` conta),\n`caricamento` e `errore`. `vuotoIniziale` è un caso distinto da `vuoto`:\nil primo è \"non esiste ancora nessuna riga\" (CTA che crea il primo\nrecord, EmptyState al posto della tabella); il secondo, passato a\n`DataTable`, è \"la ricerca non trova niente\" (CTA che pulisce i filtri).\nSenza `vuotoIniziale` una `dati` vuota passa comunque alla tabella —\nvoluto per un elenco che filtra a zero risultati."
     }
   ]
 }

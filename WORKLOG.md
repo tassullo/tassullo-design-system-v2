@@ -4050,3 +4050,72 @@ Item aggiunto a `registry.json`: `tassullo-pagina-login` (`registry:block`, targ
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1112 scansioni (4 passate, con la nuova pagina) / 0 violazioni**; `test:a11y -- --una` dopo la correzione del logo, **278 scansioni / 0 violazioni**. `tsc -b` ✔ · `build` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: stati `Predefinito`/`InCorso`/`Errore`/`NonConfigurato`/`Interattiva`, logo nero in chiaro e bianco in scuro.
+
+---
+
+## M4.2 — `pagina-lista`, e la chiusura di D10 (2026-09-15)
+
+Francesco, ad apertura sessione: verificare se la story `Pagine/Prodotti (Anagrafe)` (M3.10, gate di fase) rispecchiasse già il lavoro di M4.2.
+
+**Risposta: no, non è la stessa cosa, e vale la pena dirlo esplicitamente perché la somiglianza è reale.** `PaginaProdotti` di M3.10 dimostra che `app-shell` + `page-header` + `data-table` + `empty-state` **si compongono** — ma la composizione vive **fuori dal registry**, in `stories/PaginaProdotti.stories.tsx`: JSX scritto a mano dentro un file di vetrina, non un componente installabile. `CLAUDE.md` §6 è netto su questo confine — `stories/` in root ospita solo le pagine trasversali della style guide, non gli item. M4.2 chiede una **pagina modello**, sullo stesso piano di `pagina-login` (M4.1): un `registry:block` in `registry/tassullo/pages/`, che un'app vuota installa con un `add` e riempie di dati veri. Inoltre M3.10 provava solo il vuoto-per-filtro e il vuoto-per-niente-creato: **`caricamento` ed `errore`**, che `PIANO.md` §M4.2 chiede esplicitamente, non c'erano.
+
+**`registry/tassullo/pages/pagina-lista.tsx` — `PaginaLista<TDato>`**, generica sul tipo di riga (stesso `RowData` di `DataTable`). Compone quattro blocchi già nel registry, zero primitive nuove: `PageHeader` in testa, poi una fra `PageSkeleton` (`stato="caricamento"`), `ErrorState` (`stato="errore"`), `EmptyState` (`vuotoIniziale` presente e `dati` vuoto) o `DataTable` (il caso normale). Due decisioni prese scrivendola:
+
+1. **`stato` è un prop a tre vie** (`pronto`/`caricamento`/`errore`), non booleani indipendenti — stessa forma di `PaginaLogin` (M4.1), stessa ragione: `caricamento && errore` insieme non ha un senso da rendere.
+2. **`vuotoIniziale` è distinto da `vuoto`**, non un alias. `vuoto` (passato a `DataTable`) è il vuoto-per-filtro, che la tabella già gestisce da sé col bottone che pulisce la ricerca. `vuotoIniziale` è *non esiste ancora nessuna riga*: `EmptyState` **al posto** della tabella, con la CTA che crea il primo record — non "pulisci i filtri". `INTERFACCE.md` §1.1 li vuole distinti, ed è lo stesso confine che M3.10 aveva già preso a mano nella story Prodotti; qui diventa una prop, non una scelta ripetuta a ogni pagina.
+
+**La story colocata (`registry/tassullo/pages/pagina-lista.stories.tsx`) usa Norme, non Prodotti** — deliberatamente un altro dominio (codice/titolo/ente/categoria/stato, 48 righe finte), a dimostrare che il blocco è generico e non "Prodotti con un altro nome". Quattro story: `ConDati`, `Caricamento`, `Errore`, `VuotoIniziale` — le due mancanti in M3.10.
+
+**D10, la cella `375px × touch`.** `PIANO.md` §M4.2 la chiede sulla pagina più densa del registry — filtri, tabella, paginazione — e tre uscite erano possibili: *(a)* la densità touch regge così com'è, *(b)* si scorpora `--space-page` dallo scaling, *(c)* il fattore si riduce sotto una certa larghezza. Misurato in Chromium, `pagina-lista` a 375×812, densità touch: la colonna di contenuto resta **327px** — la stessa cifra esatta di M3.1 (`docs/DECISIONI.md` §29, 343 → 327, il padding di pagina che toglie 16px in tutto). La pagina più densa possibile non introduce un difetto nuovo: nessun bersaglio sotto soglia, nessuna rottura di layout, la tabella scorre in orizzontale com'è previsto (comportamento già gated in `data-table.stories.tsx`). **Verdetto: (a)**. Le uscite (b) e (c) restano scartate — la (c) in particolare, come `PIANO.md` osservava a monte, avrebbe reintrodotto una dipendenza dal viewport in un meccanismo che è deliberatamente una scelta dell'app.
+
+Provate anche le altre tre celle per completezza (`375×normale`, `1440×touch`, `1440×normale`): tutte pulite, sidebar a rail in touch, tabella intera visibile in `1440×touch` senza scorrimento orizzontale.
+
+Item aggiunto a `registry.json`: `tassullo-pagina-lista` (`registry:block`, target `components/pages/pagina-lista.tsx`), `registryDependencies` su `data-table`/`empty-state`/`error-state`/`page-header`/`page-skeleton`/`tema`. `npm run registry:build` rilanciato.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1128 scansioni (4 passate, +4 story) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: quattro stati (`ConDati`/`Caricamento`/`Errore`/`VuotoIniziale`) e le quattro celle viewport × densità per D10.
+
+---
+
+## Coda di M4.2: `PaginaLista` con paginazione a pagine non scorreva (2026-09-16)
+
+Rilievo di Francesco, provando la story a mano: impostata una tabella con 50 righe pensata per stare "in una sola pagina" (cioè `perPagina` numerica, non `"infinito"`), la pagina non scorreva affatto — righe oltre il fondo dello schermo invisibili, nessuna scrollbar da nessuna parte.
+
+**Causa**: `PaginaLista` avvolgeva il contenuto in `h-full min-h-0` **a prescindere** da come si usa `perPagina`. Quella forma è corretta solo per `perPagina="infinito"` dentro `<AppShell contenuto="riempie">`, che mette `overflow-hidden` sopra proprio apposta — lo scorrimento vero lo fa `table-container` all'interno (D19, `docs/DECISIONI.md` §37). Con una `perPagina` numerica non c'è niente da far scorrere lì dentro: è **la pagina** a dover scorrere, ed è esattamente quello che `contenuto="riempie"` toglie. La story `ConDati`, scritta nella sessione precedente, aveva proprio questa combinazione sbagliata (`contenuto="riempie"` + `perPagina={25}`) — il difetto era nell'esempio ufficiale, non in un uso scorretto del consumatore.
+
+**Corretto su due fronti**: `PaginaLista` applica `h-full min-h-0` solo quando `perPagina === "infinito"` (stessa condizione decide anche `flex-1` su `PageSkeleton`/`ErrorState`/`DataTable`); la story `Guscio` non passa più `contenuto="riempie"`, resta al default `"scorre"`. Commento aggiunto in testa alla funzione perché la scelta non è ovvia guardando il solo JSX.
+
+Provato in Chromium a finestra bassa (1280×650, meno della metà delle 25 righe visibili): la pagina scorre con scrollbar vera, arriva al piede «48 norme / Pagina 1 di 2». Confermato da Francesco sul proprio Storybook dopo un refresh (l'HMR non aveva ripreso la modifica al decorator del guscio).
+
+**Nella stessa coda, tre correzioni di colonne sulla story** (rilievo di Francesco): «codice» diventa un collegamento (stessa forma della colonna «Nome» di Prodotti, `variant="link"` invece di un colore a mano), «titolo» perde la `larghezza` fissa — è la colonna che assorbe lo spazio libero, le altre sono identificatori o etichette corte — e «categoria» prende `w-28` come «stato», non più a larghezza automatica.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1128 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔.
+
+---
+
+## `tassullo-data-table`: il riquadro ad altezza ferma non copriva la paginazione numerica (2026-09-16)
+
+Rilievo di Francesco, dopo la correzione precedente: con 10 righe la tabella restava molto più corta dello schermo, con 25 (il default) il riquadro superava lo schermo e senza scorrere **la pagina** il piè — conteggio, salti di pagina — restava fuori vista. Chiesto un confronto con le best practice di settore prima di procedere.
+
+**Ricerca** (Pencil & Paper, LogRocket, Setproduct — fonti in fondo alla voce): una tabella dati densa vuole **un solo scroll**, non due; il piè con conteggio e paginazione **sempre visibile**, tipicamente `sticky` in fondo; l'intestazione ferma mentre il corpo scorre.
+
+**Diagnosi**: `tassullo-data-table` aveva già esattamente questo pattern — riquadro ad altezza calcolata (`altezzaMax`), scorrimento interno su `table-container`, piè sempre fuori dall'area che scorre — ma **solo per `perPagina="infinito"`**. La paginazione numerica non aveva mai ricevuto lo stesso trattamento: il riquadro cresceva con le righe e basta, quindi con 25 finiva più alto dello schermo e serviva scorrere tutta la pagina per vedere il piè. Non era un uso scorretto del consumatore: era un buco nel blocco.
+
+**Corretto scorporando due decisioni che stavano cucite insieme**: `perPagina` sceglie **come si caricano** le righe (`"infinito"` = a scorrimento, un numero = a pagine — invariato), un nuovo `altezza?: "naturale" | "ferma"` sceglie **quanto spazio prende il riquadro** — indipendente. `"ferma"` applica a qualunque `perPagina` la stessa meccanica che prima girava solo per `"infinito"`: `altezzaMax` calcolato, intestazione `sticky`, `snap-y` sul contenitore che scorre. `"naturale"` (default, invariato per compatibilità) resta il comportamento di prima — corretto quando la tabella è **una sezione fra altre** (una `pagina-scheda` con più contenuto intorno), sbagliato quando la tabella **è** la pagina.
+
+Aggiunto anche `piePagina?: boolean` (default `true`): toglie del tutto conteggio e paginazione per le tabelle **imbarcate** — pensato per M4.3 (`pagina-scheda`), dove Francesco prevede più tabelle piccole nella stessa pagina senza bisogno del conteggio. L'effetto che calcola `altezzaMax` ora tollera un piè assente (la sua altezza vale zero nel calcolo, invece di bloccare tutto).
+
+**`PaginaLista` aggiornata di conseguenza**: prima faceva dipendere il proprio contenitore (`h-full min-h-0`) da `perPagina === "infinito"` — la correzione della sessione precedente, che risolveva il sintomo ma non la causa. Ora passa sempre `altezza="ferma"` a `DataTable` e riempie sempre lo schermo: `pagina-lista` **è** sempre la pagina (a differenza di una tabella dentro una scheda), quindi il riquadro fermo è corretto a prescindere da come `perPagina` carica le righe. La story torna a dichiarare `contenuto="riempie"` senza eccezioni.
+
+**Regressione presa e corretta nello stesso giro**: la story `Pagine/Prodotti (Anagrafe)` (M3.10) chiama `DataTable` direttamente con `perPagina="infinito"` ma — scritta prima che le due prop si separassero — non passava il nuovo `altezza="ferma"`. Risultato misurato in Chromium: il riquadro restava vincastrato a 565px (la stessa altezza di prima, per un effetto collaterale di `overflow-hidden` sul modello flessibile) ma **senza scorrimento interno** — `table-container` cresceva a 8305px di contenuto dentro un genitore che lo ritagliava senza offrire scrollbar: le righe oltre la prima schermata erano invisibili e irraggiungibili, la stessa famiglia di difetto del rilievo iniziale di Francesco, su un'altra story. Corretto aggiungendo `altezza="ferma"` alla chiamata.
+
+Aggiunta anche una story `Pagine/Lista → PocheRighe` (6 norme) a riprova del caso opposto: il riquadro si restringe al contenuto, nessun vuoto sotto, il piè resta comunque subito sotto l'ultima riga senza scorrimento.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1132 scansioni (4 passate) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: `ConDati` (25 righe, scorrimento interno confermato misurando `clientHeight`/`scrollHeight` di `table-container` prima e dopo la correzione), `PocheRighe` (6 righe, nessuno spazio vuoto), `Prodotti (Anagrafe)` (`perPagina="infinito"`, intestazione `sticky` confermata sul nodo `data-slot="table-header"` — non sull'omonimo di un pannello di Storybook, trovato per errore alla prima misura).
+
+Fonti consultate: [Data Table Design UX Patterns & Best Practices — Pencil & Paper](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables), [Data table design: Best practices for better UX — LogRocket](https://blog.logrocket.com/ux-design/data-table-design-best-practices/), [Data table UI design reference guide for 2026 — Setproduct](https://www.setproduct.com/blog/data-table-ui-design).
