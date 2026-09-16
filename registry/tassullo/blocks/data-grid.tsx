@@ -1035,9 +1035,23 @@ function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: st
     // 0px non si vede e non si clicca: preso perché una cella `select`
     // svuotata con `Delete` non si riusciva più a riaprire — non c'era
     // più niente lì su cui cliccare o su cui il fuoco potesse restare.
-    // `min-h-5` (1.25rem) tiene un'altezza minima qualunque sia il
-    // contenuto, vicina alla riga di testo che le altre celle già hanno.
-    "block min-h-5 w-full truncate outline-none",
+    //
+    // `-m-2 … p-2`, non lo zero di prima: il `<div>` "brucia" il `p-2` del
+    // `<td>` (`TableCell`, `ui/table.tsx` via `data-table.tsx`) invece di
+    // starci dentro — un margine negativo che vale esattamente il padding
+    // che cancella (stesso schema di `-my-2 -mr-2` già usato altrove nel
+    // registro per un bottone in una cella), e lo riscrive come proprio
+    // `p-2` interno, così il testo resta dove stava. La differenza è dove
+    // arriva il **bordo** del `<div>`: prima si fermava al bordo interno
+    // del padding del `<td>`, con uno scarto visibile fra l'anello di
+    // fuoco e il vero confine della cella — "risicato", rilievo di
+    // Francesco confrontato col comportamento di niko-table (il riquadro
+    // lì arriva fino al bordo). Ora il `<div>` (e quindi l'anello) copre
+    // l'intera cella. `min-h-9` — non più `min-h-5` — perché il minimo
+    // ora deve coprire anche il `p-2` che si è preso in carico lui: cinque
+    // unità di contenuto più due e due di padding, la stessa altezza di
+    // riga di prima, non una in più.
+    "-m-2 block min-h-9 w-full truncate p-2 outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
     selezionata && "bg-accent/40",
     inAnteprima && "outline-primary outline-1 outline-dashed",
@@ -1801,21 +1815,66 @@ export function DataGridFillHandle() {
         return
       }
       const box = nodo.getBoundingClientRect()
+      /**
+       * "Montata" non vuol dire "visibile". Il virtualizzatore tiene
+       * montate anche le righe dell'`overscan` appena fuori dalla finestra
+       * — la cella attiva può quindi avere ancora un nodo DOM vero anche
+       * mentre è scorsa sopra la testata o sotto il fondo del riquadro, e
+       * `nodo` qui sopra non torna mai `null` per quel caso. Preso da
+       * Francesco: la maniglia "usciva dal bordo della tabella e saliva
+       * sullo schermo" — perché la sua posizione si calcola rispetto a
+       * `contenitore` (tutto `<DataGrid>`, barra compresa), non rispetto
+       * al riquadro della tabella: una cella scorsa sopra la testata dà un
+       * `top` piccolo o negativo **dentro la tabella**, ma resta un `top`
+       * positivo dentro `contenitore` — abbastanza per disegnare la
+       * maniglia sopra la barra, mai per nasconderla. Il confine giusto è
+       * quindi il riquadro scorrevole vero (`table-container`), non la
+       * sola presenza nel DOM: se la cella è sopra la testata o sotto il
+       * fondo, la maniglia sparisce, come sparirebbe se il nodo non
+       * esistesse affatto.
+       */
+      const scorrevole = contenitore.querySelector<HTMLElement>('[data-slot="table-container"]')
+      const testata = contenitore.querySelector<HTMLElement>('[data-slot="table-header"]')
+      if (scorrevole) {
+        const areaVisibile = scorrevole.getBoundingClientRect()
+        const cimaVisibile = areaVisibile.top + (testata?.getBoundingClientRect().height ?? 0)
+        if (box.bottom <= cimaVisibile || box.top >= areaVisibile.bottom) {
+          setPosizione(null)
+          return
+        }
+      }
       const cont = contenitore.getBoundingClientRect()
       setPosizione({ top: box.bottom - cont.top, left: box.right - cont.left })
     }
     aggiorna()
     if (!contenitore) return
-    // Lo scorrimento verticale della griglia (`table-container`, dentro
-    // `contenitore`) sposta la cella senza che `cellaChiave` cambi: la
-    // maniglia deve seguirla comunque, non solo quando si sposta la cella
-    // attiva.
-    const ro = new ResizeObserver(aggiorna)
+    /**
+     * Lo scorrimento verticale della griglia (`table-container`, dentro
+     * `contenitore`) sposta la cella senza che `cellaChiave` cambi: la
+     * maniglia deve seguirla comunque, non solo quando si sposta la cella
+     * attiva.
+     *
+     * **In cattura su `contenitore`, non sull'elemento che scorre**: il
+     * virtualizzatore ascolta `scroll` direttamente su `table-container`, e
+     * un ascolto in cattura su un antenato arriva **prima** — nella fase di
+     * cattura, non in quella di bolla, che `scroll` peraltro non garantisce
+     * di percorrere in ogni motore. Chiamare `aggiorna()` subito, in quel
+     * punto, legge quindi lo stato delle righe montate di **prima** dello
+     * spostamento: preso tornando in cima dopo uno scorrimento enorme, la
+     * maniglia restava sparita finché non arrivava un secondo scorrimento
+     * qualunque a ridare l'occasione di ricalcolare. `requestAnimationFrame`
+     * rimanda la lettura a dopo che React ha avuto il suo turno — lo stesso
+     * evento nativo ha già fatto scattare l'aggiornamento del
+     * virtualizzatore, che monta/smonta righe in una `setState` sincrona
+     * nello stesso giro; il fotogramma successivo la vede già a posto.
+     */
+    const aggiornaRitardato = () => requestAnimationFrame(aggiorna)
+    const ro = new ResizeObserver(aggiornaRitardato)
     ro.observe(contenitore)
-    contenitore.addEventListener("scroll", aggiorna, true)
+    contenitore.addEventListener("scroll", aggiornaRitardato, true)
     return () => {
       ro.disconnect()
-      contenitore.removeEventListener("scroll", aggiorna, true)
+      contenitore.removeEventListener("scroll", aggiornaRitardato, true)
     }
   }, [cellaChiave, contenitoreRef, motore])
 
