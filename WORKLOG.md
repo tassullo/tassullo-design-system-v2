@@ -4143,3 +4143,21 @@ Item aggiunto a `registry.json`: `tassullo-pagina-scheda` (`registry:block`, tar
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1148 scansioni (4 passate, +4 story) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: `ConDati` (lettura, passaggio a modifica, editing e salvataggio via DOM, tab Documenti e Storico), `Caricamento`, `Errore`, `StoricoConfrontabile` (selezione e "Confronta"), chiaro e scuro.
+
+---
+
+## Coda di M4.3: due correzioni di Francesco sulla prima versione (2026-09-16)
+
+Guardando la story, due rilievi sulla prima versione di `pagina-scheda`:
+
+**1. I campi vivevano a diretto contatto con lo sfondo grigio della pagina.** Confronto con `Prodotto.tsx` di Anagrafe (screenshot reale): lì ogni scheda sta dentro un riquadro bianco, staccato dallo sfondo. Corretto avvolgendo il contenuto di ognuno dei tre tab (`anagrafica`, `documenti`, `storico`) in `Card`/`CardContent` — la primitiva già nel registry, nessun contenitore nuovo.
+
+**2. `anagrafica.lettura`/`anagrafica.modifica` come due alberi era la scelta sbagliata.** Il criterio di M4.3 («form in sola lettura che passa in modifica») era stato letto come «due viste», ma un campo che cambia forma — da testo piatto a riquadro con bordo — al clic su "Modifica" fa muovere l'intera scheda, e un form vero non lo fa mai: gli stessi campi restano al loro posto, cambia solo se rispondono. **Corretto invertendo il modello**: `anagrafica` è ora `(modifica: boolean) => ReactNode`, non `{ lettura, modifica }`. Un solo `<form>` con `tassullo-form-field`, sempre montato; ogni `Input`/`Textarea` riceve `disabled={!modifica}` dal consumatore — il blocco non sa *come* si disabilita un controllo (un `Input` di shadcn si sbianca da sé), sa solo *quando*.
+
+Ricaduta sulla story: `AnagraficaLettura`/`AnagraficaModifica` (due componenti) diventano `AnagraficaForm` (uno), con un `useEffect` che fa `form.reset(dati)` quando `modifica` torna vero — senza, "Annulla" uscirebbe dalla modifica ma lascerebbe il valore scartato nell'input, pronto a essere salvato per sbaglio al giro successivo. Provato via DOM in Chromium: editato "Codice", "Annulla", rientrato in modifica — il valore scartato non c'è, resta l'originale. `CampoLettura` (la riga statica della prima versione) è stato rimosso: con un solo albero non serve più.
+
+`registry.json` aggiornato (`registryDependencies`: `card` al posto di `field`; `docs` riscritto sulla nuova firma). `npm run registry:build` rilanciato.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1148 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: campi disabilitati in lettura dentro la card bianca, campi attivi in modifica (stessa posizione, nessun salto), "Annulla" che scarta, "Salva" che aggiorna titolo/breadcrumb e torna alla lettura, chiaro e scuro.

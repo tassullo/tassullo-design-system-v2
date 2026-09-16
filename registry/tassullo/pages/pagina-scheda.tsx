@@ -4,7 +4,7 @@
  * In Anagrafe è Prodotto, Famiglia, Sistema, Norma — quattro volte la stessa
  * pagina, ed è il file CSS più grande del progetto (`Prodotto.css`, 201
  * righe). Compone ciò che il registry ha già — `tassullo-page-header`,
- * `tabs`, `field`, `tassullo-version-timeline`, `tassullo-page-skeleton`,
+ * `tabs`, `card`, `tassullo-version-timeline`, `tassullo-page-skeleton`,
  * `tassullo-error-state` — zero primitive nuove, zero CSS di pagina.
  *
  * ── Perché il titolo qui **si vede**, a differenza di `PageHeader` ───────
@@ -30,27 +30,37 @@
  * tre; il blocco chiede un `<Badge>` già composto, con la stessa libertà che
  * `barra` lascia a `tassullo-data-table` per i filtri.
  *
- * ── `anagrafica`: lettura e modifica sono due alberi, non uno stato di un form ─
+ * ── Ogni tab rende dentro una `Card`, non a diretto contatto con lo sfondo ─
  *
- * Il criterio di M4.3 chiede «form in sola lettura che passa in modifica».
- * Il blocco possiede il **passaggio** — un interruttore `modifica` con un
- * bottone "Modifica" che diventa "Annulla" — ma non il form: `lettura` e
- * `modifica` sono due `ReactNode` distinti, non un'unica struttura di campi
- * con un `readOnly` sparso addosso. Motivo: la vista di sola lettura vuole
- * un'informazione densa e senza controlli (`CampoLettura` qui sotto, o una
- * `dl` scritta a mano), quella di modifica vuole `tassullo-form-field` con
- * `react-hook-form` — sono due composizioni diverse, e forzarle in un solo
- * albero con rami condizionali dentro ogni campo è la strada che il blocco
- * eviterebbe di dover generalizzare per ogni tipo di controllo (stessa
- * ragione per cui `FormField`, M3.4, prende il controllo come funzione e non
- * come un prop `tipo`). Il bottone "Salva" resta dentro `modifica`: è al
- * `<form onSubmit>` dell'app che appartiene, non al blocco che non sa cosa
- * la modifica invia.
+ * Confrontato da Francesco con `Prodotto.tsx` di Anagrafe: lì il contenuto
+ * di ogni scheda sta in un riquadro bianco, staccato dallo sfondo grigio
+ * della pagina — non testo e controlli appoggiati direttamente sopra. I tre
+ * pannelli qui rendono dentro `Card`/`CardContent`, stessa primitiva del
+ * resto del registry: non un contenitore nuovo, solo il posto giusto in cui
+ * mettere ciò che ogni tab riceve.
  *
- * `modifica`/`onModificaChange` sono **controllabili**, non solo uno stato
- * interno: senza, il blocco non avrebbe modo di tornare alla lettura dopo un
- * salvataggio riuscito, perché quel successo lo sa solo il `<form>` dell'app
- * — che sta *dentro* `modifica`, un `ReactNode` opaco al blocco. Non
+ * ── `anagrafica`: un solo albero, disabilitato — non due viste diverse ───
+ *
+ * Prima versione di questo blocco (M4.3, prima correzione): `lettura` e
+ * `modifica` erano due `ReactNode` distinti, uno statico e uno con
+ * `tassullo-form-field`. **Corretto su indicazione di Francesco**: un campo
+ * che cambia forma fra lettura e modifica — da testo a riquadro con bordo —
+ * fa muovere l'intera scheda al clic su "Modifica", ed è un salto che
+ * un form vero non fa. La forma giusta è **un solo form, sempre montato**:
+ * gli stessi `Input`/`Select`/`Textarea` di `tassullo-form-field`, disabili
+ * quando la scheda non è in modifica — lo stesso principio dei campi di
+ * un modulo bancario, mai un componente diverso a seconda dello stato.
+ *
+ * Per questo `anagrafica` è una **funzione di `modifica`**, non un nodo: il
+ * form dell'app riceve il booleano e decide da sé come disabilitare ogni
+ * campo — tipicamente `<Input {...campo} disabled={!modifica} />`. Il
+ * blocco non impone *come* si disabilita (un `Input` di shadcn si sbianca da
+ * sé in `disabled`): sa solo *quando*.
+ *
+ * `modifica`/`onModificaChange` restano **controllabili**, non solo uno
+ * stato interno: senza, il blocco non avrebbe modo di tornare alla lettura
+ * dopo un salvataggio riuscito, perché quel successo lo sa solo il `<form>`
+ * dell'app — che sta *dentro* `anagrafica`, opaco al blocco. Non
  * controllate, restano uno stato interno (il caso comune, un "Annulla" che
  * basta a sé stesso); controllate, l'app decide quando uscire dalla modifica
  * — tipicamente nel gestore di successo della propria `mutation`.
@@ -77,40 +87,8 @@ import {
   type VersionTimelineEntry,
 } from "@/registry/tassullo/blocks/version-timeline"
 import { Button } from "@/registry/tassullo/ui/button"
-import { Field, FieldContent, FieldTitle } from "@/registry/tassullo/ui/field"
+import { Card, CardContent } from "@/registry/tassullo/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/registry/tassullo/ui/tabs"
-
-/**
- * Una riga di sola lettura — l'equivalente statico di `tassullo-form-field`,
- * per la vista che precede la modifica. Non collegata a nessun form: è testo.
- */
-export function CampoLettura({
-  etichetta,
-  valore,
-  className,
-}: {
-  etichetta: ReactNode
-  valore: ReactNode
-  className?: string
-}) {
-  return (
-    <Field data-slot="campo-lettura" className={className}>
-      <FieldTitle className="text-muted-foreground">{etichetta}</FieldTitle>
-      <FieldContent className="text-sm">{valore ?? "—"}</FieldContent>
-    </Field>
-  )
-}
-
-export type SezioneAnagrafica = {
-  /** La vista statica, densa, senza controlli — es. una griglia di `CampoLettura`. */
-  lettura: ReactNode
-  /**
-   * La vista di modifica — il form vero, con `tassullo-form-field` e
-   * `react-hook-form`. Il bottone "Salva" sta qui dentro: è il `<form
-   * onSubmit>` dell'app, non il blocco, a sapere cosa inviare.
-   */
-  modifica: ReactNode
-}
 
 export type SezioneStorico = {
   /** Dalla più recente alla più vecchia — stesso ordine di `VersionTimeline`. */
@@ -131,7 +109,12 @@ export type PaginaSchedaProps = {
   /** Controllata: l'app decide quando uscire dalla modifica (tipicamente al successo del salvataggio). Assente, resta uno stato interno. */
   modifica?: boolean
   onModificaChange?: (modifica: boolean) => void
-  anagrafica: SezioneAnagrafica
+  /**
+   * Il form, sempre lo stesso albero — riceve `modifica` e decide da sé come
+   * disabilitare i campi (`<Input {...campo} disabled={!modifica} />`).
+   * Non due viste: la stessa, con o senza controlli attivi.
+   */
+  anagrafica: (modifica: boolean) => ReactNode
   /** Libero: un allegato di Norma è un PDF, uno di Prodotto una foto — nessuna forma sola. */
   documenti?: ReactNode
   storico?: SezioneStorico
@@ -235,17 +218,27 @@ export function PaginaScheda({
           <TabsTrigger value="storico">{etichetteTab?.storico ?? "Storico"}</TabsTrigger>
         </TabsList>
         <TabsContent value="anagrafica">
-          {modifica ? anagrafica.modifica : anagrafica.lettura}
+          <Card>
+            <CardContent>{anagrafica(modifica)}</CardContent>
+          </Card>
         </TabsContent>
-        <TabsContent value="documenti">{documenti}</TabsContent>
+        <TabsContent value="documenti">
+          <Card>
+            <CardContent>{documenti}</CardContent>
+          </Card>
+        </TabsContent>
         <TabsContent value="storico">
-          {storico ? (
-            <VersionTimeline
-              revisioni={storico.revisioni}
-              confrontabile={storico.confrontabile}
-              onConfronta={storico.onConfronta}
-            />
-          ) : null}
+          <Card>
+            <CardContent>
+              {storico ? (
+                <VersionTimeline
+                  revisioni={storico.revisioni}
+                  confrontabile={storico.confrontabile}
+                  onConfronta={storico.onConfronta}
+                />
+              ) : null}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

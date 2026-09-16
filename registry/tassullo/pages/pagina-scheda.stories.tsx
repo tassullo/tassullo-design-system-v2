@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -8,7 +8,7 @@ import { BookOpenIcon, DownloadIcon, TrashIcon } from 'lucide-react'
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 import { FormField } from '@/registry/tassullo/blocks/form-field'
 import type { VersionTimelineEntry } from '@/registry/tassullo/blocks/version-timeline'
-import { CampoLettura, PaginaScheda } from '@/registry/tassullo/pages/pagina-scheda'
+import { PaginaScheda } from '@/registry/tassullo/pages/pagina-scheda'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -18,7 +18,7 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
  * **M4.3 — terza pagina modello.** `PaginaScheda` compone ciò che il
- * registry ha già — `page-header`, `tabs`, `field`, `version-timeline`,
+ * registry ha già — `page-header`, `tabs`, `card`, `version-timeline`,
  * `page-skeleton`, `error-state` — nella forma che si ripete quattro volte
  * in Anagrafe: Prodotto, Famiglia, Sistema, Norma. È il file CSS più grande
  * del progetto (`Prodotto.css`, 201 righe), qui senza una riga di CSS di
@@ -36,13 +36,16 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * dentro il contenuto della pagina: sono due intestazioni diverse, non la
  * stessa spostata.
  *
- * ## Lettura e modifica sono due alberi
+ * ## Un solo form, disabilitato — non due viste
  *
- * Il tab "Anagrafica" non ha un solo form con un `readOnly` sparso: la
- * vista di lettura è una griglia di `CampoLettura` (denso, senza controlli),
- * la modifica è un `<form>` vero con `tassullo-form-field` e
- * `react-hook-form`. Il bottone "Modifica"/"Annulla" è del blocco; "Salva"
- * è del form, perché solo l'app sa cosa inviare.
+ * Rilievo di Francesco sulla prima versione (che aveva `lettura` e
+ * `modifica` come due alberi distinti): un campo che cambia forma da testo
+ * a riquadro al clic su "Modifica" fa muovere l'intera scheda, ed è un
+ * salto che un form vero non fa. Qui è **un solo `<form>`**, sempre montato
+ * con gli stessi `tassullo-form-field`: gli `Input` restano `disabled`
+ * finché la scheda non è in modifica. Confrontato anche con `Prodotto.tsx`
+ * di Anagrafe: il contenuto sta dentro un riquadro bianco (`Card`), non a
+ * contatto diretto con lo sfondo grigio della pagina.
  */
 const meta = {
   title: 'Pagine/Scheda',
@@ -122,23 +125,20 @@ const REVISIONI: VersionTimelineEntry[] = [
   },
 ]
 
-function AnagraficaLettura({ dati }: { dati: NormaModulo }) {
-  return (
-    <FieldGroup className="grid grid-cols-1 gap-4 @lg/field-group:grid-cols-2">
-      <CampoLettura etichetta="Codice" valore={dati.codice} />
-      <CampoLettura etichetta="Ente" valore={dati.ente} />
-      <CampoLettura etichetta="Titolo" valore={dati.titolo} className="@lg/field-group:col-span-2" />
-      <CampoLettura etichetta="Note" valore={dati.note} className="@lg/field-group:col-span-2" />
-    </FieldGroup>
-  )
-}
-
-function AnagraficaModifica({
+/**
+ * Lo stesso albero in lettura e in modifica: `disabled={!modifica}` su ogni
+ * campo, mai un componente diverso. `Annulla` scarta le modifiche non
+ * salvate (`form.reset(dati)`), non solo esce dalla modalità — altrimenti
+ * riaprendo "Modifica" si ritroverebbero i valori scartati.
+ */
+function AnagraficaForm({
   dati,
+  modifica,
   onSalva,
   onAnnulla,
 }: {
   dati: NormaModulo
+  modifica: boolean
   onSalva: (dati: NormaModulo) => void
   onAnnulla: () => void
 }) {
@@ -147,6 +147,13 @@ function AnagraficaModifica({
     defaultValues: dati,
   })
 
+  // Rientrando in modifica (o dopo un salvataggio, che la torna a `pronto`)
+  // il form riparte dai dati correnti — non da un residuo di una modifica
+  // scartata in un giro precedente.
+  useEffect(() => {
+    if (modifica) form.reset(dati)
+  }, [modifica, dati, form])
+
   return (
     <form
       className="flex flex-col gap-4"
@@ -154,14 +161,14 @@ function AnagraficaModifica({
     >
       <FieldGroup className="grid grid-cols-1 gap-4 @lg/field-group:grid-cols-2">
         <FormField control={form.control} nome="codice" etichetta="Codice">
-          {(campo) => <Input {...campo} autoComplete="off" />}
+          {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
         </FormField>
         <FormField control={form.control} nome="ente" etichetta="Ente">
-          {(campo) => <Input {...campo} autoComplete="off" />}
+          {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
         </FormField>
         <div className="@lg/field-group:col-span-2">
           <FormField control={form.control} nome="titolo" etichetta="Titolo">
-            {(campo) => <Input {...campo} autoComplete="off" />}
+            {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
           </FormField>
         </div>
         <div className="@lg/field-group:col-span-2">
@@ -171,16 +178,18 @@ function AnagraficaModifica({
             etichetta="Note"
             descrizione="Massimo 2048 caratteri."
           >
-            {(campo) => <Textarea {...campo} rows={3} />}
+            {(campo) => <Textarea {...campo} rows={3} disabled={!modifica} />}
           </FormField>
         </div>
       </FieldGroup>
-      <div className="flex gap-2">
-        <Button type="submit">Salva</Button>
-        <Button type="button" variant="outline" onClick={onAnnulla}>
-          Annulla
-        </Button>
-      </div>
+      {modifica ? (
+        <div className="flex gap-2">
+          <Button type="submit">Salva</Button>
+          <Button type="button" variant="outline" onClick={onAnnulla}>
+            Annulla
+          </Button>
+        </div>
+      ) : null}
     </form>
   )
 }
@@ -219,19 +228,17 @@ function Scheda({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
       // propria mutation.
       modifica={inModifica}
       onModificaChange={setInModifica}
-      anagrafica={{
-        lettura: <AnagraficaLettura dati={dati} />,
-        modifica: (
-          <AnagraficaModifica
-            dati={dati}
-            onSalva={(nuovi) => {
-              setDati(nuovi)
-              setInModifica(false)
-            }}
-            onAnnulla={() => setInModifica(false)}
-          />
-        ),
-      }}
+      anagrafica={(modifica) => (
+        <AnagraficaForm
+          dati={dati}
+          modifica={modifica}
+          onSalva={(nuovi) => {
+            setDati(nuovi)
+            setInModifica(false)
+          }}
+          onAnnulla={() => setInModifica(false)}
+        />
+      )}
       documenti={<Documenti />}
       storico={{ revisioni: REVISIONI }}
     />
@@ -246,7 +253,7 @@ function Guscio({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
   )
 }
 
-/** Il caso comune: la vista di lettura, con distintivo e storico su tre revisioni. */
+/** Il caso comune: campi disabilitati, distintivo e storico su tre revisioni. */
 export const ConDati: Story = {
   render: () => <Guscio />,
 }
@@ -273,12 +280,9 @@ export const StoricoConfrontabile: Story = {
         percorso={[{ titolo: 'Norme', href: '#' }, { titolo: NORMA.codice }]}
         titolo={NORMA.codice}
         distintivo={<Badge className={TONO.success}>Vigente</Badge>}
-        anagrafica={{
-          lettura: <AnagraficaLettura dati={NORMA} />,
-          modifica: (
-            <AnagraficaModifica dati={NORMA} onSalva={() => {}} onAnnulla={() => {}} />
-          ),
-        }}
+        anagrafica={(modifica) => (
+          <AnagraficaForm dati={NORMA} modifica={modifica} onSalva={() => {}} onAnnulla={() => {}} />
+        )}
         storico={{ revisioni: REVISIONI, confrontabile: true }}
       />
     </AppShell>
