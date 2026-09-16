@@ -1357,6 +1357,8 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
   conFiltri,
   pulisci,
   scrollEl,
+  senzaFocoRiga,
+  alVirtualizzatore,
 }: CorpoTabellaCondiviso<TDato> & {
   /**
    * L'elemento che scorre davvero — `[data-slot="table-container"]`, non il
@@ -1365,6 +1367,29 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
    * l'ha ancora trovato: il virtualizzatore resta inerte, non un errore.
    */
   scrollEl: HTMLElement | null
+  /**
+   * M3bis.5 — wiring privata per `<DataGrid>`: quando `true`, questo corpo
+   * smette di gestire lui il fuoco e la tastiera **a livello di riga**
+   * (niente `tabIndex` sulle `<tr>`, niente `onKeyDown`/`onFocus` di riga).
+   * La Data Grid naviga **a livello di cella** — ogni cella è il proprio
+   * bersaglio di fuoco — e se il corpo tenesse acceso anche il proprio giro
+   * riga-per-riga i due meccanismi si pesterebbero i piedi (due gestori di
+   * `ArrowUp`/`ArrowDown` sulla stessa pressione, uno dei quali cieco alla
+   * colonna). `undefined`/`false`: comportamento invariato, quello di
+   * M3bis.4.
+   */
+  senzaFocoRiga?: boolean
+  /**
+   * M3bis.5 — consegna a chi monta questo corpo la sola funzione di
+   * scorrimento del virtualizzatore (`scrollToIndex`, già clampata), non
+   * l'istanza intera: la Data Grid la usa per portare in vista una riga
+   * fuori dalla finestra montata quando il fuoco si sposta verticalmente da
+   * tastiera — lo stesso identico `vaiA` che questo corpo già usa per sé,
+   * riutilizzato invece di duplicato. Chiamato a ogni render (nessun elenco
+   * di dipendenze): `vaiA` chiude su `righe.length` corrente, e la chiamata
+   * stessa costa solo l'assegnazione di un riferimento.
+   */
+  alVirtualizzatore?: (vaiA: (indice: number) => void) => void
 }) {
   const virtualizzatore = useVirtualizer({
     count: righe.length,
@@ -1410,7 +1435,7 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
   const rigaRefs = React.useRef(new Map<number, HTMLTableRowElement>())
   const interagitoRef = React.useRef(false)
   React.useEffect(() => {
-    if (!interagitoRef.current) return
+    if (senzaFocoRiga || !interagitoRef.current) return
     const nodo = rigaRefs.current.get(focoValido)
     if (nodo && document.activeElement !== nodo) nodo.focus()
   })
@@ -1419,8 +1444,12 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
     const chiuso = Math.max(0, Math.min(righe.length - 1, indice))
     interagitoRef.current = true
     virtualizzatore.scrollToIndex(chiuso, { align: "auto" })
-    setFocoRiga(chiuso)
+    if (!senzaFocoRiga) setFocoRiga(chiuso)
   }
+
+  React.useEffect(() => {
+    alVirtualizzatore?.(vaiA)
+  })
 
   // Un "passo di pagina" quanto le righe attualmente in vista — non un
   // numero fisso: la stessa pressione di `PageDown` deve saltare di più su
@@ -1510,12 +1539,16 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
               if (nodo) rigaRefs.current.set(elemento.index, nodo)
               else rigaRefs.current.delete(elemento.index)
             }}
-            tabIndex={elemento.index === indiceRovente ? 0 : -1}
-            onFocus={() => {
-              interagitoRef.current = true
-              setFocoRiga(elemento.index)
-            }}
-            onKeyDown={(evento) => onKeyDownRiga(evento, elemento.index)}
+            tabIndex={senzaFocoRiga ? undefined : elemento.index === indiceRovente ? 0 : -1}
+            onFocus={
+              senzaFocoRiga
+                ? undefined
+                : () => {
+                    interagitoRef.current = true
+                    setFocoRiga(elemento.index)
+                  }
+            }
+            onKeyDown={senzaFocoRiga ? undefined : (evento) => onKeyDownRiga(evento, elemento.index)}
             className="group/riga outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             data-state={riga.getIsSelected() ? "selected" : undefined}
           >
@@ -1809,6 +1842,25 @@ export type DataTableProps<TDato extends RowData> = {
    */
   barra?: React.ReactNode | ((scelti: TDato[]) => React.ReactNode)
   className?: string
+  /**
+   * @internal Wiring privata per `<DataGrid>` (M3bis.5), non pensata per
+   * essere passata da una pagina. Con `perPagina="virtuale"`, consegna a
+   * `DataTableVirtualizedBody` il controllo del fuoco — la Data Grid lo
+   * sposta lei, cella per cella, non riga per riga — e l'accesso allo
+   * scorrimento verticale del virtualizzatore.
+   */
+  internoGriglia?: {
+    senzaFocoRiga: boolean
+    alVirtualizzatore: (vaiA: (indice: number) => void) => void
+  }
+  /**
+   * @internal Attributi passati al `<table>` così com'è (`role`,
+   * `aria-*`, …). Serve a `<DataGrid>` per dichiarare `role="grid"` senza
+   * che questo blocco debba conoscere quella semantica: nessuna tabella
+   * non-Data-Grid ne ha bisogno, quindi non è nella parte pubblica della
+   * documentazione del prop.
+   */
+  attributiTabella?: React.ComponentPropsWithoutRef<typeof Table>
 }
 
 /**
@@ -1844,6 +1896,8 @@ export function DataTable<TDato extends RowData>({
   pannelloRiga,
   barra,
   className,
+  internoGriglia,
+  attributiTabella,
 }: DataTableProps<TDato>) {
   const infinito = perPagina === "infinito"
   const virtualizzata = perPagina === "virtuale"
@@ -2307,7 +2361,7 @@ export function DataTable<TDato extends RowData>({
           colonne stanno ferme. Chi non dichiara `meta.larghezza` si spartisce
           ciò che avanza, in parti uguali.
         */}
-        <Table ref={tabellaRef} className="table-fixed">
+        <Table ref={tabellaRef} className="table-fixed" {...attributiTabella}>
           {/*
             Il `<colgroup>` di `ridimensionabile`/`colonneBloccabili`: qui la
             larghezza non la dichiara più la prima riga di intestazioni
@@ -2414,6 +2468,8 @@ export function DataTable<TDato extends RowData>({
               conFiltri={conFiltri}
               pulisci={pulisci}
               scrollEl={elementoScorrevole}
+              senzaFocoRiga={internoGriglia?.senzaFocoRiga}
+              alVirtualizzatore={internoGriglia?.alVirtualizzatore}
             />
           ) : (
             <DataTableBody

@@ -4443,3 +4443,55 @@ Verificato in un browser vero (Chromium della sessione, non Playwright): `Tab` d
 `npm run check` verde su tutti e cinque i gate: **a11y 1168 scansioni (4 passate, +4 dalla story `Virtualizzata`) / 0 violazioni**. `tsc -b` ✔ · `lint`: tre avvisi preesistenti più il nuovo `incompatible-library` motivato sopra, nessun altro avviso nuovo. `check:registry`: 0 errori. `misura:bersagli`: 2574 bersagli su 292 story, 0 piccoli in entrambe le direzioni (nessuna regressione). Provato in un browser vero (Chromium della sessione): scorrimento a rotellina su 10.000 righe, mai più di ~36 `<tr>` montati contemporaneamente; tastiera (frecce, Home, End, PageUp) verificata come sopra. Non riprovato `PageDown`/`ArrowDown` singolarmente: stesso ramo di codice di `PageUp`/`ArrowUp`, già esercitato.
 
 Prossimo passo: M3bis.5 (Data Grid editabile, 3 sessioni) — dipende da questa e da M3bis.3, entrambe chiuse; stesso worktree.
+
+---
+
+## M3bis.5 sessione 1/3 — Data Grid, il motore (2026-09-16)
+
+Nuovo blocco fratello `registry/tassullo/blocks/data-grid.tsx` (non dentro `data-table.tsx`, per lo stesso motivo di sempre: `check:registry` distingue `ui/` da `blocks/`, e un blocco nuovo è un file nuovo). `useDataGrid`, `<DataGrid>`, `DataGridClipboard`, `DataGridFillHandle`, `DataGridUndo`, `DataGridRedo` — i nomi fissati in M3bis.0, non tradotti.
+
+### L'architettura: `<DataGrid>` innesta `<DataTable perPagina="virtuale" altezza="ferma">`, non una tabella a sé
+
+Niko-table compone la Data Grid dentro `<DataTableRoot>`, coi figli auto-rilevati (`detectFeaturesFromChildren`) — il meccanismo che M3bis.0 ha già scartato per tutta la fase. Qui `<DataGrid>` innesta direttamente il blocco esistente, passando due prop **private** aggiunte a `DataTableProps`/`DataTableVirtualizedBody` per l'occasione (`internoGriglia`, `attributiTabella`) — non pubbliche, non pensate per una pagina:
+
+- **`senzaFocoRiga`**: spegne il giro riga-per-riga di `DataTableVirtualizedBody` (tabIndex/onFocus/onKeyDown sulla `<tr>`, M3bis.4) — la Data Grid naviga **per cella**, non per riga, e i due meccanismi userebbero lo stesso tasto (`ArrowUp`/`ArrowDown`) per cose diverse nello stesso istante se restassero entrambi accesi.
+- **`alVirtualizzatore`**: consegna a chi monta il corpo il solo `scrollToIndex` (già clampato) del virtualizzatore — non l'istanza intera — così la Data Grid può portare in vista una riga fuori dalla finestra montata quando il fuoco si sposta verticalmente da tastiera, riusando lo stesso meccanismo che le righe già usano invece di duplicarlo.
+- **`attributiTabella`**: passa `role="grid"`/`aria-rowcount`/`aria-colcount` al `<table>` così com'è — nessuna tabella non-Data-Grid ne ha bisogno.
+
+Nessuna ricerca/ordinamento/filtro nella Data Grid: la tastiera naviga **per indice** sull'array che il motore tiene, e se TanStack potesse riordinare le righe sotto (un clic su un'intestazione, un filtro) una `ArrowDown` porterebbe alla riga sbagliata. `<DataGrid>` passa sempre `cerca={false}` e le colonne non dichiarano `sortFn`.
+
+### Il fuoco: una cella vera (roving tabindex), non `role="gridcell"` duplicato
+
+Ogni cella non in modifica è un `<div tabIndex={attiva ? 0 : -1}>` dentro il `<TableCell>` (`<td>`) che `DataTableBody`/`DataTableVirtualizedBody` già disegnano — **senza** `role="gridcell"` esplicito: preso da axe (`aria-required-parent`, **critical**) prima di capirlo, perché quel `<td>` è **già** un `gridcell` implicito per la mappatura HTML-ARIA (un `<td>` con un antenato che dichiara `role="grid"`), e dichiararlo di nuovo sul `<div>` annidato mette in mezzo un genitore («cell», il `<td>`) fra due `gridcell` — la regola vuole `row` come genitore immediato. Tolto il `role` dal `<div>`, la stessa scansione passa.
+
+**Bug preso in Playwright, non nella stessa sessione in cui è stato scritto**: `CellaTestoGriglia` aveva anche `onFocus={() => motore.vaiA(id)}`, pensato per sincronizzare lo stato quando il fuoco arriva da un `Tab` esterno. Ma è lo stesso effetto che sposta il fuoco reale dopo una `ArrowDown` (`divRef.current?.focus()`) a **innescare** quell'`onFocus` — che richiama `vaiA(id)` **senza** `estendi`, azzerando l'ancora della selezione un istante dopo che `Shift+ArrowDown` l'aveva impostata. Sintomo: `Shift+Freccia` spostava la cella attiva ma non estendeva mai la selezione visibile (né il copia). Tolto `onFocus` — è ridondante col roving tabindex: la cella tabbabile è **sempre** quella già attiva nello stato, per costruzione, quindi non c'è niente da sincronizzare al fuoco.
+
+**Secondo bug preso nello stesso giro**: `Ctrl+Invio` (riempimento da tastiera) apriva la modifica invece di riempire. Lo switch su `evento.key` aveva `case "Enter": apriModifica(id)` **prima** del controllo `if (mod && evento.key === "Enter") riempi()` sotto di esso — ma `evento.key` per Ctrl+Invio è comunque `"Enter"`, quindi lo switch lo intercettava e usciva (`return`) prima che il controllo sul modificatore venisse mai raggiunto. Corretto spostando tutte le combinazioni con Ctrl/Cmd (riempi, copia, incolla, annulla/ripeti, seleziona tutto) **prima** dello switch, non dopo.
+
+### Copia/incolla: `navigator.clipboard`, non l'evento nativo
+
+Una cella non in modifica (`<div>`, non un campo di testo) non genera `copy`/`paste` nativo su Ctrl/Cmd+C/V — quell'evento nasce solo da una selezione di testo vera o da un campo modificabile. Si intercetta la combinazione da tastiera e si passa da `navigator.clipboard.writeText`/`readText` (richiede un contesto sicuro, sempre vero qui). `DataGridClipboard` non aggiunge nessun listener: il copia/incolla è già acceso sempre in `onKeyDownCella`; il componente esiste come segnaposto testuale ("Copia con Ctrl/Cmd+C…", la stessa frase già anticipata nell'inventario di M3bis.0) e come punto in cui una sessione futura potrebbe appendere un indicatore di stato senza toccare il motore.
+
+### Annulla/ripeti: snapshot dell'intero array, non un diff per cella
+
+`passato`/`futuro` sono `TDato[][]` (array di snapshot), non un registro di patch — più semplice e corretto per ~500 righe (il criterio d'accettazione), a costo di più memoria per voce di cronologia che un diff non avrebbe. Cappato a 100 voci (`CRONOLOGIA_MAX`). `annulla`/`ripeti` leggono `righe`/`passato`/`futuro` dalla chiusura dell'handler (chiamato direttamente da un tasto, non da un altro `setState` in corso) e fanno tre `setState` paralleli, non annidati — un `setState` dentro l'updater di un altro avrebbe raddoppiato l'effetto sotto `StrictMode`, che invoca due volte gli updater.
+
+### Non controllata — seminata una volta, mai risincronizzata
+
+`useDataGrid` tiene `righe` in uno stato suo, inizializzato **una volta sola** da `righeIniziali` con un inizializzatore pigro di `useState` (non un `useMemo` con `[]` — la stessa cosa, ma la forma dice da sé che gira solo al montaggio, invece di sembrare un elenco di dipendenze dimenticato). Uno stato controllato ricalcolerebbe il modello a ogni tasto e romperebbe l'annulla/ripeti — la stessa ragione che niko-table stessa documenta.
+
+### Incolla: righe/colonne oltre i confini sono scartate, non creano righe nuove
+
+`useDataGrid` non sa creare una riga vuota (`createEmptyRow`/`addRows`, non in questa sessione — plausibilmente sessione 3, persistenza). Incollare un foglio più grande della griglia riempie quello che c'è e si ferma: un limite scritto nel commento della funzione, non scoperto incollando 600 righe su una griglia da 500.
+
+### La story `Editabile`
+
+60 voci finte (id, codice, descrizione, unità, quantità), `colonnaTestoGriglia` — la sola cella tipizzata di questa sessione (testo semplice; numero/valuta/checkbox/data/select in sessione 2) — `DataGridUndo`/`DataGridRedo` nella barra, `DataGridClipboard`/`DataGridFillHandle` come figli di `<DataGrid>`.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1172 scansioni (4 passate, +4 dalla story) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi quattro avvisi preesistenti (compreso l'`incompatible-library` di M3bis.4), zero nuovi. `check:registry`: 0 errori (la cartella `blocks/` verifica solo la regola 3, che il file rispetta). `misura:bersagli`: 2577 bersagli su 293 story, 0 piccoli in entrambe le direzioni — nessuna regressione (le celle della griglia non hanno `data-slot` e non entrano nel conto dello strumento, un limite dello strumento già noto per altri nodi, non una lacuna di questa sessione).
+
+**Tastiera, clipboard, riempimento e cronologia verificati in Playwright** (Chromium reale, non il pannello del browser di questa sessione — stesso limite già a verbale: `document.visibilityState` vi risulta `hidden`, e i tasti non hanno mosso il fuoco in modo osservabile con quell'imbracatura). Con `context.grantPermissions(['clipboard-read','clipboard-write'])`: clic+frecce spostano la cella attiva; un carattere qualunque apre la modifica scrivendolo; Invio conferma e scende di una riga; Escape annulla senza scrivere; Ctrl+Z/Ctrl+Shift+Z annullano/ripetono; Ctrl+C su una selezione di due righe e Ctrl+V altrove incolla gli stessi due valori nell'ordine giusto; Ctrl+Invio su una selezione di tre celle le riempie tutte col valore della prima; Tab conferma la modifica in corso e sposta a destra; Home/End si fermano ai bordi della riga. Script di verifica scritto nello scratchpad di sessione, mai committato.
+
+Prossimo passo: M3bis.5 sessione 2/3 (celle tipizzate — numero/valuta `it-IT`/checkbox/data/select — e validazione per cella con Zod), stesso worktree, dipende da questa sessione.

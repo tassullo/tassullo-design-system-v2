@@ -1039,6 +1039,31 @@
       "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8.\n\n`altezza=\"ferma\"` (default `\"naturale\"`) apre il riquadro ad altezza\ncalcolata con scorrimento interno e piede sempre visibile - indipendente\nda `perPagina`, che sceglie solo come si caricano le righe. `piePagina={false}`\ntoglie del tutto conteggio e paginazione, per le tabelle imbarcate dentro\nun'altra pagina."
     },
     {
+      "name": "tassullo-data-grid",
+      "type": "registry:block",
+      "title": "Data Grid editabile",
+      "description": "Il motore di editing su tassullo-data-table: navigazione da tastiera cella per cella, copia/incolla da foglio di calcolo, riempimento, annulla/ripeti. Nasce virtualizzata. Celle tipizzate e validazione Zod in una sessione successiva.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "@tanstack/react-virtual",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-grid.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-grid.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/data-table",
+        "@tassullo/tema"
+      ],
+      "docs": "`useDataGrid` tiene le righe in uno stato suo, seminato una volta sola da\n`righeIniziali` e mai piu risincronizzato - non controllato, come\n`defaultValue`: uno stato controllato ricalcolerebbe il modello a ogni\ntasto e romperebbe l'annulla/ripeti. Si osserva `onModifica`, non si\nimpone `dati`.\n\n  const motore = useDataGrid({\n    righeIniziali: voci,\n    colonneId: ['descrizione', 'quantita'],\n    idRiga: (v) => v.id,\n    leggiCella: (v, c) => String(v[c] ?? ''),\n    scriviCella: (v, c, valore) => ({ ...v, [c]: valore }),\n  })\n  const col = creaColonne<Voce>()\n  <DataGrid motore={motore} colonne={col.columns([\n    colonnaTestoGriglia(col, 'descrizione', 'Descrizione'),\n  ])} barra={<><DataGridUndo /><DataGridRedo /></>}>\n    <DataGridClipboard />\n    <DataGridFillHandle />\n  </DataGrid>\n\n`<DataGrid>` innesta `<DataTable perPagina=\"virtuale\" altezza=\"ferma\">` -\nla stessa tabella, non una seconda: nasce gia virtualizzata (M3bis.4).\nNiente ricerca/ordinamento/filtri qui - la tastiera naviga per indice\nsull'array del motore, e un ordine diverso da quello visibile porterebbe\nla freccia sulla riga sbagliata.\n\nOgni cella e `role=\"gridcell\"` con fuoco mobile proprio (roving tabindex),\nnon la riga: `DataTableVirtualizedBody` riceve `senzaFocoRiga` per\nspegnere il proprio giro riga-per-riga, altrimenti i due userebbero lo\nstesso tasto per due cose diverse. Copia/incolla passa da\n`navigator.clipboard`, non dall'evento nativo: una cella non in modifica\nnon genera `copy`/`paste` da sola.\n\nSolo `CellaTestoGriglia`/`colonnaTestoGriglia` in questa sessione: celle\ntipizzate (numero/valuta/checkbox/data/select) e validazione Zod arrivano\nnella sessione 2, la persistenza (`useGridChanges`) nella 3."
+    },
+    {
       "name": "tassullo-form-field",
       "type": "registry:block",
       "title": "Campo di modulo",
