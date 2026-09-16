@@ -4161,3 +4161,19 @@ Ricaduta sulla story: `AnagraficaLettura`/`AnagraficaModifica` (due componenti) 
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1148 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: campi disabilitati in lettura dentro la card bianca, campi attivi in modifica (stessa posizione, nessun salto), "Annulla" che scarta, "Salva" che aggiorna titolo/breadcrumb e torna alla lettura, chiaro e scuro.
+
+---
+
+## Valutazione niko-table e apertura FASE 3bis (2026-09-16)
+
+Francesco ha segnalato [niko-table](https://niko-table.com), un registry shadcn su TanStack Table v9 compatibile Base UI, con esempi già pronti per pattern che `data-table` (M3.3) non copre — righe espandibili, selezionabili, resize colonne, ecc. Sessione di sola valutazione (nessun codice scritto), condotta in gran parte in modalità piano: letta la documentazione niko-table quasi per intero (Introduction, Installation, Components, Config, Core, Filters, Hooks, Library, Types, Skills) e tutti gli esempi Table/Grid tranne Simple/Basic/Search (sottoinsiemi di capacità già nostre) e l'"Overview" specifico della Data Grid.
+
+**Riscontro con un caso reale**: screenshot del "Computo metrico estimativo" di Studio Tassullo (`/computo`, login richiesto — non acceduto, valutato solo dallo screenshot fornito da Francesco). Righe di voce con sotto-righe di misurazione annidate (dati veri, non raggruppamento — corretto un'ipotesi sbagliata in corso di valutazione leggendo "Tree Table", che distingue Tree/Grouping/Row Expansion come tre pattern separati da non mischiare), subtotale per voce, totale generale, editing inline.
+
+**Verificato perché l'installazione diretta (`npx shadcn add @niko-table/...`) non regge**: import fissi non sul nostro alias (regola 1), valori Tailwind arbitrari nel core (regola 3), sovrascriverebbe il nostro `ui/table.tsx` già ri-stilato via `@niko-table/data-table-ui`. **Verdetto: si porta (si riscrive), non si installa** — dettaglio motivato in `docs/DECISIONI.md` §40.
+
+**Verificato sul codice reale di `data-table.tsx`, non solo sulla documentazione niko-table**, cosa è già coperto e cosa no: Row Selection + barra di azioni di massa già completi (M3.3: `selezione` + `barra` come funzione); Column Pinning solo parziale (`bloccaPrimaColonna` è già un pin fisso, va generalizzato); filtri per colonna hanno già lo stato TanStack ma nessuna UI (gap reale).
+
+**Aperta FASE 3bis — Tabelle avanzate (niko-table), 10 sessioni** in `PIANO.md` e `CHECKLIST.md` (M3bis.0-9, tutte TODO): inventario/mappa di adattamento, righe annidate con subtotale (Tree), espansione righe, resize+pin colonne generalizzato (tocca `ui/table.tsx`, **blocca sulla conferma esplicita di Francesco**, riapre D17), virtualizzazione/scroll infinito, Data Grid editabile con celle tipizzate e validazione Zod (2-3 sessioni), filtri sfaccettati, drag&drop righe, drag&drop colonne, aggiornamento di `pagina-lista`. Ambito ampliato in corso di discussione su richiesta di Francesco (inizialmente valutato solo Tree+Data Grid, poi aggiunti DnD righe/colonne, virtualizzazione autonoma e filtri sfaccettati dopo revisione più a fondo degli esempi niko-table). Deliberatamente fuori ambito: `data-table-aside`, export CSV (già coperto lato Studio da Excel/Primus/ZIP), colonne dinamiche a runtime, filtri query-builder AND/OR, grid server-side vero e proprio, e la skill `niko-table-best-practices` (scartata: insegnerebbe le convenzioni di import/API inglesi che questa fase decide di non adottare).
+
+Nessun file di registry toccato in questa sessione. Prossimo passo: M3bis.0.
