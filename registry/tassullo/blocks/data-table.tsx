@@ -84,6 +84,9 @@
 import * as React from "react"
 import {
   columnFilteringFeature,
+  columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   createColumnHelper,
   createExpandedRowModel,
@@ -104,6 +107,9 @@ import {
   useTable,
   type Column,
   type ColumnDef,
+  type ColumnPinningState,
+  type ColumnSizingState,
+  type Header,
   type ReactTable,
   type Row,
   type ColumnFiltersState,
@@ -120,6 +126,8 @@ import {
   ChevronsRightIcon,
   ChevronsUpDownIcon,
   InboxIcon,
+  PinIcon,
+  PinOffIcon,
   SearchIcon,
   SearchXIcon,
   SlidersHorizontalIcon,
@@ -133,6 +141,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -188,9 +197,23 @@ import {
  * `getCanExpand()` è sempre falso e il ramo non lavora. Registrarla una volta
  * qui evita che ogni sessione della FASE 3bis che ne ha bisogno (M3bis.1,
  * M3bis.2, M3bis.5) debba biforcare `caratteristiche` in due costanti.
+ *
+ * `columnSizingFeature`/`columnResizingFeature`/`columnPinningFeature`
+ * (M3bis.3, D17 riaperta) seguono la stessa logica: sempre registrate, mai
+ * attive da sole. `enableColumnResizing`/`enableColumnPinning` restano `false`
+ * finché la pagina non passa `ridimensionabile`/`colonneBloccabili` al
+ * blocco — senza, `column.getCanResize()`/`getCanPin()` tornano `false` e i
+ * due rami del render (`ManigliaRidimensiona`, `MenuBloccaColonna`) non
+ * disegnano niente. `columnSizingFeature` resta comunque utile da sola anche
+ * a `ridimensionabile` spento: è la stessa che dà a `colonna.getSize()` un
+ * numero — 150 di default TanStack — usato per calcolare gli scarti del pin
+ * generalizzato (v. `ancoraggioColonna`).
  */
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
+  columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   globalFilteringFeature,
   rowExpandingFeature,
@@ -253,6 +276,16 @@ export function creaColonne<TDato extends RowData>() {
  * comprime tutte in proporzione**, e le larghezze scritte non sono più quelle
  * rese (misurato: `w-48` che valeva 288 rendeva 279). Non è un guasto, è un
  * modo silenzioso di non ottenere ciò che si è chiesto.
+ *
+ * `larghezza` **si ignora** su una tabella `ridimensionabile`/`colonneBloccabili`
+ * (M3bis.3): lì la larghezza di partenza si dichiara con `size` — il campo
+ * *di TanStack*, sulla colonna stessa (`col.accessor("nome", { size: 220 })`),
+ * non in `meta` — insieme a `minSize`/`maxSize` per i due estremi del
+ * trascinamento. Restare sui nomi di TanStack è la stessa scelta di
+ * `accessor`/`display`/`columns` più sopra: la documentazione che serve a chi
+ * scrive una colonna resta la loro. Una colonna senza `size` assorbe lo
+ * spazio che avanza, come senza `larghezza` — la stessa elasticità, un
+ * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni).
  *
  * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
  * senza, una tabella ad albero (M3bis.1, `getSottoRighe`) resta legittima —
@@ -861,6 +894,225 @@ function classiBloccate(indice: number, conSelezione: boolean): string | undefin
   return `${base}${bordo} ${indice === 0 ? "left-0" : "left-10"}`
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+ * Resize e pin generalizzato (M3bis.3, D17 riaperta)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Lo sticky di una colonna bloccata con `colonneBloccabili`, **calcolato**
+ * invece che tabulato: a differenza di `classiBloccate` — che assume indice
+ * 0/1 e due larghezze fisse (`w-10`, la sola colonna di selezione) — qui
+ * qualunque colonna può bloccarsi, con qualunque larghezza acquisita, quindi
+ * lo scarto dal bordo (`left`/`right`) va chiesto a TanStack:
+ * `column.getStart("start")` somma le larghezze **acquisite** di tutte le
+ * colonne bloccate a sinistra prima di questa, `getAfter("end")` la stessa
+ * somma dal lato destro. Sono numeri, non classi — la stessa eccezione alla
+ * regola 3 che `ridimensionabile` già documenta («larghezze acquisite
+ * dall'utente»), estesa alle *posizioni* che quelle larghezze determinano.
+ *
+ * Il bordo (`border-r`/`border-l`) va sulla **sola colonna al bordo esterno**
+ * del blocco bloccato — l'ultima a sinistra, la prima a destra — non su ogni
+ * colonna bloccata: è il segno che lo scorrimento passa sotto, e su una
+ * colonna di mezzo sarebbe un filo senza motivo in vista.
+ */
+function ancoraggioColonna<TDato extends RowData>(
+  tabella: IstanzaTabella<TDato>,
+  colonna: Column<CaratteristicheTabella, TDato, unknown>,
+  contesto: "intestazione" | "cella"
+): { className: string; style: React.CSSProperties } | undefined {
+  const posizione = colonna.getIsPinned()
+  if (!posizione) return undefined
+  const fondo = contesto === "intestazione" ? "bg-accent" : "bg-card"
+  const base = `sticky z-10 ${fondo} group-hover/riga:bg-muted/50 group-data-[state=selected]/riga:bg-muted`
+  if (posizione === "start") {
+    const bloccate = tabella.getStartVisibleLeafColumns()
+    const ultima = bloccate[bloccate.length - 1]?.id === colonna.id
+    return { className: cn(base, ultima && "border-r"), style: { left: colonna.getStart("start") } }
+  }
+  const bloccateFine = tabella.getEndVisibleLeafColumns()
+  const prima = bloccateFine[0]?.id === colonna.id
+  return { className: cn(base, prima && "border-l"), style: { right: colonna.getAfter("end") } }
+}
+
+/**
+ * Il menu del pin, nell'intestazione (`colonneBloccabili`): "Blocca a
+ * sinistra" / "Blocca a destra" / "Non bloccare". Sta a fianco del bottone
+ * d'ordinamento (`IntestazioneColonna`), non al suo posto — la stessa
+ * ragione per cui l'ordinamento resta un clic e non un menu (v. il commento
+ * in testa al file): qui il menu **aggiunge** un'azione che un clic solo non
+ * potrebbe rappresentare (tre stati, non un ciclo a due), non ne toglie una.
+ *
+ * `colonna.getCanPin()` torna sempre falso finché `enableColumnPinning`
+ * (cablato su `colonneBloccabili`, in `DataTable`) è spento — nessun
+ * controllo in più qui: è lo stesso meccanismo per cui `ManigliaRidimensiona`
+ * resta invisibile senza `ridimensionabile`.
+ */
+function MenuBloccaColonna<TDato extends RowData>({
+  colonna,
+  titolo,
+}: {
+  colonna: Column<CaratteristicheTabella, TDato, unknown>
+  titolo: string
+}) {
+  if (!colonna.getCanPin()) return null
+  const posizione = colonna.getIsPinned()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon" className="-my-2 -mr-2 shrink-0" />}
+        aria-label={`Blocca colonna «${titolo}»`}
+      >
+        <PinIcon aria-hidden className={cn(posizione && "fill-current")} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{titolo}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => colonna.pin("start")} disabled={posizione === "start"}>
+            <PinIcon aria-hidden />
+            Blocca a sinistra
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => colonna.pin("end")} disabled={posizione === "end"}>
+            <PinIcon aria-hidden className="-scale-x-100" />
+            Blocca a destra
+          </DropdownMenuItem>
+          {posizione ? (
+            <DropdownMenuItem onClick={() => colonna.pin(false)}>
+              <PinOffIcon aria-hidden />
+              Non bloccare
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/** Quanti pixel un passo da tastiera allarga o restringe la colonna. */
+const PASSO_RIDIMENSIONA = 16
+
+/**
+ * La maniglia di ridimensionamento (`ridimensionabile`): un filo sul bordo
+ * destro dell'intestazione, `role="separator"` — il ruolo ARIA per un
+ * elemento che divide due regioni e si sposta, non un `slider` (che
+ * rappresenterebbe un valore, non una divisione).
+ *
+ * **Non è un componente proprio** (`CLAUDE.md`, regola 4bis, `componenti-
+ * propri.json`): resta locale a questo file, come `colonnaSelezione` o
+ * `classiBloccate` — quel registro è per ciò che sta *al posto* di una
+ * primitiva `ui/`, e una maniglia composta da un `<span>` e due gestori non
+ * lo è.
+ *
+ * **La tastiera non arriva gratis** (D17, il quarto costo): il trascinamento
+ * è un affordance da puntatore, e axe non direbbe niente su una maniglia
+ * completamente muta da tastiera — è la stessa lezione di D15 sul calendario.
+ * `onKeyDown` copre tre tasti: `ArrowLeft`/`ArrowRight` allargano o
+ * restringono di `PASSO_RIDIMENSIONA`, `Home` torna alla larghezza di
+ * partenza (`column.resetSize()`, che TanStack dà già fatta). `aria-valuenow`
+ * porta la larghezza attuale, arrotondata — un pixel di troppo che un
+ * lettore di schermo leggesse ad alta voce non aggiungerebbe informazione.
+ *
+ * **Un segno solo, non due.** Una prima stesura disegnava la barra-guida a
+ * tutta altezza (il segno che niko-table porta durante il trascinamento, e
+ * che qui mancava) come un secondo `<span>`, a fianco del filo dell'intestazione
+ * — e i due non coincidevano: larghezze e scarti diversi, la guida
+ * *trapassava* il filo invece di continuarlo (rilievo di Francesco). Qui la
+ * zona sensibile (`role="separator"`, invariata: hit-area, tastiera, `aria-*`)
+ * resta un `<span>` largo quanto prima, ma **il segno visivo è un unico
+ * discendente centrato al suo interno** (`<span aria-hidden>`), che cambia
+ * stato invece di duplicarsi: **invisibile a riposo** — niente riga fra le
+ * colonne di un'intestazione che nessuno sta toccando, a differenza di
+ * niko-table (rilievo di Francesco: intestazioni pulite, nessuna separazione
+ * finché non si trascina) — poi visibile al passaggio del mouse o al fuoco da
+ * tastiera, e **a tutta altezza** durante il trascinamento vero. Un solo
+ * elemento, una sola posizione, mai due segni da far coincidere.
+ *
+ * L'altezza durante il trascinamento viene dallo stesso meccanismo di prima:
+ * un `<th>` non ritaglia l'overflow dei propri figli, quindi un discendente
+ * assoluto più alto della cella disegna oltre il suo bordo, nelle righe sotto,
+ * ed **eredita da solo** lo scorrimento orizzontale della tabella — niente
+ * elemento a parte nel `table-container`, niente scarto da calcolare a mano.
+ * Si misura da `tabellaRef` (l'intera `<table>`, non solo la testata): un
+ * valore fisso in pixel, non `height: 100%` — la cella che lo contiene è alta
+ * quanto la sola riga di intestazione, `100%` di *quella* sarebbe di nuovo
+ * 40px.
+ */
+function ManigliaRidimensiona<TDato extends RowData>({
+  tabella,
+  tabellaRef,
+  header,
+  titolo,
+}: {
+  tabella: IstanzaTabella<TDato>
+  tabellaRef: React.RefObject<HTMLTableElement | null>
+  header: Header<CaratteristicheTabella, TDato, unknown>
+  titolo: string
+}) {
+  const colonna = header.column
+  const min = colonna.columnDef.minSize ?? 20
+  const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
+  const inTrascinamento = colonna.getIsResizing()
+
+  const sposta = (delta: number) => {
+    tabella.setColumnSizing((prima) => {
+      const attuale = prima[colonna.id] ?? colonna.getSize()
+      return { ...prima, [colonna.id]: Math.min(max, Math.max(min, attuale + delta)) }
+    })
+  }
+
+  // Si legge `tabellaRef.current` in un effetto, non in fase di render — un
+  // `ref` letto durante il render può restare indietro di un commit, ed è la
+  // stessa cosa che il linter segnala (`react/refs`). Misurata **una volta
+  // sola all'inizio del trascinamento**, non a ogni fotogramma: un
+  // ridimensionamento orizzontale non cambia l'altezza della tabella, quindi
+  // rimisurare ad ogni `mousemove` sarebbe lavoro senza un motivo.
+  const [altezzaGuida, setAltezzaGuida] = React.useState<number>()
+  React.useEffect(() => {
+    if (inTrascinamento) setAltezzaGuida(tabellaRef.current?.getBoundingClientRect().height)
+  }, [inTrascinamento, tabellaRef])
+
+  return (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Ridimensiona colonna «${titolo}»`}
+      aria-valuenow={Math.round(colonna.getSize())}
+      aria-valuemin={min}
+      aria-valuemax={max === Number.MAX_SAFE_INTEGER ? undefined : max}
+      tabIndex={0}
+      onMouseDown={header.getResizeHandler()}
+      onTouchStart={header.getResizeHandler()}
+      onKeyDown={(e) => {
+        if (e.key === "Home") {
+          e.preventDefault()
+          colonna.resetSize()
+          return
+        }
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return
+        e.preventDefault()
+        sposta(e.key === "ArrowRight" ? PASSO_RIDIMENSIONA : -PASSO_RIDIMENSIONA)
+      }}
+      // `group/maniglia` per il figlio sotto: la zona sensibile resta larga
+      // (bersaglio da puntatore), il segno visivo è **solo** il filo centrato
+      // — mai la zona intera, che coprirebbe la colonna accanto di un tocco
+      // di colore appena sfiorata.
+      className="group/maniglia absolute inset-y-0 -right-1 z-20 w-2 shrink-0 cursor-col-resize touch-none focus-visible:outline-none"
+    >
+      <span
+        aria-hidden
+        style={inTrascinamento ? { height: altezzaGuida } : undefined}
+        className={cn(
+          "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors",
+          "group-hover/maniglia:w-1 group-hover/maniglia:bg-primary/60",
+          "group-focus-visible/maniglia:w-1 group-focus-visible/maniglia:bg-primary/60",
+          inTrascinamento && "w-1 bg-primary"
+        )}
+      />
+    </span>
+  )
+}
+
 /** I due stati vuoti, che non sono lo stesso stato. */
 function TabellaVuota({
   filtrata,
@@ -1034,6 +1286,54 @@ export type DataTableProps<TDato extends RowData> = {
    */
   bloccaPrimaColonna?: boolean
   /**
+   * Colonne ridimensionabili da tastiera e da trascinamento (M3bis.3, D17
+   * riaperta e generalizzata). Aggiunge a ogni intestazione una maniglia sul
+   * bordo destro — `role="separator"`, frecce sinistra/destra per i passi da
+   * tastiera, `Home` per tornare alla larghezza di partenza.
+   *
+   * **Sposta il calcolo delle larghezze da `meta.larghezza` (utility
+   * Tailwind) a `size`/`minSize`/`maxSize`** sulla colonna (v. `MetaColonna`):
+   * la tabella passa da `table-fixed` con larghezze nella prima riga a un
+   * `<colgroup>` vero, perché una larghezza *acquisita* dall'utente è un
+   * numero che nessuna classe del tema rappresenta.
+   *
+   * **Il costo che D17 chiedeva in mano prima di riaprirla**: le larghezze
+   * acquisite sono pixel, e quindi **non seguono la densità** — la stessa
+   * eccezione, per la stessa ragione, che `sidebar.tsx` già ha (`CLAUDE.md`
+   * regola 5). Non è un difetto scoperto tardi: è scritto qui, ed è la
+   * ragione per cui l'eccezione alla regola 3 (niente valori arbitrari) è
+   * **questa e non un'altra** — «larghezze acquisite dall'utente», il perimetro
+   * che D17 chiedeva di circoscrivere, non «larghezze» in generale. La
+   * persistenza fra un caricamento e l'altro **resta fuori da questa sessione**:
+   * `columnSizing` vive in uno stato interno del blocco, non in una prop
+   * controllata — se una pagina futura vorrà salvarla (`localStorage`, profilo
+   * utente) è lavoro a sé, annotato in `WORKLOG.md` e non promesso qui.
+   */
+  ridimensionabile?: boolean
+  /**
+   * Il pin **generalizzato** (M3bis.3): qualunque colonna, a sinistra o a
+   * destra, da un menu nell'intestazione — non solo la prima colonna fissa di
+   * `bloccaPrimaColonna`. Aggiunge a ogni intestazione bloccabile un piccolo
+   * bottone con `PinIcon`, che apre "Blocca a sinistra" / "Blocca a destra" /
+   * "Non bloccare".
+   *
+   * **Implica `ridimensionabile` internamente** (non serve passarlo insieme):
+   * lo scarto sticky di una colonna bloccata (`left`/`right` in pixel) si
+   * calcola dalle larghezze *acquisite* delle colonne che la precedono
+   * (`column.getStart("start")`/`getAfter("end")` di TanStack), che senza il
+   * `<colgroup>` di `ridimensionabile` non esistono. Le maniglie di
+   * ridimensionamento restano nascoste finché non si passa anche
+   * `ridimensionabile` esplicitamente — `colonneBloccabili` da solo blocca,
+   * non ridimensiona.
+   *
+   * **Sostituisce `bloccaPrimaColonna` quando sono passati insieme**: i due
+   * meccanismi disegnano lo sticky in due modi incompatibili (classi fisse
+   * per indice contro scarti calcolati), e sovrapporli romperebbe l'uno o
+   * l'altro. Con `colonneBloccabili` si blocca la prima colonna dal menu, non
+   * dal prop.
+   */
+  colonneBloccabili?: boolean
+  /**
    * Righe annidate (M3bis.1, "Tree"): dato un dato di riga, restituisce le
    * sue righe figlie, o `undefined`/`[]` per una riga senza figli. **Struttura
    * vera nel modello dati** — il caso reale è il "Computo metrico" di Studio,
@@ -1120,6 +1420,8 @@ export function DataTable<TDato extends RowData>({
   selezione = false,
   colonneNascondibili = true,
   bloccaPrimaColonna = false,
+  ridimensionabile = false,
+  colonneBloccabili = false,
   getSottoRighe,
   pannelloRiga,
   barra,
@@ -1127,11 +1429,31 @@ export function DataTable<TDato extends RowData>({
 }: DataTableProps<TDato>) {
   const infinito = perPagina === "infinito"
   const fermo = altezza === "ferma"
+  // `colonneBloccabili` implica `ridimensionabile`: lo scarto sticky del pin
+  // generalizzato si calcola dalle larghezze acquisite (v. `MetaColonna`,
+  // sopra), che senza il `<colgroup>` di `ridimensionabile` non esistono.
+  const conDimensioni = ridimensionabile || colonneBloccabili
+  // `colonneBloccabili` sostituisce `bloccaPrimaColonna`, non lo somma: i due
+  // meccanismi disegnano lo sticky in due modi incompatibili (v. il prop).
+  const bloccoLegacy = bloccaPrimaColonna && !colonneBloccabili
   const [ordinamento, setOrdinamento] = React.useState<SortingState>([])
   const [filtri, setFiltri] = React.useState<ColumnFiltersState>([])
   const [ricerca, setRicerca] = React.useState("")
   const [visibilita, setVisibilita] = React.useState<ColumnVisibilityState>({})
   const [scelte, setScelte] = React.useState({})
+  /**
+   * Le larghezze **acquisite** dall'utente (`ridimensionabile`/
+   * `colonneBloccabili`). Resta uno stato interno — non una prop controllata
+   * — perché nessuna pagina oggi salva un ridimensionamento fra un
+   * caricamento e l'altro: è il limite scritto sul prop `ridimensionabile`,
+   * non un'omissione silenziosa.
+   */
+  const [dimensioni, setDimensioni] = React.useState<ColumnSizingState>({})
+  /** Il pin generalizzato (`colonneBloccabili`): quali colonne, e da che lato. */
+  const [ancoraggio, setAncoraggio] = React.useState<ColumnPinningState>({
+    start: [],
+    end: [],
+  })
 
   /**
    * Quante righe sono caricate. Solo `perPagina="infinito"`: cresce di
@@ -1175,6 +1497,15 @@ export function DataTable<TDato extends RowData>({
     onGlobalFilterChange: setRicerca,
     onColumnVisibilityChange: setVisibilita,
     onRowSelectionChange: setScelte,
+    // `columnResizeMode: "onChange"`: la larghezza si aggiorna mentre si
+    // trascina, non solo al rilascio — è il riscontro che rende il
+    // trascinamento leggibile come tale, non un motivo di prestazioni (500
+    // righe, nessun ricalcolo pesante per colonna).
+    columnResizeMode: "onChange",
+    enableColumnResizing: ridimensionabile,
+    enableColumnPinning: colonneBloccabili,
+    onColumnSizingChange: setDimensioni,
+    onColumnPinningChange: setAncoraggio,
     initialState: {
       pagination: { pageIndex: 0, pageSize: infinito ? caricate : perPagina },
     },
@@ -1184,6 +1515,8 @@ export function DataTable<TDato extends RowData>({
       globalFilter: ricerca,
       columnVisibility: visibilita,
       rowSelection: scelte,
+      columnSizing: dimensioni,
+      columnPinning: ancoraggio,
     },
   })
 
@@ -1200,6 +1533,28 @@ export function DataTable<TDato extends RowData>({
   const conRighe = righe.length > 0
   const conFiltri = ricerca.length > 0 || filtri.length > 0
   const colonneVisibili = tabella.getVisibleFlatColumns().length
+
+  /**
+   * L'ordine di intestazioni e celle. **Nessuna caratteristica di
+   * raggruppamento è registrata** (`caratteristiche`, sopra), quindi
+   * `getHeaderGroups()` torna sempre un gruppo solo — le stesse colonne di
+   * `getFlatHeaders()`/`getLeafHeaders()` — e le due liste sono
+   * intercambiabili qui.
+   *
+   * **Con `colonneBloccabili` l'ordine cambia**: le colonne bloccate a
+   * sinistra e a destra si spostano ai due bordi (`getStart…`/`getEnd…`),
+   * qualunque posizione avessero fra le colonne dichiarate — è il modo con
+   * cui TanStack tiene coerenti lo sticky e il `<colgroup>` sotto: un `<col>`
+   * fuori ordine rispetto al `<th>`/`<td>` che descrive darebbe alla colonna
+   * sbagliata la larghezza di un'altra.
+   */
+  const intestazioni = colonneBloccabili
+    ? [
+        ...tabella.getStartLeafHeaders(),
+        ...tabella.getCenterLeafHeaders(),
+        ...tabella.getEndLeafHeaders(),
+      ]
+    : (tabella.getHeaderGroups()[0]?.headers ?? [])
 
   const pulisci = () => {
     setRicerca("")
@@ -1309,6 +1664,15 @@ export function DataTable<TDato extends RowData>({
 
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
+  /**
+   * Misura la tabella per intero, per la barra-guida del trascinamento (v.
+   * `ManigliaRidimensiona`). `Table` (`ui/table.tsx`) non passa `ref` con
+   * `forwardRef`, ma non ne ha bisogno: spande `{...props}` sul `<table>`, e
+   * da React 19 un `ref` dentro `props` arriva comunque all'elemento — lo
+   * stesso meccanismo per cui `testataRef` qui sopra funziona già su
+   * `TableHeader`.
+   */
+  const tabellaRef = React.useRef<HTMLTableElement>(null)
 
   const radiceRef = React.useRef<HTMLDivElement>(null)
   const piePaginaRef = React.useRef<HTMLDivElement>(null)
@@ -1494,7 +1858,39 @@ export function DataTable<TDato extends RowData>({
           colonne stanno ferme. Chi non dichiara `meta.larghezza` si spartisce
           ciò che avanza, in parti uguali.
         */}
-        <Table className="table-fixed">
+        <Table ref={tabellaRef} className="table-fixed">
+          {/*
+            Il `<colgroup>` di `ridimensionabile`/`colonneBloccabili`: qui la
+            larghezza non la dichiara più la prima riga di intestazioni
+            (`meta.larghezza`), la dichiara TanStack — di partenza da `size`
+            sulla colonna, poi dalle larghezze acquisite col trascinamento
+            (`dimensioni`, lo stato sopra). **L'ordine dei `<col>` deve
+            coincidere con quello di `<th>`/`<td>` sotto** (`intestazioni`,
+            calcolato sopra): con `colonneBloccabili` le colonne bloccate si
+            spostano ai bordi, e un `<col>` rimasto nell'ordine dichiarato
+            darebbe la larghezza sbagliata alla colonna sbagliata.
+
+            Una colonna senza `size` **non riceve `width`**, nemmeno se
+            `column.getSize()` torna il default TanStack (150): è così che
+            resta elastica, la stessa elasticità di una colonna senza
+            `meta.larghezza` in una tabella non ridimensionabile — un
+            meccanismo diverso, non un comportamento diverso.
+          */}
+          {conDimensioni ? (
+            <colgroup>
+              {intestazioni.map((intestazione) => (
+                <col
+                  key={intestazione.id}
+                  style={
+                    intestazione.column.columnDef.size != null ||
+                    dimensioni[intestazione.column.id] != null
+                      ? { width: intestazione.column.getSize() }
+                      : undefined
+                  }
+                />
+              ))}
+            </colgroup>
+          ) : null}
           {/*
             `sticky top-0`: la testata resta ferma mentre **`table-container`**
             scorre — il `<div overflow-x-auto>` di `Table` qui sotto, che
@@ -1504,41 +1900,77 @@ export function DataTable<TDato extends RowData>({
             va con lei.
           */}
           <TableHeader ref={testataRef} className={cn(fermo && "sticky top-0 z-10")}>
-            {tabella.getHeaderGroups().map((gruppo) => (
-              <TableRow key={gruppo.id} className="hover:bg-transparent">
-                {gruppo.headers.map((intestazione, indice) => (
+            <TableRow className="hover:bg-transparent">
+              {intestazioni.map((intestazione, indice) => {
+                const ancoraColonna = colonneBloccabili
+                  ? ancoraggioColonna(tabella, intestazione.column, "intestazione")
+                  : undefined
+                const titoloColonna =
+                  (intestazione.column.columnDef.meta as MetaColonna | undefined)?.titolo ??
+                  intestazione.column.id
+                return (
                   <TableHead
                     key={intestazione.id}
                     className={cn(
-                      (intestazione.column.columnDef.meta as MetaColonna | undefined)
-                        ?.larghezza,
-                      bloccaPrimaColonna &&
-                        classiBloccate(indice, selezione)?.replace("bg-card", "bg-accent")
+                      !conDimensioni &&
+                        (intestazione.column.columnDef.meta as MetaColonna | undefined)
+                          ?.larghezza,
+                      bloccoLegacy &&
+                        classiBloccate(indice, selezione)?.replace("bg-card", "bg-accent"),
+                      ancoraColonna?.className,
+                      // `relative` **solo se non già `sticky`**: `cn` (tailwind-merge)
+                      // tratta le utility di posizionamento come un gruppo solo, e le due
+                      // scritte insieme si scartano a vicenda — vince l'ultima scritta.
+                      // Non serve comunque: `sticky` è già un contenimento per i figli
+                      // `absolute` (la maniglia di `ManigliaRidimensiona`), come `relative`.
+                      !ancoraColonna && (ridimensionabile || colonneBloccabili) && "relative"
                     )}
+                    style={ancoraColonna?.style}
                     aria-sort={
                       intestazione.column.getCanSort()
                         ? ariaSort(intestazione.column.getIsSorted())
                         : undefined
                     }
                   >
-                    {intestazione.isPlaceholder ? null : (
+                    {intestazione.isPlaceholder ? null : colonneBloccabili ? (
+                      <div className="flex items-center justify-between gap-1">
+                        <tabella.FlexRender header={intestazione} />
+                        <MenuBloccaColonna colonna={intestazione.column} titolo={titoloColonna} />
+                      </div>
+                    ) : (
                       <tabella.FlexRender header={intestazione} />
                     )}
+                    {ridimensionabile && intestazione.column.getCanResize() ? (
+                      <ManigliaRidimensiona
+                        tabella={tabella}
+                        tabellaRef={tabellaRef}
+                        header={intestazione}
+                        titolo={titoloColonna}
+                      />
+                    ) : null}
                   </TableHead>
-                ))}
-              </TableRow>
-            ))}
+                )
+              })}
+            </TableRow>
           </TableHeader>
           <TableBody>
             {righe.length > 0 ? (
               <>
-                {righe.map((riga) => (
+                {righe.map((riga) => {
+                  const celle = colonneBloccabili
+                    ? [
+                        ...riga.getStartVisibleCells(),
+                        ...riga.getCenterVisibleCells(),
+                        ...riga.getEndVisibleCells(),
+                      ]
+                    : riga.getVisibleCells()
+                  return (
                   <React.Fragment key={riga.id}>
                     <TableRow
                       className={cn("group/riga", fermo && "snap-start")}
                       data-state={riga.getIsSelected() ? "selected" : undefined}
                     >
-                      {riga.getVisibleCells().map((cella, indice) => {
+                      {celle.map((cella, indice) => {
                         // Il subtotale (M3bis.1, `meta.sottototale`) prende il
                         // posto della cella normale **solo sulle righe che
                         // hanno figli** — su una riga foglia non c'è niente da
@@ -1546,6 +1978,9 @@ export function DataTable<TDato extends RowData>({
                         const sottototale = riga.subRows.length
                           ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)
                               ?.sottototale
+                          : undefined
+                        const ancoraCella = colonneBloccabili
+                          ? ancoraggioColonna(tabella, cella.column, "cella")
                           : undefined
                         return (
                           // `truncate` è il prezzo di `table-fixed`: con le larghezze
@@ -1556,8 +1991,10 @@ export function DataTable<TDato extends RowData>({
                             key={cella.id}
                             className={cn(
                               "truncate",
-                              bloccaPrimaColonna && classiBloccate(indice, selezione)
+                              bloccoLegacy && classiBloccate(indice, selezione),
+                              ancoraCella?.className
                             )}
+                            style={ancoraCella?.style}
                           >
                             {sottototale ? (
                               sottototale(
@@ -1587,7 +2024,8 @@ export function DataTable<TDato extends RowData>({
                       </TableRow>
                     ) : null}
                   </React.Fragment>
-                ))}
+                  )
+                })}
                 {/*
                   La sentinella di `perPagina="infinito"`: una riga vuota,
                   invisibile (altezza di un pixel, `aria-hidden`), che

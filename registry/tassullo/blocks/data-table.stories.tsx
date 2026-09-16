@@ -235,6 +235,61 @@ const COLONNE = col.columns([
   }),
 ])
 
+/**
+ * Le colonne di `ridimensionabile`/`colonneBloccabili` (M3bis.3): `size`/
+ * `minSize` al posto di `meta.larghezza` — la colonna dichiara la sua
+ * larghezza di partenza a TanStack, non a Tailwind, perché qui sarà anche
+ * acquisita dall'utente (v. il commento su `MetaColonna` nel blocco). Una
+ * sola senza `size`, `famiglia`, che assorbe lo spazio che avanza — la stessa
+ * elasticità di `COLONNE` sopra, un meccanismo diverso.
+ */
+const colRidimensionabile = creaColonne<Prodotto>()
+const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
+  colRidimensionabile.accessor('codice', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+    meta: { titolo: 'Codice' },
+    sortFn: 'alphanumeric',
+    size: 140,
+    minSize: 90,
+    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+  }),
+  colRidimensionabile.accessor('nome', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+    meta: { titolo: 'Nome' },
+    sortFn: 'text',
+    size: 220,
+    minSize: 120,
+    cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+  }),
+  colRidimensionabile.accessor('famiglia', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Famiglia" />,
+    meta: { titolo: 'Famiglia' },
+    sortFn: 'text',
+  }),
+  colRidimensionabile.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato' },
+    sortFn: 'text',
+    size: 130,
+    minSize: 90,
+    cell: ({ getValue }) => {
+      const stato = getValue<Prodotto['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+  colRidimensionabile.accessor('aggiornato', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
+    ),
+    meta: { titolo: 'Aggiornato' },
+    sortFn: 'datetime',
+    size: 140,
+    minSize: 100,
+    cell: ({ getValue }) => <div className="text-right">{DATA.format(getValue<Date>())}</div>,
+    enableGlobalFilter: false,
+  }),
+])
+
 /* ────────────────────────────────────────────────────────────────────────
  * Le story
  * ──────────────────────────────────────────────────────────────────────── */
@@ -445,6 +500,55 @@ export const MenuDelleColonne: Story = {
     dati: PRODOTTI.slice(0, 10),
     cerca: false,
     perPagina: 10,
+  },
+  play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+/**
+ * **Colonne ridimensionabili** (M3bis.3, D17 riaperta e generalizzata). Il
+ * filo sul bordo destro di ogni intestazione si trascina col mouse — o si
+ * comanda da tastiera: `Tab` fino alla maniglia, frecce sinistra/destra per
+ * allargare o restringere di 16px alla volta, `Home` per tornare alla
+ * larghezza di partenza. `Famiglia` non dichiara `size`: assorbe lo spazio
+ * che avanza, come farebbe senza `meta.larghezza` nella forma non
+ * ridimensionabile.
+ *
+ * Nessun `play`: la maniglia non apre un popup — è un `role="separator"`
+ * misurato a riposo, in entrambi gli stati del gate come ogni altra story.
+ */
+export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 15),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    ridimensionabile: true,
+  },
+}
+
+/**
+ * **Il pin generalizzato, aperto** — il menu che `PinIcon` apre in ogni
+ * intestazione bloccabile: "Blocca a sinistra" / "Blocca a destra" / "Non
+ * bloccare". A differenza di `bloccaPrimaColonna` (v. `Stretta`, sopra) qui
+ * qualunque colonna può bloccarsi, su entrambi i lati — lo sticky si calcola
+ * dalle larghezze acquisite (`ancoraggioColonna`), non da una classe fissa
+ * per indice.
+ *
+ * Il primo grilletto `dropdown-menu-trigger` della pagina è quello di
+ * `Codice`, la prima colonna: nessuna colonna di selezione o d'azioni qui,
+ * per la stessa ragione di `MenuDelleColonne` sopra — un popup che il gate
+ * non apre è un popup di cui non sa niente.
+ */
+export const ColonneBloccabili: Story = {
+  name: 'Colonne Bloccabili',
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 10),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    colonneBloccabili: true,
   },
   play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 }
