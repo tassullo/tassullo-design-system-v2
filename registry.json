@@ -1039,6 +1039,113 @@
       "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8.\n\n`altezza=\"ferma\"` (default `\"naturale\"`) apre il riquadro ad altezza\ncalcolata con scorrimento interno e piede sempre visibile - indipendente\nda `perPagina`, che sceglie solo come si caricano le righe. `piePagina={false}`\ntoglie del tutto conteggio e paginazione, per le tabelle imbarcate dentro\nun'altra pagina.\n\n`onTabellaPronta` consegna l'istanza TanStack a ogni render - una via\nd'uscita per comandarla da fuori (`table.toggleAllRowsExpanded()`, per\ndire, come nella story `Albero`) senza sollevare quello stato a un prop\ncontrollato: resta interno al blocco."
     },
     {
+      "name": "tassullo-data-table-filtro-sfaccettato",
+      "type": "registry:block",
+      "title": "Filtro sfaccettato",
+      "description": "Filtro a scelta multipla per una colonna di tassullo-data-table, con conteggio per opzione ricalcolato sulle righe filtrate dalle altre colonne. Porting di data-table-faceted-filter/useGeneratedOptions (niko-table) sopra columnFilteringFeature, gia registrata sul blocco.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-sfaccettato.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-sfaccettato.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/badge",
+        "@tassullo/button",
+        "@tassullo/command",
+        "@tassullo/data-table",
+        "@tassullo/popover",
+        "@tassullo/separator",
+        "@tassullo/tema"
+      ],
+      "docs": "  <DataTable\n    colonne={COLONNE}\n    dati={prodotti}\n    barra={(scelti, tabella) => (\n      <FiltroSfaccettato tabella={tabella} accessore=\"stato\" titolo=\"Stato\" />\n    )}\n  />\n\nLa colonna filtrata dichiara `filterFn: \"arrHas\"` (registrato su\n`caratteristiche` in data-table.tsx): tiene la riga se il suo valore e\nuno dei valori scelti - la forma giusta per un valore scalare per riga\n(stato, famiglia), non un elenco.\n\n`barra` va nella forma a funzione, e `tabella` si legge dal suo\n**secondo argomento** - non da tabellaRef/onTabellaPronta, che\nconsegna l'istanza un render indietro (misurato: un FiltroResetTutti\ncomposto cosi restava invisibile un render oltre il dovuto).\n\nSenza opzioni statiche, le opzioni sono i valori distinti che la colonna\nporta nelle righe che passano ogni altro filtro (non il proprio): il\nconteggio si ricalcola a ogni cambiamento, e un valore gia scelto resta\nin elenco anche a conteggio zero, o non si potrebbe piu deselezionare.\n\nIl grilletto mostra i valori scelti come pillole (fino a due, poi \"N\nselezionati\") - non un numero, che non direbbe cosa e filtrato senza\naprire la tendina. La spunta a sinistra di ogni opzione non e la\nprimitiva Checkbox (un bottone reale, nested-interactive dentro un\nrole=option) ma uno span decorativo con le sue stesse classi di stato;\nquella incorporata in CommandItem (a destra, come SelectItem) si spegne\ncon una classe per lasciare il conteggio flush a destra."
+    },
+    {
+      "name": "tassullo-data-table-filtro-intervallo",
+      "type": "registry:block",
+      "title": "Filtro a intervallo numerico",
+      "description": "Filtro a scorrimento su un intervallo numerico per una colonna di tassullo-data-table, con conteggio ricalcolato sulle righe filtrate dalle altre colonne. Porting di data-table-slider-filter (niko-table) sopra filterFn inNumberRange, gia pronto in TanStack.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-intervallo.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-intervallo.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/data-table",
+        "@tassullo/data-table-filtro-sfaccettato",
+        "@tassullo/input",
+        "@tassullo/label",
+        "@tassullo/popover",
+        "@tassullo/separator",
+        "@tassullo/slider",
+        "@tassullo/tema"
+      ],
+      "docs": "  <FiltroIntervallo tabella={tabella} accessore=\"prezzo\" titolo=\"Prezzo\" unita=\"€\" />\n\nLa colonna dichiara `filterFn: \"inNumberRange\"`. Min/max, se non passati,\nsi calcolano scandendo le righe correnti - non si registra\ncolumnFacetingFeature (getFacetedMinMaxValues di niko-table) per un solo\ndato. Riusa righeSenzaFiltroColonna di data-table-filtro-sfaccettato per\nil conteggio nel riquadro. `tabella` si legge dal secondo argomento\ndella forma a funzione di `barra`, non da tabellaRef/onTabellaPronta."
+    },
+    {
+      "name": "tassullo-data-table-filtro-data",
+      "type": "registry:block",
+      "title": "Filtro a intervallo di date",
+      "description": "Filtro a intervallo di date per una colonna di tassullo-data-table, con calendario in italiano. Porting di data-table-date-filter (niko-table, solo la variante a intervallo) sopra filterFn inDateRange, gia pronto in TanStack.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "date-fns",
+        "lucide-react",
+        "react-day-picker"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-data.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-data.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/calendar",
+        "@tassullo/data-table",
+        "@tassullo/popover",
+        "@tassullo/separator",
+        "@tassullo/tema"
+      ],
+      "docs": "  <FiltroData tabella={tabella} accessore=\"aggiornato\" titolo=\"Aggiornato\" />\n\nLa colonna dichiara `filterFn: \"inDateRange\"`: un capo assente conta come\naperto, quindi un intervallo con un solo estremo scelto filtra comunque.\nD15 resta - la tastiera non naviga la griglia dei giorni, limite gia\naccertato della primitiva Calendar, non di questo filtro. `tabella` si\nlegge dal secondo argomento della forma a funzione di `barra`, non da\ntabellaRef/onTabellaPronta."
+    },
+    {
+      "name": "tassullo-data-table-filtro-reset",
+      "type": "registry:block",
+      "title": "Reset di tutti i filtri",
+      "description": "Bottone che cancella insieme tutti i filtri per colonna di tassullo-data-table e sparisce da se quando non ce niente da cancellare. Porting di data-table-clear-filter (niko-table); non tocca ricerca globale ne ordinamento, a differenza dell'originale.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-reset.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-reset.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/data-table",
+        "@tassullo/tema"
+      ],
+      "docs": "  <FiltroResetTutti tabella={tabella} />\n\nCompare solo quando tabella.state.columnFilters non e vuoto. Cancella\ncon tabella.resetColumnFilters() - non la ricerca globale, non\nl'ordinamento: chi li vuole azzerati insieme li scrive accanto,\nesplicitamente. `tabella` va letta dal secondo argomento della forma a\nfunzione di `barra`: da tabellaRef/onTabellaPronta il bottone\napparirebbe/sparirebbe un render oltre il dovuto."
+    },
+    {
       "name": "tassullo-data-grid",
       "type": "registry:block",
       "title": "Data Grid editabile",

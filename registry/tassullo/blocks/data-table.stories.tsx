@@ -18,6 +18,10 @@ import {
   creaColonne,
   type IstanzaTabella,
 } from '@/registry/tassullo/blocks/data-table'
+import { FiltroData } from '@/registry/tassullo/blocks/data-table-filtro-data'
+import { FiltroIntervallo } from '@/registry/tassullo/blocks/data-table-filtro-intervallo'
+import { FiltroResetTutti } from '@/registry/tassullo/blocks/data-table-filtro-reset'
+import { FiltroSfaccettato } from '@/registry/tassullo/blocks/data-table-filtro-sfaccettato'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -980,4 +984,128 @@ export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
       <DataTable {...args} className="min-h-0 flex-1" />
     </div>
   ),
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * I filtri (M3bis.6) — sfaccettato, intervallo numerico, intervallo di
+ * date, reset di tutti insieme.
+ *
+ * Colonne a parte (`colFiltri`/`COLONNE_FILTRI`), come già `COLONNE_
+ * RIDIMENSIONABILI`/`COLONNE_ALBERO` sopra: aggiungere `filterFn` a
+ * `COLONNE` metterebbe i controlli di filtro in **ogni** story di questo
+ * file, comprese quelle che non li devono avere. Nessun campo nuovo sui
+ * prodotti finti: `revisione` (già numerico) e `aggiornato` (già data)
+ * bastano a dimostrare `FiltroIntervallo`/`FiltroData` senza aggiungere un
+ * `prezzo` che le altre 20 story di questo file non userebbero mai.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+const colFiltri = creaColonne<Prodotto>()
+const COLONNE_FILTRI = colFiltri.columns([
+  colFiltri.accessor('nome', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+    meta: { titolo: 'Nome' },
+    sortFn: 'text',
+  }),
+  colFiltri.accessor('famiglia', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Famiglia" />,
+    meta: { titolo: 'Famiglia' },
+    sortFn: 'text',
+    // Un valore per riga: `arrHas` tiene la riga il cui valore compare fra
+    // quelli scelti. Vedi la nota su `caratteristiche` in `data-table.tsx`.
+    filterFn: 'arrHas',
+  }),
+  colFiltri.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato', larghezza: 'w-32' },
+    sortFn: 'text',
+    filterFn: 'arrHas',
+    cell: ({ getValue }) => {
+      const stato = getValue<Prodotto['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+  colFiltri.accessor('revisione', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Rev." allinea="fine" />
+    ),
+    meta: { titolo: 'Revisione', larghezza: 'w-20' },
+    sortFn: 'basic',
+    filterFn: 'inNumberRange',
+    cell: ({ getValue }) => <div className="text-right">{getValue<number>()}</div>,
+    enableGlobalFilter: false,
+  }),
+  colFiltri.accessor('aggiornato', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
+    ),
+    meta: { titolo: 'Aggiornato', larghezza: 'w-32' },
+    sortFn: 'datetime',
+    filterFn: 'inDateRange',
+    cell: ({ getValue }) => <div className="text-right">{DATA.format(getValue<Date>())}</div>,
+    enableGlobalFilter: false,
+  }),
+])
+
+/**
+ * `barra` nella forma a funzione riceve **anche l'istanza TanStack** come
+ * secondo argomento: è la stessa della passata di render in corso, non una
+ * di un render indietro come consegnerebbe `tabellaRef`/`onTabellaPronta`
+ * (misurato scrivendo questa story: `<FiltroResetTutti>` composto con
+ * quella coppia restava invisibile finché non arrivava un'interazione
+ * qualunque successiva). `tabellaRef` resta solo per l'unico uso legittimo
+ * rimasto — impostare il filtro iniziale una volta sola, in un effetto a
+ * parte — non per il render dei filtri stessi. V. il commento su `barra`
+ * in `data-table.tsx`.
+ */
+function TabellaConFiltri({ statoIniziale }: { statoIniziale?: string[] }) {
+  const tabellaRef = React.useRef<IstanzaTabella<Prodotto> | null>(null)
+
+  React.useEffect(() => {
+    if (statoIniziale) tabellaRef.current?.getColumn('stato')?.setFilterValue(statoIniziale)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statoIniziale?.join('|')])
+
+  return (
+    <DataTable
+      colonne={COLONNE_FILTRI}
+      dati={PRODOTTI}
+      cerca="Cerca per nome o famiglia…"
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
+      barra={(_scelti, tabella) => {
+        tabellaRef.current = tabella
+        return (
+          <>
+            <FiltroSfaccettato tabella={tabella} accessore="stato" titolo="Stato" />
+            <FiltroSfaccettato tabella={tabella} accessore="famiglia" titolo="Famiglia" />
+            <FiltroIntervallo tabella={tabella} accessore="revisione" titolo="Revisione" />
+            <FiltroData tabella={tabella} accessore="aggiornato" titolo="Aggiornato" />
+            <FiltroResetTutti tabella={tabella} />
+          </>
+        )
+      }}
+    />
+  )
+}
+
+/**
+ * I quattro filtri di M3bis.6 sulla stessa barra: sfaccettato (Stato,
+ * Famiglia), a intervallo numerico (Revisione), a intervallo di date
+ * (Aggiornato), e il reset che li cancella insieme.
+ */
+export const Filtri: StoryObj<typeof DataTable<Prodotto>> = {
+  play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
+  render: () => <TabellaConFiltri />,
+}
+
+/**
+ * Con "Bozza" già scelto: il grilletto porta il valore e il segno «X» per
+ * cancellarlo, le opzioni delle **altre** faccette (Famiglia) restano
+ * intere — il filtro di Stato non le tocca — e `<FiltroResetTutti>` compare
+ * dal primo render, non un render dopo.
+ */
+export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Filtri Con Filtro Attivo',
+  play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
+  render: () => <TabellaConFiltri statoIniziale={['bozza']} />,
 }

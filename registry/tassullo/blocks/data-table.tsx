@@ -93,6 +93,9 @@ import {
   createFilteredRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
+  filterFn_arrHas,
+  filterFn_inDateRange,
+  filterFn_inNumberRange,
   filterFn_includesString,
   globalFilteringFeature,
   rowExpandingFeature,
@@ -209,6 +212,24 @@ import {
  * a `ridimensionabile` spento: è la stessa che dà a `colonna.getSize()` un
  * numero — 150 di default TanStack — usato per calcolare gli scarti del pin
  * generalizzato (v. `ancoraggioColonna`).
+ *
+ * `arrHas` (M3bis.6, filtri sfaccettati) tiene la riga se il valore della
+ * colonna è **uguale a uno** dei valori scelti — la forma giusta per un
+ * filtro a scelta multipla su un valore scalare (`stato`, `famiglia`: una
+ * riga ha un solo stato, non un elenco). `arrIncludes`/`arrIncludesSome`
+ * risolvono il caso opposto, un valore-elenco sulla riga, che qui non
+ * ricorre. Una colonna lo usa dichiarando `filterFn: "arrHas"`; TanStack
+ * toglie da sé il filtro quando l'elenco scelto torna vuoto
+ * (`autoRemove`), quindi `colonna.setFilterValue([])` e
+ * `colonna.setFilterValue(undefined)` sono equivalenti.
+ *
+ * `inNumberRange`/`inDateRange` (stesso M3bis.6, `data-table-filtro-
+ * intervallo.tsx`/`data-table-filtro-data.tsx`) tengono la riga se il suo
+ * valore cade dentro `[min, max]` — un capo assente conta come aperto
+ * (`-Infinity`/`Infinity`), quindi un intervallo con un solo estremo scelto
+ * filtra comunque. Entrambe sono già pronte in TanStack, non scritte qui:
+ * la sola differenza dal filtro di `arrHas` è che il valore della colonna è
+ * un numero o una data, non un valore da confrontare a un elenco.
  */
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
@@ -225,7 +246,12 @@ export const caratteristiche = tableFeatures({
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
   sortedRowModel: createSortedRowModel(),
-  filterFns: { includesString: filterFn_includesString },
+  filterFns: {
+    includesString: filterFn_includesString,
+    arrHas: filterFn_arrHas,
+    inNumberRange: filterFn_inNumberRange,
+    inDateRange: filterFn_inDateRange,
+  },
   sortFns: {
     alphanumeric: sortFn_alphanumeric,
     basic: sortFn_basic,
@@ -1836,8 +1862,11 @@ export type DataTableProps<TDato extends RowData> = {
    */
   pannelloRiga?: (riga: TDato) => React.ReactNode
   /**
-   * Cosa mettere accanto alla ricerca: i filtri della pagina, le azioni di
-   * massa.
+   * Cosa mettere sotto la ricerca, in una riga propria: i filtri della
+   * pagina, le azioni di massa. Non condivide la riga con la ricerca/il menu
+   * Colonne — a differenza loro non va a capo da sé quando lo spazio manca
+   * (M3bis.6, rilievo di Francesco: col ritorno a capo automatico un filtro
+   * sfaccettato si spezzava a metà altezza fra le due righe).
    *
    * **Nella forma a funzione riceve le righe selezionate**, ed è la sola via
    * per cui la selezione esce dalla tabella. Non c'è una `onSelezione`, e la
@@ -1849,8 +1878,25 @@ export type DataTableProps<TDato extends RowData> = {
    * (`CLAUDE.md`, le trappole; costò una sessione l'8 settembre 2026). Con la
    * funzione non c'è nessun effetto: è una chiamata in fase di render, pura, e
    * le azioni di massa stanno dove servono davvero, cioè nella barra.
+   *
+   * **Riceve anche l'istanza TanStack, come secondo argomento** (M3bis.6,
+   * aggiunta per i filtri di `data-table-filtro-*.tsx`): è la via giusta per
+   * comporre un componente reattivo allo stato dei filtri dentro `barra`,
+   * **non** `tabellaRef`/`onTabellaPronta` — quella coppia consegna
+   * l'istanza dopo il commit, in un `useEffect` senza dipendenze, apposta
+   * per comandi imperativi one-off (`tabellaRef.current?.toggleAll
+   * RowsExpanded()` in un `onClick`, mai per il render). Usarla per il
+   * render di `barra` costava un giro intero indietro — un `<FiltroSfaccettato>`
+   * dentro `barra={() => <X tabella={tabellaRef.current} />}` mostrava
+   * sempre lo stato del render *precedente*, e in un caso preso qui (`Reset`
+   * di `data-table-filtro-reset.tsx`, invisibile finché non arrivava
+   * un'interazione qualunque successiva) il ritardo si vedeva a occhio.
+   * `barra(scelti, tabella)` passa invece l'istanza della **stessa passata
+   * di render**, senza indirizzo indiretto: zero ritardo, per costruzione.
    */
-  barra?: React.ReactNode | ((scelti: TDato[]) => React.ReactNode)
+  barra?:
+    | React.ReactNode
+    | ((scelti: TDato[], tabella: IstanzaTabella<TDato>) => React.ReactNode)
   className?: string
   /**
    * Consegna l'istanza TanStack viva a ogni render — la via d'uscita per un
@@ -2330,12 +2376,27 @@ export function DataTable<TDato extends RowData>({
   return (
     <div ref={radiceRef} className={cn("flex min-h-0 flex-col gap-4", className)}>
       {cerca !== false || barra || colonneNascondibili ? (
-        <div className="flex flex-wrap items-center gap-3">
-          {cerca !== false ? (
-            <RicercaTabella tabella={tabella} segnaposto={cerca} />
+        <div className="flex flex-col gap-3">
+          {/* Riga 1: ricerca e menu Colonne. Riga 2: `barra` — i filtri della
+              pagina, le azioni di massa. Due righe sempre, non una sola che
+              va a capo da sé: con più di un paio di filtri sfaccettati (v.
+              `data-table-filtro-sfaccettato.tsx`, M3bis.6) il ritorno a capo
+              automatico spezzava un bottone a metà — la riga separava due
+              controlli a metà altezza invece di andare sotto per intero.
+              Rilievo di Francesco. */}
+          {cerca !== false || colonneNascondibili ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {cerca !== false ? (
+                <RicercaTabella tabella={tabella} segnaposto={cerca} />
+              ) : null}
+              {colonneNascondibili ? <VisibilitaColonne tabella={tabella} /> : null}
+            </div>
           ) : null}
-          {typeof barra === "function" ? barra(scelti) : barra}
-          {colonneNascondibili ? <VisibilitaColonne tabella={tabella} /> : null}
+          {barra ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {typeof barra === "function" ? barra(scelti, tabella) : barra}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
