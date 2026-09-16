@@ -859,3 +859,48 @@ export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
       ),
   },
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+ * La virtualizzazione (M3bis.4) — `perPagina="virtuale"`
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * **10.000 prodotti finti, e mai più di una trentina di `<tr>` nel DOM.**
+ * Non è la stessa mole di `Prodotti` (500) caricata in un colpo: è la prova
+ * che serve, perché a 500 righe una tabella non virtualizzata già scorre
+ * senza intoppi — il vantaggio si vede solo dove smette di reggere, ed è lì
+ * che questa story si mette apposta.
+ *
+ * Riquadro a `h-140` (altezza fissa, la stessa forma di `altezza="ferma"`
+ * ovunque nel registry): senza un tetto non c&apos;è una finestra da
+ * calcolare, ed è la stessa ragione per cui `perPagina="infinito"` lo vuole.
+ * Più alto di un `h-96`: con la sola barra di ricerca e il conto sopra e
+ * sotto, un riquadro troppo basso lascerebbe vedere talmente poche righe da
+ * non dimostrare niente — lo scorrimento va visto scorrere.
+ *
+ * **Da tastiera**: `Tab` porta il fuoco sulla prima riga, poi frecce
+ * su/giù muovono di una riga, `Home`/`End` saltano a inizio/fine
+ * dell&apos;elenco — 10.000 righe di distanza, non solo quelle già montate —
+ * e `Pagina Su`/`Pagina Giù` di una finestra intera. La riga a fuoco si
+ * **monta da sé** se non lo è già: è il difetto noto di ogni tabella
+ * virtualizzata (il fuoco resta su un nodo smontato) e la ragione per cui
+ * questa story esiste, non decorazione.
+ */
+const PRODOTTI_VIRTUALIZZAZIONE = generaProdotti(10000)
+
+export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
+  args: {
+    colonne: COLONNE.filter((c) => c.id !== 'azioni'),
+    dati: PRODOTTI_VIRTUALIZZAZIONE,
+    cerca: 'Cerca per codice, nome o famiglia…',
+    selezione: true,
+    perPagina: 'virtuale',
+    altezza: 'ferma',
+    nomeRighe: { singolare: 'prodotto', plurale: 'prodotti' },
+  },
+  render: (args) => (
+    <div className="flex h-140 flex-col">
+      <DataTable {...args} className="min-h-0 flex-1" />
+    </div>
+  ),
+}

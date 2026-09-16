@@ -117,6 +117,7 @@ import {
   type RowData,
   type SortingState,
 } from "@tanstack/react-table"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -1159,6 +1160,406 @@ function TabellaVuota({
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Il corpo della tabella — non virtualizzato e virtualizzato (M3bis.4)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Le celle di una riga, nell'ordine giusto: con `colonneBloccabili` le
+ * colonne bloccate si spostano ai due bordi (v. `intestazioni`, più sotto,
+ * per la stessa ragione sulle intestazioni), altrimenti l'ordine dichiarato.
+ * Condivisa fra `DataTableBody` e `DataTableVirtualizedBody`, che altrimenti
+ * la scriverebbero identica due volte.
+ */
+function celleRiga<TDato extends RowData>(
+  riga: Row<CaratteristicheTabella, TDato>,
+  colonneBloccabili: boolean
+) {
+  return colonneBloccabili
+    ? [
+        ...riga.getStartVisibleCells(),
+        ...riga.getCenterVisibleCells(),
+        ...riga.getEndVisibleCells(),
+      ]
+    : riga.getVisibleCells()
+}
+
+type CorpoTabellaCondiviso<TDato extends RowData> = {
+  tabella: IstanzaTabella<TDato>
+  righe: Row<CaratteristicheTabella, TDato>[]
+  colonneBloccabili: boolean
+  bloccoLegacy: boolean
+  selezione: boolean
+  colonneVisibili: number
+  vuoto: StatoVuoto
+  conFiltri: boolean
+  pulisci: () => void
+}
+
+/**
+ * Il corpo non virtualizzato: ogni riga di `righe` è un `<tr>` vero, sempre
+ * montato — la forma che `naturale`/`ferma`/`infinito` hanno sempre avuto.
+ * Estratto in un componente a sé (prima era JSX inline in `DataTable`) perché
+ * M3bis.5 (Data Grid) innesta invece `DataTableVirtualizedBody`, non questo:
+ * un nome esportato per ciascuno dei due corpi evita che la Data Grid debba
+ * ricopiare la logica di riga/pannello/sentinella da qui.
+ */
+export function DataTableBody<TDato extends RowData>({
+  tabella,
+  righe,
+  colonneBloccabili,
+  bloccoLegacy,
+  selezione,
+  colonneVisibili,
+  vuoto,
+  conFiltri,
+  pulisci,
+  fermo,
+  pannelloRiga,
+  infinito,
+  totaleFiltrate,
+  sentinellaRef,
+}: CorpoTabellaCondiviso<TDato> & {
+  fermo: boolean
+  pannelloRiga?: (riga: TDato) => React.ReactNode
+  infinito: boolean
+  totaleFiltrate: number
+  sentinellaRef: React.RefObject<HTMLTableRowElement | null>
+}) {
+  return (
+    <TableBody>
+      {righe.length > 0 ? (
+        <>
+          {righe.map((riga) => {
+            const celle = celleRiga(riga, colonneBloccabili)
+            return (
+              <React.Fragment key={riga.id}>
+                <TableRow
+                  className={cn("group/riga", fermo && "snap-start")}
+                  data-state={riga.getIsSelected() ? "selected" : undefined}
+                >
+                  {celle.map((cella, indice) => {
+                    // Il subtotale (M3bis.1, `meta.sottototale`) prende il
+                    // posto della cella normale **solo sulle righe che
+                    // hanno figli** — su una riga foglia non c'è niente da
+                    // sommare, e `tabella.FlexRender` resta la via giusta.
+                    const sottototale = riga.subRows.length
+                      ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)
+                          ?.sottototale
+                      : undefined
+                    const ancoraCella = colonneBloccabili
+                      ? ancoraggioColonna(tabella, cella.column, "cella")
+                      : undefined
+                    return (
+                      // `truncate` è il prezzo di `table-fixed`: con le larghezze
+                      // decise dalle intestazioni, un testo più lungo della sua
+                      // colonna **sborda** nella colonna accanto invece di
+                      // allargarla: meglio tagliarlo coi puntini.
+                      <TableCell
+                        key={cella.id}
+                        className={cn(
+                          "truncate",
+                          bloccoLegacy && classiBloccate(indice, selezione),
+                          ancoraCella?.className
+                        )}
+                        style={ancoraCella?.style}
+                      >
+                        {sottototale ? (
+                          sottototale(
+                            riga.subRows.map((r) => r.original),
+                            riga.original
+                          )
+                        ) : (
+                          <tabella.FlexRender cell={cella} />
+                        )}
+                      </TableCell>
+                    )
+                  })}
+                </TableRow>
+                {pannelloRiga && riga.getIsExpanded() ? (
+                  // Riga fratella, non figlia: subito dopo la riga che
+                  // apre, colSpan su tutte le colonne visibili — è il
+                  // pannello di M3bis.2, non l'albero di M3bis.1 (quello
+                  // aggiunge righe vere al modello dati, questo ne
+                  // disegna una in più solo per la vista).
+                  <TableRow
+                    id={`pannello-riga-${riga.id}`}
+                    className={cn("hover:bg-transparent", fermo && "snap-start")}
+                  >
+                    <TableCell colSpan={colonneVisibili} className="bg-muted/30">
+                      {pannelloRiga(riga.original)}
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </React.Fragment>
+            )
+          })}
+          {/*
+            La sentinella di `perPagina="infinito"`: una riga vuota,
+            invisibile (altezza di un pixel, `aria-hidden`), che
+            l'`IntersectionObserver` guarda per sapere quando caricare il
+            passo successivo. Sta **dopo** l'ultima riga vera, così entra
+            in vista solo quando ci si è avvicinati davvero al fondo — non
+            a ogni fotogramma. `righe.length < totaleFiltrate`: quando è
+            già tutto caricato non c'è più niente da aspettare, e la
+            sentinella sparisce.
+          */}
+          {infinito && righe.length < totaleFiltrate ? (
+            <TableRow
+              ref={sentinellaRef}
+              aria-hidden
+              className="border-0 hover:bg-transparent"
+            >
+              <TableCell colSpan={colonneVisibili} className="h-px p-0" />
+            </TableRow>
+          ) : null}
+        </>
+      ) : (
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={colonneVisibili} className="p-0">
+            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+          </TableCell>
+        </TableRow>
+      )}
+    </TableBody>
+  )
+}
+
+/**
+ * Il corpo virtualizzato (`perPagina="virtuale"`, M3bis.4): monta solo le
+ * righe **davvero in vista**, non tutte quelle filtrate — la differenza con
+ * `perPagina="infinito"`, che invece carica progressivamente e monta ogni
+ * riga caricata per sempre. È la forma che regge 10.000 righe senza mai avere
+ * 10.000 `<tr>` nel DOM.
+ *
+ * **La tecnica delle due righe-cuscinetto**, non `position: absolute` per
+ * riga: un `<table>` non ha un contenitore libero su cui posizionare i figli
+ * in assoluto senza rompere il flusso delle colonne (`<colgroup>`), quindi
+ * qui si usa la stessa forma che TanStack stessa documenta per una `<table>`
+ * vera — una riga vuota prima («quanto ho scorso oltre») e una dopo («quanto
+ * resta da scorrere»), alte quanto lo spazio delle righe non montate.
+ *
+ * **`estimateSize` è un segnaposto, non una misura**: 44 è un valore di
+ * partenza plausibile (vicino all'altezza di riga in densità normale), corretto
+ * subito dalla misura vera — `measureElement`, passato come `ref` a ogni riga
+ * — che legge l'altezza reale resa, densità compresa. La stessa disciplina di
+ * `altezzaMax` più sotto in `DataTable`: si misura, non si assume; qui la
+ * stima iniziale non è mai quella che l'utente vede a riposo, per più di un
+ * fotogramma.
+ */
+export function DataTableVirtualizedBody<TDato extends RowData>({
+  tabella,
+  righe,
+  colonneBloccabili,
+  bloccoLegacy,
+  selezione,
+  colonneVisibili,
+  vuoto,
+  conFiltri,
+  pulisci,
+  scrollEl,
+}: CorpoTabellaCondiviso<TDato> & {
+  /**
+   * L'elemento che scorre davvero — `[data-slot="table-container"]`, non il
+   * riquadro bordato attorno (v. il commento sull'effetto di scorrimento
+   * infinito in `DataTable`, stessa ragione). `null` finché `DataTable` non
+   * l'ha ancora trovato: il virtualizzatore resta inerte, non un errore.
+   */
+  scrollEl: HTMLElement | null
+}) {
+  const virtualizzatore = useVirtualizer({
+    count: righe.length,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => 44,
+    overscan: 10,
+  })
+
+  /**
+   * La riga a fuoco da tastiera, per indice — non un `id`: un indice resta
+   * confrontabile con `righe.length` per i confini (`Home`/`End`), e
+   * `scrollToIndex` del virtualizzatore vuole comunque un indice.
+   *
+   * **Deve tornare dentro i confini in fase di render**, non in un
+   * `useEffect`: un filtro può accorciare `righe` sotto l'indice a fuoco, e
+   * senza questa riga la tastiera resterebbe puntata su una riga che non
+   * esiste più per un giro di render — lo stesso pattern di
+   * `chiaveFiltroVista` in `DataTable` per `caricate`.
+   */
+  const [focoRiga, setFocoRiga] = React.useState(0)
+  const focoValido = righe.length === 0 ? 0 : Math.min(focoRiga, righe.length - 1)
+  if (focoValido !== focoRiga) setFocoRiga(focoValido)
+
+  /**
+   * I nodi delle righe **montate**, per indice — non tutte esistono sempre:
+   * solo quelle nella finestra visibile più l'`overscan`. `vaiA` scorre fino
+   * all'indice voluto (che la monta, se non lo è già) e aggiorna `focoRiga`;
+   * questo effetto — dopo **ogni** render, apposta senza dipendenze — sposta
+   * il fuoco reale del browser sul nodo appena montato, quando c'è. È la
+   * rottura nota della tastiera in una lista virtualizzata: senza questo
+   * secondo passo, `scrollToIndex` porta la riga in vista ma il fuoco resta
+   * sul vecchio nodo, magari già smontato.
+   *
+   * **`interagitoRef`, non l'effetto da solo**: senza questa guardia,
+   * l'effetto girerebbe anche al primo montaggio e ruberebbe il fuoco alla
+   * riga 0 non appena entra nel DOM — una tabella che si apre e si porta via
+   * il fuoco dalla ricerca sopra di lei, mai il comportamento di nessun'altra
+   * story del blocco. Diventa vero alla prima interazione vera con una riga
+   * (`onFocus` nativo di un `Tab`, o una freccia già dentro la tabella): da
+   * lì in poi l'effetto può muovere il fuoco lui stesso, perché è lì che
+   * l'utente lo vuole.
+   */
+  const rigaRefs = React.useRef(new Map<number, HTMLTableRowElement>())
+  const interagitoRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!interagitoRef.current) return
+    const nodo = rigaRefs.current.get(focoValido)
+    if (nodo && document.activeElement !== nodo) nodo.focus()
+  })
+
+  const vaiA = (indice: number) => {
+    const chiuso = Math.max(0, Math.min(righe.length - 1, indice))
+    interagitoRef.current = true
+    virtualizzatore.scrollToIndex(chiuso, { align: "auto" })
+    setFocoRiga(chiuso)
+  }
+
+  // Un "passo di pagina" quanto le righe attualmente in vista — non un
+  // numero fisso: la stessa pressione di `PageDown` deve saltare di più su
+  // uno schermo alto e di meno su uno stretto, come farebbe lo scorrimento
+  // nativo del browser.
+  const passoPagina = Math.max(virtualizzatore.getVirtualItems().length - 1, 1)
+
+  const onKeyDownRiga = (evento: React.KeyboardEvent, indice: number) => {
+    switch (evento.key) {
+      case "ArrowDown":
+        evento.preventDefault()
+        vaiA(indice + 1)
+        return
+      case "ArrowUp":
+        evento.preventDefault()
+        vaiA(indice - 1)
+        return
+      case "Home":
+        evento.preventDefault()
+        vaiA(0)
+        return
+      case "End":
+        evento.preventDefault()
+        vaiA(righe.length - 1)
+        return
+      case "PageDown":
+        evento.preventDefault()
+        vaiA(indice + passoPagina)
+        return
+      case "PageUp":
+        evento.preventDefault()
+        vaiA(indice - passoPagina)
+        return
+    }
+  }
+
+  if (righe.length === 0) {
+    return (
+      <TableBody>
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={colonneVisibili} className="p-0">
+            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    )
+  }
+
+  const elementiVirtuali = virtualizzatore.getVirtualItems()
+  const primaAltezza = elementiVirtuali[0]?.start ?? 0
+  const dopoAltezza =
+    virtualizzatore.getTotalSize() - (elementiVirtuali[elementiVirtuali.length - 1]?.end ?? 0)
+
+  /**
+   * **A quale riga va il `tabIndex={0}`**: non sempre `focoValido`, che può
+   * essere scorso fuori dalla finestra montata (`Tab` non trova niente da
+   * raggiungere, e con `tabIndex={-1}` ovunque la tabella diventa
+   * irraggiungibile da tastiera). Va alla riga **montata più vicina** a
+   * `focoValido` — quando coincide è la stessa riga di sempre, quando
+   * `focoValido` è fuori vista diventa il punto di ingresso più sensato per
+   * chi preme `Tab` da fuori.
+   */
+  const indiceRovente = elementiVirtuali.reduce(
+    (vicino, elemento) =>
+      Math.abs(elemento.index - focoValido) < Math.abs(vicino - focoValido)
+        ? elemento.index
+        : vicino,
+    elementiVirtuali[0]?.index ?? focoValido
+  )
+
+  return (
+    <TableBody>
+      {primaAltezza > 0 ? (
+        <tr aria-hidden>
+          <td colSpan={colonneVisibili} className="p-0" style={{ height: primaAltezza }} />
+        </tr>
+      ) : null}
+      {elementiVirtuali.map((elemento) => {
+        const riga = righe[elemento.index]
+        if (!riga) return null
+        const celle = celleRiga(riga, colonneBloccabili)
+        return (
+          <TableRow
+            key={riga.id}
+            ref={(nodo: HTMLTableRowElement | null) => {
+              virtualizzatore.measureElement(nodo)
+              if (nodo) rigaRefs.current.set(elemento.index, nodo)
+              else rigaRefs.current.delete(elemento.index)
+            }}
+            tabIndex={elemento.index === indiceRovente ? 0 : -1}
+            onFocus={() => {
+              interagitoRef.current = true
+              setFocoRiga(elemento.index)
+            }}
+            onKeyDown={(evento) => onKeyDownRiga(evento, elemento.index)}
+            className="group/riga outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            data-state={riga.getIsSelected() ? "selected" : undefined}
+          >
+            {celle.map((cella, indice) => {
+              const sottototale = riga.subRows.length
+                ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)?.sottototale
+                : undefined
+              const ancoraCella = colonneBloccabili
+                ? ancoraggioColonna(tabella, cella.column, "cella")
+                : undefined
+              return (
+                <TableCell
+                  key={cella.id}
+                  className={cn(
+                    "truncate",
+                    bloccoLegacy && classiBloccate(indice, selezione),
+                    ancoraCella?.className
+                  )}
+                  style={ancoraCella?.style}
+                >
+                  {sottototale ? (
+                    sottototale(
+                      riga.subRows.map((r) => r.original),
+                      riga.original
+                    )
+                  ) : (
+                    <tabella.FlexRender cell={cella} />
+                  )}
+                </TableCell>
+              )
+            })}
+          </TableRow>
+        )
+      })}
+      {dopoAltezza > 0 ? (
+        <tr aria-hidden>
+          <td colSpan={colonneVisibili} className="p-0" style={{ height: dopoAltezza }} />
+        </tr>
+      ) : null}
+    </TableBody>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Il blocco
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -1238,8 +1639,25 @@ export type DataTableProps<TDato extends RowData> = {
    * non ha. Verificare come arrivano i dati **prima** di assumere che il
    * pattern costi zero su una pagina nuova (valutazione del 2026-09-15,
    * `WORKLOG.md`).
+   *
+   * **`"virtuale"`** (M3bis.4) è la terza forma, non una variante delle
+   * altre due: niente pagine come `"infinito"`, ma **niente crescita** del
+   * DOM mentre si scorre — monta solo le righe davvero in vista
+   * (`@tanstack/react-virtual`), non ogni riga caricata finora. È la forma
+   * per un elenco **grande fin dall'inizio** (10.000 righe, non 40 che
+   * crescono a 10.000 scorrendo): `"infinito"` su quella mole monterebbe
+   * comunque 10.000 `<tr>` una volta arrivati in fondo, `"virtuale"` mai più
+   * di una finestra. **Vuole `altezza="ferma"` per lo stesso motivo di
+   * `"infinito"`** — senza un tetto non c'è una finestra da calcolare.
+   * **Non compone con `pannelloRiga`**: il pannello di M3bis.2 inserisce una
+   * riga vera in più nel DOM quando si apre, e il virtualizzatore conta le
+   * righe per indice fisso (`righe.length`) — un conto che il pannello
+   * sposterebbe ogni volta che una riga qualsiasi si espande. `getSottoRighe`
+   * (l'albero di M3bis.1) invece compone senza problemi: le righe figlie
+   * sono già righe vere nel modello dati, incluse nello stesso elenco piatto
+   * che il virtualizzatore già scorre.
    */
-  perPagina?: (typeof PER_PAGINA)[number] | "infinito"
+  perPagina?: (typeof PER_PAGINA)[number] | "infinito" | "virtuale"
   /**
    * Il riquadro della tabella, in una di due forme — indipendente da
    * `perPagina`, che sceglie *come si caricano* le righe, non *quanto spazio
@@ -1428,6 +1846,7 @@ export function DataTable<TDato extends RowData>({
   className,
 }: DataTableProps<TDato>) {
   const infinito = perPagina === "infinito"
+  const virtualizzata = perPagina === "virtuale"
   const fermo = altezza === "ferma"
   // `colonneBloccabili` implica `ridimensionabile`: lo scarto sticky del pin
   // generalizzato si calcola dalle larghezze acquisite (v. `MetaColonna`,
@@ -1507,7 +1926,17 @@ export function DataTable<TDato extends RowData>({
     onColumnSizingChange: setDimensioni,
     onColumnPinningChange: setAncoraggio,
     initialState: {
-      pagination: { pageIndex: 0, pageSize: infinito ? caricate : perPagina },
+      pagination: {
+        pageIndex: 0,
+        // `"virtuale"` non pagina affatto: tutte le righe filtrate entrano nel
+        // modello, ed è `DataTableVirtualizedBody` a decidere quali montare
+        // davvero. `Number.MAX_SAFE_INTEGER` invece di ricalcolare la
+        // dimensione della pagina a ogni filtro (come fa `caricate` per
+        // `"infinito"`): il modello di paginazione si limita comunque al
+        // numero di righe vere, una pagina più grande del possibile non
+        // cambia il risultato.
+        pageSize: infinito ? caricate : virtualizzata ? Number.MAX_SAFE_INTEGER : perPagina,
+      },
     },
     state: {
       sorting: ordinamento,
@@ -1591,6 +2020,26 @@ export function DataTable<TDato extends RowData>({
 
   const contenitoreRef = React.useRef<HTMLDivElement>(null)
   const sentinellaRef = React.useRef<HTMLTableRowElement>(null)
+
+  /**
+   * L'elemento che scorre davvero (`perPagina="virtuale"`), passato al
+   * virtualizzatore in `DataTableVirtualizedBody`: `[data-slot="table-
+   * container"]`, lo stesso `<div overflow-x-auto>` di `ui/table.tsx` che
+   * l'osservatore di `"infinito"` già cerca qui sotto, e per la stessa
+   * ragione (v. quell'effetto). Uno stato, non un `ref` in più: il nodo non
+   * esiste ancora al primo render, e il virtualizzatore lo vuole per
+   * calcolare la finestra visibile.
+   */
+  const [elementoScorrevole, setElementoScorrevole] = React.useState<HTMLElement | null>(
+    null
+  )
+  React.useEffect(() => {
+    if (!virtualizzata) return
+    setElementoScorrevole(
+      contenitoreRef.current?.querySelector<HTMLElement>('[data-slot="table-container"]') ??
+        null
+    )
+  }, [virtualizzata])
 
   /**
    * Il totale delle righe filtrate e ordinate — non solo quelle già
@@ -1953,111 +2402,37 @@ export function DataTable<TDato extends RowData>({
               })}
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {righe.length > 0 ? (
-              <>
-                {righe.map((riga) => {
-                  const celle = colonneBloccabili
-                    ? [
-                        ...riga.getStartVisibleCells(),
-                        ...riga.getCenterVisibleCells(),
-                        ...riga.getEndVisibleCells(),
-                      ]
-                    : riga.getVisibleCells()
-                  return (
-                  <React.Fragment key={riga.id}>
-                    <TableRow
-                      className={cn("group/riga", fermo && "snap-start")}
-                      data-state={riga.getIsSelected() ? "selected" : undefined}
-                    >
-                      {celle.map((cella, indice) => {
-                        // Il subtotale (M3bis.1, `meta.sottototale`) prende il
-                        // posto della cella normale **solo sulle righe che
-                        // hanno figli** — su una riga foglia non c'è niente da
-                        // sommare, e `tabella.FlexRender` resta la via giusta.
-                        const sottototale = riga.subRows.length
-                          ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)
-                              ?.sottototale
-                          : undefined
-                        const ancoraCella = colonneBloccabili
-                          ? ancoraggioColonna(tabella, cella.column, "cella")
-                          : undefined
-                        return (
-                          // `truncate` è il prezzo di `table-fixed`: con le larghezze
-                          // decise dalle intestazioni, un testo più lungo della sua
-                          // colonna **sborda** nella colonna accanto invece di
-                          // allargarla: meglio tagliarlo coi puntini.
-                          <TableCell
-                            key={cella.id}
-                            className={cn(
-                              "truncate",
-                              bloccoLegacy && classiBloccate(indice, selezione),
-                              ancoraCella?.className
-                            )}
-                            style={ancoraCella?.style}
-                          >
-                            {sottototale ? (
-                              sottototale(
-                                riga.subRows.map((r) => r.original),
-                                riga.original
-                              )
-                            ) : (
-                              <tabella.FlexRender cell={cella} />
-                            )}
-                          </TableCell>
-                        )
-                      })}
-                    </TableRow>
-                    {pannelloRiga && riga.getIsExpanded() ? (
-                      // Riga fratella, non figlia: subito dopo la riga che
-                      // apre, colSpan su tutte le colonne visibili — è il
-                      // pannello di M3bis.2, non l'albero di M3bis.1 (quello
-                      // aggiunge righe vere al modello dati, questo ne
-                      // disegna una in più solo per la vista).
-                      <TableRow
-                        id={`pannello-riga-${riga.id}`}
-                        className={cn("hover:bg-transparent", fermo && "snap-start")}
-                      >
-                        <TableCell colSpan={colonneVisibili} className="bg-muted/30">
-                          {pannelloRiga(riga.original)}
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                  </React.Fragment>
-                  )
-                })}
-                {/*
-                  La sentinella di `perPagina="infinito"`: una riga vuota,
-                  invisibile (altezza di un pixel, `aria-hidden`), che
-                  l'`IntersectionObserver` guarda per sapere quando caricare il
-                  passo successivo. Sta **dopo** l'ultima riga vera, così entra
-                  in vista solo quando ci si è avvicinati davvero al fondo — non
-                  a ogni fotogramma. `righe.length < totaleFiltrate`: quando è
-                  già tutto caricato non c'è più niente da aspettare, e la
-                  sentinella sparisce.
-                */}
-                {infinito && righe.length < totaleFiltrate ? (
-                  <TableRow
-                    ref={sentinellaRef}
-                    aria-hidden
-                    className="border-0 hover:bg-transparent"
-                  >
-                    <TableCell colSpan={colonneVisibili} className="h-px p-0" />
-                  </TableRow>
-                ) : null}
-              </>
-            ) : (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={colonneVisibili} className="p-0">
-                  <TabellaVuota
-                    filtrata={conFiltri}
-                    vuoto={vuoto}
-                    onPulisci={pulisci}
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
+          {virtualizzata ? (
+            <DataTableVirtualizedBody
+              tabella={tabella}
+              righe={righe}
+              colonneBloccabili={colonneBloccabili}
+              bloccoLegacy={bloccoLegacy}
+              selezione={selezione}
+              colonneVisibili={colonneVisibili}
+              vuoto={vuoto}
+              conFiltri={conFiltri}
+              pulisci={pulisci}
+              scrollEl={elementoScorrevole}
+            />
+          ) : (
+            <DataTableBody
+              tabella={tabella}
+              righe={righe}
+              colonneBloccabili={colonneBloccabili}
+              bloccoLegacy={bloccoLegacy}
+              selezione={selezione}
+              colonneVisibili={colonneVisibili}
+              vuoto={vuoto}
+              conFiltri={conFiltri}
+              pulisci={pulisci}
+              fermo={fermo}
+              pannelloRiga={pannelloRiga}
+              infinito={infinito}
+              totaleFiltrate={totaleFiltrate}
+              sentinellaRef={sentinellaRef}
+            />
+          )}
         </Table>
       </div>
 
@@ -2066,7 +2441,10 @@ export function DataTable<TDato extends RowData>({
           <PaginazioneTabella
             tabella={tabella}
             conSelezione={selezione}
-            infinito={infinito}
+            // `virtualizzata` non ha nemmeno lei una «pagina»: stessa fascia
+            // di destra tolta di `infinito`, per lo stesso motivo — tutte le
+            // righe filtrate sono già nel modello, il salto da fare non c'è.
+            infinito={infinito || virtualizzata}
             nomeRighe={nomeRighe}
           />
         </div>

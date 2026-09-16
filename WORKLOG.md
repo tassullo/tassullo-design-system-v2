@@ -4391,3 +4391,55 @@ Francesco, provando il trascinamento: il bordo arancione della maniglia (alto qu
 **Seconda correzione, chiesta subito dopo**: Francesco non voleva nessuna separazione visibile fra le colonne dell'intestazione quando nessuna è in trascinamento — niko-table mostra un filo sempre presente, qui si è scelto di **non farlo**: intestazioni pulite a riposo. Il filo interno parte `bg-transparent` (1px, invisibile) invece di `bg-border`, e si accende solo in due momenti — al passaggio del mouse o al fuoco da tastiera (`group-hover/maniglia`, `group-focus-visible/maniglia`, entrambi `w-1 bg-primary/60`) — e **a tutta altezza, pieno (`bg-primary`)** durante il trascinamento vero, la stessa misura di `tabellaRef` di prima. Tre stati di un solo elemento: invisibile, visibile-sottile, visibile-pieno-e-alto — non tre elementi.
 
 Verificato in un browser vero: a riposo `background-color: rgba(0,0,0,0)`, `width: 1px` — nessuna riga fra le colonne. In trascinamento (`mousedown`+`mousemove` simulati): un solo nodo, `width: 4px`, `background-color` piena, `height: 409.5px`, centrato esattamente sul bordo che si sta spostando. `npm run check`: invariato, **1164 scansioni (4 passate) / 0 violazioni**; `tsc -b` e `lint` puliti (nessun avviso nuovo).
+
+---
+
+## M3bis.4 — Virtualizzazione / scroll infinito (2026-09-16)
+
+Estesa ancora `registry/tassullo/blocks/data-table.tsx`, stesso blocco delle sessioni precedenti della fase, non un blocco nuovo.
+
+### La forma: `perPagina="virtuale"`, non una prop a parte
+
+`PIANO.md` chiedeva «terza opzione accanto a `perPagina`/`altezza="ferma"`», ed è diventata un terzo valore dello stesso prop — `perPagina?: number | "infinito" | "virtuale"` — non un booleano `virtualizzata` indipendente: la tabella ha comunque **una** strategia di caricamento righe alla volta (pagine, infinito, virtuale), mai due insieme, e un prop a parte avrebbe permesso combinazioni senza senso (`perPagina={25}` insieme a un ipotetico `virtualizzata`). La differenza reale con `"infinito"`: quello **carica progressivamente e monta ogni riga caricata per sempre** (a 10.000 righe, arrivati in fondo, sono comunque 10.000 `<tr>` nel DOM); `"virtuale"` monta **solo la finestra in vista**, sempre — la forma che serve quando i dati sono grandi fin dall'inizio, non quando crescono scorrendo. Entrambi vogliono `altezza="ferma"` per lo stesso motivo (serve un tetto per calcolare una finestra), non imposto a runtime — la stessa scelta documentale già presa per `"infinito"`.
+
+`Number.MAX_SAFE_INTEGER` come `pageSize` per `"virtuale"`: niente ricalcolo a ogni filtro (a differenza di `caricate` per `"infinito"`), il modello di paginazione si ferma comunque al numero di righe vere.
+
+### `DataTableBody`/`DataTableVirtualizedBody`, estratti per nome
+
+Il corpo non virtualizzato (`naturale`/`ferma`/`infinito`) era JSX inline dentro `DataTable`; estratto in `DataTableBody`, **esportato** — e accanto, `DataTableVirtualizedBody`, anche lui esportato. Non è stato un refactoring a piacere: il WORKLOG di M3bis.0 registra già questi due nomi esatti come cosa la Data Grid (M3bis.5) innesterà («la Data Grid nasce già virtualizzata, `DataTableVirtualizedBody` non `DataTableBody`») — nomi decisi prima ancora di scrivere questa sessione, da rispettare perché M3bis.5 li cerca.
+
+### La tecnica delle due righe-cuscinetto, non `position: absolute`
+
+Un `<table>` non ha un contenitore libero su cui posizionare figli in assoluto senza rompere il `<colgroup>`: si usa la stessa forma che TanStack documenta per una tabella vera — un `<tr>` vuoto prima (alto quanto lo spazio scorso oltre) e uno dopo (alto quanto resta da scorrere), `aria-hidden`, un solo `<td colSpan>` ciascuno. `useVirtualizer({ count, getScrollElement, estimateSize, overscan: 10 })`, con `estimateSize: () => 44` — un segnaposto, non una misura: `measureElement` (passato come `ref` a ogni riga, via lo stesso meccanismo React 19 già usato per `testataRef`/`tabellaRef`) corregge subito con l'altezza vera resa, densità compresa. La stessa disciplina di `altezzaMax` (M3bis.3 e prima): si misura, non si assume.
+
+`getScrollElement` punta a `[data-slot="table-container"]`, non al riquadro bordato attorno — lo stesso nodo che l'osservatore di `"infinito"` già cerca, per la stessa ragione CSS (un `overflow-x-auto` dichiarato fa calcolare l'altro asse come `auto`, quindi è quel div interno a scorrere davvero). Trovato con lo stesso `querySelector` in uno stato (`elementoScorrevole`), non un `ref` diretto: il nodo non esiste al primo render.
+
+### La tastiera — il punto vero della sessione, e due bug prima di funzionare
+
+**Bug 1, preso subito allo screenshot**: `tabIndex={indice === focoValido ? 0 : -1}` lasciava **zero** righe tabbabili appena si scorreva via dalla riga a fuoco — `focoValido` non era più montata, nessun nodo del DOM aveva `tabIndex="0"`, `Tab` non trovava più niente da raggiungere. Corretto assegnando `tabIndex={0}` non a `focoValido` ma alla riga **montata più vicina** a `focoValido` (`indiceRovente`, un `reduce` sugli elementi virtuali correnti): quando coincide è la stessa riga di sempre, quando `focoValido` è fuori vista diventa il punto di ingresso sensato per chi preme `Tab` da fuori.
+
+**Bug 2, preso nello stesso giro**: l'effetto che sposta il fuoco reale del browser sul nodo appena montato (`rigaRefs.current.get(focoValido)?.focus()`, necessario perché `scrollToIndex` porta la riga in vista ma non sposta da solo il fuoco) girava a **ogni render senza guardia**, quindi anche al primissimo montaggio — la tabella si apriva e rubava il fuoco alla riga 0 non appena entrava nel DOM, prima ancora che l'utente toccasse la tastiera. Mai il comportamento di nessun'altra story del blocco. Corretto con un `interagitoRef`, `false` finché non c'è una vera interazione (`onFocus` nativo di un `Tab`, o una freccia già dentro la tabella): l'effetto resta inerte finché non diventa `true`.
+
+Verificato in un browser vero (Chromium della sessione, non Playwright): `Tab` dalla ricerca raggiunge la prima riga (nono stop, dopo ricerca/Colonne/select-all/quattro intestazioni ordinabili); `Home` da centro-lista porta a `RA-191` (riga 0) e `scrollTop` torna a 0; `End` porta all'ultima delle 10.000 righe, `scrollTop` in fondo; `ArrowUp`/`PageUp` da lì spostano rispettivamente di una riga e di una finestra intera (`scrollTop` 439432 → 438906.5, un salto coerente con le righe in vista). In ogni momento `document.querySelectorAll('tbody tr')` restava fra 21 e 36 — mai vicino a 10.000.
+
+### `pannelloRiga` resta fuori, annotato nel prop
+
+`virtualizzata` non compone con `pannelloRiga` (M3bis.2): il pannello inserisce una riga vera in più quando si apre, e il virtualizzatore conta le righe per indice fisso (`righe.length`) — un conto che il pannello sposterebbe ogni volta che una riga qualunque si espande. `getSottoRighe` (l'albero di M3bis.1) invece compone senza problemi: le righe figlie sono già righe vere nel modello dati, incluse nello stesso elenco piatto che il virtualizzatore scorre — nessun lavoro in più, verificato leggendo il codice (non provato con una story a parte: fuori dal criterio di accettazione di questa sessione). Annotato nel commento di `perPagina`, non silenzioso.
+
+### La story `Virtualizzata`
+
+10.000 prodotti finti (`generaProdotti(10000)`, lo stesso generatore deterministico delle altre story), riquadro `h-140` (più alto di un `h-96`: con la sola barra di ricerca e il conto sopra/sotto, un riquadro troppo basso avrebbe mostrato talmente poche righe da non dimostrare niente). `perPagina="virtuale"` implica anche togliere la fascia di paginazione dal piè — bug preso subito dopo il primo screenshot: `PaginazioneTabella` riceveva `infinito={infinito}` e non sapeva niente di `virtualizzata`, quindi mostrava ancora «Righe / Pagina 1 di 1 / frecce» su una tabella che non pagina affatto. Corretto passando `infinito={infinito || virtualizzata}` — stessa fascia tolta, stessa ragione di `"infinito"`.
+
+### `@tanstack/react-virtual`, nuova dipendenza
+
+`npm install @tanstack/react-virtual` → `^3.14.13`, dichiarata in `registry.json` fra le `dependencies` di `tassullo-data-table` (accanto a `@tanstack/react-table`, `cn`, `lucide-react`) e ricompilata con `registry:build` — o un'app che installa il blocco non avrebbe la libreria e non compilerebbe (regola 7, `CLAUDE.md`).
+
+### Avviso oxlint nuovo, accettato con motivazione
+
+`lint` segnala un avviso in più rispetto ai tre preesistenti: `incompatible-library` su `useVirtualizer` — l'hook restituisce funzioni (`scrollToIndex`, `measureElement`, …) che React Compiler non può memoizzare in modo sicuro, quindi il compilatore salta la memoizzazione del componente che lo usa. È un avviso noto e atteso di qualunque uso di `@tanstack/react-virtual` con React Compiler, non un difetto nel nostro codice: `DataTableVirtualizedBody` non passa quelle funzioni a componenti figli memoizzati, quindi il rischio che l'avviso descrive (UI stantia) non si applica qui. Non risolvibile ri-stilando (non è una stringa di classi) né spostando la chiamata (l'hook va comunque chiamato nel componente che rende le righe). Accettato, annotato qui invece che silenzioso.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1168 scansioni (4 passate, +4 dalla story `Virtualizzata`) / 0 violazioni**. `tsc -b` ✔ · `lint`: tre avvisi preesistenti più il nuovo `incompatible-library` motivato sopra, nessun altro avviso nuovo. `check:registry`: 0 errori. `misura:bersagli`: 2574 bersagli su 292 story, 0 piccoli in entrambe le direzioni (nessuna regressione). Provato in un browser vero (Chromium della sessione): scorrimento a rotellina su 10.000 righe, mai più di ~36 `<tr>` montati contemporaneamente; tastiera (frecce, Home, End, PageUp) verificata come sopra. Non riprovato `PageDown`/`ArrowDown` singolarmente: stesso ramo di codice di `PageUp`/`ArrowUp`, già esercitato.
+
+Prossimo passo: M3bis.5 (Data Grid editabile, 3 sessioni) — dipende da questa e da M3bis.3, entrambe chiuse; stesso worktree.
