@@ -1026,7 +1026,18 @@ function accessorGriglia<TDato extends RowData>(col: ReturnType<typeof creaColon
 /** Le classi condivise dalla vista non-in-modifica di ogni cella. */
 function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: string) {
   return cn(
-    "block h-full w-full truncate outline-none",
+    // `min-h-5`, non `h-full`: un'altezza in percentuale non si risolve
+    // contro il `<td>` che contiene questo `<div>` — misurato, non
+    // presunto: `getComputedStyle(...).height` tornava `0px` su una cella
+    // svuotata (nessun testo a dare un'altezza di riga), mentre una cella
+    // piena stava in piedi solo perché il proprio testo le dava un'altezza
+    // (content-driven, mai davvero "piena quanto la riga"). Una cella da
+    // 0px non si vede e non si clicca: preso perché una cella `select`
+    // svuotata con `Delete` non si riusciva più a riaprire — non c'era
+    // più niente lì su cui cliccare o su cui il fuoco potesse restare.
+    // `min-h-5` (1.25rem) tiene un'altezza minima qualunque sia il
+    // contenuto, vicina alla riga di testo che le altre celle già hanno.
+    "block min-h-5 w-full truncate outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
     selezionata && "bg-accent/40",
     inAnteprima && "outline-primary outline-1 outline-dashed",
@@ -1476,7 +1487,22 @@ function CellaSelectGriglia<TDato extends RowData>({
           if (valore != null) motore.impostaValore(id, valore)
         }}
       >
-        <SelectTrigger className="h-full w-full border-0" aria-label={colonnaId}>
+        <SelectTrigger
+          // `SelectTrigger` porta la propria misura da modulo isolato —
+          // `data-[size=default]:h-8`, `py-2`, `border` — pensata per stare
+          // da sola in un modulo, non per riempire una cella già alta
+          // quanto la riga. `h-full` da solo non basta a batterla: è un
+          // altro gruppo di conflitto per `cn` (tailwind-merge), che
+          // confronta `data-[size=default]:h-8` solo con un altro
+          // `data-[size=default]:h-*`, non con `h-full` scritto senza
+          // quel prefisso — le due classi restavano **entrambe** nel CSS
+          // finale, e a vincere in cascata era `h-8`. Preso misurando la
+          // riga: 41.56px chiusa, 49px con la select aperta — quella cella
+          // sola, non l'intera griglia, perché solo lì cresceva il
+          // contenuto oltre l'altezza delle altre.
+          className="h-full w-full min-w-0 rounded-none border-0 px-2 py-0 data-[size=default]:h-full"
+          aria-label={colonnaId}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

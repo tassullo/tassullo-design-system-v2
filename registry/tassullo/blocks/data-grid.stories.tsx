@@ -310,11 +310,17 @@ const VOCI_COMPUTO = generaVociComputo(500)
 function CellaEliminaComputo({ riga }: { riga: VoceComputo }) {
   const { motore } = useContestoDataGrid<VoceComputo>()
   return (
+    // `flex ml-auto`, non solo `-my-1`: il bottone è `inline-flex` di suo
+    // (v. `ui/button.tsx`), e un `margin-left: auto` non allinea a destra
+    // un elemento inline — deve diventare lui stesso un box di blocco
+    // (`flex`) perché lo spazio in più della colonna vada a sinistra, non a
+    // destra. Lo stesso pattern già usato per il menu «azioni» di
+    // `data-table.stories.tsx`.
     <Button
       type="button"
       variant="ghost"
       size="icon"
-      className="-my-1"
+      className="-my-1 ml-auto flex"
       aria-label={`Elimina ${riga.codice || 'la riga'}`}
       onClick={() => motore.rimuoviRighe([riga.id])}
     >
@@ -326,22 +332,25 @@ function CellaEliminaComputo({ riga }: { riga: VoceComputo }) {
 const colC = creaColonne<VoceComputo>()
 const COLONNE_COMPUTO = colC.columns([
   colonnaTestoGriglia(colC, 'codice', 'Codice', {
-    size: 90,
+    size: 96,
     validazione: validaConZod(z.string().min(1, 'Il codice non può essere vuoto')),
   }),
-  colonnaTestoGriglia(colC, 'descrizione', 'Descrizione', { size: 320 }),
-  colonnaSelectGriglia(colC, 'unita', 'U.M.', UNITA_COMPUTO, { size: 90 }),
+  colonnaTestoGriglia(colC, 'descrizione', 'Descrizione', { size: 420 }),
+  colonnaSelectGriglia(colC, 'unita', 'U.M.', UNITA_COMPUTO, { size: 72 }),
   colonnaNumeroGriglia(colC, 'quantita', 'Quantità', {
-    size: 110,
+    size: 96,
     validazione: validaConZod(z.coerce.number('Dev\'essere un numero').positive('Dev\'essere maggiore di zero')),
   }),
   colonnaValutaGriglia(colC, 'prezzoUnitario', 'Prezzo unitario', {
-    size: 130,
+    size: 112,
     validazione: validaConZod(z.coerce.number('Dev\'essere un numero').positive('Dev\'essere maggiore di zero')),
   }),
   colC.display({
     id: 'azioni',
-    size: 60,
+    size: 48,
+    // Non ridimensionabile: 48px basta appena al bottone, una maniglia lì
+    // non avrebbe niente da restringere prima di sparire.
+    enableResizing: false,
     header: () => <span className="sr-only">Azioni</span>,
     cell: ({ row }) => <CellaEliminaComputo riga={row.original} />,
   }),
