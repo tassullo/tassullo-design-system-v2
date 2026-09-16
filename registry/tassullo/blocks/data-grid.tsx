@@ -1807,6 +1807,26 @@ export function DataGridFillHandle() {
         setPosizione(null)
         return
       }
+      // Niente maniglia quando il fuoco è uscito dalla griglia — un clic
+      // su «Salva», sul menu «Colonne», o fuori dalla pagina — anche se
+      // `cellaAttiva` resta quella di prima: il motore non la scorda mai
+      // (è così che «Invio» sa dove tornare), ma la maniglia è un
+      // comando sulla cella **a fuoco**, e senza fuoco lì non c'è niente
+      // da trascinare. Rilievo di Francesco: restava a mezz'aria sopra la
+      // riga anche con la barra degli strumenti a fuoco. Non basta
+      // `contenitore.contains(...)`: la barra è anche lei dentro
+      // `contenitore` (è dentro `<DataTable>`, che `<DataGrid>` avvolge).
+      // Il bersaglio giusto è "il fuoco è su una cella vera" —
+      // `data-riga-id` lo distingue da un bottone della barra o dalla
+      // cella in modifica (un `<input>`/`<select>`, dove la maniglia non
+      // ha senso comunque).
+      if (
+        !(document.activeElement instanceof HTMLElement) ||
+        !document.activeElement.hasAttribute("data-riga-id")
+      ) {
+        setPosizione(null)
+        return
+      }
       const nodo = contenitore.querySelector<HTMLElement>(
         `[data-riga-id="${CSS.escape(motore.cellaAttiva.rigaId)}"][data-colonna-id="${CSS.escape(motore.cellaAttiva.colonnaId)}"]`
       )
@@ -1872,9 +1892,18 @@ export function DataGridFillHandle() {
     const ro = new ResizeObserver(aggiornaRitardato)
     ro.observe(contenitore)
     contenitore.addEventListener("scroll", aggiornaRitardato, true)
+    // `focusin`/`focusout` (non `focus`/`blur`: quelli non risalgono) —
+    // il fuoco che entra o esce da una cella non passa né da uno
+    // scorrimento né da un ridimensionamento, e senza questi due la
+    // maniglia rimaneva a mezz'aria finché non arrivava un evento
+    // qualunque a ricalcolarla.
+    document.addEventListener("focusin", aggiorna)
+    document.addEventListener("focusout", aggiorna)
     return () => {
       ro.disconnect()
       contenitore.removeEventListener("scroll", aggiornaRitardato, true)
+      document.removeEventListener("focusin", aggiorna)
+      document.removeEventListener("focusout", aggiorna)
     }
   }, [cellaChiave, contenitoreRef, motore])
 

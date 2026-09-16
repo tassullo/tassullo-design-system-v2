@@ -1082,7 +1082,17 @@ function ManigliaRidimensiona<TDato extends RowData>({
       aria-valuemin={min}
       aria-valuemax={max === Number.MAX_SAFE_INTEGER ? undefined : max}
       tabIndex={0}
-      onMouseDown={header.getResizeHandler()}
+      // `preventDefault()` prima di delegare a TanStack, non dopo: in
+      // Safari (non in Chrome, preso da Francesco) un `mousedown` non
+      // impedito fa scattare anche la selezione di testo nativa mentre si
+      // trascina — un riempimento blu che segue il puntatore sopra
+      // l'intestazione e le celle, la stessa selezione con cui si
+      // evidenzia un paragrafo. Chrome la sopprime da sé qui, WebKit no:
+      // la maniglia è un trascinamento, non un testo da selezionare.
+      onMouseDown={(evento) => {
+        evento.preventDefault()
+        header.getResizeHandler()(evento)
+      }}
       onTouchStart={header.getResizeHandler()}
       onKeyDown={(e) => {
         if (e.key === "Home") {
@@ -1843,6 +1853,18 @@ export type DataTableProps<TDato extends RowData> = {
   barra?: React.ReactNode | ((scelti: TDato[]) => React.ReactNode)
   className?: string
   /**
+   * Consegna l'istanza TanStack viva a ogni render — la via d'uscita per un
+   * comando che questo blocco non traduce in un prop suo (`table.toggle
+   * AllRowsExpanded()`, per dire): non tutto ciò che TanStack sa fare
+   * merita un prop tradotto apposta, specie un comando usato una volta
+   * sola in una story. Non è uno stato che diventa controllato — resta
+   * interno al blocco, come sempre — è solo un modo per **comandarlo**
+   * da fuori senza doverlo duplicare. Stesso principio delle `registra*`
+   * di `<DataGrid>` (`data-grid.tsx`, M3bis.5): si registra una funzione,
+   * non si solleva uno stato.
+   */
+  onTabellaPronta?: (tabella: IstanzaTabella<TDato>) => void
+  /**
    * @internal Wiring privata per `<DataGrid>` (M3bis.5), non pensata per
    * essere passata da una pagina. Con `perPagina="virtuale"`, consegna a
    * `DataTableVirtualizedBody` il controllo del fuoco — la Data Grid lo
@@ -1896,6 +1918,7 @@ export function DataTable<TDato extends RowData>({
   pannelloRiga,
   barra,
   className,
+  onTabellaPronta,
   internoGriglia,
   attributiTabella,
 }: DataTableProps<TDato>) {
@@ -2001,6 +2024,14 @@ export function DataTable<TDato extends RowData>({
       columnSizing: dimensioni,
       columnPinning: ancoraggio,
     },
+  })
+
+  // Nessun elenco di dipendenze: `tabella` è un oggetto nuovo a ogni
+  // render (come `motore` in `<DataGrid>`), quindi non c'è una dipendenza
+  // primitiva su cui fermarsi — deve girare a ogni render per non
+  // consegnare mai un'istanza indietro di un commit.
+  React.useEffect(() => {
+    onTabellaPronta?.(tabella)
   })
 
   /**

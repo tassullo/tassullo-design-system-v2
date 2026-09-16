@@ -1,5 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { CopyIcon, EllipsisVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import type { RowData } from '@tanstack/react-table'
+import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
+  PencilIcon,
+  Trash2Icon,
+} from 'lucide-react'
+import * as React from 'react'
 
 import { apriCol } from '@/prove/apri'
 import {
@@ -7,6 +16,7 @@ import {
   DataTable,
   IntestazioneColonna,
   creaColonne,
+  type IstanzaTabella,
 } from '@/registry/tassullo/blocks/data-table'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
@@ -802,17 +812,70 @@ const COLONNE_ALBERO = colAlbero.columns([
  * la espande; la casella della voce, selezionata, seleziona a cascata tutte
  * le misurazioni sotto — prova con la prima voce, "Scavo di sbancamento".
  */
+/**
+ * **Espandi tutto/Comprimi tutto**, sopra la tabella — porting da "Grouping
+ * Table" di niko-table. Comanda `table.toggleAllRowsExpanded()`, un metodo
+ * che l'istanza TanStack ha già da sé: non serve un prop nuovo su
+ * `DataTable` per uno stato che il blocco continua a tenere per conto
+ * suo, solo `onTabellaPronta` per arrivarci da fuori (v. il commento su
+ * quel prop in `data-table.tsx`). Nessuno stato locale a questo
+ * componente: i bottoni comandano l'istanza direttamente, `DataTable` si
+ * ri-rende da sé quando lo stato di espansione cambia, come già fa per
+ * ogni `chevron` cliccato a mano.
+ */
+function BottoniEspansione<TDato extends RowData>({
+  tabellaRef,
+}: {
+  tabellaRef: React.RefObject<IstanzaTabella<TDato> | null>
+}) {
+  return (
+    <div className="flex gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => tabellaRef.current?.toggleAllRowsExpanded(true)}
+      >
+        <ChevronsUpDownIcon aria-hidden />
+        Espandi tutto
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => tabellaRef.current?.toggleAllRowsExpanded(false)}
+      >
+        <ChevronsDownUpIcon aria-hidden />
+        Comprimi tutto
+      </Button>
+    </div>
+  )
+}
+
+function AlberoConControlli() {
+  const tabellaRef = React.useRef<IstanzaTabella<RigaComputo> | null>(null)
+  return (
+    <div className="flex flex-col gap-3">
+      <BottoniEspansione tabellaRef={tabellaRef} />
+      <DataTable
+        colonne={COLONNE_ALBERO}
+        dati={COMPUTO}
+        cerca={false}
+        selezione
+        colonneNascondibili={false}
+        getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+        nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+        vuoto={{ titolo: 'Nessuna voce nel computo' }}
+        onTabellaPronta={(t) => {
+          tabellaRef.current = t
+        }}
+      />
+    </div>
+  )
+}
+
 export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
-  args: {
-    colonne: COLONNE_ALBERO,
-    dati: COMPUTO,
-    cerca: false,
-    selezione: true,
-    colonneNascondibili: false,
-    getSottoRighe: (riga) => ('figli' in riga ? riga.figli : undefined),
-    nomeRighe: { singolare: 'voce', plurale: 'voci' },
-    vuoto: { titolo: 'Nessuna voce nel computo' },
-  },
+  render: () => <AlberoConControlli />,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -839,25 +902,39 @@ export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
  * `Invio` o `Spazio` apre il pannello sotto — una riga in più nella tabella,
  * non un popup: nessun fuoco da intrappolare, nessuna guardia di Base UI.
  */
+function EspansioneConControlli() {
+  const tabellaRef = React.useRef<IstanzaTabella<Prodotto> | null>(null)
+  return (
+    <div className="flex flex-col gap-3">
+      <BottoniEspansione tabellaRef={tabellaRef} />
+      <DataTable
+        colonne={COLONNE.filter((c) => c.id !== 'azioni')}
+        dati={PRODOTTI.slice(0, 10)}
+        cerca={false}
+        colonneNascondibili={false}
+        perPagina={10}
+        pannelloRiga={(prodotto: Prodotto) =>
+          prodotto.stato === 'archiviato' ? null : (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
+              <dt className="text-muted-foreground">Famiglia</dt>
+              <dd>{prodotto.famiglia}</dd>
+              <dt className="text-muted-foreground">Stato</dt>
+              <dd>{prodotto.stato}</dd>
+              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+              <dd>{DATA.format(prodotto.aggiornato)}</dd>
+            </dl>
+          )
+        }
+        onTabellaPronta={(t) => {
+          tabellaRef.current = t
+        }}
+      />
+    </div>
+  )
+}
+
 export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
-  args: {
-    colonne: COLONNE.filter((c) => c.id !== 'azioni'),
-    dati: PRODOTTI.slice(0, 10),
-    cerca: false,
-    colonneNascondibili: false,
-    perPagina: 10,
-    pannelloRiga: (prodotto: Prodotto) =>
-      prodotto.stato === 'archiviato' ? null : (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
-          <dt className="text-muted-foreground">Famiglia</dt>
-          <dd>{prodotto.famiglia}</dd>
-          <dt className="text-muted-foreground">Stato</dt>
-          <dd>{prodotto.stato}</dd>
-          <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
-          <dd>{DATA.format(prodotto.aggiornato)}</dd>
-        </dl>
-      ),
-  },
+  render: () => <EspansioneConControlli />,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
