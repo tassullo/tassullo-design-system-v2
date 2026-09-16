@@ -191,6 +191,12 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
    * (il `select` era aperto), lo richiude anche lui.
    */
   impostaValore: (id: CellaGrigliaId, valore: string) => boolean
+  /** Incolla — `DataGridClipboard` la chiama col testo letto dall'evento
+   * nativo `paste`, non da `navigator.clipboard` (v. quel componente). */
+  incolla: (testo: string) => void
+  /** La selezione corrente come TSV — `DataGridClipboard` la scrive lui
+   * nell'evento nativo `copy`, non con `navigator.clipboard.writeText`. */
+  serializzaSelezione: () => string
   /**
    * Registra il validatore di una colonna (`colonnaNumeroGriglia` e affini
    * lo fanno da sé in un effetto, non è per uso diretto dalle pagine). Una
@@ -529,11 +535,6 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     })
   }
 
-  const copia = () => {
-    const testo = serializzaSelezione()
-    if (testo) navigator.clipboard?.writeText(testo).catch(() => {})
-  }
-
   const onKeyDownCella = (evento: React.KeyboardEvent, id: CellaGrigliaId) => {
     const mod = evento.metaKey || evento.ctrlKey
     if (cellaInModifica) {
@@ -565,26 +566,21 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     // Ctrl+Invio come un Invio semplice (apre la modifica) senza mai
     // arrivare al riempimento. Preso in un browser vero: Ctrl+Invio su una
     // selezione apriva la cella invece di riempirla.
+    //
+    // **Copia/incolla/taglia non sono qui**: `DataGridClipboard` li
+    // intercetta prima ancora che questo gestore veda l'evento (un
+    // `addEventListener` in cattura sul contenitore, montato solo se quel
+    // componente è presente), e li dirotta su una `<textarea>` nascosta —
+    // `navigator.clipboard.readText()` **non esiste in Safari** (WebKit non
+    // la implementa), e il tentativo precedente falliva lì in silenzio
+    // (l'errore veniva inghiottito da un `.catch(() => {})`). Rilievo di
+    // Francesco: "ho provato a incollare e non succede nulla", provato solo
+    // in Safari. V. `DataGridClipboard`, sotto.
     if (mod) {
       const tasto = evento.key.toLowerCase()
       if (evento.key === "Enter") {
         evento.preventDefault()
         riempi()
-        return
-      }
-      if (tasto === "c") {
-        evento.preventDefault()
-        copia()
-        return
-      }
-      if (tasto === "v") {
-        evento.preventDefault()
-        navigator.clipboard
-          ?.readText()
-          .then((testo) => {
-            if (testo) incolla(testo)
-          })
-          .catch(() => {})
         return
       }
       if (tasto === "z") {
@@ -687,6 +683,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     evidenziaRiempimento,
     confermaRiempimento,
     impostaValore,
+    incolla,
+    serializzaSelezione,
     registraValidatore,
     registraSpostamentoVerticale,
   }
@@ -1440,19 +1438,111 @@ export function DataGrid<TDato extends RowData>({
  * ──────────────────────────────────────────────────────────────────────── */
 
 /**
- * Nessuna UI: dichiara solo il segnaposto della griglia vuota o della barra
- * — pensato per essere messo in `barra` o accanto, non dentro `<DataGrid>`.
- * Il copia/incolla vero è già acceso sempre (`onKeyDownCella`, v. sopra): il
- * componente esiste perché niko-table lo tratta come un pezzo a sé, e perché
- * una sessione futura potrebbe volerci appendere un indicatore di stato
- * ("copiate 12 celle") senza toccare il motore.
+ * Il copia/incolla vero: un componente opt-in — montato solo se una pagina
+ * lo mette dentro `<DataGrid>` — che aggiunge **una** `<textarea>` nascosta
+ * e un solo `addEventListener` in cattura sul contenitore. Non montarlo
+ * lascia la griglia senza clipboard, zero costo, come da architettura (v.
+ * il commento in testa al file).
+ *
+ * ── Perché non `navigator.clipboard` ─────────────────────────────────────
+ *
+ * La prima stesura usava `navigator.clipboard.writeText`/`readText` da
+ * dentro `onKeyDownCella`. **Safari non implementa `readText()`** — non è
+ * un bug di questa sessione, è WebKit che non la espone affatto — e il
+ * tentativo falliva in silenzio dietro un `.catch(() => {})`: da Safari,
+ * incollare un foglio copiato da un'altra app non faceva **niente**,
+ * rilievo di Francesco su questa storia. `writeText()` invece esiste in
+ * Safari, ma solo `readText()` era il problema — asimmetria che avrebbe
+ * reso il difetto ancora più difficile da sospettare guardando solo la
+ * copia, che funzionava.
+ *
+ * La tecnica che funziona ovunque è la stessa di prima dei permessi
+ * asincroni: una `<textarea>` vera, **reindirizzata a fuoco** appena si
+ * preme Ctrl/Cmd+C/X/V — non con `preventDefault()` sul tasto (che
+ * sopprimerebbe il comando di sistema prima che la textarea possa
+ * riceverlo), ma spostando il fuoco *prima* che il browser esegua l'azione
+ * predefinita del tasto. Il comando copia/incolla del sistema operativo
+ * scatta quindi **sulla textarea**, che è un campo di testo vero — gli
+ * eventi nativi `copy`/`cut`/`paste` funzionano lì in ogni browser, senza
+ * nessun permesso da chiedere.
  */
 export function DataGridClipboard({ className }: { className?: string }) {
+  const { motore, contenitoreRef } = useContestoDataGrid()
+  const testoRef = React.useRef<HTMLTextAreaElement>(null)
+
+  React.useEffect(() => {
+    const contenitore = contenitoreRef.current
+    if (!contenitore) return
+
+    const alTastoGiu = (evento: KeyboardEvent) => {
+      const mod = evento.metaKey || evento.ctrlKey
+      if (!mod || motore.cellaInModifica) return
+      const tasto = evento.key.toLowerCase()
+      if (tasto !== "c" && tasto !== "x" && tasto !== "v") return
+      // Solo da una cella della griglia — non da un bottone della barra
+      // (Annulla/Ripeti, «Colonne»), che sta anche lui dentro `contenitore`
+      // e ha il proprio Ctrl+C/V di sistema, se mai ne avesse bisogno.
+      if (
+        !(evento.target instanceof HTMLElement) ||
+        !evento.target.hasAttribute("data-riga-id")
+      ) {
+        return
+      }
+      const nodo = testoRef.current
+      if (!nodo) return
+      // Il taglia si comporta come copia: cancellare la selezione dopo un
+      // taglio riuscito è lavoro in più (e un secondo giro di cronologia)
+      // fuori da questa sessione — annotato, non promesso.
+      nodo.value = tasto === "v" ? "" : motore.serializzaSelezione()
+      nodo.focus()
+      nodo.select()
+      // Niente `preventDefault()`: è il comando di sistema, ora diretto
+      // alla textarea, a dover ancora scattare.
+    }
+
+    contenitore.addEventListener("keydown", alTastoGiu, true)
+    return () => contenitore.removeEventListener("keydown", alTastoGiu, true)
+  }, [motore, contenitoreRef])
+
   return (
-    <p className={cn("text-muted-foreground text-sm", className)}>
-      Copia con Ctrl/Cmd+C, incolla con Ctrl/Cmd+V — un foglio di calcolo
-      intero, non solo una cella.
-    </p>
+    <>
+      <p className={cn("text-muted-foreground text-sm", className)}>
+        Copia con Ctrl/Cmd+C, incolla con Ctrl/Cmd+V — un foglio di calcolo
+        intero, non solo una cella.
+      </p>
+      {/* Non controllata, di proposito: il suo valore lo scrive
+          `alTastoGiu` in modo imperativo, appena prima del fuoco — un
+          `value` React lo riscriverebbe al prossimo render, e qui non c'è
+          nessuno stato di cui questo campo sia il riflesso. */}
+      <textarea
+        ref={testoRef}
+        aria-hidden
+        tabIndex={-1}
+        className="sr-only"
+        onCopy={(evento) => {
+          evento.preventDefault()
+          evento.clipboardData.setData("text/plain", motore.serializzaSelezione())
+          evento.currentTarget.blur()
+        }}
+        onCut={(evento) => {
+          evento.preventDefault()
+          evento.clipboardData.setData("text/plain", motore.serializzaSelezione())
+          evento.currentTarget.blur()
+        }}
+        onPaste={(evento) => {
+          evento.preventDefault()
+          const testo = evento.clipboardData.getData("text/plain")
+          if (testo) motore.incolla(testo)
+          evento.currentTarget.blur()
+        }}
+        // Il fuoco torna alla cella attiva da solo: `blur()` porta
+        // `document.activeElement` a `document.body`, e l'effetto di fuoco
+        // di ogni cella (`useFuocoCellaGriglia`) lo riconosce già come "il
+        // fuoco è sfuggito dalla griglia, riportalo sulla cella attiva" —
+        // lo stesso meccanismo che già gestisce l'uscita da una modifica e
+        // il rimontaggio dopo uno scorrimento, non un caso nuovo da capire.
+      />
+    </>
   )
 }
 
