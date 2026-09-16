@@ -1,7 +1,7 @@
 # CHECKLIST — **Tassullo Design System 2.0**
 
 > **Fonte di verità dell'avanzamento.** Stati: `TODO | IN_PROGRESS | BLOCKED | REVIEW | DONE`. Si aggiorna a ogni cambio di stato e al termine di ogni attività significativa. Il dettaglio dei task (Prompt, File, Accettazione completa) è in `PIANO.md`, che qui non si duplica; il diario è `WORKLOG.md`.
-> Un task = una sessione Claude Code, salvo indicazione contraria. **41 righe = 42 sessioni** nel piano originale: `M3.3 data-table` vale 2 sessioni (unico task doppio del piano originale). **FASE 3bis** (aggiunta il 2026-09-16, niko-table) porta altre 10 righe = 11-12 sessioni: `M3bis.5 data-grid` vale 2-3 sessioni, il numero esatto si fissa in M3bis.0.
+> Un task = una sessione Claude Code, salvo indicazione contraria. **41 righe = 42 sessioni** nel piano originale: `M3.3 data-table` vale 2 sessioni (unico task doppio del piano originale). **FASE 3bis** (aggiunta il 2026-09-16, niko-table) porta altre 11 righe = 13 sessioni: `M3bis.5 data-grid` vale 3 sessioni (fissate in M3bis.0), `M3bis.9` aggiunta il 2026-09-16 su richiesta di Francesco (menu di riga condiviso).
 > **La colonna del criterio è una sintesi, e ha un tetto.** Il verdetto, i due o tre numeri che contano, un rimando: **due o tre righe di tabella, non di più**. Il ragionamento, le misure, le trappole e le rettifiche stanno in `WORKLOG.md` e in `docs/DECISIONI.md` — qui non si duplicano. Non è pignoleria: una riga che non si legge smette di essere una fonte di verità, ed è quello che era successo. Ripulita il 2026-09-10 su rilievo di Francesco — **da 48 a 26 KB**, la riga peggiore da 3260 a 426 caratteri — senza perdere niente, perché ogni task ha la sua voce nel diario e ogni decisione la sua sezione.
 > Nessuna colonna Responsabile: il progetto è condotto da una sola persona (Francesco) con Claude Code. Se un giorno lavorassero in due, si aggiunge qui la colonna e si adotta la regola dei worktree di Anagrafe.
 
@@ -78,16 +78,18 @@ Dipendenze di fase: M3.3, M4.2. Si porta (si riscrive) il pattern da niko-table,
 
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
-| M3bis.0 Inventario e mappa di adattamento | TODO | M3.3 | mappa in `WORKLOG.md` (icone/etichette da tradurre, conferma bypass `DataTableRoot`) a riferimento delle sessioni successive |
+| M3bis.0 Inventario e mappa di adattamento | DONE | M3.3 | mappa in `WORKLOG.md`: bypass `DataTableRoot`/`detectFeaturesFromChildren` confermato, etichette da tradurre elencate, M3bis.5 fissato a 3 sessioni |
 | M3bis.1 Righe annidate con subtotale ("Tree") | TODO | M3bis.0 | `getSubRows`, indentazione+chevron, selezione a cascata, subtotale; tastiera + a11y zero violazioni |
 | M3bis.2 Espansione righe | TODO | M3bis.0 | `getExpandedRowModel`, pannello di dettaglio libero; tastiera + a11y zero violazioni |
 | M3bis.3 Resize e pin colonne generalizzato | TODO — **blocca su conferma di Francesco** | M3bis.0 | tocca `ui/table.tsx`; riapre D17; riga in `componenti-propri.json` |
 | M3bis.4 Virtualizzazione / scroll infinito | TODO | M3bis.0 | `@tanstack/react-virtual`; 10.000 righe finte, tastiera verificata |
-| M3bis.5 Data Grid editabile (**2-3 sessioni**) | TODO | M3bis.3, M3bis.4 | celle tipizzate + validazione Zod; ~500 righe, clipboard, annulla/ripeti; a11y verificata a mano |
+| M3bis.5 Data Grid editabile (**3 sessioni**: motore+clipboard/undo, celle+Zod, persistenza) | TODO | M3bis.3, M3bis.4 | celle tipizzate + validazione Zod; ~500 righe, clipboard, annulla/ripeti; a11y verificata a mano |
 | M3bis.6 Filtri sfaccettati | TODO | M3bis.0 | `useGeneratedOptions`, conteggio per opzione; tastiera + a11y zero violazioni |
 | M3bis.7 Drag&drop righe | TODO | M3bis.0 | `@dnd-kit/*`; non combinato con ordinamento/filtri attivi; tastiera + a11y zero violazioni |
 | M3bis.8 Drag&drop colonne | TODO | M3bis.0 | compatibile con resize (M3bis.3); tastiera + a11y zero violazioni |
-| M3bis.9 Aggiornamento `pagina-lista` e gate di fase | TODO | M3bis.1..M3bis.8 | almeno un esempio rappresentativo; `check` verde; screenshot in WORKLOG |
+| M3bis.9 Menu di riga condiviso, dropdown e tasto destro | TODO | M3bis.0 | azioni identiche da dropdown e tasto destro; `enabledFor` verificato; tastiera + a11y zero violazioni |
+| M3bis.10 Editing in-riga leggero (`getRowMemoKey`) | TODO | M3bis.0 | modifica di un campo senza ri-render delle altre righe; Invio salva, Esc annulla; a11y zero violazioni |
+| M3bis.11 Aggiornamento `pagina-lista` e gate di fase | TODO | M3bis.1..M3bis.10 | almeno un esempio rappresentativo; `check` verde; screenshot in WORKLOG |
 
 ## FASE 4 — Pagine modello (6 sessioni)
 

@@ -4177,3 +4177,57 @@ Francesco ha segnalato [niko-table](https://niko-table.com), un registry shadcn 
 **Aperta FASE 3bis — Tabelle avanzate (niko-table), 10 sessioni** in `PIANO.md` e `CHECKLIST.md` (M3bis.0-9, tutte TODO): inventario/mappa di adattamento, righe annidate con subtotale (Tree), espansione righe, resize+pin colonne generalizzato (tocca `ui/table.tsx`, **blocca sulla conferma esplicita di Francesco**, riapre D17), virtualizzazione/scroll infinito, Data Grid editabile con celle tipizzate e validazione Zod (2-3 sessioni), filtri sfaccettati, drag&drop righe, drag&drop colonne, aggiornamento di `pagina-lista`. Ambito ampliato in corso di discussione su richiesta di Francesco (inizialmente valutato solo Tree+Data Grid, poi aggiunti DnD righe/colonne, virtualizzazione autonoma e filtri sfaccettati dopo revisione più a fondo degli esempi niko-table). Deliberatamente fuori ambito: `data-table-aside`, export CSV (già coperto lato Studio da Excel/Primus/ZIP), colonne dinamiche a runtime, filtri query-builder AND/OR, grid server-side vero e proprio, e la skill `niko-table-best-practices` (scartata: insegnerebbe le convenzioni di import/API inglesi che questa fase decide di non adottare).
 
 Nessun file di registry toccato in questa sessione. Prossimo passo: M3bis.0.
+
+---
+
+## M3bis.0 — Inventario e mappa di adattamento (2026-09-16)
+
+Completata la lettura lasciata aperta dalla valutazione precedente: le sei pagine `niko-table/overview/{core,filters,hooks,lib,types,config}` (l'API reference completa lato Table — la sessione di valutazione aveva letto le pagine narrative "Core/Filters/Hooks/Library/Types", non questi dump di riferimento), l'Introduction della Data Grid (`/data-grid/introduction/`, non ancora aperta), e gli esempi Simple/Basic/Search Table più Row Context Menu Table. Nessun codice scritto: è la sessione di sola mappa, come da `PIANO.md`.
+
+### Bypass di `DataTableRoot`/`detectFeaturesFromChildren`: confermato, e ora con la prova nel testo di niko-table stesso
+
+`config/feature-detection.tsx` (letto in `niko-table/overview/config/`) fa esattamente quello che il nome dice: cammina l'albero React cercando nomi di componente noti (`DataTableFacetedFilter`, `DataTableSortMenu`, …) e ne deriva `enableFilters`/`enableSorting`/ecc. — con una cache che usa il **nome del componente** come chiave, quindi fragile a wrapping/rinomina, e comunque un costo (50-150ms al primo giro, per loro stessa documentazione). `tassullo-data-table.tsx` non lo fa: dichiara le feature esplicitamente su `tableFeatures()` (visto in `lib/data-table-features`, dove niko-table stessa lo raccomanda come "il modo giusto" per una tabella su misura — la loro auto-detection è lo zucchero per chi installa i pezzi a pioggia, non l'unico modo). **Confermato**: si continua a costruire `useTable({ features, data, columns })` a mano in ogni sessione della fase, mai `DataTableRoot`. Le sessioni M3bis.1-8 vanno lette con questo in testa — quando la documentazione niko-table dice "si abilita da sé mettendo il componente", da noi si abilita scrivendo la feature nel nostro `tableFeatures()`.
+
+### Cosa serve tradurre — l'inventario per le sessioni 1-8
+
+Nessuna icona Lucide da cambiare: niko-table usa `lucide-react`, già nostra dipendenza (M3.3). Da tradurre sono **solo le stringhe**, tutte lette nelle pagine di riferimento:
+
+- **Etichette di ordinamento** (`config/data-table.tsx`, tabella "Sort Labels"): "Asc"/"Desc" (testo), "Low to High"/"High to Low" (numeri), "Oldest First"/"Newest First" (date), "False First"/"True First" (booleani) — quattro coppie, non una sola, perché il tipo di colonna cambia la frase intera, non solo il verso.
+- **Etichette degli operatori di filtro** (menzionate ma non elencate per esteso in `lib/overview` — vanno lette dal sorgente al momento di portare `table-inline-filter`/`table-filter-menu`, M3bis.6): "Contains", "Equals", "Is empty", ecc.
+- **Comandi della Data Grid**: "Add rows", "Add column", "Export CSV" (fuori ambito, §40), "Undo"/"Redo", "Clear all", il segnaposto "Paste a spreadsheet (Ctrl/Cmd+V) to fill rows", le colonne dello stato demo ("Focused Cell", "Editing Cell", "Selection Anchor", "Can Undo / Redo", "Last Commit").
+- **Scorciatoie da tastiera pubblicate a schermo**: `DataGridShortcutsButton` apre un elenco ("Arrows, Tab, Enter, Escape navigate and edit…") che va riscritto, non solo tradotto — la nostra tastiera per `data-table` (M3.3) già diverge da quella di shadcn (ordina con un clic, non un menu), quindi l'elenco pubblicato deve descrivere *la nostra* tastiera, non quella di niko-table.
+- **Il registro dei filtri** (`lib/constants`, tabella `FILTER_OPERATORS`): i valori (`ilike`, `eq`, `between`, …) sono nomi in stile PostgREST, restano tecnici e non si traducono; le **label** che li accompagnano nell'UI sì.
+
+### Conferma sul confine di M3bis.5 e sul numero di sessioni
+
+Letta `/data-grid/introduction/` per intero: la Data Grid **non è un blocco a sé che si aggiunge**, è `tassullo-data-table` più un motore separato (`useDataGrid`, non controllato — "like `defaultValue`", la ragione scritta è che uno stato controllato ricalcolerebbe il modello di tabella a ogni tasto e romperebbe l'undo) e componenti opt-in dentro un nuovo `<DataGrid>` che avvolge `<DataTable>`. Conferma quanto già scritto in `PIANO.md`: **non basta `getRowMemoKey`** (editing in-riga leggero) per il caso reale del "Computo" — quel pattern non ha clipboard, non ha fill, non ha undo/redo, e il computo li vuole tutti e tre (voci numeriche incollate da un foglio esterno, corretta a mano dal caso reale mostrato da Francesco).
+
+**Fissato a 3 sessioni**, come da margine lasciato in `PIANO.md`:
+1. **Motore + composizione minima**: `useDataGrid`, `<DataGrid>`, `DataGridClipboard`, `DataGridFillHandle`, `DataGridUndo`/`DataGridRedo`, innestato dentro `tassullo-data-table` (dipende da M3bis.3 per il resize/pin, da M3bis.4 per il corpo virtualizzato — la Data Grid nasce già virtualizzata, `DataTableVirtualizedBody` non `DataTableBody`).
+2. **Celle tipizzate + validazione**: porting dei `GridTextCell`/numero/valuta (`it-IT`)/checkbox/data/select da "Cell Types", e la validazione per cella da "Validation" (Zod, coerente con `tassullo-form-field` M3.4).
+3. **Persistenza**: `useGridChanges` (da "Persistence", crea/aggiorna/cancella come change-set) più la prova end-to-end su un dataset finto a forma di computo (voci con subtotale, dalla M3bis.1) — è qui che il criterio d'accettazione di `PIANO.md` ("~500 righe, incolla, annulla/ripeti, celle di un computo finto") si verifica per intero, non prima.
+
+Le colonne dinamiche a runtime (Dynamic Columns) **restano fuori ambito** (già deciso in §40): la Data Grid le usa nella sua demo ma il caso reale di Studio ha colonne fisse.
+
+### Una precisazione sul pattern Tree (M3bis.1), vista ora sul motore Data Grid
+
+L'esempio "Tree" della Data Grid Introduction usa `getSubRows` esattamente come l'omonimo pattern lato Table puro (già letto nella valutazione precedente) — **stesso meccanismo**, la sola differenza è se le celle sono editabili. Conferma che M3bis.1 (Tree su `data-table`, sola lettura) e la parte "editabile" dello stesso pattern dentro la Data Grid (M3bis.5) condividono `getSubRows` e non vanno reinventati due volte: la sessione 1 di M3bis.5 riusa la struttura ad albero di M3bis.1, aggiungendovi sopra il motore di editing.
+
+### Un pattern trovato, non richiesto, annotato e non aperto
+
+`Row Context Menu Table` (letto per completezza, non nell'ambito delle 10 sessioni): un solo componente di menu-riga (`RowMenuItem`/`RowMenuSeparator` polimorfici) che si monta sia nel dropdown "…" sia nel menu del tasto destro, tramite `useDataTableRow<T>()` per leggere la riga da contesto. `tassullo-data-table` oggi non ha un pattern equivalente — chi vuole azioni di riga scrive la propria colonna con un `DropdownMenu` a mano, senza tasto destro. Non è fra le 10 sessioni aperte in §40 e non lo si aggiunge qui: annotato perché se un caso reale lo richiede (un elenco con azioni di riga frequenti, dove il tasto destro farebbe risparmiare un clic) la strada è già mappata.
+
+### Coda: due sessioni aggiunte, e il worktree che le ospiterà
+
+Rilette le note di questa sessione, Francesco ha chiesto di aprire due sessioni in più, entrambe dai pattern annotati "non richiesti" sopra — non più annotazioni, task veri:
+
+- **M3bis.9 — Menu di riga condiviso, dropdown e tasto destro**: il pattern "Row Context Menu Table" annotato sopra. Aggiunto in `PIANO.md`/`CHECKLIST.md`.
+- **M3bis.10 — Editing in-riga leggero (`getRowMemoKey`)**: dal pattern "Inline Edit Table" (niko-table), letto in coda a questa sessione. È lo stesso `getRowMemoKey` già scartato **per il caso Computo** in M3bis.5 (niente clipboard/undo, non basta a un foglio di calcolo) — ma resta la strada giusta per un caso diverso e reale: correggere un campo alla volta in un elenco (una `pagina-lista` di Anagrafe) senza aprire la scheda e senza pagare il costo della Data Grid intera. Punto chiave del pattern originale: lo stato di editing (`editingId`/`draft`/`errors`) sta **fuori dai dati**, mai un `isEditing` dentro la riga — quello farebbe ri-renderizzare l'intera tabella a ogni tasto — e `getRowMemoKey` (già nel nostro `data-table.tsx` core, M3.3) fa ri-renderizzare solo la riga in modifica.
+
+La sessione di gate finale slitta da M3bis.9 a **M3bis.11**. Fase ora **12 sessioni** (era 10 in apertura, 11 dopo la sola M3bis.9). Aggiornato `PIANO.md` §FASE 3bis (righe M3bis.9-11) e `CHECKLIST.md` (righe e conteggio in testa).
+
+**Chiesto anche se rinominare questo worktree** (`esecuzione-m3bis-0-9de1d4` → `implementazione-niko-table`) per riusarlo esplicitamente su tutta la fase. Verificato: l'harness non offre un comando di rename, solo `EnterWorktree` (ne crea uno nuovo) ed `ExitWorktree` (lo lascia) — un rename a mano (`git worktree move` + branch) rischiava di disallineare il tracciamento della sessione per il cleanup finale. **Deciso da Francesco: non rinominare.** Il nome resta `esecuzione-m3bis-0-9de1d4`/branch `claude/esecuzione-m3bis-0-9de1d4`, ma **è questo il worktree su cui vanno fatte tutte le sessioni M3bis.1..11**: chi apre la prossima sessione della fase continua qui, non ne crea uno nuovo.
+
+### Verifiche
+
+Nessun file di registro toccato. `npm run check` non rilanciato: nessuna modifica al registry in questa sessione. Prossimo passo: M3bis.1 (righe annidate con subtotale, Tree), in questo stesso worktree.
