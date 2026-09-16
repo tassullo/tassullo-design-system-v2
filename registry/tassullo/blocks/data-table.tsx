@@ -86,11 +86,13 @@ import {
   columnFilteringFeature,
   columnVisibilityFeature,
   createColumnHelper,
+  createExpandedRowModel,
   createFilteredRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
   filterFn_includesString,
   globalFilteringFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
@@ -103,6 +105,7 @@ import {
   type Column,
   type ColumnDef,
   type ReactTable,
+  type Row,
   type ColumnFiltersState,
   type ColumnVisibilityState,
   type RowData,
@@ -177,14 +180,24 @@ import {
  * (`alphanumeric`, che ordina `A10` dopo `A9` e non prima), date (`datetime`)
  * e tutto il resto (`basic`). Registrarle qui è ciò che permette a una colonna
  * di dire `sortFn: "datetime"` senza portarsi dietro la funzione.
+ *
+ * `rowExpandingFeature` **è registrata sempre**, non solo per le tabelle ad
+ * albero (M3bis.1): a differenza delle funzioni di ordinamento, che una
+ * colonna deve nominare per usarle, l'espansione resta inerte da sola finché
+ * nessuno passa `getSottoRighe` — nessuna riga ha `subRows`, quindi
+ * `getCanExpand()` è sempre falso e il ramo non lavora. Registrarla una volta
+ * qui evita che ogni sessione della FASE 3bis che ne ha bisogno (M3bis.1,
+ * M3bis.2, M3bis.5) debba biforcare `caratteristiche` in due costanti.
  */
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
   columnVisibilityFeature,
   globalFilteringFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
+  expandedRowModel: createExpandedRowModel(),
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
   sortedRowModel: createSortedRowModel(),
@@ -240,10 +253,24 @@ export function creaColonne<TDato extends RowData>() {
  * comprime tutte in proporzione**, e le larghezze scritte non sono più quelle
  * rese (misurato: `w-48` che valeva 288 rendeva 279). Non è un guasto, è un
  * modo silenzioso di non ottenere ciò che si è chiesto.
+ *
+ * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
+ * senza, una tabella ad albero (M3bis.1, `getSottoRighe`) resta legittima —
+ * mostra solo le righe figlie, senza nessun conto sul genitore. Quando c'è,
+ * il blocco la chiama al posto della cella normale **sulle sole righe che
+ * hanno figli** (`row.subRows.length > 0`), passandole i dati originali dei
+ * figli diretti. **Una funzione, non un nome di operazione** (`"somma"`,
+ * `"media"`): un subtotale di computo è quasi sempre un'unità di misura da
+ * scrivere insieme al numero («12,4 m²», non «12.4»), e quella formattazione
+ * è dominio della pagina, non del blocco — la stessa ragione per cui
+ * `rowAggregationFeature` di TanStack non è fra le `caratteristiche` sopra:
+ * qui l'albero è dato vero (`CLAUDE.md`), non un raggruppamento con una
+ * funzione di aggregazione registrata a parte.
  */
-export type MetaColonna = {
+export type MetaColonna<TDato = unknown> = {
   titolo?: string
   larghezza?: string
+  sottototale?: (righeFiglie: TDato[], riga: TDato) => React.ReactNode
 }
 
 /** Una colonna già tipizzata sulle caratteristiche di casa. */
@@ -270,6 +297,36 @@ type IntestazioneColonnaProps<TDato extends RowData, TValore> = {
 }
 
 /**
+ * Le due frasi di un verso d'ordinamento, per le sole `sortFn` dove «crescente»
+ * e «decrescente» non bastano a farsi capire. Inventario da niko-table
+ * (`config/data-table.tsx`, tabella "Sort Labels", letto in M3bis.0): quattro
+ * coppie, non una sola, perché il **tipo** della colonna cambia la frase
+ * intera, non solo il verso — «dal meno recente» non è «crescente» con le
+ * date al posto dei numeri, è un'altra frase.
+ *
+ * **Chiave `sortFn`, non una prop in più su `IntestazioneColonna`**: la
+ * colonna dichiara già `sortFn: "datetime"` a TanStack per ordinare — farlo
+ * dichiarare una seconda volta all'intestazione, con un nome diverso per lo
+ * stesso fatto, è la duplicazione che il resto del blocco evita apposta
+ * (`meta.titolo`, non due volte l'etichetta). `alphanumeric`/`text` non sono
+ * in tabella: restano `crescente`/`decrescente`, la stessa frase che niko usa
+ * per il testo (`"Asc"`/`"Desc"`). Nessuna colonna booleana oggi (nessuna
+ * `sortFn` la copre, v. `caratteristiche`): la coppia False/True first di
+ * niko resta un'annotazione, non un codice morto da scrivere per un caso che
+ * non esiste ancora.
+ */
+const ETICHETTE_ORDINE: Record<string, { crescente: string; decrescente: string }> = {
+  basic: {
+    crescente: "dal più piccolo al più grande",
+    decrescente: "dal più grande al più piccolo",
+  },
+  datetime: {
+    crescente: "dal meno recente al più recente",
+    decrescente: "dal più recente al meno recente",
+  },
+}
+
+/**
  * L'intestazione di una colonna ordinabile: **è** il bottone, non lo apre.
  *
  * Il ciclo è a tre tempi — crescente, decrescente, nessun ordine — e il terzo
@@ -293,9 +350,16 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
     )
   }
 
+  const sortFn = colonna.columnDef.sortFn
+  const etichette =
+    (typeof sortFn === "string" && ETICHETTE_ORDINE[sortFn]) || {
+      crescente: "crescente",
+      decrescente: "decrescente",
+    }
+
   const ordine = colonna.getIsSorted()
   const prossimo =
-    ordine === false ? "crescente" : ordine === "asc" ? "decrescente" : "nessun ordine"
+    ordine === false ? etichette.crescente : ordine === "asc" ? etichette.decrescente : "nessun ordine"
 
   const bottone = (
     <Button
@@ -355,6 +419,14 @@ function ariaSort(
  * posto si disegna un trattino. Resta dentro il gradino 2 della scala 4bis —
  * sono stringhe di classi su un uso, non una modifica al componente — e le
  * misure escono da `--spacing`, non da valori arbitrari.
+ *
+ * **La casella di una riga con figli è a cascata**, per M3bis.1: `checked`
+ * conta anche `row.getIsAllSubRowsSelected()` (i figli sono stati scelti tutti
+ * uno per uno, senza mai toccare la casella del genitore) e non solo
+ * `row.getIsSelected()` (il genitore è stato scelto lui, e TanStack ha già
+ * marcato anche l'intero sottoalbero — `mutateRowIsSelected` cascata da sé).
+ * `onCheckedChange` resta `row.toggleSelected`: non serve un giro a mano sui
+ * figli, è la stessa funzione che una riga senza figli già usa.
  */
 export function colonnaSelezione<TDato extends RowData>() {
   const col = creaColonne<TDato>()
@@ -371,18 +443,119 @@ export function colonnaSelezione<TDato extends RowData>() {
         className="data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current data-indeterminate:[&_svg]:invisible"
       />
     ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(v) => row.toggleSelected(!!v)}
-        aria-label="Seleziona la riga"
-      />
-    ),
+    cell: ({ row }) => {
+      const conFigli = row.subRows.length > 0
+      const scelta = row.getIsSelected() || (conFigli && row.getIsAllSubRowsSelected())
+      return (
+        <Checkbox
+          checked={scelta}
+          indeterminate={conFigli && !scelta && row.getIsSomeSelected()}
+          onCheckedChange={(v) => row.toggleSelected(!!v)}
+          aria-label="Seleziona la riga"
+          className="data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current data-indeterminate:[&_svg]:invisible"
+        />
+      )
+    },
     enableSorting: false,
     enableHiding: false,
     enableGlobalFilter: false,
     meta: { larghezza: "w-10" } satisfies MetaColonna,
   })
+}
+
+/**
+ * Il rientro e lo `chevron` di una riga d'albero (M3bis.1) — da mettere
+ * **dentro il `cell` della colonna che identifica la riga**, non in una
+ * colonna a sé: in un elenco annidato non c'è una colonna «struttura» separata
+ * dal nome, come non c'è in un esploratore di file. Quale colonna sia lo
+ * decide la pagina, componendo `<CellaAlbero riga={row}>{...}</CellaAlbero>`
+ * nel proprio `cell` — lo stesso principio per cui le colonne restano di chi
+ * le scrive.
+ *
+ * Il rientro è una tabella di classi Tailwind (`pl-0`, `pl-5`, …), non uno
+ * `style` con un calcolo: sono utility vere, derivano da `--spacing` come
+ * tutte le altre misure del tema, e non c'è bisogno del valore arbitrario che
+ * la regola 3 vieta. Oltre il livello più profondo previsto la tabella si
+ * satura sull'ultimo, invece di uscire dall'array: un livello in più
+ * indenterebbe come il penultimo anziché rompersi.
+ *
+ * Il bottone è `size="icon"` — 32px in normale, **48 in touch** — la stessa
+ * misura di `PaginazioneTabella`, e per la stessa ragione: `icon-sm` in touch
+ * farebbe 42px, sotto i 44 di WCAG. Il margine negativo (`-my-2 -ml-2`) pareggia
+ * l'altezza del bottone col `p-2` della cella, la stessa correzione che
+ * `IntestazioneColonna` fa in testa alla tabella — senza, il bottone
+ * diventerebbe l'elemento più alto della cella e la riga crescerebbe per
+ * ospitarlo. **Una riga senza figli non ha bottone**, ma lo spaziatore al suo
+ * posto deve pareggiare **solo la larghezza** (`w-8`), non anche l'altezza
+ * (niente `size-8`): un rilievo di Francesco ha preso esattamente questo —
+ * lo spaziatore, senza il margine negativo del bottone, alzava le righe senza
+ * figli **più** di quelle con figli (49px contro 35,57px, misurato), il
+ * difetto opposto a quello che sembrava a vederlo (righe «tutte uguali»
+ * quando in realtà non lo erano affatto).
+ *
+ * **Il bottone del `chevron` non si distingue quando la riga è aperta e
+ * ferma**: niente sfondo, niente bordo — identico a se stesso chiuso.
+ * `Button` da sé darebbe al bottone un `bg-muted` pieno quando è lui ad avere
+ * `aria-expanded="true"` (`aria-expanded:bg-muted`, nel `variant="ghost"` di
+ * `ui/button.tsx`): la primitiva è corretta per un menu, dove serve segnare
+ * quale grilletto è aperto, ma qui il segno di stato **è già** la freccia
+ * ruotata — un secondo segno sul bottone stesso è ridondante (rilievo di
+ * Francesco). Si spegne con `aria-expanded:bg-transparent`, che vince sul
+ * `bg-muted` della primitiva per specificità delle classi: **non si tocca
+ * `ui/button.tsx`**, che resta giusto per chi la userà davvero come
+ * grilletto di un menu.
+ *
+ * **Ma il passaggio del mouse deve tingerlo comunque**, aperto o chiuso —
+ * spegnere lo stato non deve spegnere anche il riscontro dell'hover. Le due
+ * regole `.aria-expanded\:bg-transparent[aria-expanded="true"]` e
+ * `.hover\:bg-muted:hover` hanno la **stessa specificità** (una classe più un
+ * selettore, in entrambe): a parità vince quella scritta dopo nel foglio di
+ * stile compilato, e verificato in un browser vero non è detto sia la nostra
+ * — un bottone aperto passato col mouse restava trasparente. Non si sistema
+ * riordinando le classi nel JSX: l'ordine con cui Tailwind **compila** le
+ * varianti non è quello con cui le si scrive. `aria-expanded:hover:bg-muted`
+ * aggiunge un terzo selettore (`[aria-expanded="true"]:hover`), più
+ * specifico di entrambi gli altri due per costruzione: vince sempre, in
+ * qualunque ordine il foglio di stile li metta. `dark:aria-expanded:hover:bg-muted/50`
+ * ripete la stessa tinta attenuata che `ghost` usa in scuro per l'hover
+ * comune (`dark:hover:bg-muted/50`), o il bottone aperto sarebbe più scuro
+ * di uno chiuso passandoci sopra il mouse in quella modalità.
+ */
+const RIENTRO_PER_LIVELLO = ["pl-0", "pl-5", "pl-10", "pl-15", "pl-20", "pl-25", "pl-30"]
+
+export function CellaAlbero<TDato extends RowData>({
+  riga,
+  children,
+}: {
+  riga: Row<CaratteristicheTabella, TDato>
+  children: React.ReactNode
+}) {
+  const livello = RIENTRO_PER_LIVELLO[Math.min(riga.depth, RIENTRO_PER_LIVELLO.length - 1)]
+  const puoEspandere = riga.getCanExpand()
+  const espansa = riga.getIsExpanded()
+
+  return (
+    <span className={cn("flex items-center gap-1", livello)}>
+      {puoEspandere ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={riga.getToggleExpandedHandler()}
+          aria-expanded={espansa}
+          aria-label={espansa ? "Comprimi riga" : "Espandi riga"}
+          className="-my-2 -ml-2 shrink-0 aria-expanded:bg-transparent aria-expanded:hover:bg-muted dark:aria-expanded:hover:bg-muted/50"
+        >
+          <ChevronRightIcon
+            aria-hidden
+            className={cn("transition-transform", espansa && "rotate-90")}
+          />
+        </Button>
+      ) : (
+        <span aria-hidden className="w-8 shrink-0" />
+      )}
+      <span className="truncate">{children}</span>
+    </span>
+  )
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -802,6 +975,27 @@ export type DataTableProps<TDato extends RowData> = {
    */
   bloccaPrimaColonna?: boolean
   /**
+   * Righe annidate (M3bis.1, "Tree"): dato un dato di riga, restituisce le
+   * sue righe figlie, o `undefined`/`[]` per una riga senza figli. **Struttura
+   * vera nel modello dati** — il caso reale è il "Computo metrico" di Studio,
+   * dove ogni voce porta già le proprie righe di misurazione — e non
+   * raggruppamento: non c'è `columnGroupingFeature` fra le `caratteristiche`,
+   * di proposito (`WORKLOG.md`, valutazione niko-table).
+   *
+   * Da solo abilita **espandi/collassa e selezione a cascata**: entrambi sono
+   * meccanica di TanStack (`rowExpandingFeature`/`rowSelectionFeature`,
+   * sempre registrate) che resta inerte finché nessuna riga ha `subRows`. Non
+   * disegna da sé il rientro e lo `chevron` — quello è `CellaAlbero`, da
+   * comporre nella colonna che identifica la riga — e non calcola nessun
+   * subtotale: quello è `meta.sottototale` su una colonna (v. `MetaColonna`).
+   *
+   * Passata a TanStack come `getSubRows`: la firma è la stessa, il nome è
+   * tradotto perché è l'unica opzione di questa natura che il blocco espone —
+   * a differenza delle colonne, dove restare fedeli ai nomi di TanStack tiene
+   * valida la loro documentazione.
+   */
+  getSottoRighe?: (riga: TDato) => readonly TDato[] | undefined
+  /**
    * Cosa mettere accanto alla ricerca: i filtri della pagina, le azioni di
    * massa.
    *
@@ -847,6 +1041,7 @@ export function DataTable<TDato extends RowData>({
   selezione = false,
   colonneNascondibili = true,
   bloccaPrimaColonna = false,
+  getSottoRighe,
   barra,
   className,
 }: DataTableProps<TDato>) {
@@ -883,6 +1078,11 @@ export function DataTable<TDato extends RowData>({
     data: dati,
     columns: colonneEffettive,
     globalFilterFn: "includesString",
+    // `expanded` non è fra gli `onChange`/`state` sotto: resta uno stato
+    // interno di TanStack (come `columnOrder`), perché nessun calcolo di
+    // questo componente ha bisogno di leggerlo — a differenza di
+    // `rowSelection`, letto per il conto in `PaginazioneTabella`.
+    getSubRows: getSottoRighe ? (riga) => getSottoRighe(riga) : undefined,
     onSortingChange: setOrdinamento,
     onColumnFiltersChange: setFiltri,
     onGlobalFilterChange: setRicerca,
@@ -1251,21 +1451,38 @@ export function DataTable<TDato extends RowData>({
                     className={cn("group/riga", fermo && "snap-start")}
                     data-state={riga.getIsSelected() ? "selected" : undefined}
                   >
-                    {riga.getVisibleCells().map((cella, indice) => (
-                      // `truncate` è il prezzo di `table-fixed`: con le larghezze
-                      // decise dalle intestazioni, un testo più lungo della sua
-                      // colonna **sborda** nella colonna accanto invece di
-                      // allargarla: meglio tagliarlo coi puntini.
-                      <TableCell
-                        key={cella.id}
-                        className={cn(
-                          "truncate",
-                          bloccaPrimaColonna && classiBloccate(indice, selezione)
-                        )}
-                      >
-                        <tabella.FlexRender cell={cella} />
-                      </TableCell>
-                    ))}
+                    {riga.getVisibleCells().map((cella, indice) => {
+                      // Il subtotale (M3bis.1, `meta.sottototale`) prende il
+                      // posto della cella normale **solo sulle righe che
+                      // hanno figli** — su una riga foglia non c'è niente da
+                      // sommare, e `tabella.FlexRender` resta la via giusta.
+                      const sottototale = riga.subRows.length
+                        ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)
+                            ?.sottototale
+                        : undefined
+                      return (
+                        // `truncate` è il prezzo di `table-fixed`: con le larghezze
+                        // decise dalle intestazioni, un testo più lungo della sua
+                        // colonna **sborda** nella colonna accanto invece di
+                        // allargarla: meglio tagliarlo coi puntini.
+                        <TableCell
+                          key={cella.id}
+                          className={cn(
+                            "truncate",
+                            bloccaPrimaColonna && classiBloccate(indice, selezione)
+                          )}
+                        >
+                          {sottototale ? (
+                            sottototale(
+                              riga.subRows.map((r) => r.original),
+                              riga.original
+                            )
+                          ) : (
+                            <tabella.FlexRender cell={cella} />
+                          )}
+                        </TableCell>
+                      )
+                    })}
                   </TableRow>
                 ))}
                 {/*

@@ -3,6 +3,7 @@ import { CopyIcon, EllipsisVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-r
 
 import { apriCol } from '@/prove/apri'
 import {
+  CellaAlbero,
   DataTable,
   IntestazioneColonna,
   creaColonne,
@@ -519,5 +520,193 @@ export const ConAzioniDiMassa: Story = {
           Archivia {scelti.length}
         </Button>
       ) : null,
+  },
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * L'albero (M3bis.1) — righe annidate con subtotale
+ *
+ * Il caso reale che ha aperto la FASE 3bis: il "Computo metrico estimativo"
+ * di Studio Tassullo, dove ogni **voce** (uno scavo, un intonaco, una
+ * tinteggiatura) porta le proprie **misurazioni** — righe di dettaglio con
+ * quantità e importo, dati veri e non un raggruppamento per colonna
+ * (`WORKLOG.md`, valutazione niko-table).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Misurazione = {
+  id: string
+  voce: string
+  udm: string
+  quantita: number
+  importo: number
+}
+
+type Voce = {
+  id: string
+  voce: string
+  udm: ''
+  quantita: undefined
+  importo: undefined
+  figli: Misurazione[]
+}
+
+/** Una riga di computo è una voce (con figli) o una sua misurazione (senza). */
+type RigaComputo = Voce | Misurazione
+
+const VOCI_COMPUTO = [
+  {
+    voce: '01.01 — Scavo di sbancamento in terreno di qualsiasi natura, fino a 2 m',
+    udm: 'm³',
+    prezzo: 18.4,
+  },
+  {
+    voce: '02.03 — Formazione di massetto in calcestruzzo alleggerito, spessore 8 cm',
+    udm: 'm²',
+    prezzo: 22.1,
+  },
+  {
+    voce: '03.05 — Intonaco deumidificante a base di calce e pozzolana, tre mani',
+    udm: 'm²',
+    prezzo: 34.7,
+  },
+  {
+    voce: '04.02 — Rimozione di pavimentazione esistente e trasporto a discarica',
+    udm: 'm²',
+    prezzo: 9.8,
+  },
+  {
+    voce: '05.04 — Tinteggiatura con pittura ai silicati, due mani a coprire',
+    udm: 'm²',
+    prezzo: 11.6,
+  },
+]
+
+const AMBIENTI = [
+  'Piano terra — ambiente 1',
+  'Piano terra — ambiente 2',
+  'Piano terra — corridoio',
+  'Piano primo — ambiente 1',
+  'Piano primo — ambiente 2',
+  'Piano primo — corridoio',
+  'Piano secondo — ambiente 1',
+]
+
+/** Stesso generatore delle 500 righe di `Prodotti`: seme fisso, stesso conto ogni volta. */
+function generaComputo(): Voce[] {
+  const caso = seminato(20260916)
+  return VOCI_COMPUTO.map((v, i) => {
+    const quante = 2 + Math.floor(caso() * 3) // 2, 3 o 4 misurazioni per voce
+    const figli: Misurazione[] = Array.from({ length: quante }, (_, k) => {
+      const dimensione = 3 + caso() * 9
+      const quantita = Math.round(dimensione * 100) / 100
+      return {
+        id: `${i + 1}.${k + 1}`,
+        voce: AMBIENTI[(i + k) % AMBIENTI.length],
+        udm: v.udm,
+        quantita,
+        importo: Math.round(quantita * v.prezzo * 100) / 100,
+      }
+    })
+    return {
+      id: String(i + 1),
+      voce: v.voce,
+      udm: '',
+      quantita: undefined,
+      importo: undefined,
+      figli,
+    }
+  })
+}
+
+const COMPUTO = generaComputo()
+
+const NUMERO = new Intl.NumberFormat('it-IT', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+const VALUTA = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+
+const colAlbero = creaColonne<RigaComputo>()
+
+const COLONNE_ALBERO = colAlbero.columns([
+  colAlbero.accessor('voce', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Voce / misurazione" />,
+    meta: { titolo: 'Voce' },
+    sortFn: 'text',
+    // Il rientro e lo `chevron` stanno **dentro** questa colonna, non in una
+    // colonna a sé: è la colonna che identifica la riga, la stessa scelta di
+    // un esploratore di file.
+    cell: ({ row, getValue }) => <CellaAlbero riga={row}>{getValue<string>()}</CellaAlbero>,
+  }),
+  colAlbero.accessor('udm', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="U.M." />,
+    meta: { titolo: 'U.M.', larghezza: 'w-16' },
+    enableGlobalFilter: false,
+  }),
+  colAlbero.accessor('quantita', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Quantità" allinea="fine" />
+    ),
+    meta: {
+      titolo: 'Quantità',
+      larghezza: 'w-28',
+      // Una funzione, non `"somma"`: l'unità di misura va scritta insieme al
+      // numero, e quella è la stessa formattazione della cella normale sotto.
+      sottototale: (figli: RigaComputo[]) => (
+        <div className="text-right font-medium">
+          {NUMERO.format(figli.reduce((tot, f) => tot + (f.quantita ?? 0), 0))}
+        </div>
+      ),
+    },
+    sortFn: 'basic',
+    cell: ({ getValue }) => {
+      const v = getValue<number | undefined>()
+      return <div className="text-right">{v === undefined ? null : NUMERO.format(v)}</div>
+    },
+    enableGlobalFilter: false,
+  }),
+  colAlbero.accessor('importo', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Importo" allinea="fine" />
+    ),
+    meta: {
+      titolo: 'Importo',
+      larghezza: 'w-32',
+      sottototale: (figli: RigaComputo[]) => (
+        <div className="text-right font-semibold">
+          {VALUTA.format(figli.reduce((tot, f) => tot + (f.importo ?? 0), 0))}
+        </div>
+      ),
+    },
+    sortFn: 'basic',
+    cell: ({ getValue }) => {
+      const v = getValue<number | undefined>()
+      return <div className="text-right">{v === undefined ? null : VALUTA.format(v)}</div>
+    },
+    enableGlobalFilter: false,
+  }),
+])
+
+/**
+ * **Righe annidate, subtotale, selezione a cascata** — il pattern "Tree" di
+ * niko-table, portato: `getSottoRighe` legge `figli` dal dato vero (non un
+ * raggruppamento), `CellaAlbero` disegna rientro e `chevron` nella colonna
+ * "Voce", e `meta.sottototale` calcola quantità e importo di ogni voce dalle
+ * sue misurazioni — sempre visibile, anche a riga collassata.
+ *
+ * **Da tastiera**: `Tab` porta al `chevron` di una voce, `Invio` o `Spazio`
+ * la espande; la casella della voce, selezionata, seleziona a cascata tutte
+ * le misurazioni sotto — prova con la prima voce, "Scavo di sbancamento".
+ */
+export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
+  args: {
+    colonne: COLONNE_ALBERO,
+    dati: COMPUTO,
+    cerca: false,
+    selezione: true,
+    colonneNascondibili: false,
+    getSottoRighe: (riga) => ('figli' in riga ? riga.figli : undefined),
+    nomeRighe: { singolare: 'voce', plurale: 'voci' },
+    vuoto: { titolo: 'Nessuna voce nel computo' },
   },
 }

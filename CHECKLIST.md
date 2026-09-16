@@ -79,7 +79,7 @@ Dipendenze di fase: M3.3, M4.2. Si porta (si riscrive) il pattern da niko-table,
 | Attività | Stato | Dipendenze | Criterio di accettazione (sintesi) |
 |---|---|---|---|
 | M3bis.0 Inventario e mappa di adattamento | DONE | M3.3 | mappa in `WORKLOG.md`: bypass `DataTableRoot`/`detectFeaturesFromChildren` confermato, etichette da tradurre elencate, M3bis.5 fissato a 3 sessioni |
-| M3bis.1 Righe annidate con subtotale ("Tree") | TODO | M3bis.0 | `getSubRows`, indentazione+chevron, selezione a cascata, subtotale; tastiera + a11y zero violazioni |
+| M3bis.1 Righe annidate con subtotale ("Tree") | DONE | M3bis.0 | `getSottoRighe`/`CellaAlbero`/`meta.sottototale` in `data-table.tsx`; story `Albero` (computo a 2 livelli); tastiera verificata in Chromium reale (Enter/Spazio, cascata); a11y 288 scansioni/0 |
 | M3bis.2 Espansione righe | TODO | M3bis.0 | `getExpandedRowModel`, pannello di dettaglio libero; tastiera + a11y zero violazioni |
 | M3bis.3 Resize e pin colonne generalizzato | TODO — **blocca su conferma di Francesco** | M3bis.0 | tocca `ui/table.tsx`; riapre D17; riga in `componenti-propri.json` |
 | M3bis.4 Virtualizzazione / scroll infinito | TODO | M3bis.0 | `@tanstack/react-virtual`; 10.000 righe finte, tastiera verificata |
