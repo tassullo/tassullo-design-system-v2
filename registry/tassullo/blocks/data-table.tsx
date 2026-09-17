@@ -1626,7 +1626,18 @@ function CellaIntestazione<TDato extends RowData>({
 
   const stile: React.CSSProperties | undefined = trascinabile
     ? {
-        transform: CSS.Transform.toString(transform),
+        // `CSS.Translate`, non `CSS.Transform` (letto da niko-table,
+        // `TableDraggableHeader`): `Transform` porta anche `scaleX`/`scaleY`,
+        // che dnd-kit calcola quando le due intestazioni che si scambiano
+        // hanno larghezze diverse — qui la norma, non l'eccezione, con
+        // `size`/`minSize` per colonna. Uno `scaleX` su un'intestazione di
+        // testo **è** il testo deformato del rilievo di Francesco: si vedeva
+        // solo trascinando su una colonna di larghezza diversa (`Codice`
+        // 140px verso `Titolo` 320px), mai fra colonne della stessa
+        // larghezza — la prova che non era la selezione nativa (già corretta
+        // sopra) ma la scala. `Translate` scarta la scala e trasla soltanto,
+        // la stessa animazione senza la distorsione.
+        transform: CSS.Translate.toString(transform),
         transition,
         zIndex: isDragging ? 1 : undefined,
       }
@@ -1911,7 +1922,13 @@ function RigaCorpo<TDato extends RowData>({
 
   const stile: React.CSSProperties | undefined = trascinabile
     ? {
-        transform: CSS.Transform.toString(transform),
+        // `CSS.Translate`, non `CSS.Transform` — stessa correzione presa
+        // sopra per `CellaIntestazione` (M3bis.8): righe di altezza diversa
+        // (`pannelloRiga` chiuso/aperto, editing in-riga, M3bis.10) fanno
+        // calcolare a dnd-kit anche uno `scaleY`, che `Transform` porta e
+        // `Translate` scarta. Qui il rischio è più raro che sulle colonne —
+        // le righe sono quasi sempre alte uguali — ma la stessa causa vale.
+        transform: CSS.Translate.toString(transform),
         transition,
         // `position: relative` è il contenimento che l'ombra durante il
         // trascinamento (`zIndex`) chiede per stare sopra le righe ferme.
