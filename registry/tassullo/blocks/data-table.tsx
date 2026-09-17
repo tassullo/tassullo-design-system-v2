@@ -122,6 +122,27 @@ import {
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
+  type UniqueIdentifier,
+} from "@dnd-kit/core"
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import {
   ArrowDownIcon,
   ArrowUpIcon,
   ChevronLeftIcon,
@@ -129,6 +150,7 @@ import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
   ChevronsUpDownIcon,
+  GripVerticalIcon,
   InboxIcon,
   PinIcon,
   PinOffIcon,
@@ -678,6 +700,135 @@ export function colonnaEspansione<TDato extends RowData>() {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Il riordino manuale (M3bis.7, "Row DnD Table")
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Porta `attributes`/`listeners` di dnd-kit dalla riga (`RigaCorpo`, che
+ * chiama `useSortable` **una volta sola**) alla maniglia dentro la sua
+ * cella (`ManigliaRiordinoRiga`), senza farli passare per `tabella.FlexRender`
+ * — TanStack non sa cosa sia dnd-kit, e non deve saperlo.
+ *
+ * **Non due `useSortable({id: riga.id})` separati**, come la prima lettura
+ * del sorgente niko-table suggerirebbe (loro ne chiamano uno in
+ * `TableDraggableRow` per `setNodeRef`/`transform` e uno in
+ * `TableRowDragHandle` per `attributes`/`listeners`): due chiamate con lo
+ * **stesso id** registrano due nodi diversi nella stessa mappa di dnd-kit,
+ * l'uno sovrascrive l'altro — il pattern che dnd-kit stesso documenta per
+ * una maniglia separata dal nodo trascinato è una chiamata sola, con
+ * `listeners` applicati altrove. Qui "altrove" è una colonna TanStack, che
+ * non riceve prop extra dalla riga: il contesto è il tramite.
+ */
+const ContestoRigaTrascinabile = React.createContext<{
+  attributes: DraggableAttributes
+  listeners: DraggableSyntheticListeners
+} | null>(null)
+
+/**
+ * La maniglia (`⠿`), una colonna come `colonnaSelezione`/`colonnaEspansione`
+ * — si aggiunge da sé quando `riordinabile` è passato, la pagina non la
+ * scrive. Legge `attributes`/`listeners` dal contesto di riga: fuori da una
+ * `<RigaCorpo trascinabile>` (cioè fuori da `riordinabile`) il contesto vale
+ * `null` e il bottone resta un bottone qualunque, senza trascinamento — non
+ * dovrebbe succedere (la colonna esiste solo quando `riordinabile` è attivo),
+ * ma non è un motivo per non gestirlo.
+ */
+export function colonnaRiordino<TDato extends RowData>() {
+  const col = creaColonne<TDato>()
+  return col.display({
+    id: "riordino",
+    header: () => <span className="sr-only">Riordina</span>,
+    cell: () => <ManigliaRiordinoRiga />,
+    enableSorting: false,
+    enableHiding: false,
+    enableGlobalFilter: false,
+    meta: { larghezza: "w-10" } satisfies MetaColonna,
+  })
+}
+
+function ManigliaRiordinoRiga() {
+  const contesto = React.useContext(ContestoRigaTrascinabile)
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="-my-2 -ml-2 cursor-grab touch-none active:cursor-grabbing"
+      {...contesto?.attributes}
+      {...contesto?.listeners}
+    >
+      <GripVerticalIcon aria-hidden className="text-muted-foreground" />
+      <span className="sr-only">Trascina per riordinare la riga</span>
+    </Button>
+  )
+}
+
+/**
+ * Il guscio `DndContext`/`SortableContext` (M3bis.7): calcola l'indice di
+ * partenza e d'arrivo dall'ordine **visibile** delle righe
+ * (`tabella.getRowModel().rows`, non `dati` — con ordinamento/ricerca
+ * disattivi mentre `riordinabile` è attivo, v. il prop, i due ordini
+ * coincidono sempre) e passa il nuovo `dati` intero a `onRiordina`.
+ *
+ * Tre sensori, come niko-table: `MouseSensor`/`TouchSensor` per il
+ * trascinamento vero, `KeyboardSensor` per Spazio/frecce/Escape — è quello
+ * che rende il criterio d'accettazione di `PIANO.md` ("riordino completo da
+ * tastiera") vero, non promesso. `restrictToVerticalAxis`: le righe si
+ * scambiano solo in verticale, un trascinamento in diagonale non stacca la
+ * riga dalla sua colonna.
+ *
+ * Non rende markup proprio (`DndContext`/`SortableContext` sono puri
+ * fornitori di contesto): può avvolgere tutto il riquadro della tabella,
+ * `<table>` compreso, senza inserire un elemento fra `<div>` e `<table>` che
+ * romperebbe la struttura.
+ */
+function DataTableRiordinoRighe<TDato extends RowData>({
+  dati,
+  righe,
+  onRiordina,
+  children,
+}: {
+  dati: TDato[]
+  righe: Row<CaratteristicheTabella, TDato>[]
+  onRiordina: (dati: TDato[]) => void
+  children: React.ReactNode
+}) {
+  const idContesto = React.useId()
+  const idRighe = React.useMemo<UniqueIdentifier[]>(() => righe.map((r) => r.id), [righe])
+
+  const sensori = useSensors(
+    useSensor(MouseSensor, {}),
+    useSensor(TouchSensor, {}),
+    useSensor(KeyboardSensor, {})
+  )
+
+  const gestisciFineTrascinamento = React.useCallback(
+    (evento: DragEndEvent) => {
+      const { active, over } = evento
+      if (active && over && active.id !== over.id) {
+        const indicePartenza = idRighe.indexOf(active.id)
+        const indiceArrivo = idRighe.indexOf(over.id)
+        onRiordina(arrayMove(dati, indicePartenza, indiceArrivo))
+      }
+    },
+    [idRighe, dati, onRiordina]
+  )
+
+  return (
+    <DndContext
+      id={idContesto}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToVerticalAxis]}
+      onDragEnd={gestisciFineTrascinamento}
+      sensors={sensori}
+    >
+      <SortableContext items={idRighe} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Il contorno
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -912,7 +1063,7 @@ function PaginazioneTabella<TDato extends RowData>({
  * si appoggia esattamente al bordo della prima. Entrambe derivano da `--spacing`,
  * quindi il blocco regge anche in densità touch.
  */
-function classiBloccate(indice: number, conSelezione: boolean): string | undefined {
+export function classiBloccate(indice: number, conSelezione: boolean): string | undefined {
   const quante = conSelezione ? 2 : 1
   if (indice >= quante) return undefined
   const base =
@@ -942,7 +1093,7 @@ function classiBloccate(indice: number, conSelezione: boolean): string | undefin
  * colonna bloccata: è il segno che lo scorrimento passa sotto, e su una
  * colonna di mezzo sarebbe un filo senza motivo in vista.
  */
-function ancoraggioColonna<TDato extends RowData>(
+export function ancoraggioColonna<TDato extends RowData>(
   tabella: IstanzaTabella<TDato>,
   colonna: Column<CaratteristicheTabella, TDato, unknown>,
   contesto: "intestazione" | "cella"
@@ -1151,7 +1302,7 @@ function ManigliaRidimensiona<TDato extends RowData>({
 }
 
 /** I due stati vuoti, che non sono lo stesso stato. */
-function TabellaVuota({
+export function TabellaVuota({
   filtrata,
   vuoto,
   onPulisci,
@@ -1206,7 +1357,7 @@ function TabellaVuota({
  * Condivisa fra `DataTableBody` e `DataTableVirtualizedBody`, che altrimenti
  * la scriverebbero identica due volte.
  */
-function celleRiga<TDato extends RowData>(
+export function celleRiga<TDato extends RowData>(
   riga: Row<CaratteristicheTabella, TDato>,
   colonneBloccabili: boolean
 ) {
@@ -1219,7 +1370,7 @@ function celleRiga<TDato extends RowData>(
     : riga.getVisibleCells()
 }
 
-type CorpoTabellaCondiviso<TDato extends RowData> = {
+export type CorpoTabellaCondiviso<TDato extends RowData> = {
   tabella: IstanzaTabella<TDato>
   righe: Row<CaratteristicheTabella, TDato>[]
   colonneBloccabili: boolean
@@ -1229,6 +1380,64 @@ type CorpoTabellaCondiviso<TDato extends RowData> = {
   vuoto: StatoVuoto
   conFiltri: boolean
   pulisci: () => void
+}
+
+/**
+ * L'unica `<tr>` che chiama `useSortable` (M3bis.7) — sempre, `trascinabile`
+ * o no: le regole degli hook vogliono la stessa sequenza a ogni render, e
+ * `disabled: !trascinabile` (dnd-kit) è la via prevista per spegnerlo senza
+ * un `if` prima dell'hook. Fuori da un `<DataTableRiordinoRighe>` (nessun
+ * `DndContext` sopra) dnd-kit ricade sul proprio contesto predefinito —
+ * `setNodeRef`/`transform`/`listeners` restano no-op, non lanciano — ma qui
+ * non succede mai: la colonna `riordino` e questo wrapper si accendono
+ * sempre insieme, mai l'uno senza l'altro.
+ */
+function RigaCorpo<TDato extends RowData>({
+  riga,
+  trascinabile,
+  className,
+  dataState,
+  children,
+}: {
+  riga: Row<CaratteristicheTabella, TDato>
+  trascinabile: boolean
+  className?: string
+  dataState?: string
+  children: React.ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: riga.id,
+    disabled: !trascinabile,
+  })
+
+  const stile: React.CSSProperties | undefined = trascinabile
+    ? {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        // `position: relative` è il contenimento che l'ombra durante il
+        // trascinamento (`zIndex`) chiede per stare sopra le righe ferme.
+        position: "relative",
+        zIndex: isDragging ? 1 : undefined,
+      }
+    : undefined
+
+  const contestoRiga = React.useMemo(
+    () => (trascinabile ? { attributes, listeners } : null),
+    [trascinabile, attributes, listeners]
+  )
+
+  return (
+    <ContestoRigaTrascinabile.Provider value={contestoRiga}>
+      <TableRow
+        ref={trascinabile ? setNodeRef : undefined}
+        style={stile}
+        className={cn(className, trascinabile && isDragging && "bg-muted/50 opacity-80")}
+        data-state={dataState}
+      >
+        {children}
+      </TableRow>
+    </ContestoRigaTrascinabile.Provider>
+  )
 }
 
 /**
@@ -1254,12 +1463,15 @@ export function DataTableBody<TDato extends RowData>({
   infinito,
   totaleFiltrate,
   sentinellaRef,
+  trascinabile = false,
 }: CorpoTabellaCondiviso<TDato> & {
   fermo: boolean
   pannelloRiga?: (riga: TDato) => React.ReactNode
   infinito: boolean
   totaleFiltrate: number
   sentinellaRef: React.RefObject<HTMLTableRowElement | null>
+  /** Righe trascinabili (M3bis.7) — vuole un `<DataTableRiordinoRighe>` sopra. */
+  trascinabile?: boolean
 }) {
   return (
     <TableBody>
@@ -1269,9 +1481,11 @@ export function DataTableBody<TDato extends RowData>({
             const celle = celleRiga(riga, colonneBloccabili)
             return (
               <React.Fragment key={riga.id}>
-                <TableRow
+                <RigaCorpo
+                  riga={riga}
+                  trascinabile={trascinabile}
                   className={cn("group/riga", fermo && "snap-start")}
-                  data-state={riga.getIsSelected() ? "selected" : undefined}
+                  dataState={riga.getIsSelected() ? "selected" : undefined}
                 >
                   {celle.map((cella, indice) => {
                     // Il subtotale (M3bis.1, `meta.sottototale`) prende il
@@ -1310,7 +1524,7 @@ export function DataTableBody<TDato extends RowData>({
                       </TableCell>
                     )
                   })}
-                </TableRow>
+                </RigaCorpo>
                 {pannelloRiga && riga.getIsExpanded() ? (
                   // Riga fratella, non figlia: subito dopo la riga che
                   // apre, colSpan su tutte le colonne visibili — è il
@@ -1656,6 +1870,26 @@ export type DataTableProps<TDato extends RowData> = {
   colonne: ColonnaTabella<TDato>[]
   dati: TDato[]
   /**
+   * L'identità di una riga — passata a TanStack come `getRowId`. **Senza,
+   * l'id di una riga è il suo indice nell'array** (il predefinito di
+   * TanStack): va bene finché `dati` cambia solo forma (un filtro, una
+   * pagina), non ordine — è la riga stessa a restare all'indice che aveva.
+   *
+   * **`riordinabile` lo richiede**, e la ragione è specifica, non una
+   * cautela generica: `useSortable` (dnd-kit) tiene per ogni id uno stato
+   * interno che confronta la posizione *prima* e *dopo* un cambio di
+   * layout, per capire se animare l'assestamento. Con l'id legato
+   * all'indice, la riga che finisce in una data posizione non è mai "la
+   * stessa riga di prima" per dnd-kit — è sempre "quella che sta lì ora" —
+   * e il confronto vede un salto di rettangolo che non c'è, innescando
+   * un'animazione di assestamento indesiderata sulla riga appena rilasciata
+   * (misurato: uno scivolamento di ~150ms dopo il rilascio, assente nel
+   * riferimento niko-table — che infatti passa `getRowId={(row) => row.id}`
+   * nel proprio esempio). Con un id vero la riga resta la stessa entità
+   * anche quando cambia posizione, e dnd-kit non vede niente da animare.
+   */
+  idRiga?: (riga: TDato) => string
+  /**
    * Il segnaposto della casella di ricerca. `false` la toglie — per le tabelle
    * corte, dove cercare costa più che leggere.
    */
@@ -1821,6 +2055,38 @@ export type DataTableProps<TDato extends RowData> = {
    */
   colonneBloccabili?: boolean
   /**
+   * Riordino manuale via trascinamento (M3bis.7, porting di "Row DnD Table",
+   * `@dnd-kit/*`): aggiunge a ogni riga una maniglia (`⠿`) trascinabile da
+   * mouse **e** da tastiera (Spazio per afferrare, frecce su/giù per
+   * spostare, Spazio per rilasciare, Escape per annullare — `KeyboardSensor`
+   * di dnd-kit, non farina di questo sacco).
+   *
+   * **Disabilita esplicitamente ordinamento e ricerca/filtri mentre è
+   * attivo** (`PIANO.md`, M3bis.7) — non un avviso in `WORKLOG.md`, una
+   * conseguenza del prop: `enableSorting`/`enableColumnFilters`/
+   * `enableGlobalFilter` vanno a `false` sulla tabella, la casella di
+   * ricerca sparisce (`cerca` viene ignorato). La ragione non è di comodo:
+   * il trascinamento calcola l'indice di partenza e d'arrivo dall'ordine
+   * **visibile** delle righe (`tabella.getRowModel().rows`) e li applica
+   * all'array **grezzo** passato in `dati` — un ordinamento o un filtro
+   * attivi farebbero divergere i due, e la riga rilasciata finirebbe in un
+   * punto diverso dall'array vero. Per lo stesso motivo forza tutte le righe
+   * filtrate in una sola pagina (`perPagina`/`"infinito"`/`"virtuale"` non
+   * si combinano: si vede tutto l'elenco, o l'indice visibile e quello reale
+   * divergono altrettanto). **Fuori ambito di questa sessione**: righe
+   * annidate (`getSottoRighe`) e pannello di dettaglio (`pannelloRiga`) — il
+   * caso reale (un elenco piatto da riordinare a mano) non li richiede
+   * insieme, e comporli avrebbe voluto dire ricalcolare l'indice sull'albero
+   * invece che sull'array piatto.
+   *
+   * `onRiordina` riceve il `dati` intero nel nuovo ordine — lo stesso
+   * principio di `barra`/`onTabellaPronta`: lo stato dei dati resta della
+   * pagina, il blocco non lo tiene mai per sé.
+   */
+  riordinabile?: {
+    onRiordina: (dati: TDato[]) => void
+  }
+  /**
    * Righe annidate (M3bis.1, "Tree"): dato un dato di riga, restituisce le
    * sue righe figlie, o `undefined`/`[]` per una riga senza figli. **Struttura
    * vera nel modello dati** — il caso reale è il "Computo metrico" di Studio,
@@ -1949,6 +2215,7 @@ export type DataTableProps<TDato extends RowData> = {
 export function DataTable<TDato extends RowData>({
   colonne,
   dati,
+  idRiga,
   cerca = "Cerca…",
   vuoto = { titolo: "Non c'è ancora niente" },
   nomeRighe = { singolare: "riga", plurale: "righe" },
@@ -1960,6 +2227,7 @@ export function DataTable<TDato extends RowData>({
   bloccaPrimaColonna = false,
   ridimensionabile = false,
   colonneBloccabili = false,
+  riordinabile,
   getSottoRighe,
   pannelloRiga,
   barra,
@@ -1968,8 +2236,19 @@ export function DataTable<TDato extends RowData>({
   internoGriglia,
   attributiTabella,
 }: DataTableProps<TDato>) {
-  const infinito = perPagina === "infinito"
-  const virtualizzata = perPagina === "virtuale"
+  const trascinamento = !!riordinabile
+  // Alias semplici, non composti: TypeScript restringe il tipo letterale di
+  // `perPagina` da un confronto diretto come questo (le "aliased conditions"
+  // di TS 4.4+), non da un `&&` in più — `infinito`/`virtualizzata` sotto,
+  // che il riordino deve spegnere, non possono quindi essere la stessa
+  // espressione usata più sotto per scegliere `pageSize`.
+  const perPaginaInfinito = perPagina === "infinito"
+  const perPaginaVirtuale = perPagina === "virtuale"
+  // `"virtuale"` non si combina col riordino (v. il prop): monta una
+  // finestra di righe, non l'elenco intero — l'indice visibile e quello
+  // grezzo divergerebbero appena si scorre. Ricade su `"naturale"`.
+  const infinito = perPaginaInfinito && !trascinamento
+  const virtualizzata = perPaginaVirtuale && !trascinamento
   const fermo = altezza === "ferma"
   // `colonneBloccabili` implica `ridimensionabile`: lo scarto sticky del pin
   // generalizzato si calcola dalle larghezze acquisite (v. `MetaColonna`,
@@ -2016,14 +2295,20 @@ export function DataTable<TDato extends RowData>({
     let risultato = colonne
     if (pannelloRiga) risultato = [colonnaEspansione<TDato>(), ...risultato]
     if (selezione) risultato = [colonnaSelezione<TDato>(), ...risultato]
+    // La maniglia va per prima di tutte, davanti anche alla selezione: è il
+    // primo gesto possibile su una riga quando si sta riordinando.
+    if (trascinamento) risultato = [colonnaRiordino<TDato>(), ...risultato]
     return risultato
-  }, [colonne, selezione, pannelloRiga])
+  }, [colonne, selezione, pannelloRiga, trascinamento])
 
   const tabella = useTable({
     features: caratteristiche,
     data: dati,
     columns: colonneEffettive,
     globalFilterFn: "includesString",
+    // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
+    // predefinito, l'indice nell'array (v. il prop).
+    getRowId: idRiga ? (riga) => idRiga(riga) : undefined,
     // `expanded` non è fra gli `onChange`/`state` sotto: resta uno stato
     // interno di TanStack (come `columnOrder`), perché nessun calcolo di
     // questo componente ha bisogno di leggerlo — a differenza di
@@ -2048,6 +2333,12 @@ export function DataTable<TDato extends RowData>({
     enableColumnPinning: colonneBloccabili,
     onColumnSizingChange: setDimensioni,
     onColumnPinningChange: setAncoraggio,
+    // `riordinabile` (M3bis.7): spente **sulla tabella**, non solo nascoste
+    // in chrome — l'ordine visibile deve coincidere con `dati` grezzo perché
+    // il trascinamento mappi l'indice giusto (v. il prop).
+    enableSorting: !trascinamento,
+    enableColumnFilters: !trascinamento,
+    enableGlobalFilter: !trascinamento,
     initialState: {
       pagination: {
         pageIndex: 0,
@@ -2057,8 +2348,15 @@ export function DataTable<TDato extends RowData>({
         // dimensione della pagina a ogni filtro (come fa `caricate` per
         // `"infinito"`): il modello di paginazione si limita comunque al
         // numero di righe vere, una pagina più grande del possibile non
-        // cambia il risultato.
-        pageSize: infinito ? caricate : virtualizzata ? Number.MAX_SAFE_INTEGER : perPagina,
+        // cambia il risultato. `trascinamento` vuole la stessa cosa, per lo
+        // stesso motivo: una pagina sola non coprirebbe l'indice reale.
+        pageSize: trascinamento
+          ? Number.MAX_SAFE_INTEGER
+          : perPaginaInfinito
+            ? caricate
+            : perPaginaVirtuale
+              ? Number.MAX_SAFE_INTEGER
+              : perPagina,
       },
     },
     state: {
@@ -2373,9 +2671,14 @@ export function DataTable<TDato extends RowData>({
      */
   }, [fermo, conRighe])
 
-  return (
+  // `riordinabile` spegne anche la casella di ricerca, non solo `enable
+  // GlobalFilter` sulla tabella (v. il prop): a ricerca visibile ma senza
+  // effetto sembrerebbe rotta, non disattivata apposta.
+  const ricercaVisibile = cerca !== false && !trascinamento
+
+  const contenuto = (
     <div ref={radiceRef} className={cn("flex min-h-0 flex-col gap-4", className)}>
-      {cerca !== false || barra || colonneNascondibili ? (
+      {ricercaVisibile || barra || colonneNascondibili ? (
         <div className="flex flex-col gap-3">
           {/* Riga 1: ricerca e menu Colonne. Riga 2: `barra` — i filtri della
               pagina, le azioni di massa. Due righe sempre, non una sola che
@@ -2384,10 +2687,10 @@ export function DataTable<TDato extends RowData>({
               automatico spezzava un bottone a metà — la riga separava due
               controlli a metà altezza invece di andare sotto per intero.
               Rilievo di Francesco. */}
-          {cerca !== false || colonneNascondibili ? (
+          {ricercaVisibile || colonneNascondibili ? (
             <div className="flex flex-wrap items-center gap-3">
-              {cerca !== false ? (
-                <RicercaTabella tabella={tabella} segnaposto={cerca} />
+              {ricercaVisibile ? (
+                <RicercaTabella tabella={tabella} segnaposto={cerca as string} />
               ) : null}
               {colonneNascondibili ? <VisibilitaColonne tabella={tabella} /> : null}
             </div>
@@ -2579,6 +2882,7 @@ export function DataTable<TDato extends RowData>({
               infinito={infinito}
               totaleFiltrate={totaleFiltrate}
               sentinellaRef={sentinellaRef}
+              trascinabile={trascinamento}
             />
           )}
         </Table>
@@ -2592,11 +2896,20 @@ export function DataTable<TDato extends RowData>({
             // `virtualizzata` non ha nemmeno lei una «pagina»: stessa fascia
             // di destra tolta di `infinito`, per lo stesso motivo — tutte le
             // righe filtrate sono già nel modello, il salto da fare non c'è.
-            infinito={infinito || virtualizzata}
+            // `trascinamento`: stessa ragione, una pagina sola.
+            infinito={infinito || virtualizzata || trascinamento}
             nomeRighe={nomeRighe}
           />
         </div>
       ) : null}
     </div>
+  )
+
+  return trascinamento ? (
+    <DataTableRiordinoRighe dati={dati} righe={righe} onRiordina={riordinabile.onRiordina}>
+      {contenuto}
+    </DataTableRiordinoRighe>
+  ) : (
+    contenuto
   )
 }

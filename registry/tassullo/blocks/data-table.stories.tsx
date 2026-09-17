@@ -1109,3 +1109,75 @@ export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
   play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
   render: () => <TabellaConFiltri statoIniziale={['bozza']} />,
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il riordino manuale (M3bis.7) — `riordinabile`, porting di "Row DnD Table"
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Colonne a parte, come già `COLONNE_RIDIMENSIONABILI`/`COLONNE_ALBERO`
+ * sopra: una colonna **Ordine** in più, che non serve alle altre story.
+ * Non è un dato di `Prodotto` — è la posizione, `row.index + 1` nel modello
+ * di riga già in vista — perché è esattamente quello che la pagina reale
+ * mostra: `Caratteristiche` di Anagrafe (`anagrafe.tassullo.it/caratteristiche`)
+ * tiene un campo **Ordine** per riga, oggi scritto a mano in un modulo di
+ * modifica riga per riga; il riordino a trascinamento lo sostituisce, e
+ * questa colonna prova che il numero segue davvero la riga mentre si sposta,
+ * non solo che le righe cambiano posto. `row.index` e non un contatore a
+ * parte: con `riordinabile` la paginazione è già tutta su una pagina sola
+ * (v. il prop), quindi l'indice del modello di riga **è** la posizione vera.
+ */
+const COLONNE_RIORDINO = col.columns([
+  col.display({
+    id: 'ordine',
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Ordine" allinea="fine" />,
+    meta: { titolo: 'Ordine', larghezza: 'w-16' },
+    cell: ({ row }) => (
+      <div className="text-right tabular-nums text-muted-foreground">{row.index + 1}</div>
+    ),
+  }),
+  ...COLONNE.filter((c) => c.id !== 'azioni'),
+])
+
+/**
+ * `dati` resta della story, come ovunque: `riordinabile.onRiordina` consegna
+ * il nuovo ordine intero, `<DataTable>` non lo tiene per sé. Otto righe, non
+ * cinquecento: il riordino si prova a occhio, e cinquecento renderebbero la
+ * riga trascinata invisibile fuori dallo schermo prima di poterla vedere
+ * muoversi.
+ */
+function RiordinoConControlli() {
+  const [prodotti, setProdotti] = React.useState(() => PRODOTTI.slice(0, 8))
+  return (
+    <DataTable
+      colonne={COLONNE_RIORDINO}
+      dati={prodotti}
+      idRiga={(p) => p.id}
+      riordinabile={{ onRiordina: setProdotti }}
+      piePagina={false}
+    />
+  )
+}
+
+/**
+ * **Da mouse e da tastiera.** `Tab` porta il fuoco sulla maniglia (⠿) della
+ * prima riga; `Spazio` l'afferra, le frecce su/giù la spostano, `Spazio` di
+ * nuovo la rilascia, `Escape` annulla — `KeyboardSensor` di dnd-kit, non
+ * scritto qui.
+ *
+ * **Niente ricerca, niente intestazioni ordinabili**: `riordinabile` li
+ * spegne da sé (`PIANO.md`, M3bis.7) — l'indice che il trascinamento calcola
+ * viene dall'ordine **visibile** delle righe, e un ordinamento o una ricerca
+ * attivi lo farebbero divergere da `dati`. Resta il menu «Colonne»: nascondere
+ * una colonna non tocca l'ordine delle righe.
+ *
+ * **La colonna Ordine si aggiorna da sé** dopo ogni trascinamento — `1`
+ * resta sempre in cima, non la riga che c'era prima: è la riprova visibile
+ * che `onRiordina` ha scritto davvero il nuovo array, non solo spostato una
+ * riga a schermo. Il caso reale è `Caratteristiche` di Anagrafe: oggi
+ * quell'`Ordine` si cambia a mano, un numero alla volta, in un modulo
+ * separato per ogni riga.
+ */
+export const Riordino: StoryObj<typeof DataTable<Prodotto>> = {
+  render: () => <RiordinoConControlli />,
+}
