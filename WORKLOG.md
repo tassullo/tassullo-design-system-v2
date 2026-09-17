@@ -4841,4 +4841,18 @@ Otto prodotti (non 500: la colonna «Render» si legge a occhio solo su un elenc
 
 `npx tsc -b` pulito. `npm run lint` — nessun avviso nuovo (l'unico su `data-table.tsx` è preesistente, `useVirtualizer` in `DataTableVirtualizedBody`, non toccato da questa sessione). `npm run check` verde sui cinque gate: `check:contrast` 0 violazioni, `check:registry` 0 errori (18 componenti ri-stilati, `componenti-propri.json` resta vuoto — `chiaveMemoRiga` è una prop del blocco, non un componente nuovo), `check:font`/`check:logo` allineati, `test:a11y` **1204 scansioni (4 passate), 0 violazioni**. `npm run misura:bersagli`: 2735 bersagli su 301 story, 0 piccoli in entrambe le direzioni — le tre icone nuove (matita/spunta/croce, `size="icon"`) non hanno introdotto un bersaglio sotto soglia. `registry:build` rilanciato, `public/r/tassullo-data-table.json`/`public/r/registry.json` aggiornati.
 
+### Coda di M3bis.10 (2026-09-17): tre rilievi di Francesco sulla story
+
+Tre difetti visti a occhio sulla story `Editing In Riga`, nessuno nella logica di `chiaveMemoRiga` — tutti nella colonna `azioni` scritta per la story, non nel blocco.
+
+1. **Matita, spunta e croce non ancorate a destra.** La matita era un `<Button>` nudo e la coppia Salva/Annulla un `<div className="flex gap-1">` senza `ml-auto`: entrambe scivolavano a sinistra non appena la colonna era più larga del loro contenuto. Corretto con `-my-1 ml-auto flex` — la stessa classe che la colonna `azioni` di `COLONNE` (in cima al file) già usa per il proprio bottone, qui semplicemente non riportata.
+2. **La croce usciva dalla cella.** `w-16` (64px) bastava per un solo bottone (`size="icon"`, 32px) ma non per due affiancati — misurato: area di contenuto ~40px dopo il padding della cella, 70px di bottoni + gap non ci stavano, e `truncate` (regola del blocco su ogni `TableCell`) la tagliava a metà senza errore. Portata a `w-24` (96px).
+3. **La riga cambiava altezza passando in modifica** (41px → 49px, misurato in Chromium): l'`Input` di default (`h-8`, 32px in densità normale) è più alto della riga a riposo, e senza compensazione la fa crescere. La stessa cosa succede da sempre ai bottoni-icona delle celle (`size-8`, 32px) e la si tiene a freno con un margine verticale negativo — `-my-1 ml-auto flex` sulla colonna `azioni`, già in uso da prima di questa sessione — che annulla lo scarto rispetto al padding della cella. Applicata la stessa `-my-1` ai due `Input` (`Nome`, `Revisione`): **41px misurati in entrambi gli stati**, non un numero scelto a occhio.
+
+Il primo rilievo non richiedeva misura, gli altri due sì: diagnosticati leggendo `getBoundingClientRect()` in Chromium reale (via il pannello, `javascript_tool`), non a occhio dallo screenshot — lo stesso principio già a verbale per le transizioni e la tastiera dei popup (`docs/DECISIONI.md` §32, `CLAUDE.md`). Tre commit separati, ciascuno verificato con `check:registry` + `test:a11y -- --una` prima del successivo. Nessuna modifica a `data-table.tsx`: i tre difetti stavano tutti nella story, `chiaveMemoRiga` e `RigaTabellaCorpo` restano quelli descritti sopra.
+
+### Verifiche di chiusura fase
+
+`npm run check` per intero (i cinque gate) rilanciato dopo i tre commit di coda: verde, `test:a11y` 1204 scansioni/0 violazioni (invariato — nessuno dei tre rilievi tocca l'accessibilità). `registry:build` non necessario: nessuna modifica a `registry/tassullo/blocks/data-table.tsx`, solo alla story.
+
 Prossimo passo: **M3bis.11** (aggiornamento di `pagina-lista` e gate di fase), stesso worktree, dipende da M3bis.1..M3bis.10.
