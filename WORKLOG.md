@@ -4856,3 +4856,11 @@ Il primo rilievo non richiedeva misura, gli altri due sì: diagnosticati leggend
 `npm run check` per intero (i cinque gate) rilanciato dopo i tre commit di coda: verde, `test:a11y` 1204 scansioni/0 violazioni (invariato — nessuno dei tre rilievi tocca l'accessibilità). `registry:build` non necessario: nessuna modifica a `registry/tassullo/blocks/data-table.tsx`, solo alla story.
 
 Prossimo passo: **M3bis.11** (aggiornamento di `pagina-lista` e gate di fase), stesso worktree, dipende da M3bis.1..M3bis.10.
+
+### 2026-09-17 — M3bis.11 divisa in due sessioni, su richiesta di Francesco
+
+Prima di avviare M3bis.11, Francesco ha chiesto di dividerla: le pagine da rivedere con le capacità di FASE 3bis sono due, non una, e sono cose diverse — `pagina-lista` (M4.2, item di registry `registry:block`, pagina modello generica) e la pagina Prodotti di Anagrafe (`stories/PaginaProdotti.stories.tsx`, ricostruzione a scopo di verifica nata come gate di FASE 3 in M3.10, **non** un item di registry — v. §Le due trappole più sopra dove si distingue `stories/` dal registry). `pagina-scheda` resta esclusa, come già annotato in `PIANO.md` §M3bis.11 (le menzioni di `data-table` lì sono solo commenti).
+
+`CHECKLIST.md` aggiornata: la riga `M3bis.11` è ora due — **M3bis.11a** (`pagina-lista`) e **M3bis.11b** (pagina Prodotti, dipende da 11a, porta il gate di fase). FASE 3bis passa da 13 a 14 sessioni (nota di testa aggiornata).
+
+Prossimo passo: **M3bis.11a** — `pagina-lista`, almeno un esempio rappresentativo delle capacità aggiunte in M3bis.1..10, screenshot prima/dopo.
