@@ -613,15 +613,14 @@ export const ColonneBloccabili: Story = {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
- * In valutazione: un solo menu per ordinamento e pin (niko-table,
- * "Column Pinning Table") — non ancora nel blocco
+ * Un solo menu per ordinamento e pin (niko-table, "Column Pinning Table")
  * ──────────────────────────────────────────────────────────────────────── */
 
 /**
- * **Prototipo di sola story, non un cambiamento a `data-table.tsx`.**
- * Richiesta di Francesco dopo `Ridimensionabile`/`ColonneBloccabili`: due
- * bottoni sempre visibili accanto al nome colonna (il titolo che ordina,
- * l'icona che blocca) sono rumore. Il riferimento è
+ * **Confermata da Francesco (2026-09-17)** dopo il confronto a occhio con
+ * `Ridimensionabile`/`ColonneBloccabili`: due bottoni sempre visibili accanto
+ * al nome colonna (il titolo che ordina, l'icona che blocca) erano rumore.
+ * Il riferimento è
  * [niko-table, "Column Pinning Table"](https://niko-table.com/examples/column-pinning-table/):
  * lì il titolo torna testo semplice e un solo grilletto «⋮» — visibile
  * al passaggio del mouse o quando la colonna è già ordinata/bloccata,
@@ -631,13 +630,13 @@ export const ColonneBloccabili: Story = {
  * sorgente pubblico via `data-table.json`/`data-table-core.json`, non
  * indovinate).
  *
- * **Qui sotto è una ricostruzione fedele scritta per questa sola story**,
- * con le nostre primitive (`DropdownMenu`, non le loro) e la stessa forma
- * di scelta di `MenuBloccaColonna` nel blocco — un'opzione `disabled` per
- * lo stato già attivo, non un segno di spunta — per confrontare la stessa
- * grammatica di interazione. **Non tocca `CellaIntestazione`/
- * `IntestazioneColonna`**: se il confronto convince, portarla nel blocco è
- * una sessione a sé, con la sua riga in `WORKLOG.md`.
+ * **Ricostruzione scritta per questa story**, con le nostre primitive
+ * (`DropdownMenu`, non le loro) e la stessa forma di scelta di
+ * `MenuBloccaColonna` nel blocco — un'opzione `disabled` per lo stato già
+ * attivo, non un segno di spunta. **Resta qui, non in `CellaIntestazione`/
+ * `IntestazioneColonna`**: l'ambito confermato per M3bis.11b la usa su
+ * Prodotti (v. `WORKLOG.md`), portarla come forma di default del blocco —
+ * se mai deciso — è un passo ulteriore, non compreso in questa conferma.
  */
 function MenuAzioniColonna<TValore>({
   colonna,
@@ -791,13 +790,13 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
 ])
 
 /**
- * **Da confrontare a occhio con `Ridimensionabile` e `ColonneBloccabili`
- * sopra**: stessi dati, stesse azioni, un solo grilletto invece di due.
- * Da tastiera: `Tab` porta il fuoco sul grilletto di ogni intestazione (si
- * rivela da sé, `group-focus-within`), `Invio`/`Spazio` apre lo stesso menu.
+ * Stessi dati di `Ridimensionabile`/`ColonneBloccabili` sopra, un solo
+ * grilletto invece di due. Da tastiera: `Tab` porta il fuoco sul grilletto
+ * di ogni intestazione (si rivela da sé, `group-focus-within`), `Invio`/
+ * `Spazio` apre lo stesso menu.
  */
 export const MenuColonna: Story = {
-  name: 'Menu Colonna (niko, in valutazione)',
+  name: 'Menu Colonna',
   args: {
     colonne: COLONNE_MENU_AZIONI,
     dati: PRODOTTI.slice(0, 15),

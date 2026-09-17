@@ -4956,3 +4956,13 @@ Francesco ha confermato l'ambito della sessione **M3bis.11b** (pagina Prodotti d
 Non incluso, deliberatamente: il riordino di colonna per trascinamento (`colonneRiordinabili`, M3bis.8) — l'elenco di Francesco non lo nomina, e il "menu colonna" già copre ordinamento+pin. Tree/subtotale, espansione, virtualizzazione, Data Grid restano il pattern "Computo", come già deciso.
 
 Prossimo passo: eseguire **M3bis.11b** con questo ambito.
+
+### 2026-09-17 — Conferma del menu colonna, e un difetto di allineamento preso in coda
+
+**Confermato**: dopo il confronto a occhio, Francesco ha approvato il menu colonna unico (ordinamento+pin). Tolto "(niko, in valutazione)" dal nome della story e dai commenti — resta comunque una story a sé in `Blocchi/Data Table`, non la forma di default di `CellaIntestazione`/`IntestazioneColonna`: l'adozione per Prodotti è nell'ambito di M3bis.11b già scritto sopra.
+
+**Rilievo indipendente, story `Riordino` (M3bis.7)**: la maniglia di trascinamento riga (`⠿`) non era centrata verticalmente nella cella — appariva più in alto dei numeri della colonna "Ordine" e delle altre celle della riga. **Stesso difetto già preso una volta**, per `colonnaEspansione` (M3bis.2): un `Button` (`inline-flex`) dentro una `<TableCell>` (`align-middle`) si allinea alla riga di base del testo, non al suo centro — serve un `<span className="flex items-center">` che lo avvolga, l'esatta correzione già in verbale lì (con lo stesso commento a spiegarne il perché). `ManigliaRiordinoRiga` (M3bis.7) non l'aveva mai ricevuta: due colonne-utility con lo stesso pattern (bottone-icona `size="icon"` con margini negativi), una corretta e una no, perché il rilievo del difetto era arrivato solo sulla prima. Misurato con `getBoundingClientRect()` in Chromium prima di intervenire: centro della cella a y=119.78, centro del grip a y=117.5 — 2.28px di scarto, coerente con l'allineamento a riga di base invece che al centro. Corretto avvolgendo il `Button` nello stesso `<span className="flex items-center">`, verificato a occhio dopo (grip allineato con "1", "2", …).
+
+Non toccata `colonnaAzioniRiga` (il menu «⋯», M3bis.9): usa un pattern diverso (`flex` sul `Button` stesso, non uno `<span>` che lo avvolge) e nessun rilievo l'ha segnalata — non è detto che sia sana, ma non si corregge un difetto non osservato.
+
+`tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` 1208 scansioni/0 violazioni (invariato — nessuna story nuova, solo classi e testo).

@@ -787,24 +787,32 @@ export function colonnaRiordino<TDato extends RowData>() {
 function ManigliaRiordinoRiga() {
   const contesto = React.useContext(ContestoRigaTrascinabile)
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      // `select-none`: stessa famiglia di difetto già presa in
-      // `ManigliaRidimensiona` (M3bis.3) — Safari, non Chrome, avvia la
-      // selezione/il trascinamento nativo di testo su un `mousedown` non
-      // impedito. Lì il rimedio è `preventDefault()` nell'handler custom; qui
-      // dnd-kit possiede già `onMouseDown` via `contesto?.listeners`, quindi
-      // il rimedio è togliere il testo dalla contesa con `user-select: none`
-      // invece di intercettare l'evento. Senza, il `<span className="sr-only">`
-      // sotto la maniglia diventa il testo che Safari seleziona e trascina.
-      className="-my-2 -ml-2 cursor-grab touch-none select-none active:cursor-grabbing"
-      {...contesto?.attributes}
-      {...contesto?.listeners}
-    >
-      <GripVerticalIcon aria-hidden className="text-muted-foreground" />
-      <span className="sr-only">Trascina per riordinare la riga</span>
-    </Button>
+    // `flex items-center`: senza, il bottone (inline-flex) si allinea alla
+    // riga di base del testo della cella invece che al suo centro — lo
+    // stesso pareggio verticale di `colonnaEspansione` (rilievo di
+    // Francesco lì: il chevron stava più in alto delle altre celle della
+    // riga; stesso sintomo qui, mai preso perché questa maniglia non aveva
+    // ancora avuto quel rilievo).
+    <span className="flex items-center">
+      <Button
+        variant="ghost"
+        size="icon"
+        // `select-none`: stessa famiglia di difetto già presa in
+        // `ManigliaRidimensiona` (M3bis.3) — Safari, non Chrome, avvia la
+        // selezione/il trascinamento nativo di testo su un `mousedown` non
+        // impedito. Lì il rimedio è `preventDefault()` nell'handler custom; qui
+        // dnd-kit possiede già `onMouseDown` via `contesto?.listeners`, quindi
+        // il rimedio è togliere il testo dalla contesa con `user-select: none`
+        // invece di intercettare l'evento. Senza, il `<span className="sr-only">`
+        // sotto la maniglia diventa il testo che Safari seleziona e trascina.
+        className="-my-2 -ml-2 cursor-grab touch-none select-none active:cursor-grabbing"
+        {...contesto?.attributes}
+        {...contesto?.listeners}
+      >
+        <GripVerticalIcon aria-hidden className="text-muted-foreground" />
+        <span className="sr-only">Trascina per riordinare la riga</span>
+      </Button>
+    </span>
   )
 }
 
