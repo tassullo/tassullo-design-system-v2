@@ -1408,6 +1408,13 @@ function CampoNomeProdotto({
     <div className="flex flex-col gap-1">
       <Input
         aria-label={`Nome di ${prodotto.nome}`}
+        // `-my-1`, come i bottoni-icona di `RowMenuItem`/`colonnaAzioniRiga`
+        // nelle altre celle di questo blocco (v. `-my-1 ml-auto flex` sulla
+        // colonna `azioni` più sotto): senza, l'`Input` di default (`h-8`,
+        // 32px in densità normale) è più alto della riga a riposo — righe
+        // che cambiano altezza quando una si mette in modifica, mentre la
+        // riga deve restare della stessa altezza in entrambi gli stati.
+        className="-my-1"
         value={editing.bozza.nome}
         onChange={(evento) => editing.impostaCampo('nome', evento.target.value)}
         aria-invalid={!!editing.errori.nome}
@@ -1449,7 +1456,8 @@ function CampoRevisioneProdotto({
         onChange={(evento) => editing.impostaCampo('revisione', evento.target.value)}
         aria-invalid={!!editing.errori.revisione}
         aria-describedby={editing.errori.revisione ? idErrore : undefined}
-        className="text-right"
+        // `-my-1`: stessa ragione del campo `Nome`, sopra.
+        className="-my-1 text-right"
         onKeyDown={(evento) => {
           if (evento.key === 'Enter') editing.salva()
           if (evento.key === 'Escape') editing.annulla()
