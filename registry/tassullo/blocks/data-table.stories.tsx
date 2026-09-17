@@ -1542,7 +1542,7 @@ function costruisciColonneEditing(
         const prodotto = row.original
         if (prodotto.id === editing.editingId) {
           return (
-            <div className="flex gap-1">
+            <div className="-my-1 ml-auto flex w-fit gap-1">
               <Button
                 size="icon"
                 variant="ghost"
@@ -1563,9 +1563,15 @@ function costruisciColonneEditing(
           )
         }
         return (
+          // `-my-1 ml-auto flex`, non un `<Button>` nudo: senza, il bottone
+          // resta allineato a sinistra nella cella e scivola a sinistra
+          // rispetto alla coppia Salva/Annulla non appena la colonna è più
+          // larga del bottone stesso — stesso principio della colonna
+          // `azioni` di `COLONNE`, sopra.
           <Button
             size="icon"
             variant="ghost"
+            className="-my-1 ml-auto flex"
             aria-label={`Modifica ${prodotto.nome}`}
             onClick={() => editing.iniziaModifica(prodotto)}
           >
