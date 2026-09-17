@@ -154,6 +154,7 @@ import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
   ChevronsUpDownIcon,
+  EllipsisVerticalIcon,
   GripVerticalIcon,
   InboxIcon,
   PinIcon,
@@ -167,6 +168,16 @@ import { cn } from "cn"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Checkbox } from "@/registry/tassullo/ui/checkbox"
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/registry/tassullo/ui/context-menu"
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -174,6 +185,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/registry/tassullo/ui/dropdown-menu"
 import {
@@ -849,6 +863,162 @@ function DataTableRiordinoRighe<TDato extends RowData>({
       </SortableContext>
     </DndContext>
   )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il menu di riga condiviso (M3bis.9, porting "Row Context Menu Table")
+ *
+ * Un solo elenco di voci si monta sia nella tendina «⋯» (`colonnaAzioniRiga`,
+ * aggiunta da sé quando si passa `menuRiga` a `<DataTable>`, come già fanno
+ * `selezione`/`pannelloRiga`/`riordinabile`) sia nel tasto destro sull'intera
+ * riga (`RigaCorpo`, sotto). Non sono due elenchi scritti due volte: `menu`
+ * è un `React.ReactNode` solo, la stessa istanza montata in due `Popup` di
+ * Base UI diversi — chi scrive le voci non sa (e non deve sapere) da quale
+ * dei due sta per essere aperta.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Quale dei due `Popup` sta montando le voci in questo momento — `dropdown`
+ * per la tendina «⋯», `tastoDestro` per il menu sulla riga. `RowMenuItem`/
+ * `RowMenuSeparator`/`RowMenuSub` lo leggono per scegliere la primitiva
+ * giusta: `dropdown-menu` e `context-menu` sono due popup distinti di Base
+ * UI (`Menu`/`ContextMenu`), non lo stesso componente con un nome diverso.
+ */
+const ContestoTipoMenuRiga = React.createContext<"dropdown" | "tastoDestro">("dropdown")
+
+/**
+ * La riga che il menu aperto sta mostrando. `unknown` e non la generica di
+ * `<DataTable>`: un `React.Context` è per forza non generico, e
+ * `useDataTableRow<TDato>()` restituisce già il tipo giusto a chi lo chiama.
+ * `undefined` distingue "fuori da un menu di riga" da una riga vera il cui
+ * valore sarebbe comunque falsy (`0`, `""`, `null`), che `useContext` da solo
+ * non saprebbe dire.
+ */
+const ContestoRigaMenu = React.createContext<unknown>(undefined)
+
+/**
+ * Legge la riga che il menu di `menuRiga`/`colonnaAzioniRiga` sta montando.
+ * Va chiamato da un `RowMenuItem`/`RowMenuSeparator`/`RowMenuSub`, o da un
+ * loro discendente — mai altrove: fuori da un menu di riga non esiste una
+ * riga da restituire, ed è un errore di programmazione da far esplodere
+ * subito, non un caso limite da coprire con un valore finto.
+ */
+export function useDataTableRow<TDato>(): TDato {
+  const riga = React.useContext(ContestoRigaMenu)
+  if (riga === undefined) {
+    throw new Error(
+      "useDataTableRow() va chiamato dentro un RowMenuItem/RowMenuSeparator/RowMenuSub, montato dal menu di riga di <DataTable menuRiga> (o da colonnaAzioniRiga())."
+    )
+  }
+  return riga as TDato
+}
+
+/**
+ * Una voce che si monta **sia** nella tendina «⋯» sia nel tasto destro —
+ * l'unica definizione, letta due volte. Stessa forma dei due originali
+ * shadcn (`inset`/`variant`): sotto è davvero `DropdownMenuItem` o
+ * `ContextMenuItem`, mai un terzo componente nostro che li imiti.
+ */
+export function RowMenuItem({
+  variant = "default",
+  inset,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuItem>) {
+  const tipo = React.useContext(ContestoTipoMenuRiga)
+  return tipo === "dropdown" ? (
+    <DropdownMenuItem variant={variant} inset={inset} {...props} />
+  ) : (
+    <ContextMenuItem variant={variant} inset={inset} {...props} />
+  )
+}
+
+/** Il separatore condiviso — stessa ragione di `RowMenuItem`. */
+export function RowMenuSeparator(props: React.ComponentProps<typeof DropdownMenuSeparator>) {
+  const tipo = React.useContext(ContestoTipoMenuRiga)
+  return tipo === "dropdown" ? (
+    <DropdownMenuSeparator {...props} />
+  ) : (
+    <ContextMenuSeparator {...props} />
+  )
+}
+
+/**
+ * Il sottomenu condiviso — `trigger` è l'etichetta cliccabile che apre
+ * `children`, la stessa coppia `SubTrigger`/`SubContent` che shadcn separa
+ * in due componenti: qui **una** perché il tipo di popup (dropdown o tasto
+ * destro) va deciso una volta sola per l'intera coppia, non per ciascuno.
+ */
+export function RowMenuSub({
+  trigger,
+  children,
+}: {
+  trigger: React.ReactNode
+  children: React.ReactNode
+}) {
+  const tipo = React.useContext(ContestoTipoMenuRiga)
+  if (tipo === "dropdown") {
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>{trigger}</DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>{children}</DropdownMenuSubContent>
+      </DropdownMenuSub>
+    )
+  }
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>{trigger}</ContextMenuSubTrigger>
+      <ContextMenuSubContent>{children}</ContextMenuSubContent>
+    </ContextMenuSub>
+  )
+}
+
+/**
+ * La tendina «⋯» di riga — una colonna come `colonnaSelezione`/
+ * `colonnaEspansione`, aggiunta da sé da `<DataTable menuRiga>` (in coda alle
+ * colonne, mai scritta dalla pagina). `enabledFor` esclude le righe bloccate
+ * o di sola lettura: la stessa funzione, passata anche a `RigaCorpo`, spegne
+ * pure il tasto destro sulla stessa riga — non due controlli scritti a
+ * mano in due posti che potrebbero disallinearsi.
+ */
+export function colonnaAzioniRiga<TDato extends RowData>({
+  menu,
+  enabledFor,
+  ariaLabel,
+}: {
+  /** Le voci — `RowMenuItem`/`RowMenuSeparator`/`RowMenuSub`, scritte una sola volta. */
+  menu: React.ReactNode
+  /** Righe escluse dal menu (bloccate, di sola lettura): niente tendina, niente tasto destro. */
+  enabledFor?: (riga: TDato) => boolean
+  /** L'etichetta del grilletto per riga — di default generica, senza il nome della riga. */
+  ariaLabel?: (riga: TDato) => string
+}) {
+  const col = creaColonne<TDato>()
+  return col.display({
+    id: "azioni",
+    header: () => <span className="sr-only">Azioni</span>,
+    cell: ({ row }) => {
+      if (enabledFor && !enabledFor(row.original)) return null
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon" className="-my-1 ml-auto flex" />}
+            aria-label={ariaLabel ? ariaLabel(row.original) : "Azioni riga"}
+          >
+            <EllipsisVerticalIcon aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <ContestoTipoMenuRiga.Provider value="dropdown">
+              <ContestoRigaMenu.Provider value={row.original}>{menu}</ContestoRigaMenu.Provider>
+            </ContestoTipoMenuRiga.Provider>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
+    enableSorting: false,
+    enableHiding: false,
+    enableGlobalFilter: false,
+    meta: { larghezza: "w-12" } satisfies MetaColonna,
+  })
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1693,12 +1863,22 @@ function RigaCorpo<TDato extends RowData>({
   trascinabile,
   className,
   dataState,
+  menuRiga,
   children,
 }: {
   riga: Row<CaratteristicheTabella, TDato>
   trascinabile: boolean
   className?: string
   dataState?: string
+  /**
+   * Il tasto destro condiviso (M3bis.9): lo stesso `menu` della tendina «⋯»
+   * (`colonnaAzioniRiga`), montato qui dentro un `<ContextMenu>` che avvolge
+   * l'intera `<tr>` — non un'altra colonna, un altro modo di raggiungere le
+   * stesse voci. `abilitato` viene da `enabledFor`: la stessa domanda che
+   * spegne la tendina sulla stessa riga spegne anche il tasto destro, non
+   * due `if` scritti a mano in due punti diversi del blocco.
+   */
+  menuRiga?: { menu: React.ReactNode; abilitato: boolean }
   children: React.ReactNode
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -1722,19 +1902,177 @@ function RigaCorpo<TDato extends RowData>({
     [trascinabile, attributes, listeners]
   )
 
+  const rigaTabella = (
+    <TableRow
+      ref={trascinabile ? setNodeRef : undefined}
+      style={stile}
+      className={cn(className, trascinabile && isDragging && "bg-muted/50 opacity-80")}
+      data-state={dataState}
+    >
+      {children}
+    </TableRow>
+  )
+
   return (
     <ContestoRigaTrascinabile.Provider value={contestoRiga}>
-      <TableRow
-        ref={trascinabile ? setNodeRef : undefined}
-        style={stile}
-        className={cn(className, trascinabile && isDragging && "bg-muted/50 opacity-80")}
-        data-state={dataState}
-      >
-        {children}
-      </TableRow>
+      {menuRiga && menuRiga.abilitato ? (
+        <ContextMenu>
+          <ContextMenuTrigger render={rigaTabella} />
+          <ContextMenuContent>
+            <ContestoTipoMenuRiga.Provider value="tastoDestro">
+              <ContestoRigaMenu.Provider value={riga.original}>
+                {menuRiga.menu}
+              </ContestoRigaMenu.Provider>
+            </ContestoTipoMenuRiga.Provider>
+          </ContextMenuContent>
+        </ContextMenu>
+      ) : (
+        rigaTabella
+      )}
     </ContestoRigaTrascinabile.Provider>
   )
 }
+
+/**
+ * La riga di `DataTableBody`, dietro `React.memo` (M3bis.10, `chiaveMemoRiga`,
+ * porting "Inline Edit Table"). **Senza `chiaveMemoRiga` non cambia niente**:
+ * il comparatore rifiuta sempre di fermare il render (torna `false`, "non
+ * sono uguali") e questa riga si comporta come il `<tr>` inline di prima che
+ * esistesse — ricalcolata a ogni giro come tutte le altre.
+ *
+ * Con `chiaveMemoRiga` attivo, lo stato di editing (`editingId`/`draft`/
+ * `errors`) vive **fuori da `dati`** — mai un `isEditing` dentro la riga, che
+ * sostituendo l'array farebbe ricalcolare ogni riga memoizzata a ogni tasto,
+ * vanificando la memoizzazione stessa — e la pagina lo incolla in una
+ * stringa per riga con `chiaveMemoRiga(riga.original)`. Il comparatore la
+ * confronta insieme a `riga` (che TanStack ricrea solo quando cambiano
+ * `dati`/`colonne`, mai per selezione o ordinamento — v. `docs/DECISIONI.md`)
+ * e a tutto ciò che può cambiare il contenuto di una riga senza toccare quei
+ * due: selezione, espansione, e — uguale per ogni riga dello stesso render,
+ * ricalcolata una sola volta da `DataTableBody` — l'assetto delle colonne
+ * (ordine, larghezze acquisite, pin, visibilità). Digitare in un campo di
+ * modifica cambia solo la stringa di quella riga: le altre restano ferme.
+ */
+type RigaTabellaCorpoProps<TDato extends RowData> = {
+  tabella: IstanzaTabella<TDato>
+  riga: Row<CaratteristicheTabella, TDato>
+  colonneBloccabili: boolean
+  bloccoLegacy: boolean
+  selezione: boolean
+  colonneVisibili: number
+  fermo: boolean
+  trascinabile: boolean
+  menuRiga?: { menu: React.ReactNode; abilitato: boolean }
+  pannelloRiga?: (riga: TDato) => React.ReactNode
+  /**
+   * Stato derivato passato **esplicitamente**: quando il comparatore ferma
+   * il render non richiama mai `riga.getIsSelected()`/`getIsExpanded()` per
+   * conto suo — guarda solo le prop.
+   */
+  selezionata: boolean
+  espansa: boolean
+  /** `undefined` quando `chiaveMemoRiga` non è passato: nessuna memoizzazione. */
+  chiaveMemo: string | undefined
+  /** Impronta di ordine/larghezze/pin/visibilità delle colonne — uguale per ogni riga dello stesso render. */
+  strutturaColonne: string
+}
+
+function RigaTabellaCorpoImpl<TDato extends RowData>({
+  tabella,
+  riga,
+  colonneBloccabili,
+  bloccoLegacy,
+  selezione,
+  colonneVisibili,
+  fermo,
+  trascinabile,
+  menuRiga,
+  pannelloRiga,
+  selezionata,
+  espansa,
+}: RigaTabellaCorpoProps<TDato>) {
+  const celle = celleRiga(riga, colonneBloccabili)
+  return (
+    <React.Fragment>
+      <RigaCorpo
+        riga={riga}
+        trascinabile={trascinabile}
+        className={cn("group/riga", fermo && "snap-start")}
+        dataState={selezionata ? "selected" : undefined}
+        menuRiga={menuRiga}
+      >
+        {celle.map((cella, indice) => {
+          // Il subtotale (M3bis.1, `meta.sottototale`) prende il posto
+          // della cella normale **solo sulle righe che hanno figli** — su
+          // una riga foglia non c'è niente da sommare, e `tabella.FlexRender`
+          // resta la via giusta.
+          const sottototale = riga.subRows.length
+            ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)?.sottototale
+            : undefined
+          const ancoraCella = colonneBloccabili
+            ? ancoraggioColonna(tabella, cella.column, "cella")
+            : undefined
+          return (
+            // `truncate` è il prezzo di `table-fixed`: con le larghezze
+            // decise dalle intestazioni, un testo più lungo della sua
+            // colonna **sborda** nella colonna accanto invece di allargarla:
+            // meglio tagliarlo coi puntini.
+            <TableCell
+              key={cella.id}
+              className={cn(
+                "truncate",
+                bloccoLegacy && classiBloccate(indice, selezione),
+                ancoraCella?.className
+              )}
+              style={ancoraCella?.style}
+            >
+              {sottototale ? (
+                sottototale(
+                  riga.subRows.map((r) => r.original),
+                  riga.original
+                )
+              ) : (
+                <tabella.FlexRender cell={cella} />
+              )}
+            </TableCell>
+          )
+        })}
+      </RigaCorpo>
+      {pannelloRiga && espansa ? (
+        // Riga fratella, non figlia: subito dopo la riga che apre, colSpan
+        // su tutte le colonne visibili — è il pannello di M3bis.2, non
+        // l'albero di M3bis.1 (quello aggiunge righe vere al modello dati,
+        // questo ne disegna una in più solo per la vista).
+        <TableRow
+          id={`pannello-riga-${riga.id}`}
+          className={cn("hover:bg-transparent", fermo && "snap-start")}
+        >
+          <TableCell colSpan={colonneVisibili} className="bg-muted/30">
+            {pannelloRiga(riga.original)}
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </React.Fragment>
+  )
+}
+
+const RigaTabellaCorpo = React.memo(RigaTabellaCorpoImpl, (precedenti, successive) => {
+  // Senza `chiaveMemoRiga` (`chiaveMemo === undefined`) il comparatore
+  // dichiara sempre "diverse": nessuna riga resta mai ferma, e il
+  // comportamento è bit-per-bit quello di prima che questo componente
+  // esistesse — nessuna regressione per le otto capacità già `DONE` che non
+  // passano questo prop.
+  if (successive.chiaveMemo === undefined) return false
+  return (
+    precedenti.riga === successive.riga &&
+    precedenti.selezionata === successive.selezionata &&
+    precedenti.espansa === successive.espansa &&
+    precedenti.strutturaColonne === successive.strutturaColonne &&
+    precedenti.chiaveMemo === successive.chiaveMemo &&
+    precedenti.trascinabile === successive.trascinabile &&
+    precedenti.menuRiga?.abilitato === successive.menuRiga?.abilitato
+  )
+}) as typeof RigaTabellaCorpoImpl
 
 /**
  * Il corpo non virtualizzato: ogni riga di `righe` è un `<tr>` vero, sempre
@@ -1760,6 +2098,8 @@ export function DataTableBody<TDato extends RowData>({
   totaleFiltrate,
   sentinellaRef,
   trascinabile = false,
+  menuRiga,
+  chiaveMemoRiga,
 }: CorpoTabellaCondiviso<TDato> & {
   fermo: boolean
   pannelloRiga?: (riga: TDato) => React.ReactNode
@@ -1768,77 +2108,63 @@ export function DataTableBody<TDato extends RowData>({
   sentinellaRef: React.RefObject<HTMLTableRowElement | null>
   /** Righe trascinabili (M3bis.7) — vuole un `<DataTableRiordinoRighe>` sopra. */
   trascinabile?: boolean
+  /** Il menu di riga condiviso (M3bis.9) — v. il prop `menuRiga` di `<DataTable>`. */
+  menuRiga?: {
+    menu: React.ReactNode
+    enabledFor?: (riga: TDato) => boolean
+  }
+  /** M3bis.10 — v. il prop `chiaveMemoRiga` di `<DataTable>`. */
+  chiaveMemoRiga?: (riga: TDato) => string
 }) {
+  // Calcolata una volta per render, non per riga: è la stessa per tutte,
+  // quindi entra nel comparatore di `RigaTabellaCorpo` come un unico
+  // valore condiviso. Il costo si paga solo quando `chiaveMemoRiga` è
+  // davvero passato — altrimenti resta una stringa vuota, mai letta dal
+  // comparatore (che con `chiaveMemo === undefined` non guarda le prop).
+  const strutturaColonne = chiaveMemoRiga
+    ? [
+        tabella.state.columnOrder.join(","),
+        tabella.state.sorting.map((s) => `${s.id}:${s.desc}`).join(","),
+        Object.entries(tabella.state.columnSizing)
+          .map(([id, larghezza]) => `${id}:${larghezza}`)
+          .join(","),
+        tabella.state.columnPinning.start.join(","),
+        tabella.state.columnPinning.end.join(","),
+        Object.entries(tabella.state.columnVisibility)
+          .map(([id, visibile]) => `${id}:${visibile}`)
+          .join(","),
+      ].join("|")
+    : ""
   return (
     <TableBody>
       {righe.length > 0 ? (
         <>
-          {righe.map((riga) => {
-            const celle = celleRiga(riga, colonneBloccabili)
-            return (
-              <React.Fragment key={riga.id}>
-                <RigaCorpo
-                  riga={riga}
-                  trascinabile={trascinabile}
-                  className={cn("group/riga", fermo && "snap-start")}
-                  dataState={riga.getIsSelected() ? "selected" : undefined}
-                >
-                  {celle.map((cella, indice) => {
-                    // Il subtotale (M3bis.1, `meta.sottototale`) prende il
-                    // posto della cella normale **solo sulle righe che
-                    // hanno figli** — su una riga foglia non c'è niente da
-                    // sommare, e `tabella.FlexRender` resta la via giusta.
-                    const sottototale = riga.subRows.length
-                      ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)
-                          ?.sottototale
-                      : undefined
-                    const ancoraCella = colonneBloccabili
-                      ? ancoraggioColonna(tabella, cella.column, "cella")
-                      : undefined
-                    return (
-                      // `truncate` è il prezzo di `table-fixed`: con le larghezze
-                      // decise dalle intestazioni, un testo più lungo della sua
-                      // colonna **sborda** nella colonna accanto invece di
-                      // allargarla: meglio tagliarlo coi puntini.
-                      <TableCell
-                        key={cella.id}
-                        className={cn(
-                          "truncate",
-                          bloccoLegacy && classiBloccate(indice, selezione),
-                          ancoraCella?.className
-                        )}
-                        style={ancoraCella?.style}
-                      >
-                        {sottototale ? (
-                          sottototale(
-                            riga.subRows.map((r) => r.original),
-                            riga.original
-                          )
-                        ) : (
-                          <tabella.FlexRender cell={cella} />
-                        )}
-                      </TableCell>
-                    )
-                  })}
-                </RigaCorpo>
-                {pannelloRiga && riga.getIsExpanded() ? (
-                  // Riga fratella, non figlia: subito dopo la riga che
-                  // apre, colSpan su tutte le colonne visibili — è il
-                  // pannello di M3bis.2, non l'albero di M3bis.1 (quello
-                  // aggiunge righe vere al modello dati, questo ne
-                  // disegna una in più solo per la vista).
-                  <TableRow
-                    id={`pannello-riga-${riga.id}`}
-                    className={cn("hover:bg-transparent", fermo && "snap-start")}
-                  >
-                    <TableCell colSpan={colonneVisibili} className="bg-muted/30">
-                      {pannelloRiga(riga.original)}
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </React.Fragment>
-            )
-          })}
+          {righe.map((riga) => (
+            <RigaTabellaCorpo
+              key={riga.id}
+              tabella={tabella}
+              riga={riga}
+              colonneBloccabili={colonneBloccabili}
+              bloccoLegacy={bloccoLegacy}
+              selezione={selezione}
+              colonneVisibili={colonneVisibili}
+              fermo={fermo}
+              trascinabile={trascinabile}
+              pannelloRiga={pannelloRiga}
+              menuRiga={
+                menuRiga
+                  ? {
+                      menu: menuRiga.menu,
+                      abilitato: menuRiga.enabledFor ? menuRiga.enabledFor(riga.original) : true,
+                    }
+                  : undefined
+              }
+              selezionata={riga.getIsSelected()}
+              espansa={pannelloRiga ? riga.getIsExpanded() : false}
+              chiaveMemo={chiaveMemoRiga ? chiaveMemoRiga(riga.original) : undefined}
+              strutturaColonne={strutturaColonne}
+            />
+          ))}
           {/*
             La sentinella di `perPagina="infinito"`: una riga vuota,
             invisibile (altezza di un pixel, `aria-hidden`), che
@@ -2458,6 +2784,68 @@ export type DataTableProps<TDato extends RowData> = {
    */
   pannelloRiga?: (riga: TDato) => React.ReactNode
   /**
+   * Il menu di riga condiviso (M3bis.9, porting "Row Context Menu Table"):
+   * `menu` sono le voci — scritte una sola volta con `RowMenuItem`/
+   * `RowMenuSeparator`/`RowMenuSub`, che leggono la riga da
+   * `useDataTableRow<TDato>()` — e si montano **sia** nella tendina «⋯» che
+   * il blocco aggiunge da sé in coda alle colonne (`colonnaAzioniRiga`,
+   * come `selezione`/`pannelloRiga` aggiungono la propria), **sia** nel
+   * tasto destro sull'intera riga.
+   *
+   * `enabledFor` esclude una riga da **entrambe** le vie insieme — bloccata,
+   * di sola lettura — con la stessa domanda: non due controlli scritti a
+   * mano che potrebbero disallinearsi.
+   *
+   * **Il tasto destro non compone con `perPagina="virtuale"`**: la tendina
+   * resta (è una cella come le altre, `DataTableVirtualizedBody` la rende
+   * comunque), ma nessuna `<tr>` virtualizzata è avvolta in un
+   * `<ContextMenu>` — lo stesso limite di `pannelloRiga` con la
+   * virtualizzazione (M3bis.4), per la stessa ragione: right-click resta
+   * comunque una scorciatoia, mai l'unica via (v. `context-menu.stories.tsx`).
+   */
+  menuRiga?: {
+    menu: React.ReactNode
+    enabledFor?: (riga: TDato) => boolean
+    ariaLabel?: (riga: TDato) => string
+  }
+  /**
+   * L'editing in-riga leggero (M3bis.10, porting "Inline Edit Table"): la via
+   * d'uscita per lasciare che una pagina renda editabile un campo alla volta
+   * senza pagare il costo della Data Grid (M3bis.5, clipboard/fill/annulla-
+   * ripeti) né aprire una scheda — il caso reale è una `pagina-lista` di
+   * Anagrafe, non il "Computo" (che quei tre non li può fare a meno).
+   *
+   * **Non è un prop che accende l'editing**: quello resta lavoro della
+   * pagina — colonne che, quando `riga.original` è quella in modifica,
+   * rendono un `Input` invece del valore, con `onKeyDown` che salva su
+   * `Invio` e annulla su `Esc` (v. la story `Editing In Riga`). Questo prop
+   * è solo la **chiave di memoizzazione**: `<DataTable>` avvolge ogni riga
+   * in `React.memo`, e lo stato di editing (`editingId`/`draft`/`errors`)
+   * vive fuori da `dati` — mai un `isEditing` dentro la riga, che
+   * sostituendo l'array farebbe ricalcolare **tutta** la tabella a ogni
+   * tasto. Senza una chiave che lo dica, la riga memoizzata non lo saprebbe:
+   * `chiaveMemoRiga` incolla quello stato esterno in una stringa per riga
+   * (`` `${draft.nome}|${errori.nome ?? ""}` ``, tipicamente) — cambia solo
+   * per la riga in modifica, e solo quella si ricalcola a ogni tasto. Torna
+   * `""` (o qualunque stringa costante) per una riga che non c'entra: nessun
+   * cambio, nessun render.
+   *
+   * **Senza questo prop, niente cambia**: nessuna delle nove capacità già
+   * `DONE` di questa fase lo passa, e il comparatore di memoizzazione lo sa
+   * — senza una chiave torna sempre "diverse", cioè il comportamento di
+   * sempre, un `<tr>` ricalcolato a ogni giro.
+   *
+   * **Non compone con `perPagina="virtuale"`**: la finestra montata dal
+   * virtualizzatore (M3bis.4) ricalcola già ogni riga a ogni scorrimento
+   * per misurarne l'altezza vera (`measureElement`), e il fuoco/tastiera di
+   * `DataTableVirtualizedBody` sono chiusure nuove a ogni render — comporre
+   * la memoizzazione lì avrebbe voluto dire riscrivere anche quella parte,
+   * senza un caso reale che lo richieda (nessuna pagina edita un campo su
+   * 10.000 righe virtualizzate). Scarto annotato, come `pannelloRiga` con la
+   * stessa `perPagina="virtuale"`.
+   */
+  chiaveMemoRiga?: (riga: TDato) => string
+  /**
    * Cosa mettere sotto la ricerca, in una riga propria: i filtri della
    * pagina, le azioni di massa. Non condivide la riga con la ricerca/il menu
    * Colonne — a differenza loro non va a capo da sé quando lo spazio manca
@@ -2561,6 +2949,8 @@ export function DataTable<TDato extends RowData>({
   riordinabile,
   getSottoRighe,
   pannelloRiga,
+  menuRiga,
+  chiaveMemoRiga,
   barra,
   className,
   onTabellaPronta,
@@ -2637,8 +3027,11 @@ export function DataTable<TDato extends RowData>({
     // La maniglia va per prima di tutte, davanti anche alla selezione: è il
     // primo gesto possibile su una riga quando si sta riordinando.
     if (trascinamento) risultato = [colonnaRiordino<TDato>(), ...risultato]
+    // La tendina «⋯» va in coda, non in testa come le altre: è un'azione,
+    // non un modo di leggere la riga.
+    if (menuRiga) risultato = [...risultato, colonnaAzioniRiga<TDato>(menuRiga)]
     return risultato
-  }, [colonne, selezione, pannelloRiga, trascinamento])
+  }, [colonne, selezione, pannelloRiga, trascinamento, menuRiga])
 
   const tabella = useTable({
     features: caratteristiche,
@@ -3191,6 +3584,8 @@ export function DataTable<TDato extends RowData>({
               totaleFiltrate={totaleFiltrate}
               sentinellaRef={sentinellaRef}
               trascinabile={trascinamento}
+              menuRiga={menuRiga}
+              chiaveMemoRiga={chiaveMemoRiga}
             />
           )}
         </Table>

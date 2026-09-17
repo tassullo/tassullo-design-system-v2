@@ -1,21 +1,26 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { RowData } from '@tanstack/react-table'
 import {
+  CheckIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   CopyIcon,
   EllipsisVerticalIcon,
   PencilIcon,
   Trash2Icon,
+  XIcon,
 } from 'lucide-react'
 import * as React from 'react'
 
-import { apriCol } from '@/prove/apri'
+import { apriCol, apriColDestro } from '@/prove/apri'
 import {
   CellaAlbero,
   DataTable,
   IntestazioneColonna,
+  RowMenuItem,
+  RowMenuSeparator,
   creaColonne,
+  useDataTableRow,
   type IstanzaTabella,
 } from '@/registry/tassullo/blocks/data-table'
 import { FiltroData } from '@/registry/tassullo/blocks/data-table-filtro-data'
@@ -34,6 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/registry/tassullo/ui/dropdown-menu'
+import { Input } from '@/registry/tassullo/ui/input'
 
 /* ────────────────────────────────────────────────────────────────────────
  * I dati finti
@@ -1213,4 +1219,407 @@ function RiordinoConControlli() {
  */
 export const Riordino: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <RiordinoConControlli />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il menu di riga condiviso (M3bis.9) — `menuRiga`, porting
+ * "Row Context Menu Table"
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Le stesse colonne di `COLONNE`, meno la colonna `azioni` scritta a mano
+ * con un `DropdownMenu` diretto (v. `MenuDiRiga` sopra): `menuRiga` (sotto)
+ * aggiunge la propria tendina «⋯» da sé, in coda.
+ */
+const COLONNE_MENU_RIGA = COLONNE.filter((c) => c.id !== 'azioni')
+
+/**
+ * Il componente di azioni-riga — **una sola definizione**, montata sia
+ * nella tendina «⋯» sia nel tasto destro sull'intera riga: legge la riga
+ * corrente con `useDataTableRow<Prodotto>()`, non da una prop che il
+ * chiamante dovrebbe passare due volte. Le tre voci sono identiche a quelle
+ * che la colonna `azioni` di `COLONNE` scrive a mano sopra — stesso elenco,
+ * stavolta scritto una volta sola.
+ */
+function MenuAzioniProdotto() {
+  const prodotto = useDataTableRow<Prodotto>()
+  return (
+    <>
+      <RowMenuItem onClick={() => console.info(`Modifica ${prodotto.codice}`)}>
+        <PencilIcon aria-hidden />
+        Modifica
+      </RowMenuItem>
+      <RowMenuItem onClick={() => console.info(`Duplica ${prodotto.codice}`)}>
+        <CopyIcon aria-hidden />
+        Duplica
+      </RowMenuItem>
+      <RowMenuSeparator />
+      {/* `variant="destructive"`, non una classe di colore: stessa regola
+          della colonna `azioni` sopra (v. `CLAUDE.md`, le due trappole). */}
+      <RowMenuItem
+        variant="destructive"
+        onClick={() => console.info(`Elimina ${prodotto.codice}`)}
+      >
+        <Trash2Icon aria-hidden />
+        Elimina
+      </RowMenuItem>
+    </>
+  )
+}
+
+/**
+ * Una riga **archiviata** (`enabledFor`) prova l'esclusione: né la tendina
+ * né il tasto destro compaiono su di lei, le altre restano intatte. Otto
+ * righe come `Riordino`: bastano a provare a occhio due righe abilitate più
+ * quella esclusa, senza il rumore di cinquecento.
+ */
+function MenuRigaCondivisoConControlli() {
+  const [prodotti] = React.useState(() =>
+    PRODOTTI.slice(0, 8).map((p, indice) =>
+      indice === 2 ? { ...p, stato: 'archiviato' as const } : p
+    )
+  )
+  return (
+    <DataTable
+      colonne={COLONNE_MENU_RIGA}
+      dati={prodotti}
+      idRiga={(p) => p.id}
+      menuRiga={{
+        menu: <MenuAzioniProdotto />,
+        enabledFor: (p) => p.stato !== 'archiviato',
+        ariaLabel: (p) => `Azioni su ${p.nome}`,
+      }}
+      piePagina={false}
+    />
+  )
+}
+
+/**
+ * **Identiche da tendina e da tasto destro**: le tre voci — Modifica,
+ * Duplica, Elimina — vengono dalla stessa `<MenuAzioniProdotto />`, letta
+ * due volte da due `Popup` diversi. **La terza riga (archiviata) non apre
+ * né l'una né l'altra**: `enabledFor` spegne insieme la tendina e il tasto
+ * destro, con la stessa domanda.
+ *
+ * **Da tastiera resta raggiungibile solo la tendina**: `Tab` raggiunge il
+ * bottone «⋯» di ogni riga abilitata e `Invio` apre lo stesso identico
+ * menu che il tasto destro apre — il tasto destro non è mai l'unica via
+ * (v. `context-menu.stories.tsx`, «il costo d'ingresso»).
+ */
+export const MenuRigaCondiviso: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Menu Riga Condiviso',
+  // Il tasto destro, non la tendina: quest'ultima è già misurata aperta
+  // dalle story sopra (`Ridimensionabile`/`ColonneBloccate`/`Albero`), qui
+  // manca ancora una misura del popup nuovo.
+  play: apriColDestro('[data-slot="context-menu-trigger"]', 'context-menu-content'),
+  render: () => <MenuRigaCondivisoConControlli />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Editing in-riga leggero (M3bis.10) — `chiaveMemoRiga`, porting
+ * "Inline Edit Table"
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type BozzaProdotto = { nome: string; revisione: string }
+type ErroriProdotto = { nome?: string; revisione?: string }
+
+/**
+ * Tutto lo stato di editing **fuori da `dati`** (v. il prop `chiaveMemoRiga`
+ * di `<DataTable>`, in `data-table.tsx`): `editingId`/`bozza`/`errori` sono
+ * `useState` separati, mai un `isEditing` scritto dentro la riga — quello
+ * sostituirebbe l'array `prodotti` a ogni tasto, e ricalcolerebbe ogni riga
+ * memoizzata. `prodotti` si aggiorna una sola volta, dentro `salva()`.
+ */
+function useEditingInRiga(setProdotti: React.Dispatch<React.SetStateAction<Prodotto[]>>) {
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [bozza, setBozza] = React.useState<BozzaProdotto>({ nome: '', revisione: '' })
+  const [errori, setErrori] = React.useState<ErroriProdotto>({})
+
+  const iniziaModifica = React.useCallback((prodotto: Prodotto) => {
+    setEditingId(prodotto.id)
+    setBozza({ nome: prodotto.nome, revisione: String(prodotto.revisione) })
+    setErrori({})
+  }, [])
+
+  const annulla = React.useCallback(() => {
+    setEditingId(null)
+    setBozza({ nome: '', revisione: '' })
+    setErrori({})
+  }, [])
+
+  const impostaCampo = React.useCallback((campo: keyof BozzaProdotto, valore: string) => {
+    setBozza((precedente) => ({ ...precedente, [campo]: valore }))
+    setErrori((precedente) => ({ ...precedente, [campo]: undefined }))
+  }, [])
+
+  const salva = React.useCallback(() => {
+    const prossimi: ErroriProdotto = {}
+    if (!bozza.nome.trim()) prossimi.nome = 'Il nome è obbligatorio'
+    const revisione = Number.parseInt(bozza.revisione, 10)
+    if (!Number.isFinite(revisione) || revisione <= 0) prossimi.revisione = 'Numero positivo'
+    if (Object.keys(prossimi).length > 0) {
+      setErrori(prossimi)
+      return
+    }
+    setProdotti((precedenti) =>
+      precedenti.map((p) =>
+        p.id === editingId ? { ...p, nome: bozza.nome.trim(), revisione } : p
+      )
+    )
+    annulla()
+  }, [bozza, editingId, annulla, setProdotti])
+
+  /**
+   * `""` per ogni riga che non è quella in modifica — nessun cambio, nessun
+   * render — e per la riga in modifica una stringa che porta bozza ed
+   * errori insieme. Ogni tasto cambia `bozza.nome` → nuova stringa →
+   * `RigaTabellaCorpo` (in `data-table.tsx`) ricalcola **solo questa riga**,
+   * mai le altre.
+   */
+  const chiaveMemoRiga = React.useCallback(
+    (prodotto: Prodotto): string => {
+      if (prodotto.id !== editingId) return ''
+      return `${bozza.nome}|${bozza.revisione}|${errori.nome ?? ''}|${errori.revisione ?? ''}`
+    },
+    [editingId, bozza, errori]
+  )
+
+  return { editingId, bozza, errori, iniziaModifica, annulla, impostaCampo, salva, chiaveMemoRiga }
+}
+
+type StatoEditingInRiga = ReturnType<typeof useEditingInRiga>
+
+/**
+ * Il campo `nome`: un `Input` sulla riga in modifica, il testo altrimenti.
+ * `Invio` salva, `Esc` annulla — le due scorciatoie dell'esempio originale.
+ */
+function CampoNomeProdotto({
+  prodotto,
+  editing,
+}: {
+  prodotto: Prodotto
+  editing: StatoEditingInRiga
+}) {
+  if (prodotto.id !== editing.editingId) {
+    return <span className="font-medium">{prodotto.nome}</span>
+  }
+  const idErrore = `errore-nome-${prodotto.id}`
+  return (
+    <div className="flex flex-col gap-1">
+      <Input
+        aria-label={`Nome di ${prodotto.nome}`}
+        value={editing.bozza.nome}
+        onChange={(evento) => editing.impostaCampo('nome', evento.target.value)}
+        aria-invalid={!!editing.errori.nome}
+        aria-describedby={editing.errori.nome ? idErrore : undefined}
+        autoFocus
+        onKeyDown={(evento) => {
+          if (evento.key === 'Enter') editing.salva()
+          if (evento.key === 'Escape') editing.annulla()
+        }}
+      />
+      {editing.errori.nome ? (
+        <p id={idErrore} className="text-xs text-destructive-subtle-foreground">
+          {editing.errori.nome}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/** Lo stesso principio per `revisione`, l'unico campo numerico dell'esempio. */
+function CampoRevisioneProdotto({
+  prodotto,
+  editing,
+}: {
+  prodotto: Prodotto
+  editing: StatoEditingInRiga
+}) {
+  if (prodotto.id !== editing.editingId) {
+    return <div className="text-right">{prodotto.revisione}</div>
+  }
+  const idErrore = `errore-revisione-${prodotto.id}`
+  return (
+    <div className="flex flex-col gap-1">
+      <Input
+        aria-label={`Revisione di ${prodotto.nome}`}
+        type="number"
+        min={1}
+        value={editing.bozza.revisione}
+        onChange={(evento) => editing.impostaCampo('revisione', evento.target.value)}
+        aria-invalid={!!editing.errori.revisione}
+        aria-describedby={editing.errori.revisione ? idErrore : undefined}
+        className="text-right"
+        onKeyDown={(evento) => {
+          if (evento.key === 'Enter') editing.salva()
+          if (evento.key === 'Escape') editing.annulla()
+        }}
+      />
+      {editing.errori.revisione ? (
+        <p id={idErrore} className="text-xs text-destructive-subtle-foreground">
+          {editing.errori.revisione}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * La colonna «Render»: non è un dato del prodotto, è lo strumento della
+ * story — un contatore per riga, incrementato **solo quando la cella si
+ * ricalcola davvero**, che rende visibile a occhio ciò che `chiaveMemoRiga`
+ * promette a parole (lo stesso principio del contatore di render che
+ * "Inline Edit Table" usa nella propria dimostrazione). `contatori` vive in
+ * un `useRef`, mai in uno stato — uno stato in più romperebbe da sé la
+ * memoizzazione che si sta misurando.
+ */
+function useContatoreRenderRighe() {
+  const contatori = React.useRef(new Map<string, number>())
+  return React.useCallback((id: string) => {
+    const prossimo = (contatori.current.get(id) ?? 0) + 1
+    contatori.current.set(id, prossimo)
+    return prossimo
+  }, [])
+}
+
+const colEditing = creaColonne<Prodotto>()
+
+/**
+ * Le colonne si ricostruiscono a ogni cambio dello stato di editing — le
+ * chiusure di `cell` devono vedere la bozza e gli errori aggiornati, non
+ * quelli del render in cui la colonna fu creata (lo stesso motivo per cui
+ * l'esempio originale ricostruisce le proprie `columns` in un `useMemo` che
+ * dipende da `editingId`/`draft`/`errors`).
+ */
+function costruisciColonneEditing(
+  editing: StatoEditingInRiga,
+  contaRender: (id: string) => number
+) {
+  return colEditing.columns([
+    colEditing.accessor('codice', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+      meta: { titolo: 'Codice', larghezza: 'w-28' },
+      sortFn: 'alphanumeric',
+      cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+    }),
+    colEditing.accessor('nome', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+      meta: { titolo: 'Nome', larghezza: 'w-52' },
+      sortFn: 'text',
+      cell: ({ row }) => <CampoNomeProdotto prodotto={row.original} editing={editing} />,
+    }),
+    colEditing.accessor('famiglia', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Famiglia" />,
+      meta: { titolo: 'Famiglia' },
+      sortFn: 'text',
+    }),
+    colEditing.accessor('revisione', {
+      header: ({ column }) => (
+        <IntestazioneColonna colonna={column} titolo="Rev." allinea="fine" />
+      ),
+      meta: { titolo: 'Revisione', larghezza: 'w-24' },
+      sortFn: 'basic',
+      cell: ({ row }) => <CampoRevisioneProdotto prodotto={row.original} editing={editing} />,
+      enableGlobalFilter: false,
+    }),
+    colEditing.display({
+      id: 'render',
+      meta: { titolo: 'Render', larghezza: 'w-20' },
+      header: () => <span className="text-xs text-muted-foreground">Render</span>,
+      cell: ({ row }) => (
+        <Badge variant="outline" className="tabular-nums">
+          {contaRender(row.original.id)}
+        </Badge>
+      ),
+      enableHiding: false,
+      enableGlobalFilter: false,
+    }),
+    colEditing.display({
+      id: 'azioni',
+      meta: { larghezza: 'w-16' },
+      header: () => <span className="sr-only">Azioni</span>,
+      cell: ({ row }) => {
+        const prodotto = row.original
+        if (prodotto.id === editing.editingId) {
+          return (
+            <div className="flex gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Salva ${prodotto.nome}`}
+                onClick={editing.salva}
+              >
+                <CheckIcon aria-hidden className="text-success-subtle-foreground" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Annulla la modifica"
+                onClick={editing.annulla}
+              >
+                <XIcon aria-hidden className="text-destructive-subtle-foreground" />
+              </Button>
+            </div>
+          )
+        }
+        return (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={`Modifica ${prodotto.nome}`}
+            onClick={() => editing.iniziaModifica(prodotto)}
+          >
+            <PencilIcon aria-hidden />
+          </Button>
+        )
+      },
+      enableHiding: false,
+    }),
+  ])
+}
+
+/**
+ * Otto righe, non cinquecento: la colonna «Render» si legge a occhio solo
+ * su un elenco corto, e il caso reale (`pagina-lista`) non è mai la stessa
+ * tabella da 500 righe di `Prodotti` sopra.
+ */
+function EditingInRigaConControlli() {
+  const [prodotti, setProdotti] = React.useState(() => PRODOTTI.slice(0, 8))
+  const editing = useEditingInRiga(setProdotti)
+  const contaRender = useContatoreRenderRighe()
+  const colonne = React.useMemo(
+    () => costruisciColonneEditing(editing, contaRender),
+    // `contaRender` è stabile (`useCallback` senza dipendenze, v. sopra):
+    // non serve nell'elenco, e includerlo forzerebbe una ricostruzione delle
+    // colonne a ogni render invece che a ogni cambio di editing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editing.editingId, editing.bozza, editing.errori]
+  )
+  return (
+    <DataTable
+      colonne={colonne}
+      dati={prodotti}
+      idRiga={(p) => p.id}
+      chiaveMemoRiga={editing.chiaveMemoRiga}
+      piePagina={false}
+    />
+  )
+}
+
+/**
+ * **La colonna «Render» è la prova, non un ornamento**: si modifichi il
+ * `Nome` di una riga a caso e si digiti — il suo numero sale a ogni tasto,
+ * quello di ogni altra riga resta fermo. Senza `chiaveMemoRiga` sarebbero
+ * salite tutte insieme, perché lo stato di editing (`bozza`) vive fuori da
+ * `dati` e senza quel prop `React.memo` non avrebbe modo di saperlo.
+ *
+ * **Invio salva, Esc annulla** — verificato da tastiera, non solo dal
+ * mouse sulle due icone. Un nome vuoto o una revisione non positiva
+ * mostrano l'errore sotto il campo **senza chiudere l'editing**: `salva()`
+ * si ferma prima di toccare `prodotti` quando `Object.keys(prossimi).length
+ * > 0`.
+ */
+export const EditingInRiga: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Editing In Riga',
+  render: () => <EditingInRigaConControlli />,
 }
