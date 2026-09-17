@@ -659,7 +659,12 @@ function MenuAzioniColonna<TValore>({
             size="icon"
             className={cn(
               '-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
-              attiva && 'text-primary opacity-100'
+              // `text-accent-ink`, non `text-primary` — la trappola di
+              // `CLAUDE.md`: `--primary` è il brand, mai il colore di un
+              // testo o di un'icona. niko-table usa `text-primary` nel
+              // proprio sorgente (loro non hanno questa regola); qui si
+              // corregge nel portare la forma, non si copia alla lettera.
+              attiva && 'text-accent-ink opacity-100'
             )}
           />
         }
@@ -748,7 +753,10 @@ const colMenuAzioni = creaColonne<Prodotto>()
 const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
   colMenuAzioni.accessor('codice', {
     header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Codice" />,
-    meta: { titolo: 'Codice' },
+    // `azioniProprie`: l'header sopra porta già il pin nel proprio menu —
+    // senza, `colonneBloccabili` (sotto) aggiungerebbe anche il suo, due
+    // grilletti di pin per la stessa colonna (rilievo di Francesco).
+    meta: { titolo: 'Codice', azioniProprie: true },
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
@@ -756,7 +764,7 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
   }),
   colMenuAzioni.accessor('nome', {
     header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Nome" />,
-    meta: { titolo: 'Nome' },
+    meta: { titolo: 'Nome', azioniProprie: true },
     sortFn: 'text',
     size: 220,
     minSize: 120,
@@ -764,12 +772,12 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
   }),
   colMenuAzioni.accessor('famiglia', {
     header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Famiglia" />,
-    meta: { titolo: 'Famiglia' },
+    meta: { titolo: 'Famiglia', azioniProprie: true },
     sortFn: 'text',
   }),
   colMenuAzioni.accessor('stato', {
     header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Stato" />,
-    meta: { titolo: 'Stato' },
+    meta: { titolo: 'Stato', azioniProprie: true },
     sortFn: 'text',
     size: 130,
     minSize: 90,

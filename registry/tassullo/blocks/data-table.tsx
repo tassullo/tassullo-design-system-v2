@@ -381,6 +381,16 @@ export type MetaColonna<TDato = unknown> = {
   titolo?: string
   larghezza?: string
   sottototale?: (righeFiglie: TDato[], riga: TDato) => React.ReactNode
+  /**
+   * La colonna porta già, nel proprio `header`, un modo di bloccarsi (un
+   * menu che compone ordinamento e pin insieme — v. la story "in
+   * valutazione" `Menu Colonna` in `data-table.stories.tsx`): `colonneBloccabili`
+   * non le aggiunge anche il proprio `MenuBloccaColonna`, o comparirebbero
+   * due grilletti di pin per la stessa colonna. Non spegne `colonneBloccabili`
+   * sulla colonna — resta bloccabile, `getCanPin()`/`pin()` restano gli
+   * stessi — spegne solo l'icona che il blocco aggiungerebbe da sé.
+   */
+  azioniProprie?: boolean
 }
 
 /** Una colonna già tipizzata sulle caratteristiche di casa. */
@@ -1651,9 +1661,8 @@ function CellaIntestazione<TDato extends RowData>({
   const ancoraColonna = colonneBloccabili
     ? ancoraggioColonna(tabella, intestazione.column, "intestazione")
     : undefined
-  const titoloColonna =
-    (intestazione.column.columnDef.meta as MetaColonna | undefined)?.titolo ??
-    intestazione.column.id
+  const metaColonna = intestazione.column.columnDef.meta as MetaColonna | undefined
+  const titoloColonna = metaColonna?.titolo ?? intestazione.column.id
 
   return (
     <ContestoIntestazioneTrascinabile.Provider value={contestoIntestazione}>
@@ -1699,7 +1708,7 @@ function CellaIntestazione<TDato extends RowData>({
             <span className="min-w-0 flex-1">
               <tabella.FlexRender header={intestazione} />
             </span>
-            {colonneBloccabili ? (
+            {colonneBloccabili && !metaColonna?.azioniProprie ? (
               <MenuBloccaColonna colonna={intestazione.column} titolo={titoloColonna} />
             ) : null}
           </div>
