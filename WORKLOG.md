@@ -4941,3 +4941,18 @@ Verificato in Chromium: il grilletto sparisce del tutto a riposo su una colonna 
 2. **Il colore del pallino attivo era `text-primary`** — copiato alla lettera dal sorgente niko, che non ha la nostra regola. È esattamente la prima delle «due trappole» di `CLAUDE.md`: `--primary` è il brand, mai un colore di testo o icona. Corretto in `text-accent-ink`. Verificato via `getComputedStyle` in Chromium: il colore reso (`oklch(0.549 0.1456 48.87)`) coincide con `--accent-ink`, non con `--primary` (`oklch(0.795 0.1473 73.78)`) — non a occhio, misurato.
 
 `azioniProprie` è l'unica riga toccata in `data-table.tsx` per questa valutazione — additiva, non cambia il comportamento di nessuna colonna esistente (il flag è assente ovunque tranne qui). `tsc -b` pulito, `lint` invariato, `check:registry` 0 errori, `check` verde sui cinque gate, `test:a11y` 1208 scansioni/0 violazioni (invariato). Verificato in Chromium: un solo grilletto per intestazione, nessun pin duplicato.
+
+**Terzo rilievo, stessa sessione**: il pallino acceso non deve leggere come un accento a parte — stesso colore del titolo della colonna, non `text-accent-ink` (comunque corretto rispetto a `text-primary`, ma ancora un colore "in più"). Cambiato in `text-foreground`, lo stesso che eredita `<span>` in `IntestazioneColonnaAzioni`. `check` verde, invariato nel resto.
+
+### 2026-09-17 — Scopo di M3bis.11b confermato, non ancora eseguito
+
+Francesco ha confermato l'ambito della sessione **M3bis.11b** (pagina Prodotti di Anagrafe) senza volerla avviare ora — solo pianificazione, registrata qui e in `CHECKLIST.md` perché la sessione che la eseguirà parta senza dover ricostruire il contesto:
+
+1. **Resize** colonne (M3bis.3), come già su Norme.
+2. **Menu colonna** — non pin separato: la forma validata in `Menu Colonna` (`Blocchi/Data Table`, coda di questa sessione), un solo grilletto che compone ordinamento (righe crescenti/decrescenti) e pin. `MetaColonna.azioniProprie` è già nel blocco per questo. Manca ancora la decisione se questa forma sostituisce anche `IntestazioneColonna`/`MenuBloccaColonna` di default o resta un'alternativa opt-in — da chiarire scrivendo Prodotti, non prima.
+3. **Menu di riga condiviso** (M3bis.9) con azioni **testabili davvero**, non uno stub: "Elimina" apre `confirm-dialog` (già nel registry, `registry/tassullo/blocks/confirm-dialog.tsx`), la conferma toglie la riga dai dati finti della story e mostra `toast-con-annullo` (idem, già nel registry) — non un `console.info` come nelle story precedenti (`MenuAzioniNorma`, `MenuAzioniProdotto`). "Modifica" ha bisogno di un test reale altrettanto concreto: da decidere in sessione se una `responsive-dialog`/`form-field` (già nel registry, M3.4) o un rimando alla pagina scheda.
+4. **Filtri sfaccettati** (M3bis.6) su Famiglia e Tipo, al posto dei due `Select` semplici attuali — già descritto in dettaglio prima nella sessione (proposta 3, mai eseguita).
+
+Non incluso, deliberatamente: il riordino di colonna per trascinamento (`colonneRiordinabili`, M3bis.8) — l'elenco di Francesco non lo nomina, e il "menu colonna" già copre ordinamento+pin. Tree/subtotale, espansione, virtualizzazione, Data Grid restano il pattern "Computo", come già deciso.
+
+Prossimo passo: eseguire **M3bis.11b** con questo ambito.

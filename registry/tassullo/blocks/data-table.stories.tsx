@@ -659,12 +659,14 @@ function MenuAzioniColonna<TValore>({
             size="icon"
             className={cn(
               '-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
-              // `text-accent-ink`, non `text-primary` — la trappola di
-              // `CLAUDE.md`: `--primary` è il brand, mai il colore di un
-              // testo o di un'icona. niko-table usa `text-primary` nel
-              // proprio sorgente (loro non hanno questa regola); qui si
-              // corregge nel portare la forma, non si copia alla lettera.
-              attiva && 'text-accent-ink opacity-100'
+              // `text-foreground`, lo stesso colore del titolo della colonna
+              // (`IntestazioneColonnaAzioni`, sotto) — non un colore
+              // "attivo" a parte: rilievo di Francesco, il grilletto acceso
+              // deve leggere come lo stesso testo, non come un accento.
+              // Prima era `text-accent-ink` (già corretto da `text-primary`,
+              // la trappola di `CLAUDE.md`), un passo ancora più vicino al
+              // sorgente niko invece che alla nostra pagina.
+              attiva && 'text-foreground opacity-100'
             )}
           />
         }
