@@ -84,6 +84,7 @@
 import * as React from "react"
 import {
   columnFilteringFeature,
+  columnOrderingFeature,
   columnPinningFeature,
   columnResizingFeature,
   columnSizingFeature,
@@ -110,6 +111,7 @@ import {
   useTable,
   type Column,
   type ColumnDef,
+  type ColumnOrderState,
   type ColumnPinningState,
   type ColumnSizingState,
   type Header,
@@ -134,10 +136,12 @@ import {
   type DraggableSyntheticListeners,
   type UniqueIdentifier,
 } from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+import { restrictToHorizontalAxis, restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import {
   SortableContext,
   arrayMove,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
@@ -235,6 +239,15 @@ import {
  * numero — 150 di default TanStack — usato per calcolare gli scarti del pin
  * generalizzato (v. `ancoraggioColonna`).
  *
+ * `columnOrderingFeature` (M3bis.8, "Column DnD Table") è la stessa storia
+ * una volta di più: registrata sempre, ma `state.columnOrder` resta
+ * governato da TanStack (l'array vuoto di partenza, ordine di dichiarazione)
+ * finché nessuna intestazione viene trascinata — nessun `enable*` da
+ * spegnere, a differenza di resize e pin: la feature non ha un simile,
+ * `column.getIndex()`/`setColumnOrder()` esistono comunque, ed è
+ * `colonneRiordinabili` (il prop) a decidere se un'intestazione porta la
+ * maniglia che li usa.
+ *
  * `arrHas` (M3bis.6, filtri sfaccettati) tiene la riga se il valore della
  * colonna è **uguale a uno** dei valori scelti — la forma giusta per un
  * filtro a scelta multipla su un valore scalare (`stato`, `famiglia`: una
@@ -255,6 +268,7 @@ import {
  */
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
+  columnOrderingFeature,
   columnPinningFeature,
   columnResizingFeature,
   columnSizingFeature,
@@ -798,7 +812,16 @@ function DataTableRiordinoRighe<TDato extends RowData>({
   const sensori = useSensors(
     useSensor(MouseSensor, {}),
     useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {})
+    // `coordinateGetter: sortableKeyboardCoordinates` — coda di M3bis.8,
+    // non di questa sessione: il predefinito di `KeyboardSensor` muove di
+    // 25px fissi a ogni freccia, in stile libero, non alla posizione della
+    // riga vicina. Qui funzionava per un caso (righe alte 38-48px, un passo
+    // che le supera quasi sempre), ma non per costruzione — la stessa causa
+    // ha dato un riordino di **colonna** completamente muto da tastiera
+    // (colonne larghe 140-220px, un passo che non le supera mai). Corretto
+    // qui per coerenza, non perché il criterio d'accettazione di M3bis.7
+    // fosse falso: lo era, per un margine che la story lì non esponeva.
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
   const gestisciFineTrascinamento = React.useCallback(
@@ -1298,6 +1321,279 @@ function ManigliaRidimensiona<TDato extends RowData>({
         )}
       />
     </span>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il riordino di colonna (M3bis.8, porting di "Column DnD Table")
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Le colonne che il blocco aggiunge da sé — selezione, espansione, maniglia
+ * di riordino **riga** — non entrano nel riordino di **colonna**: restano
+ * sempre per prime, nel loro ordine fisso, per la stessa ragione per cui
+ * sono le prime a essere anteposte in `colonneEffettive`. Un'intestazione il
+ * cui id è qui dentro non riceve la maniglia e non chiama `useSortable` con
+ * `disabled: false` — la stessa distinzione che `RIENTRO_PER_LIVELLO` non fa
+ * mai per le colonne dichiarate dalla pagina, ma che qui serve perché queste
+ * tre non sono "una colonna", sono chrome del blocco.
+ */
+const COLONNE_UTILITY = new Set(["selezione", "espansione", "riordino"])
+
+/**
+ * Porta `attributes`/`listeners` di dnd-kit dall'intestazione (`CellaIntestazione`,
+ * che chiama `useSortable` **una volta sola**) alla sua maniglia
+ * (`ManigliaRiordinoColonna`) — lo stesso tramite di `ContestoRigaTrascinabile`
+ * (M3bis.7), spiegato lì: due `useSortable({id: colonna.id})` separati
+ * registrerebbero due nodi sullo stesso id nella mappa di dnd-kit, l'uno
+ * sovrascriverebbe l'altro.
+ *
+ * **Perché una maniglia e non l'intestazione intera** (come mostra la
+ * lettera del sorgente niko-table, `TableDraggableHeader`, che spreme
+ * `attributes`/`listeners` sul `<th>` stesso): lì l'intestazione diventa
+ * `role="button"` — e contiene già un bottone vero (`IntestazioneColonna`,
+ * l'ordinamento) più, con `colonneBloccabili`, un secondo bottone (il menu
+ * del pin). Un `role="button"` che contiene un `<button>` è la violazione
+ * `nested-interactive` di axe, gravità *critical* — verificato provando
+ * prima la lettera del sorgente, poi la scansione. La maniglia separata
+ * (stesso principio della riga) tiene il `<th>` un `<th>` qualunque, con tre
+ * controlli **fratelli**, mai annidati: ordina, trascina, blocca.
+ */
+const ContestoIntestazioneTrascinabile = React.createContext<{
+  attributes: DraggableAttributes
+  listeners: DraggableSyntheticListeners
+} | null>(null)
+
+/**
+ * La maniglia (`⠿`) di un'intestazione, accanto al bottone d'ordinamento —
+ * mai al suo posto, per la stessa ragione per cui `MenuBloccaColonna` sta a
+ * fianco e non sopra: azioni diverse, bottoni diversi. Legge `attributes`/
+ * `listeners` dal contesto della cella; fuori da `colonneRiordinabili` non
+ * si monta affatto (`CellaIntestazione` non la rende).
+ */
+function ManigliaRiordinoColonna({ titolo }: { titolo: string }) {
+  const contesto = React.useContext(ContestoIntestazioneTrascinabile)
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="-my-2 -ml-2 shrink-0 cursor-grab touch-none active:cursor-grabbing"
+      {...contesto?.attributes}
+      {...contesto?.listeners}
+    >
+      <GripVerticalIcon aria-hidden className="text-muted-foreground" />
+      <span className="sr-only">Trascina per riordinare la colonna «{titolo}»</span>
+    </Button>
+  )
+}
+
+/**
+ * L'unica `<th>` che chiama `useSortable` (M3bis.8) — sempre, `trascinabile`
+ * o no, con `disabled: !trascinabile` per la stessa ragione a verbale su
+ * `RigaCorpo` (M3bis.7): le regole degli hook vogliono la stessa sequenza a
+ * ogni render, e `intestazioni` è già estratto in un componente per riga
+ * — qui per intestazione — apposta perché la conta possa cambiare (colonne
+ * nascoste, `colonneBloccabili` che ne cambia l'ordine) senza rompere quella
+ * regola.
+ *
+ * **Solo il `<th>` prende `ref`/`transform`** (lo scorrimento visivo durante
+ * il trascinamento); `attributes`/`listeners` vanno alla maniglia via
+ * contesto, mai qui — è la parte che tiene il `<th>` fuori da
+ * `nested-interactive` (v. sopra). Le celle sotto **non seguono** il
+ * trascinamento a fotogrammi: a differenza di niko-table (`TableDragAlongCell`,
+ * un `useSortable` per cella per riga), qui l'ordine delle colonne è già
+ * quello che TanStack calcola da `state.columnOrder` — `row.getVisibleCells()`
+ * lo rispetta da sé, senza bisogno di un secondo hook per cella. Un
+ * risparmio deliberato, non un limite scoperto tardi: con la virtualizzazione
+ * (M3bis.4) e la Data Grid (M3bis.5) già in gioco, un `useSortable` per
+ * ogni cella di ogni riga visibile avrebbe moltiplicato il costo per il solo
+ * fotogramma della cella che scivola, mentre lo scatto dell'intera colonna al
+ * rilascio (l'intestazione durante il trascinamento, il corpo dopo) resta il
+ * criterio d'accettazione di `PIANO.md` — non promette un fotogramma per
+ * fotogramma sulle celle.
+ */
+function CellaIntestazione<TDato extends RowData>({
+  tabella,
+  tabellaRef,
+  intestazione,
+  indice,
+  trascinabile,
+  ridimensionabile,
+  colonneBloccabili,
+  bloccoLegacy,
+  conDimensioni,
+  selezione,
+}: {
+  tabella: IstanzaTabella<TDato>
+  tabellaRef: React.RefObject<HTMLTableElement | null>
+  intestazione: Header<CaratteristicheTabella, TDato, unknown>
+  indice: number
+  trascinabile: boolean
+  ridimensionabile: boolean
+  colonneBloccabili: boolean
+  bloccoLegacy: boolean
+  conDimensioni: boolean
+  selezione: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: intestazione.column.id,
+    disabled: !trascinabile,
+  })
+
+  const stile: React.CSSProperties | undefined = trascinabile
+    ? {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 1 : undefined,
+      }
+    : undefined
+
+  const contestoIntestazione = React.useMemo(
+    () => (trascinabile ? { attributes, listeners } : null),
+    [trascinabile, attributes, listeners]
+  )
+
+  const ancoraColonna = colonneBloccabili
+    ? ancoraggioColonna(tabella, intestazione.column, "intestazione")
+    : undefined
+  const titoloColonna =
+    (intestazione.column.columnDef.meta as MetaColonna | undefined)?.titolo ??
+    intestazione.column.id
+
+  return (
+    <ContestoIntestazioneTrascinabile.Provider value={contestoIntestazione}>
+      <TableHead
+        ref={setNodeRef}
+        style={{ ...ancoraColonna?.style, ...stile }}
+        className={cn(
+          !conDimensioni &&
+            (intestazione.column.columnDef.meta as MetaColonna | undefined)?.larghezza,
+          bloccoLegacy &&
+            classiBloccate(indice, selezione)?.replace("bg-card", "bg-accent"),
+          ancoraColonna?.className,
+          // `relative` **solo se non già `sticky`**: `cn` (tailwind-merge)
+          // tratta le utility di posizionamento come un gruppo solo, e le due
+          // scritte insieme si scartano a vicenda — vince l'ultima scritta.
+          // Non serve comunque: `sticky` è già un contenimento per i figli
+          // `absolute` (la maniglia di `ManigliaRidimensiona`), come `relative`.
+          !ancoraColonna && (ridimensionabile || colonneBloccabili) && "relative",
+          // `position: relative` per lo stesso motivo di `RigaCorpo`: contiene
+          // l'ombra di `isDragging` (`zIndex`) sopra le intestazioni ferme —
+          // ma solo quando `sticky` non lo fa già da sé (`ancoraColonna`).
+          trascinabile && !ancoraColonna && "relative",
+          trascinabile && isDragging && "bg-muted/50 opacity-80"
+        )}
+        aria-sort={
+          intestazione.column.getCanSort()
+            ? ariaSort(intestazione.column.getIsSorted())
+            : undefined
+        }
+      >
+        {intestazione.isPlaceholder ? null : trascinabile || colonneBloccabili ? (
+          <div className="flex items-center gap-1">
+            {trascinabile ? <ManigliaRiordinoColonna titolo={titoloColonna} /> : null}
+            <span className="min-w-0 flex-1">
+              <tabella.FlexRender header={intestazione} />
+            </span>
+            {colonneBloccabili ? (
+              <MenuBloccaColonna colonna={intestazione.column} titolo={titoloColonna} />
+            ) : null}
+          </div>
+        ) : (
+          <tabella.FlexRender header={intestazione} />
+        )}
+        {ridimensionabile && intestazione.column.getCanResize() ? (
+          <ManigliaRidimensiona
+            tabella={tabella}
+            tabellaRef={tabellaRef}
+            header={intestazione}
+            titolo={titoloColonna}
+          />
+        ) : null}
+      </TableHead>
+    </ContestoIntestazioneTrascinabile.Provider>
+  )
+}
+
+/**
+ * Il guscio `DndContext`/`SortableContext` del riordino di colonna — la
+ * stessa forma di `DataTableRiordinoRighe` (M3bis.7), con tre scarti voluti:
+ *
+ * **`restrictToHorizontalAxis`, non verticale**: le intestazioni si
+ * scambiano in orizzontale, un trascinamento in diagonale non stacca la
+ * colonna dalla riga di intestazioni.
+ *
+ * **`horizontalListSortingStrategy`**, la strategia gemella di
+ * `verticalListSortingStrategy` per un elenco che scorre in riga.
+ *
+ * **Nessun `activationConstraint`**: niko-table ne mette uno (8px) perché lì
+ * l'intera intestazione è l'area di trascinamento e deve distinguere un clic
+ * sul bottone d'ordinamento annidato da un trascinamento vero. Qui la
+ * maniglia è un elemento a sé (v. `ContestoIntestazioneTrascinabile`): non
+ * c'è click da distinguere, la stessa ragione per cui `DataTableRiordinoRighe`
+ * non ne ha uno.
+ *
+ * A differenza del riordino di riga, **non spegne nient'altro sulla
+ * tabella** — ordinamento, filtri, paginazione e virtualizzazione restano
+ * intatti (`PIANO.md`, M3bis.8: «sicuro da combinare con ordinamento/filtri/
+ * virtualizzazione»): l'indice di partenza e d'arrivo si calcolano
+ * sull'ordine delle **intestazioni** (`ordineIntestazioni`, sotto), che non
+ * dipende da quali righe sono visibili o in che ordine — a differenza del
+ * riordino di riga, dove l'indice viene dalle righe stesse.
+ */
+function DataTableRiordinoColonne({
+  ordineIntestazioni,
+  onRiordina,
+  children,
+}: {
+  ordineIntestazioni: string[]
+  onRiordina: (nuovoOrdine: string[]) => void
+  children: React.ReactNode
+}) {
+  const idContesto = React.useId()
+
+  const sensori = useSensors(
+    useSensor(MouseSensor, {}),
+    useSensor(TouchSensor, {}),
+    // `coordinateGetter: sortableKeyboardCoordinates`, non il predefinito di
+    // `KeyboardSensor` — quello muove di 25px fissi a ogni freccia, un passo
+    // che una riga alta 38-48px supera in una o due pressioni (da cui il
+    // riordino da tastiera di M3bis.7 sembrava funzionare col predefinito),
+    // ma che una colonna larga 140-220px non supera mai: `ArrowLeft` sposta
+    // l'intestazione di 25px in stile libero e la rilascia lì, senza mai
+    // arrivare a scavalcare la vicina — misurato qui (un solo `ArrowLeft`,
+    // nessun riordino). `sortableKeyboardCoordinates` (da `@dnd-kit/sortable`,
+    // non il predefinito di `@dnd-kit/core`) salta invece **alla posizione
+    // della prossima/precedente intestazione nell'elenco**, qualunque sia la
+    // sua larghezza — la stessa nozione di "vicino" che il mouse usa con
+    // `closestCenter`.
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const gestisciFineTrascinamento = React.useCallback(
+    (evento: DragEndEvent) => {
+      const { active, over } = evento
+      if (active && over && active.id !== over.id) {
+        const indicePartenza = ordineIntestazioni.indexOf(active.id as string)
+        const indiceArrivo = ordineIntestazioni.indexOf(over.id as string)
+        onRiordina(arrayMove(ordineIntestazioni, indicePartenza, indiceArrivo))
+      }
+    },
+    [ordineIntestazioni, onRiordina]
+  )
+
+  return (
+    <DndContext
+      id={idContesto}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToHorizontalAxis]}
+      onDragEnd={gestisciFineTrascinamento}
+      sensors={sensori}
+    >
+      <SortableContext items={ordineIntestazioni} strategy={horizontalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
   )
 }
 
@@ -2055,6 +2351,40 @@ export type DataTableProps<TDato extends RowData> = {
    */
   colonneBloccabili?: boolean
   /**
+   * Riordino manuale delle **colonne** via trascinamento (M3bis.8, porting
+   * di "Column DnD Table", stesso `@dnd-kit/*` di `riordinabile`): aggiunge
+   * a ogni intestazione trascinabile una maniglia (`⠿`), accanto al bottone
+   * d'ordinamento — mai al posto dell'intestazione intera, che diventerebbe
+   * un `role="button"` attorno a un bottone vero e la violazione
+   * `nested-interactive` di axe (v. `ContestoIntestazioneTrascinabile`).
+   *
+   * **A differenza di `riordinabile`, non spegne niente**: ordinamento,
+   * ricerca/filtri, paginazione e virtualizzazione restano tutti attivi
+   * (`PIANO.md`, M3bis.8: «sicuro da combinare con ordinamento/filtri/
+   * virtualizzazione») — l'indice di partenza e d'arrivo del trascinamento
+   * viene dall'ordine delle **intestazioni**, non da quello delle righe, e
+   * non diverge mai da `state.columnOrder` qualunque cosa succeda sotto.
+   *
+   * Le tre colonne che il blocco aggiunge da sé — selezione, espansione,
+   * maniglia di riordino **riga** — restano sempre per prime e non si
+   * trascinano (`COLONNE_UTILITY`): non sono "una colonna" nel senso in cui
+   * lo sono quelle dichiarate da `colonne`, sono chrome del blocco.
+   *
+   * **Le celle non seguono il trascinamento a fotogrammi come niko-table**
+   * (`TableDragAlongCell`, un `useSortable` per cella per riga): qui solo
+   * l'intestazione scivola durante il trascinamento, il corpo scatta alla
+   * nuova posizione al rilascio — `row.getVisibleCells()` rispetta già
+   * `state.columnOrder` da sé. Uno scarto deliberato dal sorgente originale,
+   * non un limite scoperto tardi: un `useSortable` per cella per riga
+   * avrebbe un costo che cresce con `dati`, proprio dove la virtualizzazione
+   * (M3bis.4) e la Data Grid (M3bis.5) esistono apposta per tenerlo basso.
+   *
+   * `state.columnOrder` resta uno stato interno del blocco, come `dimensioni`/
+   * `ancoraggio` per resize e pin: nessuna pagina oggi salva un riordino di
+   * colonna fra un caricamento e l'altro.
+   */
+  colonneRiordinabili?: boolean
+  /**
    * Riordino manuale via trascinamento (M3bis.7, porting di "Row DnD Table",
    * `@dnd-kit/*`): aggiunge a ogni riga una maniglia (`⠿`) trascinabile da
    * mouse **e** da tastiera (Spazio per afferrare, frecce su/giù per
@@ -2227,6 +2557,7 @@ export function DataTable<TDato extends RowData>({
   bloccaPrimaColonna = false,
   ridimensionabile = false,
   colonneBloccabili = false,
+  colonneRiordinabili = false,
   riordinabile,
   getSottoRighe,
   pannelloRiga,
@@ -2275,6 +2606,14 @@ export function DataTable<TDato extends RowData>({
     start: [],
     end: [],
   })
+  /**
+   * L'ordine acquisito delle colonne (`colonneRiordinabili`, M3bis.8).
+   * `[]` di partenza: non un ordine "nessuno", è l'array vuoto che per
+   * TanStack **significa** "usa l'ordine di dichiarazione" — lo stesso
+   * predefinito che questa tabella aveva già prima che il prop esistesse
+   * (`columnOrderingFeature` è registrata sempre, v. `caratteristiche`).
+   */
+  const [ordineColonne, setOrdineColonne] = React.useState<ColumnOrderState>([])
 
   /**
    * Quante righe sono caricate. Solo `perPagina="infinito"`: cresce di
@@ -2333,6 +2672,7 @@ export function DataTable<TDato extends RowData>({
     enableColumnPinning: colonneBloccabili,
     onColumnSizingChange: setDimensioni,
     onColumnPinningChange: setAncoraggio,
+    onColumnOrderChange: setOrdineColonne,
     // `riordinabile` (M3bis.7): spente **sulla tabella**, non solo nascoste
     // in chrome — l'ordine visibile deve coincidere con `dati` grezzo perché
     // il trascinamento mappi l'indice giusto (v. il prop).
@@ -2367,6 +2707,7 @@ export function DataTable<TDato extends RowData>({
       rowSelection: scelte,
       columnSizing: dimensioni,
       columnPinning: ancoraggio,
+      columnOrder: ordineColonne,
     },
   })
 
@@ -2799,56 +3140,23 @@ export function DataTable<TDato extends RowData>({
           */}
           <TableHeader ref={testataRef} className={cn(fermo && "sticky top-0 z-10")}>
             <TableRow className="hover:bg-transparent">
-              {intestazioni.map((intestazione, indice) => {
-                const ancoraColonna = colonneBloccabili
-                  ? ancoraggioColonna(tabella, intestazione.column, "intestazione")
-                  : undefined
-                const titoloColonna =
-                  (intestazione.column.columnDef.meta as MetaColonna | undefined)?.titolo ??
-                  intestazione.column.id
-                return (
-                  <TableHead
-                    key={intestazione.id}
-                    className={cn(
-                      !conDimensioni &&
-                        (intestazione.column.columnDef.meta as MetaColonna | undefined)
-                          ?.larghezza,
-                      bloccoLegacy &&
-                        classiBloccate(indice, selezione)?.replace("bg-card", "bg-accent"),
-                      ancoraColonna?.className,
-                      // `relative` **solo se non già `sticky`**: `cn` (tailwind-merge)
-                      // tratta le utility di posizionamento come un gruppo solo, e le due
-                      // scritte insieme si scartano a vicenda — vince l'ultima scritta.
-                      // Non serve comunque: `sticky` è già un contenimento per i figli
-                      // `absolute` (la maniglia di `ManigliaRidimensiona`), come `relative`.
-                      !ancoraColonna && (ridimensionabile || colonneBloccabili) && "relative"
-                    )}
-                    style={ancoraColonna?.style}
-                    aria-sort={
-                      intestazione.column.getCanSort()
-                        ? ariaSort(intestazione.column.getIsSorted())
-                        : undefined
-                    }
-                  >
-                    {intestazione.isPlaceholder ? null : colonneBloccabili ? (
-                      <div className="flex items-center justify-between gap-1">
-                        <tabella.FlexRender header={intestazione} />
-                        <MenuBloccaColonna colonna={intestazione.column} titolo={titoloColonna} />
-                      </div>
-                    ) : (
-                      <tabella.FlexRender header={intestazione} />
-                    )}
-                    {ridimensionabile && intestazione.column.getCanResize() ? (
-                      <ManigliaRidimensiona
-                        tabella={tabella}
-                        tabellaRef={tabellaRef}
-                        header={intestazione}
-                        titolo={titoloColonna}
-                      />
-                    ) : null}
-                  </TableHead>
-                )
-              })}
+              {intestazioni.map((intestazione, indice) => (
+                <CellaIntestazione
+                  key={intestazione.id}
+                  tabella={tabella}
+                  tabellaRef={tabellaRef}
+                  intestazione={intestazione}
+                  indice={indice}
+                  trascinabile={
+                    colonneRiordinabili && !COLONNE_UTILITY.has(intestazione.column.id)
+                  }
+                  ridimensionabile={ridimensionabile}
+                  colonneBloccabili={colonneBloccabili}
+                  bloccoLegacy={bloccoLegacy}
+                  conDimensioni={conDimensioni}
+                  selezione={selezione}
+                />
+              ))}
             </TableRow>
           </TableHeader>
           {virtualizzata ? (
@@ -2905,11 +3213,23 @@ export function DataTable<TDato extends RowData>({
     </div>
   )
 
-  return trascinamento ? (
-    <DataTableRiordinoRighe dati={dati} righe={righe} onRiordina={riordinabile.onRiordina}>
-      {contenuto}
-    </DataTableRiordinoRighe>
-  ) : (
-    contenuto
-  )
+  let risultato = contenuto
+  if (trascinamento) {
+    risultato = (
+      <DataTableRiordinoRighe dati={dati} righe={righe} onRiordina={riordinabile.onRiordina}>
+        {risultato}
+      </DataTableRiordinoRighe>
+    )
+  }
+  if (colonneRiordinabili) {
+    risultato = (
+      <DataTableRiordinoColonne
+        ordineIntestazioni={intestazioni.map((h) => h.column.id)}
+        onRiordina={(nuovoOrdine) => tabella.setColumnOrder(nuovoOrdine)}
+      >
+        {risultato}
+      </DataTableRiordinoColonne>
+    )
+  }
+  return risultato
 }

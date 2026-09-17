@@ -542,6 +542,39 @@ export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
 }
 
 /**
+ * **Colonne riordinabili** (M3bis.8, porting di "Column DnD Table") —
+ * **insieme al ridimensionamento** (M3bis.3), nella stessa story: è
+ * esattamente il criterio d'accettazione di `PIANO.md`
+ * («compatibilità verificata con resize colonne nella stessa story»), non
+ * una comodità. Stesse `COLONNE_RIDIMENSIONABILI` di `Ridimensionabile`
+ * sopra — provare entrambi i gesti sulle stesse intestazioni è il punto:
+ * la maniglia di riordino (`⠿`, a sinistra del titolo) e il filo di resize
+ * (sul bordo destro) coesistono sulla stessa `<th>` senza rubarsi il gesto.
+ *
+ * **Da mouse e da tastiera**: `Tab` porta il fuoco sulla maniglia della
+ * prima intestazione trascinabile; `Spazio` l'afferra, le frecce sinistra/
+ * destra la spostano, `Spazio` di nuovo la rilascia, `Escape` annulla —
+ * `KeyboardSensor` di dnd-kit, la stessa forma di `Riordino` (righe, sotto).
+ *
+ * **A differenza di `Riordino`, ordinamento e ricerca restano attivi**: il
+ * prop non li spegne (v. `colonneRiordinabili`, il blocco) — si può ordinare
+ * per «Aggiornato» *e* trascinare «Nome» prima di «Codice» nella stessa
+ * sessione, senza che l'uno interferisca con l'altro.
+ */
+export const RiordinoColonne: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Riordino Colonne',
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 15),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    ridimensionabile: true,
+    colonneRiordinabili: true,
+  },
+}
+
+/**
  * **Il pin generalizzato, aperto** — il menu che `PinIcon` apre in ogni
  * intestazione bloccabile: "Blocca a sinistra" / "Blocca a destra" / "Non
  * bloccare". A differenza di `bloccaPrimaColonna` (v. `Stretta`, sopra) qui
