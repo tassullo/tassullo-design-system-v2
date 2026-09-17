@@ -780,7 +780,15 @@ function ManigliaRiordinoRiga() {
     <Button
       variant="ghost"
       size="icon"
-      className="-my-2 -ml-2 cursor-grab touch-none active:cursor-grabbing"
+      // `select-none`: stessa famiglia di difetto già presa in
+      // `ManigliaRidimensiona` (M3bis.3) — Safari, non Chrome, avvia la
+      // selezione/il trascinamento nativo di testo su un `mousedown` non
+      // impedito. Lì il rimedio è `preventDefault()` nell'handler custom; qui
+      // dnd-kit possiede già `onMouseDown` via `contesto?.listeners`, quindi
+      // il rimedio è togliere il testo dalla contesa con `user-select: none`
+      // invece di intercettare l'evento. Senza, il `<span className="sr-only">`
+      // sotto la maniglia diventa il testo che Safari seleziona e trascina.
+      className="-my-2 -ml-2 cursor-grab touch-none select-none active:cursor-grabbing"
       {...contesto?.attributes}
       {...contesto?.listeners}
     >
@@ -1547,7 +1555,13 @@ function ManigliaRiordinoColonna({ titolo }: { titolo: string }) {
     <Button
       variant="ghost"
       size="icon"
-      className="-my-2 -ml-2 shrink-0 cursor-grab touch-none active:cursor-grabbing"
+      // `select-none`, stessa ragione di `ManigliaRiordinoRiga` sopra e già
+      // presa una volta in `ManigliaRidimensiona` (M3bis.3): senza, Safari
+      // seleziona e trascina come testo lo `sr-only` sotto — verificato a
+      // occhio (rilievo di Francesco), il fermo immagine mostra i titoli
+      // di due intestazioni sovrapposti, ingranditi e deformati, l'anteprima
+      // nativa del trascinamento di un nodo di testo.
+      className="-my-2 -ml-2 shrink-0 cursor-grab touch-none select-none active:cursor-grabbing"
       {...contesto?.attributes}
       {...contesto?.listeners}
     >
