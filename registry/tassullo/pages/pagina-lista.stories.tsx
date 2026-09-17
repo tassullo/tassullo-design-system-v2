@@ -1,10 +1,24 @@
 import { useMemo, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { BookOpenIcon, FileWarningIcon, PlusIcon } from 'lucide-react'
+import {
+  BookOpenIcon,
+  CopyIcon,
+  FileWarningIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react'
 
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
-import { creaColonne, IntestazioneColonna } from '@/registry/tassullo/blocks/data-table'
+import {
+  creaColonne,
+  IntestazioneColonna,
+  RowMenuItem,
+  RowMenuSeparator,
+  useDataTableRow,
+} from '@/registry/tassullo/blocks/data-table'
 import { PaginaLista } from '@/registry/tassullo/pages/pagina-lista'
+import { apriCol } from '@/prove/apri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -155,6 +169,80 @@ const COLONNE = col.columns([
   }),
 ])
 
+/**
+ * Le stesse quattro colonne di `COLONNE`, ma con `size`/`minSize` al posto
+ * di `meta.larghezza` (M3bis.3, stesso motivo di `COLONNE_RIDIMENSIONABILI`
+ * in `data-table.stories.tsx`: qui la larghezza di partenza la dichiara
+ * l'utente, trascinando, non più solo Tailwind). Nessuna colonna azioni: la
+ * story `MenuRiga`, sotto, l'aggiunge da sé via `menuRiga`.
+ */
+const colRidimensionabile = creaColonne<Norma>()
+const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
+  colRidimensionabile.accessor('codice', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+    meta: { titolo: 'Codice' },
+    sortFn: 'alphanumeric',
+    size: 140,
+    minSize: 90,
+    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+  }),
+  colRidimensionabile.accessor('titolo', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Titolo" />,
+    meta: { titolo: 'Titolo' },
+    sortFn: 'text',
+    size: 320,
+    minSize: 160,
+  }),
+  colRidimensionabile.accessor('categoria', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Categoria" />,
+    meta: { titolo: 'Categoria' },
+    sortFn: 'text',
+    size: 150,
+    minSize: 100,
+  }),
+  colRidimensionabile.accessor('vigente', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato' },
+    sortFn: 'basic',
+    size: 130,
+    minSize: 90,
+    cell: ({ getValue }) =>
+      getValue<boolean>() ? (
+        <Badge className={TONO.success}>Vigente</Badge>
+      ) : (
+        <Badge className={TONO.warning}>Superata</Badge>
+      ),
+  }),
+])
+
+/**
+ * Il menu di riga condiviso (M3bis.9): una sola definizione, letta da
+ * `useDataTableRow<Norma>()`, montata da `menuRiga` sia nella tendina «⋯»
+ * (aggiunta in coda da sé) sia sul tasto destro dell'intera riga.
+ */
+function MenuAzioniNorma() {
+  const norma = useDataTableRow<Norma>()
+  return (
+    <>
+      <RowMenuItem onClick={() => console.info(`Modifica ${norma.codice}`)}>
+        <PencilIcon aria-hidden />
+        Modifica
+      </RowMenuItem>
+      <RowMenuItem onClick={() => console.info(`Duplica ${norma.codice}`)}>
+        <CopyIcon aria-hidden />
+        Duplica
+      </RowMenuItem>
+      <RowMenuSeparator />
+      {/* `variant="destructive"`, non una classe di colore — la trappola di
+          `CLAUDE.md` sul testo di `--destructive`. */}
+      <RowMenuItem variant="destructive" onClick={() => console.info(`Elimina ${norma.codice}`)}>
+        <Trash2Icon aria-hidden />
+        Elimina
+      </RowMenuItem>
+    </>
+  )
+}
+
 function BarraFiltri({ ente, setEnte }: { ente: string; setEnte: (v: string) => void }) {
   return (
     <Select
@@ -270,4 +358,94 @@ export const Errore: Story = {
  */
 export const VuotoIniziale: Story = {
   render: () => <Guscio dati={[]} />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * FASE 3bis (M3bis.11a) — le capacità di `data-table` avanzato che una
+ * pagina **sola lista** usa davvero: colonne che si ridimensionano, si
+ * bloccano, si riordinano (M3bis.3, M3bis.8), e un menu di riga condiviso
+ * fra tendina e tasto destro (M3bis.9). Tree/subtotale, espansione,
+ * virtualizzazione e la Data Grid editabile (M3bis.1, 2, 4, 5) restano fuori
+ * da questa pagina: sono il pattern del caso reale "Computo", non di una
+ * "lista", e non si sono voluti forzare su Norme solo per completezza — la
+ * story `Prodotti (Anagrafe)` (M3bis.11b) chiude il conto dove hanno un caso
+ * reale.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * **Colonne ridimensionabili, bloccabili e riordinabili insieme** (M3bis.3,
+ * M3bis.8) — le tre coesistono sulla stessa intestazione, come già provato in
+ * `data-table.stories.tsx` (`Riordino Colonne`): qui la prova è che
+ * compongono anche **dentro** `PaginaLista`, non solo su `DataTable` nudo.
+ * Ricerca e ordinamento restano attivi, a differenza del riordino di righe.
+ */
+function NormeColonne({ dati }: { dati: Norma[] }) {
+  return (
+    <PaginaLista
+      percorso={[{ titolo: 'Norme' }]}
+      colonne={COLONNE_RIDIMENSIONABILI}
+      dati={dati}
+      cerca="Cerca codice, titolo…"
+      perPagina={10}
+      nomeRighe={{ singolare: 'norma', plurale: 'norme' }}
+      ridimensionabile
+      colonneBloccabili
+      colonneRiordinabili
+    />
+  )
+}
+
+export const Colonne: Story = {
+  render: () => (
+    <AppShell
+      applicazione="Anagrafe"
+      collassa="icona"
+      contenuto="riempie"
+      utente={UTENTE}
+      sezioni={SEZIONI}
+    >
+      <NormeColonne dati={NORME.slice(0, 15)} />
+    </AppShell>
+  ),
+}
+
+/**
+ * **Il menu di riga condiviso** (M3bis.9): la tendina «⋯» che `menuRiga`
+ * aggiunge da sé in coda, e lo stesso menu sul tasto destro dell'intera riga
+ * — un'unica `<MenuAzioniNorma />`, letta due volte. `idRiga` è richiesto (v.
+ * `DataTableProps.idRiga` in `data-table.tsx`): senza, l'identità di riga
+ * sarebbe l'indice nell'array.
+ */
+function NormeMenuRiga({ dati }: { dati: Norma[] }) {
+  return (
+    <PaginaLista
+      percorso={[{ titolo: 'Norme' }]}
+      colonne={COLONNE_RIDIMENSIONABILI}
+      dati={dati}
+      cerca={false}
+      perPagina={10}
+      nomeRighe={{ singolare: 'norma', plurale: 'norme' }}
+      idRiga={(n) => String(n.id)}
+      menuRiga={{ menu: <MenuAzioniNorma />, ariaLabel: (n) => `Azioni su ${n.codice}` }}
+    />
+  )
+}
+
+export const MenuRiga: Story = {
+  name: 'Menu Riga',
+  render: () => (
+    <AppShell
+      applicazione="Anagrafe"
+      collassa="icona"
+      contenuto="riempie"
+      utente={UTENTE}
+      sezioni={SEZIONI}
+    >
+      <NormeMenuRiga dati={NORME.slice(0, 12)} />
+    </AppShell>
+  ),
+  // Non il primo `dropdown-menu-trigger` della pagina: quello è il menu
+  // utente della sidebar (`AppShell`), montato prima della tabella nel DOM.
+  // Il grilletto di riga vive dentro il `<tbody>`.
+  play: apriCol('tbody [data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 }

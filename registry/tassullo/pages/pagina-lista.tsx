@@ -77,6 +77,18 @@ export type PaginaListaProps<TDato extends RowData> = {
   perPagina?: DataTableProps<TDato>["perPagina"]
   bloccaPrimaColonna?: boolean
   barra?: DataTableProps<TDato>["barra"]
+  /**
+   * Passati a `DataTable` — le capacità di FASE 3bis (niko-table) rilevanti
+   * per una pagina **sola lista**: colonne che si ridimensionano, si
+   * bloccano, si riordinano, e un menu di riga condiviso fra tendina e tasto
+   * destro. `idRiga` è **richiesto** insieme a `menuRiga` o a un futuro
+   * riordino righe (v. `DataTableProps.idRiga`, `data-table.tsx`).
+   */
+  idRiga?: DataTableProps<TDato>["idRiga"]
+  ridimensionabile?: DataTableProps<TDato>["ridimensionabile"]
+  colonneBloccabili?: DataTableProps<TDato>["colonneBloccabili"]
+  colonneRiordinabili?: DataTableProps<TDato>["colonneRiordinabili"]
+  menuRiga?: DataTableProps<TDato>["menuRiga"]
   className?: string
 }
 
@@ -95,6 +107,11 @@ export function PaginaLista<TDato extends RowData>({
   perPagina,
   bloccaPrimaColonna,
   barra,
+  idRiga,
+  ridimensionabile,
+  colonneBloccabili,
+  colonneRiordinabili,
+  menuRiga,
   className,
 }: PaginaListaProps<TDato>) {
   return (
@@ -134,6 +151,11 @@ export function PaginaLista<TDato extends RowData>({
           altezza="ferma"
           bloccaPrimaColonna={bloccaPrimaColonna}
           barra={barra}
+          idRiga={idRiga}
+          ridimensionabile={ridimensionabile}
+          colonneBloccabili={colonneBloccabili}
+          colonneRiordinabili={colonneRiordinabili}
+          menuRiga={menuRiga}
           className="min-h-0 flex-1"
         />
       )}
