@@ -1536,7 +1536,11 @@ function costruisciColonneEditing(
     }),
     colEditing.display({
       id: 'azioni',
-      meta: { larghezza: 'w-16' },
+      // `w-24`, non `w-16` come la colonna `azioni` di `COLONNE`: lì c'è un
+      // solo bottone, qui in modifica ce ne sono **due** affiancati (Salva
+      // e Annulla) — con `w-16` la croce usciva dalla cella e `truncate`
+      // (regola del blocco, v. `DataTableBody`) la tagliava a metà.
+      meta: { larghezza: 'w-24' },
       header: () => <span className="sr-only">Azioni</span>,
       cell: ({ row }) => {
         const prodotto = row.original
