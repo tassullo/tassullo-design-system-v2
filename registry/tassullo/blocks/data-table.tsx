@@ -1674,7 +1674,16 @@ function CellaIntestazione<TDato extends RowData>({
         }
       >
         {intestazione.isPlaceholder ? null : trascinabile || colonneBloccabili ? (
-          <div className="flex items-center gap-1">
+          // `select-none` su **tutto** il contenitore, non solo sulla
+          // maniglia: la maniglia è un bersaglio minuscolo (`size="icon"`)
+          // accanto al testo del bottone d'ordinamento, e un trascinamento
+          // che parte un pixel a destra atterra su quel testo — riproducibile
+          // in Chrome quanto in Safari (a differenza della sola nota su
+          // `ManigliaRidimensiona`, dove il bersaglio non ha testo vicino).
+          // Senza, il browser avvia la selezione/il trascinamento nativo del
+          // titolo della colonna invece del riordino di dnd-kit — l'anteprima
+          // enorme e deformata del rilievo di Francesco.
+          <div className="flex select-none items-center gap-1">
             {trascinabile ? <ManigliaRiordinoColonna titolo={titoloColonna} /> : null}
             <span className="min-w-0 flex-1">
               <tabella.FlexRender header={intestazione} />
