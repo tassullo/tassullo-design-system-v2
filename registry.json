@@ -1558,6 +1558,35 @@
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaScheda\n    percorso={[{ titolo: \"Norme\", href: \"/norme\" }, { titolo: norma.codice }]}\n    titolo={norma.codice}\n    distintivo={<Badge className={TONO.success}>Vigente</Badge>}\n    azioni={[{ titolo: \"Elimina\", icona: TrashIcon, ruolo: \"distruttiva\", onClick: elimina }]}\n    modifica={inModifica}\n    onModificaChange={setInModifica}\n    anagrafica={(modifica) => <FormNorma dati={norma} modifica={modifica} onSalva={salva} />}\n    documenti={<ElencoAllegati />}\n    storico={{ revisioni }}\n  />\n\nA differenza di `page-header` (M3.2), che toglie deliberatamente il titolo\ndalla fascia in alto, qui titolo/distintivo/azioni **si vedono**: sono\nl'intestazione della pagina, non del guscio, e su una scheda il nome\ndell'entità è l'unica cosa scritta grande da qualche parte. `distintivo` è\nun nodo già composto (`<Badge>`), non un `variant` chiuso — Prodotto,\nNorma, Sistema e Famiglia hanno vocabolari di stato incompatibili fra loro.\nOgni tab rende dentro `Card`/`CardContent`, non a diretto contatto con lo\nsfondo della pagina — lo stesso riquadro bianco che Anagrafe usa già.\n\n`anagrafica` è una **funzione di `modifica`**, non due alberi: lo stesso\n`<form>` con `tassullo-form-field` resta montato sia in lettura sia in\nmodifica, e i campi si disabilitano (`disabled={!modifica}`) invece di\ncambiare componente — un campo che muta forma al clic su \"Modifica\"\nsposterebbe l'intera scheda, cosa che un form vero non fa. Il blocco\npossiede solo il passaggio — un bottone \"Modifica\"/\"Annulla\" — e lo lascia\nanche **controllabile** (`modifica`/`onModificaChange`): senza, non avrebbe\nmodo di tornare alla lettura al successo di un salvataggio, che lo sa solo\nil `<form>` dell'app, opaco al blocco.\n\n`documenti` resta un `ReactNode` libero — un allegato di Norma è un PDF,\nuno di Prodotto una foto, nessuna forma sola — mentre `storico` monta\nsempre `VersionTimeline` da sé, «in coda» come chiede `PIANO.md`, perché lo\nstorico delle revisioni è la stessa forma per ogni entità."
+    },
+    {
+      "name": "tassullo-pagina-dashboard",
+      "type": "registry:block",
+      "title": "Pagina dashboard",
+      "description": "La home applicativa: fila di indicatori, due grafici, tabella delle attività recenti, area avvisi chiudibili. Quarta pagina modello della FASE 4 — dominio Anagrafe, che nella ROADMAP prevede una tab Metriche e un quadro sinottico.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-dashboard.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-dashboard.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/alert",
+        "@tassullo/button",
+        "@tassullo/card",
+        "@tassullo/error-state",
+        "@tassullo/page-header",
+        "@tassullo/page-skeleton",
+        "@tassullo/table",
+        "@tassullo/toni",
+        "@tassullo/tema"
+      ],
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaDashboard\n    percorso={[{ titolo: \"Dashboard\" }]}\n    indicatori={[{ etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } }]}\n    grafici={[<GraficoSchedeAperte />, <GraficoRipartizione />]}\n    attivita={attivitaRecenti}\n    avvisi={avvisi}\n    onChiudiAvviso={(id) => setAvvisi((v) => v.filter((a) => a.id !== id))}\n    stato={statoCaricamento}\n  />\n\nCompone ciò che il registry ha già — `page-header`, `page-skeleton`,\n`error-state`, `card`, `table`, `alert`, `toni` — zero primitive nuove:\nnessuna app Tassullo ha ancora una dashboard fatta bene, quindi non c'era\nun file da cui ricavare la forma come per le altre tre pagine modello.\n\n`grafici` è una tupla di **esattamente due** nodi già completi (`Card` +\n`ChartContainer` di `Primitive/Chart`, Recharts): un grafico non ha una\nforma sola — barre, linee, torta, ciascuno con la propria composizione — e\nil blocco fissa che siano due, non cosa siano, stessa libertà di\n`documenti` in `tassullo-pagina-scheda`. La tabella delle attività recenti\nusa la primitiva `table`, non `tassullo-data-table`: è una lista corta e\ngià ordinata, senza ricerca né paginazione, e la regola 4bis (gradino 1)\nchiede prima il default shadcn così com'è.\n\nLe frecce di tendenza (`indicatori[].tendenza.direzione`) non si colorano\nmai di verde o rosso: un aumento non è un successo e un calo non è un\nerrore — dipende dall'indicatore, e il blocco non lo sa (stessa regola\nmisurata su `Primitive/Chart`, story `Scostamenti`). Ogni avviso porta il\nproprio `tono` (`TONO_ALERT` di `lib/toni`); `chiudibile` mostra il bottone\ndi chiusura solo se anche `onChiudiAvviso` è passato — il blocco non tiene\nuno stato proprio degli avvisi, perché l'app può dover segnare un avviso\nchiuso come letto sul server. `stato` sceglie fra `pronto` (default),\n`caricamento` (uno scheletro per sezione, nella stessa disposizione del\ncontenuto vero) ed `errore`."
     }
   ]
 }
