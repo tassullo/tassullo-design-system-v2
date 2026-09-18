@@ -13,7 +13,7 @@
     "@tassullo/button",
     "@tassullo/button-group",
     "@tassullo/skeleton",
-    "@tassullo/error-state",
+    "@tassullo/tassullo-error-state",
     "@tassullo/tema"
   ],
   "files": [

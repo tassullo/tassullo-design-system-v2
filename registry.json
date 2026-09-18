@@ -1063,7 +1063,7 @@
         "@tassullo/badge",
         "@tassullo/button",
         "@tassullo/command",
-        "@tassullo/data-table",
+        "@tassullo/tassullo-data-table",
         "@tassullo/popover",
         "@tassullo/separator",
         "@tassullo/tema"
@@ -1088,8 +1088,8 @@
       ],
       "registryDependencies": [
         "@tassullo/button",
-        "@tassullo/data-table",
-        "@tassullo/data-table-filtro-sfaccettato",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-data-table-filtro-sfaccettato",
         "@tassullo/input",
         "@tassullo/label",
         "@tassullo/popover",
@@ -1120,7 +1120,7 @@
       "registryDependencies": [
         "@tassullo/button",
         "@tassullo/calendar",
-        "@tassullo/data-table",
+        "@tassullo/tassullo-data-table",
         "@tassullo/popover",
         "@tassullo/separator",
         "@tassullo/tema"
@@ -1145,7 +1145,7 @@
       ],
       "registryDependencies": [
         "@tassullo/button",
-        "@tassullo/data-table",
+        "@tassullo/tassullo-data-table",
         "@tassullo/tema"
       ],
       "docs": "  <FiltroResetTutti tabella={tabella} />\n\nCompare solo quando tabella.state.columnFilters non e vuoto. Cancella\ncon tabella.resetColumnFilters() - non la ricerca globale, non\nl'ordinamento: chi li vuole azzerati insieme li scrive accanto,\nesplicitamente. `tabella` va letta dal secondo argomento della forma a\nfunzione di `barra`: da tabellaRef/onTabellaPronta il bottone\napparirebbe/sparirebbe un render oltre il dovuto."
@@ -1172,7 +1172,7 @@
       "registryDependencies": [
         "@tassullo/button",
         "@tassullo/checkbox",
-        "@tassullo/data-table",
+        "@tassullo/tassullo-data-table",
         "@tassullo/select",
         "@tassullo/tema"
       ],
@@ -1377,7 +1377,7 @@
         "@tassullo/button",
         "@tassullo/button-group",
         "@tassullo/skeleton",
-        "@tassullo/error-state",
+        "@tassullo/tassullo-error-state",
         "@tassullo/tema"
       ],
       "docs": "Un blocco, un uso:\n\n  <PdfPreview file={urlDelDocumento} onRiprova={() => ricarica()} />\n\n`file` è lo stesso prop di `react-pdf`: URL, `File`/`Blob` o `ArrayBuffer`.\nLa cornice, la paginazione e lo zoom sono interamente nostri — `react-pdf`\nnon renderizza una propria barra strumenti, solo `<Document>`/`<Page>` su\nun `<canvas>` — la condizione che D8 chiede per essere sostituibile senza\ntoccare l'API del blocco.\n\nD8 (PIANO.md, M3.7): il worker di pdf.js non viene da una CDN (`unpkg`,\nla via più comune) — farebbe dipendere l'anteprima da una richiesta di rete\na ogni apertura, lo stesso principio per cui `tema-font` porta Inter in data\nURI. Si importa con la sintassi `?url` di Vite, che lo stack uniforme del\nprogetto rende sempre disponibile. Livello di testo e annotazioni spenti\n(`renderTextLayer`/`renderAnnotationLayer` a `false`): è un'anteprima, non\nun lettore con testo selezionabile, e il CSS che quei livelli chiederebbero\nnon è un file che il registry sa distribuire.\n\nCaricamento ed errore riusano lo standard di M3.5: uno `Skeleton` alto come\nuna pagina, `ErrorState` col messaggio già tradotto da chi chiama — questo\nblocco non sa nulla del perché un PDF non si è aperto."
@@ -1475,7 +1475,7 @@
         }
       ],
       "registryDependencies": [
-        "@tassullo/split-view",
+        "@tassullo/tassullo-split-view",
         "@tassullo/tema"
       ],
       "docs": "Un blocco, due modalità:\n\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} />\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} modo=\"affiancato\" />\n\n`diffWords` (non diffLines né diffChars) è il livello giusto per prosa:\nisola \"100\" da \"80\" dentro la stessa frase senza spezzare le parole.\n`inline` (default) fonde il confronto in un paragrafo solo — `<del>`\nbarrato per il tolto, `<ins>` colorato per l'aggiunto, i tag semantici\nHTML5 di una modifica. `affiancato` compone `SplitView` (M3.9, stessa\nsessione): tolto a sinistra, aggiunto a destra, scorrimento sincronizzato.\n\nChiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha\nun `diff` o un confronto testi già pronto. `diffWords` è una funzione pura, non un widget:\nil rendering resta interamente nostro, come per react-dropzone e react-pdf.\nResta un blocco, non un componente proprio: nessuna riga in\ncomponenti-propri.json."
@@ -1522,11 +1522,11 @@
         }
       ],
       "registryDependencies": [
-        "@tassullo/data-table",
-        "@tassullo/empty-state",
-        "@tassullo/error-state",
-        "@tassullo/page-header",
-        "@tassullo/page-skeleton",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-empty-state",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaLista\n    percorso={[{ titolo: \"Prodotti\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n    colonne={COLONNE}\n    dati={prodotti}\n    stato={statoCaricamento}\n    vuotoIniziale={{ titolo: \"Nessun prodotto in anagrafica\", azione: <Button size=\"sm\">Nuovo prodotto</Button> }}\n    cerca=\"Cerca nome, variante, codice…\"\n    perPagina=\"infinito\"\n    barra={<BarraFiltri />}\n  />\n\nCompone i blocchi già nel registry — `page-header`, `data-table`,\n`empty-state`, `error-state`, `page-skeleton` — zero primitive nuove.\n`stato` sceglie fra `pronto` (default, l'unico in cui `dati` conta),\n`caricamento` e `errore`. `vuotoIniziale` è un caso distinto da `vuoto`:\nil primo è \"non esiste ancora nessuna riga\" (CTA che crea il primo\nrecord, EmptyState al posto della tabella); il secondo, passato a\n`DataTable`, è \"la ricerca non trova niente\" (CTA che pulisce i filtri).\nSenza `vuotoIniziale` una `dati` vuota passa comunque alla tabella —\nvoluto per un elenco che filtra a zero risultati."
@@ -1549,10 +1549,10 @@
       ],
       "registryDependencies": [
         "@tassullo/card",
-        "@tassullo/error-state",
-        "@tassullo/page-header",
-        "@tassullo/page-skeleton",
-        "@tassullo/version-timeline",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/tassullo-version-timeline",
         "@tassullo/button",
         "@tassullo/tabs",
         "@tassullo/tema"
@@ -1579,9 +1579,9 @@
         "@tassullo/alert",
         "@tassullo/button",
         "@tassullo/card",
-        "@tassullo/error-state",
-        "@tassullo/page-header",
-        "@tassullo/page-skeleton",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
         "@tassullo/table",
         "@tassullo/toni",
         "@tassullo/tema"
@@ -1608,18 +1608,40 @@
       "registryDependencies": [
         "@tassullo/alert",
         "@tassullo/badge",
-        "@tassullo/confirm-dialog",
-        "@tassullo/data-table",
-        "@tassullo/error-state",
-        "@tassullo/page-header",
-        "@tassullo/page-skeleton",
-        "@tassullo/responsive-dialog",
+        "@tassullo/tassullo-confirm-dialog",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/tassullo-responsive-dialog",
         "@tassullo/tabs",
         "@tassullo/tema",
         "@tassullo/toggle-group",
         "@tassullo/toni"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaAdmin\n    percorso={[{ titolo: \"Amministrazione\" }]}\n    utenti={{ dati: utenti, ruoli: RUOLI, onRimuovi, onCambiaRuoli }}\n    sezioni={[{ value: \"ruoli\", titolo: \"Ruoli\", contenuto: () => <TabellaRuoli /> }]}\n    soloLettura={!utenteCorrente.ruoli.includes(\"amministratore\")}\n    stato={statoCaricamento}\n  />\n\nIl blocco possiede la gestione utenti — nome, email, ruoli multipli, stato attivo/disattivo è la stessa forma in ogni app dello studio, lo stesso argomento per cui `tassullo-pagina-scheda` monta sempre `VersionTimeline` per `storico` invece di lasciarlo libero come `documenti`. Passata `utenti`, monta da sé il **primo tab** «Utenti»: `tassullo-data-table` con colonne Nome/Email/Ruoli (badge, tono da `utenti.ruoli[].tono`)/Stato, `menuRiga` con «Ruoli…» e «Rimuovi», un `ResponsiveDialog` con `ToggleGroup multiple` per cambiare i ruoli e un `ConfirmDialog` distruttivo per la rimozione — `onCambiaRuoli`/`onRimuovi` sono callback esterne, il blocco non tocca mai i dati veri. Il vocabolario dei ruoli resta dell'app (`UtenteAdmin.ruoli` è `string[]`, mai un'unione chiusa): `utenti.ruoli` porta l'etichetta italiana e un tono opzionale (`lib/toni`), o la tabella renderebbe la chiave grezza.\n\n`sezioni` resta per tutto ciò che non ha una forma fissa — una tabella ruoli non ha le stesse colonne di una tabella utenti — con la stessa libertà di `documenti` in `tassullo-pagina-scheda`: `sezioni[].contenuto` è una **funzione di `soloLettura`**, un solo albero sempre montato che decide da sé come degradare. `soloLettura` toglie anche `menuRiga` dal tab utenti (niente tendina «⋯», niente tasto destro) e mostra il banner fisso, mai `chiudibile` — non è un `avviso` di `tassullo-pagina-dashboard`, racconta lo stato dei permessi di chi guarda, non un fatto del mondo da archiviare. `stato` sceglie fra `pronto` (default), `caricamento` ed `errore`, come le altre pagine modello."
+    },
+    {
+      "name": "tassullo-pagina-errore",
+      "type": "registry:block",
+      "title": "Pagina errore",
+      "description": "Gli stati di sistema: 404, accesso negato, errore del server, manutenzione — un tono per variante (lib/toni), un'icona per variante, e la stessa composizione della primitiva empty di tassullo-empty-state/tassullo-error-state. 404 e accesso-negato si montano dentro il guscio (la navigazione resta); errore-server e manutenzione sono schermo intero, sul modello di tassullo-pagina-login. Sesta e ultima pagina modello della FASE 4.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-errore.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-errore.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/empty",
+        "@tassullo/tema"
+      ],
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaErrore\n    variante=\"accesso-negato\"\n    azione={<Button variant=\"outline\" onClick={() => navigate('/')}>Torna alla home</Button>}\n  />\n\n`variante` sceglie fra `404`, `accesso-negato`, `errore-server`, `manutenzione` — ognuna ha icona, titolo e messaggio di default (tutti sovrascrivibili) e un tono di `lib/toni` tranne il 404, che non è un fatto grave. `azione` è un nodo, non una callback fissa (come `EmptyState.azione`, non come `ErrorState.onRiprova`): cambia natura da variante a variante — un link di navigazione, un bottone che ritenta, un `mailto:` — e il blocco non sa quale sia né se serva un router. Assente, nessuna CTA compare: usarla è la raccomandazione del piano, non un obbligo imposto dal blocco.\n\n`schermoIntero` sceglie se la pagina si monta dentro il contenuto esistente (default per `404` e `accesso-negato`: la navigazione resta, l'utente ha sbagliato un link interno o aperto una rotta riservata) o fuori dal guscio, sul modello di `tassullo-pagina-login` — marchio in testa, sfondo pieno (default per `errore-server` e `manutenzione`: capitano spesso prima che il guscio abbia dati per popolarsi, mostrarli dentro `AppShell` vorrebbe dire mostrare una barra vuota o rotta). Il default si sovrascrive per un caso che lo richiede davvero.\n\nIl messaggio di `accesso-negato` dice la verità su Anagrafe: l'utente senza ruoli non è bloccato, è in sola lettura, come già rende `soloLettura` di `tassullo-pagina-admin` — questa variante serve per una rotta che non ha proprio nulla da mostrare senza un ruolo preciso, e il default lo dice esplicitamente invece di un generico «non hai i permessi»."
     }
   ]
 }

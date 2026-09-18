@@ -9,7 +9,7 @@
   ],
   "registryDependencies": [
     "@tassullo/button",
-    "@tassullo/data-table",
+    "@tassullo/tassullo-data-table",
     "@tassullo/tema"
   ],
   "files": [

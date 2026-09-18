@@ -41,6 +41,23 @@ Il tema si porta con un comando solo — `tema` dichiara fra le sue dipendenze `
 npx shadcn@latest add tassullo/tassullo-design-system-v2/tema
 ```
 
+### Prerequisiti in un'app Vite appena creata
+
+Misurato cronometrando il gate di fine FASE 4 (M4.6): partendo da un `npm create vite@latest` puro, **prima** del primo `add` servono due passi che `shadcn init` non fa da solo, e che qui non erano scritti da nessuna parte:
+
+1. **Tailwind v4 e l'alias `@/*` devono già esistere.** `npm install tailwindcss @tailwindcss/vite`, il plugin in `vite.config.ts`, `@import "tailwindcss";` in testa al CSS globale. L'alias `@/*` → `./src/*` va dichiarato **nel `tsconfig.json` alla radice**, non solo in `tsconfig.app.json`: se sta solo lì, la CLI non lo trova e scrive i file dei componenti `ui/*` dentro una cartella letterale `./@/` invece che in `src/`.
+2. **`components.json` deve dichiarare il registry `@tassullo`**, o qualunque item con dipendenze interne (quasi tutti i blocchi e le pagine) fallisce con `Unknown registry "@tassullo"`:
+
+   ```json
+   "registries": {
+     "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/main/public/r/{name}.json"
+   }
+   ```
+
+   In locale, durante lo sviluppo di questo stesso repo, si punta invece a `http://localhost:5180/r/{name}.json` (il workbench, `npm run dev`).
+
+Con questi due passi il gate — app Vite vuota, `tassullo-app-shell` + `tassullo-pagina-lista` + `tassullo-pagina-login`, app navigabile e in stile — sta sotto i dieci minuti.
+
 L'app non fa **nessuna richiesta di rete per la tipografia**: niente Google Fonts, il font viaggia dentro il CSS.
 
 > **Stato:** la FASE 3 è in corso. Il registry è consultabile e installabile, ma il tag `v2.0.0` e la guida di migrazione per le app esistenti arrivano con la FASE 5 (`M5.3`–`M5.6`). Vedi `CHECKLIST.md`.

@@ -8,11 +8,11 @@
     "@tanstack/react-table"
   ],
   "registryDependencies": [
-    "@tassullo/data-table",
-    "@tassullo/empty-state",
-    "@tassullo/error-state",
-    "@tassullo/page-header",
-    "@tassullo/page-skeleton",
+    "@tassullo/tassullo-data-table",
+    "@tassullo/tassullo-empty-state",
+    "@tassullo/tassullo-error-state",
+    "@tassullo/tassullo-page-header",
+    "@tassullo/tassullo-page-skeleton",
     "@tassullo/tema"
   ],
   "files": [

@@ -132,7 +132,11 @@ export function FiltroIntervallo<TDato extends RowData>({
   const idBase = React.useId()
 
   if (!colonna) {
-    if (process.env.NODE_ENV !== "production") {
+    // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
+    // esiste in un'app Vite appena creata, e il typecheck del consumatore si
+    // ferma su «Cannot find name 'process'» benché a runtime funzioni
+    // (misurato nel gate di fine FASE 4, M4.6).
+    if (import.meta.env.DEV) {
       console.warn(`FiltroIntervallo: nessuna colonna "${accessore}" in questa tabella.`)
     }
     return null

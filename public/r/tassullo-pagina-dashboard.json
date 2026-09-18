@@ -11,9 +11,9 @@
     "@tassullo/alert",
     "@tassullo/button",
     "@tassullo/card",
-    "@tassullo/error-state",
-    "@tassullo/page-header",
-    "@tassullo/page-skeleton",
+    "@tassullo/tassullo-error-state",
+    "@tassullo/tassullo-page-header",
+    "@tassullo/tassullo-page-skeleton",
     "@tassullo/table",
     "@tassullo/toni",
     "@tassullo/tema"

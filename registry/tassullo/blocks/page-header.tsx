@@ -482,7 +482,11 @@ export function PageHeader({
    * dipendenze non primitive di `CLAUDE.md` chiede.
    */
   useEffect(() => {
-    if (!nodo || process.env.NODE_ENV === "production") return
+    // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
+    // esiste in un'app Vite appena creata, e il typecheck del consumatore si
+    // ferma su «Cannot find name 'process'» benché a runtime funzioni
+    // (misurato nel gate di fine FASE 4, M4.6).
+    if (!nodo || !import.meta.env.DEV) return
     const n = nodo.querySelectorAll('[data-slot="page-header-content"]').length
     if (n > 1) {
       console.warn(
