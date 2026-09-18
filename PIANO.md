@@ -393,6 +393,10 @@ Ogni pagina modello è un item `registry:block` con dati finti tipizzati e comme
 **M4.6 — Stati di sistema e gate (1 sessione)** — `pagina-errore` nelle sue varianti: 404, accesso negato (l'utente senza ruoli di Anagrafe è sola lettura e la UI glielo deve dire), errore del server, manutenzione. Poi il gate: app Vite vuota, tre `shadcn add`, e si verifica che in dieci minuti ci sia un'app navigabile e in stile.
 - Accettazione: cronometrata davvero e annotata in WORKLOG — se ci vuole di più, il problema è nella documentazione o nei `registryDependencies`, e si corregge lì.
 
+**M4.7 — `item`, la lista non tabellare (1 sessione)** — aggiunto in coda alla fase il 2026-09-18, su indicazione di Francesco, dopo la revisione a video della dashboard. Si installa la primitiva `item` di shadcn (originale, gradino 1 della regola 4bis: `add`, poi **snapshot prima di toccarla**), si scrive la story `Primitive/Item`, e la si compone in un caso reale — il tab **documenti** di `tassullo-pagina-scheda`, che oggi è un `ReactNode` libero.
+- Motivo, misurato sui tre siti: i selettori CSS di riga/voce sono **~120 in Officina, ~22 in Studio, ~19 in Anagrafe**. È il secondo pattern più ripetuto dopo la tabella, e copre il buco fra `data-table` (la lista che si cerca e si ordina) e `card` (un contenitore, non una riga): la lista **non tabellare** — allegati, impostazioni, elenchi selezionabili. Quattro casi di Anagrafe si mappano uno a uno sulla sua anatomia: `sed-riga` (`SistemaEditor`), `nrm-elenco-voce` (`Norme`), `adm-accordion-voce` (`Admin`), `abc-modifica-riga` (`AdminBC`).
+- Accettazione: `npm run check` verde sui cinque gate; `check:registry` deve vedere l'originale in `registry/.upstream/item.tsx` e **nessuna riga** in `componenti-propri.json`, che resta vuoto; il tab documenti di `Pagine/Scheda` rende una lista di allegati veri; pannello Accessibility a zero in chiaro e scuro.
+
 ---
 
 ### FASE 5 — Registry, distribuzione e guida di adozione — 6 sessioni
