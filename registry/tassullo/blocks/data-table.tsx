@@ -579,7 +579,16 @@ export function colonnaSelezione<TDato extends RowData>() {
     enableSorting: false,
     enableHiding: false,
     enableGlobalFilter: false,
+    // `size`/`minSize`, non solo `larghezza`: su una tabella `ridimensionabile`/
+    // `colonneBloccabili` la seconda si ignora (v. `MetaColonna`), e senza
+    // `size` questa colonna utility diventerebbe l'unica **elastica** —
+    // assorbirebbe tutto lo spazio che avanza invece delle colonne vere,
+    // com'è successo alla colonna «azioni» (rilievo di Francesco su
+    // Prodotti, M3bis.11b). 40px è la stessa larghezza che `w-10` rende oggi
+    // (misurato: `Blocchi/Data Table` → `Prodotti`, non ridimensionabile).
     meta: { larghezza: "w-10" } satisfies MetaColonna,
+    size: 40,
+    minSize: 40,
   })
 }
 
@@ -733,7 +742,11 @@ export function colonnaEspansione<TDato extends RowData>() {
     enableSorting: false,
     enableHiding: false,
     enableGlobalFilter: false,
+    // `size`/`minSize` accanto a `larghezza` — v. il commento su
+    // `colonnaSelezione`, stessa ragione.
     meta: { larghezza: "w-10" } satisfies MetaColonna,
+    size: 40,
+    minSize: 40,
   })
 }
 
@@ -780,7 +793,11 @@ export function colonnaRiordino<TDato extends RowData>() {
     enableSorting: false,
     enableHiding: false,
     enableGlobalFilter: false,
+    // `size`/`minSize` accanto a `larghezza` — v. il commento su
+    // `colonnaSelezione`, stessa ragione.
     meta: { larghezza: "w-10" } satisfies MetaColonna,
+    size: 40,
+    minSize: 40,
   })
 }
 
@@ -999,13 +1016,60 @@ export function RowMenuSub({
 }
 
 /**
- * La tendina «⋯» di riga — una colonna come `colonnaSelezione`/
+ * Il corpo della tendina «⋯» di riga — una colonna come `colonnaSelezione`/
  * `colonnaEspansione`, aggiunta da sé da `<DataTable menuRiga>` (in coda alle
- * colonne, mai scritta dalla pagina). `enabledFor` esclude le righe bloccate
- * o di sola lettura: la stessa funzione, passata anche a `RigaCorpo`, spegne
- * pure il tasto destro sulla stessa riga — non due controlli scritti a
- * mano in due posti che potrebbero disallinearsi.
+ * colonne, mai scritta dalla pagina). Estratto in un componente a sé, non
+ * scritto inline in `colonnaAzioniRiga` più sotto, perché serve uno stato
+ * (`aperto`) — il `cell` di TanStack è una funzione pura, non potrebbe
+ * tenerne uno da sé.
+ *
+ * **Si chiude da sé quando `table-container` scorre.** Base UI insegue il
+ * grilletto (`trackAnchor`, di serie): finché la riga resta a schermo va
+ * bene, ma una riga che esce dalla vista — sotto la testata *sticky*, o
+ * sotto il bordo del riquadro — lascia il menu **ancorato a un punto vuoto**,
+ * staccato dalla tabella e apparentemente rotto (rilievo di Francesco).
+ * Inseguire per sempre non è la correzione giusta: un menu di riga non ha
+ * senso quando la riga non si vede più, quindi si chiude, non si sposta.
  */
+function MenuAzioniRiga<TDato>({
+  riga,
+  menu,
+  ariaLabel,
+}: {
+  riga: TDato
+  menu: React.ReactNode
+  ariaLabel?: string
+}) {
+  const [aperto, setAperto] = React.useState(false)
+  const grillettoRef = React.useRef<HTMLButtonElement>(null)
+
+  React.useEffect(() => {
+    if (!aperto) return
+    const contenitore = grillettoRef.current?.closest('[data-slot="table-container"]')
+    if (!contenitore) return
+    const chiudi = () => setAperto(false)
+    contenitore.addEventListener("scroll", chiudi, { passive: true })
+    return () => contenitore.removeEventListener("scroll", chiudi)
+  }, [aperto])
+
+  return (
+    <DropdownMenu open={aperto} onOpenChange={setAperto}>
+      <DropdownMenuTrigger
+        ref={grillettoRef}
+        render={<Button variant="ghost" size="icon" className="-my-1 ml-auto flex" />}
+        aria-label={ariaLabel ?? "Azioni riga"}
+      >
+        <EllipsisVerticalIcon aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <ContestoTipoMenuRiga.Provider value="dropdown">
+          <ContestoRigaMenu.Provider value={riga}>{menu}</ContestoRigaMenu.Provider>
+        </ContestoTipoMenuRiga.Provider>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function colonnaAzioniRiga<TDato extends RowData>({
   menu,
   enabledFor,
@@ -1025,25 +1089,36 @@ export function colonnaAzioniRiga<TDato extends RowData>({
     cell: ({ row }) => {
       if (enabledFor && !enabledFor(row.original)) return null
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon" className="-my-1 ml-auto flex" />}
-            aria-label={ariaLabel ? ariaLabel(row.original) : "Azioni riga"}
-          >
-            <EllipsisVerticalIcon aria-hidden />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <ContestoTipoMenuRiga.Provider value="dropdown">
-              <ContestoRigaMenu.Provider value={row.original}>{menu}</ContestoRigaMenu.Provider>
-            </ContestoTipoMenuRiga.Provider>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <MenuAzioniRiga
+          riga={row.original}
+          menu={menu}
+          ariaLabel={ariaLabel ? ariaLabel(row.original) : undefined}
+        />
       )
     },
     enableSorting: false,
     enableHiding: false,
     enableGlobalFilter: false,
-    meta: { larghezza: "w-12" } satisfies MetaColonna,
+    // `azioniProprie`: senza, `colonneBloccabili` aggiungerebbe il proprio
+    // `MenuBloccaColonna` anche qui — un grilletto di pin per una colonna
+    // che non porta un dato, ridondante rispetto al pin già raggiungibile
+    // dal menu di ciascuna colonna vera (rilievo di Francesco, M3bis.11b).
+    // La colonna resta bloccabile via API (`getCanPin()`/`pin()`), solo
+    // senza un'icona propria.
+    //
+    // `size`/`minSize`, non solo `larghezza`: su una tabella
+    // `ridimensionabile`/`colonneBloccabili` la seconda si ignora (v.
+    // `MetaColonna`), e senza `size` questa colonna diventa l'unica
+    // **elastica** della tabella — assorbe tutto lo spazio che avanza,
+    // invece delle colonne vere, lasciando un vuoto enorme prima del
+    // grilletto «⋯». Rilievo di Francesco su `Pagine/Prodotti (Anagrafe)`:
+    // colonna «Stato» ridimensionabile, poi una fascia bianca larga quanto
+    // metà tabella prima dei tre puntini. 48px è la stessa larghezza che
+    // `w-12` rende oggi (misurato su un `w-10`, `Blocchi/Data Table` →
+    // `Prodotti`: 40px non ridimensionabile — proporzionale a `w-12`).
+    meta: { larghezza: "w-12", azioniProprie: true } satisfies MetaColonna,
+    size: 48,
+    minSize: 48,
   })
 }
 
@@ -3522,11 +3597,39 @@ export function DataTable<TDato extends RowData>({
           **`snap-y`/`snap-proximity` su `table-container`**, non sul
           riquadro: senza, uno scorrimento libero può fermarsi a metà di una
           riga — rilievo di Francesco, la riga tagliata in cima che sembrava
-          un'altra barra. `proximity` e non `mandatory`: si assesta sul
-          confine più vicino solo quando lo scorrimento **finisce** lì
-          accanto, non forza un salto a ogni gesto — con `mandatory` uno
-          scorrimento breve verrebbe risucchiato alla riga più vicina anche
-          quando si voleva solo scorrere di poco.
+          un'altra barra (M3.10). `proximity` e non `mandatory`: si assesta
+          sul confine più vicino solo quando lo scorrimento **finisce** lì
+          accanto, non forza un salto a ogni gesto.
+
+          **Tolto e rimesso, nella stessa sessione (M3bis.11b, coda) — e la
+          ragione vale la pena scriverla per intero, perché la prima diagnosi
+          era sbagliata.** Bloccando una colonna e scorrendo, l'intestazione
+          arrivava a mostrare il testo della riga 0 al posto del proprio
+          titolo. Il primo sospetto è caduto sullo snap — `scrollTop` non
+          scendeva mai sotto l'altezza della testata, qualunque valore gli si
+          scrivesse — ed è stato tolto: `scroll-padding-top`/
+          `scroll-margin-top` (la leva che la specifica prevede per uno snap
+          vicino a un'intestazione sticky) non avevano alcun effetto
+          misurabile sulle posizioni intermedie, sintomo plausibile di un
+          limite del motore di resa su `scroll-snap-align` dentro elementi
+          `display: table-row`. **Il vero colpevole era un altro**, ed è
+          emerso solo misurando con `document.elementFromPoint` sulla
+          testata invece di fidarsi dello screenshot: a **z-index pari**
+          (`z-10`, sia sulla testata sia su ogni cella bloccata —
+          `ancoraggioColonna`, sotto) vince l'ordine nel DOM, e `<tbody>`
+          viene dopo `<thead>` — la cella bloccata di qualunque riga che
+          stia attraversando la fascia della testata **si dipinge sopra**,
+          testo compreso. Bastava scorrere di un pixel con una colonna
+          bloccata, niente a che vedere con lo snap: infatti riproducibile
+          anche a `scroll-snap-type: none`. La correzione vera è sulla
+          `<TableHeader>` (`z-20`, più sotto, non qui): con quella, lo snap è
+          tornato innocuo com'era sempre stato — verificato scrivendo
+          `scrollTop` a mano su tredici posizioni, testata sempre corretta
+          sia con lo snap attivo sia spento. **Lezione per chi ripete questa
+          misura**: un difetto di resa che sembra uno scroll-snap capriccioso
+          può essere uno stacking context deciso dall'ordine nel DOM — lo si
+          distingue misurando l'elemento colpito (`elementFromPoint`), non
+          il valore di `scrollTop`.
 
           `[&_[data-slot=table-container]]:` e non una prop, perché quel
           `<div>` è dentro `Table` (`ui/table.tsx`) e non espone un
@@ -3587,8 +3690,35 @@ export function DataTable<TDato extends RowData>({
             difetto di `anagrafe.tassullo.it` che questa forma corregge — lì
             lo scorrimento infinito è della pagina intera, e la testata se ne
             va con lei.
+
+            **`z-20`, non `z-10` — il difetto vero dietro quello preso in
+            M3bis.11b, non lo scroll-snap** (tolto sopra, che era solo il
+            coniglio che ha portato lì). Con `colonneBloccabili`, una colonna
+            bloccata dà **sia** all'intestazione **sia** a ogni cella di
+            corpo lo stesso `sticky z-10` (`ancoraggioColonna`, più sotto).
+            `<thead>`/`<tbody>` non sono loro stessi posizionati: lo stacking
+            context della `<th>` bloccata e quello della `<td>` bloccata
+            bollono su, in pratica, allo stesso livello del genitore comune —
+            e a **z-index pari** vince l'ordine nel DOM: `<tbody>` viene dopo
+            `<thead>`, quindi la cella di corpo si dipinge *sopra* la
+            testata. Con una colonna bloccata e la tabella scorsa anche di
+            un solo pixel, la riga che in quel momento attraversa la fascia
+            dei 40px della testata la copre — testo compreso, non
+            un'illusione di scroll-snap: misurato con
+            `document.elementFromPoint` sulla testata, che restituiva il
+            `<td>` sottostante e non il `<th>`. Bastava scorrere, nessuna
+            posizione particolare — a differenza del difetto di scroll-snap
+            preso sopra, che si vedeva solo a certe soglie.
+
+            `z-20` sulla `<TableHeader>` mette l'intero stacking context
+            della testata sopra quello di qualunque cella di corpo bloccata
+            (`z-10`, invariato in `ancoraggioColonna`/`classiBloccate`): non
+            serve toccare i due meccanismi di pin, basta che il genitore
+            comune vinca il confronto a monte. Verificato scrivendo
+            `document.elementFromPoint` sulla testata dopo aver bloccato
+            «Nome» e scorso: torna lo `<span>` del titolo, non più la cella.
           */}
-          <TableHeader ref={testataRef} className={cn(fermo && "sticky top-0 z-10")}>
+          <TableHeader ref={testataRef} className={cn(fermo && "sticky top-0 z-20")}>
             <TableRow className="hover:bg-transparent">
               {intestazioni.map((intestazione, indice) => (
                 <CellaIntestazione
