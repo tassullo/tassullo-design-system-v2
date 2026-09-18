@@ -1587,6 +1587,39 @@
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaDashboard\n    percorso={[{ titolo: \"Dashboard\" }]}\n    indicatori={[{ etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } }]}\n    grafici={[<GraficoSchedeAperte />, <GraficoRipartizione />]}\n    attivita={attivitaRecenti}\n    avvisi={avvisi}\n    onChiudiAvviso={(id) => setAvvisi((v) => v.filter((a) => a.id !== id))}\n    stato={statoCaricamento}\n  />\n\nCompone ciò che il registry ha già — `page-header`, `page-skeleton`,\n`error-state`, `card`, `table`, `alert`, `toni` — zero primitive nuove:\nnessuna app Tassullo ha ancora una dashboard fatta bene, quindi non c'era\nun file da cui ricavare la forma come per le altre tre pagine modello.\n\n`grafici` è una tupla di **esattamente due** nodi già completi (`Card` +\n`ChartContainer` di `Primitive/Chart`, Recharts): un grafico non ha una\nforma sola — barre, linee, torta, ciascuno con la propria composizione — e\nil blocco fissa che siano due, non cosa siano, stessa libertà di\n`documenti` in `tassullo-pagina-scheda`. La tabella delle attività recenti\nusa la primitiva `table`, non `tassullo-data-table`: è una lista corta e\ngià ordinata, senza ricerca né paginazione, e la regola 4bis (gradino 1)\nchiede prima il default shadcn così com'è.\n\nLe frecce di tendenza (`indicatori[].tendenza.direzione`) non si colorano\nmai di verde o rosso: un aumento non è un successo e un calo non è un\nerrore — dipende dall'indicatore, e il blocco non lo sa (stessa regola\nmisurata su `Primitive/Chart`, story `Scostamenti`). Ogni avviso porta il\nproprio `tono` (`TONO_ALERT` di `lib/toni`); `chiudibile` mostra il bottone\ndi chiusura solo se anche `onChiudiAvviso` è passato — il blocco non tiene\nuno stato proprio degli avvisi, perché l'app può dover segnare un avviso\nchiuso come letto sul server. `stato` sceglie fra `pronto` (default),\n`caricamento` (uno scheletro per sezione, nella stessa disposizione del\ncontenuto vero) ed `errore`."
+    },
+    {
+      "name": "tassullo-pagina-admin",
+      "type": "registry:block",
+      "title": "Pagina admin",
+      "description": "L'amministrazione a tab: il blocco possiede la gestione utenti con ruoli multipli (tabella con azioni per riga, dialoghi di conferma) come primo tab, sezioni aggiuntive componibili (ruoli, o altro), banner fisso per chi non ha il ruolo di amministrazione, con degrado a sola lettura. Quinta pagina modello della FASE 4 — dominio Anagrafe (Admin.tsx, 212 righe di CSS) e SuperTM, che condividono la stessa struttura e lo stesso concetto di utente.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-admin.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-admin.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/alert",
+        "@tassullo/badge",
+        "@tassullo/confirm-dialog",
+        "@tassullo/data-table",
+        "@tassullo/error-state",
+        "@tassullo/page-header",
+        "@tassullo/page-skeleton",
+        "@tassullo/responsive-dialog",
+        "@tassullo/tabs",
+        "@tassullo/tema",
+        "@tassullo/toggle-group",
+        "@tassullo/toni"
+      ],
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaAdmin\n    percorso={[{ titolo: \"Amministrazione\" }]}\n    utenti={{ dati: utenti, ruoli: RUOLI, onRimuovi, onCambiaRuoli }}\n    sezioni={[{ value: \"ruoli\", titolo: \"Ruoli\", contenuto: () => <TabellaRuoli /> }]}\n    soloLettura={!utenteCorrente.ruoli.includes(\"amministratore\")}\n    stato={statoCaricamento}\n  />\n\nIl blocco possiede la gestione utenti — nome, email, ruoli multipli, stato attivo/disattivo è la stessa forma in ogni app dello studio, lo stesso argomento per cui `tassullo-pagina-scheda` monta sempre `VersionTimeline` per `storico` invece di lasciarlo libero come `documenti`. Passata `utenti`, monta da sé il **primo tab** «Utenti»: `tassullo-data-table` con colonne Nome/Email/Ruoli (badge, tono da `utenti.ruoli[].tono`)/Stato, `menuRiga` con «Ruoli…» e «Rimuovi», un `ResponsiveDialog` con `ToggleGroup multiple` per cambiare i ruoli e un `ConfirmDialog` distruttivo per la rimozione — `onCambiaRuoli`/`onRimuovi` sono callback esterne, il blocco non tocca mai i dati veri. Il vocabolario dei ruoli resta dell'app (`UtenteAdmin.ruoli` è `string[]`, mai un'unione chiusa): `utenti.ruoli` porta l'etichetta italiana e un tono opzionale (`lib/toni`), o la tabella renderebbe la chiave grezza.\n\n`sezioni` resta per tutto ciò che non ha una forma fissa — una tabella ruoli non ha le stesse colonne di una tabella utenti — con la stessa libertà di `documenti` in `tassullo-pagina-scheda`: `sezioni[].contenuto` è una **funzione di `soloLettura`**, un solo albero sempre montato che decide da sé come degradare. `soloLettura` toglie anche `menuRiga` dal tab utenti (niente tendina «⋯», niente tasto destro) e mostra il banner fisso, mai `chiudibile` — non è un `avviso` di `tassullo-pagina-dashboard`, racconta lo stato dei permessi di chi guarda, non un fatto del mondo da archiviare. `stato` sceglie fra `pronto` (default), `caricamento` ed `errore`, come le altre pagine modello."
     }
   ]
 }

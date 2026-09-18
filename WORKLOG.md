@@ -5053,3 +5053,39 @@ Sessione delegata a un sub-agente (Sonnet) con prompt autosufficiente; diff rile
 `npx tsc -b` pulito. `npm run lint`: i soliti 4 avvisi preesistenti (`carousel.tsx`, `.upstream/carousel.tsx`, `use-mobile.ts`, `data-table.tsx`), nessuno nuovo. `npm run check` verde sui cinque gate; `test:a11y` **1224 scansioni (4 passate), 0 violazioni** — da 1208, +16 = le quattro story nuove per le quattro passate. Nessun popup nuovo da dichiarare: quelli che la pagina eredita da `AppShell`/`PageHeader` sono già dichiarati nei loro componenti. Unica `incomplete` residua sulle story col grafico (`color-contrast`, 16 nodi sulle etichette SVG degli assi): preesistente e identica a quella di `Primitive/Chart`, story `Barre`.
 
 Prossimo passo: **M4.5 `pagina-admin`**.
+
+### 2026-09-18 — M4.5: `pagina-admin`, quinta pagina modello — **due passate, la seconda per indirizzo di Francesco**
+
+Sessione delegata a un sub-agente (Sonnet); diff riletto, forcella sottoposta a Francesco, correzioni di revisione applicate a mano.
+
+**La forcella, e come si è chiusa.** La prima passata aveva fatto di `PaginaAdmin` un **guscio a tab**: il blocco possedeva la fascia dei tab e il banner di sola lettura, mentre `sezioni[].contenuto` era una funzione libera e la gestione utenti — tabella, ruoli multipli, menu di riga, dialoghi — viveva **nella story**. L'argomento era coerente (`documenti` in `pagina-scheda`, `grafici` in `pagina-dashboard`), ma non regge al confronto col precedente opposto: `pagina-scheda` monta **sempre** `VersionTimeline` per `storico`, «perché lo storico delle revisioni è la stessa forma per ogni entità», e `pagina-lista` possiede la propria `data-table`. Un utente — nome, email, ruoli multipli, attivo — è la stessa forma in ogni app dello studio, esattamente come lo storico; una tabella **ruoli** no. E la riga di `PIANO.md` chiede quelle capacità *della pagina modello*, col motivo che Anagrafe e SuperTM hanno la stessa pagina. **Decisione di Francesco: il blocco possiede gli utenti.** La forma approvata:
+
+```tsx
+<PaginaAdmin
+  percorso={[{ titolo: 'Amministrazione' }]}
+  utenti={{ dati: utenti, ruoli: RUOLI, onRimuovi, onCambiaRuoli }}
+  sezioni={[{ value: 'ruoli', titolo: 'Ruoli', contenuto: () => <TabellaRuoli /> }]}
+  soloLettura={!ammin}
+/>
+```
+
+**Cosa c'è.** `registry/tassullo/pages/pagina-admin.tsx` + `.stories.tsx` (`Pagine/Admin`: `ConDati`, `SenzaPermessi`, `Caricamento`, `Errore`), voce `tassullo-pagina-admin` in `registry.json`, `public/r/` ricostruito. Quando `utenti` è presente il blocco monta **da sé** il primo tab: `data-table` (nome / email / ruoli come badge affiancati / stato), `menuRiga` con «Ruoli…» e «Rimuovi», `ResponsiveDialog` con `ToggleGroup multiple` per i ruoli, `ConfirmDialog` distruttivo per la rimozione. `sezioni` resta per il resto. **Zero componenti nuovi**, `componenti-propri.json` resta vuoto.
+
+**Le scelte di forma, e perché.**
+- `UtenteAdmin.ruoli` è `string[]`, **mai un'unione chiusa**: il vocabolario dei ruoli è dell'app, e Anagrafe e SuperTM non hanno gli stessi. `utenti.ruoli` è invece `{valore, etichetta, tono?}[]`, un array solo che alimenta sia i badge in tabella sia le voci del `ToggleGroup`: senza `etichetta` in UI comparirebbe il valore grezzo (è il difetto già preso in M3bis.11b sui filtri sfaccettati), e `tono` referenzia `lib/toni` **per nome**, così l'app non deve importare `TONO` per costruire una classe.
+- Un ruolo portato da un utente ma non più fra quelli assegnabili **ricade sul valore grezzo, non sparisce**: un utente non perde in silenzio l'informazione di averlo ancora.
+- `onRimuovi(id)` e `onCambiaRuoli(id, ruoli)` (l'elenco intero, non la differenza) sono **callback esterne**: il blocco non sa se la rimozione debba toccare il server. Stessa ragione di `onChiudiAvviso` in `pagina-dashboard` e di `modifica` in `pagina-scheda`.
+- **Il banner di sola lettura non è chiudibile**, a differenza degli `avvisi` di `pagina-dashboard`: quelli raccontano un fatto del mondo che si legge e si archivia, questo racconta lo stato dei permessi di chi guarda. Chiuderlo lascerebbe una pagina con le azioni assenti e nessuna spiegazione scritta da nessuna parte — e chi non lo ricorda la scambia per rotta. Nome `soloLettura` e non `puoAmministrare`: descrive cosa succede alla pagina, non un giudizio sull'utente.
+- `soloLettura` toglie `menuRiga` dalla tabella utenti (niente tendina, niente tasto destro) invece di disabilitare le voci, e la tabella resta **leggibile**: stesso numero di colonne nelle due rese.
+
+**Correzione di revisione: `colonne` e `menuRiga` in `useMemo`.** `TabUtenti` costruiva le colonne e l'oggetto `menuRiga` **inline a ogni render**, e quel componente ri-renderizza a ogni apertura e chiusura di dialogo. `data-table.tsx` documenta in proprio perché non va fatto («il `useMemo` non è ottimizzazione: `colonne` che cambia identità a ogni render farebbe ricostruire la tabella e perdere ordinamento e pagina»), e il suo memo interno su `colonneEffettive` dipende proprio da `colonne` e `menuRiga`: passarli instabili lo disarma. Ogni altra tabella del registry tiene le colonne in una **costante di modulo**; qui non si può, perché dipendono dai ruoli che arrivano dal chiamante, e la forma equivalente è memorizzarle su quelli. **Onestà sulla misura**: provato in Chromium *prima* della correzione, il difetto **non si manifestava** — ordinamento su Nome e colonna Email nascosta sopravvivevano all'apertura e chiusura del dialogo, perché lo stato di TanStack vive nello stato React di `DataTable` e non nelle colonne. Corretto lo stesso: è il contratto che il blocco dichiara, e un consumatore che lo viola è una divergenza latente, non un difetto già visibile.
+
+**Provato col dito** (Storybook via HTTP, Chromium, dopo la correzione): menu «⋯» → «Ruoli…» su Francesco Sartori → acceso «Supervisore» → Salva → **la riga mostra davvero i tre badge** Amministratore/Editor/Supervisore, non un log; «Rimuovi» su Roberto Zanetti fino alla **conferma vera** → la riga sparisce e il conteggio scende da 4 a 3; ramo **Annulla** → la riga resta. Ordinamento su Nome (due clic, ↓), colonna Email nascosta da «Colonne», dialogo aperto e chiuso: entrambi sopravvivono. **Esc chiude il dialogo dei ruoli** — questo è stato osservato, a differenza di Invio/Spazio. `SenzaPermessi`: banner in cima, nessuna tendina, nessun tasto destro, tabella comunque leggibile. 375px e 1440px, densità normale e touch.
+
+**Due cose annotate e non corrette.**
+1. **Il nome svanisce mentre il dialogo si chiude**: la descrizione è `inModificaRuoli?.nome ?? ""`, e lo stato va a `null` all'istante del Salva mentre il dialogo è ancora nell'animazione d'uscita — per ~200ms si vede il riquadro senza il nome. Cosmetico, e lo stesso schema è in `PaginaProdotti`: si corregge in tutti i posti insieme o in nessuno.
+2. **Il clic che chiude un popup non ne apre un altro**: già noto da M3bis.11b, comportamento di Base UI, riprodotto anche qui aprendo il menu di riga subito dopo averne chiuso un altro.
+
+`npx tsc -b` pulito. `npm run lint`: 4 avvisi, gli stessi preesistenti, nessuno nuovo. `npm run check` **uscita 0** sui cinque gate; `check:registry` 0 errori, 52 avvisi invariati, **0 componenti nostri dichiarati**. `test:a11y` **1240 scansioni (4 passate), 0 violazioni** — da 1224, +16 = le quattro story nuove per le quattro passate. Le due `incomplete` sulle story a popup aperto («Hidden element focus», «ARIA attribute values valid») sono le famiglie già documentate in `CLAUDE.md` per ogni `dropdown-menu` di Base UI, non nuove.
+
+Prossimo passo: **M4.6 — stati di sistema (`pagina-errore`) e gate di fase cronometrato**.
