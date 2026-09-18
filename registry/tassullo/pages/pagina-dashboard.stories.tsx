@@ -5,6 +5,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Label,
+  LabelList,
   Pie,
   PieChart,
   XAxis,
@@ -173,7 +175,13 @@ function GraficoSchedeAperte() {
             <XAxis dataKey="mese" tickLine={false} axisLine={false} tickMargin={8} />
             <YAxis tickLine={false} axisLine={false} width={32} />
             <ChartTooltip content={<ChartTooltipContent hideLabel={false} />} />
-            <Bar dataKey="schede" fill="var(--color-calcestruzzi)" radius={4} />
+            <Bar dataKey="schede" fill="var(--color-calcestruzzi)" radius={4}>
+              {/* Il valore scritto sulla barra: su sei mesi si legge il numero
+                  senza stimarlo a occhio sull'asse. Stessa forma di
+                  `Primitive/Chart`, story `Barre` — `position="top"` e
+                  `fill-foreground`, mai un colore fuori dai token. */}
+              <LabelList position="top" offset={12} className="fill-foreground text-xs" />
+            </Bar>
           </BarChart>
         </ChartContainer>
       </CardContent>
@@ -181,11 +189,54 @@ function GraficoSchedeAperte() {
   )
 }
 
+const TOTALE_IN_CATALOGO = IN_CATALOGO.reduce((somma, r) => somma + r.schede, 0)
+
+/** L'altezza che diamo alla legenda: dichiarata, non subita — v. `TotaleAlCentro`. */
+const ALTEZZA_LEGENDA = 32
+
+/** Lo stacco fra le due righe del totale. */
+const RIGA_TOTALE = 22
+
 /**
- * Il secondo grafico: ripartizione delle schede per famiglia — la stessa
- * ciambella di `Primitive/Chart` (senza il totale al centro: quella
- * composizione è documentata lì, qui basta la forma base per il quadro
- * sinottico). Legenda e tooltip portano il nome tradotto, mai la chiave.
+ * Di quanto alzare il blocco perché il baricentro cada sul centro dell'anello.
+ * **Non è metà stacco**: la riga grande è alta il doppio della piccola e tira
+ * il baricentro verso di sé. Misura presa in `Primitive/Chart`.
+ */
+const SCARTO_BLOCCO = 5
+
+/**
+ * Il totale nel buco della ciambella. È la composizione già misurata in
+ * `Primitive/Chart` (story `Ciambella`), **riscritta qui** e non importata da
+ * lì: quello è un file di story, non un modulo condiviso.
+ *
+ * Due correzioni verticali, nessuna delle due a occhio: il blocco è di due
+ * righe e il suo baricentro non cade su `cy` (`SCARTO_BLOCCO`); e con la
+ * legenda accesa Recharts riduce l'`outerRadius` che passa al `Label` ma
+ * **lascia `cy` dov'era**, mentre l'anello vero sale — di qui la metà di
+ * `ALTEZZA_LEGENDA`.
+ */
+function TotaleAlCentro({ viewBox, totale }: { viewBox?: unknown; totale: number }) {
+  const vb = viewBox as { cx?: number; cy?: number } | undefined
+  if (!vb || vb.cx === undefined || vb.cy === undefined) return null
+  const cy = vb.cy - SCARTO_BLOCCO - ALTEZZA_LEGENDA / 2
+  return (
+    <text x={vb.cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground">
+      <tspan x={vb.cx} y={cy} className="fill-foreground text-2xl font-semibold tabular-nums">
+        {totale.toLocaleString('it-IT')}
+      </tspan>
+      <tspan x={vb.cx} y={cy + RIGA_TOTALE} className="fill-muted-foreground text-sm">
+        schede
+      </tspan>
+    </text>
+  )
+}
+
+/**
+ * Il secondo grafico: ripartizione delle schede per famiglia, la stessa
+ * ciambella di `Primitive/Chart` **col totale al centro** — il buco dell'anello
+ * è spazio già speso, e scriverci dentro il totale dà al quadro sinottico il
+ * numero che la ripartizione da sola non dice. Legenda e tooltip portano il
+ * nome tradotto, mai la chiave.
  */
 function GraficoRipartizione() {
   return (
@@ -203,10 +254,11 @@ function GraficoRipartizione() {
               height={32}
               content={<ChartLegendContent nameKey="famiglia" />}
             />
-            <Pie data={IN_CATALOGO} dataKey="schede" nameKey="famiglia" outerRadius="62%" innerRadius="38%">
+            <Pie data={IN_CATALOGO} dataKey="schede" nameKey="famiglia" outerRadius="95%" innerRadius="58%">
               {IN_CATALOGO.map((r) => (
                 <Cell key={r.famiglia} fill={r.fill} />
               ))}
+              <Label content={<TotaleAlCentro totale={TOTALE_IN_CATALOGO} />} />
             </Pie>
           </PieChart>
         </ChartContainer>

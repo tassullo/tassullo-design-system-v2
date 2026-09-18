@@ -147,31 +147,35 @@ function SezioneRuoli({ utenti, soloLettura }: { utenti: UtenteAdmin[]; soloLett
           </Button>
         ) : null}
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Ruolo</TableHead>
-            <TableHead>Descrizione</TableHead>
-            {/* Contato sul vivo (`utenti`, lo stato della story), non sui dati
-                iniziali — «Ruoli…» e «Rimuovi» nel tab Utenti lo cambiano
-                davvero, e questo conto deve muoversi con loro. */}
-            <TableHead className="text-right">Utenti</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {RUOLI_DEFINITI.map(({ ruolo, descrizione }) => (
-            <TableRow key={ruolo.valore}>
-              <TableCell>
-                <Badge className={TONO[ruolo.tono ?? 'neutro']}>{ruolo.etichetta}</Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{descrizione}</TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {utenti.filter((u) => u.ruoli.includes(ruolo.valore)).length}
-              </TableCell>
+      {/* Stessa cornice di `tassullo-data-table`: la primitiva `table` non
+          ne porta nessuna, e senza una tabella Tassullo non si riconosce. */}
+      <div className="overflow-hidden rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ruolo</TableHead>
+              <TableHead>Descrizione</TableHead>
+              {/* Contato sul vivo (`utenti`, lo stato della story), non sui dati
+                  iniziali — «Ruoli…» e «Rimuovi» nel tab Utenti lo cambiano
+                  davvero, e questo conto deve muoversi con loro. */}
+              <TableHead className="text-right">Utenti</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {RUOLI_DEFINITI.map(({ ruolo, descrizione }) => (
+              <TableRow key={ruolo.valore}>
+                <TableCell>
+                  <Badge className={TONO[ruolo.tono ?? 'neutro']}>{ruolo.etichetta}</Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{descrizione}</TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {utenti.filter((u) => u.ruoli.includes(ruolo.valore)).length}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

@@ -25,15 +25,33 @@
  * Il chiamante porta già la propria `Card` con dentro `ChartContainer` — qui
  * non si annida una card dentro un'altra.
  *
- * ── Perché la tabella delle attività non è `tassullo-data-table` ─────────
+ * ── La tabella delle attività è `tassullo-data-table`, spogliata ─────────
  *
- * `DataTable` esiste per l'elenco che si cerca, si ordina, si pagina — il
- * caso di `tassullo-pagina-lista`. Un riquadro «Attività recenti» non fa
- * nessuna delle tre cose: è una lista corta, già ordinata dal più recente,
- * senza filtro. Portarci sopra `DataTable` vorrebbe dire installare colonne
- * TanStack per tre celle statiche — il gradino 1 della regola 4bis chiede
- * prima il default shadcn così com'è, ed è quello che risolve qui: la
- * primitiva `table`, dentro una `Card`, come la usa `Primitive/Table`.
+ * Scelta di Francesco il 2026-09-18, presa **guardando le tre varianti
+ * affiancate sugli stessi dati**, non in astratto: primitiva `table` nuda,
+ * `DataTable` col solo ordinamento, e `DataTable` col menu di riga. Vince la
+ * seconda — ricerca, menu delle colonne e piè di pagina spenti, altezza
+ * naturale, resta la freccia di ordinamento sulle tre intestazioni.
+ *
+ * **La soglia che ne è uscita, e che vale oltre questo blocco**: serve una
+ * qualunque opzione — ordina, cerca, nascondi, pagina, menu di riga — e
+ * allora si monta `DataTable` spegnendo le altre; non ne serve nessuna, e
+ * allora la primitiva `table` con la cornice di `DataTable`
+ * (`overflow-hidden rounded-lg border`, che la primitiva non porta da sé).
+ * Ciò che non si fa **mai** è aggiungere a mano un'opzione a una tabella
+ * semplice: rifare l'intestazione ordinabile significa riscrivere
+ * `IntestazioneColonna`, che è la duplicazione che la regola 4bis esiste per
+ * impedire.
+ *
+ * ── Le larghezze si dichiarano, o le prende la data ──────────────────────
+ *
+ * L'ordine è **chi / cosa / quando**: il soggetto per primo, l'azione al
+ * centro, la data in coda. Solo «Attività» resta senza `meta.larghezza` —
+ * è la colonna elastica, quella che si prende ciò che avanza. Senza
+ * larghezze dichiarate «Quando» si prendeva un terzo della tabella per
+ * mostrare undici caratteri: è lo stesso difetto della colonna «azioni»
+ * preso in M3bis.11b, e la causa è la stessa — in una tabella a colonne
+ * fisse, una colonna senza larghezza è elastica.
  *
  * ── Perché l'icona di tendenza non si colora mai di verde o rosso ────────
  *
@@ -67,6 +85,7 @@
  * con SAP è ferma da tre ore» non deve aspettare lo scorrimento sotto due
  * grafici). Indicatori, grafici e attività restano nell'ordine del piano.
  */
+import * as React from "react"
 import type { ComponentType, ReactNode } from "react"
 import {
   CheckCircle2Icon,
@@ -80,21 +99,18 @@ import {
 } from "lucide-react"
 
 import { cn } from "cn"
+import {
+  DataTable,
+  IntestazioneColonna,
+  creaColonne,
+} from "@/registry/tassullo/blocks/data-table"
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
 import { PageHeader, type AzionePagina, type LivelloPercorso } from "@/registry/tassullo/blocks/page-header"
 import { PageSkeleton } from "@/registry/tassullo/blocks/page-skeleton"
-import { TONO_ALERT } from "@/registry/tassullo/lib/toni"
+import { TONO_ALERT, TONO_CHIUSURA } from "@/registry/tassullo/lib/toni"
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/registry/tassullo/ui/alert"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/registry/tassullo/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/registry/tassullo/ui/table"
 
 /** Un'icona Lucide, o qualunque componente che accetti una `className`. */
 type Icona = ComponentType<{ className?: string }>
@@ -151,7 +167,7 @@ export type PaginaDashboardProps = {
    */
   grafici: [ReactNode, ReactNode]
   attivita: AttivitaRecente[]
-  messaggioAttivitaVuote?: ReactNode
+  messaggioAttivitaVuote?: string
   avvisi?: AvvisoDashboard[]
   /** Assente, `chiudibile` non mostra il bottone anche se richiesto dall'avviso. */
   onChiudiAvviso?: (id: string) => void
@@ -214,53 +230,90 @@ function DueGrafici({ grafici }: { grafici: [ReactNode, ReactNode] }) {
   )
 }
 
+const colAttivita = creaColonne<AttivitaRecente>()
+
+/**
+ * `tassullo-data-table` spogliata, non la primitiva `table` — scelta di
+ * Francesco il 2026-09-18, davanti alle tre varianti messe a confronto sugli
+ * stessi dati. Resta acceso il **solo ordinamento**: ricerca, menu delle
+ * colonne e piè di pagina spenti, altezza naturale. La soglia che ne è uscita
+ * vale oltre questo caso: serve una qualunque opzione — ordina, cerca,
+ * nascondi, pagina, menu di riga — e allora si monta `DataTable` spegnendo le
+ * altre; non ne serve nessuna, e allora la primitiva. Non si aggiunge **mai**
+ * un'opzione a mano a una tabella semplice: rifare l'intestazione ordinabile
+ * vorrebbe dire riscrivere `IntestazioneColonna`, che è la duplicazione che la
+ * regola 4bis esiste per impedire.
+ *
+ * **L'ordine delle colonne è chi / cosa / quando**: il soggetto per primo,
+ * l'azione al centro — è la colonna che si allunga, e quindi l'unica senza
+ * `larghezza` — e la data in coda, stretta. Senza larghezze dichiarate la
+ * data si prende un terzo della tabella per mostrare undici caratteri.
+ */
 function TabellaAttivita({
   attivita,
   messaggioVuote,
 }: {
   attivita: AttivitaRecente[]
-  messaggioVuote: ReactNode
+  messaggioVuote: string
 }) {
+  const colonne = React.useMemo(
+    () =>
+      colAttivita.columns([
+        colAttivita.accessor("utente", {
+          header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Utente" />,
+          meta: { titolo: "Utente", larghezza: "w-44" },
+          sortFn: "text",
+        }),
+        colAttivita.accessor("descrizione", {
+          header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Attività" />,
+          // Nessuna `larghezza`: è la colonna elastica, quella che si prende
+          // ciò che avanza (v. il rilievo sulla colonna «azioni» di M3bis.11b).
+          meta: { titolo: "Attività" },
+          sortFn: "text",
+          cell: ({ row }) => (
+            <div className="flex flex-wrap items-center gap-2">
+              {row.original.descrizione}
+              {row.original.distintivo}
+            </div>
+          ),
+        }),
+        colAttivita.accessor("quando", {
+          header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Quando" />,
+          meta: { titolo: "Quando", larghezza: "w-32" },
+          sortFn: "datetime",
+          cell: ({ getValue }) => (
+            <span className="text-muted-foreground">
+              {getValue<Date>().toLocaleString("it-IT", {
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          ),
+        }),
+      ]),
+    []
+  )
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Attività recenti</CardTitle>
       </CardHeader>
       <CardContent>
-        {attivita.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{messaggioVuote}</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Attività</TableHead>
-                <TableHead>Utente</TableHead>
-                <TableHead className="text-right">Quando</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {attivita.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="whitespace-normal">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {a.descrizione}
-                      {a.distintivo}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{a.utente}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {a.quando.toLocaleString("it-IT", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <DataTable
+          colonne={colonne}
+          dati={attivita}
+          idRiga={(a) => a.id}
+          cerca={false}
+          colonneNascondibili={false}
+          piePagina={false}
+          altezza="naturale"
+          perPagina="infinito"
+          nomeRighe={{ singolare: "attività", plurale: "attività" }}
+          vuoto={{ titolo: messaggioVuote }}
+        />
       </CardContent>
     </Card>
   )
@@ -290,6 +343,9 @@ function AreaAvvisi({
                   <Button
                     variant="ghost"
                     size="icon"
+                    // `ghost` da solo farebbe una macchia grigia dentro il
+                    // riquadro tinto e annerirebbe l'icona: v. `TONO_CHIUSURA`.
+                    className={TONO_CHIUSURA[avviso.tono]}
                     aria-label="Chiudi avviso"
                     onClick={() => onChiudiAvviso(avviso.id)}
                   >

@@ -66,7 +66,13 @@ function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-action"
-      className={cn("absolute top-2 right-2", className)}
+      // Ri-stile (regola 4bis, gradino 2): l'originale shadcn ancora l'azione
+      // in alto (`top-2`), forma pensata per un alert di due righe. Su un
+      // alert di una riga sola il bottone-icona è più alto del riquadro —
+      // misurato: alert 38.6px, bottone 32px a 9px dal bordo, 2.4px che
+      // sbordano sotto — e sembra tagliato. Centrato verticalmente regge
+      // entrambi i casi.
+      className={cn("absolute top-1/2 right-2 -translate-y-1/2", className)}
       {...props}
     />
   )
