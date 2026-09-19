@@ -6563,8 +6563,14 @@ colorato davanti al nome sposta il calcolo di quei pochi pixel. Non è un
 difetto nostro e non si corregge senza spegnere quel posizionamento per
 tutti.
 
-**Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
-`check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.
+**Numeri finali di M4ter.2**: `check` verde sui cinque, `test:a11y`
+**1332**/0 (333 story), `check:registry` 0 errori / 62 avvisi / 0 componenti
+nostri / 19 ri-stilati, **89 item**, `registry validate`, `build` e `lint`
+verdi. `misura:bersagli`, strumento ✔ (47,875px): **3011 bersagli su 333
+story**, 2048 sotto i 44px, **35 tipi distinti, 0 piccoli in entrambe le
+direzioni**; i due del calendario sono `event-calendar-event` **31,5 × 342px**
+(era 24, l'ha alzato il chip legato a `--spacing`) e `event-calendar-more`
+17,33 × 236px.
 
 #### Coda 7 di M4ter.2: le due iniziali, e un bug vero nel dialogo (2026-09-19)
 
@@ -6600,8 +6606,14 @@ celle da 17 a 1142 — 4px di inset per lato, come tutte. L'impressione viene
 dal weekend nascosto: una barra che finisce di sabato si interrompe
 all'ultima colonna visibile.
 
-**Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
-`check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.
+**Numeri finali di M4ter.2**: `check` verde sui cinque, `test:a11y`
+**1332**/0 (333 story), `check:registry` 0 errori / 62 avvisi / 0 componenti
+nostri / 19 ri-stilati, **89 item**, `registry validate`, `build` e `lint`
+verdi. `misura:bersagli`, strumento ✔ (47,875px): **3011 bersagli su 333
+story**, 2048 sotto i 44px, **35 tipi distinti, 0 piccoli in entrambe le
+direzioni**; i due del calendario sono `event-calendar-event` **31,5 × 342px**
+(era 24, l'ha alzato il chip legato a `--spacing`) e `event-calendar-more`
+17,33 × 236px.
 
 #### Coda 8 di M4ter.2: il chip del popover, e un pixel in fondo alla settimana (2026-09-19)
 
@@ -6626,5 +6638,11 @@ blocco **non raggiunge i pannelli che Base UI monta in un portale**.
 colonna, dove il `border-t` della legenda ci si sommava. Il bordo resta nel
 mese e nell'agenda — dove quella linea non c'è — e sparisce nella settimana.
 
-**Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
-`check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.
+**Numeri finali di M4ter.2**: `check` verde sui cinque, `test:a11y`
+**1332**/0 (333 story), `check:registry` 0 errori / 62 avvisi / 0 componenti
+nostri / 19 ri-stilati, **89 item**, `registry validate`, `build` e `lint`
+verdi. `misura:bersagli`, strumento ✔ (47,875px): **3011 bersagli su 333
+story**, 2048 sotto i 44px, **35 tipi distinti, 0 piccoli in entrambe le
+direzioni**; i due del calendario sono `event-calendar-event` **31,5 × 342px**
+(era 24, l'ha alzato il chip legato a `--spacing`) e `event-calendar-more`
+17,33 × 236px.
