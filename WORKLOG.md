@@ -5211,3 +5211,85 @@ Aggiunta in coda alla FASE 4 (v. la voce del 2026-09-18). Ordine rispettato alla
 **Corretto** con uno scanner che attraversa il sorgente una volta sola tenendo conto di dove si trova — testo, stringa con gli escape, commento di riga, commento di blocco — e restituisce stringhe e sorgente-senza-commenti separati. Non si risolve con l'ordine delle regex: togliendo prima i commenti si romperebbe un `https://` dentro una stringa, togliendo prima le stringhe si ricade nel difetto. Lo usa ora anche `forma()`, che aveva lo stesso buco e poteva dare il difetto opposto — un falso *errore* di forma. Dopo la correzione il rapporto cambia esattamente su due righe: `alert.tsx` e `item.tsx` passano da «nessun ri-stile» a «2 stringhe di classi ri-stilate». Nessun altro componente si muove.
 
 `tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` **1296 scansioni (4 passate), 0 violazioni** — da 1280, +16 = le quattro scene nuove per le quattro passate.
+
+### 2026-09-19 — Gap analysis delle tre app: cosa il registry non sa ancora esprimere
+
+Sessione di **sola analisi**, su indirizzo di Francesco: nessuna riga di componente scritta.
+La domanda non era «le app funzionano?» ma «**quando un'app passerà al v2, il registry saprà
+esprimere tutto quello che quella pagina già fa?**». Tre sub-agenti Sonnet in parallelo, uno
+per app — Anagrafe in locale, Studio e Officina in sola lettura via `gh api` (solo GET).
+Esito in **`docs/ANALISI-COPERTURA-APP.md`**, 12 pattern da fare, 8 coperti, 1 differito.
+
+**I conteggi dei sub-agenti erano sbagliati, e vanno rifatti sempre.** Due rapporti su tre
+contavano i selettori CSS con `grep -c "{"`, che conta anche `@media`, `@keyframes` e i
+fotogrammi `0%`/`100%`. Riscritto il conto in **`scripts/conta-css.mjs`** — toglie i
+commenti, attraversa il sorgente, conta un selettore per elemento di lista davanti a un
+blocco (`.a, .b { }` = 2), at-rule fuori. Numeri veri: **Anagrafe 391, Officina 1 720,
+Studio 2 229 — 4 340 in tutto**. Da cui il dato che pesa di più: **Anagrafe è il 9%** del CSS
+che la migrazione dovrà assorbire, ed è l'app su cui M5.5 prevede di collaudare la guida.
+
+**E tre errori miei, tutti dello stesso genere: ordinare per conteggio senza chiedersi cosa
+il conteggio stesse contando.** Li elenco perché la lezione vale più delle voci.
+
+1. **Il «titolo di pagina visibile» era il rilievo numero uno — 56 file, 73 `<h1>` — ed è
+   ritirato.** Rilievo di Francesco: «l'abbiamo sostituito col breadcrumb, o parli d'altro?».
+   Verificato: negli **elenchi** l'argomento di M3.2 vale in pieno (Officina non ha **nessun**
+   breadcrumb in 26 file con `<h1>`: migrando perde una riga, non una funzione); nei
+   **dettagli** breadcrumb e titolo convivono dicendo cose diverse — `Anagrafe/Sistema.tsx:148`
+   ha `← Sistemi` (il genitore) e `ST042 Risanamento muratura umida` (il record). E il v2 lo
+   fa già: `page-header` senza titolo, `pagina-scheda` con. Il numero era vero ma misurava
+   **lo stato del v1, non una lacuna del v2**.
+2. **Il «doppio volto» da «manca un blocco» a «manca un hook e una story».** Verificato
+   elemento per elemento sul Triage di Officina: 13 su 14 compongono già — i chip mobili sono
+   `toggle-group` a scelta singola, la riga espansa è `pannelloRiga` di `data-table`
+   (M3bis.2), la scheda è `card`. Scoperta la sola miniatura.
+3. **Il «wizard» come componente non esiste.** Guardando i tre passi della registrazione di
+   Studio: le card selezionabili sono `FieldLabel` attorno a `radio-group` (`field.tsx:107`
+   porta già `has-data-checked:border-primary/30`), i campi affiancati sono
+   `Field orientation="responsive"` (`field.tsx:60`), i consensi `Field orientation="horizontal"`.
+   Manca **la barra a segmenti**, che serve tre volte in due pagine (i passi, il misuratore di
+   robustezza della password, i passi del calcolo strutturale). Il *gating* non è un
+   componente: dipende da quali campi ha quel passo.
+
+**Due difetti veri dei sub-agenti, corretti**: Studio dava «expand-in-row» mancante mentre
+`data-table.tsx:2917` ha `pannelloRiga` (e dichiarava di non aver interrogato l'MCP);
+Officina contava 4 pagine a doppio volto e sono **5** (anche `Admin.tsx`).
+
+**La lezione di metodo che resta, ed è quella che ha cambiato di più il risultato.**
+«L'ho chiesto all'MCP» **non** è gradino 1 esaurito: è gradino 1 esaurito *sui registry
+dichiarati in `components.json`*, e lì ce n'era uno solo. Il calendario a eventi risultava
+introvabile per questo. Francesco ne ha trovati tre fuori — `shadcnui-blocks`, `big-calendar`,
+`reui` — e da lì sono nate D21 e D22.
+
+**Quattro decisioni chiuse**: **D20** (l'immagine d'entità, primo componente nostro, `4:3`
+di default e `16:9` disponibile), **D21** (`@reui` dichiarato in `components.json`), **D22**
+(il calendario si adotta da reui, MIT, non si scrive), **D23** (`pagina-login` prende `modo`
+a tre vie). Motivazioni per esteso in `CHECKLIST.md` e in `docs/ANALISI-COPERTURA-APP.md`.
+
+**Sulla licenza di reui, perché il rilievo di Francesco era fondato e il taglio passa
+altrove.** «I blocchi sono una feature pro, non ho una licenza»: vero. `reui.io/legal/license`
+governa i **543 Pro Blocks** e vieta alla lettera «Publish the Licensed Materials in a public
+or open-source repository» e «Repackage… into another component library» — il nostro registry
+è pubblico ed è una component library. Ma il **componente** `event-calendar` sta in
+`keenthemes/reui`, **MIT**, sotto `registry-reui/bases/base/…`, cioè proprio la variante Base
+UI. Motore MIT, layout composti a pagamento; il layout lo scriviamo comunque. Condizione MIT:
+l'avviso di copyright di Keenthemes va conservato nei file e dichiarato nell'item, come già si
+fa con l'OFL di Inter in `tema-font`.
+
+**Tre demo costruiti per guardare le pagine invece di descriverle** — markup e CSS **veri**
+scaricati dai repo, dati finti, serviti in HTTP: il Triage di Officina (il doppio volto, col
+salto a 1024px), il Calendario di Officina (griglia del mese con «+N altri» e agenda), la
+`CantiereContextBar` di Studio. Non conservati: erano strumenti di conversazione. Sulla
+context bar l'indirizzo di Francesco ha corretto la mia proposta binaria — **il blocco si fa**
+(`item` + `dropdown-menu`, gradino 2), **si rimanda il solo slot in `app-shell`**.
+
+**Scritto, non pianificato.** Su indirizzo di Francesco questa sessione chiude le *decisioni*
+e lascia il **piano di dettaglio a dopo**: `PIANO.md` non è toccato, e i sei lavori (L1
+immagine, L2 auth, L3 bivio, L4 sei scorpori, L5 calendario, L6 barra di contesto) stanno in
+`docs/ANALISI-COPERTURA-APP.md` §4bis come contenuto, non come task numerati. Anche la
+divisione di M5.5 — collaudo su Anagrafe sola contro Anagrafe più Studio e Officina — resta
+aperta e si decide con la FASE 5.
+
+`components.json` dichiara `@reui`; `check:registry` **0 errori / 53 avvisi / 0 componenti
+nostri**, `check:contrast`, `check:font` e `check:logo` verdi. Nessun file del registry
+toccato, quindi `test:a11y` invariato.
