@@ -37,8 +37,53 @@ const BLOCCHI_DIR = "registry/tassullo/blocks";
 const PAGINE_DIR = "registry/tassullo/pages";
 const LIB_DIR = "registry/tassullo/lib";
 const UPSTREAM_DIR = "registry/.upstream";
+const PROVENIENZE_FILE = join(UPSTREAM_DIR, "provenienze.json");
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
 const PROPRI_FILE = "registry/componenti-propri.json";
+
+/**
+ * I registry da cui vengono gli originali di `registry/.upstream/`.
+ *
+ * Fino a M4ter.1 la provenienza era **una sola e implicita**: `snapshot()`
+ * scriveva `@shadcn/${nome}` a mano e `PROVENIENZA.md` la dichiarava per
+ * l'intera cartella. Con `@reui` (D21, D22) le provenienze diventano due, e
+ * un file senza provenienza dichiarata sarebbe finito nel ramo «componente
+ * nostro senza originale» — cioè il gate avrebbe chiesto una riga in
+ * `componenti-propri.json` per un componente che un originale ce l'ha eccome.
+ *
+ * **Un terzo registry si aggiunge QUI, con una riga**, e da quella riga
+ * discendono tutte e tre le cose che servono: da dove `--snapshot` scarica,
+ * cosa `PROVENIENZA.md` dichiara, e se la licenza chiede di conservare un
+ * avviso nei file che ridistribuiamo.
+ *
+ * `avvisoDaConservare` è la sola condizione che la MIT pone («The above
+ * copyright notice … shall be included in all copies or substantial
+ * portions»). Il nostro registry ridistribuisce quei file alle app: se
+ * l'avviso sparisce dal sorgente, la ridistribuzione non è più coperta. Da qui
+ * il controllo, che è un obbligo di licenza e non una convenzione interna.
+ */
+const REGISTRI_ORIGINE: Record<
+  string,
+  { etichetta: string; licenza: string; avvisoDaConservare?: string }
+> = {
+  "@shadcn": { etichetta: "shadcn/ui", licenza: "MIT — shadcn" },
+  "@reui": {
+    etichetta: "ReUI — Keenthemes",
+    licenza: "MIT — Copyright (c) 2025 Keenthemes Inc",
+    avvisoDaConservare: "Copyright (c) 2025 Keenthemes Inc",
+  },
+};
+
+/** `stepper.tsx` → `@reui/stepper`. Una riga per file, letta da un file dati. */
+function provenienze(): Record<string, string> {
+  if (!existsSync(PROVENIENZE_FILE)) return {};
+  return JSON.parse(readFileSync(PROVENIENZE_FILE, "utf8"));
+}
+
+/** `@reui/stepper` → `@reui`. */
+function registryDi(item: string): string {
+  return item.startsWith("@") ? item.slice(0, item.indexOf("/")) : "@shadcn";
+}
 
 /**
  * I 32 token che il preset `base-nova` scrive in `:root` a `init`.
@@ -227,8 +272,22 @@ function normalizzaClassi(s: string): string {
  * "diverge fuori dalle stringhe di classi" su un file che nessuno aveva
  * toccato (M2.1). Un falso positivo del gate è peggio di nessun gate: insegna
  * a non credergli.
+ *
+ * **L'ancora non è la prima riga del file — è la prima riga di CODICE**, e la
+ * differenza si è vista solo con `@reui` (M4ter.1). Il loro `stepper.tsx`
+ * apre con `un commento `eslint-disable`` e solo dopo
+ * mette la direttiva: con `^\s*` la regex non la trovava, la direttiva
+ * restava, e il gate dichiarava `stepper.tsx` «diverge fuori dalle stringhe di
+ * classi» su un file mai toccato. Peggio del falso positivo era il secondo
+ * effetto, muto: in `estraiStringhe` la direttiva sopravvissuta è una stringa
+ * in più nella lista dell'originale e non nella nostra, le due liste non si
+ * allineano più e **il conto del ri-stile scende a zero in silenzio** — lo
+ * stesso guasto che M4.7 aveva già pagato con gli apostrofi nei commenti.
+ * Quindi si consumano anche i commenti che la precedono; sono commenti, e il
+ * confronto di forma li toglie comunque.
  */
-const USE_CLIENT_RE = /^\s*(["'])use client\1\s*;?\s*/;
+const USE_CLIENT_RE =
+  /^(?:\s*(?:\/\*[\s\S]*?\*\/|\/\/[^\n]*))*\s*(["'])use client\1\s*;?\s*/;
 
 /**
  * Quarta normalizzazione, accertata in M2.4 su `scroll-area.tsx`: shadcn
@@ -332,38 +391,116 @@ function controllaBlocchi(): Set<string> {
 
 function snapshot(nomi: string[]): void {
   mkdirSync(UPSTREAM_DIR, { recursive: true });
+  const mappa = provenienze();
   const daScaricare = nomi.length > 0 ? nomi : fileUi().map((f) => basename(f, ".tsx"));
   if (daScaricare.length === 0) {
     console.log("Nessun componente in " + UI_DIR + ": niente da scaricare.");
     return;
   }
   for (const nome of daScaricare) {
-    const out = execFileSync("npx", ["shadcn@latest", "view", `@shadcn/${nome}`], {
+    // Da dove scaricare non è più `@shadcn` per costruzione: lo dice la mappa.
+    // Un file che la mappa non conosce si scarica da @shadcn come prima, e il
+    // controllo qui sotto lo segnalerà comunque alla prossima esecuzione.
+    const item = mappa[`${nome}.tsx`] ?? `@shadcn/${nome}`;
+    const out = execFileSync("npx", ["shadcn@latest", "view", item], {
       encoding: "utf8",
       maxBuffer: 32 * 1024 * 1024,
     });
     const items = JSON.parse(out.slice(out.indexOf("[")));
-    for (const item of items) {
-      for (const file of item.files ?? []) {
-        const dest = join(UPSTREAM_DIR, basename(file.path));
-        writeFileSync(dest, file.content);
-        console.log(`✔ ${dest}  ←  @shadcn/${nome} (${file.path})`);
-      }
+    for (const file of items.flatMap((i: { files?: unknown[] }) => i.files ?? []) as {
+      path: string;
+      content: string;
+    }[]) {
+      const dest = join(UPSTREAM_DIR, basename(file.path));
+      writeFileSync(dest, file.content);
+      console.log(`✔ ${dest}  ←  ${item} (${file.path})`);
     }
   }
   const versione = execFileSync("npx", ["shadcn@latest", "--version"], { encoding: "utf8" }).trim();
   const style = JSON.parse(readFileSync("components.json", "utf8")).style;
+  const usati = [...new Set(Object.values(mappa).map(registryDi))].sort();
   writeFileSync(
     join(UPSTREAM_DIR, "PROVENIENZA.md"),
-    `# Sorgenti originali shadcn — NON modificare\n\n` +
-      `Copia intatta dei componenti come shadcn li distribuisce, scaricata con\n` +
-      `\`shadcn view\`. Serve a un solo scopo: sapere, alla prossima versione di\n` +
-      `shadcn, cosa è cambiato a monte e cosa invece avevamo cambiato noi.\n\n` +
+    `# Sorgenti originali — NON modificare\n\n` +
+      `Copia intatta dei componenti come il registry di origine li distribuisce,\n` +
+      `scaricata con \`shadcn view\`. Serve a un solo scopo: sapere, alla prossima\n` +
+      `versione, cosa è cambiato a monte e cosa invece avevamo cambiato noi.\n\n` +
+      `**La provenienza è per file, non per cartella**, e sta in \`provenienze.json\`:\n` +
+      `da M4ter.1 i registry di origine sono due. Quale file venga da quale item lo\n` +
+      `dice quel file; qui sotto c'è solo il riassunto.\n\n` +
       `| | |\n|---|---|\n| CLI shadcn | ${versione} |\n| \`style\` | ${style} |\n` +
       `| aggiornato il | ${new Date().toISOString().slice(0, 10)} |\n\n` +
+      `## Registry di origine\n\n` +
+      `| registry | chi | licenza | avviso da conservare nel file | file |\n|---|---|---|---|---:|\n` +
+      usati
+        .map((r) => {
+          const o = REGISTRI_ORIGINE[r];
+          const n = Object.values(mappa).filter((i) => registryDi(i) === r).length;
+          return `| \`${r}\` | ${o?.etichetta ?? "?"} | ${o?.licenza ?? "?"} | ${
+            o?.avvisoDaConservare ? `sì — «${o.avvisoDaConservare}»` : "no"
+          } | ${n} |`;
+        })
+        .join("\n") +
+      `\n\nUn terzo registry si aggiunge con **una riga** in \`REGISTRI_ORIGINE\`\n` +
+      `(\`scripts/check-registry.ts\`), più una riga per file in \`provenienze.json\`.\n\n` +
       `Si rigenera con \`npm run check:registry -- --snapshot\`.\n`,
   );
   console.log(`\n✔ ${join(UPSTREAM_DIR, "PROVENIENZA.md")} — CLI ${versione}, style ${style}`);
+}
+
+/**
+ * La mappa delle provenienze è un file dati, quindi può essere sbagliata: un
+ * file senza riga, una riga che punta a un registry che non esiste, una riga
+ * rimasta dopo che il file è stato tolto. Tutti e tre i casi rompono
+ * `--snapshot` in silenzio — scaricherebbe l'originale sbagliato, o nessuno — e
+ * il confronto di forma che ne segue direbbe il falso con la faccia di sempre.
+ *
+ * Più l'obbligo di licenza: dove il registry d'origine chiede di conservare un
+ * avviso, il nostro file lo deve contenere, o la ridistribuzione alle app non è
+ * coperta. È l'unico controllo del gate che non guarda la *forma* ma il
+ * *diritto* di spedire il file.
+ */
+function controllaProvenienze(): void {
+  const mappa = provenienze();
+  const presenti = new Set(fileUi().map((f) => basename(f)));
+
+  for (const [file, item] of Object.entries(mappa)) {
+    const reg = registryDi(item);
+    const origine = REGISTRI_ORIGINE[reg];
+    if (!origine) {
+      err(
+        PROVENIENZE_FILE,
+        `\`${file}\` viene da \`${item}\`, ma \`${reg}\` non è fra i registry di origine ` +
+          `(${Object.keys(REGISTRI_ORIGINE).join(", ")}). Se è un registry nuovo, va aggiunto ` +
+          `a REGISTRI_ORIGINE in scripts/check-registry.ts — una riga — con la sua licenza.`,
+      );
+      continue;
+    }
+    if (!presenti.has(file)) {
+      err(PROVENIENZE_FILE, `dichiara \`${file}\`, che in ${UI_DIR} non esiste (più?).`);
+      continue;
+    }
+    if (!origine.avvisoDaConservare) continue;
+    const testo = readFileSync(join(UI_DIR, file), "utf8");
+    if (!testo.includes(origine.avvisoDaConservare)) {
+      err(
+        file,
+        `viene da ${origine.etichetta} (${origine.licenza}) e NOI LO RIDISTRIBUIAMO alle app, ` +
+          `ma l'avviso «${origine.avvisoDaConservare}» non è più nel file. È l'unica condizione ` +
+          `che quella licenza pone: senza, la ridistribuzione non è coperta. Va rimesso.`,
+      );
+    }
+  }
+
+  for (const file of presenti) {
+    if (mappa[file]) continue;
+    if (!existsSync(join(UPSTREAM_DIR, file))) continue; // → ramo «componente nostro»
+    err(
+      PROVENIENZE_FILE,
+      `\`${file}\` ha un originale in ${UPSTREAM_DIR} ma nessuna riga qui: non si sa da quale ` +
+        `registry riscaricarlo, e \`--snapshot\` lo prenderebbe da @shadcn per inerzia.`,
+    );
+  }
 }
 
 // ── 1-3. Confronto con l'originale ─────────────────────────────────────────
@@ -401,7 +538,8 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
         err(
           nome,
           `non ha un originale in ${UPSTREAM_DIR} e non è dichiarato in ${PROPRI_FILE}.\n` +
-            `      Se viene da shadcn: npm run check:registry -- --snapshot ${basename(nome, ".tsx")}\n` +
+            `      Se viene da un registry: si aggiunge la riga in ${PROVENIENZE_FILE}\n` +
+            `      (\`"${nome}": "@registry/item"\`), poi npm run check:registry -- --snapshot ${basename(nome, ".tsx")}\n` +
             `      — e va fatto PRIMA di ri-stilarlo, o l'originale registrato sarebbe già il nostro.\n` +
             `      Se è un componente nostro: non si scrive di iniziativa. Prima si esaurisce la scala\n` +
             `      della regola 4bis (default shadcn → ri-stile → adattare il design system), poi si\n` +
@@ -487,12 +625,17 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
      * (le due liste di stringhe possono non allinearsi), quindi non si stampa.
      */
     const simbolo = segnaposto ? "◌" : diverse > 0 ? "◐" : "○";
+    // Da M4ter.1 la provenienza si dice: con due registry, «l'originale» non è
+    // più una cosa sola, e un file reui letto come shadcn sarebbe confrontato
+    // con l'originale di qualcun altro.
+    const item = provenienze()[nome];
+    const da = item && registryDi(item) !== "@shadcn" ? ` [${item}]` : "";
     const nota = segnaposto
       ? "originale a segnaposto d'icona: la forma non è confrontabile"
       : diverse > 0
         ? `forma identica all'originale, ${diverse} stringhe di classi ri-stilate`
         : "forma identica all'originale, nessun ri-stile";
-    console.log(`  ${simbolo} ${nome.padEnd(24)} ${nota}`);
+    console.log(`  ${simbolo} ${nome.padEnd(24)} ${nota}${da}`);
   }
   return { ristilati, token: tokenUsati };
 }
@@ -581,7 +724,7 @@ function main(): void {
     return;
   }
 
-  console.log("\nComponenti — forma rispetto all'originale shadcn\n");
+  console.log("\nComponenti — forma rispetto all'originale del registry di origine\n");
   const { ristilati, token } = controllaComponenti();
   if (fileUi().length === 0) console.log("  (nessun componente: la FASE 2 non è iniziata)");
 
@@ -597,6 +740,8 @@ function main(): void {
       err(PROPRI_FILE, `dichiara \`${c.file}\`, che in ${UI_DIR} non esiste (più?).`);
     }
   }
+
+  controllaProvenienze();
 
   const tema = tokenDelTema();
   controllaCorpi(tema);
@@ -644,7 +789,7 @@ function main(): void {
   console.log(
     `\n${errori.length === 0 ? "✔" : "✖"} ${errori.length} errore/i, ${avvisi.length} avviso/i` +
       `, ${propri} componente/i nostro/i dichiarato/i` +
-      ` — ${ristilati} componente/i ri-stilato/i sopra una forma shadcn intatta.\n`,
+      ` — ${ristilati} componente/i ri-stilato/i sopra una forma originale intatta.\n`,
   );
   if (errori.length > 0) process.exit(1);
 }

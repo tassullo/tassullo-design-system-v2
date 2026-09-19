@@ -1663,6 +1663,28 @@
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaErrore\n    variante=\"accesso-negato\"\n    azione={<Button variant=\"outline\" onClick={() => navigate('/')}>Torna alla home</Button>}\n  />\n\n`variante` sceglie fra `404`, `accesso-negato`, `errore-server`, `manutenzione` — ognuna ha icona, titolo e messaggio di default (tutti sovrascrivibili) e un tono di `lib/toni` tranne il 404, che non è un fatto grave. `azione` è un nodo, non una callback fissa (come `EmptyState.azione`, non come `ErrorState.onRiprova`): cambia natura da variante a variante — un link di navigazione, un bottone che ritenta, un `mailto:` — e il blocco non sa quale sia né se serva un router. Assente, nessuna CTA compare: usarla è la raccomandazione del piano, non un obbligo imposto dal blocco.\n\n`schermoIntero` sceglie se la pagina si monta dentro il contenuto esistente (default per `404` e `accesso-negato`: la navigazione resta, l'utente ha sbagliato un link interno o aperto una rotta riservata) o fuori dal guscio, sul modello di `tassullo-pagina-login` — marchio in testa, sfondo pieno (default per `errore-server` e `manutenzione`: capitano spesso prima che il guscio abbia dati per popolarsi, mostrarli dentro `AppShell` vorrebbe dire mostrare una barra vuota o rotta). Il default si sovrascrive per un caso che lo richiede davvero.\n\nIl messaggio di `accesso-negato` dice la verità su Anagrafe: l'utente senza ruoli non è bloccato, è in sola lettura, come già rende `soloLettura` di `tassullo-pagina-admin` — questa variante serve per una rotta che non ha proprio nulla da mostrare senza un ruolo preciso, e il default lo dice esplicitamente invece di un generico «non hai i permessi»."
+    },
+    {
+      "name": "stepper",
+      "type": "registry:ui",
+      "title": "Stepper",
+      "description": "La barra dei passi: N indicatori numerati uniti da trattini, con fatto / corrente / da fare. Orizzontale o verticale, e i trattini possono fare da barra a segmenti. Adottato da ReUI (Keenthemes), licenza MIT: l'avviso di copyright viaggia dentro il file e per esteso in reui-MIT.txt, che si installa accanto e non si cancella.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/stepper.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/reui-MIT.txt",
+          "type": "registry:file",
+          "target": "src/tassullo-reui-MIT.txt"
+        }
+      ],
+      "docs": "Non e un componente shadcn e non e un componente nostro: viene dal registry @reui\n(ReUI, Keenthemes), variante Base UI dello stesso preset base-nova che usiamo noi,\nadottato senza modifiche.\n\nLICENZA. Il file e distribuito sotto MIT. L'unica condizione che quella licenza pone\ne che l'avviso di copyright resti nelle copie: l'avviso sta in testa a stepper.tsx e\nnon si toglie, e src/tassullo-reui-MIT.txt e il testo integrale della licenza, che\ndeve restare accanto al componente. Vale per chi installa esattamente come vale per\nnoi che lo ridistribuiamo.\n\nCOSA E, E COSA NON E. Lo stepper e un tablist di tab cliccabili: i passi si navigano\ne uno e selezionato. Non e il misuratore di robustezza di una password, che gli\nsomiglia ma non si naviga e non si seleziona - quello resta codice della pagina.\n\nLa barra a segmenti non e una variante: e lo stesso componente con l'indicatore\nnascosto e il separatore lasciato a vista."
     }
   ]
 }
