@@ -66,7 +66,14 @@
  * viste scorrono al proprio interno.
  */
 import * as React from "react"
-import { CalendarIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react"
+import {
+  CalendarIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  Settings2Icon,
+} from "lucide-react"
 import {
   addDays,
   addMinutes,
@@ -86,11 +93,25 @@ import { cn } from "cn"
 import {
   Avatar,
   AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
   AvatarImage,
 } from "@/registry/tassullo/ui/avatar"
 import { EmptyState } from "@/registry/tassullo/blocks/empty-state"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Calendar } from "@/registry/tassullo/ui/calendar"
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/registry/tassullo/ui/combobox"
 import { ButtonGroup } from "@/registry/tassullo/ui/button-group"
 import {
   Dialog,
@@ -101,7 +122,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/registry/tassullo/ui/dialog"
-import { Field, FieldGroup, FieldLabel } from "@/registry/tassullo/ui/field"
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+} from "@/registry/tassullo/ui/field"
 import { Input } from "@/registry/tassullo/ui/input"
 import {
   Popover,
@@ -175,7 +200,13 @@ const ETICHETTE_COLORE: Record<ColoreEvento, string> = {
 
 /**
  * **Un calendario**, cioè il raggruppamento a cui un evento appartiene: ha un
- * nome, un colore e — quando il calendario *è* una persona — un'immagine.
+ * nome e un colore.
+ *
+ * **Non è la persona**, ed è una distinzione che viene da Officina: là i
+ * calendari sono i **tipi di intervento** — Guasto, Preventiva, Ispezione,
+ * Miglioria — con la loro legenda a colori, e l'assegnatario è un filtro a
+ * parte («Tutti gli assegnatari»). Confonderli sembra comodo finché due
+ * persone non lavorano allo stesso guasto.
  *
  * Nel motore questo concetto esiste già e si chiama `resource`
  * (`EventCalendarResource`: `id`, `title`, `color`): il blocco non lo
@@ -190,13 +221,24 @@ const ETICHETTE_COLORE: Record<ColoreEvento, string> = {
  */
 export interface CalendarioSorgente {
   id: string
-  /** «Francesco Sartori», oppure «Manutenzione», oppure «Linea B». */
+  /** «Guasto», «Preventiva», «Ispezione», «Miglioria». */
   nome: string
   colore: ColoreEvento
-  /** L'immagine, quando il calendario è una persona. Senza, le iniziali. */
-  immagine?: string
-  /** Le iniziali del ripiego. Senza, si ricavano dal nome. */
+}
+
+/**
+ * **Chi è assegnato all'evento.** È la persona, e nel chip è l'**avatar** —
+ * un canale diverso dal colore, che dice il calendario. In Officina sono due
+ * filtri distinti, e nel calendario si leggono insieme: il colore dice *che
+ * tipo di intervento è*, l'avatar *chi ci va*.
+ */
+export interface PersonaEvento {
+  id: string
+  nome: string
+  /** Le iniziali del ripiego. Senza, si ricava la prima lettera del nome. */
   iniziali?: string
+  /** L'immagine. Senza, resta l'iniziale. */
+  immagine?: string
 }
 
 /**
@@ -212,9 +254,16 @@ export interface EventoCalendario<TData = unknown>
   extends Omit<CalendarEvent<TData>, "color" | "resourceId"> {
   /**
    * Il calendario a cui l'evento appartiene — l'`id` di una voce di
-   * `calendari`. Da lì vengono il **colore** del chip e l'**avatar**.
+   * `calendari`. Da lì viene il **colore** del chip.
    */
   calendarioId?: string
+  /**
+   * Chi ci va — gli `id` delle voci di `persone`. Da lì vengono gli
+   * **avatar**, che nel chip stanno in un `AvatarGroup`. È un canale diverso
+   * dal colore, apposta: **su un fermo possono esserci in due**, e lo stesso
+   * manutentore fa guasti e preventive.
+   */
+  assegnatariId?: string[]
   /**
    * Il colore, per un evento che non appartiene a nessun calendario. Con
    * `calendarioId` valorizzato vince il calendario: un evento colorato
@@ -241,7 +290,7 @@ export type VistaCalendario = "mese" | "settimana" | "agenda"
  *
  * Il nome per esteso non si perde: sta nel **tooltip** dell'evento.
  */
-function iniziali(a: CalendarioSorgente): string {
+function iniziali(a: PersonaEvento): string {
   if (a.iniziali) return a.iniziali
   return (a.nome.trim()[0] ?? "").toUpperCase()
 }
@@ -252,7 +301,7 @@ function iniziali(a: CalendarioSorgente): string {
  * Le etichette del motore, in italiano. I nomi dei mesi e dei giorni li dà
  * il `locale` di date-fns; qui stanno solo le stringhe che ReUI scrive da sé.
  */
-/** L'orario di un evento, in italiano. Usato dal motore e dal fumetto. */
+/** L'orario di un evento, in italiano. Usato dal motore e dal tooltip. */
 function oraDi(inizio: Date, fine: Date, tuttoIlGiorno: boolean): string {
   if (tuttoIlGiorno) return "Tutto il giorno"
   const opts = { locale: it }
@@ -351,27 +400,48 @@ const ETICHETTE_IT: EventCalendarI18nOverrides = {
  * normale, 30 in touch, perché `size-*` deriva da `--spacing` — e stringere
  * la spaziatura con `tracking-tight`.
  */
-function creaChip<TData>(perId: Map<string, CalendarioSorgente>) {
+function creaChip<TData>(perPersona: Map<string, PersonaEvento>) {
   return function chipCalendario({
     occurrence,
     view,
   }: EventCalendarRenderEventProps<TData>) {
-    const evento = occurrence.event as unknown as CalendarEvent<TData>
-    const cal = evento.resourceId ? perId.get(evento.resourceId) : undefined
+    const evento = occurrence.event as unknown as CalendarEvent<TData> & {
+      assegnatariId?: string[]
+    }
+    const chi = (evento.assegnatariId ?? [])
+      .map((id) => perPersona.get(id))
+      .filter((x): x is PersonaEvento => x !== undefined)
     // L'agenda ha una riga sua, con l'ora in colonna a parte: lì il chip di
     // serie va bene, e sostituirlo toglierebbe l'allineamento.
-    if (view === "agenda" && !cal) return undefined
+    if (view === "agenda" && chi.length === 0) return undefined
+    // Oltre i due, il terzo posto dice **quanti** invece di **chi**: tre
+    // cerchi in un chip alto 26px non si distinguono comunque.
+    const mostrati = chi.slice(0, 2)
+    const restano = chi.length - mostrati.length
     return (
       <span className="text-foreground flex w-full min-w-0 items-center gap-1.5">
-        {cal ? (
-          <Avatar className="size-5 shrink-0">
-            {cal.immagine ? (
-              <AvatarImage src={cal.immagine} alt={cal.nome} />
+        {chi.length > 0 ? (
+          <AvatarGroup className="shrink-0">
+            {mostrati.map((x) => (
+              <Avatar
+                key={x.id}
+                className="size-5"
+                title={x.nome}
+              >
+                {x.immagine ? (
+                  <AvatarImage src={x.immagine} alt={x.nome} />
+                ) : null}
+                <AvatarFallback className="bg-(--ec-event-color)/20 text-foreground text-xs leading-none font-semibold tracking-tight">
+                  {iniziali(x)}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+            {restano > 0 ? (
+              <AvatarGroupCount className="size-5 text-xs">
+                +{restano}
+              </AvatarGroupCount>
             ) : null}
-            <AvatarFallback className="bg-(--ec-event-color)/20 text-foreground text-xs leading-none font-semibold tracking-tight">
-              {iniziali(cal)}
-            </AvatarFallback>
-          </Avatar>
+          </AvatarGroup>
         ) : (
           <span
             aria-hidden="true"
@@ -389,6 +459,127 @@ function creaChip<TData>(perId: Map<string, CalendarioSorgente>) {
   }
 }
 
+/* ─────────────────────────── La legenda ─────────────────────────── */
+
+/**
+ * **La legenda dei calendari**, geometria di `c-event-calendar-4` — un
+ * pallino e un nome per calendario, in riga. In Officina sta in alto a
+ * destra, accanto ai filtri, e lì l'abbiamo messa: senza, il colore di un
+ * chip è un'informazione che non si può decodificare.
+ */
+function CalendarioLegenda({ calendari }: { calendari: CalendarioSorgente[] }) {
+  return (
+    <div
+      data-slot="calendario-legenda"
+      className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 pb-3 text-xs"
+    >
+      {calendari.map((c) => (
+        <span key={c.id} className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="size-2 shrink-0 rounded-full"
+            // Il colore è un dato, non uno stile: cambia per calendario e
+            // non può stare in una classe di Tailwind, che è statica. Il
+            // valore resta un token del tema.
+            style={{ backgroundColor: COLORI_EVENTO[c.colore] }}
+          />
+          {c.nome}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/* ─────────────────────────── Le opzioni ─────────────────────────── */
+
+/** Le tre leve di vista, come le tiene il blocco. */
+interface OpzioniVista {
+  weekend: boolean
+  numeroSettimana: boolean
+  tooltip: boolean
+}
+
+/**
+ * **Il menù delle opzioni**, geometria del pannello «Settings» di
+ * `c-event-calendar-1`: un popover con un interruttore per riga. Loro ne
+ * hanno tre schede e una dozzina di leve — lingua, fuso orario, durata dello
+ * slot, tre modi di trascinare; qui ce ne sono **tre**, che sono quelle che
+ * cambiano cosa si vede e non come funziona il calendario.
+ *
+ * Le altre non ci sono per scelta, non per fretta: la lingua e il fuso li
+ * decide l'app, non chi guarda; e accendere il trascinamento da un menù
+ * vorrebbe dire che una riprogrammazione senza conferma è a un clic di
+ * distanza, che è esattamente ciò che il commento di Officina evita.
+ */
+function CalendarioOpzioni({
+  opzioni,
+  onOpzioni,
+  vista,
+}: {
+  opzioni: OpzioniVista
+  onOpzioni: (o: OpzioniVista) => void
+  vista: VistaCalendario
+}) {
+  /**
+   * **Ogni leva dichiara in quali viste ha effetto, e fuori si disabilita.**
+   * Non è pignoleria: il motore legge `weekNumbers` **solo** nella vista
+   * mese e `weekends` non lo legge in agenda — verificato a grep sui tre
+   * file. Lasciare l'interruttore acceso dove non fa niente è il difetto
+   * peggiore di un pannello di impostazioni, perché chi lo tocca conclude
+   * che il calendario è rotto. È la stessa regola per cui il commutatore
+   * delle viste sparisce quando commutare non cambierebbe niente.
+   */
+  const righe: {
+    chiave: keyof OpzioniVista
+    etichetta: string
+    viste: VistaCalendario[]
+  }[] = [
+    { chiave: "weekend", etichetta: "Sabato e domenica", viste: ["mese", "settimana"] },
+    { chiave: "numeroSettimana", etichetta: "Numero della settimana", viste: ["mese"] },
+    { chiave: "tooltip", etichetta: "Tooltip sull'evento", viste: ["mese", "settimana", "agenda"] },
+  ]
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={<Button variant="outline" aria-label="Opzioni di vista" />}
+      >
+        <Settings2Icon data-icon="inline-start" />
+        Opzioni
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72">
+        {righe.map(({ chiave, etichetta, viste }) => {
+          const vale = viste.includes(vista)
+          return (
+            <Field
+              key={chiave}
+              orientation="horizontal"
+              className="justify-between"
+            >
+              <FieldLabel htmlFor={`cal-op-${chiave}`} className="font-normal">
+                {etichetta}
+              </FieldLabel>
+              {/*
+                Disabilitato dove non ha effetto, e **senza una nota che lo
+                spieghi**: l'interruttore spento dice già tutto, e una riga
+                di testo in più per ognuno fa di un menù di tre voci un
+                pannello da leggere.
+              */}
+              <Switch
+                id={`cal-op-${chiave}`}
+                checked={opzioni[chiave]}
+                disabled={!vale}
+                onCheckedChange={(v: boolean) =>
+                  onOpzioni({ ...opzioni, [chiave]: v })
+                }
+              />
+            </Field>
+          )
+        })}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 /* ─────────────────────────── La testata ─────────────────────────── */
 
 /**
@@ -403,11 +594,15 @@ function CalendarioTestata({
   vista,
   onVista,
   onNuovo,
+  opzioni,
+  onOpzioni,
   azioni,
 }: {
   vista: VistaCalendario
   onVista?: (vista: VistaCalendario) => void
   onNuovo?: () => void
+  opzioni?: OpzioniVista
+  onOpzioni?: (o: OpzioniVista) => void
   azioni?: React.ReactNode
 }) {
   const { title, prev, next, today } = useEventCalendarNavigation()
@@ -452,6 +647,13 @@ function CalendarioTestata({
             <ToggleGroupItem value="agenda">Agenda</ToggleGroupItem>
           </ToggleGroup>
         ) : null}
+        {opzioni && onOpzioni ? (
+          <CalendarioOpzioni
+            opzioni={opzioni}
+            onOpzioni={onOpzioni}
+            vista={vista}
+          />
+        ) : null}
         {azioni}
         {onNuovo ? (
           <Button onClick={onNuovo}>
@@ -482,6 +684,8 @@ interface BozzaEvento {
   colore: ColoreEvento
   /** L'`id` del calendario, quando ce ne sono. */
   calendarioId?: string
+  /** Gli `id` delle persone assegnate. */
+  assegnatariId: string[]
 }
 
 const ORE = Array.from({ length: 17 }, (_, i) => i + 5) // 05:00 – 21:00
@@ -500,6 +704,8 @@ function CalendarioDialogoEvento({
   bozza,
   setBozza,
   calendari,
+  persone,
+  perPersona,
   aperto,
   setAperto,
   onSalva,
@@ -508,6 +714,8 @@ function CalendarioDialogoEvento({
   bozza: BozzaEvento | null
   setBozza: (b: BozzaEvento) => void
   calendari: CalendarioSorgente[]
+  persone: PersonaEvento[]
+  perPersona: Map<string, PersonaEvento>
   aperto: boolean
   setAperto: (v: boolean) => void
   onSalva: () => void
@@ -515,6 +723,7 @@ function CalendarioDialogoEvento({
 }) {
   const modifica = bozza?.id != null
   const [dataAperta, setDataAperta] = React.useState(false)
+  const ancora = useComboboxAnchor()
   return (
     <Dialog open={aperto} onOpenChange={setAperto}>
       {bozza ? (
@@ -563,7 +772,16 @@ function CalendarioDialogoEvento({
                     <Button
                       variant="outline"
                       id="cal-data"
-                      className="justify-start font-normal"
+                      // **Le classi che lo fanno somigliare a un campo, non a
+                      // un bottone.** `variant="outline"` porta
+                      // `bg-background`, che è il grigio della *pagina*: su
+                      // una pagina non si nota, dentro un dialogo — che è
+                      // `bg-popover`, quasi bianco — diventa l'unico campo
+                      // grigio in mezzo a tre trasparenti. Si allinea agli
+                      // altri campi del modulo: stesso fondo, stesso bordo,
+                      // stesso raggio, e niente hover, perché nemmeno i
+                      // `select` accanto ce l'hanno.
+                      className="justify-start rounded-lg border-input bg-transparent font-normal hover:bg-transparent aria-expanded:bg-transparent"
                     />
                   }
                 >
@@ -674,6 +892,63 @@ function CalendarioDialogoEvento({
                 </div>
               </Field>
             )}
+
+            {persone.length > 0 ? (
+              <Field>
+                <FieldLabel htmlFor="cal-assegnatari">Assegnatari</FieldLabel>
+                {/*
+                  **Più di uno**, perché su un fermo possono esserci in due.
+                  Il controllo è il `combobox` a più scelte con le pillole —
+                  la composizione di `Primitive/Combobox → Più scelte, con
+                  pillole` — e non un gruppo di interruttori: una squadra di
+                  manutenzione può essere di quindici persone, e un
+                  `toggle-group` è un filtro che si clicca, non un campo che
+                  si cerca (CLAUDE.md, «il nome dice la funzione»).
+                */}
+                <Combobox
+                  multiple
+                  autoHighlight
+                  items={persone.map((x) => x.nome)}
+                  value={bozza.assegnatariId
+                    .map((id) => perPersona.get(id)?.nome)
+                    .filter((n): n is string => n !== undefined)}
+                  onValueChange={(nomi: string[]) =>
+                    setBozza({
+                      ...bozza,
+                      assegnatariId: nomi
+                        .map((n) => persone.find((x) => x.nome === n)?.id)
+                        .filter((id): id is string => id !== undefined),
+                    })
+                  }
+                >
+                  <ComboboxChips ref={ancora}>
+                    <ComboboxValue>
+                      {(nomi: string[]) => (
+                        <React.Fragment>
+                          {nomi.map((n) => (
+                            <ComboboxChip key={n}>{n}</ComboboxChip>
+                          ))}
+                          <ComboboxChipsInput
+                            id="cal-assegnatari"
+                            placeholder={nomi.length ? "" : "Nessuno"}
+                          />
+                        </React.Fragment>
+                      )}
+                    </ComboboxValue>
+                  </ComboboxChips>
+                  <ComboboxContent anchor={ancora}>
+                    <ComboboxEmpty>Nessuna persona trovata.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(nome: string) => (
+                        <ComboboxItem key={nome} value={nome}>
+                          {nome}
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              </Field>
+            ) : null}
 
             {!bozza.tuttoIlGiorno ? (
               <div className="grid grid-cols-2 gap-3">
@@ -842,6 +1117,14 @@ export interface CalendarioProps<TData = unknown> {
    */
   calendari?: CalendarioSorgente[]
   /**
+   * Le persone assegnabili. Da qui viene l'**avatar** nel chip, e il campo
+   * «Assegnatario» nel dialogo. Senza assegnatario il chip mostra il pallino
+   * col colore del calendario: il colore c'è sempre, la persona no.
+   */
+  persone?: PersonaEvento[]
+  /** La legenda dei calendari sotto la testata. @default true con `calendari` */
+  legenda?: boolean
+  /**
    * Mostrare sabato e domenica. Spegnendolo la griglia passa a cinque
    * colonne — utile su un calendario di reparto, dove il fine settimana è
    * rumore. @default true
@@ -850,12 +1133,18 @@ export interface CalendarioProps<TData = unknown> {
   /** Il numero della settimana in una colonna a sinistra. @default false */
   numeroSettimana?: boolean
   /**
-   * Il fumetto che compare passando sopra un evento, col titolo, l'orario e
+   * Il tooltip che compare passando sopra un evento, col titolo, l'orario e
    * il calendario. È la strada per leggere il **nome per esteso** della
    * persona, che nel cerchio dell'avatar ci sta con una lettera sola.
    * @default false
    */
-  fumetto?: boolean
+  tooltip?: boolean
+  /**
+   * Il menù «Opzioni» in testata, da cui chi guarda commuta le tre leve qui
+   * sopra. Con il menù acceso le tre prop diventano il **valore di
+   * partenza**, non il valore fisso. @default false
+   */
+  opzioni?: boolean
   /** Il colore di un evento senza calendario e senza colore. @default "arancio" */
   coloreDefault?: ColoreEvento
   className?: string
@@ -869,6 +1158,7 @@ const VISTA_MOTORE = {
 
 /** Un array letterale come default sarebbe nuovo a ogni render. */
 const VUOTI: CalendarioSorgente[] = []
+const SENZA_PERSONE: PersonaEvento[] = []
 
 export function Calendario<TData = unknown>({
   eventi,
@@ -890,9 +1180,12 @@ export function Calendario<TData = unknown>({
   statoVuoto,
   weekend = true,
   numeroSettimana = false,
-  fumetto = false,
+  tooltip = false,
+  opzioni = false,
   fusoOrario,
   calendari = VUOTI,
+  persone = SENZA_PERSONE,
+  legenda = true,
   coloreDefault = "arancio",
   className,
 }: CalendarioProps<TData>) {
@@ -923,6 +1216,16 @@ export function Calendario<TData = unknown>({
   const apiRef = React.useRef<EventCalendarApi<TData> | null>(null)
   const progressivo = React.useRef(0)
   const [dialogoAperto, setDialogoAperto] = React.useState(false)
+  // Con il menù acceso le tre prop sono il punto di partenza e poi comanda
+  // chi guarda; senza, restano quello che l'app ha deciso.
+  const [leve, setLeve] = React.useState<OpzioniVista>({
+    weekend,
+    numeroSettimana,
+    tooltip,
+  })
+  const vistaLeve: OpzioniVista = opzioni
+    ? leve
+    : { weekend, numeroSettimana, tooltip }
   const [bozza, setBozza] = React.useState<BozzaEvento | null>(null)
 
   /**
@@ -946,19 +1249,34 @@ export function Calendario<TData = unknown>({
 
   const cambiaVista = React.useCallback(
     (scelta: VistaCalendario) => {
+      // **Passando a una vista più stretta si resta su un giorno che ha
+      // senso.** Il mese è ancorato al suo primo giorno, quindi la settimana
+      // ricadrebbe sempre sulla **prima** del mese — che nella metà dei casi
+      // è quella che comincia nel mese prima, e che quasi sempre è vuota. La
+      // regola, che è quella dei calendari che usiamo tutti: se **oggi** sta
+      // nel mese che si sta guardando, la settimana è quella di oggi;
+      // altrimenti si resta dove si era.
+      if (scelta === "settimana") {
+        const oggi = new Date()
+        if (isSameMonth(oggi, ancoraCorrente)) apiRef.current?.goTo(oggi)
+      }
       if (vista === undefined) setVistaInterna(scelta)
       onVistaChange?.(scelta)
     },
-    [vista, onVistaChange]
+    [vista, onVistaChange, ancoraCorrente]
   )
 
   const perId = React.useMemo(
     () => new Map(calendari.map((c) => [c.id, c])),
     [calendari]
   )
+  const perPersona = React.useMemo(
+    () => new Map(persone.map((x) => [x.id, x])),
+    [persone]
+  )
   // `renderEvent` legge la mappa: si rifà solo quando i calendari cambiano,
   // o ogni render rimonterebbe tutti i chip.
-  const chip = React.useMemo(() => creaChip<TData>(perId), [perId])
+  const chip = React.useMemo(() => creaChip<TData>(perPersona), [perPersona])
 
   /**
    * L'unica traduzione fra il nostro evento e quello del motore. Due campi:
@@ -1008,6 +1326,7 @@ export function Calendario<TData = unknown>({
         tuttoIlGiorno: false,
         colore: coloreDefault,
         calendarioId: calendari[0]?.id,
+        assegnatariId: [],
       })
       setDialogoAperto(true)
     },
@@ -1026,6 +1345,7 @@ export function Calendario<TData = unknown>({
         tuttoIlGiorno: e.allDay ?? false,
         colore: e.colore ?? coloreDefault,
         calendarioId: e.calendarioId ?? calendari[0]?.id,
+        assegnatariId: e.assegnatariId ?? [],
       })
       setDialogoAperto(true)
     },
@@ -1050,6 +1370,7 @@ export function Calendario<TData = unknown>({
       end: fine,
       allDay: bozza.tuttoIlGiorno,
       resourceId: bozza.calendarioId,
+      assegnatariId: bozza.assegnatariId,
       color: COLORI_EVENTO[cal?.colore ?? bozza.colore],
     } as Partial<CalendarEvent<TData>>
     if (bozza.id === null) {
@@ -1119,9 +1440,12 @@ export function Calendario<TData = unknown>({
         // l'azione sarebbe raggiungibile solo col mouse. Si accende insieme
         // all'azione, e con l'azione spenta resta spento.
         showDayAddButton={modifica || onGiornoClick !== undefined}
-        viewSettings={{ weekends: weekend, weekNumbers: numeroSettimana }}
-        eventTooltip={fumetto}
-        // Il contenuto del fumetto è nostro: quello di serie dice titolo e
+        viewSettings={{
+          weekends: vistaLeve.weekend,
+          weekNumbers: vistaLeve.numeroSettimana,
+        }}
+        eventTooltip={vistaLeve.tooltip}
+        // Il contenuto del tooltip è nostro: quello di serie dice titolo e
         // ora, e qui serve anche **di chi è** — è il posto in cui il nome
         // per esteso torna leggibile, visto che nel cerchio dell'avatar ci
         // sta una lettera sola.
@@ -1218,8 +1542,13 @@ export function Calendario<TData = unknown>({
             // peggio di un interruttore assente.
             onVista={vista === undefined || onVistaChange ? cambiaVista : undefined}
             onNuovo={modifica ? () => apriCreazione(data ?? new Date()) : undefined}
+            opzioni={opzioni ? vistaLeve : undefined}
+            onOpzioni={opzioni ? setLeve : undefined}
             azioni={azioni}
           />
+        ) : null}
+        {legenda && calendari.length > 0 ? (
+          <CalendarioLegenda calendari={calendari} />
         ) : null}
         {/*
           Il contenitore della vista. ReUI ce l'ha come file a sé
@@ -1255,6 +1584,8 @@ export function Calendario<TData = unknown>({
           bozza={bozza}
           setBozza={setBozza}
           calendari={calendari}
+          persone={persone}
+          perPersona={perPersona}
           aperto={dialogoAperto}
           setAperto={setDialogoAperto}
           onSalva={salva}

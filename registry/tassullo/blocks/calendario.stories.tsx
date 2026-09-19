@@ -6,6 +6,7 @@ import {
   Calendario,
   type CalendarioSorgente,
   type EventoCalendario,
+  type PersonaEvento,
 } from '@/registry/tassullo/blocks/calendario'
 
 /**
@@ -24,6 +25,10 @@ import {
  * />
  * ```
  *
+ * **C'è una scena sola, ed è tutto qui dentro.** Le funzioni non hanno una
+ * story per una: si accendono dalle prop nei Controls, o dai comandi della
+ * testata.
+ *
  * ## Cosa sa fare
  *
  * - **Tre viste**, mese, settimana e agenda, con la testata che le commuta e
@@ -36,10 +41,15 @@ import {
  *   il motore si adotta invece di scriverlo.
  * - **«+N altri»** quando in una cella non ci stanno: apre un popover col
  *   resto del giorno.
- * - **Calendari**: un evento appartiene a un calendario, e da lì vengono il
- *   suo **colore** e l'**avatar**. In Officina un calendario è la persona a
- *   cui il fermo è affidato; ma può essere una linea, un reparto, una
- *   commessa.
+ * - **Calendari e assegnatari sono due cose diverse**, come in Officina. Il
+ *   **calendario** è il tipo di intervento — Guasto, Preventiva, Ispezione,
+ *   Miglioria — ed è il **colore**, spiegato dalla legenda sotto la testata.
+ *   Gli **assegnatari** sono le persone, e sono gli **avatar**: quando ci
+ *   sono si vedono loro, in un `AvatarGroup`, e quando mancano resta il
+ *   pallino col colore del calendario. **Possono essere più d'uno** — su un
+ *   fermo capita di essere in due — e dal terzo in poi il gruppo dice
+ *   *quanti* invece di *chi*. Due canali separati, perché lo stesso
+ *   manutentore fa guasti e preventive.
  * - **Un dialogo per crea / modifica / elimina** (`modifica`), che si apre
  *   dal clic su un evento, dal clic su un giorno vuoto e dal bottone
  *   «Nuovo».
@@ -47,9 +57,17 @@ import {
  *   cambiare quanti giorni dura. La strada **con la conferma** è il
  *   date-picker dentro il dialogo, che è il pattern descritto dal commento
  *   di testa del `Calendario.tsx` di Officina.
- * - **Tre interruttori di vista**: `weekend` toglie sabato e domenica,
- *   `numeroSettimana` aggiunge la colonna a sinistra, `fumetto` accende il
- *   tooltip sull'evento.
+ * - **Tre interruttori di vista**, dal menù «Opzioni» in testata (`opzioni`)
+ *   o fissati dall'app: `weekend` toglie sabato e domenica,
+ *   `numeroSettimana` aggiunge la colonna a sinistra, `tooltip` accende il
+ *   tooltip sull'evento. Col menù acceso le tre prop sono il **valore di
+ *   partenza** e poi comanda chi guarda.
+ * - **Uno stato vuoto** che è quello di casa (`tassullo-empty-state`, M3.5),
+ *   non quello di ReUI: si vede svuotando `eventi`, e `statoVuoto` lo
+ *   sostituisce quando serve una CTA.
+ * - **Densità touch**: le celle passano da 120 a 180px e i bersagli crescono
+ *   con `--spacing`. Si prova dalla leva **Densità** in barra, che è globale
+ *   alla style guide.
  *
  * ## I quattro default di casa
  *
@@ -149,17 +167,27 @@ const g = (giorno: number, ora = 8, minuto = 0) =>
   new Date(2026, 8, giorno, ora, minuto)
 
 /**
- * **I calendari sono le persone**, che è il caso di Officina: un calendario
- * per manutentore, e il colore dell'evento dice a chi il fermo è affidato.
- * Il concetto regge anche quando la persona non c'entra — un calendario per
- * linea, per reparto, per commessa — e per questo la prop si chiama
- * `calendari`.
+ * **I calendari sono i tipi di intervento**, e sono quelli che Officina ha
+ * nella sua legenda: Guasto, Preventiva, Ispezione, Miglioria. È il colore a
+ * dirlo.
+ *
+ * Officina usa un rosso per il guasto, che nella nostra tavolozza non c'è —
+ * i cinque `--chart-*` sono arancio, verde, blu e due grigi. Il guasto prende
+ * l'arancio, che è il più caldo dei cinque; se servisse un rosso vero si
+ * aggiungerebbe alla palette in `scripts/hex-to-oklch.ts`, non qui.
  */
-const SQUADRA: CalendarioSorgente[] = [
-  { id: 'fs', nome: 'Francesco Sartori', colore: 'arancio' },
-  { id: 'mr', nome: 'Marta Rossi', colore: 'blu' },
-  { id: 'lb', nome: 'Luca Boni', colore: 'verde' },
-  { id: 'ext', nome: 'Ditta esterna', colore: 'grigio' },
+const INTERVENTI: CalendarioSorgente[] = [
+  { id: 'guasto', nome: 'Guasto', colore: 'arancio' },
+  { id: 'preventiva', nome: 'Preventiva', colore: 'blu' },
+  { id: 'ispezione', nome: 'Ispezione', colore: 'verde' },
+  { id: 'miglioria', nome: 'Miglioria', colore: 'ardesia' },
+]
+
+/** **Gli assegnatari sono le persone**, e sono l'avatar — non il colore. */
+const SQUADRA: PersonaEvento[] = [
+  { id: 'fs', nome: 'Francesco Sartori' },
+  { id: 'mr', nome: 'Marta Rossi' },
+  { id: 'lb', nome: 'Luca Boni' },
 ]
 
 /**
@@ -170,18 +198,18 @@ const SQUADRA: CalendarioSorgente[] = [
  */
 const FERMI: EventoCalendario[] = [
   // La settimana del 7: tre barre sovrapposte, tre corsie.
-  { id: 'e1', title: 'Fermo pressa 3 — guarnizioni', start: g(7, 6), end: g(10, 22), calendarioId: 'fs' },
-  { id: 'e2', title: 'Fermo forno A — refrattario', start: g(8, 6), end: g(12, 22), calendarioId: 'ext' },
-  { id: 'e3', title: 'Ferie squadra manutenzione', start: g(9, 0), end: g(10, 0), allDay: true, calendarioId: 'mr' },
+  { id: 'e1', title: 'Fermo pressa 3 — guarnizioni', start: g(7, 6), end: g(10, 22), calendarioId: 'guasto', assegnatariId: ['fs', 'lb'] },
+  { id: 'e2', title: 'Fermo forno A — refrattario', start: g(8, 6), end: g(12, 22), calendarioId: 'guasto' },
+  { id: 'e3', title: 'Revisione semestrale', start: g(9, 0), end: g(10, 0), allDay: true, calendarioId: 'preventiva', assegnatariId: ['mr'] },
   // La settimana del 14: una giornata affollata, per il «+N altri».
-  { id: 'e4', title: 'Cambio stampo', start: g(15, 6), end: g(15, 8), calendarioId: 'fs' },
-  { id: 'e5', title: 'Taratura bilance', start: g(15, 8, 30), end: g(15, 10), calendarioId: 'mr' },
-  { id: 'e6', title: 'Collaudo linea B', start: g(15, 10, 30), end: g(15, 13), calendarioId: 'lb' },
-  { id: 'e7', title: 'Revisione muletto', start: g(15, 14), end: g(15, 16), calendarioId: 'ext' },
-  { id: 'e8', title: 'Verifica antincendio', start: g(15, 16, 30), end: g(15, 18), colore: 'ardesia' },
+  { id: 'e4', title: 'Cambio stampo', start: g(15, 6), end: g(15, 8), calendarioId: 'preventiva', assegnatariId: ['fs'] },
+  { id: 'e5', title: 'Taratura bilance', start: g(15, 8, 30), end: g(15, 10), calendarioId: 'ispezione', assegnatariId: ['mr'] },
+  { id: 'e6', title: 'Collaudo linea B', start: g(15, 10, 30), end: g(15, 13), calendarioId: 'ispezione', assegnatariId: ['lb'] },
+  { id: 'e7', title: 'Revisione muletto', start: g(15, 14), end: g(15, 16), calendarioId: 'preventiva' },
+  { id: 'e8', title: 'Aspirazione trucioli', start: g(15, 16, 30), end: g(15, 18), calendarioId: 'miglioria', assegnatariId: ['lb'] },
   // Sparsi, perché il mese non sia tutto in due settimane.
-  { id: 'e9', title: 'Fermo compressore', start: g(21, 6), end: g(23, 18), calendarioId: 'lb' },
-  { id: 'e10', title: 'Manutenzione forno', start: g(25, 8), end: g(25, 12), calendarioId: 'mr' },
+  { id: 'e9', title: 'Fermo compressore', start: g(21, 6), end: g(23, 18), calendarioId: 'guasto', assegnatariId: ['lb', 'mr', 'fs'] },
+  { id: 'e10', title: 'Manutenzione forno', start: g(25, 8), end: g(25, 12), calendarioId: 'preventiva', assegnatariId: ['mr'] },
 ]
 
 function Guscio({ children }: { children: React.ReactNode }) {
@@ -202,7 +230,7 @@ function Guscio({ children }: { children: React.ReactNode }) {
  * - apri il **«+N altri»** del 15;
  * - passa a **settimana** e ad **agenda**, e torna al **mese**: il periodo
  *   non cambia, cambia la faccia;
- * - **passa sopra** un evento: il fumetto dice titolo, orario e di chi è —
+ * - **passa sopra** un evento: il tooltip dice titolo, orario e di chi è —
  *   è lì che il nome per esteso si legge, perché nel cerchio dell'avatar ci
  *   sta una lettera sola;
  * - la colonna a sinistra col **numero della settimana** si spegne con
@@ -215,12 +243,18 @@ export const Completo: Story = {
   args: {
     eventi: [],
     dataIniziale: ANCORA,
-    calendari: SQUADRA,
+    calendari: INTERVENTI,
+    persone: SQUADRA,
     modifica: true,
     trascinamento: true,
-    fumetto: true,
-    numeroSettimana: true,
+    tooltip: true,
+    opzioni: true,
   },
+  // **Il popup dichiarato qui è il «+N altri»**, non il dialogo: Storybook
+  // esegue le `play` anche nel canvas, quindi quello che si dichiara arriva
+  // **aperto**. Un popover piccolo sopra una cella lascia vedere il
+  // calendario; il dialogo lo coprirebbe tutto.
+  play: apriCol('[data-slot="event-calendar-more"]', 'event-calendar-more-popover'),
   render: function Tutto(args) {
     const [eventi, setEventi] = useState<EventoCalendario[]>(FERMI)
     return (
@@ -242,11 +276,16 @@ export const Completo: Story = {
  * coprirebbe proprio ciò che si vuole provare, cioè il trascinamento.
  */
 export const DialogoEvento: Story = {
+  // Scena di misura: `!dev` la toglie dalla barra e da Docs — Francesco
+  // la vuole integrata in «Completo» — ma il gate axe continua a eseguirla,
+  // e senza il dialogo non verrebbe scansionato da nessuna parte.
+  tags: ['!dev', '!autodocs'],
   name: "Dialogo dell'evento",
   args: {
     eventi: [],
     dataIniziale: ANCORA,
-    calendari: SQUADRA,
+    calendari: INTERVENTI,
+    persone: SQUADRA,
     modifica: true,
   },
   play: apriIlBottone(/^Nuovo$/, 'dialog-content'),
@@ -271,42 +310,22 @@ export const DialogoEvento: Story = {
  * dell'8, che è quella coi fermi sovrapposti.
  */
 export const Settimana: Story = {
+  // Scena di misura, come sopra: axe guarda le story **come si presentano**,
+  // e «Completo» apre sul mese. Senza questa, la griglia oraria non sarebbe
+  // misurata mai.
+  tags: ['!dev', '!autodocs'],
   args: {
     eventi: FERMI,
     dataIniziale: g(8),
-    calendari: SQUADRA,
+    calendari: INTERVENTI,
+    persone: SQUADRA,
     vistaIniziale: 'settimana',
-    fumetto: true,
+    tooltip: true,
   },
   render: (args) => (
     <Guscio>
       <Calendario {...args} />
     </Guscio>
-  ),
-}
-
-/**
- * **Lo schermo del capannone.** In densità touch i bersagli crescono con
- * `--spacing` — le celle passano da 120 a 180px — e la domanda vera è se una
- * cella si tocca col guanto senza sbagliare giorno. Il conto dei bersagli
- * piccoli sta a verbale in `WORKLOG.md`, misurato con
- * `npm run misura:bersagli`.
- *
- * Qui è dichiarato anche l'altro popup del blocco, il **«+N altri»** del 15.
- */
-export const DensitaTouch: Story = {
-  name: 'Densità touch',
-  args: {
-    eventi: FERMI,
-    dataIniziale: ANCORA,
-    calendari: SQUADRA,
-    maxEventiPerCella: 2,
-  },
-  play: apriCol('[data-slot="event-calendar-more"]', 'event-calendar-more-popover'),
-  render: (args) => (
-    <div data-density="touch" className="bg-background text-foreground flex h-200 flex-col">
-      <Calendario {...args} />
-    </div>
   ),
 }
 
@@ -325,10 +344,14 @@ export const DensitaTouch: Story = {
  * sono un mese senza niente dentro.
  */
 export const Vuoto: Story = {
+  // Scena di misura, come sopra: lo stato vuoto non si raggiunge da
+  // «Completo», che ha sempre eventi.
+  tags: ['!dev', '!autodocs'],
   args: {
     eventi: [],
     dataIniziale: ANCORA,
-    calendari: SQUADRA,
+    calendari: INTERVENTI,
+    persone: SQUADRA,
     vistaIniziale: 'agenda',
   },
   render: (args) => (

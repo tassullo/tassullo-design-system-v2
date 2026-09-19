@@ -2150,3 +2150,130 @@ La regola generale, che vale oltre il caso: **quando un testo non sta in un
 contenitore, o si allarga il contenitore o si accorcia il testo — non si
 scende sotto `text-xs`**, perché sotto ci sono solo valori arbitrari e in
 densità touch resterebbero fermi mentre tutto il resto cresce.
+
+### (l) Una story sola, il menù delle opzioni, e le scene di misura nascoste
+
+Indirizzo di Francesco, in tre messaggi: «togliamo le story dialogo
+dell'evento, settimana, densità touch — sono tutte integrate in completo»,
+«Docs ne spiega l'utilizzo di ogni funzionalità», e poi anche il vuoto.
+
+**Il conflitto è reale e va detto**: una story sola vuol dire che axe misura
+una scena sola. Il dialogo, la griglia oraria e lo stato vuoto non si
+raggiungono da «Completo», e una vista che nessuna story monta è una vista
+che il gate non ha mai visto — è la lezione della FASE 2, ripetuta tre volte.
+
+**Chiuso senza rinunciare a nessuna delle due cose**, col tag `!dev` di
+Storybook: `tags: ['!dev', '!autodocs']` toglie una story dalla barra
+laterale **e** dalla pagina Docs, ma **non** dai test. Nella style guide si
+vede una voce sola, `Completo`; il gate continua a eseguirne quattro.
+Verificato dal conto: 333 story scansionate, non 330.
+
+**La densità touch invece è stata tolta davvero**, ed è l'unica che non
+serviva: `misura:bersagli` forza `globals=density:touch` su **tutte** le
+story, quindi quella scena non aggiungeva nessuna misura. Il resto della
+style guide la prova dalla leva **Densità** in barra, che è globale.
+
+**Il popup dichiarato su «Completo» è il «+N altri», non il dialogo.**
+Storybook esegue le `play` anche nel canvas, quindi quello che si dichiara
+arriva **aperto**: un popover piccolo sopra una cella lascia vedere il
+calendario, il dialogo lo coprirebbe tutto. Il dialogo è misurato nella sua
+scena nascosta.
+
+#### Il menù «Opzioni», e la regola dell'interruttore che non fa niente
+
+Le tre leve erano prop, e Francesco cercava il **menù** — la richiesta era
+nata guardando il pannello «Settings» di `c-event-calendar-1`. Fatto: un
+popover con un interruttore per riga, geometria loro, tre leve invece della
+loro dozzina. Le altre non ci sono per scelta: lingua e fuso li decide
+l'app, e accendere il trascinamento da un menù metterebbe una
+riprogrammazione senza conferma a un clic di distanza — cioè l'opposto di
+quello che il commento di Officina chiede.
+
+**E qui è emersa una cosa che il motore non dice**: `weekNumbers` è letto
+**solo** dalla vista mese, e `weekends` non è letto dall'agenda — verificato
+a grep sui tre file delle viste. Un interruttore acceso dove non fa niente è
+il difetto peggiore di un pannello di impostazioni, perché chi lo tocca
+conclude che il calendario è rotto. Ogni riga dichiara quindi in quali viste
+vale, e fuori **si disabilita**. È la stessa regola per cui il commutatore
+delle viste sparisce quando commutare non cambierebbe niente.
+
+Prima stesura con una nota sotto l'etichetta («Solo nella vista mese»), e
+Francesco l'ha fatta togliere: l'interruttore spento dice già tutto, e tre
+righe di spiegazione fanno di un menù da tre voci un pannello da leggere.
+
+E «fumetto» è diventato **«tooltip»**, su sua indicazione: è il nome della
+primitiva che c'è già nel registry, e un design system che chiama due volte
+la stessa cosa in due modi diversi è un design system che si ricorda a
+memoria.
+
+#### La settimana ricadeva sempre sulla prima del mese
+
+Rilievo: «vista settimana mancano gli eventi, devono essere sincronizzati».
+La causa è la stessa dell'agenda, un giro più in là: il mese è ancorato al
+suo **primo giorno**, quindi passando alla settimana si finiva sempre sulla
+prima — che nella metà dei casi comincia nel mese prima, e che quasi sempre
+è vuota.
+
+La regola adottata è quella dei calendari che usiamo tutti: **se oggi sta nel
+mese che si sta guardando, la settimana è quella di oggi**; altrimenti si
+resta dov'era. Misurato: dal mese di settembre si atterra su «14 – 20
+settembre», che ha i fermi.
+
+#### E il campo Data era grigio
+
+Il trigger del date-picker è un `Button variant="outline"`, che porta
+`bg-background` — il grigio della **pagina**. Dentro un dialogo, che è
+`bg-popover`, diventava l'unico campo grigio in mezzo a tre trasparenti
+(misurato: `oklch(0.9726…)` contro `rgba(0,0,0,0)` di input e select).
+Allineato agli altri campi: stesso fondo, stesso bordo, stesso raggio, e
+niente hover — perché nemmeno i `select` accanto ce l'hanno.
+
+Vale oltre il caso: **la story `Primitive/Calendar → Date picker` compone il
+trigger così, e su una pagina è giusto**. Dentro una superficie più chiara
+non lo è più, e chi copia quella composizione in un dialogo deve saperlo.
+
+### (m) La distinzione che mancava: il calendario è il **tipo**, la persona è l'**assegnatario**
+
+Rilievo di Francesco guardando Officina, e ribalta una cosa che questo stesso
+verbale aveva scritto al punto (e). Nella barra dei filtri di Officina ci sono
+**«Tutti i reparti»** e **«Tutti gli assegnatari»**, e accanto una legenda a
+colori: **Guasto · Preventiva · Ispezione · Miglioria**.
+
+Quindi:
+
+| | cos'è | come si vede |
+|---|---|---|
+| **calendario** | il tipo di intervento | il **colore**, spiegato dalla legenda |
+| **assegnatario** | la persona | l'**avatar** |
+
+**Sono due canali, e tenerli separati non è pignoleria**: due persone possono
+lavorare allo stesso guasto, e lo stesso manutentore fa guasti e preventive.
+Il punto (e) di questo verbale aveva chiuso «il calendario è la persona»
+perché così sembrava dal primo rilievo; era una lettura parziale, e questa la
+corregge.
+
+**Regola del chip**: gli avatar quando ci sono assegnatari, **altrimenti** il
+pallino col colore del calendario. Il colore c'è sempre, la persona no.
+
+**Più di un assegnatario**, e la primitiva c'era già: `AvatarGroup`
+(`Primitive/Avatar → Gruppo`), con `AvatarGroupCount` dal terzo in poi —
+oltre i due, tre cerchi in un chip alto 26px non si distinguono, quindi il
+terzo posto dice **quanti** invece di **chi**.
+
+Nel dialogo il campo è un **`combobox` a più scelte con le pillole**, cioè la
+composizione di `Primitive/Combobox → Più scelte, con pillole`. Scartato il
+`toggle-group`: una squadra di manutenzione può essere di quindici persone, e
+un toggle-group «è un filtro che si clicca, non un campo che si cerca»
+(CLAUDE.md, «il nome dice la funzione»). Il gate non ha trovato i
+`button-name` di **D14** in questa scena, quindi **non** è servita nessuna
+esclusione per nodo: se un giorno comparissero, la strada è quella di D14.
+
+**La legenda** è geometria di `c-event-calendar-4` — pallino e nome per
+calendario — e sta **in testata**, che è dove la mette Officina. Senza, il
+colore di un chip è un'informazione che non si può decodificare.
+
+**Un limite della tavolozza, a verbale**: Officina usa il **rosso** per il
+guasto, e nei cinque `--chart-*` il rosso non c'è (arancio, verde, blu, due
+grigi). Il guasto prende l'arancio, che è il più caldo. Se il rosso servisse
+davvero, si aggiunge alla palette in `scripts/hex-to-oklch.ts` — che è la
+fonte unica — e non si scrive nel blocco.

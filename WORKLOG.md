@@ -6442,3 +6442,76 @@ ri-stilati** (erano 24, e sei erano falsi positivi). `registry.json` **88 →
 89 item**, `registry validate` verde; `build` e `lint` verdi.
 `misura:bersagli`, strumento ✔ (47,875px): **3024 bersagli su 334 story**, 35
 tipi, **0 piccoli in entrambe le direzioni**.
+
+#### Coda 5 di M4ter.2: una story sola, il menù opzioni, e la distinzione calendario/assegnatario (2026-09-19)
+
+**Sette rilievi in questa passata, e l'ultimo corregge una cosa che questo
+verbale aveva scritto sbagliata.**
+
+**1. Una story sola.** «Togliamo dialogo dell'evento, settimana, densità
+touch — sono tutte integrate in completo», e poi anche il vuoto. Il conflitto
+era reale: una story sola vuol dire che axe misura una scena sola, e il
+dialogo, la griglia oraria e lo stato vuoto da «Completo» non si raggiungono.
+Chiuso col tag **`!dev`** di Storybook: `tags: ['!dev', '!autodocs']` toglie
+una story dalla barra e da Docs ma **non** dai test. Nella style guide si
+vede `Completo`; il gate ne esegue quattro — verificato dal conto, **333**
+story e non 330. La **densità touch** invece è stata tolta davvero: è l'unica
+che non serviva, perché `misura:bersagli` forza `density:touch` su tutte.
+
+**2. Il menù «Opzioni».** Le tre leve erano prop e Francesco cercava il
+pannello — la richiesta era nata guardando il «Settings» di
+`c-event-calendar-1`. Fatto: un popover con tre interruttori. E qui è emerso
+che **`weekNumbers` è letto solo dalla vista mese e `weekends` non
+dall'agenda** (grep sui tre file): ogni riga dichiara in quali viste vale e
+fuori **si disabilita**, perché un interruttore acceso dove non fa niente fa
+concludere che il calendario è rotto. Tolta la nota esplicativa sotto
+l'etichetta, su rilievo: l'interruttore spento dice già tutto. E «fumetto» è
+diventato **«tooltip»**, che è il nome della primitiva che abbiamo già.
+
+**3. La settimana ricadeva sulla prima del mese**, che quasi sempre è vuota:
+il mese è ancorato al suo primo giorno. Regola adottata, quella dei calendari
+che usiamo tutti: **se oggi sta nel mese che si guarda, la settimana è quella
+di oggi**. Misurato: da settembre si atterra su «14 – 20 settembre».
+
+**4. Il campo Data era grigio.** Il trigger è un `Button variant="outline"`,
+che porta `bg-background` — il grigio della **pagina**. Dentro un dialogo, che
+è `bg-popover`, era l'unico campo grigio fra tre trasparenti. Allineato agli
+altri campi. Da sapere: `Primitive/Calendar → Date picker` compone il trigger
+così ed è giusto **su una pagina**; chi copia quella composizione dentro una
+superficie più chiara deve saperlo.
+
+**5. Il doppio bordo era in tre posti** (mese, agenda, settimana): ogni vista
+del motore apre con un `border-t` proprio.
+
+**6. La distinzione che mancava, e che correggo.** Guardando Officina:
+«Tutti i reparti», «Tutti gli assegnatari», e una legenda **Guasto ·
+Preventiva · Ispezione · Miglioria**. Quindi il **calendario è il tipo di
+intervento** (il colore) e l'**assegnatario è la persona** (l'avatar). La
+coda 2 di questo verbale aveva chiuso «il calendario è la persona»: era una
+lettura parziale del primo rilievo, e questa la corregge. Tenerli separati non
+è pignoleria — due persone possono lavorare allo stesso guasto, e lo stesso
+manutentore fa guasti e preventive.
+
+Regola del chip: **gli avatar quando ci sono assegnatari, altrimenti il
+pallino col colore del calendario**. Il colore c'è sempre, la persona no.
+
+**7. Più di un assegnatario**, e la primitiva c'era già: `AvatarGroup`
+(`Primitive/Avatar → Gruppo`) con `AvatarGroupCount` dal terzo in poi — oltre
+i due, tre cerchi in un chip alto 26px non si distinguono, quindi il terzo
+posto dice *quanti* invece di *chi*. Nel dialogo il campo è il **`combobox` a
+più scelte con le pillole**; scartato il `toggle-group`, che «è un filtro che
+si clicca, non un campo che si cerca».
+
+Aggiunta anche la **legenda** dei calendari in testata, geometria di
+`c-event-calendar-4`: senza, il colore di un chip non si può decodificare.
+
+**Un limite della tavolozza a verbale**: Officina usa il rosso per il guasto,
+e nei cinque `--chart-*` il rosso non c'è. Il guasto prende l'arancio; se il
+rosso servisse, si aggiunge alla palette in `scripts/hex-to-oklch.ts`, che è
+la fonte unica, non nel blocco.
+
+**Numeri**: `check` verde sui cinque; `test:a11y` **1332 scansioni** (333
+story), **0 violazioni** — il `combobox` nel dialogo **non** ha portato i
+`button-name` di D14, quindi nessuna esclusione; `check:registry` 0/62/0/19;
+**89 item**; `build` e `lint` verdi. `misura:bersagli` 3011 bersagli su 333
+story, 0 piccoli in entrambe le direzioni.
