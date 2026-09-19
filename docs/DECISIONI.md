@@ -2576,6 +2576,10 @@ Misurato: `--container-3xs` vale 16rem in entrambe le densità, mentre una
 soglia scritta in `--spacing` farebbe 384px in touch — più larga dei 343 di un
 telefono — e la griglia **sborderebbe** invece di ripiegare a una colonna.
 
+**È una larghezza, quindi non si muove col rapporto.** Rimisurata identica dopo
+il passaggio della scena a `1:1` (v. (g)): stesse colonne, stessi px di
+larghezza, a cambiare è solo l'altezza della cella.
+
 ### (e) Un secondo difetto muto: Tailwind v4 emette solo i token che un'utility usa
 
 Prima candidata provata, `--container-2xs` (18rem). Risultato: griglia a **una
@@ -2613,3 +2617,73 @@ dello strumento ✔: **3013 bersagli su 339 story** (59 popup aperti), 2049 sott
 i 44px, **35 tipi distinti, 0 piccoli in entrambe le direzioni** — il conto dei
 bersagli **non si muove** perché in nessuna scena l'immagine è cliccabile, e un
 riquadro che non fa niente non è un bersaglio.
+
+### (g) `1:1` entra, e la regola con cui è entrato
+
+Rilievo di Francesco a lavoro finito, guardando le immagini vere: «sono
+quadrate! Forse allora dobbiamo anche aggiungere il rapporto 1:1». Verificato
+prima di scrivere, e la risposta alla domanda successiva — «e nella sezione
+prodotti sempre quadrate?» — è **sì**:
+
+| libreria | sorgente | misurato su |
+|---|---|---|
+| render di stratigrafia dei **sistemi** | **1080×1080** | 6 categorie, `tassullo.it/sistemi` |
+| foto pacco dei **prodotti** | **1800×1800** | 22 immagini di `/linea-wall`, una sola a 1779×1800 |
+
+Cioè **tutta** la libreria d'immagini di Tassullo è quadrata. Su una sorgente
+quadrata `object-cover` toglie il **25%** dell'altezza a `4:3` e il **43,75%** a
+`16:9`; e su un soggetto **verticale** dentro un quadrato — il sacco da 25 kg di
+INTOCALX — non è fondo bianco che se ne va: a `4:3` si perde la base del pacco,
+a `16:9` anche il nome. La scena `Primitive/EntityImage → Rapporti` mette i tre
+in fila sulla stessa sorgente.
+
+**Perché non è un'eccezione alla regola dell'insieme chiuso.** D20 chiudeva su
+`4:3` + `16:9` con questo argomento: un rapporto è il *valore di una prop*, non
+un componente, e l'insieme chiuso è ciò che impedisce alle 16 soglie di
+ripetersi. L'argomento regge identico a tre, e si irrigidisce: **ogni valore
+vuole un consumatore e una misura**. `16:9` era entrato senza consumatore
+proprio, per simmetria; `1:1` entra con due librerie intere e con la misura del
+ritaglio. Un insieme che cresce a ogni richiesta non è un insieme chiuso — ma
+uno che rifiuta il caso dominante dei propri dati non è un design system, è un
+dogma.
+
+**Conseguenza sulla griglia di catalogo**: la scena passa a `ratio="1:1"`,
+perché quello è il rapporto delle sorgenti vere. La larghezza di cella non si
+muove (v. (d)).
+
+### (h) Il canvas centrato misura sé stesso, non la pagina
+
+La scena della griglia rendeva **2 colonne invece di 4** a 1440, cioè proprio il
+numero che esiste per far vedere. Causa: `.storybook/preview.tsx` imposta
+`layout: 'centered'` per tutte le story, e un canvas centrato **stringe il
+contenuto al suo contenuto**. Una griglia `repeat(auto-fill, …)` dentro un
+contenitore che si stringe misura sé stessa, non lo spazio disponibile, e
+sceglie il numero di colonne sbagliato — senza errori, perché non c'è niente di
+rotto.
+
+Chiuso con `parameters: { layout: 'padded' }` sulla sola scena, come fanno già
+`data-table`, `data-grid` e il calendario. **La regola**: qualunque story che
+mostri un comportamento *responsivo* va tolta dal `centered`, o misura la
+propria scatola. E le misure di (d) restano valide perché l'imbracatura
+**imponeva** la larghezza del contenitore invece di ereditarla — che è anche la
+ragione per cui il difetto non era emerso lì.
+
+### (i) Le immagini d'esempio: reali, locali, e non spedite
+
+Le prime tre erano **disegni SVG** fatti in sessione. Sostituite con immagini
+vere di Tassullo su indicazione di Francesco — sei render di sistema, tre foto
+pacco, una fotografia di cantiere, 660 KB in tutto dopo il ridimensionamento
+(640px le quadrate, 900px la fotografia).
+
+Tre confini, scritti in `public/esempi/LEGGIMI.md` perché il repo è pubblico e
+qualcuno le troverà senza contesto: **nessun item del registry le spedisce**
+(`registry.json` elenca i file uno per uno, e le story non si spediscono
+affatto); **sono locali di proposito**, perché con indirizzi remoti in una CI
+senza rete l'immagine non arriva, `AvatarFallback` ripiega, e le scene «con
+foto» misurerebbero il **segnaposto** — lo stesso difetto di «un popup non
+aperto non è un popup senza violazioni»; e Storybook `public/` non la serve da
+sé, la riga è negli `staticDirs` di `.storybook/main.ts`.
+
+**Quello che le immagini vere hanno cambiato davvero** non è l'estetica della
+story: è che hanno fatto vedere il rapporto sbagliato. Con tre disegni inventati
+a 4:3 la domanda del rapporto non si sarebbe mai posta.

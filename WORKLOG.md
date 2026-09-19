@@ -6896,3 +6896,83 @@ colore è mancato.
    tutto il registry, non solo per questa griglia: vale la pena chiedersi se
    `check:registry` possa vederlo. Non l'ho aperto qui per non allargare un
    gate dentro il task che lo cita.
+
+#### Coda di M4ter.3: le immagini vere, e il terzo rapporto che ne è uscito (2026-09-19)
+
+**Verdetto: le tre immagini d'esempio erano disegni fatti in sessione, e
+nascondevano un difetto di progetto.** Francesco: «le immagini puoi prenderle
+dalla sezione sistemi del sito tassullo». Prese, e la prima cosa che si è vista
+mettendole dentro è che **sono quadrate**.
+
+#### Cosa è entrato
+
+Fuori i tre `.svg` disegnati; dentro dieci immagini vere di Tassullo —
+**sei render di stratigrafia** (uno per categoria di sistema, `tassullo.it/sistemi`),
+**tre foto pacco** della linea Wall (`/prodotti`) e **una fotografia di
+cantiere** (la testata dei Sistemi). Ridimensionate per il repo — 640px le
+quadrate, 900px la fotografia — **660 KB in tutto**, non ritoccate e non
+ritagliate. Provenienza e confini in `public/esempi/LEGGIMI.md`, perché il repo
+è pubblico e qualcuno le troverà senza contesto.
+
+#### Il terzo rapporto, e la regola con cui è entrato
+
+Rilievo di Francesco: «sono quadrate! Forse allora dobbiamo anche aggiungere il
+rapporto 1:1». E subito dopo la domanda giusta: «e nella sezione prodotti sempre
+quadrate?». Verificata, non supposta:
+
+| libreria | sorgente | misurato su |
+|---|---|---|
+| render dei **sistemi** | **1080×1080** | le 6 categorie |
+| foto pacco dei **prodotti** | **1800×1800** | 22 immagini di `/linea-wall`, **una sola** a 1779×1800 |
+
+Cioè **tutta** la libreria d'immagini di Tassullo è quadrata. Su una sorgente
+quadrata `object-cover` toglie il **25%** dell'altezza a `4:3` e il **43,75%** a
+`16:9` — e sul sacco da 25 kg di INTOCALX, che è un soggetto **verticale** in un
+quadrato, non è fondo bianco che se ne va: a `4:3` si perde la base del pacco, a
+`16:9` anche il nome. Visibile in fila nella scena `Rapporti`, sulla stessa
+sorgente.
+
+**Perché non è un'eccezione alla regola dell'insieme chiuso.** D20 chiudeva su
+due rapporti con questo argomento: un rapporto è il *valore di una prop*, e
+l'insieme chiuso è ciò che impedisce alle 16 soglie di ripetersi. L'argomento
+regge identico a tre e anzi si irrigidisce — **ogni valore vuole un consumatore
+e una misura**. `16:9` era entrato senza consumatore proprio, per simmetria;
+`1:1` entra con due librerie intere e col ritaglio misurato. Un insieme che
+cresce a ogni richiesta non è chiuso, ma uno che rifiuta il caso dominante dei
+propri dati non è un design system.
+
+#### Il difetto che le immagini vere hanno scoperto
+
+**La griglia rendeva 2 colonne invece di 4 a 1440**, cioè proprio il numero che
+quella scena esiste per far vedere. Causa: `preview.tsx` imposta
+`layout: 'centered'` per tutte le story, e un canvas centrato **stringe il
+contenuto al suo contenuto** — una griglia `auto-fill` dentro un contenitore che
+si stringe misura **sé stessa**, non lo spazio disponibile, e sceglie il numero
+di colonne sbagliato senza che niente si rompa.
+
+Chiuso con `parameters: { layout: 'padded' }` sulla sola scena, come già fanno
+`data-table`, `data-grid` e il calendario. **La regola**: una story che mostra
+un comportamento *responsivo* va tolta dal `centered`, o misura la propria
+scatola.
+
+**E le misure di larghezza restano valide**, perché l'imbracatura **imponeva**
+la larghezza del contenitore invece di ereditarla — che è anche la ragione per
+cui il difetto lì non era emerso. Rimisurata la tabella dopo il passaggio a
+`1:1`: **identica**. 256px è una larghezza, e il rapporto muove solo l'altezza.
+
+#### Numeri
+
+`npm run check` **verde sui cinque**; `test:a11y` **1356**/0 (339 story × 4
+passate) — invariato, perché la scena `Sedici noni` è diventata `Rapporti` e le
+scene restano sei; `check:registry` **0 errori / 62 avvisi / 1 componente nostro
+/ 19 ri-stilati**; **90 item**, `registry validate` verde; `build` e `lint`
+verdi. `misura:bersagli` **3014 bersagli su 339 story** (59 popup), 35 tipi,
+**0 piccoli in entrambe le direzioni**.
+
+#### Cosa resta da guardare
+
+- **Il fondo bianco dei render in modalità scura.** Le sorgenti sono su bianco:
+  in una card scura la foto è un blocco chiaro. Non è un difetto del componente
+  — è una proprietà delle immagini — ma è una scelta che prima o poi va presa.
+- La domanda «a 268px la foto si riconosce» adesso **si può rispondere**: prima
+  erano disegni miei, ora sono le immagini vere.

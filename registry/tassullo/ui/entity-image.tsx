@@ -12,18 +12,29 @@ import {
 } from "@/registry/tassullo/ui/avatar"
 
 /**
- * L'insieme è chiuso apposta.
+ * L'insieme è chiuso apposta, **e resta chiuso a tre**.
  *
  * Le 33 griglie `repeat(auto-fill/fit)` di Studio e Officina usano oggi **16
  * soglie `minmax` distinte**, da 104 a 320px: nessuna sbagliata da sola, tutte
  * insieme un catalogo che non si incolonna mai. Un rapporto è il *valore di una
  * prop*, non un componente — quindi la regola del secondo consumatore non si
- * applica, e `16:9` sta qui prima di avere un consumatore proprio perché è
- * l'insieme chiuso a impedire che la diciassettesima soglia nasca.
+ * applica, ed è l'insieme chiuso a impedire che la diciassettesima soglia nasca.
+ *
+ * `1:1` è entrato su rilievo di Francesco il 2026-09-19, e con un consumatore
+ * che c'è già: **i render dei sistemi Tassullo sono 1080×1080**. Su una
+ * sorgente quadrata `object-cover` a `4:3` taglia il **25%** dell'altezza e a
+ * `16:9` il **43,75%** — e sul render del cappotto è misurato che a `16:9` il
+ * taglio arriva sul soggetto, non solo sul fondo bianco. Senza `1:1` quel
+ * ritaglio lo rifarebbe ogni app a mano, che è la diciassettesima soglia in
+ * un'altra forma.
+ *
+ * Ogni valore in più va giustificato così, con un consumatore e una misura:
+ * un insieme che cresce a ogni richiesta non è un insieme chiuso.
  */
 const RAPPORTI = {
   "4:3": 4 / 3,
   "16:9": 16 / 9,
+  "1:1": 1,
 } as const
 
 type Rapporto = keyof typeof RAPPORTI
