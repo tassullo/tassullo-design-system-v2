@@ -275,24 +275,21 @@ export interface EventoCalendario<TData = unknown>
 export type VistaCalendario = "mese" | "settimana" | "agenda"
 
 /**
- * **Una lettera sola, e la ragione è misurata.** Due iniziali al gradino più
- * piccolo che il tema tara (`text-xs`, 12px) in un cerchio da 20px fanno
- * `FS` 14,3px, `DE` 15,3 e **`MR` 18,3** — cioè **0,9px di margine per
- * lato**, che in un cerchio si legge come lettere che escono, perché il
- * bordo curva proprio dove stanno. Con `MW` sarebbe peggio. In touch il
- * cerchio è 30px e il problema non c'è, ma la misura da rispettare è quella
- * stretta.
+ * **Due iniziali, come nella primitiva** — «Francesco Sartori» è `FS`.
  *
- * Le due strade scartate: `text-[10px]` è un valore arbitrario (regola 3) e
- * per giunta non scalerebbe con la densità; `size-6` porta il margine a 2,85
- * e riempie il chip, che è alto 26. Chi vuole due lettere le passa in
- * `iniziali` sapendo che le sta stringendo.
- *
- * Il nome per esteso non si perde: sta nel **tooltip** dell'evento.
+ * Ci stanno perché il chip è stato alzato: `--ec-month-bar-h` è una
+ * variabile del motore e il blocco la lega a `--spacing`, così il chip
+ * cresce con la densità invece di restare fermo a 26px. Le misure sono nel
+ * commento di quella riga.
  */
 function iniziali(a: PersonaEvento): string {
   if (a.iniziali) return a.iniziali
-  return (a.nome.trim()[0] ?? "").toUpperCase()
+  return a.nome
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0] ?? "")
+    .join("")
+    .toUpperCase()
 }
 
 /* ─────────────────────────── Le etichette ─────────────────────────── */
@@ -428,7 +425,7 @@ function creaChip<TData>(perPersona: Map<string, PersonaEvento>) {
           // spariva sotto la seconda. `-space-x-1` è lo stesso quarto alla
           // metà della taglia — e l'anello resta quello della primitiva,
           // che è ciò che rende leggibile la sovrapposizione.
-          <AvatarGroup className="shrink-0 -space-x-1">
+          <AvatarGroup className="shrink-0 -space-x-1.5">
             {mostrati.map((x) => (
               // **La primitiva così com'è, senza vestirla.** Il fallback
               // aveva `bg-(--ec-event-color)/20`, cioè un fondo
@@ -462,7 +459,7 @@ function creaChip<TData>(perPersona: Map<string, PersonaEvento>) {
               // «divergenza dichiarata» che il gate oggi non ha. Con **un**
               // punto d'uso, la classe dal punto di chiamata costa meno
               // della macchina.
-              <Avatar key={x.id} className="size-4" title={x.nome}>
+              <Avatar key={x.id} className="size-5" title={x.nome}>
                 {x.immagine ? (
                   <AvatarImage src={x.immagine} alt={x.nome} />
                 ) : null}
@@ -477,7 +474,7 @@ function creaChip<TData>(perPersona: Map<string, PersonaEvento>) {
               </Avatar>
             ))}
             {restano > 0 ? (
-              <AvatarGroupCount className="size-4 text-xs">
+              <AvatarGroupCount className="size-5 text-xs">
                 +{restano}
               </AvatarGroupCount>
             ) : null}
@@ -1375,7 +1372,14 @@ export function Calendario<TData = unknown>({
 
   const apriModifica = React.useCallback(
     (occorrenza: EventCalendarOccurrence<TData>) => {
-      const e = occorrenza.event as unknown as EventoCalendario<TData>
+      // **L'evento che arriva è quello del MOTORE**, non il nostro: il
+      // calendario lì dentro si chiama `resourceId`, perché è così che il
+      // mapping lo scrive. Leggerlo come `calendarioId` dava sempre
+      // `undefined`, e il dialogo ricadeva sul **primo** calendario
+      // dell'elenco — un evento «Preventiva» si apriva come «Guasto».
+      const e = occorrenza.event as unknown as EventoCalendario<TData> & {
+        resourceId?: string
+      }
       setBozza({
         id: e.id,
         titolo: e.title,
@@ -1384,7 +1388,7 @@ export function Calendario<TData = unknown>({
         durata: Math.max(30, differenceInMinutes(e.end, e.start)),
         tuttoIlGiorno: e.allDay ?? false,
         colore: e.colore ?? coloreDefault,
-        calendarioId: e.calendarioId ?? calendari[0]?.id,
+        calendarioId: e.resourceId ?? e.calendarioId ?? calendari[0]?.id,
         assegnatariId: e.assegnatariId ?? [],
       })
       setDialogoAperto(true)
@@ -1435,6 +1439,27 @@ export function Calendario<TData = unknown>({
     <>
       <EventCalendar<TData>
         data-slot="calendario"
+        // **L'altezza della barra del mese legata alla densità.** È una
+        // variabile del motore (`h-[calc(var(--ec-month-bar-h,1.75rem)…)]`),
+        // e il suo default è **1.75rem in `rem`**: il chip resta 26px anche
+        // in touch, mentre tutto il resto cresce. Da lì venivano due
+        // difetti — l'avatar `sm` che a 36px sforava un chip da 26, e le due
+        // iniziali che non ci stavano in un cerchio abbastanza piccolo da
+        // starci dentro.
+        //
+        // Legandola a `--spacing` × 8 il chip fa **32px in normale e 48 in
+        // touch**, e l'avatar `size-5` (20 e 30) ci sta con 6px di margine
+        // per lato — 4 anche togliendo l'anello da 2px dell'`AvatarGroup`.
+        //
+        // **Il tetto lo mette l'altezza della pagina, non l'estetica.** A
+        // ×9 il chip faceva 36 e l'avatar stava comodissimo, ma la riga
+        // saliva a 140px e **sei righe non ci stavano più**: il mese
+        // scorreva e l'ultima settimana restava fuori. Con 32 la riga sta
+        // in 128, e 6 × 128 più testata e legenda entrano in uno schermo da
+        // 900px — che è quello del capannone.
+        // Non è un valore arbitrario e non è un ri-stile: è una variabile
+        // che il motore espone apposta, e il valore è un calcolo sul token.
+        style={{ "--ec-month-bar-h": "calc(var(--spacing) * 8)" } as React.CSSProperties}
         className={cn("min-h-0 flex-1", className)}
         apiRef={apiRef}
         events={eventiMotore}
@@ -1534,13 +1559,13 @@ export function Calendario<TData = unknown>({
           // **Tre eventi per cella, non uno.** La riga del mese è `min-h-0`,
           // quindi in un contenitore corto le celle si schiacciano e
           // `maxEventsPerCell: "auto"` ne mostra una sola. Il conto che dà
-          // il 30: tre corsie da `--ec-month-bar-h` (1,75rem = 28px) fanno
-          // 84, più 6 di `pt-1.5` in cima e 26 di numero del giorno in
-          // fondo = **116px**, cioè 30 unità di spaziatura arrotondando in
-          // su. Siccome deriva da `--spacing` cresce da sé in touch (120px
+          // il 32: tre corsie da `--ec-month-bar-h` — che qui vale
+          // `--spacing × 8`, cioè 32px — fanno 96, più 6 di `pt-1.5` in
+          // cima e 26 di numero del giorno in fondo = **128px**, cioè
+          // esattamente 32 unità di spaziatura. Siccome deriva da `--spacing` cresce da sé in touch (120px
           // in normale, 180 in touch). Meno di così non si può: sotto i 28px
           // la corsia non è più un bersaglio.
-          monthRow: "min-h-30",
+          monthRow: "min-h-32",
           // **E il mese scorre quando non ci sta**, invece di tagliare.
           // Sei righe da 120px sono 720px, che su uno schermo con un guscio
           // sopra non ci stanno quasi mai; `month-view` ha `overflow-hidden`,

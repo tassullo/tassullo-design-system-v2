@@ -183,10 +183,22 @@ const INTERVENTI: CalendarioSorgente[] = [
   { id: 'miglioria', nome: 'Miglioria', colore: 'ardesia' },
 ]
 
-/** **Gli assegnatari sono le persone**, e sono l'avatar — non il colore. */
+/**
+ * **Gli assegnatari sono le persone**, e sono l'avatar — non il colore.
+ *
+ * Due hanno la fotografia e uno no, apposta: è la differenza che si vuole
+ * vedere. Senza `immagine` restano le **iniziali** — «Francesco Sartori» →
+ * `FS` — e senza nemmeno l'assegnatario resta il pallino col colore del
+ * calendario.
+ *
+ * Gli indirizzi delle due foto sono remoti, come nelle demo di ReUI, e
+ * valgono **solo per la story**: il registry non spedisce immagini. Se la
+ * rete non c'è — succede in CI — l'avatar ripiega sulle iniziali, che è poi
+ * il comportamento che si vuole comunque garantito.
+ */
 const SQUADRA: PersonaEvento[] = [
-  { id: 'fs', nome: 'Francesco Sartori' },
-  { id: 'mr', nome: 'Marta Rossi' },
+  { id: 'fs', nome: 'Francesco Sartori', immagine: 'https://i.pravatar.cc/80?img=13' },
+  { id: 'mr', nome: 'Marta Rossi', immagine: 'https://i.pravatar.cc/80?img=45' },
   { id: 'lb', nome: 'Luca Boni' },
 ]
 
@@ -213,7 +225,7 @@ const FERMI: EventoCalendario[] = [
 ]
 
 function Guscio({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-200 flex-col">{children}</div>
+  return <div className="flex h-224 flex-col">{children}</div>
 }
 
 /**

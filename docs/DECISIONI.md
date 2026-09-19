@@ -2321,3 +2321,58 @@ provato — lasciava due cerchi grigi attaccati.
 La regola che ne esce, e che vale per ogni primitiva rimpicciolita:
 **quando si cambia la taglia di un componente, le sue distanze vanno
 riscalate nella stessa proporzione** — non ereditate.
+
+### (o) Le due iniziali, e il tetto che le limita: l'altezza dello schermo
+
+Rilievo: «nell'avatar come nella primitiva vanno messe le iniziali per
+Francesco Sartori, quindi **FS** e non solo F». Giusto — la primitiva le
+scrive così — ma due lettere in un cerchio piccolo è un problema di
+geometria, e la catena di vincoli merita di essere scritta perché è quella
+che governerà ogni prossima modifica al chip.
+
+**Il nodo: il chip del mese non scalava.** `--ec-month-bar-h` ha come default
+**1.75rem**, in `rem`: il chip resta 26px anche in densità touch, mentre
+avatar e testo crescono con `--spacing`. Da lì venivano due difetti diversi
+che sembravano scollegati — l'avatar `sm` che a 36px sforava un chip da 26, e
+le due iniziali che non ci stavano in un cerchio abbastanza piccolo da
+starci.
+
+**Chiuso legando la variabile al token**: `--ec-month-bar-h:
+calc(var(--spacing) * 8)`, messo come `style` sul root del calendario. Non è
+un valore arbitrario e non è un ri-stile: è una variabile che il motore
+espone apposta, e il valore è un calcolo su `--spacing`. Il chip fa **32px in
+normale e 48 in touch**, e cresce insieme a tutto il resto.
+
+**E poi il tetto**, che è il pezzo che vale oltre il caso. A `--spacing × 9`
+il chip faceva 36 e l'avatar `size-6` stava comodissimo — ma la riga del mese
+saliva a 140px, **sei righe non ci stavano più** e il mese scorreva lasciando
+fuori l'ultima settimana. Francesco l'ha visto subito.
+
+La catena, tutta misurata:
+
+| | vincolo |
+|---|---|
+| lo schermo del capannone | ~900px, meno il guscio ≈ **800** per il calendario |
+| sei righe + testata + legenda | ⇒ **≤ 128px per riga** |
+| tre corsie per cella (il requisito) | ⇒ chip ≤ **32px** (96 + 6 + 26 = 128) |
+| chip 32 con `py-1` | ⇒ avatar ≤ **20px** (`size-5`), 5px di margine |
+| due iniziali a `text-xs` in 20px | **14,6px**, margine 2,7 per lato — dentro |
+
+Cioè: **è l'altezza dello schermo a decidere quanto è grande l'avatar**, per
+una catena di quattro passaggi. Chi un domani vorrà l'avatar più grande deve
+sapere che sta chiedendo o meno di tre eventi per cella, o un mese che
+scorre.
+
+**Un'ultima misura, per non tornarci**: le barre pluri-giorno **non
+sbordano** fra un giorno e l'altro, e l'impressione che lo facciano viene dal
+weekend nascosto — una barra che finisce di sabato si interrompe all'ultima
+colonna visibile. Misurato: la barra del 7–10 va da 21 a 1138 dentro celle
+che vanno da 17 a 1142, cioè 4px di inset per lato, esattamente come le
+altre.
+
+**E il bug vero di questo giro**: `apriModifica` leggeva `calendarioId`
+dall'evento, ma l'evento che arriva dal motore è il **suo**, dove quel campo
+si chiama `resourceId`. Risultato: `undefined`, e il dialogo ricadeva sul
+**primo** calendario dell'elenco — un evento «Preventiva» si apriva come
+«Guasto». È il rovescio del mapping: si traduce in entrambe le direzioni o si
+sbaglia in una.

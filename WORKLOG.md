@@ -6565,3 +6565,40 @@ tutti.
 
 **Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
 `check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.
+
+#### Coda 7 di M4ter.2: le due iniziali, e un bug vero nel dialogo (2026-09-19)
+
+**Il bug**: `apriModifica` leggeva `calendarioId` dall'evento, ma l'evento
+che arriva dal motore è il **suo**, dove quel campo si chiama `resourceId`.
+Dava `undefined`, e il dialogo ricadeva sul **primo** calendario: un evento
+«Preventiva» si apriva come «Guasto». Trovato da Francesco a video.
+Verificato dopo la correzione su tre eventi: Preventiva, Ispezione, Guasto,
+ognuno col suo.
+
+**Le due iniziali** (`FS`, non `F`), e la catena di vincoli che le governa.
+Il nodo era che **il chip del mese non scalava**: `--ec-month-bar-h` ha come
+default `1.75rem`, quindi resta 26px anche in touch mentre avatar e testo
+crescono con `--spacing`. Chiuso legando la variabile al token —
+`calc(var(--spacing) * 8)` come `style` sul root: non è un valore arbitrario
+e non è un ri-stile, è una variabile che il motore espone.
+
+**E poi il tetto**, che è la parte che vale oltre il caso. A ×9 il chip
+faceva 36 e l'avatar stava comodissimo, ma la riga saliva a 140px, sei righe
+non ci stavano più e il mese scorreva lasciando fuori l'ultima settimana —
+Francesco l'ha visto subito. La catena, misurata: schermo ~800px utili ⇒ ≤128
+per riga ⇒ chip ≤32 ⇒ avatar ≤20 ⇒ due iniziali a 14,6px con 2,7 di margine.
+**È l'altezza dello schermo a decidere quanto è grande l'avatar.**
+
+**Due immagini su tre assegnatari**, per far vedere la differenza fra foto e
+iniziali. Gli indirizzi sono remoti come nelle demo di ReUI e valgono solo
+per la story: se la rete non c'è l'avatar ripiega sulle iniziali, che è poi
+il comportamento che si vuole garantito.
+
+**Un rilievo verificato e rientrato**: le barre pluri-giorno **non sbordano**
+fra un giorno e l'altro. Misurato: la barra del 7–10 va da 21 a 1138 dentro
+celle da 17 a 1142 — 4px di inset per lato, come tutte. L'impressione viene
+dal weekend nascosto: una barra che finisce di sabato si interrompe
+all'ultima colonna visibile.
+
+**Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
+`check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.
