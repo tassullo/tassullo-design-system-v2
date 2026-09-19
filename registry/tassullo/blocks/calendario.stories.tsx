@@ -26,8 +26,10 @@ import {
  *
  * ## Cosa sa fare
  *
- * - **Due viste**, mese e agenda, con la testata che le commuta. L'agenda è
- *   la faccia stretta — la vista che Officina si è scritta a mano.
+ * - **Tre viste**, mese, settimana e agenda, con la testata che le commuta e
+ *   **lo stesso periodo** sotto tutte e tre: cambia la faccia, non ciò che
+ *   si guarda. L'agenda è la faccia stretta — la vista che Officina si è
+ *   scritta a mano.
  * - **Barre pluri-giorno con il calcolo delle corsie**: una barra che dura
  *   tre giorni si legge come *un* fermo, e più barre che si accavallano
  *   trovano ognuna la propria riga. È la parte cara, ed è la ragione per cui
@@ -42,7 +44,12 @@ import {
  *   dal clic su un evento, dal clic su un giorno vuoto e dal bottone
  *   «Nuovo».
  * - **Trascinamento** (`trascinamento`) per riprogrammare, e il bordo per
- *   cambiare quanti giorni dura.
+ *   cambiare quanti giorni dura. La strada **con la conferma** è il
+ *   date-picker dentro il dialogo, che è il pattern descritto dal commento
+ *   di testa del `Calendario.tsx` di Officina.
+ * - **Tre interruttori di vista**: `weekend` toglie sabato e domenica,
+ *   `numeroSettimana` aggiunge la colonna a sinistra, `fumetto` accende il
+ *   tooltip sull'evento.
  *
  * ## I quattro default di casa
  *
@@ -151,7 +158,7 @@ const g = (giorno: number, ora = 8, minuto = 0) =>
 const SQUADRA: CalendarioSorgente[] = [
   { id: 'fs', nome: 'Francesco Sartori', colore: 'arancio' },
   { id: 'mr', nome: 'Marta Rossi', colore: 'blu' },
-  { id: 'lb', nome: 'Luca Boni', colore: 'verde', iniziali: 'LB' },
+  { id: 'lb', nome: 'Luca Boni', colore: 'verde' },
   { id: 'ext', nome: 'Ditta esterna', colore: 'grigio' },
 ]
 
@@ -193,7 +200,13 @@ function Guscio({ children }: { children: React.ReactNode }) {
  * - **clicca un giorno vuoto**, o «Nuovo»: si apre in creazione;
  * - cambia il **calendario** nel dialogo e guarda cambiare colore e iniziali;
  * - apri il **«+N altri»** del 15;
- * - passa all'**agenda** e torna al **mese**.
+ * - passa a **settimana** e ad **agenda**, e torna al **mese**: il periodo
+ *   non cambia, cambia la faccia;
+ * - **passa sopra** un evento: il fumetto dice titolo, orario e di chi è —
+ *   è lì che il nome per esteso si legge, perché nel cerchio dell'avatar ci
+ *   sta una lettera sola;
+ * - la colonna a sinistra col **numero della settimana** si spegne con
+ *   `numeroSettimana`, e `weekend` toglie sabato e domenica.
  *
  * Gli eventi stanno in uno `useState` di questa story: è il modo in cui
  * un'app li tiene, perché il calendario **non muta niente da sé**.
@@ -205,6 +218,8 @@ export const Completo: Story = {
     calendari: SQUADRA,
     modifica: true,
     trascinamento: true,
+    fumetto: true,
+    numeroSettimana: true,
   },
   render: function Tutto(args) {
     const [eventi, setEventi] = useState<EventoCalendario[]>(FERMI)
@@ -243,6 +258,31 @@ export const DialogoEvento: Story = {
       </Guscio>
     )
   },
+}
+
+/**
+ * **La griglia oraria.** Esiste come story sua per una ragione di misura, non
+ * di catalogo: axe guarda le story **come si presentano**, e una vista che
+ * nessuna story monta è una vista che il gate non ha mai visto. La scena
+ * completa apre sul mese, quindi la settimana andrebbe misurata da nessuna
+ * parte.
+ *
+ * È lo stesso calendario e lo stesso mese: qui l'ancora cade sulla settimana
+ * dell'8, che è quella coi fermi sovrapposti.
+ */
+export const Settimana: Story = {
+  args: {
+    eventi: FERMI,
+    dataIniziale: g(8),
+    calendari: SQUADRA,
+    vistaIniziale: 'settimana',
+    fumetto: true,
+  },
+  render: (args) => (
+    <Guscio>
+      <Calendario {...args} />
+    </Guscio>
+  ),
 }
 
 /**

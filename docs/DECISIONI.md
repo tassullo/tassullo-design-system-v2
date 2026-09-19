@@ -2015,3 +2015,138 @@ perché c'è, lo trova scritto qui.
 Conto: **1352 → 1332 scansioni** (333 story), 0 violazioni — otto scene
 diventate quattro, per quattro passate, fanno sedici scansioni in meno più le
 quattro della scena che il riordino ha unito.
+
+
+### (h) L'agenda non mostrava lo stesso periodo del mese
+
+Rilievo di Francesco sulla scena unificata: «l'agenda non riflette gli
+appuntamenti visti nella vista mese, devono essere sincronizzati».
+
+**La causa sta nel motore, ed è una riga di `getViewDateRange`**: il mese
+ancora a `startOfMonth(date)` e prende il mese intero; l'agenda ancora a
+`startOfDay(date)` e prende `agendaDayCount` giorni. Con la data al 1° e
+sette giorni d'agenda si vedevano due periodi diversi — 1–30 contro 1–7 — e
+i fermi dopo il 7 sparivano commutando vista. Non è un difetto di ReUI: è il
+comportamento di un'agenda a finestra scorrevole. È però il comportamento
+sbagliato per **questo** blocco, dove mese e agenda sono due facce della
+stessa cosa e a cambiare deve essere la faccia, non il periodo.
+
+Chiuso in due pezzi, entrambi nel blocco:
+
+1. `giorniAgenda` passa da `number` a **`number | "mese"`**, e `"mese"` è il
+   nuovo default: la finestra vale `getDaysInMonth(ancora)`. Un numero resta
+   possibile per chi vuole davvero una finestra scorrevole.
+2. **L'ancora si porta all'inizio del mese** quando la vista è l'agenda,
+   perché con la finestra giusta ma l'ancora al 19 si vedrebbe comunque un
+   pezzo diverso. Il blocco segue `onDateChange` in uno stato proprio e
+   chiama `api.goTo(startOfMonth(...))` in un effetto che **converge in un
+   giro**.
+
+**La dipendenza di quell'effetto è il millisecondo, non l'oggetto `Date`.**
+Un `Date` è un riferimento nuovo a ogni render: l'effetto ripartirebbe, e la
+`§17` di questo file racconta come finisce — React non interrompe il ciclo e
+non stampa niente.
+
+**Misurato** in Chromium, prima e dopo aver premuto «Oggi»: mese «settembre
+2026» e agenda «1 – 30 settembre 2026», stessi eventi. L'agenda ne elenca
+dieci contro i sette del mese, ed è giusto: i tre in più sono quelli dietro
+il «+3 altri» del 15, che nella griglia non stanno nel DOM finché non si apre
+il popover.
+
+**E una nota tipografica dallo stesso giro**: il titolo diceva «1–7 settembre
+2026» e il trattino sembrava appiccicato all'1. Non era un'impressione —
+l'«1» di Inter ha la spalla destra stretta — e gli altri due rami di
+`formatTitle` gli spazi ce li avevano già. Ora sono tutti e tre ` – `.
+
+### (i) La vista settimana entra, e il gate aveva un falso positivo che nessuno vedeva
+
+Richiesta di Francesco: le tre opzioni di vista (weekend, numero di settimana,
+fumetto sull'evento) e **la settimana fra le viste**.
+
+**La settimana era uno dei quattro file che M4ter.1 aveva lasciato fuori.**
+Misurata la chiusura degli import prima di prenderla, come vuole §43:
+`event-calendar-time-grid.tsx` è **1372 righe / 45,9 KB** e importa **solo**
+`event-calendar`, `-dnd`, `-event`, `-lib`, `-types` — che abbiamo già — più
+`cn`, `date-fns`, Base UI e `scroll-area`. **Chiusura pulita, un file solo.**
+
+**Il prezzo di D22 va aggiornato dove è scritto:**
+
+| | file | KB | righe |
+|---|---:|---:|---:|
+| M4ter.1, mese + agenda | 10 | 234 | 7 012 |
+| **con la settimana** | **11** | **280** | **8 384** |
+| restano fuori (`resource-view`, `nav`, `content`) | 3 | 49 | 1 548 |
+
+Nello stesso file arrivano gratis `EventCalendarDayView` e
+`EventCalendarDaysView`: il blocco spedisce nel commutatore la sola
+settimana, ma chi compone da sé le ha in casa.
+
+Procedura identica a M4ter.1: artefatto da `keenthemes/reui`, import
+normalizzati, avviso MIT in testa, riga in `provenienze.json`, snapshot in
+`.upstream/`. E **la trappola prevista si è presentata**: il file importa
+`EventCalendarSlotDraft` e non lo usa, quindi sotto `noUnusedLocals` non
+compila — terza riga di `MORTE_A_MONTE`.
+
+#### Il falso positivo: la normalizzazione degli import non ha mai morso
+
+Portando dentro `time-grid`, il gate lo ha dichiarato **«6 stringhe di classi
+ri-stilate»** su un file identico all'originale a meno dei suoi **6 import**.
+Cercando il perché è saltata fuori una cosa più grossa: la
+`IMPORT_INTERNO_RE` scritta in M4ter.1 — quella che doveva ridurre un percorso
+al suo ultimo segmento, proprio per non contare gli import — **è ancorata a
+`^@\/`**, mentre `scansiona` restituisce le stringhe **comprese le
+virgolette**. Non ha mai trovato niente.
+
+La prova che lo inchioda: `event-calendar-i18n.tsx` ha **un** import interno e
+dichiarava **una** stringa ri-stilata; `time-grid` ne ha sei e ne dichiarava
+sei. Corretta l'ancora, i sei file ReUI che nessuno ha toccato passano da
+«ri-stilati» a **«forma identica all'originale, nessun ri-stile»**, e il conto
+totale scende da **25 a 19**.
+
+**Perché conta più di un numero**: i ri-stilati sono il *costo dichiarato* di
+ogni aggiornamento di shadcn e di ReUI — quante stringhe andranno riportate a
+mano. Gonfiarlo con percorsi che la CLI riscrive da sé rende quella cifra
+inutilizzabile, ed è il caso in cui `CLAUDE.md` dice «se il gate segnala un
+falso positivo, si corregge il gate».
+
+#### Le tre opzioni, e un date-picker che era già nel mandato
+
+`weekend`, `numeroSettimana` e `fumetto` sono `viewSettings.weekends`,
+`viewSettings.weekNumbers` e `eventTooltip`: configurazione del motore.
+Il contenuto del fumetto è però **nostro**, e serve a qualcosa di preciso —
+ci sta il **nome per esteso** del calendario, che nel cerchio dell'avatar non
+ci sta.
+
+**E il dialogo ha preso un campo «Data».** Rilievo di Francesco: dal «+» di
+una cella il giorno è deciso, ma dal bottone «Nuovo» no, e senza campo si
+sarebbe costretti a creare sempre «oggi» e poi trascinare. Il campo c'è
+**anche in modifica**, e lì chiude un cerchio: è letteralmente il pattern che
+il commento di testa del `Calendario.tsx` di Officina descrive — «la
+riprogrammazione è un **date-picker nel pannello**, non un drag&drop». Il
+trascinamento resta la scorciatoia senza conferma; il dialogo è la strada con.
+
+Composto con `popover` + `calendar`, cioè la stessa composizione della story
+`Primitive/Calendar → Date picker`: nessun componente nuovo.
+
+#### Due difetti visti a video, e la regola che ne esce
+
+**Il doppio bordo era in tre posti, non in due.** Dopo mese e agenda, la
+settimana. **Ogni vista del motore apre con un `border-t` proprio**, perché
+ReUI la disegna per stare sotto la sua `nav` senza un contenitore attorno.
+Sono spente tutte e tre (`monthView`, `agendaView`, `timeGrid`), e chi
+aggiunge una quarta vista deve aggiungere la sua riga.
+
+**Le iniziali uscivano ancora dal cerchio, e stavolta la misura lo dice.**
+`size-5` non bastava: due lettere a `text-xs` in un cerchio da 20px danno
+`FS` 14,3px, `DE` 15,3 e **`MR` 18,3** — cioè **0,9px di margine per lato**,
+che in un cerchio si legge come lettere fuori, perché il bordo curva proprio
+lì. Le due strade scartate: `text-[10px]` è un valore arbitrario e non
+scalerebbe con la densità; `size-6` porta il margine a 2,85 e riempie un chip
+alto 26. **Si è passati a una iniziale sola**: la lettera più larga (`M`)
+misura 10,8px, margine **4,6**. Il nome per esteso non si perde — sta nel
+fumetto, ed è la ragione per cui le due richieste si sono chiuse insieme.
+
+La regola generale, che vale oltre il caso: **quando un testo non sta in un
+contenitore, o si allarga il contenitore o si accorcia il testo — non si
+scende sotto `text-xs`**, perché sotto ci sono solo valori arbitrari e in
+densità touch resterebbero fermi mentre tutto il resto cresce.

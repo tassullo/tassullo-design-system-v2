@@ -1768,6 +1768,28 @@
       "docs": "La vista mese del calendario a eventi. Le barre pluri-giorno e il calcolo delle\ncorsie — quali barre si sovrappongono e su che riga metterle — sono la ragione per\ncui questa vista si adotta invece di scriverla.\n\nVuole @tassullo/calendario-motore, che la CLI installa da se.\n\nI default di casa (settimana da lunedi, niente creazione dal clic) stanno nel\nblocco @tassullo/calendario."
     },
     {
+      "name": "calendario-settimana",
+      "type": "registry:ui",
+      "title": "Calendario a eventi — vista settimana",
+      "description": "La griglia oraria: sette colonne, le ore in verticale, la fascia «tutto il giorno» in testa e l'indicatore dell'ora corrente. Porta con sé anche la vista giorno e quella a N giorni, che stanno nello stesso file. Adottata da ReUI (Keenthemes), MIT.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "date-fns"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/event-calendar-time-grid.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/calendario-motore",
+        "@tassullo/scroll-area"
+      ],
+      "docs": "La griglia oraria del calendario a eventi. Un file solo (1372 righe): importa\nsolo il motore, che la CLI installa da se.\n\nM4ter.1 l'aveva lasciata fuori — «restano fuori time-grid, resource-view, nav\ne content» — ed e entrata in M4ter.2 su richiesta di Francesco. Il prezzo va\naggiornato dove e scritto: la chiusura degli import passa da 10 file / 234 KB\n/ 7 012 righe a 11 / 280 / 8 384.\n\nNello stesso file ci sono anche EventCalendarDayView e EventCalendarDaysView:\nil blocco @tassullo/calendario spedisce nel commutatore la sola settimana,\nma chi compone da se le ha gia in casa.\n\nLICENZA. Viene da ReUI (Keenthemes) ed e distribuita sotto MIT. L'avviso di\ncopyright sta in testa al file e non si toglie; src/tassullo-reui-MIT.txt e\nil testo integrale."
+    },
+    {
       "name": "calendario-agenda",
       "type": "registry:ui",
       "title": "Calendario a eventi — vista agenda",
@@ -1809,10 +1831,13 @@
       ],
       "registryDependencies": [
         "@tassullo/calendario-mese",
+        "@tassullo/calendario-settimana",
         "@tassullo/calendario-agenda",
         "@tassullo/avatar",
         "@tassullo/button",
         "@tassullo/button-group",
+        "@tassullo/calendar",
+        "@tassullo/popover",
         "@tassullo/empty-state",
         "@tassullo/dialog",
         "@tassullo/field",

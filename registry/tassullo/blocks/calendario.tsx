@@ -66,16 +66,18 @@
  * viste scorrono al proprio interno.
  */
 import * as React from "react"
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react"
+import { CalendarIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react"
 import {
   addDays,
   addMinutes,
   differenceInMinutes,
   format,
+  getDaysInMonth,
   isSameMonth,
   isSameYear,
   setHours,
   startOfDay,
+  startOfMonth,
   subMilliseconds,
 } from "date-fns"
 import { it } from "date-fns/locale"
@@ -88,6 +90,7 @@ import {
 } from "@/registry/tassullo/ui/avatar"
 import { EmptyState } from "@/registry/tassullo/blocks/empty-state"
 import { Button } from "@/registry/tassullo/ui/button"
+import { Calendar } from "@/registry/tassullo/ui/calendar"
 import { ButtonGroup } from "@/registry/tassullo/ui/button-group"
 import {
   Dialog,
@@ -100,6 +103,11 @@ import {
 } from "@/registry/tassullo/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/registry/tassullo/ui/field"
 import { Input } from "@/registry/tassullo/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/registry/tassullo/ui/popover"
 import {
   Select,
   SelectContent,
@@ -122,6 +130,7 @@ import type {
 } from "@/registry/tassullo/ui/event-calendar"
 import { EventCalendarAgendaView } from "@/registry/tassullo/ui/event-calendar-agenda-view"
 import { EventCalendarMonthView } from "@/registry/tassullo/ui/event-calendar-month-view"
+import { EventCalendarWeekView } from "@/registry/tassullo/ui/event-calendar-time-grid"
 import type { EventCalendarI18nOverrides } from "@/registry/tassullo/ui/event-calendar-i18n"
 import type {
   CalendarEvent,
@@ -214,16 +223,27 @@ export interface EventoCalendario<TData = unknown>
   colore?: ColoreEvento
 }
 
-export type VistaCalendario = "mese" | "agenda"
+export type VistaCalendario = "mese" | "settimana" | "agenda"
 
+/**
+ * **Una lettera sola, e la ragione è misurata.** Due iniziali al gradino più
+ * piccolo che il tema tara (`text-xs`, 12px) in un cerchio da 20px fanno
+ * `FS` 14,3px, `DE` 15,3 e **`MR` 18,3** — cioè **0,9px di margine per
+ * lato**, che in un cerchio si legge come lettere che escono, perché il
+ * bordo curva proprio dove stanno. Con `MW` sarebbe peggio. In touch il
+ * cerchio è 30px e il problema non c'è, ma la misura da rispettare è quella
+ * stretta.
+ *
+ * Le due strade scartate: `text-[10px]` è un valore arbitrario (regola 3) e
+ * per giunta non scalerebbe con la densità; `size-6` porta il margine a 2,85
+ * e riempie il chip, che è alto 26. Chi vuole due lettere le passa in
+ * `iniziali` sapendo che le sta stringendo.
+ *
+ * Il nome per esteso non si perde: sta nel **tooltip** dell'evento.
+ */
 function iniziali(a: CalendarioSorgente): string {
   if (a.iniziali) return a.iniziali
-  return a.nome
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0] ?? "")
-    .join("")
-    .toUpperCase()
+  return (a.nome.trim()[0] ?? "").toUpperCase()
 }
 
 /* ─────────────────────────── Le etichette ─────────────────────────── */
@@ -232,6 +252,19 @@ function iniziali(a: CalendarioSorgente): string {
  * Le etichette del motore, in italiano. I nomi dei mesi e dei giorni li dà
  * il `locale` di date-fns; qui stanno solo le stringhe che ReUI scrive da sé.
  */
+/** L'orario di un evento, in italiano. Usato dal motore e dal fumetto. */
+function oraDi(inizio: Date, fine: Date, tuttoIlGiorno: boolean): string {
+  if (tuttoIlGiorno) return "Tutto il giorno"
+  const opts = { locale: it }
+  // `end` è esclusivo: l'ultimo istante reso è un millisecondo prima, o un
+  // evento che finisce a mezzanotte sembrerebbe durare un giorno in più.
+  const ultimo =
+    fine.getTime() - 1 >= inizio.getTime() ? subMilliseconds(fine, 1) : inizio
+  if (format(inizio, "yyyy-MM-dd") !== format(ultimo, "yyyy-MM-dd"))
+    return `${format(inizio, "d MMM HH:mm", opts)} – ${format(fine, "d MMM HH:mm", opts)}`
+  return `${format(inizio, "HH:mm", opts)}–${format(fine, "HH:mm", opts)}`
+}
+
 const ETICHETTE_IT: EventCalendarI18nOverrides = {
   labels: {
     today: "Oggi",
@@ -255,7 +288,7 @@ const ETICHETTE_IT: EventCalendarI18nOverrides = {
     moreCompact: (n) => `+${n}`,
     timeRange: (da, a) => `${da}–${a}`,
   },
-  viewNames: { month: "Mese", agenda: "Agenda" },
+  viewNames: { month: "Mese", week: "Settimana", agenda: "Agenda" },
   formats: {
     // 24 ore: in italiano "9:30 AM" non si scrive.
     eventTime: "HH:mm",
@@ -275,25 +308,20 @@ const ETICHETTE_IT: EventCalendarI18nOverrides = {
       if (vista === "day") return format(date, "EEEE d MMMM yyyy", opts)
       const ultimo = subMilliseconds(activeRange.end, 1)
       const primo = activeRange.start
+      // Spazi attorno al trattino anche qui, come negli altri due rami.
+      // Senza, «1–7 settembre» si legge sbilanciato: l'«1» di Inter ha la
+      // spalla destra stretta e il trattino gli si appiccica addosso,
+      // sembrando staccato dal numero dopo.
       if (isSameMonth(primo, ultimo))
-        return `${format(primo, "d", opts)}–${format(ultimo, "d MMMM yyyy", opts)}`
+        return `${format(primo, "d", opts)} – ${format(ultimo, "d MMMM yyyy", opts)}`
       if (isSameYear(primo, ultimo))
         return `${format(primo, "d MMM", opts)} – ${format(ultimo, "d MMM yyyy", opts)}`
       return `${format(primo, "d MMM yyyy", opts)} – ${format(ultimo, "d MMM yyyy", opts)}`
     },
     formatDayRange: (intervallo, opts) =>
       `${format(intervallo.start, "d MMM", opts)} – ${format(subMilliseconds(intervallo.end, 1), "d MMM", opts)}`,
-    formatEventTime: (inizio, fine, tuttoIlGiorno, opts) => {
-      if (tuttoIlGiorno) return "Tutto il giorno"
-      // `end` è esclusivo: l'ultimo istante reso è un millisecondo prima,
-      // o un evento che finisce a mezzanotte sembrerebbe durare un giorno
-      // in più.
-      const ultimo =
-        fine.getTime() - 1 >= inizio.getTime() ? subMilliseconds(fine, 1) : inizio
-      if (format(inizio, "yyyy-MM-dd") !== format(ultimo, "yyyy-MM-dd"))
-        return `${format(inizio, "d MMM HH:mm", opts)} – ${format(fine, "d MMM HH:mm", opts)}`
-      return `${format(inizio, "HH:mm", opts)}–${format(fine, "HH:mm", opts)}`
-    },
+    formatEventTime: (inizio, fine, tuttoIlGiorno) =>
+      oraDi(inizio, fine, tuttoIlGiorno),
   },
 }
 
@@ -420,6 +448,7 @@ function CalendarioTestata({
             aria-label="Vista del calendario"
           >
             <ToggleGroupItem value="mese">Mese</ToggleGroupItem>
+            <ToggleGroupItem value="settimana">Settimana</ToggleGroupItem>
             <ToggleGroupItem value="agenda">Agenda</ToggleGroupItem>
           </ToggleGroup>
         ) : null}
@@ -485,6 +514,7 @@ function CalendarioDialogoEvento({
   onElimina: () => void
 }) {
   const modifica = bozza?.id != null
+  const [dataAperta, setDataAperta] = React.useState(false)
   return (
     <Dialog open={aperto} onOpenChange={setAperto}>
       {bozza ? (
@@ -493,8 +523,10 @@ function CalendarioDialogoEvento({
             <DialogTitle>
               {modifica ? "Modifica evento" : "Nuovo evento"}
             </DialogTitle>
-            <DialogDescription className="first-letter:uppercase">
-              {format(bozza.giorno, "EEEE d MMMM yyyy", { locale: it })}
+            <DialogDescription>
+              {modifica
+                ? "Cambia quando succede, quanto dura e di chi è."
+                : "Scegli il giorno, la durata e il calendario a cui appartiene."}
             </DialogDescription>
           </DialogHeader>
 
@@ -508,6 +540,56 @@ function CalendarioDialogoEvento({
                 autoFocus
                 onChange={(e) => setBozza({ ...bozza, titolo: e.target.value })}
               />
+            </Field>
+
+            {/*
+              **La data è un campo, non una conseguenza del punto di
+              partenza.** Dal «+» di una cella il giorno è già deciso e il
+              campo arriva compilato; dal bottone «Nuovo» non c'è nessun
+              giorno da cui partire, e senza questo campo si sarebbe
+              costretti a creare sempre «oggi» e poi trascinare.
+
+              È anche il pattern che il commento di testa del `Calendario.tsx`
+              di Officina descrive: «la riprogrammazione è un **date-picker
+              nel pannello**, non un drag&drop». Quindi il campo c'è anche in
+              modifica, ed è la strada con la conferma — il trascinamento
+              resta la scorciatoia senza.
+            */}
+            <Field>
+              <FieldLabel htmlFor="cal-data">Data</FieldLabel>
+              <Popover open={dataAperta} onOpenChange={setDataAperta}>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      id="cal-data"
+                      className="justify-start font-normal"
+                    />
+                  }
+                >
+                  <CalendarIcon data-icon="inline-start" />
+                  <span className="first-letter:uppercase">
+                    {format(bozza.giorno, "EEEE d MMMM yyyy", { locale: it })}
+                  </span>
+                  <ChevronDownIcon data-icon="inline-end" className="ms-auto" />
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-0"
+                  align="start"
+                  aria-label="Scegli il giorno"
+                >
+                  <Calendar
+                    mode="single"
+                    locale={it}
+                    selected={bozza.giorno}
+                    defaultMonth={bozza.giorno}
+                    onSelect={(scelto) => {
+                      if (scelto) setBozza({ ...bozza, giorno: startOfDay(scelto) })
+                      setDataAperta(false)
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </Field>
 
             {/*
@@ -731,8 +813,13 @@ export interface CalendarioProps<TData = unknown> {
    * e senza `modifica`, una cella cliccata non fa niente — il default di casa.
    */
   onGiornoClick?: (slot: EventCalendarSlotInfo, e: React.MouseEvent) => void
-  /** Quanti giorni mostra l'agenda. @default 7 */
-  giorniAgenda?: number
+  /**
+   * Quanti giorni mostra l'agenda. **`"mese"` (il default) la tiene
+   * sincronizzata col mese**: commutando vista si vedono gli stessi eventi,
+   * perché cambia la faccia e non il periodo. Un numero fissa invece una
+   * finestra scorrevole di N giorni a partire dal giorno ancorato.
+   */
+  giorniAgenda?: number | "mese"
   /** Quante barre per cella prima del «+N altri». @default "auto" */
   maxEventiPerCella?: number | "auto"
   /** La testata con «‹ Oggi ›» e il commutatore. @default true */
@@ -754,12 +841,31 @@ export interface CalendarioProps<TData = unknown> {
    * una persona, e il colore dice a chi il fermo è affidato.
    */
   calendari?: CalendarioSorgente[]
+  /**
+   * Mostrare sabato e domenica. Spegnendolo la griglia passa a cinque
+   * colonne — utile su un calendario di reparto, dove il fine settimana è
+   * rumore. @default true
+   */
+  weekend?: boolean
+  /** Il numero della settimana in una colonna a sinistra. @default false */
+  numeroSettimana?: boolean
+  /**
+   * Il fumetto che compare passando sopra un evento, col titolo, l'orario e
+   * il calendario. È la strada per leggere il **nome per esteso** della
+   * persona, che nel cerchio dell'avatar ci sta con una lettera sola.
+   * @default false
+   */
+  fumetto?: boolean
   /** Il colore di un evento senza calendario e senza colore. @default "arancio" */
   coloreDefault?: ColoreEvento
   className?: string
 }
 
-const VISTA_MOTORE = { mese: "month", agenda: "agenda" } as const
+const VISTA_MOTORE = {
+  mese: "month",
+  settimana: "week",
+  agenda: "agenda",
+} as const
 
 /** Un array letterale come default sarebbe nuovo a ogni render. */
 const VUOTI: CalendarioSorgente[] = []
@@ -777,11 +883,14 @@ export function Calendario<TData = unknown>({
   onDataChange,
   onEventoClick,
   onGiornoClick,
-  giorniAgenda = 7,
+  giorniAgenda = "mese",
   maxEventiPerCella = "auto",
   testata = true,
   azioni,
   statoVuoto,
+  weekend = true,
+  numeroSettimana = false,
+  fumetto = false,
   fusoOrario,
   calendari = VUOTI,
   coloreDefault = "arancio",
@@ -790,10 +899,50 @@ export function Calendario<TData = unknown>({
   const [vistaInterna, setVistaInterna] =
     React.useState<VistaCalendario>(vistaIniziale)
   const vistaCorrente = vista ?? vistaInterna
+  /**
+   * L'ancora corrente, seguita anche quando la naviga il motore. Serve a
+   * tenere l'agenda **sincronizzata col mese**: il motore ancora il mese a
+   * `startOfMonth(date)` e l'agenda a `startOfDay(date)` per
+   * `agendaDayCount` giorni, quindi commutando vista si vedrebbero due
+   * periodi diversi — con `dataIniziale` al 1° e sette giorni d'agenda, i
+   * fermi dopo il 7 sparivano.
+   */
+  const [ancora, setAncora] = React.useState<Date>(
+    () => data ?? dataIniziale ?? new Date()
+  )
+  const ancoraCorrente = data ?? ancora
+  const seguiData = React.useCallback(
+    (d: Date) => {
+      setAncora(d)
+      onDataChange?.(d)
+    },
+    [onDataChange]
+  )
+  const giorniAgendaRisolti =
+    giorniAgenda === "mese" ? getDaysInMonth(ancoraCorrente) : giorniAgenda
   const apiRef = React.useRef<EventCalendarApi<TData> | null>(null)
   const progressivo = React.useRef(0)
   const [dialogoAperto, setDialogoAperto] = React.useState(false)
   const [bozza, setBozza] = React.useState<BozzaEvento | null>(null)
+
+  /**
+   * **In agenda l'ancora si porta all'inizio del mese**, quando la finestra
+   * è quella del mese. È il pezzo che chiude la sincronizzazione: senza,
+   * l'agenda partirebbe dal giorno ancorato — dal 19 se si è premuto «Oggi»
+   * — e mostrerebbe un pezzo diverso di calendario.
+   *
+   * Converge in un giro: `goTo` emette `onDateChange`, l'ancora diventa il
+   * primo del mese, e alla passata dopo la condizione è falsa. La dipendenza
+   * è il **millisecondo**, non l'oggetto `Date`: un `Date` è un riferimento
+   * nuovo a ogni render e l'effetto non si fermerebbe più (CLAUDE.md, §Le
+   * due trappole).
+   */
+  const msAncora = ancoraCorrente.getTime()
+  React.useEffect(() => {
+    if (vistaCorrente !== "agenda" || giorniAgenda !== "mese") return
+    const inizio = startOfMonth(new Date(msAncora))
+    if (inizio.getTime() !== msAncora) apiRef.current?.goTo(inizio)
+  }, [vistaCorrente, giorniAgenda, msAncora])
 
   const cambiaVista = React.useCallback(
     (scelta: VistaCalendario) => {
@@ -934,10 +1083,10 @@ export function Calendario<TData = unknown>({
             : undefined
         }
         view={VISTA_MOTORE[vistaCorrente]}
-        views={["month", "agenda"]}
+        views={["month", "week", "agenda"]}
         date={data}
         defaultDate={dataIniziale}
-        onDateChange={onDataChange}
+        onDateChange={seguiData}
         onEventClick={(occorrenza, e) => {
           onEventoClick?.(occorrenza, e)
           if (e.defaultPrevented || !modifica) return
@@ -962,7 +1111,7 @@ export function Calendario<TData = unknown>({
         weekStartsOn={1}
         locale={it}
         timeZone={fusoOrario}
-        agendaDayCount={giorniAgenda}
+        agendaDayCount={giorniAgendaRisolti}
         i18n={ETICHETTE_IT}
         // L'appiglio da tastiera per creare. La cella del mese è un `div` con
         // `role="gridcell"` e **non prende il fuoco** (misurato in Chromium
@@ -970,6 +1119,28 @@ export function Calendario<TData = unknown>({
         // l'azione sarebbe raggiungibile solo col mouse. Si accende insieme
         // all'azione, e con l'azione spenta resta spento.
         showDayAddButton={modifica || onGiornoClick !== undefined}
+        viewSettings={{ weekends: weekend, weekNumbers: numeroSettimana }}
+        eventTooltip={fumetto}
+        // Il contenuto del fumetto è nostro: quello di serie dice titolo e
+        // ora, e qui serve anche **di chi è** — è il posto in cui il nome
+        // per esteso torna leggibile, visto che nel cerchio dell'avatar ci
+        // sta una lettera sola.
+        renderEventTooltip={({ occurrence }) => {
+          const e = occurrence.event as unknown as CalendarEvent<TData>
+          const cal = e.resourceId ? perId.get(e.resourceId) : undefined
+          if (!cal) return undefined
+          // Non si usa `label`: è già «titolo, orario» tutto insieme, e
+          // messa sotto al titolo lo ripeteva due volte.
+          return (
+            <div className="flex flex-col gap-0.5">
+              <p className="font-medium">{e.title}</p>
+              <p className="opacity-80">
+                {oraDi(occurrence.start, occurrence.end, occurrence.allDay)}
+              </p>
+              <p className="opacity-80">{cal.nome}</p>
+            </div>
+          )
+        }}
         maxEventsPerCell={maxEventiPerCella}
         resources={calendari.map((c) => ({ id: c.id, title: c.nome }))}
         // **Il vuoto è il nostro, non quello di ReUI.** Il loro monta
@@ -1028,9 +1199,14 @@ export function Calendario<TData = unknown>({
           // scorrono sotto. `bg-card` perché una riga trasparente lascerebbe
           // vedere le celle passarci dietro.
           monthHeader: "bg-card sticky top-0 z-20",
-          // Stessa ragione del mese: anche l'agenda apre con un `border-t`
-          // suo, e sopra c'è già il bordo del contenitore.
+          // Stessa ragione del mese: **ogni vista del motore apre con un
+          // `border-t` proprio**, perché ReUI la disegna per stare sotto la
+          // sua `nav` senza un contenitore attorno. Chi la monta dentro un
+          // contenitore con bordo li somma, e si legge un bordo sdoppiato.
+          // Sono tre, e vanno spente tutte e tre: chi aggiunge una vista
+          // quarta si ricordi di questa riga.
           agendaView: "border-t-0",
+          timeGrid: "border-t-0",
         }}
       >
         {testata ? (
@@ -1067,6 +1243,8 @@ export function Calendario<TData = unknown>({
         >
           {vistaCorrente === "mese" ? (
             <EventCalendarMonthView />
+          ) : vistaCorrente === "settimana" ? (
+            <EventCalendarWeekView />
           ) : (
             <EventCalendarAgendaView />
           )}
