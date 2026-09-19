@@ -1622,3 +1622,84 @@ Verificato in Chromium reale (Playwright, non il pannello del browser di questa 
 1. `native-select` **non si installa**, e non va riproposta senza un fatto nuovo. Il fatto nuovo che la riaprirebbe è uno solo: una misura che mostri che il popup di Base UI non regge un caso reale (un `<select>` dentro una tabella con centinaia di righe, per dire), non il semplice «è più leggero».
 2. Gli **81 `<select>` scritti a mano non restano dove sono**: si sostituiscono con il `select` che il registry ha già. Non è materia di una primitiva nuova, è materia della **guida di migrazione (M5.5)**, ed è lì che va scritta — con il costo vero, che non è la sostituzione del tag ma il passaggio da `value`/`onChange` di un `<select>` alle props di Base UI.
 3. Resta valido il rovescio già a verbale: il popup costa **4 `aria-hidden-focus`** a popup aperto, che il gate spegne nella sola passata `aperto` perché è Base UI a rendere inerte lo sfondo. Il costo è noto, misurato, e accettato — questa decisione lo conferma invece di rimetterlo in discussione.
+
+## 43. Cosa si può prendere da `@reui`, e a quali condizioni (M4ter.1, 2026-09-19)
+
+**Il criterio che distingue libero e a pagamento non è il campo `type`.** Questo
+repo l'aveva scritto — «i `wizard-1…7` sono di tipo `registry:block`, cioè Pro
+Blocks» — e la conclusione era giusta per caso. **Anche tutti i `c-stepper-1…15`
+e i `c-event-calendar-1…5` sono `registry:block`**, e sono liberi.
+
+**Il test che regge, ed è verificabile in un comando:**
+
+> Il **sorgente** sta nel repo `keenthemes/reui`, che ha un `LICENSE.md` solo,
+> MIT, senza deroghe?
+
+```bash
+curl -s "https://api.github.com/repos/keenthemes/reui/git/trees/main?recursive=1" \
+  | python3 -c "import json,sys;print([x['path'] for x in json.load(sys.stdin)['tree'] if 'NOME' in x['path']])"
+```
+
+Misurato il 2026-09-19: dei `wizard-*` nel repo ci sono **soltanto gli
+screenshot** (`public/screenshots/blocks/application/`), il codice no — quindi
+sono davvero Pro, e la loro licenza (`reui.io/legal/license`, che si apre con
+«after purchase») vieta alla lettera la pubblicazione in un repo pubblico e il
+reimpacchettamento in un'altra component library. I `c-*.tsx` delle gallerie
+libere invece **ci sono**, sotto `registry-reui/bases/base/components/<nome>/`.
+
+**Le gallerie libere: dove sono e cosa contengono.** `reui.io/components/<nome>`
+elenca le demo di quel componente; i loro titoli veri stanno in
+`registry-reui/bases/base/components/<nome>/meta.json`. **Attenzione, i titoli
+dei docs sono sfasati rispetto a quelli della galleria**, ed è costato una
+ricerca a vuoto: nei docs `c-stepper-12` compare sotto «Vertical», in `meta.json`
+si chiama «Stepper with segmented progress bar». Valgono quelli di `meta.json`.
+
+**Ma «libero» non vuol dire «senza licenza», e qui la nota va letta con
+attenzione perché il rischio è di buona fede.** Quelle demo sono **MIT**, non
+prive di licenza, e la MIT pone una condizione sola: l'avviso di copyright va
+conservato «in all copies or **substantial portions**». La conseguenza dipende da
+cosa si fa, e sono due casi diversi:
+
+- **Si copia il file nel registry** (è il caso di `stepper.tsx`): noi lo
+  **ridistribuiamo** alle app, quindi l'avviso resta nel file e il testo
+  integrale viaggia con l'item. `check:registry` lo fa rispettare —
+  `avvisoDaConservare` in `REGISTRI_ORIGINE` — ed esce **1** se l'avviso sparisce.
+- **Si guarda la demo e si compone la nostra scena** (è il caso di
+  `c-stepper-3`, `9`, `12`): lì si prende una *geometria*, non un file, e non si
+  ridistribuisce niente di loro. Nessun avviso da portare. È anche l'unica strada
+  praticabile, perché le loro demo usano `StepperNav`, che da noi non passa il
+  gate di accessibilità.
+
+E **la tavolozza delle demo non si copia comunque**: `c-stepper-3` fa il passo
+fatto con `bg-green-500` e `text-white`, cioè colori grezzi di Tailwind che la
+**regola 3** del `CLAUDE.md` non ammette. Si prende il meccanismo, i colori
+restano quelli del tema.
+
+**Perché questo NON scioglie il nodo del calendario.** Le cinque demo di
+`reui.io/components/event-calendar` sono composizioni, non il motore:
+`c-event-calendar-1.tsx` è **812 righe** che importano
+`@/…/reui/event-calendar/event-calendar`, `-content`, `-i18n`, `-nav`, `-types`.
+Restano quindi tutti e due i fatti che hanno fermato M4ter.1, e vanno ricordati
+insieme a questa nota, o la si legge come una soluzione che non è:
+
+1. le due viste **non sono installabili separatamente da `add`** — dipendono
+   dall'ombrello `@reui/event-calendar`, che come *item* spedisce tutti e 13 i
+   file. **Ma la dipendenza del codice è più stretta**, e va misurata invece che
+   dedotta dall'item: chiudendo gli `import` a partire da vista mese e agenda si
+   arriva a **9 file** più `icon-stack`, cioè **10 — 234 KB, 7 012 righe**.
+   Restano fuori davvero `time-grid`, `resource-view`, `nav` e `content`, che
+   sono **95 KB**: il «93 KB su 326 lasciati fuori» di §6.11 era **giusto**, e
+   questo verbale l'aveva dichiarato falso confondendo ciò che `add` risolve con
+   ciò che il codice importa. `recurrence` invece serve, perché `lib` lo importa;
+2. `shadcn add` di una vista **sovrascrive cinque primitive nostre già
+   ri-stilate** (`button`, `dropdown-menu`, `tooltip`, `scroll-area`,
+   `calendar`), perché le risolve da `@shadcn`. I file vanno portati dentro con
+   `shadcn view`, come fa `--snapshot`, non con `add`.
+
+**Quello che le demo libere aggiungono davvero**, ed è utile a M4ter.2: sono
+**cinque composizioni di riferimento** — tutte le viste con impostazioni dal
+vivo, la vista risorse, il dialogo di creazione, i chip d'evento su misura, il
+trascinamento per prenotare — da cui leggere come si monta il motore senza
+scriverlo a tentativi. Sono materiale di lettura; il blocco `tassullo-calendario`
+resta nostro, coi default di casa (settimana da lunedì, niente creazione dal
+clic, trascinamento spento).

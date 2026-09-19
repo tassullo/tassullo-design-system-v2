@@ -5426,3 +5426,464 @@ servono inizio e fine: è un prerequisito del suo backend, non un dettaglio).
 **Non toccati**, come da indirizzo: il codice del registry, i repo delle app, e **M5.5** —
 la cui divisione (Anagrafe sola contro Anagrafe più Studio e Officina) resta aperta e si
 decide affrontando la FASE 5, col dato che Anagrafe è il **9%** del CSS delle tre app.
+
+### 2026-09-19 — M4ter.1: `@reui` entra col solo stepper, il gate impara la provenienza per file, e il calendario si ferma
+
+**Verdetto in una riga: due verifiche su tre reggono, la terza no — e la terza è
+quella da cui dipende il calendario.** Lo `stepper` è dentro, col suo originale, il
+suo avviso MIT e tre story; il gate sa che i registry di origine sono due e sa
+fallire se la mappa mente. Le due viste del calendario **non sono state
+installate**, e **D22 torna a Francesco** con i fatti qui sotto.
+
+#### (a) La provenienza regge, ma il criterio era scritto su un solo caso
+
+Rifatto il `diff` con i miei comandi, fra il file servito da
+`reui.io/r/styles/base-nova/<nome>.json` e il sorgente MIT di
+`keenthemes/reui` (ramo `main`, licenza dichiarata **MIT** dall'API, 3513 stelle),
+sotto `registry-reui/bases/base/reui/`.
+
+| file | righe servito / MIT | hunk | cosa sono |
+|---|---|---|---|
+| `stepper.tsx` | 473 / 474 | **2** | prefissi `style-*` risolti (1) + newline finale (1) |
+| `event-calendar-month-view.tsx` | 1299 / 1300 | **3** | **path d'import riscritti (2)** + newline finale (1) |
+| `event-calendar-agenda-view.tsx` | 247 / 248 | **2** | **path d'import riscritti (1)** + newline finale (1) |
+
+Lo stepper è esattamente come il 2026-09-19 lo aveva descritto: l'unico hunk di
+sostanza è `bg-muted style-vega:rounded-sm style-nova:rounded-sm
+style-maia:rounded-full …` → `bg-muted rounded-sm`.
+
+**Le due viste del calendario no, e il criterio non le prevedeva.** In quei due
+file di prefissi `style-*` non ce n'è **nessuno** — `grep -c 'style-nova:'` dà
+**0 sul servito e 0 sul MIT** — quindi la prima categoria ammessa non si applica
+per mancanza di oggetto. L'unica differenza è la riscrittura sistematica dei path:
+`@/registry-reui/bases/base/reui/event-calendar/…` → `@/components/reui/…` e
+`@/registry/bases/base/ui/popover` → `@/components/ui/popover`.
+
+**Giudizio: è una terza categoria ammessa, e la provenienza regge.** È un
+*percorso*, non una classe, ed è della stessa natura dell'alias che il gate già
+normalizza da M2.3 (`@/registry/base-nova/…` → `@/registry/tassullo/…`,
+`docs/DECISIONI.md` §23): dove stiano i file vicini è una cosa che si decide
+all'installazione, per costruzione, e non può coincidere fra un monorepo e
+un'app. Il codice è identico byte per byte. **Il criterio di M4ter.1 va letto
+corretto**: le differenze ammesse sono tre — prefissi di stile risolti, path
+d'import riscritti, newline finale.
+
+#### (b) `@reui/icon-stack` è solo il contenitore
+
+`type: registry:ui`, `dependencies: ["cn"]`, `registryDependencies: **[]**` —
+l'albero si chiude subito. Un solo file, `icon-stack.tsx`, che importa **solo**
+`cn`: nessun pacchetto d'icone, niente `@reui/icons`. Le due sagome SVG dentro
+`IconStackLayer` sono il piedistallo, non pittogrammi, e stanno nel file. L'icona
+vera la passa chi compone: nella vista agenda è un `IconPlaceholder` risolto su
+Lucide/Tabler/Hugeicons/Phosphor/RemixIcon — cioè il nostro `◌`. **Il piano
+Ultimate non c'entra: non si tira dentro niente.**
+
+#### (c) Non regge, e in un modo che il piano non aveva previsto
+
+La previsione da smentire era «col nostro alias i file atterrano in
+`registry/tassullo/reui/`, che il gate non guarda». **Smentita, ma non come
+pensavo**: il `target` è un percorso esplicito e la CLI lo rispetta alla lettera,
+senza passare dagli alias. `npx shadcn@latest add @reui/stepper --dry-run` scrive
+`src/components/reui/stepper.tsx` — cioè nel **workbench**, fuori dal registry.
+`-p registry/tassullo/ui` viene **ignorato** quando l'item dichiara un `target`
+(provato). Quindi la scelta «o il gate impara quella cartella, o i file si
+spostano» si risolve da sé: **i file si spostano**, e vanno in `ui/`, che è dove
+sta una primitiva e che il gate già guarda. Nessuna cartella nuova.
+
+**Ma sotto c'erano due fatti più grossi, e sono quelli che fermano il calendario.**
+
+1. **`add` di una vista sovrascrive cinque primitive che abbiamo ri-stilato.**
+   `npx shadcn@latest add @reui/event-calendar-month-view --dry-run` annuncia
+   **20 file, `~5 overwrite`**: `registry/tassullo/ui/button.tsx`,
+   `dropdown-menu.tsx`, `tooltip.tsx`, `scroll-area.tsx`, `calendar.tsx`. Lo dice
+   anche senza `--yes` e senza `--overwrite` (che è `default: false` e governa
+   solo la conferma). Il `=1 skip (identical)` su `popover.tsx` è la
+   controprova: l'unico dei sei che non abbiamo mai toccato. Su `button.tsx` ci
+   sono le due correzioni di contrasto di M2.1 (`destructive` 4.83:1, `link`
+   4.77:1): un `add` lanciato senza guardare le riporta indietro **in silenzio**,
+   e il gate a11y se ne accorgerebbe dopo.
+2. **Le due viste non sono installabili separatamente.** Entrambe dipendono da
+   `@reui/event-calendar`, che è l'**ombrello** e porta tutti e 13 i file
+   (`registryDependencies` letto per intero: elenca a sua volta
+   `agenda-view`, `month-view`, `time-grid`, `resource-view`, `recurrence`, `dnd`,
+   `nav`, `content`, `i18n`, `lib`, `event`, `types`, più `icon-stack`). Quindi
+   **`docs/ANALISI-COPERTURA-APP.md` §6.11 è sbagliato dove dice «si prende meno
+   dell'ombrello… 93 KB su 326 lasciati fuori»**: `time-grid`, `resource-view` e
+   `recurrence` entrano comunque. Il conto vero è **14 file**, non 2.
+
+**Perché non ho proseguito «intanto».** Il mandato dice che se una verifica non
+regge il task si ferma e D22 si riapre. Portare dentro 14 file di terzi — ognuno
+con avviso MIT, originale in `.upstream`, riga di provenienza, e tutti dentro
+`registry/` che `tsconfig.app.json` include, quindi tutti da far compilare sotto
+`noUnusedLocals` — non è un dettaglio di installazione: è una decisione di
+quanto reui adottare, e cambia la forma di M4ter.2. **Non l'ho presa io.**
+
+Quello che resta vero e non si riapre: la licenza regge (tutti e 14 i file
+esistono sotto il path MIT, verificato con l'API GitHub), il motore delle corsie
+resta la parte cara che scriveremmo male, e `icon-stack` è innocuo. Quello che
+cambia è il **prezzo**.
+
+#### Lo stepper, per intero
+
+`add`, poi il file spostato in `registry/tassullo/ui/stepper.tsx` e la cartella
+`src/components/` cancellata. **Snapshot prima di toccare un carattere**
+(regola 4ter), con la mappa delle provenienze già in piedi, o `--snapshot`
+l'avrebbe scaricato da `@shadcn`.
+
+**Non c'era niente da ri-stilare, ed è verificato e non riportato**: 0
+esadecimali, 0 valori arbitrari che il gate consideri tali, corpi `text-xs` e
+`text-sm` (tarati), colori `primary`/`accent`/`muted`/`*-foreground`, tutti token
+standard. Perciò il gate lo stampa `○ forma identica all'originale, nessun
+ri-stile [@reui/stepper]` e **i ri-stilati restano 18**. Il «18 → 21» del piano
+non poteva tornare: il piano stesso, due righe più sotto, dichiarava che sullo
+stepper non c'era nulla da ri-stilare.
+
+**L'avviso MIT.** In testa a `stepper.tsx` c'è il copyright più l'intera
+permission notice e il disclaimer; l'item installa accanto
+`src/tassullo-reui-MIT.txt` col testo integrale della licenza, con lo stesso
+trattamento dell'OFL di Inter in `tema-font`. Il commento non entra nel confronto
+di forma (i commenti si tolgono) e non entra fra le stringhe di classi.
+
+#### Il gate: provenienza per file, e tre autotest
+
+`REGISTRI_ORIGINE` in `scripts/check-registry.ts` è la tabella dei registry
+d'origine — **`@shadcn` e `@reui`, una riga ciascuno** — con etichetta, licenza e
+`avvisoDaConservare`. Da quella riga discendono tutte e tre le cose che servono:
+da dove `--snapshot` scarica, cosa `PROVENIENZA.md` dichiara, e se la licenza
+chiede di conservare un avviso. La mappa **file → item** è dati, in
+`registry/.upstream/provenienze.json`, 51 righe.
+
+`snapshot()` non scrive più `@shadcn/${nome}`: legge la mappa.
+`PROVENIENZA.md` è rigenerato con la tabella dei registry e il conto dei file per
+ciascuno. `git diff registry/.upstream/` dopo
+`npm run check:registry -- --snapshot stepper` esce **vuoto**.
+
+**Tre autotest, tutti con `exit=1`** — perché un gate che non sa fallire non è un
+gate:
+
+| falsificazione | esito |
+|---|---|
+| `"stepper.tsx": "@keenthemes/stepper"` (registry ignoto) | **1** — «non è fra i registry di origine» |
+| avviso MIT tolto dal file | **1** — «lo ridistribuiamo, senza l'avviso non è coperta» |
+| riga `stepper.tsx` cancellata dalla mappa | **1** — «`--snapshot` lo prenderebbe da @shadcn per inerzia» |
+
+**E un difetto vero del gate, trovato dallo stepper.** `USE_CLIENT_RE` era
+ancorata a `^\s*`, cioè al **primo carattere del file**. Il file di reui apre con
+un commento `eslint-disable` e mette `"use client"` **dopo**: la direttiva non
+veniva tolta, e il gate dichiarava `stepper.tsx` «diverge fuori dalle stringhe di
+classi» su un file mai toccato. Peggio del falso positivo è il secondo effetto,
+muto: in `estraiStringhe` la direttiva sopravvissuta è una stringa in più nella
+lista dell'originale, le due liste non si allineano e **il conto del ri-stile
+scende a zero in silenzio** — lo stesso guasto che M4.7 aveva pagato con gli
+apostrofi nei commenti, per un'altra strada. L'ancora ora è la prima riga **di
+codice**: consuma i commenti che precedono la direttiva.
+
+#### La story, e un difetto ARIA del componente adottato
+
+`Primitive/Stepper`, tre scene — orizzontale, verticale, barra a segmenti — e
+**la barra a segmenti non è una variante**: è lo stesso componente con
+l'indicatore tolto e il solo separatore a vista. Era la conferma che serviva a
+M4ter.5.
+
+**Ma la composizione documentata da reui non passa il gate, e non è colpa nostra.**
+Alla prima misura: **3 story, 3 regole** — `aria-required-children` sulla radice,
+`aria-required-parent` su **ogni** scheda, `aria-valid-attr-value` su
+`aria-controls`. La causa: la radice `Stepper` porta `role="tablist"` e i
+`role="tab"` stanno dentro lo `<nav>` di `StepperNav`, che è un punto di
+riferimento e spezza la catena fra la lista e le sue schede. `StepperNav` non
+accetta props, quindi il suo ruolo **non si cambia da fuori**; e non si cambia
+nemmeno dentro, perché un ruolo non è una stringa di classi (regola 4bis).
+
+Chiuso **componendo diversamente**, e le tre cose che sono servite sono scritte
+nella story perché vanno rifatte a ogni uso:
+
+1. niente `StepperNav`: il gruppo lo fa un `<div role="tablist">` nostro, con le
+   classi che `StepperNav` metterebbe da sé (`group/stepper-nav` e
+   `data-orientation` servono, perché `StepperItem` e `StepperSeparator` ci
+   leggono dentro);
+2. la radice passa a `role="group"` **e** ad `aria-orientation={undefined}`, che
+   su `group` non è ammessa (`aria-allowed-attr`) e che il componente scrive
+   prima dello spread;
+3. i pannelli devono esserci **tutti**, col loro `id="stepper-panel-N"`, che né
+   `StepperPanel` né `StepperContent` scrivono: `aria-controls` altrimenti punta
+   al nulla. Conseguenza dicibile: **una barra dei passi senza pannelli non si
+   può fare** — una scheda che non comanda niente non è una scheda.
+
+**In carico a Francesco**, perché è un'eccezione a 4bis e le eccezioni non le
+decido io: o la composizione resta questa e si ripete (M4ter.5 ne ha due usi), o
+si autorizza lo spostamento di `role="tablist"` dalla radice a `StepperNav` — una
+riga, che chiude i punti 1 e 2.
+
+**Altre due misure prese sullo schermo, non dedotte.** Il canvas `centered`
+globale rendeva i trattini **larghi zero**: `body` è un flex, `#storybook-root` si
+stringe sul contenuto, il `w-full` della radice valeva 254px invece di 576, e i
+separatori, che sono `flex-1`, si prendevano quel che restava. Corretto con
+`layout: 'padded'` nel meta. E il verticale di reui incolonna male da sé —
+`StepperItem` è `justify-center`, quindi ogni indicatore si centra sulla larghezza
+del **proprio** testo e la colonna esce a zigzag (indicatori a x=45, 21, 50);
+sistemato dal punto di chiamata con `w-full items-start`.
+
+#### Numeri
+
+`npm run check` **verde sui cinque**. `check:registry` **0 errori / 53 avvisi / 0
+componenti nostri / 18 ri-stilati** (avvisi invariati, sotto il ≤56 previsto).
+`check:contrast` 48/48. `test:a11y` **1296 → 1308 scansioni, 0 violazioni** — le
+3 scene nuove × 4 passate, esattamente la previsione. `registry.json` **83 → 84
+item** (non 86: gli altri due sono le viste del calendario, non installate),
+`registry validate` verde. `npm run build` e `npm run lint` verdi — lo stepper
+porta 7 warning oxlint ereditati da reui (`react(refs)`, `exhaustive-deps`), che
+è il motivo del loro `eslint-disable` di testa: sono loro, non nostri, e oxlint
+non fallisce.
+
+#### Verifiche di Francesco, preparate e non spuntate
+
+- **L'avviso MIT come finisce nel file installato**: `public/r/stepper.json`
+  porta i due file, e il `.tsx` contiene il copyright (verificato leggendo il
+  JSON compilato, non il sorgente). È quello il testo che le app si portano
+  dietro?
+- **Un terzo registry si aggiunge con una riga**: `git diff
+  scripts/check-registry.ts`, costante `REGISTRI_ORIGINE`.
+- **Le tre scene**: `Primitive/Stepper` in Storybook. Da guardare con un occhio
+  al fatto che **fatto e corrente sono lo stesso arancio** (`data-[state=completed]`
+  e `data-[state=active]` sono entrambi `bg-primary` nel sorgente reui): si
+  distinguono per la spunta contro il numero, e basta. Se non basta, il rimedio è
+  un **ri-stile** — gradino 2, permesso — ma è una scelta di sistema e la lascio
+  a te.
+- **Frecce, `Home`/`End`**: il codice c'è (`focusNext`/`focusPrev`/`focusFirst`/
+  `focusLast`, `role="tab"` con `tabindex` a rotazione). **Non provate**: in
+  questo ambiente i tasti arrivano con `event.key` vuoto. Lo dichiaro non
+  verificato.
+
+#### La domanda aperta
+
+**D22 si riapre sul solo calendario**, con il prezzo vero sul tavolo: 14 file di
+terzi dentro `registry/`, `add` inutilizzabile perché distruttivo (si installerebbe
+via `shadcn view`, come fa già `--snapshot`, scrivendo i file a mano), e i tre
+moduli che §6.11 dava fuori che invece entrano. Le strade sono tre e sono di
+Francesco: prendere tutto il motore, prendere il calendario da un'altra parte,
+oppure scriverne uno nostro più piccolo sapendo che le corsie pluri-giorno sono la
+parte cara. **M4ter.2 non parte prima di quella risposta.**
+
+#### Coda: le demo di reui, e la licenza va riletta
+
+**Il discrimine fra libero e a pagamento non è `type: registry:block`.** Questo
+verbale, il 2026-09-19, aveva scritto che i `wizard-1…7` sono Pro Blocks
+«perché di tipo `registry:block`». La conclusione era giusta, il criterio no:
+**anche tutti i `c-stepper-1…15` sono `registry:block`**, e sono liberi. Il test
+che regge è un altro, ed è verificabile: **il sorgente sta nel repo MIT
+`keenthemes/reui`, sì o no?** I `c-stepper-*.tsx` ci sono, sotto
+`registry-reui/bases/base/components/stepper/`; dei `wizard-*` nel repo ci sono
+**soltanto gli screenshot** (`public/screenshots/blocks/application/`), il codice
+no. E il repo ha un `LICENSE.md` solo, MIT, senza deroghe. Chi domani vorrà
+adottare un altro pezzo di reui usi questo test, non il campo `type`.
+
+**Una trappola di lettura, pagata due volte in una sessione**: i titoli dei
+docs e quelli della galleria sono **sfasati**. Nei docs `c-stepper-12` compare
+sotto «Vertical», in `meta.json` — che è quel che la galleria mostra — si chiama
+«Stepper with segmented progress bar». Cercando la barra a segmenti coi titoli
+dei docs si conclude che non esista. Valgono i titoli di `meta.json`.
+
+**Tre demo adottate**, su scelta di Francesco (3, 9, 12), e in tutti e tre i casi
+si prende la **geometria**, non la composizione: le loro demo usano `StepperNav`,
+che qui non si può usare.
+
+- **`c-stepper-12`, la barra a segmenti**, al posto della nostra. La loro non usa
+  il separatore: usa l'**indicatore** reso `h-2 w-full rounded-none!` col numero
+  in `sr-only`. Due vantaggi misurabili: il colore dello stato arriva dal
+  componente senza classi nostre, e il nome della scheda non ha più bisogno di
+  `aria-label`. Il raggio sta agli estremi della **barra**
+  (`first:rounded-s-full last:rounded-e-full` + `overflow-hidden`), non di ogni
+  segmento, così i giunti interni restano vivi.
+- **`c-stepper-11`, la barra con titoli**, che è l'alternativa preferita alla
+  barra nuda quando i passi hanno un nome: tratti staccati, uno per passo, col
+  titolo sotto che sbiadisce sui passi da fare. Anche qui il titolo sta dentro
+  il grilletto, perché il tratto è largo quanto la colonna e il bersaglio è già
+  tutta la colonna.
+- **`c-stepper-3`, il passo in attesa**, provata e poi **tolta su indicazione di
+  Francesco**. Resta a verbale quello che si è imparato: `loading` sul singolo
+  `StepperItem` più `indicators.loading` è l'unico stato che non si deriva dal
+  passo corrente. E **la loro tavolozza non si prende comunque**: fanno il passo
+  fatto con `bg-green-500` e `text-white`, colori grezzi che la regola 3 non
+  ammette. Con la scena è sparito anche `indicators.loading`, perché una
+  configurazione che nessuna story esercita è una configurazione che nessuno ha
+  guardato.
+- **`c-stepper-9`, il titolo in linea**. Qui il titolo torna **dentro** il
+  grilletto, al contrario della scena orizzontale: in linea il pallino e la sua
+  parola sono un bersaglio solo, e l'anello di fuoco che li abbraccia dice il
+  vero.
+
+**E l'impaginazione orizzontale è stata rifatta due volte**, su rilievo di
+Francesco: pallino **centrato** nella colonna e titolo centrato sotto. Il pezzo
+che lo rende possibile è la geometria del tratto, presa dal loro verticale e
+portata in orizzontale: `absolute left-1/2 -right-1/2` dentro una riga larga
+quanto la colonna, così il tratto va dal centro di un pallino al centro del
+successivo invece di riempire lo spazio fra due blocchi. E `top-1/2
+-translate-y-1/2` invece di un `top-*` fisso, perché quel numero andrebbe
+rifatto a ogni cambio di `--spacing`. Della loro versione **non** si prende
+`h-[calc(100%-2rem)]`, che è un valore arbitrario: `top-7 bottom-1` fa lo stesso.
+
+**E un ultimo rilievo sullo schermo**: nel loro esempio il tratto **non arriva
+al pallino**, si ferma poco prima, come nel verticale. Risolto con `mx-4` sul
+tratto assoluto — e il numero non è scelto a occhio: il raggio del pallino
+(`size-6`) vale **3 unità di spaziatura in entrambe le densità**, quindi `4` è
+raggio più un'unità di stacco, e resta giusto anche in touch.
+
+**Cinque scene**: Orizzontale, Titolo in linea, Verticale, Barra a segmenti,
+Barra con titoli. `test:a11y` **1308 → 1316**, 0 violazioni; `check` verde sui
+cinque.
+
+#### Prossimi passi
+
+1. La risposta su D22 e sull'eccezione 4bis per il `role="tablist"`.
+2. `docs/ANALISI-COPERTURA-APP.md` §6.11 va rettificato sul «93 KB su 326
+   lasciati fuori» e sulle due verifiche «ancora da fare», che ora sono fatte.
+3. `PIANO.md` M4ter.1: il criterio del `diff` va corretto a **tre** categorie
+   ammesse, e il «18 → 21 ri-stilati» a «18, e va bene così».
+
+#### Coda: la tastiera dello stepper, provata da Francesco (2026-09-19)
+
+**Frecce, `Home` e `End` funzionano** — verificato a mano da Francesco, che è
+l'unico modo: in automazione i tasti arrivano con `event.key` vuoto. Il task
+l'aveva dichiarata *non provata*, e ora non lo è più.
+
+**Il rilievo che ne è nato — «funzionano, ma solo dopo aver premuto `Tab`» — non
+è un difetto**, ed è il comportamento previsto: la barra è **un solo fermo di
+tabulazione**, perché `tabIndex` vale `0` sul passo selezionato e `-1` sugli
+altri (`stepper.tsx:326`). `Tab` entra e si posa sul passo corrente, il `Tab`
+dopo esce. Prima di aver dato il fuoco a un pallino, `Home` non ha nulla su cui
+agire. È la stessa scelta del `toggle-group` e per la stessa ragione: altrimenti
+una barra da cinque passi sarebbero cinque fermi a ogni giro di tastiera.
+
+**E l'attivazione è manuale, confermata all'uso**:
+`focusNext`/`focusPrev`/`focusFirst`/`focusLast` chiamano `.focus()` e **non**
+`setActiveStep`, quindi frecce e `Home`/`End` spostano il **fuoco** lasciando
+fermo il passo corrente, e si seleziona con `Invio` (provato da Francesco). È il
+pattern giusto quando il pannello costa — e qui costa, perché il passo di un
+modulo può avere dentro un form intero. Codice e comportamento coincidono:
+niente da riaprire.
+
+**L'avviso MIT è stato portato alla forma più corta**, su richiesta di
+Francesco: riga SPDX più copyright in testa al file, e il testo integrale nel
+solo `reui-MIT.txt` che l'item installa accanto. La MIT chiede che l'avviso stia
+«in all copies or substantial portions», e la copia che spediamo sono i **due
+file insieme** — quindi la condizione è soddisfatta dalla distribuzione, non
+dalla ripetizione del testo in ogni sorgente. Il gate continua a cercare la
+stringa `Copyright (c) 2025 Keenthemes Inc`, che è ciò che non deve sparire.
+
+#### Le due decisioni, chiuse con Francesco (2026-09-19)
+
+**1. Lo stepper resta com'è: nessuna eccezione alla regola 4bis.** La
+composizione di reui non passa il gate (il `<nav>` di `StepperNav` spezza la
+catena `tablist`→`tab`), e la si aggira dal punto di chiamata: `role="group"` e
+`aria-orientation={undefined}` sulla radice, un `<div role="tablist">` nostro al
+posto del loro `StepperNav`, e l'`id` dei pannelli scritto da chi compone.
+Spostare `role="tablist"` dentro `stepper.tsx` sarebbe **una riga**, ma non è una
+stringa di classi: `check:registry` fallirebbe, e per farlo passare servirebbe
+insegnare al gate un meccanismo di «divergenza dichiarata» che oggi non esiste,
+più la correzione da riapplicare a ogni aggiornamento di reui. **Gli usi previsti
+sono tre** (questa story più le due scene di M4ter.5): non vale la macchina. Le
+tre cose da rifare sono scritte in cima a `stepper.stories.tsx`, che è dove le
+cercherà chi compone la prossima.
+
+**2. D22 riconfermata: il calendario si adotta** — e stavolta col prezzo vero,
+perché **il numero che avevo dato era sbagliato**. Avevo scritto «14 file, e
+`time-grid`/`resource-view` entrano comunque»: quello è ciò che `shadcn add`
+risolve, perché tira l'**item** ombrello `@reui/event-calendar` che ne spedisce
+13. La dipendenza del **codice** è più stretta, e si misura chiudendo gli
+`import`:
+
+| | file | KB | righe |
+|---|---:|---:|---:|
+| chiusura da `month-view` + `agenda-view` | **10** | **234** | **7 012** |
+| restano fuori (`time-grid`, `resource-view`, `nav`, `content`) | 4 | 95 | 2 920 |
+
+Quindi il «93 KB su 326 lasciati fuori» di `ANALISI-COPERTURA-APP.md` §6.11 era
+**giusto**, e sono io ad averlo dichiarato falso. La lezione, che vale oltre il
+caso: **l'elenco dei file di un item non è l'elenco delle dipendenze del codice**,
+e confondere i due porta a sovrastimare di quattro file e 95 KB. `recurrence`
+invece serve davvero, perché `lib` lo importa — e quella è una dipendenza vera
+che a occhio non si sarebbe vista.
+
+Il metro con cui Francesco ha deciso: 7 012 righe di terzi contro le **18 736**
+del registry di oggi, e contro le **3 817** di `data-table`, che è il nostro
+pezzo più grosso. Il motore del calendario è quasi il doppio del nostro blocco
+maggiore. In cambio: barre pluri-giorno e **calcolo delle corsie** già fatti, che
+è la ragione per cui D22 esisteva e che non è cambiata.
+
+**Conseguenza operativa**: `shadcn add` resta inutilizzabile (sovrascriverebbe
+cinque primitive ri-stilate), e i file si portano dentro con `shadcn view` — lo
+stesso comando che usa già `check:registry -- --snapshot`, quindi nessuna
+macchina nuova.
+
+#### I dieci file del calendario, dentro (2026-09-19)
+
+Chiusa D22, l'obiettivo di M4ter.1 si completa: le due viste sono nel registry,
+col loro motore. **87 item**, `check` verde sui cinque, `registry validate`
+verde, `lint` verde.
+
+**Da dove sono presi, e perché non da reui.io.** A metà lavoro reui ha
+cominciato a rispondere **`Forbidden`**: troppe richieste. Verificato che
+`keenthemes/reui` pubblica in `public/r/styles/base-nova/*.json` **gli stessi
+artefatti** che il sito serve — confronto su tre item, **byte per byte
+identici** — e presi da lì. Non è un ripiego di comodo: è la stessa risorsa, e
+per giunta quella sotto licenza MIT.
+
+**Tutti e dieci stanno piatti in `ui/`**, non in una sottocartella: `fileUi()`
+non è ricorsiva e `.upstream/` è piatto per basename, quindi una
+`ui/event-calendar/` sarebbe stata invisibile al gate. I nomi non collidono, e
+la scelta costa zero macchina.
+
+**Quattro cose che il gate ha dovuto imparare**, tutte trovate sbattendoci
+contro e tutte con la loro ragione scritta nel sorgente:
+
+1. **Gli import non si normalizzano più per prefisso, ma per modulo.** Loro
+   spediscono `@/components/reui/event-calendar/event-calendar-lib`, da noi quel
+   file è piatto e diventa `@/registry/tassullo/ui/event-calendar-lib`: prefisso
+   diverso **e un segmento in meno**, che `ALIAS_REGISTRY_RE` non vedeva. Senza
+   la correzione, dieci file che si importano a vicenda risultavano «ri-stilati»
+   di una dozzina di stringhe ciascuno senza che nessuno avesse toccato una
+   classe. Ora un percorso interno si riduce al suo **ultimo segmento**: di un
+   import conta *quale modulo*, non in che cartella l'installazione l'ha messo.
+2. **Due dichiarazioni morte a monte**, tolte perché sotto `noUnusedLocals` il
+   file **non compila**: un'`interface PackedPosition` mai usata e una `const
+   instance` mai letta. Stesso caso dell'`import * as React` di M2.4, stesso
+   trattamento — una tabella `MORTE_A_MONTE` che le toglie da **entrambi** i
+   lati. **E una trappola pagata**: le `const instance = useEventCalendar()` in
+   `month-view` sono **due**, e una è usata; togliendo la prima che capita la
+   compilazione si rompe 500 righe più in là.
+3. **Un falso positivo del gate**: `border-b-primary` è «bordo inferiore
+   primary», e la regex leggeva `b-primary` come nome di token, segnalando un
+   refuso che non c'era. Aggiunta `LATO_RE`, che salta il lato fra prefisso e
+   token.
+4. **`shadcn view` tronca l'output a 64 KiB esatti, in silenzio.**
+   `@reui/event-calendar` è l'item *ombrello* e ne spedisce 13 di file: il suo
+   JSON esce tagliato a **65536** byte, in mezzo a una stringa, e `JSON.parse`
+   muore con un messaggio di sintassi che non fa sospettare un buffer.
+   `maxBuffer` non c'entra, il tetto è dentro la CLI. `--snapshot` ora
+   **controlla anche la lunghezza esatta** — non solo che il parse riesca,
+   perché un item poco sopra il limite potrebbe spezzarsi in un punto che parsa
+   lo stesso e scrivere originali monchi senza dire niente — e ripiega sull'URL
+   che `components.json` dichiara per quel registry. Provato: `--snapshot
+   event-calendar` riscarica e `git diff registry/.upstream/` esce **vuoto** a
+   meno del conteggio in `PROVENIENZA.md`.
+
+**Il ri-stile, e i tre valori arbitrari del piano.** `text-[0.6875rem]` → **`text-xs`**:
+era il difetto muto di §30, un corpo fuori scala che non segue la densità (11px →
+12px). `@max-[36rem]` → **`@max-xl`**, che è lo stesso valore con un nome, perché
+`--container-xl` di Tailwind vale esattamente 36rem. **`@max-[10rem]` resta**, e
+la ragione è che un nome non ce l'ha: la misura di contenitore più piccola che
+Tailwind nomina è `@3xs`, 16rem. È una soglia di layout, non un token, e il gate
+infatti non la segnala.
+
+**Tre item, non due**, perché il motore è condiviso: `calendario-motore` (gli 8
+file di sostanza più la licenza), `calendario-mese` e `calendario-agenda`, che
+lo dichiarano fra le proprie `registryDependencies`. I default di casa non stanno
+qui: stanno nel blocco `tassullo-calendario` di M4ter.2, che è il pezzo nostro.
+
+**Una dipendenza npm nuova**: `@date-fns/tz`, che il motore importa e che il repo
+non aveva.
+
+**Conto finale di M4ter.1**: 83 → **87 item**; ri-stilati 18 → **24**; componenti
+nostri **0**, come previsto; avvisi 53 → **61**, sopra il «≤56» del piano, e sono
+tutti dei dieci file nuovi — sei segnaposto d'icona e i valori arbitrari
+ereditati che §6.11 aveva già contato come legittimi. `test:a11y` **1316**/0.
