@@ -5739,3 +5739,24 @@ cinque.
    lasciati fuori» e sulle due verifiche «ancora da fare», che ora sono fatte.
 3. `PIANO.md` M4ter.1: il criterio del `diff` va corretto a **tre** categorie
    ammesse, e il «18 → 21 ri-stilati» a «18, e va bene così».
+
+#### Coda: la tastiera dello stepper, provata da Francesco (2026-09-19)
+
+**Frecce, `Home` e `End` funzionano** — verificato a mano da Francesco, che è
+l'unico modo: in automazione i tasti arrivano con `event.key` vuoto. Il task
+l'aveva dichiarata *non provata*, e ora non lo è più.
+
+**Il rilievo che ne è nato — «funzionano, ma solo dopo aver premuto `Tab`» — non
+è un difetto**, ed è il comportamento previsto: la barra è **un solo fermo di
+tabulazione**, perché `tabIndex` vale `0` sul passo selezionato e `-1` sugli
+altri (`stepper.tsx:326`). `Tab` entra e si posa sul passo corrente, il `Tab`
+dopo esce. Prima di aver dato il fuoco a un pallino, `Home` non ha nulla su cui
+agire. È la stessa scelta del `toggle-group` e per la stessa ragione: altrimenti
+una barra da cinque passi sarebbero cinque fermi a ogni giro di tastiera.
+
+**Resta da guardare una cosa**, perché il codice e l'osservazione potrebbero non
+coincidere: `focusNext`/`focusPrev`/`focusFirst`/`focusLast` chiamano `.focus()`
+e **non** `setActiveStep`, quindi frecce e `Home`/`End` dovrebbero spostare il
+**fuoco** lasciando fermo il passo corrente — attivazione *manuale*, che è quella
+giusta quando il pannello costa. Se nell'uso il passo cambiasse davvero, il
+comportamento non sarebbe quello che il codice dichiara e andrebbe riaperto.

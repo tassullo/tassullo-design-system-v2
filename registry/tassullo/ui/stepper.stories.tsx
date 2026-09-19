@@ -134,13 +134,29 @@ import {
  * varianti ed export restano di reui, e `check:registry` lo conta fra i
  * ri-stilati sopra una forma intatta.
  *
- * ## Da tastiera
+ * ## Da tastiera — provato a mano da Francesco il 2026-09-19
  *
- * Il componente implementa frecce, `Home` e `End` sul `tablist`
- * (`focusNext`/`focusPrev`/`focusFirst`/`focusLast`). **Non è stato provato in
- * questa sessione**: in automazione i tasti arrivano con `event.key` vuoto e
- * i bottoni non si attivano, quindi qui si può solo dire che il codice c'è —
- * non che funziona. Va provato a mano.
+ * Frecce, `Home` e `End` funzionano. In automazione non si possono provare (i
+ * tasti arrivano con `event.key` vuoto e i bottoni non si attivano), quindi
+ * quella misura è sempre stata e resta **a mano**.
+ *
+ * **La barra è un solo fermo di tabulazione, non uno per pallino.** Il
+ * `tabIndex` vale `0` sul passo selezionato e `-1` su tutti gli altri
+ * (`stepper.tsx`), quindi `Tab` entra nella barra e si posa sul passo corrente,
+ * e il `Tab` dopo **esce** invece di passare al pallino successivo. Da lì dentro
+ * si naviga con le frecce. È la stessa scelta del `toggle-group`, e la ragione è
+ * la stessa: altrimenti una barra da cinque passi sarebbero cinque fermi da
+ * attraversare a ogni giro. Da cui una conseguenza che sembra un difetto e non
+ * lo è: **prima di aver dato il fuoco a un pallino, `Home` non fa nulla** — non
+ * c'è nessun elemento su cui agire.
+ *
+ * **E le frecce spostano il fuoco senza cambiare il passo.**
+ * `focusNext`/`focusPrev`/`focusFirst`/`focusLast` chiamano `.focus()` e basta:
+ * il passo corrente cambia solo con `Invio`, `Spazio` o un clic. È
+ * l'*attivazione manuale*, quella raccomandata quando il pannello costa — e qui
+ * costa, perché il passo di un modulo può avere dentro un form intero. Chi si
+ * aspetta che la freccia cambi anche il contenuto sta pensando all'attivazione
+ * automatica, che è un pattern diverso e non è questo.
  */
 const meta = {
   title: 'Primitive/Stepper',
