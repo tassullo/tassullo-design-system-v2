@@ -126,7 +126,7 @@ function EventCalendarAgendaView({
             const items = [...(bucket?.allDay ?? []), ...(bucket?.timed ?? [])]
             const zoned = toZoned(day, settings.timeZone)
             const weekday = format(zoned, "EEEE", { locale: settings.locale })
-            const dayDate = format(zoned, "MMMM d, yyyy", {
+            const dayDate = format(zoned, "d MMMM yyyy", {
               locale: settings.locale,
             })
             return (

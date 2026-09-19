@@ -1703,3 +1703,103 @@ trascinamento per prenotare — da cui leggere come si monta il motore senza
 scriverlo a tentativi. Sono materiale di lettura; il blocco `tassullo-calendario`
 resta nostro, coi default di casa (settimana da lunedì, niente creazione dal
 clic, trascinamento spento).
+
+---
+
+## 44. Il calendario montato: la testata è nostra, la griglia non si naviga con le frecce (M4ter.2, 2026-09-19)
+
+**Prima cosa da sapere, perché cambia come si legge tutto il resto: i dieci file
+del motore, che M4ter.1 ha portato dentro senza mai renderizzarli, *rendono*.**
+Un mese con le barre pluri-giorno e il calcolo delle corsie, un'agenda,
+il «+N altri» col suo popover, la densità touch. Nessuna sorpresa strutturale.
+Quello che è emerso montandolo sono quattro fatti, e tre sono scomodi.
+
+### (a) La testata: la nostra, non `event-calendar-nav`
+
+Guardata rendere prima di decidere, com'era prescritto: si è installata la loro
+in via temporanea e la si è montata sopra il mese. **Rende**, ed è fatta bene.
+Ma il conto è questo:
+
+| | la loro (`event-calendar-nav`) | la nostra (in `calendario.tsx`) |
+|---|---:|---:|
+| righe | **648** | ~50 |
+| peso | **19,6 KB** di codice di terzi | nessun file in più |
+| viste offerte dal commutatore | **sei** (mese, settimana, giorno, N giorni, agenda, risorse) | le **due** che spediamo |
+| composizione | `dropdown-menu` + `calendar` + `popover` + `tooltip` + scorciatoie da tastiera | `button-group` + `toggle-group` |
+| lingua | inglese, da tradurre con `i18n` | italiana, scritta |
+
+Le ragioni per scartarla, in ordine di peso. **Il loro commutatore offre le sei
+viste del motore e noi ne spediamo due**: `time-grid` e `resource-view` non sono
+nel registry, quindi metà di quel menù aprirebbe viste che non esistono — si
+restringe con `views`, ma è codice che resta e che nessuno esercita. **La
+testata di Officina è già composta così**: `docs/ANALISI-COPERTURA-APP.md` §6.8
+la elenca pezzo per pezzo, `button-group` per «‹ Oggi ›» e `toggle-group` per le
+viste, cioè esattamente ciò che si è scritto. E **una testata nostra la
+governiamo**: la loro sarebbero 19,6 KB in più da rileggere a ogni aggiornamento
+di ReUI, per una barra che è tre bottoni e un interruttore.
+
+Restano fuori, come previsto, anche `time-grid`, `resource-view` e `content` —
+e `content` merita una riga: è solo un commutatore di viste (`month` →
+`EventCalendarMonthView`, `agenda` → `EventCalendarAgendaView`, …). Con due
+viste, il commutatore è un ternario nel blocco.
+
+### (b) La griglia del mese **non si naviga con le frecce**, ed è D15 di nuovo
+
+Misurato in **Chromium vero**, headless, dalla cartella temporanea, con il
+controllo dello strumento fatto prima della misura — i tasti arrivano con
+`event.key` pieno (`ArrowRight`, `ArrowDown`, `Home`, `End`, tutti
+`defaultPrevented: false`) e `document.visibilityState` è `visible`, quindi
+«non è successo niente» vuol dire davvero *niente*, non «il tasto non è
+arrivato».
+
+| | misura |
+|---|---|
+| struttura ARIA | `role="grid"` × 1 → `role="row"` × 7 → `role="gridcell"` × **42** — corretta |
+| celle con `tabindex` | **0** su 42 |
+| frecce / `Home` / `End` sul chip a fuoco | **nessun movimento**, né del fuoco né della selezione |
+| `Tab` | cammina i chip uno a uno, in ordine di documento |
+| `Invio` su un chip | **seleziona** (`aria-pressed="true"`) |
+| «+N altri» | a fuoco con `Tab`, apre con `Invio`, il fuoco entra nel pannello, `Esc` chiude e **il fuoco torna al grilletto** |
+
+**E axe dà zero violazioni su tutto questo.** È esattamente la lezione di D15:
+una griglia con la struttura ARIA giusta e nessuna navigazione da tastiera
+passa ogni regola automatica.
+
+**Perché non è (oggi) un difetto bloccante, e a quale condizione lo diventa.**
+Col default di casa una cella **non ha azioni**: il clic sulla griglia non crea
+niente. Un elemento senza azioni non deve prendere il fuoco, quindi la griglia
+non navigabile è *coerente* con la scelta di prodotto, non in contraddizione con
+essa. Diventa un difetto nel momento in cui un'app passa `onGiornoClick`, perché
+allora la cella ha un'azione raggiungibile solo col mouse. Per questo il blocco
+accende `showDayAddButton` **insieme** a `onGiornoClick` e non prima: quel
+bottone è un `<button>` vero, invisibile finché non lo si sfiora o non lo si
+mette a fuoco, ed è l'unico appiglio da tastiera che il motore offre per creare.
+
+### (c) Una stringa ri-stilata dentro `event-calendar-agenda-view.tsx`, e il gate **non la vede**
+
+L'intestazione di giorno dell'agenda formattava la data con `"MMMM d, yyyy"`,
+**scritto a mano nel file**, non preso da `i18n.formats`: col `locale` italiano
+usciva «settembre 7, 2026». Non si chiude dal blocco — il `locale` traduce le
+parole, non ne cambia l'ordine — e la stessa variabile alimenta anche
+l'`aria-label` del gruppo, quindi il difetto era doppio. Cambiata in
+**`"d MMMM yyyy"`**: una stringa, gradino 2, e le altre tre intestazioni
+(titolo del periodo, intervallo d'agenda, popover del «+N altri») si sono
+invece chiuse **dal blocco**, riscrivendo `i18n.functions` e
+`formats.moreDayHeader`, che è configurazione e non un ri-stile.
+
+**Il fatto da conoscere è però un altro, e riguarda il gate.**
+`event-calendar-agenda-view.tsx` cade nella categoria `◌` di `check:registry`
+(«originale a segnaposto d'icona: la forma non è confrontabile»), e in quella
+categoria il gate **non conta le stringhe ri-stilate**. Quindi questa
+divergenza è **muta**: `check:registry` esce verde e non la nomina. È scritta
+qui perché è qui che la cercherà chi, alla prossima versione di ReUI, dovrà
+rileggere a mano i file `◌` — che è l'avviso che il gate stampa già oggi su
+sette file. Non si è allargata la macchina del gate per un caso solo; se i casi
+diventano due, si allarga.
+
+### (d) `renderAgendaDayHeader` e `renderAgendaDaySummary` sono configurazione morta
+
+`EventCalendarViewConfig` le dichiara, ma `event-calendar-agenda-view.tsx` non
+le chiama mai (verificato a grep su tutti e dieci i file): descrivono un'agenda
+ripiegabile che nella versione adottata non c'è. Non è un difetto nostro ed è
+innocuo — ma chi provasse a passarle per aggirare (c) perderebbe un pomeriggio.
