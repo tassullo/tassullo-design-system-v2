@@ -9,10 +9,10 @@
   ],
   "registryDependencies": [
     "@tassullo/card",
-    "@tassullo/error-state",
-    "@tassullo/page-header",
-    "@tassullo/page-skeleton",
-    "@tassullo/version-timeline",
+    "@tassullo/tassullo-error-state",
+    "@tassullo/tassullo-page-header",
+    "@tassullo/tassullo-page-skeleton",
+    "@tassullo/tassullo-version-timeline",
     "@tassullo/button",
     "@tassullo/tabs",
     "@tassullo/tema"

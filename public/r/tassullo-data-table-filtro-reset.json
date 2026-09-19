@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tassullo-data-table-filtro-reset",
+  "title": "Reset di tutti i filtri",
+  "description": "Bottone che cancella insieme tutti i filtri per colonna di tassullo-data-table e sparisce da se quando non ce niente da cancellare. Porting di data-table-clear-filter (niko-table); non tocca ricerca globale ne ordinamento, a differenza dell'originale.",
+  "dependencies": [
+    "@tanstack/react-table",
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "@tassullo/button",
+    "@tassullo/tassullo-data-table",
+    "@tassullo/tema"
+  ],
+  "files": [
+    {
+      "path": "registry/tassullo/blocks/data-table-filtro-reset.tsx",
+      "content": "/**\n * `data-table-filtro-reset` — un bottone «Reset» che cancella insieme tutti\n * i filtri per colonna di `tassullo-data-table` (le faccette, gli\n * intervalli, le date), e sparisce da sé quando non c'è niente da\n * cancellare. Porting di `data-table-clear-filter` (niko-table), M3bis.6.\n *\n * **Non tocca la ricerca globale né l'ordinamento**, a differenza di\n * `TableClearFilter` di niko-table (che li azzera entrambi di default,\n * `enableResetGlobalFilter`/`enableResetSorting` a `true`): nella pagina di\n * riferimento di Francesco (\"Faceted Filter Table\") il campo di ricerca\n * resta un controllo a parte, e mischiarlo in un solo bottone «Reset»\n * cancellerebbe un testo che l'utente ha appena scritto senza che il\n * bottone lo dica. Chi vuole quel comportamento lo scrive esplicitamente —\n * `tabella.setGlobalFilter(\"\")`/`tabella.resetSorting()` accanto a\n * `<FiltroResetTutti>` — non è il default silenzioso.\n */\nimport type { RowData } from \"@tanstack/react-table\"\nimport { XIcon } from \"lucide-react\"\n\nimport { Button } from \"@/registry/tassullo/ui/button\"\n\nimport type { IstanzaTabella } from \"./data-table\"\n\nexport type FiltroResetTuttiProps<TDato extends RowData> = {\n  /**\n   * L'istanza viva della tabella — dal **secondo argomento** della forma a\n   * funzione di `barra`, non da `tabellaRef`/`onTabellaPronta` (v. il\n   * commento in `data-table-filtro-sfaccettato.tsx`: quella coppia consegna\n   * l'istanza un render indietro, e qui si vedrebbe subito — il bottone\n   * resterebbe visibile un render oltre quando i filtri tornano a zero, o\n   * invisibile un render oltre quando il primo filtro viene impostato).\n   */\n  tabella: IstanzaTabella<TDato>\n}\n\n/**\n * Nella riga `barra` di `<DataTable>`, nella forma a funzione — stesso\n * motivo delle altre `Filtro*` di questo file (v. il commento in\n * `data-table-filtro-sfaccettato.tsx`): deve rileggere lo stato dei filtri\n * a ogni render per sapere se ha ancora qualcosa da cancellare.\n */\nexport function FiltroResetTutti<TDato extends RowData>({ tabella }: FiltroResetTuttiProps<TDato>) {\n  const haFiltriAttivi = tabella.state.columnFilters.length > 0\n\n  if (!haFiltriAttivi) return null\n\n  return (\n    <Button\n      type=\"button\"\n      variant=\"outline\"\n      size=\"sm\"\n      onClick={() => tabella.resetColumnFilters()}\n    >\n      <XIcon aria-hidden />\n      Reset\n    </Button>\n  )\n}\n",
+      "type": "registry:component",
+      "target": "components/blocks/data-table-filtro-reset.tsx"
+    }
+  ],
+  "docs": "  <FiltroResetTutti tabella={tabella} />\n\nCompare solo quando tabella.state.columnFilters non e vuoto. Cancella\ncon tabella.resetColumnFilters() - non la ricerca globale, non\nl'ordinamento: chi li vuole azzerati insieme li scrive accanto,\nesplicitamente. `tabella` va letta dal secondo argomento della forma a\nfunzione di `barra`: da tabellaRef/onTabellaPronta il bottone\napparirebbe/sparirebbe un render oltre il dovuto.",
+  "type": "registry:block"
+}

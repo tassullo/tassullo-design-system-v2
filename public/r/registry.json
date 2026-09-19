@@ -193,6 +193,26 @@
       ]
     },
     {
+      "name": "item",
+      "type": "registry:ui",
+      "title": "Item",
+      "description": "La riga di un elenco non tabellare: media, titolo, descrizione, azioni. Il mattone che sta fra data-table (la lista che si cerca e si ordina) e card (un contenitore, non una riga).",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/item.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/separator"
+      ]
+    },
+    {
       "name": "kbd",
       "type": "registry:ui",
       "title": "Kbd",
@@ -1012,9 +1032,14 @@
       "name": "tassullo-data-table",
       "type": "registry:block",
       "title": "Tabella di dati",
-      "description": "La tabella di dati delle app Tassullo: ricerca su tutta la tabella, ordinamento con un clic, paginazione, selezione, colonne nascondibili e due stati vuoti distinti. Le colonne restano di TanStack Table v9, il contorno lo tiene il blocco.",
+      "description": "La tabella di dati delle app Tassullo: ricerca su tutta la tabella, ordinamento con un clic, paginazione (a pagine, infinita o virtualizzata su 10.000+ righe), selezione, colonne nascondibili, riordino manuale di righe e colonne via trascinamento (mouse e tastiera) e due stati vuoti distinti. Le colonne restano di TanStack Table v9, il contorno lo tiene il blocco.",
       "dependencies": [
+        "@dnd-kit/core",
+        "@dnd-kit/modifiers",
+        "@dnd-kit/sortable",
+        "@dnd-kit/utilities",
         "@tanstack/react-table",
+        "@tanstack/react-virtual",
         "cn",
         "lucide-react"
       ],
@@ -1028,6 +1053,7 @@
       "registryDependencies": [
         "@tassullo/button",
         "@tassullo/checkbox",
+        "@tassullo/context-menu",
         "@tassullo/dropdown-menu",
         "@tassullo/empty",
         "@tassullo/input-group",
@@ -1035,7 +1061,142 @@
         "@tassullo/table",
         "@tassullo/tema"
       ],
-      "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8.\n\n`altezza=\"ferma\"` (default `\"naturale\"`) apre il riquadro ad altezza\ncalcolata con scorrimento interno e piede sempre visibile - indipendente\nda `perPagina`, che sceglie solo come si caricano le righe. `piePagina={false}`\ntoglie del tutto conteggio e paginazione, per le tabelle imbarcate dentro\nun'altra pagina."
+      "docs": "shadcn un `data-table` non ce l'ha, ed e una scelta sua: la sua pagina e\nuna guida, e lascia intero a chi la segue tutto il contorno. Qui la riga\npassa cosi: le colonne restano di TanStack, il contorno e del blocco.\n\n  const col = creaColonne<Prodotto>()\n  const COLONNE = col.columns([\n    col.accessor('codice', {\n      header: ({ column }) => <IntestazioneColonna colonna={column} titolo=\"Codice\" />,\n      meta: { titolo: 'Codice' },\n      sortFn: 'alphanumeric',\n    }),\n  ])\n\n  <DataTable colonne={COLONNE} dati={prodotti} cerca=\"Cerca un prodotto...\" selezione />\n\n`creaColonne()` e `createColumnHelper` di TanStack con la sola generica delle\ncaratteristiche gia messa: chi scrive una colonna scrive TanStack vero, e la\ndocumentazione che gli serve e la loro.\n\nTre scostamenti dalla guida di shadcn, tutti voluti:\n- si cerca in tutta la tabella e non in una colonna scelta a mano; le colonne\n  che non devono entrarci dicono `enableGlobalFilter: false`;\n- l'intestazione ordina con un clic e cicla crescente/decrescente/nessun\n  ordine, invece di aprire un menu: da tastiera sono un Tab e un Invio invece\n  di quattro gesti. Nascondere una colonna resta possibile dal menu Colonne;\n- il `<th>` dichiara `aria-sort`.\n\nGli stati vuoti sono due e non uno: \"nessun risultato\" dopo una ricerca ha un\nrimedio - e il blocco offre il bottone che lo fa - mentre \"non c'e ancora\nniente\" no.\n\nLa selezione esce dalla tabella attraverso `barra` nella forma a funzione, che\nriceve le righe scelte. Non c'e una `onSelezione`: si notificherebbe da un\n`useEffect` le cui dipendenze oneste sono un array nuovo a ogni render.\n\nVuole `@tanstack/react-table` v9 (>= 9.2.0): l'API e `useTable` e\n`<table.FlexRender />`, non piu `useReactTable` e `flexRender` della v8.\n\n`altezza=\"ferma\"` (default `\"naturale\"`) apre il riquadro ad altezza\ncalcolata con scorrimento interno e piede sempre visibile - indipendente\nda `perPagina`, che sceglie solo come si caricano le righe. `piePagina={false}`\ntoglie del tutto conteggio e paginazione, per le tabelle imbarcate dentro\nun'altra pagina.\n\n`onTabellaPronta` consegna l'istanza TanStack a ogni render - una via\nd'uscita per comandarla da fuori (`table.toggleAllRowsExpanded()`, per\ndire, come nella story `Albero`) senza sollevare quello stato a un prop\ncontrollato: resta interno al blocco.\n\n`riordinabile={{ onRiordina: setDati }}` (M3bis.7) aggiunge una maniglia\ntrascinabile da mouse e tastiera (Spazio afferra, frecce spostano, Spazio\nrilascia, Escape annulla) e consegna il `dati` intero nel nuovo ordine -\nlo stesso principio di `barra`/`onTabellaPronta`, lo stato resta della\npagina. Spegne esplicitamente ricerca, ordinamento e paginazione mentre e\nattivo: il trascinamento calcola l'indice dall'ordine visibile delle\nrighe, e un ordinamento o una pagina attivi lo farebbero divergere\ndall'array grezzo.\n\n`idRiga={(riga) => riga.id}` (passato a TanStack come `getRowId`) e\n**richiesto** insieme a `riordinabile`: senza, l'id di una riga e il suo\nindice nell'array - dnd-kit vede quindi la riga rilasciata come 'sempre\nun'altra entita' e le applica un'animazione di assestamento spuria\n(scivolamento di ~150ms, assente nel riferimento niko-table, che infatti\npassa getRowId nel proprio esempio). Con un id vero la riga resta la\nstessa entita quando cambia posizione, e non c'e niente da animare.\n\n`colonneRiordinabili` (M3bis.8) aggiunge una maniglia trascinabile a ogni\nintestazione delle colonne dichiarate dalla pagina - non alle tre che il\nblocco aggiunge da se (selezione, espansione, maniglia di riordino riga),\nche restano sempre per prime. A differenza di `riordinabile`, non spegne\nniente: ordinamento, ricerca/filtri, paginazione e virtualizzazione restano\ntutti attivi, perche l'indice del trascinamento viene dall'ordine delle\nintestazioni e non da quello delle righe. Lo stato (`columnOrder`) resta\ninterno al blocco, come le larghezze acquisite di `ridimensionabile`.\n\n`menuRiga={{ menu, enabledFor }}` (M3bis.9) aggiunge una tendina \"...\" in\ncoda alle colonne e monta lo stesso `menu` anche nel tasto destro sull'intera\nriga - un solo elenco di voci, scritto con `RowMenuItem`/`RowMenuSeparator`/\n`RowMenuSub` (che leggono la riga da `useDataTableRow<TDato>()`, non da un\nprop), mai due. `enabledFor` esclude una riga da entrambe le vie insieme.\nIl tasto destro resta una scorciatoia, mai l'unica via: da tastiera si\nraggiunge solo la tendina, e non compone con `perPagina=\"virtuale\"`.\n"
+    },
+    {
+      "name": "tassullo-data-table-filtro-sfaccettato",
+      "type": "registry:block",
+      "title": "Filtro sfaccettato",
+      "description": "Filtro a scelta multipla per una colonna di tassullo-data-table, con conteggio per opzione ricalcolato sulle righe filtrate dalle altre colonne. Porting di data-table-faceted-filter/useGeneratedOptions (niko-table) sopra columnFilteringFeature, gia registrata sul blocco.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-sfaccettato.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-sfaccettato.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/badge",
+        "@tassullo/button",
+        "@tassullo/command",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/popover",
+        "@tassullo/separator",
+        "@tassullo/tema"
+      ],
+      "docs": "  <DataTable\n    colonne={COLONNE}\n    dati={prodotti}\n    barra={(scelti, tabella) => (\n      <FiltroSfaccettato tabella={tabella} accessore=\"stato\" titolo=\"Stato\" />\n    )}\n  />\n\nLa colonna filtrata dichiara `filterFn: \"arrHas\"` (registrato su\n`caratteristiche` in data-table.tsx): tiene la riga se il suo valore e\nuno dei valori scelti - la forma giusta per un valore scalare per riga\n(stato, famiglia), non un elenco.\n\n`barra` va nella forma a funzione, e `tabella` si legge dal suo\n**secondo argomento** - non da tabellaRef/onTabellaPronta, che\nconsegna l'istanza un render indietro (misurato: un FiltroResetTutti\ncomposto cosi restava invisibile un render oltre il dovuto).\n\nSenza opzioni statiche, le opzioni sono i valori distinti che la colonna\nporta nelle righe che passano ogni altro filtro (non il proprio): il\nconteggio si ricalcola a ogni cambiamento, e un valore gia scelto resta\nin elenco anche a conteggio zero, o non si potrebbe piu deselezionare.\n\nIl grilletto mostra i valori scelti come pillole (fino a due, poi \"N\nselezionati\") - non un numero, che non direbbe cosa e filtrato senza\naprire la tendina. La spunta a sinistra di ogni opzione non e la\nprimitiva Checkbox (un bottone reale, nested-interactive dentro un\nrole=option) ma uno span decorativo con le sue stesse classi di stato;\nquella incorporata in CommandItem (a destra, come SelectItem) si spegne\ncon una classe per lasciare il conteggio flush a destra."
+    },
+    {
+      "name": "tassullo-data-table-filtro-intervallo",
+      "type": "registry:block",
+      "title": "Filtro a intervallo numerico",
+      "description": "Filtro a scorrimento su un intervallo numerico per una colonna di tassullo-data-table, con conteggio ricalcolato sulle righe filtrate dalle altre colonne. Porting di data-table-slider-filter (niko-table) sopra filterFn inNumberRange, gia pronto in TanStack.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-intervallo.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-intervallo.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-data-table-filtro-sfaccettato",
+        "@tassullo/input",
+        "@tassullo/label",
+        "@tassullo/popover",
+        "@tassullo/separator",
+        "@tassullo/slider",
+        "@tassullo/tema"
+      ],
+      "docs": "  <FiltroIntervallo tabella={tabella} accessore=\"prezzo\" titolo=\"Prezzo\" unita=\"€\" />\n\nLa colonna dichiara `filterFn: \"inNumberRange\"`. Min/max, se non passati,\nsi calcolano scandendo le righe correnti - non si registra\ncolumnFacetingFeature (getFacetedMinMaxValues di niko-table) per un solo\ndato. Riusa righeSenzaFiltroColonna di data-table-filtro-sfaccettato per\nil conteggio nel riquadro. `tabella` si legge dal secondo argomento\ndella forma a funzione di `barra`, non da tabellaRef/onTabellaPronta."
+    },
+    {
+      "name": "tassullo-data-table-filtro-data",
+      "type": "registry:block",
+      "title": "Filtro a intervallo di date",
+      "description": "Filtro a intervallo di date per una colonna di tassullo-data-table, con calendario in italiano. Porting di data-table-date-filter (niko-table, solo la variante a intervallo) sopra filterFn inDateRange, gia pronto in TanStack.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "date-fns",
+        "lucide-react",
+        "react-day-picker"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-data.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-data.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/calendar",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/popover",
+        "@tassullo/separator",
+        "@tassullo/tema"
+      ],
+      "docs": "  <FiltroData tabella={tabella} accessore=\"aggiornato\" titolo=\"Aggiornato\" />\n\nLa colonna dichiara `filterFn: \"inDateRange\"`: un capo assente conta come\naperto, quindi un intervallo con un solo estremo scelto filtra comunque.\nD15 resta - la tastiera non naviga la griglia dei giorni, limite gia\naccertato della primitiva Calendar, non di questo filtro. `tabella` si\nlegge dal secondo argomento della forma a funzione di `barra`, non da\ntabellaRef/onTabellaPronta."
+    },
+    {
+      "name": "tassullo-data-table-filtro-reset",
+      "type": "registry:block",
+      "title": "Reset di tutti i filtri",
+      "description": "Bottone che cancella insieme tutti i filtri per colonna di tassullo-data-table e sparisce da se quando non ce niente da cancellare. Porting di data-table-clear-filter (niko-table); non tocca ricerca globale ne ordinamento, a differenza dell'originale.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-table-filtro-reset.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-table-filtro-reset.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tema"
+      ],
+      "docs": "  <FiltroResetTutti tabella={tabella} />\n\nCompare solo quando tabella.state.columnFilters non e vuoto. Cancella\ncon tabella.resetColumnFilters() - non la ricerca globale, non\nl'ordinamento: chi li vuole azzerati insieme li scrive accanto,\nesplicitamente. `tabella` va letta dal secondo argomento della forma a\nfunzione di `barra`: da tabellaRef/onTabellaPronta il bottone\napparirebbe/sparirebbe un render oltre il dovuto."
+    },
+    {
+      "name": "tassullo-data-grid",
+      "type": "registry:block",
+      "title": "Data Grid editabile",
+      "description": "Il motore di editing su tassullo-data-table: navigazione da tastiera cella per cella, copia/incolla da foglio di calcolo, riempimento, annulla/ripeti. Celle tipizzate (testo/numero/valuta it-IT/checkbox/data/select) e validazione per cella con Zod. Persistenza con useGridChanges (creazione/aggiornamento/cancellazione come change-set). Nasce virtualizzata.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "@tanstack/react-virtual",
+        "cn",
+        "lucide-react",
+        "zod"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/data-grid.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/data-grid.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/checkbox",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/select",
+        "@tassullo/tema"
+      ],
+      "docs": "`useDataGrid` tiene le righe in uno stato suo, seminato una volta sola da\n`righeIniziali` e mai piu risincronizzato - non controllato, come\n`defaultValue`: uno stato controllato ricalcolerebbe il modello a ogni\ntasto e romperebbe l'annulla/ripeti. Si osserva `onModifica`, non si\nimpone `dati`.\n\n  const motore = useDataGrid({\n    righeIniziali: voci,\n    colonneId: ['descrizione', 'quantita', 'unita'],\n    idRiga: (v) => v.id,\n    leggiCella: (v, c) => String(v[c] ?? ''),\n    scriviCella: (v, c, valore) => ({ ...v, [c]: valore }),\n  })\n  const col = creaColonne<Voce>()\n  <div className=\"flex h-140 flex-col\">\n    <DataGrid motore={motore} className=\"min-h-0 flex-1\" colonne={col.columns([\n      colonnaTestoGriglia(col, 'descrizione', 'Descrizione'),\n      colonnaNumeroGriglia(col, 'quantita', 'Quantita', { validazione: validaConZod(z.coerce.number().min(0)) }),\n      colonnaSelectGriglia(col, 'unita', 'U.M.', [{ valore: 'm2', etichetta: 'm2' }, { valore: 'kg', etichetta: 'kg' }]),\n    ])} barra={<><DataGridUndo /><DataGridRedo /></>}>\n      <DataGridClipboard />\n      <DataGridFillHandle />\n    </DataGrid>\n  </div>\n\n`<DataGrid>` innesta `<DataTable perPagina=\"virtuale\" altezza=\"ferma\">` -\nla stessa tabella, non una seconda: nasce gia virtualizzata (M3bis.4).\nVuole percio un genitore ad altezza vera, sempre (non opzionale come in\n`DataTable`): senza, il vincolo di altezza non arriva al `<DataTable>`\ninnestato, che cresce con tutte le righe - la virtualizzazione promessa\nnon regge, in silenzio a poche righe (preso a 500: 469 righe montate\ninvece di una finestra, prima di questa nota). Niente ricerca/ordinamento/\nfiltri qui - la tastiera naviga per indice sull'array del motore, e un\nordine diverso da quello visibile porterebbe la freccia sulla riga\nsbagliata.\n\nOgni cella non in modifica ha un fuoco mobile proprio (roving tabindex),\nnon la riga: `DataTableVirtualizedBody` riceve `senzaFocoRiga` per\nspegnere il proprio giro riga-per-riga, altrimenti i due userebbero lo\nstesso tasto per due cose diverse.\n\n`DataGridClipboard` (componente opt-in) intercetta Ctrl/Cmd+C/X/V prima\nche arrivino alla cella, e li dirotta su una `<textarea>` nascosta - non\n`navigator.clipboard.readText()`, che Safari/WebKit non implementa affatto\n(un tentativo precedente falliva li in silenzio). Il comando di sistema\ncopia/incolla colpisce quindi un campo di testo vero: eventi nativi\n`copy`/`cut`/`paste`, che funzionano in ogni motore browser senza nessun\npermesso da chiedere.\n\nSei celle: `colonnaTestoGriglia`/`colonnaNumeroGriglia`/`colonnaValutaGriglia`\n(Intl.NumberFormat it-IT)/`colonnaCheckboxGriglia`/`colonnaDataGriglia`\n(input nativo, non il Calendar del registry)/`colonnaSelectGriglia`. Il\nmotore resta agnostico di tipo: conosce solo `leggiCella`/`scriviCella`\ncome confine di stringhe, e la cella tipizzata formatta/interpreta.\n\n`validaConZod(schema)` valida una cella per colonna - `z.coerce.number()`/\n`z.coerce.date()` accettano direttamente la stringa grezza. Un commit\ninvalido non chiude la modifica (Invio/Tab restano aperti sull'errore);\nEscape annulla sempre. Stessa disciplina aria-invalid/aria-describedby di\n`tassullo-form-field`.\n\nPersistenza: `useGridChanges(righeCorrenti, righeSalvate, idRiga)` e un\nconfronto puro fra lo stato del motore e l'ultimo salvataggio - non un\nregistro accumulato per-commit, che dovrebbe disfare la propria\ncontabilita a ogni annulla. Restituisce `creati`/`aggiornati`/`cancellati`\ne `cePendente`. `motore.aggiungiRiga(rigaVuota)`/`motore.rimuoviRighe(ids)`\naggiungono/tolgono righe come commit annullabili, la stessa cronologia\ndelle modifiche di cella - v. la story `Computo` per il giro intero, su\n~500 righe finte."
     },
     {
       "name": "tassullo-form-field",
@@ -1236,7 +1397,7 @@
         "@tassullo/button",
         "@tassullo/button-group",
         "@tassullo/skeleton",
-        "@tassullo/error-state",
+        "@tassullo/tassullo-error-state",
         "@tassullo/tema"
       ],
       "docs": "Un blocco, un uso:\n\n  <PdfPreview file={urlDelDocumento} onRiprova={() => ricarica()} />\n\n`file` è lo stesso prop di `react-pdf`: URL, `File`/`Blob` o `ArrayBuffer`.\nLa cornice, la paginazione e lo zoom sono interamente nostri — `react-pdf`\nnon renderizza una propria barra strumenti, solo `<Document>`/`<Page>` su\nun `<canvas>` — la condizione che D8 chiede per essere sostituibile senza\ntoccare l'API del blocco.\n\nD8 (PIANO.md, M3.7): il worker di pdf.js non viene da una CDN (`unpkg`,\nla via più comune) — farebbe dipendere l'anteprima da una richiesta di rete\na ogni apertura, lo stesso principio per cui `tema-font` porta Inter in data\nURI. Si importa con la sintassi `?url` di Vite, che lo stack uniforme del\nprogetto rende sempre disponibile. Livello di testo e annotazioni spenti\n(`renderTextLayer`/`renderAnnotationLayer` a `false`): è un'anteprima, non\nun lettore con testo selezionabile, e il CSS che quei livelli chiederebbero\nnon è un file che il registry sa distribuire.\n\nCaricamento ed errore riusano lo standard di M3.5: uno `Skeleton` alto come\nuna pagina, `ErrorState` col messaggio già tradotto da chi chiama — questo\nblocco non sa nulla del perché un PDF non si è aperto."
@@ -1334,7 +1495,7 @@
         }
       ],
       "registryDependencies": [
-        "@tassullo/split-view",
+        "@tassullo/tassullo-split-view",
         "@tassullo/tema"
       ],
       "docs": "Un blocco, due modalità:\n\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} />\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} modo=\"affiancato\" />\n\n`diffWords` (non diffLines né diffChars) è il livello giusto per prosa:\nisola \"100\" da \"80\" dentro la stessa frase senza spezzare le parole.\n`inline` (default) fonde il confronto in un paragrafo solo — `<del>`\nbarrato per il tolto, `<ins>` colorato per l'aggiunto, i tag semantici\nHTML5 di una modifica. `affiancato` compone `SplitView` (M3.9, stessa\nsessione): tolto a sinistra, aggiunto a destra, scorrimento sincronizzato.\n\nChiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha\nun `diff` o un confronto testi già pronto. `diffWords` è una funzione pura, non un widget:\nil rendering resta interamente nostro, come per react-dropzone e react-pdf.\nResta un blocco, non un componente proprio: nessuna riga in\ncomponenti-propri.json."
@@ -1381,11 +1542,11 @@
         }
       ],
       "registryDependencies": [
-        "@tassullo/data-table",
-        "@tassullo/empty-state",
-        "@tassullo/error-state",
-        "@tassullo/page-header",
-        "@tassullo/page-skeleton",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-empty-state",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaLista\n    percorso={[{ titolo: \"Prodotti\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n    colonne={COLONNE}\n    dati={prodotti}\n    stato={statoCaricamento}\n    vuotoIniziale={{ titolo: \"Nessun prodotto in anagrafica\", azione: <Button size=\"sm\">Nuovo prodotto</Button> }}\n    cerca=\"Cerca nome, variante, codice…\"\n    perPagina=\"infinito\"\n    barra={<BarraFiltri />}\n  />\n\nCompone i blocchi già nel registry — `page-header`, `data-table`,\n`empty-state`, `error-state`, `page-skeleton` — zero primitive nuove.\n`stato` sceglie fra `pronto` (default, l'unico in cui `dati` conta),\n`caricamento` e `errore`. `vuotoIniziale` è un caso distinto da `vuoto`:\nil primo è \"non esiste ancora nessuna riga\" (CTA che crea il primo\nrecord, EmptyState al posto della tabella); il secondo, passato a\n`DataTable`, è \"la ricerca non trova niente\" (CTA che pulisce i filtri).\nSenza `vuotoIniziale` una `dati` vuota passa comunque alla tabella —\nvoluto per un elenco che filtra a zero risultati."
@@ -1408,15 +1569,100 @@
       ],
       "registryDependencies": [
         "@tassullo/card",
-        "@tassullo/error-state",
-        "@tassullo/page-header",
-        "@tassullo/page-skeleton",
-        "@tassullo/version-timeline",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/tassullo-version-timeline",
         "@tassullo/button",
         "@tassullo/tabs",
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaScheda\n    percorso={[{ titolo: \"Norme\", href: \"/norme\" }, { titolo: norma.codice }]}\n    titolo={norma.codice}\n    distintivo={<Badge className={TONO.success}>Vigente</Badge>}\n    azioni={[{ titolo: \"Elimina\", icona: TrashIcon, ruolo: \"distruttiva\", onClick: elimina }]}\n    modifica={inModifica}\n    onModificaChange={setInModifica}\n    anagrafica={(modifica) => <FormNorma dati={norma} modifica={modifica} onSalva={salva} />}\n    documenti={<ElencoAllegati />}\n    storico={{ revisioni }}\n  />\n\nA differenza di `page-header` (M3.2), che toglie deliberatamente il titolo\ndalla fascia in alto, qui titolo/distintivo/azioni **si vedono**: sono\nl'intestazione della pagina, non del guscio, e su una scheda il nome\ndell'entità è l'unica cosa scritta grande da qualche parte. `distintivo` è\nun nodo già composto (`<Badge>`), non un `variant` chiuso — Prodotto,\nNorma, Sistema e Famiglia hanno vocabolari di stato incompatibili fra loro.\nOgni tab rende dentro `Card`/`CardContent`, non a diretto contatto con lo\nsfondo della pagina — lo stesso riquadro bianco che Anagrafe usa già.\n\n`anagrafica` è una **funzione di `modifica`**, non due alberi: lo stesso\n`<form>` con `tassullo-form-field` resta montato sia in lettura sia in\nmodifica, e i campi si disabilitano (`disabled={!modifica}`) invece di\ncambiare componente — un campo che muta forma al clic su \"Modifica\"\nsposterebbe l'intera scheda, cosa che un form vero non fa. Il blocco\npossiede solo il passaggio — un bottone \"Modifica\"/\"Annulla\" — e lo lascia\nanche **controllabile** (`modifica`/`onModificaChange`): senza, non avrebbe\nmodo di tornare alla lettura al successo di un salvataggio, che lo sa solo\nil `<form>` dell'app, opaco al blocco.\n\n`documenti` resta un `ReactNode` libero — un allegato di Norma è un PDF,\nuno di Prodotto una foto, nessuna forma sola — mentre `storico` monta\nsempre `VersionTimeline` da sé, «in coda» come chiede `PIANO.md`, perché lo\nstorico delle revisioni è la stessa forma per ogni entità."
+    },
+    {
+      "name": "tassullo-pagina-dashboard",
+      "type": "registry:block",
+      "title": "Pagina dashboard",
+      "description": "La home applicativa: fila di indicatori, due grafici, tabella delle attività recenti, area avvisi chiudibili. Quarta pagina modello della FASE 4 — dominio Anagrafe, che nella ROADMAP prevede una tab Metriche e un quadro sinottico.",
+      "dependencies": [
+        "cn",
+        "lucide-react",
+        "@tanstack/react-table"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-dashboard.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-dashboard.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/alert",
+        "@tassullo/button",
+        "@tassullo/card",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/tema",
+        "@tassullo/toni"
+      ],
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaDashboard\n    percorso={[{ titolo: \"Dashboard\" }]}\n    indicatori={[{ etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } }]}\n    grafici={[<GraficoSchedeAperte />, <GraficoRipartizione />]}\n    attivita={attivitaRecenti}\n    avvisi={avvisi}\n    onChiudiAvviso={(id) => setAvvisi((v) => v.filter((a) => a.id !== id))}\n    stato={statoCaricamento}\n  />\n\nCompone ciò che il registry ha già — `page-header`, `page-skeleton`,\n`error-state`, `card`, `table`, `alert`, `toni` — zero primitive nuove:\nnessuna app Tassullo ha ancora una dashboard fatta bene, quindi non c'era\nun file da cui ricavare la forma come per le altre tre pagine modello.\n\n`grafici` è una tupla di **esattamente due** nodi già completi (`Card` +\n`ChartContainer` di `Primitive/Chart`, Recharts): un grafico non ha una\nforma sola — barre, linee, torta, ciascuno con la propria composizione — e\nil blocco fissa che siano due, non cosa siano, stessa libertà di\n`documenti` in `tassullo-pagina-scheda`. La tabella delle attività recenti\nusa la primitiva `table`, non `tassullo-data-table`: è una lista corta e\ngià ordinata, senza ricerca né paginazione, e la regola 4bis (gradino 1)\nchiede prima il default shadcn così com'è.\n\nLe frecce di tendenza (`indicatori[].tendenza.direzione`) non si colorano\nmai di verde o rosso: un aumento non è un successo e un calo non è un\nerrore — dipende dall'indicatore, e il blocco non lo sa (stessa regola\nmisurata su `Primitive/Chart`, story `Scostamenti`). Ogni avviso porta il\nproprio `tono` (`TONO_ALERT` di `lib/toni`); `chiudibile` mostra il bottone\ndi chiusura solo se anche `onChiudiAvviso` è passato — il blocco non tiene\nuno stato proprio degli avvisi, perché l'app può dover segnare un avviso\nchiuso come letto sul server. `stato` sceglie fra `pronto` (default),\n`caricamento` (uno scheletro per sezione, nella stessa disposizione del\ncontenuto vero) ed `errore`."
+    },
+    {
+      "name": "tassullo-pagina-admin",
+      "type": "registry:block",
+      "title": "Pagina admin",
+      "description": "L'amministrazione a tab: il blocco possiede la gestione utenti con ruoli multipli (tabella con azioni per riga, dialoghi di conferma) come primo tab, sezioni aggiuntive componibili (ruoli, o altro), banner fisso per chi non ha il ruolo di amministrazione, con degrado a sola lettura. Quinta pagina modello della FASE 4 — dominio Anagrafe (Admin.tsx, 212 righe di CSS) e SuperTM, che condividono la stessa struttura e lo stesso concetto di utente.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-admin.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-admin.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/alert",
+        "@tassullo/badge",
+        "@tassullo/tassullo-confirm-dialog",
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/tassullo-responsive-dialog",
+        "@tassullo/tabs",
+        "@tassullo/tema",
+        "@tassullo/toggle-group",
+        "@tassullo/toni"
+      ],
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaAdmin\n    percorso={[{ titolo: \"Amministrazione\" }]}\n    utenti={{ dati: utenti, ruoli: RUOLI, onRimuovi, onCambiaRuoli }}\n    sezioni={[{ value: \"ruoli\", titolo: \"Ruoli\", contenuto: () => <TabellaRuoli /> }]}\n    soloLettura={!utenteCorrente.ruoli.includes(\"amministratore\")}\n    stato={statoCaricamento}\n  />\n\nIl blocco possiede la gestione utenti — nome, email, ruoli multipli, stato attivo/disattivo è la stessa forma in ogni app dello studio, lo stesso argomento per cui `tassullo-pagina-scheda` monta sempre `VersionTimeline` per `storico` invece di lasciarlo libero come `documenti`. Passata `utenti`, monta da sé il **primo tab** «Utenti»: `tassullo-data-table` con colonne Nome/Email/Ruoli (badge, tono da `utenti.ruoli[].tono`)/Stato, `menuRiga` con «Ruoli…» e «Rimuovi», un `ResponsiveDialog` con `ToggleGroup multiple` per cambiare i ruoli e un `ConfirmDialog` distruttivo per la rimozione — `onCambiaRuoli`/`onRimuovi` sono callback esterne, il blocco non tocca mai i dati veri. Il vocabolario dei ruoli resta dell'app (`UtenteAdmin.ruoli` è `string[]`, mai un'unione chiusa): `utenti.ruoli` porta l'etichetta italiana e un tono opzionale (`lib/toni`), o la tabella renderebbe la chiave grezza.\n\n`sezioni` resta per tutto ciò che non ha una forma fissa — una tabella ruoli non ha le stesse colonne di una tabella utenti — con la stessa libertà di `documenti` in `tassullo-pagina-scheda`: `sezioni[].contenuto` è una **funzione di `soloLettura`**, un solo albero sempre montato che decide da sé come degradare. `soloLettura` toglie anche `menuRiga` dal tab utenti (niente tendina «⋯», niente tasto destro) e mostra il banner fisso, mai `chiudibile` — non è un `avviso` di `tassullo-pagina-dashboard`, racconta lo stato dei permessi di chi guarda, non un fatto del mondo da archiviare. `stato` sceglie fra `pronto` (default), `caricamento` ed `errore`, come le altre pagine modello."
+    },
+    {
+      "name": "tassullo-pagina-errore",
+      "type": "registry:block",
+      "title": "Pagina errore",
+      "description": "Gli stati di sistema: 404, accesso negato, errore del server, manutenzione — un tono per variante (lib/toni), un'icona per variante, e la stessa composizione della primitiva empty di tassullo-empty-state/tassullo-error-state. 404 e accesso-negato si montano dentro il guscio (la navigazione resta); errore-server e manutenzione sono schermo intero, sul modello di tassullo-pagina-login. Sesta e ultima pagina modello della FASE 4.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-errore.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-errore.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/empty",
+        "@tassullo/tema"
+      ],
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaErrore\n    variante=\"accesso-negato\"\n    azione={<Button variant=\"outline\" onClick={() => navigate('/')}>Torna alla home</Button>}\n  />\n\n`variante` sceglie fra `404`, `accesso-negato`, `errore-server`, `manutenzione` — ognuna ha icona, titolo e messaggio di default (tutti sovrascrivibili) e un tono di `lib/toni` tranne il 404, che non è un fatto grave. `azione` è un nodo, non una callback fissa (come `EmptyState.azione`, non come `ErrorState.onRiprova`): cambia natura da variante a variante — un link di navigazione, un bottone che ritenta, un `mailto:` — e il blocco non sa quale sia né se serva un router. Assente, nessuna CTA compare: usarla è la raccomandazione del piano, non un obbligo imposto dal blocco.\n\n`schermoIntero` sceglie se la pagina si monta dentro il contenuto esistente (default per `404` e `accesso-negato`: la navigazione resta, l'utente ha sbagliato un link interno o aperto una rotta riservata) o fuori dal guscio, sul modello di `tassullo-pagina-login` — marchio in testa, sfondo pieno (default per `errore-server` e `manutenzione`: capitano spesso prima che il guscio abbia dati per popolarsi, mostrarli dentro `AppShell` vorrebbe dire mostrare una barra vuota o rotta). Il default si sovrascrive per un caso che lo richiede davvero.\n\nIl messaggio di `accesso-negato` dice la verità su Anagrafe: l'utente senza ruoli non è bloccato, è in sola lettura, come già rende `soloLettura` di `tassullo-pagina-admin` — questa variante serve per una rotta che non ha proprio nulla da mostrare senza un ruolo preciso, e il default lo dice esplicitamente invece di un generico «non hai i permessi»."
     }
   ]
 }

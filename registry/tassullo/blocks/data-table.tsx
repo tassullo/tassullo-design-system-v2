@@ -84,13 +84,22 @@
 import * as React from "react"
 import {
   columnFilteringFeature,
+  columnOrderingFeature,
+  columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   createColumnHelper,
+  createExpandedRowModel,
   createFilteredRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
+  filterFn_arrHas,
+  filterFn_inDateRange,
+  filterFn_inNumberRange,
   filterFn_includesString,
   globalFilteringFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
@@ -102,12 +111,41 @@ import {
   useTable,
   type Column,
   type ColumnDef,
+  type ColumnOrderState,
+  type ColumnPinningState,
+  type ColumnSizingState,
+  type Header,
   type ReactTable,
+  type Row,
   type ColumnFiltersState,
   type ColumnVisibilityState,
   type RowData,
   type SortingState,
 } from "@tanstack/react-table"
+import { useVirtualizer } from "@tanstack/react-virtual"
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
+  type UniqueIdentifier,
+} from "@dnd-kit/core"
+import { restrictToHorizontalAxis, restrictToVerticalAxis } from "@dnd-kit/modifiers"
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -116,7 +154,11 @@ import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
   ChevronsUpDownIcon,
+  EllipsisVerticalIcon,
+  GripVerticalIcon,
   InboxIcon,
+  PinIcon,
+  PinOffIcon,
   SearchIcon,
   SearchXIcon,
   SlidersHorizontalIcon,
@@ -126,12 +168,26 @@ import { cn } from "cn"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Checkbox } from "@/registry/tassullo/ui/checkbox"
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/registry/tassullo/ui/context-menu"
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/registry/tassullo/ui/dropdown-menu"
 import {
@@ -177,18 +233,75 @@ import {
  * (`alphanumeric`, che ordina `A10` dopo `A9` e non prima), date (`datetime`)
  * e tutto il resto (`basic`). Registrarle qui è ciò che permette a una colonna
  * di dire `sortFn: "datetime"` senza portarsi dietro la funzione.
+ *
+ * `rowExpandingFeature` **è registrata sempre**, non solo per le tabelle ad
+ * albero (M3bis.1): a differenza delle funzioni di ordinamento, che una
+ * colonna deve nominare per usarle, l'espansione resta inerte da sola finché
+ * nessuno passa `getSottoRighe` — nessuna riga ha `subRows`, quindi
+ * `getCanExpand()` è sempre falso e il ramo non lavora. Registrarla una volta
+ * qui evita che ogni sessione della FASE 3bis che ne ha bisogno (M3bis.1,
+ * M3bis.2, M3bis.5) debba biforcare `caratteristiche` in due costanti.
+ *
+ * `columnSizingFeature`/`columnResizingFeature`/`columnPinningFeature`
+ * (M3bis.3, D17 riaperta) seguono la stessa logica: sempre registrate, mai
+ * attive da sole. `enableColumnResizing`/`enableColumnPinning` restano `false`
+ * finché la pagina non passa `ridimensionabile`/`colonneBloccabili` al
+ * blocco — senza, `column.getCanResize()`/`getCanPin()` tornano `false` e i
+ * due rami del render (`ManigliaRidimensiona`, `MenuBloccaColonna`) non
+ * disegnano niente. `columnSizingFeature` resta comunque utile da sola anche
+ * a `ridimensionabile` spento: è la stessa che dà a `colonna.getSize()` un
+ * numero — 150 di default TanStack — usato per calcolare gli scarti del pin
+ * generalizzato (v. `ancoraggioColonna`).
+ *
+ * `columnOrderingFeature` (M3bis.8, "Column DnD Table") è la stessa storia
+ * una volta di più: registrata sempre, ma `state.columnOrder` resta
+ * governato da TanStack (l'array vuoto di partenza, ordine di dichiarazione)
+ * finché nessuna intestazione viene trascinata — nessun `enable*` da
+ * spegnere, a differenza di resize e pin: la feature non ha un simile,
+ * `column.getIndex()`/`setColumnOrder()` esistono comunque, ed è
+ * `colonneRiordinabili` (il prop) a decidere se un'intestazione porta la
+ * maniglia che li usa.
+ *
+ * `arrHas` (M3bis.6, filtri sfaccettati) tiene la riga se il valore della
+ * colonna è **uguale a uno** dei valori scelti — la forma giusta per un
+ * filtro a scelta multipla su un valore scalare (`stato`, `famiglia`: una
+ * riga ha un solo stato, non un elenco). `arrIncludes`/`arrIncludesSome`
+ * risolvono il caso opposto, un valore-elenco sulla riga, che qui non
+ * ricorre. Una colonna lo usa dichiarando `filterFn: "arrHas"`; TanStack
+ * toglie da sé il filtro quando l'elenco scelto torna vuoto
+ * (`autoRemove`), quindi `colonna.setFilterValue([])` e
+ * `colonna.setFilterValue(undefined)` sono equivalenti.
+ *
+ * `inNumberRange`/`inDateRange` (stesso M3bis.6, `data-table-filtro-
+ * intervallo.tsx`/`data-table-filtro-data.tsx`) tengono la riga se il suo
+ * valore cade dentro `[min, max]` — un capo assente conta come aperto
+ * (`-Infinity`/`Infinity`), quindi un intervallo con un solo estremo scelto
+ * filtra comunque. Entrambe sono già pronte in TanStack, non scritte qui:
+ * la sola differenza dal filtro di `arrHas` è che il valore della colonna è
+ * un numero o una data, non un valore da confrontare a un elenco.
  */
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
+  columnOrderingFeature,
+  columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   globalFilteringFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
+  expandedRowModel: createExpandedRowModel(),
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
   sortedRowModel: createSortedRowModel(),
-  filterFns: { includesString: filterFn_includesString },
+  filterFns: {
+    includesString: filterFn_includesString,
+    arrHas: filterFn_arrHas,
+    inNumberRange: filterFn_inNumberRange,
+    inDateRange: filterFn_inDateRange,
+  },
   sortFns: {
     alphanumeric: sortFn_alphanumeric,
     basic: sortFn_basic,
@@ -240,10 +353,44 @@ export function creaColonne<TDato extends RowData>() {
  * comprime tutte in proporzione**, e le larghezze scritte non sono più quelle
  * rese (misurato: `w-48` che valeva 288 rendeva 279). Non è un guasto, è un
  * modo silenzioso di non ottenere ciò che si è chiesto.
+ *
+ * `larghezza` **si ignora** su una tabella `ridimensionabile`/`colonneBloccabili`
+ * (M3bis.3): lì la larghezza di partenza si dichiara con `size` — il campo
+ * *di TanStack*, sulla colonna stessa (`col.accessor("nome", { size: 220 })`),
+ * non in `meta` — insieme a `minSize`/`maxSize` per i due estremi del
+ * trascinamento. Restare sui nomi di TanStack è la stessa scelta di
+ * `accessor`/`display`/`columns` più sopra: la documentazione che serve a chi
+ * scrive una colonna resta la loro. Una colonna senza `size` assorbe lo
+ * spazio che avanza, come senza `larghezza` — la stessa elasticità, un
+ * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni).
+ *
+ * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
+ * senza, una tabella ad albero (M3bis.1, `getSottoRighe`) resta legittima —
+ * mostra solo le righe figlie, senza nessun conto sul genitore. Quando c'è,
+ * il blocco la chiama al posto della cella normale **sulle sole righe che
+ * hanno figli** (`row.subRows.length > 0`), passandole i dati originali dei
+ * figli diretti. **Una funzione, non un nome di operazione** (`"somma"`,
+ * `"media"`): un subtotale di computo è quasi sempre un'unità di misura da
+ * scrivere insieme al numero («12,4 m²», non «12.4»), e quella formattazione
+ * è dominio della pagina, non del blocco — la stessa ragione per cui
+ * `rowAggregationFeature` di TanStack non è fra le `caratteristiche` sopra:
+ * qui l'albero è dato vero (`CLAUDE.md`), non un raggruppamento con una
+ * funzione di aggregazione registrata a parte.
  */
-export type MetaColonna = {
+export type MetaColonna<TDato = unknown> = {
   titolo?: string
   larghezza?: string
+  sottototale?: (righeFiglie: TDato[], riga: TDato) => React.ReactNode
+  /**
+   * La colonna porta già, nel proprio `header`, un modo di bloccarsi (un
+   * menu che compone ordinamento e pin insieme — v. la story "in
+   * valutazione" `Menu Colonna` in `data-table.stories.tsx`): `colonneBloccabili`
+   * non le aggiunge anche il proprio `MenuBloccaColonna`, o comparirebbero
+   * due grilletti di pin per la stessa colonna. Non spegne `colonneBloccabili`
+   * sulla colonna — resta bloccabile, `getCanPin()`/`pin()` restano gli
+   * stessi — spegne solo l'icona che il blocco aggiungerebbe da sé.
+   */
+  azioniProprie?: boolean
 }
 
 /** Una colonna già tipizzata sulle caratteristiche di casa. */
@@ -270,6 +417,36 @@ type IntestazioneColonnaProps<TDato extends RowData, TValore> = {
 }
 
 /**
+ * Le due frasi di un verso d'ordinamento, per le sole `sortFn` dove «crescente»
+ * e «decrescente» non bastano a farsi capire. Inventario da niko-table
+ * (`config/data-table.tsx`, tabella "Sort Labels", letto in M3bis.0): quattro
+ * coppie, non una sola, perché il **tipo** della colonna cambia la frase
+ * intera, non solo il verso — «dal meno recente» non è «crescente» con le
+ * date al posto dei numeri, è un'altra frase.
+ *
+ * **Chiave `sortFn`, non una prop in più su `IntestazioneColonna`**: la
+ * colonna dichiara già `sortFn: "datetime"` a TanStack per ordinare — farlo
+ * dichiarare una seconda volta all'intestazione, con un nome diverso per lo
+ * stesso fatto, è la duplicazione che il resto del blocco evita apposta
+ * (`meta.titolo`, non due volte l'etichetta). `alphanumeric`/`text` non sono
+ * in tabella: restano `crescente`/`decrescente`, la stessa frase che niko usa
+ * per il testo (`"Asc"`/`"Desc"`). Nessuna colonna booleana oggi (nessuna
+ * `sortFn` la copre, v. `caratteristiche`): la coppia False/True first di
+ * niko resta un'annotazione, non un codice morto da scrivere per un caso che
+ * non esiste ancora.
+ */
+const ETICHETTE_ORDINE: Record<string, { crescente: string; decrescente: string }> = {
+  basic: {
+    crescente: "dal più piccolo al più grande",
+    decrescente: "dal più grande al più piccolo",
+  },
+  datetime: {
+    crescente: "dal meno recente al più recente",
+    decrescente: "dal più recente al meno recente",
+  },
+}
+
+/**
  * L'intestazione di una colonna ordinabile: **è** il bottone, non lo apre.
  *
  * Il ciclo è a tre tempi — crescente, decrescente, nessun ordine — e il terzo
@@ -293,9 +470,16 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
     )
   }
 
+  const sortFn = colonna.columnDef.sortFn
+  const etichette =
+    (typeof sortFn === "string" && ETICHETTE_ORDINE[sortFn]) || {
+      crescente: "crescente",
+      decrescente: "decrescente",
+    }
+
   const ordine = colonna.getIsSorted()
   const prossimo =
-    ordine === false ? "crescente" : ordine === "asc" ? "decrescente" : "nessun ordine"
+    ordine === false ? etichette.crescente : ordine === "asc" ? etichette.decrescente : "nessun ordine"
 
   const bottone = (
     <Button
@@ -355,6 +539,14 @@ function ariaSort(
  * posto si disegna un trattino. Resta dentro il gradino 2 della scala 4bis —
  * sono stringhe di classi su un uso, non una modifica al componente — e le
  * misure escono da `--spacing`, non da valori arbitrari.
+ *
+ * **La casella di una riga con figli è a cascata**, per M3bis.1: `checked`
+ * conta anche `row.getIsAllSubRowsSelected()` (i figli sono stati scelti tutti
+ * uno per uno, senza mai toccare la casella del genitore) e non solo
+ * `row.getIsSelected()` (il genitore è stato scelto lui, e TanStack ha già
+ * marcato anche l'intero sottoalbero — `mutateRowIsSelected` cascata da sé).
+ * `onCheckedChange` resta `row.toggleSelected`: non serve un giro a mano sui
+ * figli, è la stessa funzione che una riga senza figli già usa.
  */
 export function colonnaSelezione<TDato extends RowData>() {
   const col = creaColonne<TDato>()
@@ -371,17 +563,562 @@ export function colonnaSelezione<TDato extends RowData>() {
         className="data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current data-indeterminate:[&_svg]:invisible"
       />
     ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(v) => row.toggleSelected(!!v)}
-        aria-label="Seleziona la riga"
-      />
-    ),
+    cell: ({ row }) => {
+      const conFigli = row.subRows.length > 0
+      const scelta = row.getIsSelected() || (conFigli && row.getIsAllSubRowsSelected())
+      return (
+        <Checkbox
+          checked={scelta}
+          indeterminate={conFigli && !scelta && row.getIsSomeSelected()}
+          onCheckedChange={(v) => row.toggleSelected(!!v)}
+          aria-label="Seleziona la riga"
+          className="data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current data-indeterminate:[&_svg]:invisible"
+        />
+      )
+    },
     enableSorting: false,
     enableHiding: false,
     enableGlobalFilter: false,
+    // `size`/`minSize`, non solo `larghezza`: su una tabella `ridimensionabile`/
+    // `colonneBloccabili` la seconda si ignora (v. `MetaColonna`), e senza
+    // `size` questa colonna utility diventerebbe l'unica **elastica** —
+    // assorbirebbe tutto lo spazio che avanza invece delle colonne vere,
+    // com'è successo alla colonna «azioni» (rilievo di Francesco su
+    // Prodotti, M3bis.11b). 40px è la stessa larghezza che `w-10` rende oggi
+    // (misurato: `Blocchi/Data Table` → `Prodotti`, non ridimensionabile).
     meta: { larghezza: "w-10" } satisfies MetaColonna,
+    size: 40,
+    minSize: 40,
+  })
+}
+
+/**
+ * Il rientro e lo `chevron` di una riga d'albero (M3bis.1) — da mettere
+ * **dentro il `cell` della colonna che identifica la riga**, non in una
+ * colonna a sé: in un elenco annidato non c'è una colonna «struttura» separata
+ * dal nome, come non c'è in un esploratore di file. Quale colonna sia lo
+ * decide la pagina, componendo `<CellaAlbero riga={row}>{...}</CellaAlbero>`
+ * nel proprio `cell` — lo stesso principio per cui le colonne restano di chi
+ * le scrive.
+ *
+ * Il rientro è una tabella di classi Tailwind (`pl-0`, `pl-5`, …), non uno
+ * `style` con un calcolo: sono utility vere, derivano da `--spacing` come
+ * tutte le altre misure del tema, e non c'è bisogno del valore arbitrario che
+ * la regola 3 vieta. Oltre il livello più profondo previsto la tabella si
+ * satura sull'ultimo, invece di uscire dall'array: un livello in più
+ * indenterebbe come il penultimo anziché rompersi.
+ *
+ * Il bottone è `size="icon"` — 32px in normale, **48 in touch** — la stessa
+ * misura di `PaginazioneTabella`, e per la stessa ragione: `icon-sm` in touch
+ * farebbe 42px, sotto i 44 di WCAG. Il margine negativo (`-my-2 -ml-2`) pareggia
+ * l'altezza del bottone col `p-2` della cella, la stessa correzione che
+ * `IntestazioneColonna` fa in testa alla tabella — senza, il bottone
+ * diventerebbe l'elemento più alto della cella e la riga crescerebbe per
+ * ospitarlo. **Una riga senza figli non ha bottone**, ma lo spaziatore al suo
+ * posto deve pareggiare **solo la larghezza** (`w-8`), non anche l'altezza
+ * (niente `size-8`): un rilievo di Francesco ha preso esattamente questo —
+ * lo spaziatore, senza il margine negativo del bottone, alzava le righe senza
+ * figli **più** di quelle con figli (49px contro 35,57px, misurato), il
+ * difetto opposto a quello che sembrava a vederlo (righe «tutte uguali»
+ * quando in realtà non lo erano affatto).
+ *
+ * **Il bottone del `chevron` non si distingue quando la riga è aperta e
+ * ferma**: niente sfondo, niente bordo — identico a se stesso chiuso.
+ * `Button` da sé darebbe al bottone un `bg-muted` pieno quando è lui ad avere
+ * `aria-expanded="true"` (`aria-expanded:bg-muted`, nel `variant="ghost"` di
+ * `ui/button.tsx`): la primitiva è corretta per un menu, dove serve segnare
+ * quale grilletto è aperto, ma qui il segno di stato **è già** la freccia
+ * ruotata — un secondo segno sul bottone stesso è ridondante (rilievo di
+ * Francesco). Si spegne con `aria-expanded:bg-transparent`, che vince sul
+ * `bg-muted` della primitiva per specificità delle classi: **non si tocca
+ * `ui/button.tsx`**, che resta giusto per chi la userà davvero come
+ * grilletto di un menu.
+ *
+ * **Ma il passaggio del mouse deve tingerlo comunque**, aperto o chiuso —
+ * spegnere lo stato non deve spegnere anche il riscontro dell'hover. Le due
+ * regole `.aria-expanded\:bg-transparent[aria-expanded="true"]` e
+ * `.hover\:bg-muted:hover` hanno la **stessa specificità** (una classe più un
+ * selettore, in entrambe): a parità vince quella scritta dopo nel foglio di
+ * stile compilato, e verificato in un browser vero non è detto sia la nostra
+ * — un bottone aperto passato col mouse restava trasparente. Non si sistema
+ * riordinando le classi nel JSX: l'ordine con cui Tailwind **compila** le
+ * varianti non è quello con cui le si scrive. `aria-expanded:hover:bg-muted`
+ * aggiunge un terzo selettore (`[aria-expanded="true"]:hover`), più
+ * specifico di entrambi gli altri due per costruzione: vince sempre, in
+ * qualunque ordine il foglio di stile li metta. `dark:aria-expanded:hover:bg-muted/50`
+ * ripete la stessa tinta attenuata che `ghost` usa in scuro per l'hover
+ * comune (`dark:hover:bg-muted/50`), o il bottone aperto sarebbe più scuro
+ * di uno chiuso passandoci sopra il mouse in quella modalità.
+ */
+const RIENTRO_PER_LIVELLO = ["pl-0", "pl-5", "pl-10", "pl-15", "pl-20", "pl-25", "pl-30"]
+
+export function CellaAlbero<TDato extends RowData>({
+  riga,
+  children,
+}: {
+  riga: Row<CaratteristicheTabella, TDato>
+  children: React.ReactNode
+}) {
+  const livello = RIENTRO_PER_LIVELLO[Math.min(riga.depth, RIENTRO_PER_LIVELLO.length - 1)]
+  const puoEspandere = riga.getCanExpand()
+  const espansa = riga.getIsExpanded()
+
+  return (
+    <span className={cn("flex items-center gap-1", livello)}>
+      {puoEspandere ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={riga.getToggleExpandedHandler()}
+          aria-expanded={espansa}
+          aria-label={espansa ? "Comprimi riga" : "Espandi riga"}
+          className="-my-2 -ml-2 shrink-0 aria-expanded:bg-transparent aria-expanded:hover:bg-muted dark:aria-expanded:hover:bg-muted/50"
+        >
+          <ChevronRightIcon
+            aria-hidden
+            className={cn("transition-transform", espansa && "rotate-90")}
+          />
+        </Button>
+      ) : (
+        <span aria-hidden className="w-8 shrink-0" />
+      )}
+      <span className="truncate">{children}</span>
+    </span>
+  )
+}
+
+/**
+ * Il bottone che apre/chiude il pannello di dettaglio di una riga (M3bis.2,
+ * "Row Expansion") — una colonna a sé, non dentro `CellaAlbero`: a differenza
+ * dell'albero (M3bis.1), qui non c'è una colonna che «identifica» la riga più
+ * delle altre, e il pannello non è mai innestato nella struttura del dato —
+ * è sempre un fratello della riga, mai un figlio (`getSottoRighe` resta
+ * l'unica via per righe vere nel modello dati). Si aggiunge da sé quando
+ * `pannelloRiga` è passato al blocco, come `colonnaSelezione` con `selezione`
+ * — la pagina non la scrive.
+ *
+ * **Nessun bottone sulle righe che il pannello non copre**: `getCanExpand()`
+ * segue `getRowCanExpand`, che il blocco imposta su `pannelloRiga(riga) !=
+ * null` — una riga per cui la funzione non ha niente da mostrare non prende
+ * un chevron che aprirebbe il vuoto.
+ *
+ * Stessa classe di `CellaAlbero` per il segno di apertura — niente sfondo,
+ * niente bordo a riposo, hover comunque tinto — per la stessa ragione a
+ * verbale lì: la freccia ruotata è già il segno di stato, un secondo sul
+ * bottone sarebbe ridondante.
+ */
+export function colonnaEspansione<TDato extends RowData>() {
+  const col = creaColonne<TDato>()
+  return col.display({
+    id: "espansione",
+    header: () => <span className="sr-only">Dettaglio</span>,
+    cell: ({ row }) => {
+      if (!row.getCanExpand()) return null
+      const espansa = row.getIsExpanded()
+      return (
+        // `flex items-center`: senza, il bottone (inline-flex) si allinea
+        // alla riga di base del testo della cella invece che al suo centro
+        // — lo stesso pareggio verticale che `CellaAlbero` fa col proprio
+        // `<span className="flex items-center …">` (rilievo di Francesco:
+        // il chevron stava più in alto delle altre celle della riga).
+        <span className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={row.getToggleExpandedHandler()}
+            aria-expanded={espansa}
+            aria-controls={`pannello-riga-${row.id}`}
+            aria-label={espansa ? "Comprimi dettaglio riga" : "Espandi dettaglio riga"}
+            className="-my-2 -ml-2 aria-expanded:bg-transparent aria-expanded:hover:bg-muted dark:aria-expanded:hover:bg-muted/50"
+          >
+            <ChevronRightIcon
+              aria-hidden
+              className={cn("transition-transform", espansa && "rotate-90")}
+            />
+          </Button>
+        </span>
+      )
+    },
+    enableSorting: false,
+    enableHiding: false,
+    enableGlobalFilter: false,
+    // `size`/`minSize` accanto a `larghezza` — v. il commento su
+    // `colonnaSelezione`, stessa ragione.
+    meta: { larghezza: "w-10" } satisfies MetaColonna,
+    size: 40,
+    minSize: 40,
+  })
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il riordino manuale (M3bis.7, "Row DnD Table")
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Porta `attributes`/`listeners` di dnd-kit dalla riga (`RigaCorpo`, che
+ * chiama `useSortable` **una volta sola**) alla maniglia dentro la sua
+ * cella (`ManigliaRiordinoRiga`), senza farli passare per `tabella.FlexRender`
+ * — TanStack non sa cosa sia dnd-kit, e non deve saperlo.
+ *
+ * **Non due `useSortable({id: riga.id})` separati**, come la prima lettura
+ * del sorgente niko-table suggerirebbe (loro ne chiamano uno in
+ * `TableDraggableRow` per `setNodeRef`/`transform` e uno in
+ * `TableRowDragHandle` per `attributes`/`listeners`): due chiamate con lo
+ * **stesso id** registrano due nodi diversi nella stessa mappa di dnd-kit,
+ * l'uno sovrascrive l'altro — il pattern che dnd-kit stesso documenta per
+ * una maniglia separata dal nodo trascinato è una chiamata sola, con
+ * `listeners` applicati altrove. Qui "altrove" è una colonna TanStack, che
+ * non riceve prop extra dalla riga: il contesto è il tramite.
+ */
+const ContestoRigaTrascinabile = React.createContext<{
+  attributes: DraggableAttributes
+  listeners: DraggableSyntheticListeners
+} | null>(null)
+
+/**
+ * La maniglia (`⠿`), una colonna come `colonnaSelezione`/`colonnaEspansione`
+ * — si aggiunge da sé quando `riordinabile` è passato, la pagina non la
+ * scrive. Legge `attributes`/`listeners` dal contesto di riga: fuori da una
+ * `<RigaCorpo trascinabile>` (cioè fuori da `riordinabile`) il contesto vale
+ * `null` e il bottone resta un bottone qualunque, senza trascinamento — non
+ * dovrebbe succedere (la colonna esiste solo quando `riordinabile` è attivo),
+ * ma non è un motivo per non gestirlo.
+ */
+export function colonnaRiordino<TDato extends RowData>() {
+  const col = creaColonne<TDato>()
+  return col.display({
+    id: "riordino",
+    header: () => <span className="sr-only">Riordina</span>,
+    cell: () => <ManigliaRiordinoRiga />,
+    enableSorting: false,
+    enableHiding: false,
+    enableGlobalFilter: false,
+    // `size`/`minSize` accanto a `larghezza` — v. il commento su
+    // `colonnaSelezione`, stessa ragione.
+    meta: { larghezza: "w-10" } satisfies MetaColonna,
+    size: 40,
+    minSize: 40,
+  })
+}
+
+function ManigliaRiordinoRiga() {
+  const contesto = React.useContext(ContestoRigaTrascinabile)
+  return (
+    // `flex items-center`: senza, il bottone (inline-flex) si allinea alla
+    // riga di base del testo della cella invece che al suo centro — lo
+    // stesso pareggio verticale di `colonnaEspansione` (rilievo di
+    // Francesco lì: il chevron stava più in alto delle altre celle della
+    // riga; stesso sintomo qui, mai preso perché questa maniglia non aveva
+    // ancora avuto quel rilievo).
+    <span className="flex items-center">
+      <Button
+        variant="ghost"
+        size="icon"
+        // `select-none`: stessa famiglia di difetto già presa in
+        // `ManigliaRidimensiona` (M3bis.3) — Safari, non Chrome, avvia la
+        // selezione/il trascinamento nativo di testo su un `mousedown` non
+        // impedito. Lì il rimedio è `preventDefault()` nell'handler custom; qui
+        // dnd-kit possiede già `onMouseDown` via `contesto?.listeners`, quindi
+        // il rimedio è togliere il testo dalla contesa con `user-select: none`
+        // invece di intercettare l'evento. Senza, il `<span className="sr-only">`
+        // sotto la maniglia diventa il testo che Safari seleziona e trascina.
+        className="-my-2 -ml-2 cursor-grab touch-none select-none active:cursor-grabbing"
+        {...contesto?.attributes}
+        {...contesto?.listeners}
+      >
+        <GripVerticalIcon aria-hidden className="text-muted-foreground" />
+        <span className="sr-only">Trascina per riordinare la riga</span>
+      </Button>
+    </span>
+  )
+}
+
+/**
+ * Il guscio `DndContext`/`SortableContext` (M3bis.7): calcola l'indice di
+ * partenza e d'arrivo dall'ordine **visibile** delle righe
+ * (`tabella.getRowModel().rows`, non `dati` — con ordinamento/ricerca
+ * disattivi mentre `riordinabile` è attivo, v. il prop, i due ordini
+ * coincidono sempre) e passa il nuovo `dati` intero a `onRiordina`.
+ *
+ * Tre sensori, come niko-table: `MouseSensor`/`TouchSensor` per il
+ * trascinamento vero, `KeyboardSensor` per Spazio/frecce/Escape — è quello
+ * che rende il criterio d'accettazione di `PIANO.md` ("riordino completo da
+ * tastiera") vero, non promesso. `restrictToVerticalAxis`: le righe si
+ * scambiano solo in verticale, un trascinamento in diagonale non stacca la
+ * riga dalla sua colonna.
+ *
+ * Non rende markup proprio (`DndContext`/`SortableContext` sono puri
+ * fornitori di contesto): può avvolgere tutto il riquadro della tabella,
+ * `<table>` compreso, senza inserire un elemento fra `<div>` e `<table>` che
+ * romperebbe la struttura.
+ */
+function DataTableRiordinoRighe<TDato extends RowData>({
+  dati,
+  righe,
+  onRiordina,
+  children,
+}: {
+  dati: TDato[]
+  righe: Row<CaratteristicheTabella, TDato>[]
+  onRiordina: (dati: TDato[]) => void
+  children: React.ReactNode
+}) {
+  const idContesto = React.useId()
+  const idRighe = React.useMemo<UniqueIdentifier[]>(() => righe.map((r) => r.id), [righe])
+
+  const sensori = useSensors(
+    useSensor(MouseSensor, {}),
+    useSensor(TouchSensor, {}),
+    // `coordinateGetter: sortableKeyboardCoordinates` — coda di M3bis.8,
+    // non di questa sessione: il predefinito di `KeyboardSensor` muove di
+    // 25px fissi a ogni freccia, in stile libero, non alla posizione della
+    // riga vicina. Qui funzionava per un caso (righe alte 38-48px, un passo
+    // che le supera quasi sempre), ma non per costruzione — la stessa causa
+    // ha dato un riordino di **colonna** completamente muto da tastiera
+    // (colonne larghe 140-220px, un passo che non le supera mai). Corretto
+    // qui per coerenza, non perché il criterio d'accettazione di M3bis.7
+    // fosse falso: lo era, per un margine che la story lì non esponeva.
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const gestisciFineTrascinamento = React.useCallback(
+    (evento: DragEndEvent) => {
+      const { active, over } = evento
+      if (active && over && active.id !== over.id) {
+        const indicePartenza = idRighe.indexOf(active.id)
+        const indiceArrivo = idRighe.indexOf(over.id)
+        onRiordina(arrayMove(dati, indicePartenza, indiceArrivo))
+      }
+    },
+    [idRighe, dati, onRiordina]
+  )
+
+  return (
+    <DndContext
+      id={idContesto}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToVerticalAxis]}
+      onDragEnd={gestisciFineTrascinamento}
+      sensors={sensori}
+    >
+      <SortableContext items={idRighe} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il menu di riga condiviso (M3bis.9, porting "Row Context Menu Table")
+ *
+ * Un solo elenco di voci si monta sia nella tendina «⋯» (`colonnaAzioniRiga`,
+ * aggiunta da sé quando si passa `menuRiga` a `<DataTable>`, come già fanno
+ * `selezione`/`pannelloRiga`/`riordinabile`) sia nel tasto destro sull'intera
+ * riga (`RigaCorpo`, sotto). Non sono due elenchi scritti due volte: `menu`
+ * è un `React.ReactNode` solo, la stessa istanza montata in due `Popup` di
+ * Base UI diversi — chi scrive le voci non sa (e non deve sapere) da quale
+ * dei due sta per essere aperta.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Quale dei due `Popup` sta montando le voci in questo momento — `dropdown`
+ * per la tendina «⋯», `tastoDestro` per il menu sulla riga. `RowMenuItem`/
+ * `RowMenuSeparator`/`RowMenuSub` lo leggono per scegliere la primitiva
+ * giusta: `dropdown-menu` e `context-menu` sono due popup distinti di Base
+ * UI (`Menu`/`ContextMenu`), non lo stesso componente con un nome diverso.
+ */
+const ContestoTipoMenuRiga = React.createContext<"dropdown" | "tastoDestro">("dropdown")
+
+/**
+ * La riga che il menu aperto sta mostrando. `unknown` e non la generica di
+ * `<DataTable>`: un `React.Context` è per forza non generico, e
+ * `useDataTableRow<TDato>()` restituisce già il tipo giusto a chi lo chiama.
+ * `undefined` distingue "fuori da un menu di riga" da una riga vera il cui
+ * valore sarebbe comunque falsy (`0`, `""`, `null`), che `useContext` da solo
+ * non saprebbe dire.
+ */
+const ContestoRigaMenu = React.createContext<unknown>(undefined)
+
+/**
+ * Legge la riga che il menu di `menuRiga`/`colonnaAzioniRiga` sta montando.
+ * Va chiamato da un `RowMenuItem`/`RowMenuSeparator`/`RowMenuSub`, o da un
+ * loro discendente — mai altrove: fuori da un menu di riga non esiste una
+ * riga da restituire, ed è un errore di programmazione da far esplodere
+ * subito, non un caso limite da coprire con un valore finto.
+ */
+export function useDataTableRow<TDato>(): TDato {
+  const riga = React.useContext(ContestoRigaMenu)
+  if (riga === undefined) {
+    throw new Error(
+      "useDataTableRow() va chiamato dentro un RowMenuItem/RowMenuSeparator/RowMenuSub, montato dal menu di riga di <DataTable menuRiga> (o da colonnaAzioniRiga())."
+    )
+  }
+  return riga as TDato
+}
+
+/**
+ * Una voce che si monta **sia** nella tendina «⋯» sia nel tasto destro —
+ * l'unica definizione, letta due volte. Stessa forma dei due originali
+ * shadcn (`inset`/`variant`): sotto è davvero `DropdownMenuItem` o
+ * `ContextMenuItem`, mai un terzo componente nostro che li imiti.
+ */
+export function RowMenuItem({
+  variant = "default",
+  inset,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuItem>) {
+  const tipo = React.useContext(ContestoTipoMenuRiga)
+  return tipo === "dropdown" ? (
+    <DropdownMenuItem variant={variant} inset={inset} {...props} />
+  ) : (
+    <ContextMenuItem variant={variant} inset={inset} {...props} />
+  )
+}
+
+/** Il separatore condiviso — stessa ragione di `RowMenuItem`. */
+export function RowMenuSeparator(props: React.ComponentProps<typeof DropdownMenuSeparator>) {
+  const tipo = React.useContext(ContestoTipoMenuRiga)
+  return tipo === "dropdown" ? (
+    <DropdownMenuSeparator {...props} />
+  ) : (
+    <ContextMenuSeparator {...props} />
+  )
+}
+
+/**
+ * Il sottomenu condiviso — `trigger` è l'etichetta cliccabile che apre
+ * `children`, la stessa coppia `SubTrigger`/`SubContent` che shadcn separa
+ * in due componenti: qui **una** perché il tipo di popup (dropdown o tasto
+ * destro) va deciso una volta sola per l'intera coppia, non per ciascuno.
+ */
+export function RowMenuSub({
+  trigger,
+  children,
+}: {
+  trigger: React.ReactNode
+  children: React.ReactNode
+}) {
+  const tipo = React.useContext(ContestoTipoMenuRiga)
+  if (tipo === "dropdown") {
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>{trigger}</DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>{children}</DropdownMenuSubContent>
+      </DropdownMenuSub>
+    )
+  }
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>{trigger}</ContextMenuSubTrigger>
+      <ContextMenuSubContent>{children}</ContextMenuSubContent>
+    </ContextMenuSub>
+  )
+}
+
+/**
+ * Il corpo della tendina «⋯» di riga — una colonna come `colonnaSelezione`/
+ * `colonnaEspansione`, aggiunta da sé da `<DataTable menuRiga>` (in coda alle
+ * colonne, mai scritta dalla pagina). Estratto in un componente a sé, non
+ * scritto inline in `colonnaAzioniRiga` più sotto, perché serve uno stato
+ * (`aperto`) — il `cell` di TanStack è una funzione pura, non potrebbe
+ * tenerne uno da sé.
+ *
+ * **Si chiude da sé quando `table-container` scorre.** Base UI insegue il
+ * grilletto (`trackAnchor`, di serie): finché la riga resta a schermo va
+ * bene, ma una riga che esce dalla vista — sotto la testata *sticky*, o
+ * sotto il bordo del riquadro — lascia il menu **ancorato a un punto vuoto**,
+ * staccato dalla tabella e apparentemente rotto (rilievo di Francesco).
+ * Inseguire per sempre non è la correzione giusta: un menu di riga non ha
+ * senso quando la riga non si vede più, quindi si chiude, non si sposta.
+ */
+function MenuAzioniRiga<TDato>({
+  riga,
+  menu,
+  ariaLabel,
+}: {
+  riga: TDato
+  menu: React.ReactNode
+  ariaLabel?: string
+}) {
+  const [aperto, setAperto] = React.useState(false)
+  const grillettoRef = React.useRef<HTMLButtonElement>(null)
+
+  React.useEffect(() => {
+    if (!aperto) return
+    const contenitore = grillettoRef.current?.closest('[data-slot="table-container"]')
+    if (!contenitore) return
+    const chiudi = () => setAperto(false)
+    contenitore.addEventListener("scroll", chiudi, { passive: true })
+    return () => contenitore.removeEventListener("scroll", chiudi)
+  }, [aperto])
+
+  return (
+    <DropdownMenu open={aperto} onOpenChange={setAperto}>
+      <DropdownMenuTrigger
+        ref={grillettoRef}
+        render={<Button variant="ghost" size="icon" className="-my-1 ml-auto flex" />}
+        aria-label={ariaLabel ?? "Azioni riga"}
+      >
+        <EllipsisVerticalIcon aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <ContestoTipoMenuRiga.Provider value="dropdown">
+          <ContestoRigaMenu.Provider value={riga}>{menu}</ContestoRigaMenu.Provider>
+        </ContestoTipoMenuRiga.Provider>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+export function colonnaAzioniRiga<TDato extends RowData>({
+  menu,
+  enabledFor,
+  ariaLabel,
+}: {
+  /** Le voci — `RowMenuItem`/`RowMenuSeparator`/`RowMenuSub`, scritte una sola volta. */
+  menu: React.ReactNode
+  /** Righe escluse dal menu (bloccate, di sola lettura): niente tendina, niente tasto destro. */
+  enabledFor?: (riga: TDato) => boolean
+  /** L'etichetta del grilletto per riga — di default generica, senza il nome della riga. */
+  ariaLabel?: (riga: TDato) => string
+}) {
+  const col = creaColonne<TDato>()
+  return col.display({
+    id: "azioni",
+    header: () => <span className="sr-only">Azioni</span>,
+    cell: ({ row }) => {
+      if (enabledFor && !enabledFor(row.original)) return null
+      return (
+        <MenuAzioniRiga
+          riga={row.original}
+          menu={menu}
+          ariaLabel={ariaLabel ? ariaLabel(row.original) : undefined}
+        />
+      )
+    },
+    enableSorting: false,
+    enableHiding: false,
+    enableGlobalFilter: false,
+    // `azioniProprie`: senza, `colonneBloccabili` aggiungerebbe il proprio
+    // `MenuBloccaColonna` anche qui — un grilletto di pin per una colonna
+    // che non porta un dato, ridondante rispetto al pin già raggiungibile
+    // dal menu di ciascuna colonna vera (rilievo di Francesco, M3bis.11b).
+    // La colonna resta bloccabile via API (`getCanPin()`/`pin()`), solo
+    // senza un'icona propria.
+    //
+    // `size`/`minSize`, non solo `larghezza`: su una tabella
+    // `ridimensionabile`/`colonneBloccabili` la seconda si ignora (v.
+    // `MetaColonna`), e senza `size` questa colonna diventa l'unica
+    // **elastica** della tabella — assorbe tutto lo spazio che avanza,
+    // invece delle colonne vere, lasciando un vuoto enorme prima del
+    // grilletto «⋯». Rilievo di Francesco su `Pagine/Prodotti (Anagrafe)`:
+    // colonna «Stato» ridimensionabile, poi una fascia bianca larga quanto
+    // metà tabella prima dei tre puntini. 48px è la stessa larghezza che
+    // `w-12` rende oggi (misurato su un `w-10`, `Blocchi/Data Table` →
+    // `Prodotti`: 40px non ridimensionabile — proporzionale a `w-12`).
+    meta: { larghezza: "w-12", azioniProprie: true } satisfies MetaColonna,
+    size: 48,
+    minSize: 48,
   })
 }
 
@@ -620,7 +1357,7 @@ function PaginazioneTabella<TDato extends RowData>({
  * si appoggia esattamente al bordo della prima. Entrambe derivano da `--spacing`,
  * quindi il blocco regge anche in densità touch.
  */
-function classiBloccate(indice: number, conSelezione: boolean): string | undefined {
+export function classiBloccate(indice: number, conSelezione: boolean): string | undefined {
   const quante = conSelezione ? 2 : 1
   if (indice >= quante) return undefined
   const base =
@@ -629,8 +1366,535 @@ function classiBloccate(indice: number, conSelezione: boolean): string | undefin
   return `${base}${bordo} ${indice === 0 ? "left-0" : "left-10"}`
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+ * Resize e pin generalizzato (M3bis.3, D17 riaperta)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Lo sticky di una colonna bloccata con `colonneBloccabili`, **calcolato**
+ * invece che tabulato: a differenza di `classiBloccate` — che assume indice
+ * 0/1 e due larghezze fisse (`w-10`, la sola colonna di selezione) — qui
+ * qualunque colonna può bloccarsi, con qualunque larghezza acquisita, quindi
+ * lo scarto dal bordo (`left`/`right`) va chiesto a TanStack:
+ * `column.getStart("start")` somma le larghezze **acquisite** di tutte le
+ * colonne bloccate a sinistra prima di questa, `getAfter("end")` la stessa
+ * somma dal lato destro. Sono numeri, non classi — la stessa eccezione alla
+ * regola 3 che `ridimensionabile` già documenta («larghezze acquisite
+ * dall'utente»), estesa alle *posizioni* che quelle larghezze determinano.
+ *
+ * Il bordo (`border-r`/`border-l`) va sulla **sola colonna al bordo esterno**
+ * del blocco bloccato — l'ultima a sinistra, la prima a destra — non su ogni
+ * colonna bloccata: è il segno che lo scorrimento passa sotto, e su una
+ * colonna di mezzo sarebbe un filo senza motivo in vista.
+ */
+export function ancoraggioColonna<TDato extends RowData>(
+  tabella: IstanzaTabella<TDato>,
+  colonna: Column<CaratteristicheTabella, TDato, unknown>,
+  contesto: "intestazione" | "cella"
+): { className: string; style: React.CSSProperties } | undefined {
+  const posizione = colonna.getIsPinned()
+  if (!posizione) return undefined
+  const fondo = contesto === "intestazione" ? "bg-accent" : "bg-card"
+  const base = `sticky z-10 ${fondo} group-hover/riga:bg-muted/50 group-data-[state=selected]/riga:bg-muted`
+  if (posizione === "start") {
+    const bloccate = tabella.getStartVisibleLeafColumns()
+    const ultima = bloccate[bloccate.length - 1]?.id === colonna.id
+    return { className: cn(base, ultima && "border-r"), style: { left: colonna.getStart("start") } }
+  }
+  const bloccateFine = tabella.getEndVisibleLeafColumns()
+  const prima = bloccateFine[0]?.id === colonna.id
+  return { className: cn(base, prima && "border-l"), style: { right: colonna.getAfter("end") } }
+}
+
+/**
+ * Il menu del pin, nell'intestazione (`colonneBloccabili`): "Blocca a
+ * sinistra" / "Blocca a destra" / "Non bloccare". Sta a fianco del bottone
+ * d'ordinamento (`IntestazioneColonna`), non al suo posto — la stessa
+ * ragione per cui l'ordinamento resta un clic e non un menu (v. il commento
+ * in testa al file): qui il menu **aggiunge** un'azione che un clic solo non
+ * potrebbe rappresentare (tre stati, non un ciclo a due), non ne toglie una.
+ *
+ * `colonna.getCanPin()` torna sempre falso finché `enableColumnPinning`
+ * (cablato su `colonneBloccabili`, in `DataTable`) è spento — nessun
+ * controllo in più qui: è lo stesso meccanismo per cui `ManigliaRidimensiona`
+ * resta invisibile senza `ridimensionabile`.
+ */
+function MenuBloccaColonna<TDato extends RowData>({
+  colonna,
+  titolo,
+}: {
+  colonna: Column<CaratteristicheTabella, TDato, unknown>
+  titolo: string
+}) {
+  if (!colonna.getCanPin()) return null
+  const posizione = colonna.getIsPinned()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon" className="-my-2 -mr-2 shrink-0" />}
+        aria-label={`Blocca colonna «${titolo}»`}
+      >
+        <PinIcon aria-hidden className={cn(posizione && "fill-current")} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{titolo}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => colonna.pin("start")} disabled={posizione === "start"}>
+            <PinIcon aria-hidden />
+            Blocca a sinistra
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => colonna.pin("end")} disabled={posizione === "end"}>
+            <PinIcon aria-hidden className="-scale-x-100" />
+            Blocca a destra
+          </DropdownMenuItem>
+          {posizione ? (
+            <DropdownMenuItem onClick={() => colonna.pin(false)}>
+              <PinOffIcon aria-hidden />
+              Non bloccare
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/** Quanti pixel un passo da tastiera allarga o restringe la colonna. */
+const PASSO_RIDIMENSIONA = 16
+
+/**
+ * La maniglia di ridimensionamento (`ridimensionabile`): un filo sul bordo
+ * destro dell'intestazione, `role="separator"` — il ruolo ARIA per un
+ * elemento che divide due regioni e si sposta, non un `slider` (che
+ * rappresenterebbe un valore, non una divisione).
+ *
+ * **Non è un componente proprio** (`CLAUDE.md`, regola 4bis, `componenti-
+ * propri.json`): resta locale a questo file, come `colonnaSelezione` o
+ * `classiBloccate` — quel registro è per ciò che sta *al posto* di una
+ * primitiva `ui/`, e una maniglia composta da un `<span>` e due gestori non
+ * lo è.
+ *
+ * **La tastiera non arriva gratis** (D17, il quarto costo): il trascinamento
+ * è un affordance da puntatore, e axe non direbbe niente su una maniglia
+ * completamente muta da tastiera — è la stessa lezione di D15 sul calendario.
+ * `onKeyDown` copre tre tasti: `ArrowLeft`/`ArrowRight` allargano o
+ * restringono di `PASSO_RIDIMENSIONA`, `Home` torna alla larghezza di
+ * partenza (`column.resetSize()`, che TanStack dà già fatta). `aria-valuenow`
+ * porta la larghezza attuale, arrotondata — un pixel di troppo che un
+ * lettore di schermo leggesse ad alta voce non aggiungerebbe informazione.
+ *
+ * **Un segno solo, non due.** Una prima stesura disegnava la barra-guida a
+ * tutta altezza (il segno che niko-table porta durante il trascinamento, e
+ * che qui mancava) come un secondo `<span>`, a fianco del filo dell'intestazione
+ * — e i due non coincidevano: larghezze e scarti diversi, la guida
+ * *trapassava* il filo invece di continuarlo (rilievo di Francesco). Qui la
+ * zona sensibile (`role="separator"`, invariata: hit-area, tastiera, `aria-*`)
+ * resta un `<span>` largo quanto prima, ma **il segno visivo è un unico
+ * discendente centrato al suo interno** (`<span aria-hidden>`), che cambia
+ * stato invece di duplicarsi: **invisibile a riposo** — niente riga fra le
+ * colonne di un'intestazione che nessuno sta toccando, a differenza di
+ * niko-table (rilievo di Francesco: intestazioni pulite, nessuna separazione
+ * finché non si trascina) — poi visibile al passaggio del mouse o al fuoco da
+ * tastiera, e **a tutta altezza** durante il trascinamento vero. Un solo
+ * elemento, una sola posizione, mai due segni da far coincidere.
+ *
+ * L'altezza durante il trascinamento viene dallo stesso meccanismo di prima:
+ * un `<th>` non ritaglia l'overflow dei propri figli, quindi un discendente
+ * assoluto più alto della cella disegna oltre il suo bordo, nelle righe sotto,
+ * ed **eredita da solo** lo scorrimento orizzontale della tabella — niente
+ * elemento a parte nel `table-container`, niente scarto da calcolare a mano.
+ * Si misura da `tabellaRef` (l'intera `<table>`, non solo la testata): un
+ * valore fisso in pixel, non `height: 100%` — la cella che lo contiene è alta
+ * quanto la sola riga di intestazione, `100%` di *quella* sarebbe di nuovo
+ * 40px.
+ */
+function ManigliaRidimensiona<TDato extends RowData>({
+  tabella,
+  tabellaRef,
+  header,
+  titolo,
+}: {
+  tabella: IstanzaTabella<TDato>
+  tabellaRef: React.RefObject<HTMLTableElement | null>
+  header: Header<CaratteristicheTabella, TDato, unknown>
+  titolo: string
+}) {
+  const colonna = header.column
+  const min = colonna.columnDef.minSize ?? 20
+  const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
+  const inTrascinamento = colonna.getIsResizing()
+
+  const sposta = (delta: number) => {
+    tabella.setColumnSizing((prima) => {
+      const attuale = prima[colonna.id] ?? colonna.getSize()
+      return { ...prima, [colonna.id]: Math.min(max, Math.max(min, attuale + delta)) }
+    })
+  }
+
+  // Si legge `tabellaRef.current` in un effetto, non in fase di render — un
+  // `ref` letto durante il render può restare indietro di un commit, ed è la
+  // stessa cosa che il linter segnala (`react/refs`). Misurata **una volta
+  // sola all'inizio del trascinamento**, non a ogni fotogramma: un
+  // ridimensionamento orizzontale non cambia l'altezza della tabella, quindi
+  // rimisurare ad ogni `mousemove` sarebbe lavoro senza un motivo.
+  const [altezzaGuida, setAltezzaGuida] = React.useState<number>()
+  React.useEffect(() => {
+    if (inTrascinamento) setAltezzaGuida(tabellaRef.current?.getBoundingClientRect().height)
+  }, [inTrascinamento, tabellaRef])
+
+  return (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Ridimensiona colonna «${titolo}»`}
+      aria-valuenow={Math.round(colonna.getSize())}
+      aria-valuemin={min}
+      aria-valuemax={max === Number.MAX_SAFE_INTEGER ? undefined : max}
+      tabIndex={0}
+      // `preventDefault()` prima di delegare a TanStack, non dopo: in
+      // Safari (non in Chrome, preso da Francesco) un `mousedown` non
+      // impedito fa scattare anche la selezione di testo nativa mentre si
+      // trascina — un riempimento blu che segue il puntatore sopra
+      // l'intestazione e le celle, la stessa selezione con cui si
+      // evidenzia un paragrafo. Chrome la sopprime da sé qui, WebKit no:
+      // la maniglia è un trascinamento, non un testo da selezionare.
+      onMouseDown={(evento) => {
+        evento.preventDefault()
+        header.getResizeHandler()(evento)
+      }}
+      onTouchStart={header.getResizeHandler()}
+      onKeyDown={(e) => {
+        if (e.key === "Home") {
+          e.preventDefault()
+          colonna.resetSize()
+          return
+        }
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return
+        e.preventDefault()
+        sposta(e.key === "ArrowRight" ? PASSO_RIDIMENSIONA : -PASSO_RIDIMENSIONA)
+      }}
+      // `group/maniglia` per il figlio sotto: la zona sensibile resta larga
+      // (bersaglio da puntatore), il segno visivo è **solo** il filo centrato
+      // — mai la zona intera, che coprirebbe la colonna accanto di un tocco
+      // di colore appena sfiorata.
+      className="group/maniglia absolute inset-y-0 -right-1 z-20 w-2 shrink-0 cursor-col-resize touch-none focus-visible:outline-none"
+    >
+      <span
+        aria-hidden
+        style={inTrascinamento ? { height: altezzaGuida } : undefined}
+        className={cn(
+          "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors",
+          "group-hover/maniglia:w-1 group-hover/maniglia:bg-primary/60",
+          "group-focus-visible/maniglia:w-1 group-focus-visible/maniglia:bg-primary/60",
+          inTrascinamento && "w-1 bg-primary"
+        )}
+      />
+    </span>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il riordino di colonna (M3bis.8, porting di "Column DnD Table")
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Le colonne che il blocco aggiunge da sé — selezione, espansione, maniglia
+ * di riordino **riga** — non entrano nel riordino di **colonna**: restano
+ * sempre per prime, nel loro ordine fisso, per la stessa ragione per cui
+ * sono le prime a essere anteposte in `colonneEffettive`. Un'intestazione il
+ * cui id è qui dentro non riceve la maniglia e non chiama `useSortable` con
+ * `disabled: false` — la stessa distinzione che `RIENTRO_PER_LIVELLO` non fa
+ * mai per le colonne dichiarate dalla pagina, ma che qui serve perché queste
+ * tre non sono "una colonna", sono chrome del blocco.
+ */
+const COLONNE_UTILITY = new Set(["selezione", "espansione", "riordino"])
+
+/**
+ * Porta `attributes`/`listeners` di dnd-kit dall'intestazione (`CellaIntestazione`,
+ * che chiama `useSortable` **una volta sola**) alla sua maniglia
+ * (`ManigliaRiordinoColonna`) — lo stesso tramite di `ContestoRigaTrascinabile`
+ * (M3bis.7), spiegato lì: due `useSortable({id: colonna.id})` separati
+ * registrerebbero due nodi sullo stesso id nella mappa di dnd-kit, l'uno
+ * sovrascriverebbe l'altro.
+ *
+ * **Perché una maniglia e non l'intestazione intera** (come mostra la
+ * lettera del sorgente niko-table, `TableDraggableHeader`, che spreme
+ * `attributes`/`listeners` sul `<th>` stesso): lì l'intestazione diventa
+ * `role="button"` — e contiene già un bottone vero (`IntestazioneColonna`,
+ * l'ordinamento) più, con `colonneBloccabili`, un secondo bottone (il menu
+ * del pin). Un `role="button"` che contiene un `<button>` è la violazione
+ * `nested-interactive` di axe, gravità *critical* — verificato provando
+ * prima la lettera del sorgente, poi la scansione. La maniglia separata
+ * (stesso principio della riga) tiene il `<th>` un `<th>` qualunque, con tre
+ * controlli **fratelli**, mai annidati: ordina, trascina, blocca.
+ */
+const ContestoIntestazioneTrascinabile = React.createContext<{
+  attributes: DraggableAttributes
+  listeners: DraggableSyntheticListeners
+} | null>(null)
+
+/**
+ * La maniglia (`⠿`) di un'intestazione, accanto al bottone d'ordinamento —
+ * mai al suo posto, per la stessa ragione per cui `MenuBloccaColonna` sta a
+ * fianco e non sopra: azioni diverse, bottoni diversi. Legge `attributes`/
+ * `listeners` dal contesto della cella; fuori da `colonneRiordinabili` non
+ * si monta affatto (`CellaIntestazione` non la rende).
+ */
+function ManigliaRiordinoColonna({ titolo }: { titolo: string }) {
+  const contesto = React.useContext(ContestoIntestazioneTrascinabile)
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      // `select-none`, stessa ragione di `ManigliaRiordinoRiga` sopra e già
+      // presa una volta in `ManigliaRidimensiona` (M3bis.3): senza, Safari
+      // seleziona e trascina come testo lo `sr-only` sotto — verificato a
+      // occhio (rilievo di Francesco), il fermo immagine mostra i titoli
+      // di due intestazioni sovrapposti, ingranditi e deformati, l'anteprima
+      // nativa del trascinamento di un nodo di testo.
+      className="-my-2 -ml-2 shrink-0 cursor-grab touch-none select-none active:cursor-grabbing"
+      {...contesto?.attributes}
+      {...contesto?.listeners}
+    >
+      <GripVerticalIcon aria-hidden className="text-muted-foreground" />
+      <span className="sr-only">Trascina per riordinare la colonna «{titolo}»</span>
+    </Button>
+  )
+}
+
+/**
+ * L'unica `<th>` che chiama `useSortable` (M3bis.8) — sempre, `trascinabile`
+ * o no, con `disabled: !trascinabile` per la stessa ragione a verbale su
+ * `RigaCorpo` (M3bis.7): le regole degli hook vogliono la stessa sequenza a
+ * ogni render, e `intestazioni` è già estratto in un componente per riga
+ * — qui per intestazione — apposta perché la conta possa cambiare (colonne
+ * nascoste, `colonneBloccabili` che ne cambia l'ordine) senza rompere quella
+ * regola.
+ *
+ * **Solo il `<th>` prende `ref`/`transform`** (lo scorrimento visivo durante
+ * il trascinamento); `attributes`/`listeners` vanno alla maniglia via
+ * contesto, mai qui — è la parte che tiene il `<th>` fuori da
+ * `nested-interactive` (v. sopra). Le celle sotto **non seguono** il
+ * trascinamento a fotogrammi: a differenza di niko-table (`TableDragAlongCell`,
+ * un `useSortable` per cella per riga), qui l'ordine delle colonne è già
+ * quello che TanStack calcola da `state.columnOrder` — `row.getVisibleCells()`
+ * lo rispetta da sé, senza bisogno di un secondo hook per cella. Un
+ * risparmio deliberato, non un limite scoperto tardi: con la virtualizzazione
+ * (M3bis.4) e la Data Grid (M3bis.5) già in gioco, un `useSortable` per
+ * ogni cella di ogni riga visibile avrebbe moltiplicato il costo per il solo
+ * fotogramma della cella che scivola, mentre lo scatto dell'intera colonna al
+ * rilascio (l'intestazione durante il trascinamento, il corpo dopo) resta il
+ * criterio d'accettazione di `PIANO.md` — non promette un fotogramma per
+ * fotogramma sulle celle.
+ */
+function CellaIntestazione<TDato extends RowData>({
+  tabella,
+  tabellaRef,
+  intestazione,
+  indice,
+  trascinabile,
+  ridimensionabile,
+  colonneBloccabili,
+  bloccoLegacy,
+  conDimensioni,
+  selezione,
+}: {
+  tabella: IstanzaTabella<TDato>
+  tabellaRef: React.RefObject<HTMLTableElement | null>
+  intestazione: Header<CaratteristicheTabella, TDato, unknown>
+  indice: number
+  trascinabile: boolean
+  ridimensionabile: boolean
+  colonneBloccabili: boolean
+  bloccoLegacy: boolean
+  conDimensioni: boolean
+  selezione: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: intestazione.column.id,
+    disabled: !trascinabile,
+  })
+
+  const stile: React.CSSProperties | undefined = trascinabile
+    ? {
+        // `CSS.Translate`, non `CSS.Transform` (letto da niko-table,
+        // `TableDraggableHeader`): `Transform` porta anche `scaleX`/`scaleY`,
+        // che dnd-kit calcola quando le due intestazioni che si scambiano
+        // hanno larghezze diverse — qui la norma, non l'eccezione, con
+        // `size`/`minSize` per colonna. Uno `scaleX` su un'intestazione di
+        // testo **è** il testo deformato del rilievo di Francesco: si vedeva
+        // solo trascinando su una colonna di larghezza diversa (`Codice`
+        // 140px verso `Titolo` 320px), mai fra colonne della stessa
+        // larghezza — la prova che non era la selezione nativa (già corretta
+        // sopra) ma la scala. `Translate` scarta la scala e trasla soltanto,
+        // la stessa animazione senza la distorsione.
+        transform: CSS.Translate.toString(transform),
+        transition,
+        zIndex: isDragging ? 1 : undefined,
+      }
+    : undefined
+
+  const contestoIntestazione = React.useMemo(
+    () => (trascinabile ? { attributes, listeners } : null),
+    [trascinabile, attributes, listeners]
+  )
+
+  const ancoraColonna = colonneBloccabili
+    ? ancoraggioColonna(tabella, intestazione.column, "intestazione")
+    : undefined
+  const metaColonna = intestazione.column.columnDef.meta as MetaColonna | undefined
+  const titoloColonna = metaColonna?.titolo ?? intestazione.column.id
+
+  return (
+    <ContestoIntestazioneTrascinabile.Provider value={contestoIntestazione}>
+      <TableHead
+        ref={setNodeRef}
+        style={{ ...ancoraColonna?.style, ...stile }}
+        className={cn(
+          !conDimensioni &&
+            (intestazione.column.columnDef.meta as MetaColonna | undefined)?.larghezza,
+          bloccoLegacy &&
+            classiBloccate(indice, selezione)?.replace("bg-card", "bg-accent"),
+          ancoraColonna?.className,
+          // `relative` **solo se non già `sticky`**: `cn` (tailwind-merge)
+          // tratta le utility di posizionamento come un gruppo solo, e le due
+          // scritte insieme si scartano a vicenda — vince l'ultima scritta.
+          // Non serve comunque: `sticky` è già un contenimento per i figli
+          // `absolute` (la maniglia di `ManigliaRidimensiona`), come `relative`.
+          !ancoraColonna && (ridimensionabile || colonneBloccabili) && "relative",
+          // `position: relative` per lo stesso motivo di `RigaCorpo`: contiene
+          // l'ombra di `isDragging` (`zIndex`) sopra le intestazioni ferme —
+          // ma solo quando `sticky` non lo fa già da sé (`ancoraColonna`).
+          trascinabile && !ancoraColonna && "relative",
+          trascinabile && isDragging && "bg-muted/50 opacity-80"
+        )}
+        aria-sort={
+          intestazione.column.getCanSort()
+            ? ariaSort(intestazione.column.getIsSorted())
+            : undefined
+        }
+      >
+        {intestazione.isPlaceholder ? null : trascinabile || colonneBloccabili ? (
+          // `select-none` su **tutto** il contenitore, non solo sulla
+          // maniglia: la maniglia è un bersaglio minuscolo (`size="icon"`)
+          // accanto al testo del bottone d'ordinamento, e un trascinamento
+          // che parte un pixel a destra atterra su quel testo — riproducibile
+          // in Chrome quanto in Safari (a differenza della sola nota su
+          // `ManigliaRidimensiona`, dove il bersaglio non ha testo vicino).
+          // Senza, il browser avvia la selezione/il trascinamento nativo del
+          // titolo della colonna invece del riordino di dnd-kit — l'anteprima
+          // enorme e deformata del rilievo di Francesco.
+          <div className="flex select-none items-center gap-1">
+            {trascinabile ? <ManigliaRiordinoColonna titolo={titoloColonna} /> : null}
+            <span className="min-w-0 flex-1">
+              <tabella.FlexRender header={intestazione} />
+            </span>
+            {colonneBloccabili && !metaColonna?.azioniProprie ? (
+              <MenuBloccaColonna colonna={intestazione.column} titolo={titoloColonna} />
+            ) : null}
+          </div>
+        ) : (
+          <tabella.FlexRender header={intestazione} />
+        )}
+        {ridimensionabile && intestazione.column.getCanResize() ? (
+          <ManigliaRidimensiona
+            tabella={tabella}
+            tabellaRef={tabellaRef}
+            header={intestazione}
+            titolo={titoloColonna}
+          />
+        ) : null}
+      </TableHead>
+    </ContestoIntestazioneTrascinabile.Provider>
+  )
+}
+
+/**
+ * Il guscio `DndContext`/`SortableContext` del riordino di colonna — la
+ * stessa forma di `DataTableRiordinoRighe` (M3bis.7), con tre scarti voluti:
+ *
+ * **`restrictToHorizontalAxis`, non verticale**: le intestazioni si
+ * scambiano in orizzontale, un trascinamento in diagonale non stacca la
+ * colonna dalla riga di intestazioni.
+ *
+ * **`horizontalListSortingStrategy`**, la strategia gemella di
+ * `verticalListSortingStrategy` per un elenco che scorre in riga.
+ *
+ * **Nessun `activationConstraint`**: niko-table ne mette uno (8px) perché lì
+ * l'intera intestazione è l'area di trascinamento e deve distinguere un clic
+ * sul bottone d'ordinamento annidato da un trascinamento vero. Qui la
+ * maniglia è un elemento a sé (v. `ContestoIntestazioneTrascinabile`): non
+ * c'è click da distinguere, la stessa ragione per cui `DataTableRiordinoRighe`
+ * non ne ha uno.
+ *
+ * A differenza del riordino di riga, **non spegne nient'altro sulla
+ * tabella** — ordinamento, filtri, paginazione e virtualizzazione restano
+ * intatti (`PIANO.md`, M3bis.8: «sicuro da combinare con ordinamento/filtri/
+ * virtualizzazione»): l'indice di partenza e d'arrivo si calcolano
+ * sull'ordine delle **intestazioni** (`ordineIntestazioni`, sotto), che non
+ * dipende da quali righe sono visibili o in che ordine — a differenza del
+ * riordino di riga, dove l'indice viene dalle righe stesse.
+ */
+function DataTableRiordinoColonne({
+  ordineIntestazioni,
+  onRiordina,
+  children,
+}: {
+  ordineIntestazioni: string[]
+  onRiordina: (nuovoOrdine: string[]) => void
+  children: React.ReactNode
+}) {
+  const idContesto = React.useId()
+
+  const sensori = useSensors(
+    useSensor(MouseSensor, {}),
+    useSensor(TouchSensor, {}),
+    // `coordinateGetter: sortableKeyboardCoordinates`, non il predefinito di
+    // `KeyboardSensor` — quello muove di 25px fissi a ogni freccia, un passo
+    // che una riga alta 38-48px supera in una o due pressioni (da cui il
+    // riordino da tastiera di M3bis.7 sembrava funzionare col predefinito),
+    // ma che una colonna larga 140-220px non supera mai: `ArrowLeft` sposta
+    // l'intestazione di 25px in stile libero e la rilascia lì, senza mai
+    // arrivare a scavalcare la vicina — misurato qui (un solo `ArrowLeft`,
+    // nessun riordino). `sortableKeyboardCoordinates` (da `@dnd-kit/sortable`,
+    // non il predefinito di `@dnd-kit/core`) salta invece **alla posizione
+    // della prossima/precedente intestazione nell'elenco**, qualunque sia la
+    // sua larghezza — la stessa nozione di "vicino" che il mouse usa con
+    // `closestCenter`.
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const gestisciFineTrascinamento = React.useCallback(
+    (evento: DragEndEvent) => {
+      const { active, over } = evento
+      if (active && over && active.id !== over.id) {
+        const indicePartenza = ordineIntestazioni.indexOf(active.id as string)
+        const indiceArrivo = ordineIntestazioni.indexOf(over.id as string)
+        onRiordina(arrayMove(ordineIntestazioni, indicePartenza, indiceArrivo))
+      }
+    },
+    [ordineIntestazioni, onRiordina]
+  )
+
+  return (
+    <DndContext
+      id={idContesto}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToHorizontalAxis]}
+      onDragEnd={gestisciFineTrascinamento}
+      sensors={sensori}
+    >
+      <SortableContext items={ordineIntestazioni} strategy={horizontalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
+  )
+}
+
 /** I due stati vuoti, che non sono lo stesso stato. */
-function TabellaVuota({
+export function TabellaVuota({
   filtrata,
   vuoto,
   onPulisci,
@@ -675,6 +1939,664 @@ function TabellaVuota({
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Il corpo della tabella — non virtualizzato e virtualizzato (M3bis.4)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Le celle di una riga, nell'ordine giusto: con `colonneBloccabili` le
+ * colonne bloccate si spostano ai due bordi (v. `intestazioni`, più sotto,
+ * per la stessa ragione sulle intestazioni), altrimenti l'ordine dichiarato.
+ * Condivisa fra `DataTableBody` e `DataTableVirtualizedBody`, che altrimenti
+ * la scriverebbero identica due volte.
+ */
+export function celleRiga<TDato extends RowData>(
+  riga: Row<CaratteristicheTabella, TDato>,
+  colonneBloccabili: boolean
+) {
+  return colonneBloccabili
+    ? [
+        ...riga.getStartVisibleCells(),
+        ...riga.getCenterVisibleCells(),
+        ...riga.getEndVisibleCells(),
+      ]
+    : riga.getVisibleCells()
+}
+
+export type CorpoTabellaCondiviso<TDato extends RowData> = {
+  tabella: IstanzaTabella<TDato>
+  righe: Row<CaratteristicheTabella, TDato>[]
+  colonneBloccabili: boolean
+  bloccoLegacy: boolean
+  selezione: boolean
+  colonneVisibili: number
+  vuoto: StatoVuoto
+  conFiltri: boolean
+  pulisci: () => void
+}
+
+/**
+ * L'unica `<tr>` che chiama `useSortable` (M3bis.7) — sempre, `trascinabile`
+ * o no: le regole degli hook vogliono la stessa sequenza a ogni render, e
+ * `disabled: !trascinabile` (dnd-kit) è la via prevista per spegnerlo senza
+ * un `if` prima dell'hook. Fuori da un `<DataTableRiordinoRighe>` (nessun
+ * `DndContext` sopra) dnd-kit ricade sul proprio contesto predefinito —
+ * `setNodeRef`/`transform`/`listeners` restano no-op, non lanciano — ma qui
+ * non succede mai: la colonna `riordino` e questo wrapper si accendono
+ * sempre insieme, mai l'uno senza l'altro.
+ */
+function RigaCorpo<TDato extends RowData>({
+  riga,
+  trascinabile,
+  className,
+  dataState,
+  menuRiga,
+  children,
+}: {
+  riga: Row<CaratteristicheTabella, TDato>
+  trascinabile: boolean
+  className?: string
+  dataState?: string
+  /**
+   * Il tasto destro condiviso (M3bis.9): lo stesso `menu` della tendina «⋯»
+   * (`colonnaAzioniRiga`), montato qui dentro un `<ContextMenu>` che avvolge
+   * l'intera `<tr>` — non un'altra colonna, un altro modo di raggiungere le
+   * stesse voci. `abilitato` viene da `enabledFor`: la stessa domanda che
+   * spegne la tendina sulla stessa riga spegne anche il tasto destro, non
+   * due `if` scritti a mano in due punti diversi del blocco.
+   */
+  menuRiga?: { menu: React.ReactNode; abilitato: boolean }
+  children: React.ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: riga.id,
+    disabled: !trascinabile,
+  })
+
+  const stile: React.CSSProperties | undefined = trascinabile
+    ? {
+        // `CSS.Translate`, non `CSS.Transform` — stessa correzione presa
+        // sopra per `CellaIntestazione` (M3bis.8): righe di altezza diversa
+        // (`pannelloRiga` chiuso/aperto, editing in-riga, M3bis.10) fanno
+        // calcolare a dnd-kit anche uno `scaleY`, che `Transform` porta e
+        // `Translate` scarta. Qui il rischio è più raro che sulle colonne —
+        // le righe sono quasi sempre alte uguali — ma la stessa causa vale.
+        transform: CSS.Translate.toString(transform),
+        transition,
+        // `position: relative` è il contenimento che l'ombra durante il
+        // trascinamento (`zIndex`) chiede per stare sopra le righe ferme.
+        position: "relative",
+        zIndex: isDragging ? 1 : undefined,
+      }
+    : undefined
+
+  const contestoRiga = React.useMemo(
+    () => (trascinabile ? { attributes, listeners } : null),
+    [trascinabile, attributes, listeners]
+  )
+
+  const rigaTabella = (
+    <TableRow
+      ref={trascinabile ? setNodeRef : undefined}
+      style={stile}
+      className={cn(className, trascinabile && isDragging && "bg-muted/50 opacity-80")}
+      data-state={dataState}
+    >
+      {children}
+    </TableRow>
+  )
+
+  return (
+    <ContestoRigaTrascinabile.Provider value={contestoRiga}>
+      {menuRiga && menuRiga.abilitato ? (
+        <ContextMenu>
+          <ContextMenuTrigger render={rigaTabella} />
+          <ContextMenuContent>
+            <ContestoTipoMenuRiga.Provider value="tastoDestro">
+              <ContestoRigaMenu.Provider value={riga.original}>
+                {menuRiga.menu}
+              </ContestoRigaMenu.Provider>
+            </ContestoTipoMenuRiga.Provider>
+          </ContextMenuContent>
+        </ContextMenu>
+      ) : (
+        rigaTabella
+      )}
+    </ContestoRigaTrascinabile.Provider>
+  )
+}
+
+/**
+ * La riga di `DataTableBody`, dietro `React.memo` (M3bis.10, `chiaveMemoRiga`,
+ * porting "Inline Edit Table"). **Senza `chiaveMemoRiga` non cambia niente**:
+ * il comparatore rifiuta sempre di fermare il render (torna `false`, "non
+ * sono uguali") e questa riga si comporta come il `<tr>` inline di prima che
+ * esistesse — ricalcolata a ogni giro come tutte le altre.
+ *
+ * Con `chiaveMemoRiga` attivo, lo stato di editing (`editingId`/`draft`/
+ * `errors`) vive **fuori da `dati`** — mai un `isEditing` dentro la riga, che
+ * sostituendo l'array farebbe ricalcolare ogni riga memoizzata a ogni tasto,
+ * vanificando la memoizzazione stessa — e la pagina lo incolla in una
+ * stringa per riga con `chiaveMemoRiga(riga.original)`. Il comparatore la
+ * confronta insieme a `riga` (che TanStack ricrea solo quando cambiano
+ * `dati`/`colonne`, mai per selezione o ordinamento — v. `docs/DECISIONI.md`)
+ * e a tutto ciò che può cambiare il contenuto di una riga senza toccare quei
+ * due: selezione, espansione, e — uguale per ogni riga dello stesso render,
+ * ricalcolata una sola volta da `DataTableBody` — l'assetto delle colonne
+ * (ordine, larghezze acquisite, pin, visibilità). Digitare in un campo di
+ * modifica cambia solo la stringa di quella riga: le altre restano ferme.
+ */
+type RigaTabellaCorpoProps<TDato extends RowData> = {
+  tabella: IstanzaTabella<TDato>
+  riga: Row<CaratteristicheTabella, TDato>
+  colonneBloccabili: boolean
+  bloccoLegacy: boolean
+  selezione: boolean
+  colonneVisibili: number
+  fermo: boolean
+  trascinabile: boolean
+  menuRiga?: { menu: React.ReactNode; abilitato: boolean }
+  pannelloRiga?: (riga: TDato) => React.ReactNode
+  /**
+   * Stato derivato passato **esplicitamente**: quando il comparatore ferma
+   * il render non richiama mai `riga.getIsSelected()`/`getIsExpanded()` per
+   * conto suo — guarda solo le prop.
+   */
+  selezionata: boolean
+  espansa: boolean
+  /** `undefined` quando `chiaveMemoRiga` non è passato: nessuna memoizzazione. */
+  chiaveMemo: string | undefined
+  /** Impronta di ordine/larghezze/pin/visibilità delle colonne — uguale per ogni riga dello stesso render. */
+  strutturaColonne: string
+}
+
+function RigaTabellaCorpoImpl<TDato extends RowData>({
+  tabella,
+  riga,
+  colonneBloccabili,
+  bloccoLegacy,
+  selezione,
+  colonneVisibili,
+  fermo,
+  trascinabile,
+  menuRiga,
+  pannelloRiga,
+  selezionata,
+  espansa,
+}: RigaTabellaCorpoProps<TDato>) {
+  const celle = celleRiga(riga, colonneBloccabili)
+  return (
+    <React.Fragment>
+      <RigaCorpo
+        riga={riga}
+        trascinabile={trascinabile}
+        className={cn("group/riga", fermo && "snap-start")}
+        dataState={selezionata ? "selected" : undefined}
+        menuRiga={menuRiga}
+      >
+        {celle.map((cella, indice) => {
+          // Il subtotale (M3bis.1, `meta.sottototale`) prende il posto
+          // della cella normale **solo sulle righe che hanno figli** — su
+          // una riga foglia non c'è niente da sommare, e `tabella.FlexRender`
+          // resta la via giusta.
+          const sottototale = riga.subRows.length
+            ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)?.sottototale
+            : undefined
+          const ancoraCella = colonneBloccabili
+            ? ancoraggioColonna(tabella, cella.column, "cella")
+            : undefined
+          return (
+            // `truncate` è il prezzo di `table-fixed`: con le larghezze
+            // decise dalle intestazioni, un testo più lungo della sua
+            // colonna **sborda** nella colonna accanto invece di allargarla:
+            // meglio tagliarlo coi puntini.
+            <TableCell
+              key={cella.id}
+              className={cn(
+                "truncate",
+                bloccoLegacy && classiBloccate(indice, selezione),
+                ancoraCella?.className
+              )}
+              style={ancoraCella?.style}
+            >
+              {sottototale ? (
+                sottototale(
+                  riga.subRows.map((r) => r.original),
+                  riga.original
+                )
+              ) : (
+                <tabella.FlexRender cell={cella} />
+              )}
+            </TableCell>
+          )
+        })}
+      </RigaCorpo>
+      {pannelloRiga && espansa ? (
+        // Riga fratella, non figlia: subito dopo la riga che apre, colSpan
+        // su tutte le colonne visibili — è il pannello di M3bis.2, non
+        // l'albero di M3bis.1 (quello aggiunge righe vere al modello dati,
+        // questo ne disegna una in più solo per la vista).
+        <TableRow
+          id={`pannello-riga-${riga.id}`}
+          className={cn("hover:bg-transparent", fermo && "snap-start")}
+        >
+          <TableCell colSpan={colonneVisibili} className="bg-muted/30">
+            {pannelloRiga(riga.original)}
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </React.Fragment>
+  )
+}
+
+const RigaTabellaCorpo = React.memo(RigaTabellaCorpoImpl, (precedenti, successive) => {
+  // Senza `chiaveMemoRiga` (`chiaveMemo === undefined`) il comparatore
+  // dichiara sempre "diverse": nessuna riga resta mai ferma, e il
+  // comportamento è bit-per-bit quello di prima che questo componente
+  // esistesse — nessuna regressione per le otto capacità già `DONE` che non
+  // passano questo prop.
+  if (successive.chiaveMemo === undefined) return false
+  return (
+    precedenti.riga === successive.riga &&
+    precedenti.selezionata === successive.selezionata &&
+    precedenti.espansa === successive.espansa &&
+    precedenti.strutturaColonne === successive.strutturaColonne &&
+    precedenti.chiaveMemo === successive.chiaveMemo &&
+    precedenti.trascinabile === successive.trascinabile &&
+    precedenti.menuRiga?.abilitato === successive.menuRiga?.abilitato
+  )
+}) as typeof RigaTabellaCorpoImpl
+
+/**
+ * Il corpo non virtualizzato: ogni riga di `righe` è un `<tr>` vero, sempre
+ * montato — la forma che `naturale`/`ferma`/`infinito` hanno sempre avuto.
+ * Estratto in un componente a sé (prima era JSX inline in `DataTable`) perché
+ * M3bis.5 (Data Grid) innesta invece `DataTableVirtualizedBody`, non questo:
+ * un nome esportato per ciascuno dei due corpi evita che la Data Grid debba
+ * ricopiare la logica di riga/pannello/sentinella da qui.
+ */
+export function DataTableBody<TDato extends RowData>({
+  tabella,
+  righe,
+  colonneBloccabili,
+  bloccoLegacy,
+  selezione,
+  colonneVisibili,
+  vuoto,
+  conFiltri,
+  pulisci,
+  fermo,
+  pannelloRiga,
+  infinito,
+  totaleFiltrate,
+  sentinellaRef,
+  trascinabile = false,
+  menuRiga,
+  chiaveMemoRiga,
+}: CorpoTabellaCondiviso<TDato> & {
+  fermo: boolean
+  pannelloRiga?: (riga: TDato) => React.ReactNode
+  infinito: boolean
+  totaleFiltrate: number
+  sentinellaRef: React.RefObject<HTMLTableRowElement | null>
+  /** Righe trascinabili (M3bis.7) — vuole un `<DataTableRiordinoRighe>` sopra. */
+  trascinabile?: boolean
+  /** Il menu di riga condiviso (M3bis.9) — v. il prop `menuRiga` di `<DataTable>`. */
+  menuRiga?: {
+    menu: React.ReactNode
+    enabledFor?: (riga: TDato) => boolean
+  }
+  /** M3bis.10 — v. il prop `chiaveMemoRiga` di `<DataTable>`. */
+  chiaveMemoRiga?: (riga: TDato) => string
+}) {
+  // Calcolata una volta per render, non per riga: è la stessa per tutte,
+  // quindi entra nel comparatore di `RigaTabellaCorpo` come un unico
+  // valore condiviso. Il costo si paga solo quando `chiaveMemoRiga` è
+  // davvero passato — altrimenti resta una stringa vuota, mai letta dal
+  // comparatore (che con `chiaveMemo === undefined` non guarda le prop).
+  const strutturaColonne = chiaveMemoRiga
+    ? [
+        tabella.state.columnOrder.join(","),
+        tabella.state.sorting.map((s) => `${s.id}:${s.desc}`).join(","),
+        Object.entries(tabella.state.columnSizing)
+          .map(([id, larghezza]) => `${id}:${larghezza}`)
+          .join(","),
+        tabella.state.columnPinning.start.join(","),
+        tabella.state.columnPinning.end.join(","),
+        Object.entries(tabella.state.columnVisibility)
+          .map(([id, visibile]) => `${id}:${visibile}`)
+          .join(","),
+      ].join("|")
+    : ""
+  return (
+    <TableBody>
+      {righe.length > 0 ? (
+        <>
+          {righe.map((riga) => (
+            <RigaTabellaCorpo
+              key={riga.id}
+              tabella={tabella}
+              riga={riga}
+              colonneBloccabili={colonneBloccabili}
+              bloccoLegacy={bloccoLegacy}
+              selezione={selezione}
+              colonneVisibili={colonneVisibili}
+              fermo={fermo}
+              trascinabile={trascinabile}
+              pannelloRiga={pannelloRiga}
+              menuRiga={
+                menuRiga
+                  ? {
+                      menu: menuRiga.menu,
+                      abilitato: menuRiga.enabledFor ? menuRiga.enabledFor(riga.original) : true,
+                    }
+                  : undefined
+              }
+              selezionata={riga.getIsSelected()}
+              espansa={pannelloRiga ? riga.getIsExpanded() : false}
+              chiaveMemo={chiaveMemoRiga ? chiaveMemoRiga(riga.original) : undefined}
+              strutturaColonne={strutturaColonne}
+            />
+          ))}
+          {/*
+            La sentinella di `perPagina="infinito"`: una riga vuota,
+            invisibile (altezza di un pixel, `aria-hidden`), che
+            l'`IntersectionObserver` guarda per sapere quando caricare il
+            passo successivo. Sta **dopo** l'ultima riga vera, così entra
+            in vista solo quando ci si è avvicinati davvero al fondo — non
+            a ogni fotogramma. `righe.length < totaleFiltrate`: quando è
+            già tutto caricato non c'è più niente da aspettare, e la
+            sentinella sparisce.
+          */}
+          {infinito && righe.length < totaleFiltrate ? (
+            <TableRow
+              ref={sentinellaRef}
+              aria-hidden
+              className="border-0 hover:bg-transparent"
+            >
+              <TableCell colSpan={colonneVisibili} className="h-px p-0" />
+            </TableRow>
+          ) : null}
+        </>
+      ) : (
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={colonneVisibili} className="p-0">
+            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+          </TableCell>
+        </TableRow>
+      )}
+    </TableBody>
+  )
+}
+
+/**
+ * Il corpo virtualizzato (`perPagina="virtuale"`, M3bis.4): monta solo le
+ * righe **davvero in vista**, non tutte quelle filtrate — la differenza con
+ * `perPagina="infinito"`, che invece carica progressivamente e monta ogni
+ * riga caricata per sempre. È la forma che regge 10.000 righe senza mai avere
+ * 10.000 `<tr>` nel DOM.
+ *
+ * **La tecnica delle due righe-cuscinetto**, non `position: absolute` per
+ * riga: un `<table>` non ha un contenitore libero su cui posizionare i figli
+ * in assoluto senza rompere il flusso delle colonne (`<colgroup>`), quindi
+ * qui si usa la stessa forma che TanStack stessa documenta per una `<table>`
+ * vera — una riga vuota prima («quanto ho scorso oltre») e una dopo («quanto
+ * resta da scorrere»), alte quanto lo spazio delle righe non montate.
+ *
+ * **`estimateSize` è un segnaposto, non una misura**: 44 è un valore di
+ * partenza plausibile (vicino all'altezza di riga in densità normale), corretto
+ * subito dalla misura vera — `measureElement`, passato come `ref` a ogni riga
+ * — che legge l'altezza reale resa, densità compresa. La stessa disciplina di
+ * `altezzaMax` più sotto in `DataTable`: si misura, non si assume; qui la
+ * stima iniziale non è mai quella che l'utente vede a riposo, per più di un
+ * fotogramma.
+ */
+export function DataTableVirtualizedBody<TDato extends RowData>({
+  tabella,
+  righe,
+  colonneBloccabili,
+  bloccoLegacy,
+  selezione,
+  colonneVisibili,
+  vuoto,
+  conFiltri,
+  pulisci,
+  scrollEl,
+  senzaFocoRiga,
+  alVirtualizzatore,
+}: CorpoTabellaCondiviso<TDato> & {
+  /**
+   * L'elemento che scorre davvero — `[data-slot="table-container"]`, non il
+   * riquadro bordato attorno (v. il commento sull'effetto di scorrimento
+   * infinito in `DataTable`, stessa ragione). `null` finché `DataTable` non
+   * l'ha ancora trovato: il virtualizzatore resta inerte, non un errore.
+   */
+  scrollEl: HTMLElement | null
+  /**
+   * M3bis.5 — wiring privata per `<DataGrid>`: quando `true`, questo corpo
+   * smette di gestire lui il fuoco e la tastiera **a livello di riga**
+   * (niente `tabIndex` sulle `<tr>`, niente `onKeyDown`/`onFocus` di riga).
+   * La Data Grid naviga **a livello di cella** — ogni cella è il proprio
+   * bersaglio di fuoco — e se il corpo tenesse acceso anche il proprio giro
+   * riga-per-riga i due meccanismi si pesterebbero i piedi (due gestori di
+   * `ArrowUp`/`ArrowDown` sulla stessa pressione, uno dei quali cieco alla
+   * colonna). `undefined`/`false`: comportamento invariato, quello di
+   * M3bis.4.
+   */
+  senzaFocoRiga?: boolean
+  /**
+   * M3bis.5 — consegna a chi monta questo corpo la sola funzione di
+   * scorrimento del virtualizzatore (`scrollToIndex`, già clampata), non
+   * l'istanza intera: la Data Grid la usa per portare in vista una riga
+   * fuori dalla finestra montata quando il fuoco si sposta verticalmente da
+   * tastiera — lo stesso identico `vaiA` che questo corpo già usa per sé,
+   * riutilizzato invece di duplicato. Chiamato a ogni render (nessun elenco
+   * di dipendenze): `vaiA` chiude su `righe.length` corrente, e la chiamata
+   * stessa costa solo l'assegnazione di un riferimento.
+   */
+  alVirtualizzatore?: (vaiA: (indice: number) => void) => void
+}) {
+  const virtualizzatore = useVirtualizer({
+    count: righe.length,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => 44,
+    overscan: 10,
+  })
+
+  /**
+   * La riga a fuoco da tastiera, per indice — non un `id`: un indice resta
+   * confrontabile con `righe.length` per i confini (`Home`/`End`), e
+   * `scrollToIndex` del virtualizzatore vuole comunque un indice.
+   *
+   * **Deve tornare dentro i confini in fase di render**, non in un
+   * `useEffect`: un filtro può accorciare `righe` sotto l'indice a fuoco, e
+   * senza questa riga la tastiera resterebbe puntata su una riga che non
+   * esiste più per un giro di render — lo stesso pattern di
+   * `chiaveFiltroVista` in `DataTable` per `caricate`.
+   */
+  const [focoRiga, setFocoRiga] = React.useState(0)
+  const focoValido = righe.length === 0 ? 0 : Math.min(focoRiga, righe.length - 1)
+  if (focoValido !== focoRiga) setFocoRiga(focoValido)
+
+  /**
+   * I nodi delle righe **montate**, per indice — non tutte esistono sempre:
+   * solo quelle nella finestra visibile più l'`overscan`. `vaiA` scorre fino
+   * all'indice voluto (che la monta, se non lo è già) e aggiorna `focoRiga`;
+   * questo effetto — dopo **ogni** render, apposta senza dipendenze — sposta
+   * il fuoco reale del browser sul nodo appena montato, quando c'è. È la
+   * rottura nota della tastiera in una lista virtualizzata: senza questo
+   * secondo passo, `scrollToIndex` porta la riga in vista ma il fuoco resta
+   * sul vecchio nodo, magari già smontato.
+   *
+   * **`interagitoRef`, non l'effetto da solo**: senza questa guardia,
+   * l'effetto girerebbe anche al primo montaggio e ruberebbe il fuoco alla
+   * riga 0 non appena entra nel DOM — una tabella che si apre e si porta via
+   * il fuoco dalla ricerca sopra di lei, mai il comportamento di nessun'altra
+   * story del blocco. Diventa vero alla prima interazione vera con una riga
+   * (`onFocus` nativo di un `Tab`, o una freccia già dentro la tabella): da
+   * lì in poi l'effetto può muovere il fuoco lui stesso, perché è lì che
+   * l'utente lo vuole.
+   */
+  const rigaRefs = React.useRef(new Map<number, HTMLTableRowElement>())
+  const interagitoRef = React.useRef(false)
+  React.useEffect(() => {
+    if (senzaFocoRiga || !interagitoRef.current) return
+    const nodo = rigaRefs.current.get(focoValido)
+    if (nodo && document.activeElement !== nodo) nodo.focus()
+  })
+
+  const vaiA = (indice: number) => {
+    const chiuso = Math.max(0, Math.min(righe.length - 1, indice))
+    interagitoRef.current = true
+    virtualizzatore.scrollToIndex(chiuso, { align: "auto" })
+    if (!senzaFocoRiga) setFocoRiga(chiuso)
+  }
+
+  React.useEffect(() => {
+    alVirtualizzatore?.(vaiA)
+  })
+
+  // Un "passo di pagina" quanto le righe attualmente in vista — non un
+  // numero fisso: la stessa pressione di `PageDown` deve saltare di più su
+  // uno schermo alto e di meno su uno stretto, come farebbe lo scorrimento
+  // nativo del browser.
+  const passoPagina = Math.max(virtualizzatore.getVirtualItems().length - 1, 1)
+
+  const onKeyDownRiga = (evento: React.KeyboardEvent, indice: number) => {
+    switch (evento.key) {
+      case "ArrowDown":
+        evento.preventDefault()
+        vaiA(indice + 1)
+        return
+      case "ArrowUp":
+        evento.preventDefault()
+        vaiA(indice - 1)
+        return
+      case "Home":
+        evento.preventDefault()
+        vaiA(0)
+        return
+      case "End":
+        evento.preventDefault()
+        vaiA(righe.length - 1)
+        return
+      case "PageDown":
+        evento.preventDefault()
+        vaiA(indice + passoPagina)
+        return
+      case "PageUp":
+        evento.preventDefault()
+        vaiA(indice - passoPagina)
+        return
+    }
+  }
+
+  if (righe.length === 0) {
+    return (
+      <TableBody>
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={colonneVisibili} className="p-0">
+            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    )
+  }
+
+  const elementiVirtuali = virtualizzatore.getVirtualItems()
+  const primaAltezza = elementiVirtuali[0]?.start ?? 0
+  const dopoAltezza =
+    virtualizzatore.getTotalSize() - (elementiVirtuali[elementiVirtuali.length - 1]?.end ?? 0)
+
+  /**
+   * **A quale riga va il `tabIndex={0}`**: non sempre `focoValido`, che può
+   * essere scorso fuori dalla finestra montata (`Tab` non trova niente da
+   * raggiungere, e con `tabIndex={-1}` ovunque la tabella diventa
+   * irraggiungibile da tastiera). Va alla riga **montata più vicina** a
+   * `focoValido` — quando coincide è la stessa riga di sempre, quando
+   * `focoValido` è fuori vista diventa il punto di ingresso più sensato per
+   * chi preme `Tab` da fuori.
+   */
+  const indiceRovente = elementiVirtuali.reduce(
+    (vicino, elemento) =>
+      Math.abs(elemento.index - focoValido) < Math.abs(vicino - focoValido)
+        ? elemento.index
+        : vicino,
+    elementiVirtuali[0]?.index ?? focoValido
+  )
+
+  return (
+    <TableBody>
+      {primaAltezza > 0 ? (
+        <tr aria-hidden>
+          <td colSpan={colonneVisibili} className="p-0" style={{ height: primaAltezza }} />
+        </tr>
+      ) : null}
+      {elementiVirtuali.map((elemento) => {
+        const riga = righe[elemento.index]
+        if (!riga) return null
+        const celle = celleRiga(riga, colonneBloccabili)
+        return (
+          <TableRow
+            key={riga.id}
+            ref={(nodo: HTMLTableRowElement | null) => {
+              virtualizzatore.measureElement(nodo)
+              if (nodo) rigaRefs.current.set(elemento.index, nodo)
+              else rigaRefs.current.delete(elemento.index)
+            }}
+            tabIndex={senzaFocoRiga ? undefined : elemento.index === indiceRovente ? 0 : -1}
+            onFocus={
+              senzaFocoRiga
+                ? undefined
+                : () => {
+                    interagitoRef.current = true
+                    setFocoRiga(elemento.index)
+                  }
+            }
+            onKeyDown={senzaFocoRiga ? undefined : (evento) => onKeyDownRiga(evento, elemento.index)}
+            className="group/riga outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            data-state={riga.getIsSelected() ? "selected" : undefined}
+          >
+            {celle.map((cella, indice) => {
+              const sottototale = riga.subRows.length
+                ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)?.sottototale
+                : undefined
+              const ancoraCella = colonneBloccabili
+                ? ancoraggioColonna(tabella, cella.column, "cella")
+                : undefined
+              return (
+                <TableCell
+                  key={cella.id}
+                  className={cn(
+                    "truncate",
+                    bloccoLegacy && classiBloccate(indice, selezione),
+                    ancoraCella?.className
+                  )}
+                  style={ancoraCella?.style}
+                >
+                  {sottototale ? (
+                    sottototale(
+                      riga.subRows.map((r) => r.original),
+                      riga.original
+                    )
+                  ) : (
+                    <tabella.FlexRender cell={cella} />
+                  )}
+                </TableCell>
+              )
+            })}
+          </TableRow>
+        )
+      })}
+      {dopoAltezza > 0 ? (
+        <tr aria-hidden>
+          <td colSpan={colonneVisibili} className="p-0" style={{ height: dopoAltezza }} />
+        </tr>
+      ) : null}
+    </TableBody>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Il blocco
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -701,6 +2623,26 @@ export type NomeRighe = { singolare: string; plurale: string }
 export type DataTableProps<TDato extends RowData> = {
   colonne: ColonnaTabella<TDato>[]
   dati: TDato[]
+  /**
+   * L'identità di una riga — passata a TanStack come `getRowId`. **Senza,
+   * l'id di una riga è il suo indice nell'array** (il predefinito di
+   * TanStack): va bene finché `dati` cambia solo forma (un filtro, una
+   * pagina), non ordine — è la riga stessa a restare all'indice che aveva.
+   *
+   * **`riordinabile` lo richiede**, e la ragione è specifica, non una
+   * cautela generica: `useSortable` (dnd-kit) tiene per ogni id uno stato
+   * interno che confronta la posizione *prima* e *dopo* un cambio di
+   * layout, per capire se animare l'assestamento. Con l'id legato
+   * all'indice, la riga che finisce in una data posizione non è mai "la
+   * stessa riga di prima" per dnd-kit — è sempre "quella che sta lì ora" —
+   * e il confronto vede un salto di rettangolo che non c'è, innescando
+   * un'animazione di assestamento indesiderata sulla riga appena rilasciata
+   * (misurato: uno scivolamento di ~150ms dopo il rilascio, assente nel
+   * riferimento niko-table — che infatti passa `getRowId={(row) => row.id}`
+   * nel proprio esempio). Con un id vero la riga resta la stessa entità
+   * anche quando cambia posizione, e dnd-kit non vede niente da animare.
+   */
+  idRiga?: (riga: TDato) => string
   /**
    * Il segnaposto della casella di ricerca. `false` la toglie — per le tabelle
    * corte, dove cercare costa più che leggere.
@@ -754,8 +2696,25 @@ export type DataTableProps<TDato extends RowData> = {
    * non ha. Verificare come arrivano i dati **prima** di assumere che il
    * pattern costi zero su una pagina nuova (valutazione del 2026-09-15,
    * `WORKLOG.md`).
+   *
+   * **`"virtuale"`** (M3bis.4) è la terza forma, non una variante delle
+   * altre due: niente pagine come `"infinito"`, ma **niente crescita** del
+   * DOM mentre si scorre — monta solo le righe davvero in vista
+   * (`@tanstack/react-virtual`), non ogni riga caricata finora. È la forma
+   * per un elenco **grande fin dall'inizio** (10.000 righe, non 40 che
+   * crescono a 10.000 scorrendo): `"infinito"` su quella mole monterebbe
+   * comunque 10.000 `<tr>` una volta arrivati in fondo, `"virtuale"` mai più
+   * di una finestra. **Vuole `altezza="ferma"` per lo stesso motivo di
+   * `"infinito"`** — senza un tetto non c'è una finestra da calcolare.
+   * **Non compone con `pannelloRiga`**: il pannello di M3bis.2 inserisce una
+   * riga vera in più nel DOM quando si apre, e il virtualizzatore conta le
+   * righe per indice fisso (`righe.length`) — un conto che il pannello
+   * sposterebbe ogni volta che una riga qualsiasi si espande. `getSottoRighe`
+   * (l'albero di M3bis.1) invece compone senza problemi: le righe figlie
+   * sono già righe vere nel modello dati, incluse nello stesso elenco piatto
+   * che il virtualizzatore già scorre.
    */
-  perPagina?: (typeof PER_PAGINA)[number] | "infinito"
+  perPagina?: (typeof PER_PAGINA)[number] | "infinito" | "virtuale"
   /**
    * Il riquadro della tabella, in una di due forme — indipendente da
    * `perPagina`, che sceglie *come si caricano* le righe, non *quanto spazio
@@ -802,8 +2761,228 @@ export type DataTableProps<TDato extends RowData> = {
    */
   bloccaPrimaColonna?: boolean
   /**
-   * Cosa mettere accanto alla ricerca: i filtri della pagina, le azioni di
-   * massa.
+   * Colonne ridimensionabili da tastiera e da trascinamento (M3bis.3, D17
+   * riaperta e generalizzata). Aggiunge a ogni intestazione una maniglia sul
+   * bordo destro — `role="separator"`, frecce sinistra/destra per i passi da
+   * tastiera, `Home` per tornare alla larghezza di partenza.
+   *
+   * **Sposta il calcolo delle larghezze da `meta.larghezza` (utility
+   * Tailwind) a `size`/`minSize`/`maxSize`** sulla colonna (v. `MetaColonna`):
+   * la tabella passa da `table-fixed` con larghezze nella prima riga a un
+   * `<colgroup>` vero, perché una larghezza *acquisita* dall'utente è un
+   * numero che nessuna classe del tema rappresenta.
+   *
+   * **Il costo che D17 chiedeva in mano prima di riaprirla**: le larghezze
+   * acquisite sono pixel, e quindi **non seguono la densità** — la stessa
+   * eccezione, per la stessa ragione, che `sidebar.tsx` già ha (`CLAUDE.md`
+   * regola 5). Non è un difetto scoperto tardi: è scritto qui, ed è la
+   * ragione per cui l'eccezione alla regola 3 (niente valori arbitrari) è
+   * **questa e non un'altra** — «larghezze acquisite dall'utente», il perimetro
+   * che D17 chiedeva di circoscrivere, non «larghezze» in generale. La
+   * persistenza fra un caricamento e l'altro **resta fuori da questa sessione**:
+   * `columnSizing` vive in uno stato interno del blocco, non in una prop
+   * controllata — se una pagina futura vorrà salvarla (`localStorage`, profilo
+   * utente) è lavoro a sé, annotato in `WORKLOG.md` e non promesso qui.
+   */
+  ridimensionabile?: boolean
+  /**
+   * Il pin **generalizzato** (M3bis.3): qualunque colonna, a sinistra o a
+   * destra, da un menu nell'intestazione — non solo la prima colonna fissa di
+   * `bloccaPrimaColonna`. Aggiunge a ogni intestazione bloccabile un piccolo
+   * bottone con `PinIcon`, che apre "Blocca a sinistra" / "Blocca a destra" /
+   * "Non bloccare".
+   *
+   * **Implica `ridimensionabile` internamente** (non serve passarlo insieme):
+   * lo scarto sticky di una colonna bloccata (`left`/`right` in pixel) si
+   * calcola dalle larghezze *acquisite* delle colonne che la precedono
+   * (`column.getStart("start")`/`getAfter("end")` di TanStack), che senza il
+   * `<colgroup>` di `ridimensionabile` non esistono. Le maniglie di
+   * ridimensionamento restano nascoste finché non si passa anche
+   * `ridimensionabile` esplicitamente — `colonneBloccabili` da solo blocca,
+   * non ridimensiona.
+   *
+   * **Sostituisce `bloccaPrimaColonna` quando sono passati insieme**: i due
+   * meccanismi disegnano lo sticky in due modi incompatibili (classi fisse
+   * per indice contro scarti calcolati), e sovrapporli romperebbe l'uno o
+   * l'altro. Con `colonneBloccabili` si blocca la prima colonna dal menu, non
+   * dal prop.
+   */
+  colonneBloccabili?: boolean
+  /**
+   * Riordino manuale delle **colonne** via trascinamento (M3bis.8, porting
+   * di "Column DnD Table", stesso `@dnd-kit/*` di `riordinabile`): aggiunge
+   * a ogni intestazione trascinabile una maniglia (`⠿`), accanto al bottone
+   * d'ordinamento — mai al posto dell'intestazione intera, che diventerebbe
+   * un `role="button"` attorno a un bottone vero e la violazione
+   * `nested-interactive` di axe (v. `ContestoIntestazioneTrascinabile`).
+   *
+   * **A differenza di `riordinabile`, non spegne niente**: ordinamento,
+   * ricerca/filtri, paginazione e virtualizzazione restano tutti attivi
+   * (`PIANO.md`, M3bis.8: «sicuro da combinare con ordinamento/filtri/
+   * virtualizzazione») — l'indice di partenza e d'arrivo del trascinamento
+   * viene dall'ordine delle **intestazioni**, non da quello delle righe, e
+   * non diverge mai da `state.columnOrder` qualunque cosa succeda sotto.
+   *
+   * Le tre colonne che il blocco aggiunge da sé — selezione, espansione,
+   * maniglia di riordino **riga** — restano sempre per prime e non si
+   * trascinano (`COLONNE_UTILITY`): non sono "una colonna" nel senso in cui
+   * lo sono quelle dichiarate da `colonne`, sono chrome del blocco.
+   *
+   * **Le celle non seguono il trascinamento a fotogrammi come niko-table**
+   * (`TableDragAlongCell`, un `useSortable` per cella per riga): qui solo
+   * l'intestazione scivola durante il trascinamento, il corpo scatta alla
+   * nuova posizione al rilascio — `row.getVisibleCells()` rispetta già
+   * `state.columnOrder` da sé. Uno scarto deliberato dal sorgente originale,
+   * non un limite scoperto tardi: un `useSortable` per cella per riga
+   * avrebbe un costo che cresce con `dati`, proprio dove la virtualizzazione
+   * (M3bis.4) e la Data Grid (M3bis.5) esistono apposta per tenerlo basso.
+   *
+   * `state.columnOrder` resta uno stato interno del blocco, come `dimensioni`/
+   * `ancoraggio` per resize e pin: nessuna pagina oggi salva un riordino di
+   * colonna fra un caricamento e l'altro.
+   */
+  colonneRiordinabili?: boolean
+  /**
+   * Riordino manuale via trascinamento (M3bis.7, porting di "Row DnD Table",
+   * `@dnd-kit/*`): aggiunge a ogni riga una maniglia (`⠿`) trascinabile da
+   * mouse **e** da tastiera (Spazio per afferrare, frecce su/giù per
+   * spostare, Spazio per rilasciare, Escape per annullare — `KeyboardSensor`
+   * di dnd-kit, non farina di questo sacco).
+   *
+   * **Disabilita esplicitamente ordinamento e ricerca/filtri mentre è
+   * attivo** (`PIANO.md`, M3bis.7) — non un avviso in `WORKLOG.md`, una
+   * conseguenza del prop: `enableSorting`/`enableColumnFilters`/
+   * `enableGlobalFilter` vanno a `false` sulla tabella, la casella di
+   * ricerca sparisce (`cerca` viene ignorato). La ragione non è di comodo:
+   * il trascinamento calcola l'indice di partenza e d'arrivo dall'ordine
+   * **visibile** delle righe (`tabella.getRowModel().rows`) e li applica
+   * all'array **grezzo** passato in `dati` — un ordinamento o un filtro
+   * attivi farebbero divergere i due, e la riga rilasciata finirebbe in un
+   * punto diverso dall'array vero. Per lo stesso motivo forza tutte le righe
+   * filtrate in una sola pagina (`perPagina`/`"infinito"`/`"virtuale"` non
+   * si combinano: si vede tutto l'elenco, o l'indice visibile e quello reale
+   * divergono altrettanto). **Fuori ambito di questa sessione**: righe
+   * annidate (`getSottoRighe`) e pannello di dettaglio (`pannelloRiga`) — il
+   * caso reale (un elenco piatto da riordinare a mano) non li richiede
+   * insieme, e comporli avrebbe voluto dire ricalcolare l'indice sull'albero
+   * invece che sull'array piatto.
+   *
+   * `onRiordina` riceve il `dati` intero nel nuovo ordine — lo stesso
+   * principio di `barra`/`onTabellaPronta`: lo stato dei dati resta della
+   * pagina, il blocco non lo tiene mai per sé.
+   */
+  riordinabile?: {
+    onRiordina: (dati: TDato[]) => void
+  }
+  /**
+   * Righe annidate (M3bis.1, "Tree"): dato un dato di riga, restituisce le
+   * sue righe figlie, o `undefined`/`[]` per una riga senza figli. **Struttura
+   * vera nel modello dati** — il caso reale è il "Computo metrico" di Studio,
+   * dove ogni voce porta già le proprie righe di misurazione — e non
+   * raggruppamento: non c'è `columnGroupingFeature` fra le `caratteristiche`,
+   * di proposito (`WORKLOG.md`, valutazione niko-table).
+   *
+   * Da solo abilita **espandi/collassa e selezione a cascata**: entrambi sono
+   * meccanica di TanStack (`rowExpandingFeature`/`rowSelectionFeature`,
+   * sempre registrate) che resta inerte finché nessuna riga ha `subRows`. Non
+   * disegna da sé il rientro e lo `chevron` — quello è `CellaAlbero`, da
+   * comporre nella colonna che identifica la riga — e non calcola nessun
+   * subtotale: quello è `meta.sottototale` su una colonna (v. `MetaColonna`).
+   *
+   * Passata a TanStack come `getSubRows`: la firma è la stessa, il nome è
+   * tradotto perché è l'unica opzione di questa natura che il blocco espone —
+   * a differenza delle colonne, dove restare fedeli ai nomi di TanStack tiene
+   * valida la loro documentazione.
+   */
+  getSottoRighe?: (riga: TDato) => readonly TDato[] | undefined
+  /**
+   * Il pannello di dettaglio di una riga (M3bis.2, "Row Expansion",
+   * porting da niko-table): contenuto **libero**, a differenza del
+   * subtotale di `meta.sottototale`, che è sempre un numero formattato.
+   * Restituire `null`/`undefined` per una riga toglie il chevron da quella
+   * riga — non ogni riga deve avere per forza un dettaglio.
+   *
+   * Aggiunge da sé una colonna col chevron (`colonnaEspansione`), come
+   * `selezione` aggiunge la propria: la pagina non la scrive. **Non è
+   * `getSottoRighe`**: quello innesta righe vere nel modello dati (l'albero
+   * di M3bis.1, il "Computo" con le sue misurazioni); questo apre una riga
+   * in più, sempre fratella mai figlia, con qualunque markup la pagina
+   * voglia — la scheda di un cliente sotto la sua riga d'elenco, non un
+   * altro giro di celle della stessa tabella.
+   *
+   * La riga di dettaglio prende tutta la larghezza (`colSpan`) ed esce dalla
+   * paginazione/dallo scorrimento infinito come farebbe qualunque riga in
+   * più: apre e chiude, non pagina a parte.
+   */
+  pannelloRiga?: (riga: TDato) => React.ReactNode
+  /**
+   * Il menu di riga condiviso (M3bis.9, porting "Row Context Menu Table"):
+   * `menu` sono le voci — scritte una sola volta con `RowMenuItem`/
+   * `RowMenuSeparator`/`RowMenuSub`, che leggono la riga da
+   * `useDataTableRow<TDato>()` — e si montano **sia** nella tendina «⋯» che
+   * il blocco aggiunge da sé in coda alle colonne (`colonnaAzioniRiga`,
+   * come `selezione`/`pannelloRiga` aggiungono la propria), **sia** nel
+   * tasto destro sull'intera riga.
+   *
+   * `enabledFor` esclude una riga da **entrambe** le vie insieme — bloccata,
+   * di sola lettura — con la stessa domanda: non due controlli scritti a
+   * mano che potrebbero disallinearsi.
+   *
+   * **Il tasto destro non compone con `perPagina="virtuale"`**: la tendina
+   * resta (è una cella come le altre, `DataTableVirtualizedBody` la rende
+   * comunque), ma nessuna `<tr>` virtualizzata è avvolta in un
+   * `<ContextMenu>` — lo stesso limite di `pannelloRiga` con la
+   * virtualizzazione (M3bis.4), per la stessa ragione: right-click resta
+   * comunque una scorciatoia, mai l'unica via (v. `context-menu.stories.tsx`).
+   */
+  menuRiga?: {
+    menu: React.ReactNode
+    enabledFor?: (riga: TDato) => boolean
+    ariaLabel?: (riga: TDato) => string
+  }
+  /**
+   * L'editing in-riga leggero (M3bis.10, porting "Inline Edit Table"): la via
+   * d'uscita per lasciare che una pagina renda editabile un campo alla volta
+   * senza pagare il costo della Data Grid (M3bis.5, clipboard/fill/annulla-
+   * ripeti) né aprire una scheda — il caso reale è una `pagina-lista` di
+   * Anagrafe, non il "Computo" (che quei tre non li può fare a meno).
+   *
+   * **Non è un prop che accende l'editing**: quello resta lavoro della
+   * pagina — colonne che, quando `riga.original` è quella in modifica,
+   * rendono un `Input` invece del valore, con `onKeyDown` che salva su
+   * `Invio` e annulla su `Esc` (v. la story `Editing In Riga`). Questo prop
+   * è solo la **chiave di memoizzazione**: `<DataTable>` avvolge ogni riga
+   * in `React.memo`, e lo stato di editing (`editingId`/`draft`/`errors`)
+   * vive fuori da `dati` — mai un `isEditing` dentro la riga, che
+   * sostituendo l'array farebbe ricalcolare **tutta** la tabella a ogni
+   * tasto. Senza una chiave che lo dica, la riga memoizzata non lo saprebbe:
+   * `chiaveMemoRiga` incolla quello stato esterno in una stringa per riga
+   * (`` `${draft.nome}|${errori.nome ?? ""}` ``, tipicamente) — cambia solo
+   * per la riga in modifica, e solo quella si ricalcola a ogni tasto. Torna
+   * `""` (o qualunque stringa costante) per una riga che non c'entra: nessun
+   * cambio, nessun render.
+   *
+   * **Senza questo prop, niente cambia**: nessuna delle nove capacità già
+   * `DONE` di questa fase lo passa, e il comparatore di memoizzazione lo sa
+   * — senza una chiave torna sempre "diverse", cioè il comportamento di
+   * sempre, un `<tr>` ricalcolato a ogni giro.
+   *
+   * **Non compone con `perPagina="virtuale"`**: la finestra montata dal
+   * virtualizzatore (M3bis.4) ricalcola già ogni riga a ogni scorrimento
+   * per misurarne l'altezza vera (`measureElement`), e il fuoco/tastiera di
+   * `DataTableVirtualizedBody` sono chiusure nuove a ogni render — comporre
+   * la memoizzazione lì avrebbe voluto dire riscrivere anche quella parte,
+   * senza un caso reale che lo richieda (nessuna pagina edita un campo su
+   * 10.000 righe virtualizzate). Scarto annotato, come `pannelloRiga` con la
+   * stessa `perPagina="virtuale"`.
+   */
+  chiaveMemoRiga?: (riga: TDato) => string
+  /**
+   * Cosa mettere sotto la ricerca, in una riga propria: i filtri della
+   * pagina, le azioni di massa. Non condivide la riga con la ricerca/il menu
+   * Colonne — a differenza loro non va a capo da sé quando lo spazio manca
+   * (M3bis.6, rilievo di Francesco: col ritorno a capo automatico un filtro
+   * sfaccettato si spezzava a metà altezza fra le due righe).
    *
    * **Nella forma a funzione riceve le righe selezionate**, ed è la sola via
    * per cui la selezione esce dalla tabella. Non c'è una `onSelezione`, e la
@@ -815,9 +2994,57 @@ export type DataTableProps<TDato extends RowData> = {
    * (`CLAUDE.md`, le trappole; costò una sessione l'8 settembre 2026). Con la
    * funzione non c'è nessun effetto: è una chiamata in fase di render, pura, e
    * le azioni di massa stanno dove servono davvero, cioè nella barra.
+   *
+   * **Riceve anche l'istanza TanStack, come secondo argomento** (M3bis.6,
+   * aggiunta per i filtri di `data-table-filtro-*.tsx`): è la via giusta per
+   * comporre un componente reattivo allo stato dei filtri dentro `barra`,
+   * **non** `tabellaRef`/`onTabellaPronta` — quella coppia consegna
+   * l'istanza dopo il commit, in un `useEffect` senza dipendenze, apposta
+   * per comandi imperativi one-off (`tabellaRef.current?.toggleAll
+   * RowsExpanded()` in un `onClick`, mai per il render). Usarla per il
+   * render di `barra` costava un giro intero indietro — un `<FiltroSfaccettato>`
+   * dentro `barra={() => <X tabella={tabellaRef.current} />}` mostrava
+   * sempre lo stato del render *precedente*, e in un caso preso qui (`Reset`
+   * di `data-table-filtro-reset.tsx`, invisibile finché non arrivava
+   * un'interazione qualunque successiva) il ritardo si vedeva a occhio.
+   * `barra(scelti, tabella)` passa invece l'istanza della **stessa passata
+   * di render**, senza indirizzo indiretto: zero ritardo, per costruzione.
    */
-  barra?: React.ReactNode | ((scelti: TDato[]) => React.ReactNode)
+  barra?:
+    | React.ReactNode
+    | ((scelti: TDato[], tabella: IstanzaTabella<TDato>) => React.ReactNode)
   className?: string
+  /**
+   * Consegna l'istanza TanStack viva a ogni render — la via d'uscita per un
+   * comando che questo blocco non traduce in un prop suo (`table.toggle
+   * AllRowsExpanded()`, per dire): non tutto ciò che TanStack sa fare
+   * merita un prop tradotto apposta, specie un comando usato una volta
+   * sola in una story. Non è uno stato che diventa controllato — resta
+   * interno al blocco, come sempre — è solo un modo per **comandarlo**
+   * da fuori senza doverlo duplicare. Stesso principio delle `registra*`
+   * di `<DataGrid>` (`data-grid.tsx`, M3bis.5): si registra una funzione,
+   * non si solleva uno stato.
+   */
+  onTabellaPronta?: (tabella: IstanzaTabella<TDato>) => void
+  /**
+   * @internal Wiring privata per `<DataGrid>` (M3bis.5), non pensata per
+   * essere passata da una pagina. Con `perPagina="virtuale"`, consegna a
+   * `DataTableVirtualizedBody` il controllo del fuoco — la Data Grid lo
+   * sposta lei, cella per cella, non riga per riga — e l'accesso allo
+   * scorrimento verticale del virtualizzatore.
+   */
+  internoGriglia?: {
+    senzaFocoRiga: boolean
+    alVirtualizzatore: (vaiA: (indice: number) => void) => void
+  }
+  /**
+   * @internal Attributi passati al `<table>` così com'è (`role`,
+   * `aria-*`, …). Serve a `<DataGrid>` per dichiarare `role="grid"` senza
+   * che questo blocco debba conoscere quella semantica: nessuna tabella
+   * non-Data-Grid ne ha bisogno, quindi non è nella parte pubblica della
+   * documentazione del prop.
+   */
+  attributiTabella?: React.ComponentPropsWithoutRef<typeof Table>
 }
 
 /**
@@ -838,6 +3065,7 @@ export type DataTableProps<TDato extends RowData> = {
 export function DataTable<TDato extends RowData>({
   colonne,
   dati,
+  idRiga,
   cerca = "Cerca…",
   vuoto = { titolo: "Non c'è ancora niente" },
   nomeRighe = { singolare: "riga", plurale: "righe" },
@@ -847,16 +3075,67 @@ export function DataTable<TDato extends RowData>({
   selezione = false,
   colonneNascondibili = true,
   bloccaPrimaColonna = false,
+  ridimensionabile = false,
+  colonneBloccabili = false,
+  colonneRiordinabili = false,
+  riordinabile,
+  getSottoRighe,
+  pannelloRiga,
+  menuRiga,
+  chiaveMemoRiga,
   barra,
   className,
+  onTabellaPronta,
+  internoGriglia,
+  attributiTabella,
 }: DataTableProps<TDato>) {
-  const infinito = perPagina === "infinito"
+  const trascinamento = !!riordinabile
+  // Alias semplici, non composti: TypeScript restringe il tipo letterale di
+  // `perPagina` da un confronto diretto come questo (le "aliased conditions"
+  // di TS 4.4+), non da un `&&` in più — `infinito`/`virtualizzata` sotto,
+  // che il riordino deve spegnere, non possono quindi essere la stessa
+  // espressione usata più sotto per scegliere `pageSize`.
+  const perPaginaInfinito = perPagina === "infinito"
+  const perPaginaVirtuale = perPagina === "virtuale"
+  // `"virtuale"` non si combina col riordino (v. il prop): monta una
+  // finestra di righe, non l'elenco intero — l'indice visibile e quello
+  // grezzo divergerebbero appena si scorre. Ricade su `"naturale"`.
+  const infinito = perPaginaInfinito && !trascinamento
+  const virtualizzata = perPaginaVirtuale && !trascinamento
   const fermo = altezza === "ferma"
+  // `colonneBloccabili` implica `ridimensionabile`: lo scarto sticky del pin
+  // generalizzato si calcola dalle larghezze acquisite (v. `MetaColonna`,
+  // sopra), che senza il `<colgroup>` di `ridimensionabile` non esistono.
+  const conDimensioni = ridimensionabile || colonneBloccabili
+  // `colonneBloccabili` sostituisce `bloccaPrimaColonna`, non lo somma: i due
+  // meccanismi disegnano lo sticky in due modi incompatibili (v. il prop).
+  const bloccoLegacy = bloccaPrimaColonna && !colonneBloccabili
   const [ordinamento, setOrdinamento] = React.useState<SortingState>([])
   const [filtri, setFiltri] = React.useState<ColumnFiltersState>([])
   const [ricerca, setRicerca] = React.useState("")
   const [visibilita, setVisibilita] = React.useState<ColumnVisibilityState>({})
   const [scelte, setScelte] = React.useState({})
+  /**
+   * Le larghezze **acquisite** dall'utente (`ridimensionabile`/
+   * `colonneBloccabili`). Resta uno stato interno — non una prop controllata
+   * — perché nessuna pagina oggi salva un ridimensionamento fra un
+   * caricamento e l'altro: è il limite scritto sul prop `ridimensionabile`,
+   * non un'omissione silenziosa.
+   */
+  const [dimensioni, setDimensioni] = React.useState<ColumnSizingState>({})
+  /** Il pin generalizzato (`colonneBloccabili`): quali colonne, e da che lato. */
+  const [ancoraggio, setAncoraggio] = React.useState<ColumnPinningState>({
+    start: [],
+    end: [],
+  })
+  /**
+   * L'ordine acquisito delle colonne (`colonneRiordinabili`, M3bis.8).
+   * `[]` di partenza: non un ordine "nessuno", è l'array vuoto che per
+   * TanStack **significa** "usa l'ordine di dichiarazione" — lo stesso
+   * predefinito che questa tabella aveva già prima che il prop esistesse
+   * (`columnOrderingFeature` è registrata sempre, v. `caratteristiche`).
+   */
+  const [ordineColonne, setOrdineColonne] = React.useState<ColumnOrderState>([])
 
   /**
    * Quante righe sono caricate. Solo `perPagina="infinito"`: cresce di
@@ -873,23 +3152,77 @@ export function DataTable<TDato extends RowData>({
    * Il `useMemo` non è ottimizzazione: `colonne` che cambia identità a ogni
    * render farebbe ricostruire la tabella e perdere ordinamento e pagina.
    */
-  const colonneEffettive = React.useMemo(
-    () => (selezione ? [colonnaSelezione<TDato>(), ...colonne] : colonne),
-    [colonne, selezione]
-  )
+  const colonneEffettive = React.useMemo(() => {
+    let risultato = colonne
+    if (pannelloRiga) risultato = [colonnaEspansione<TDato>(), ...risultato]
+    if (selezione) risultato = [colonnaSelezione<TDato>(), ...risultato]
+    // La maniglia va per prima di tutte, davanti anche alla selezione: è il
+    // primo gesto possibile su una riga quando si sta riordinando.
+    if (trascinamento) risultato = [colonnaRiordino<TDato>(), ...risultato]
+    // La tendina «⋯» va in coda, non in testa come le altre: è un'azione,
+    // non un modo di leggere la riga.
+    if (menuRiga) risultato = [...risultato, colonnaAzioniRiga<TDato>(menuRiga)]
+    return risultato
+  }, [colonne, selezione, pannelloRiga, trascinamento, menuRiga])
 
   const tabella = useTable({
     features: caratteristiche,
     data: dati,
     columns: colonneEffettive,
     globalFilterFn: "includesString",
+    // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
+    // predefinito, l'indice nell'array (v. il prop).
+    getRowId: idRiga ? (riga) => idRiga(riga) : undefined,
+    // `expanded` non è fra gli `onChange`/`state` sotto: resta uno stato
+    // interno di TanStack (come `columnOrder`), perché nessun calcolo di
+    // questo componente ha bisogno di leggerlo — a differenza di
+    // `rowSelection`, letto per il conto in `PaginazioneTabella`.
+    getSubRows: getSottoRighe ? (riga) => getSottoRighe(riga) : undefined,
+    // Senza `pannelloRiga` resta `undefined`: `getCanExpand()` ricade sul
+    // predefinito di TanStack (righe con `subRows`, l'albero di M3bis.1).
+    getRowCanExpand: pannelloRiga
+      ? (riga) => pannelloRiga(riga.original) != null
+      : undefined,
     onSortingChange: setOrdinamento,
     onColumnFiltersChange: setFiltri,
     onGlobalFilterChange: setRicerca,
     onColumnVisibilityChange: setVisibilita,
     onRowSelectionChange: setScelte,
+    // `columnResizeMode: "onChange"`: la larghezza si aggiorna mentre si
+    // trascina, non solo al rilascio — è il riscontro che rende il
+    // trascinamento leggibile come tale, non un motivo di prestazioni (500
+    // righe, nessun ricalcolo pesante per colonna).
+    columnResizeMode: "onChange",
+    enableColumnResizing: ridimensionabile,
+    enableColumnPinning: colonneBloccabili,
+    onColumnSizingChange: setDimensioni,
+    onColumnPinningChange: setAncoraggio,
+    onColumnOrderChange: setOrdineColonne,
+    // `riordinabile` (M3bis.7): spente **sulla tabella**, non solo nascoste
+    // in chrome — l'ordine visibile deve coincidere con `dati` grezzo perché
+    // il trascinamento mappi l'indice giusto (v. il prop).
+    enableSorting: !trascinamento,
+    enableColumnFilters: !trascinamento,
+    enableGlobalFilter: !trascinamento,
     initialState: {
-      pagination: { pageIndex: 0, pageSize: infinito ? caricate : perPagina },
+      pagination: {
+        pageIndex: 0,
+        // `"virtuale"` non pagina affatto: tutte le righe filtrate entrano nel
+        // modello, ed è `DataTableVirtualizedBody` a decidere quali montare
+        // davvero. `Number.MAX_SAFE_INTEGER` invece di ricalcolare la
+        // dimensione della pagina a ogni filtro (come fa `caricate` per
+        // `"infinito"`): il modello di paginazione si limita comunque al
+        // numero di righe vere, una pagina più grande del possibile non
+        // cambia il risultato. `trascinamento` vuole la stessa cosa, per lo
+        // stesso motivo: una pagina sola non coprirebbe l'indice reale.
+        pageSize: trascinamento
+          ? Number.MAX_SAFE_INTEGER
+          : perPaginaInfinito
+            ? caricate
+            : perPaginaVirtuale
+              ? Number.MAX_SAFE_INTEGER
+              : perPagina,
+      },
     },
     state: {
       sorting: ordinamento,
@@ -897,7 +3230,18 @@ export function DataTable<TDato extends RowData>({
       globalFilter: ricerca,
       columnVisibility: visibilita,
       rowSelection: scelte,
+      columnSizing: dimensioni,
+      columnPinning: ancoraggio,
+      columnOrder: ordineColonne,
     },
+  })
+
+  // Nessun elenco di dipendenze: `tabella` è un oggetto nuovo a ogni
+  // render (come `motore` in `<DataGrid>`), quindi non c'è una dipendenza
+  // primitiva su cui fermarsi — deve girare a ogni render per non
+  // consegnare mai un'istanza indietro di un commit.
+  React.useEffect(() => {
+    onTabellaPronta?.(tabella)
   })
 
   /**
@@ -913,6 +3257,28 @@ export function DataTable<TDato extends RowData>({
   const conRighe = righe.length > 0
   const conFiltri = ricerca.length > 0 || filtri.length > 0
   const colonneVisibili = tabella.getVisibleFlatColumns().length
+
+  /**
+   * L'ordine di intestazioni e celle. **Nessuna caratteristica di
+   * raggruppamento è registrata** (`caratteristiche`, sopra), quindi
+   * `getHeaderGroups()` torna sempre un gruppo solo — le stesse colonne di
+   * `getFlatHeaders()`/`getLeafHeaders()` — e le due liste sono
+   * intercambiabili qui.
+   *
+   * **Con `colonneBloccabili` l'ordine cambia**: le colonne bloccate a
+   * sinistra e a destra si spostano ai due bordi (`getStart…`/`getEnd…`),
+   * qualunque posizione avessero fra le colonne dichiarate — è il modo con
+   * cui TanStack tiene coerenti lo sticky e il `<colgroup>` sotto: un `<col>`
+   * fuori ordine rispetto al `<th>`/`<td>` che descrive darebbe alla colonna
+   * sbagliata la larghezza di un'altra.
+   */
+  const intestazioni = colonneBloccabili
+    ? [
+        ...tabella.getStartLeafHeaders(),
+        ...tabella.getCenterLeafHeaders(),
+        ...tabella.getEndLeafHeaders(),
+      ]
+    : (tabella.getHeaderGroups()[0]?.headers ?? [])
 
   const pulisci = () => {
     setRicerca("")
@@ -949,6 +3315,26 @@ export function DataTable<TDato extends RowData>({
 
   const contenitoreRef = React.useRef<HTMLDivElement>(null)
   const sentinellaRef = React.useRef<HTMLTableRowElement>(null)
+
+  /**
+   * L'elemento che scorre davvero (`perPagina="virtuale"`), passato al
+   * virtualizzatore in `DataTableVirtualizedBody`: `[data-slot="table-
+   * container"]`, lo stesso `<div overflow-x-auto>` di `ui/table.tsx` che
+   * l'osservatore di `"infinito"` già cerca qui sotto, e per la stessa
+   * ragione (v. quell'effetto). Uno stato, non un `ref` in più: il nodo non
+   * esiste ancora al primo render, e il virtualizzatore lo vuole per
+   * calcolare la finestra visibile.
+   */
+  const [elementoScorrevole, setElementoScorrevole] = React.useState<HTMLElement | null>(
+    null
+  )
+  React.useEffect(() => {
+    if (!virtualizzata) return
+    setElementoScorrevole(
+      contenitoreRef.current?.querySelector<HTMLElement>('[data-slot="table-container"]') ??
+        null
+    )
+  }, [virtualizzata])
 
   /**
    * Il totale delle righe filtrate e ordinate — non solo quelle già
@@ -1022,6 +3408,15 @@ export function DataTable<TDato extends RowData>({
 
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
+  /**
+   * Misura la tabella per intero, per la barra-guida del trascinamento (v.
+   * `ManigliaRidimensiona`). `Table` (`ui/table.tsx`) non passa `ref` con
+   * `forwardRef`, ma non ne ha bisogno: spande `{...props}` sul `<table>`, e
+   * da React 19 un `ref` dentro `props` arriva comunque all'elemento — lo
+   * stesso meccanismo per cui `testataRef` qui sopra funziona già su
+   * `TableHeader`.
+   */
+  const tabellaRef = React.useRef<HTMLTableElement>(null)
 
   const radiceRef = React.useRef<HTMLDivElement>(null)
   const piePaginaRef = React.useRef<HTMLDivElement>(null)
@@ -1142,15 +3537,35 @@ export function DataTable<TDato extends RowData>({
      */
   }, [fermo, conRighe])
 
-  return (
+  // `riordinabile` spegne anche la casella di ricerca, non solo `enable
+  // GlobalFilter` sulla tabella (v. il prop): a ricerca visibile ma senza
+  // effetto sembrerebbe rotta, non disattivata apposta.
+  const ricercaVisibile = cerca !== false && !trascinamento
+
+  const contenuto = (
     <div ref={radiceRef} className={cn("flex min-h-0 flex-col gap-4", className)}>
-      {cerca !== false || barra || colonneNascondibili ? (
-        <div className="flex flex-wrap items-center gap-3">
-          {cerca !== false ? (
-            <RicercaTabella tabella={tabella} segnaposto={cerca} />
+      {ricercaVisibile || barra || colonneNascondibili ? (
+        <div className="flex flex-col gap-3">
+          {/* Riga 1: ricerca e menu Colonne. Riga 2: `barra` — i filtri della
+              pagina, le azioni di massa. Due righe sempre, non una sola che
+              va a capo da sé: con più di un paio di filtri sfaccettati (v.
+              `data-table-filtro-sfaccettato.tsx`, M3bis.6) il ritorno a capo
+              automatico spezzava un bottone a metà — la riga separava due
+              controlli a metà altezza invece di andare sotto per intero.
+              Rilievo di Francesco. */}
+          {ricercaVisibile || colonneNascondibili ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {ricercaVisibile ? (
+                <RicercaTabella tabella={tabella} segnaposto={cerca as string} />
+              ) : null}
+              {colonneNascondibili ? <VisibilitaColonne tabella={tabella} /> : null}
+            </div>
           ) : null}
-          {typeof barra === "function" ? barra(scelti) : barra}
-          {colonneNascondibili ? <VisibilitaColonne tabella={tabella} /> : null}
+          {barra ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {typeof barra === "function" ? barra(scelti, tabella) : barra}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -1182,11 +3597,39 @@ export function DataTable<TDato extends RowData>({
           **`snap-y`/`snap-proximity` su `table-container`**, non sul
           riquadro: senza, uno scorrimento libero può fermarsi a metà di una
           riga — rilievo di Francesco, la riga tagliata in cima che sembrava
-          un'altra barra. `proximity` e non `mandatory`: si assesta sul
-          confine più vicino solo quando lo scorrimento **finisce** lì
-          accanto, non forza un salto a ogni gesto — con `mandatory` uno
-          scorrimento breve verrebbe risucchiato alla riga più vicina anche
-          quando si voleva solo scorrere di poco.
+          un'altra barra (M3.10). `proximity` e non `mandatory`: si assesta
+          sul confine più vicino solo quando lo scorrimento **finisce** lì
+          accanto, non forza un salto a ogni gesto.
+
+          **Tolto e rimesso, nella stessa sessione (M3bis.11b, coda) — e la
+          ragione vale la pena scriverla per intero, perché la prima diagnosi
+          era sbagliata.** Bloccando una colonna e scorrendo, l'intestazione
+          arrivava a mostrare il testo della riga 0 al posto del proprio
+          titolo. Il primo sospetto è caduto sullo snap — `scrollTop` non
+          scendeva mai sotto l'altezza della testata, qualunque valore gli si
+          scrivesse — ed è stato tolto: `scroll-padding-top`/
+          `scroll-margin-top` (la leva che la specifica prevede per uno snap
+          vicino a un'intestazione sticky) non avevano alcun effetto
+          misurabile sulle posizioni intermedie, sintomo plausibile di un
+          limite del motore di resa su `scroll-snap-align` dentro elementi
+          `display: table-row`. **Il vero colpevole era un altro**, ed è
+          emerso solo misurando con `document.elementFromPoint` sulla
+          testata invece di fidarsi dello screenshot: a **z-index pari**
+          (`z-10`, sia sulla testata sia su ogni cella bloccata —
+          `ancoraggioColonna`, sotto) vince l'ordine nel DOM, e `<tbody>`
+          viene dopo `<thead>` — la cella bloccata di qualunque riga che
+          stia attraversando la fascia della testata **si dipinge sopra**,
+          testo compreso. Bastava scorrere di un pixel con una colonna
+          bloccata, niente a che vedere con lo snap: infatti riproducibile
+          anche a `scroll-snap-type: none`. La correzione vera è sulla
+          `<TableHeader>` (`z-20`, più sotto, non qui): con quella, lo snap è
+          tornato innocuo com'era sempre stato — verificato scrivendo
+          `scrollTop` a mano su tredici posizioni, testata sempre corretta
+          sia con lo snap attivo sia spento. **Lezione per chi ripete questa
+          misura**: un difetto di resa che sembra uno scroll-snap capriccioso
+          può essere uno stacking context deciso dall'ordine nel DOM — lo si
+          distingue misurando l'elemento colpito (`elementFromPoint`), non
+          il valore di `scrollTop`.
 
           `[&_[data-slot=table-container]]:` e non una prop, perché quel
           `<div>` è dentro `Table` (`ui/table.tsx`) e non espone un
@@ -1207,7 +3650,39 @@ export function DataTable<TDato extends RowData>({
           colonne stanno ferme. Chi non dichiara `meta.larghezza` si spartisce
           ciò che avanza, in parti uguali.
         */}
-        <Table className="table-fixed">
+        <Table ref={tabellaRef} className="table-fixed" {...attributiTabella}>
+          {/*
+            Il `<colgroup>` di `ridimensionabile`/`colonneBloccabili`: qui la
+            larghezza non la dichiara più la prima riga di intestazioni
+            (`meta.larghezza`), la dichiara TanStack — di partenza da `size`
+            sulla colonna, poi dalle larghezze acquisite col trascinamento
+            (`dimensioni`, lo stato sopra). **L'ordine dei `<col>` deve
+            coincidere con quello di `<th>`/`<td>` sotto** (`intestazioni`,
+            calcolato sopra): con `colonneBloccabili` le colonne bloccate si
+            spostano ai bordi, e un `<col>` rimasto nell'ordine dichiarato
+            darebbe la larghezza sbagliata alla colonna sbagliata.
+
+            Una colonna senza `size` **non riceve `width`**, nemmeno se
+            `column.getSize()` torna il default TanStack (150): è così che
+            resta elastica, la stessa elasticità di una colonna senza
+            `meta.larghezza` in una tabella non ridimensionabile — un
+            meccanismo diverso, non un comportamento diverso.
+          */}
+          {conDimensioni ? (
+            <colgroup>
+              {intestazioni.map((intestazione) => (
+                <col
+                  key={intestazione.id}
+                  style={
+                    intestazione.column.columnDef.size != null ||
+                    dimensioni[intestazione.column.id] != null
+                      ? { width: intestazione.column.getSize() }
+                      : undefined
+                  }
+                />
+              ))}
+            </colgroup>
+          ) : null}
           {/*
             `sticky top-0`: la testata resta ferma mentre **`table-container`**
             scorre — il `<div overflow-x-auto>` di `Table` qui sotto, che
@@ -1215,91 +3690,91 @@ export function DataTable<TDato extends RowData>({
             difetto di `anagrafe.tassullo.it` che questa forma corregge — lì
             lo scorrimento infinito è della pagina intera, e la testata se ne
             va con lei.
+
+            **`z-20`, non `z-10` — il difetto vero dietro quello preso in
+            M3bis.11b, non lo scroll-snap** (tolto sopra, che era solo il
+            coniglio che ha portato lì). Con `colonneBloccabili`, una colonna
+            bloccata dà **sia** all'intestazione **sia** a ogni cella di
+            corpo lo stesso `sticky z-10` (`ancoraggioColonna`, più sotto).
+            `<thead>`/`<tbody>` non sono loro stessi posizionati: lo stacking
+            context della `<th>` bloccata e quello della `<td>` bloccata
+            bollono su, in pratica, allo stesso livello del genitore comune —
+            e a **z-index pari** vince l'ordine nel DOM: `<tbody>` viene dopo
+            `<thead>`, quindi la cella di corpo si dipinge *sopra* la
+            testata. Con una colonna bloccata e la tabella scorsa anche di
+            un solo pixel, la riga che in quel momento attraversa la fascia
+            dei 40px della testata la copre — testo compreso, non
+            un'illusione di scroll-snap: misurato con
+            `document.elementFromPoint` sulla testata, che restituiva il
+            `<td>` sottostante e non il `<th>`. Bastava scorrere, nessuna
+            posizione particolare — a differenza del difetto di scroll-snap
+            preso sopra, che si vedeva solo a certe soglie.
+
+            `z-20` sulla `<TableHeader>` mette l'intero stacking context
+            della testata sopra quello di qualunque cella di corpo bloccata
+            (`z-10`, invariato in `ancoraggioColonna`/`classiBloccate`): non
+            serve toccare i due meccanismi di pin, basta che il genitore
+            comune vinca il confronto a monte. Verificato scrivendo
+            `document.elementFromPoint` sulla testata dopo aver bloccato
+            «Nome» e scorso: torna lo `<span>` del titolo, non più la cella.
           */}
-          <TableHeader ref={testataRef} className={cn(fermo && "sticky top-0 z-10")}>
-            {tabella.getHeaderGroups().map((gruppo) => (
-              <TableRow key={gruppo.id} className="hover:bg-transparent">
-                {gruppo.headers.map((intestazione, indice) => (
-                  <TableHead
-                    key={intestazione.id}
-                    className={cn(
-                      (intestazione.column.columnDef.meta as MetaColonna | undefined)
-                        ?.larghezza,
-                      bloccaPrimaColonna &&
-                        classiBloccate(indice, selezione)?.replace("bg-card", "bg-accent")
-                    )}
-                    aria-sort={
-                      intestazione.column.getCanSort()
-                        ? ariaSort(intestazione.column.getIsSorted())
-                        : undefined
-                    }
-                  >
-                    {intestazione.isPlaceholder ? null : (
-                      <tabella.FlexRender header={intestazione} />
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
+          <TableHeader ref={testataRef} className={cn(fermo && "sticky top-0 z-20")}>
+            <TableRow className="hover:bg-transparent">
+              {intestazioni.map((intestazione, indice) => (
+                <CellaIntestazione
+                  key={intestazione.id}
+                  tabella={tabella}
+                  tabellaRef={tabellaRef}
+                  intestazione={intestazione}
+                  indice={indice}
+                  trascinabile={
+                    colonneRiordinabili && !COLONNE_UTILITY.has(intestazione.column.id)
+                  }
+                  ridimensionabile={ridimensionabile}
+                  colonneBloccabili={colonneBloccabili}
+                  bloccoLegacy={bloccoLegacy}
+                  conDimensioni={conDimensioni}
+                  selezione={selezione}
+                />
+              ))}
+            </TableRow>
           </TableHeader>
-          <TableBody>
-            {righe.length > 0 ? (
-              <>
-                {righe.map((riga) => (
-                  <TableRow
-                    key={riga.id}
-                    className={cn("group/riga", fermo && "snap-start")}
-                    data-state={riga.getIsSelected() ? "selected" : undefined}
-                  >
-                    {riga.getVisibleCells().map((cella, indice) => (
-                      // `truncate` è il prezzo di `table-fixed`: con le larghezze
-                      // decise dalle intestazioni, un testo più lungo della sua
-                      // colonna **sborda** nella colonna accanto invece di
-                      // allargarla: meglio tagliarlo coi puntini.
-                      <TableCell
-                        key={cella.id}
-                        className={cn(
-                          "truncate",
-                          bloccaPrimaColonna && classiBloccate(indice, selezione)
-                        )}
-                      >
-                        <tabella.FlexRender cell={cella} />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-                {/*
-                  La sentinella di `perPagina="infinito"`: una riga vuota,
-                  invisibile (altezza di un pixel, `aria-hidden`), che
-                  l'`IntersectionObserver` guarda per sapere quando caricare il
-                  passo successivo. Sta **dopo** l'ultima riga vera, così entra
-                  in vista solo quando ci si è avvicinati davvero al fondo — non
-                  a ogni fotogramma. `righe.length < totaleFiltrate`: quando è
-                  già tutto caricato non c'è più niente da aspettare, e la
-                  sentinella sparisce.
-                */}
-                {infinito && righe.length < totaleFiltrate ? (
-                  <TableRow
-                    ref={sentinellaRef}
-                    aria-hidden
-                    className="border-0 hover:bg-transparent"
-                  >
-                    <TableCell colSpan={colonneVisibili} className="h-px p-0" />
-                  </TableRow>
-                ) : null}
-              </>
-            ) : (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={colonneVisibili} className="p-0">
-                  <TabellaVuota
-                    filtrata={conFiltri}
-                    vuoto={vuoto}
-                    onPulisci={pulisci}
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
+          {virtualizzata ? (
+            <DataTableVirtualizedBody
+              tabella={tabella}
+              righe={righe}
+              colonneBloccabili={colonneBloccabili}
+              bloccoLegacy={bloccoLegacy}
+              selezione={selezione}
+              colonneVisibili={colonneVisibili}
+              vuoto={vuoto}
+              conFiltri={conFiltri}
+              pulisci={pulisci}
+              scrollEl={elementoScorrevole}
+              senzaFocoRiga={internoGriglia?.senzaFocoRiga}
+              alVirtualizzatore={internoGriglia?.alVirtualizzatore}
+            />
+          ) : (
+            <DataTableBody
+              tabella={tabella}
+              righe={righe}
+              colonneBloccabili={colonneBloccabili}
+              bloccoLegacy={bloccoLegacy}
+              selezione={selezione}
+              colonneVisibili={colonneVisibili}
+              vuoto={vuoto}
+              conFiltri={conFiltri}
+              pulisci={pulisci}
+              fermo={fermo}
+              pannelloRiga={pannelloRiga}
+              infinito={infinito}
+              totaleFiltrate={totaleFiltrate}
+              sentinellaRef={sentinellaRef}
+              trascinabile={trascinamento}
+              menuRiga={menuRiga}
+              chiaveMemoRiga={chiaveMemoRiga}
+            />
+          )}
         </Table>
       </div>
 
@@ -1308,11 +3783,35 @@ export function DataTable<TDato extends RowData>({
           <PaginazioneTabella
             tabella={tabella}
             conSelezione={selezione}
-            infinito={infinito}
+            // `virtualizzata` non ha nemmeno lei una «pagina»: stessa fascia
+            // di destra tolta di `infinito`, per lo stesso motivo — tutte le
+            // righe filtrate sono già nel modello, il salto da fare non c'è.
+            // `trascinamento`: stessa ragione, una pagina sola.
+            infinito={infinito || virtualizzata || trascinamento}
             nomeRighe={nomeRighe}
           />
         </div>
       ) : null}
     </div>
   )
+
+  let risultato = contenuto
+  if (trascinamento) {
+    risultato = (
+      <DataTableRiordinoRighe dati={dati} righe={righe} onRiordina={riordinabile.onRiordina}>
+        {risultato}
+      </DataTableRiordinoRighe>
+    )
+  }
+  if (colonneRiordinabili) {
+    risultato = (
+      <DataTableRiordinoColonne
+        ordineIntestazioni={intestazioni.map((h) => h.column.id)}
+        onRiordina={(nuovoOrdine) => tabella.setColumnOrder(nuovoOrdine)}
+      >
+        {risultato}
+      </DataTableRiordinoColonne>
+    )
+  }
+  return risultato
 }

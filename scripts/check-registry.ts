@@ -117,8 +117,80 @@ const warn = (dove: string, cosa: string) => problemi.push({ livello: "avviso", 
 
 const STRING_RE = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
 
+/**
+ * Le stringhe e i commenti si separano con una **scansione**, non con due
+ * espressioni regolari in fila — e la ragione è un difetto vero, trovato in
+ * M4.7 il 2026-09-19.
+ *
+ * `STRING_RE` da sola riconosce `'…'` ovunque, **anche dentro un commento**.
+ * I commenti di questo repo sono in italiano e pieni di apostrofi
+ * (`l'originale`, `dell'app`): il primo apostrofo apriva una stringa fantasma
+ * che ne inghiottiva un pezzo, la lista delle stringhe del file usciva più
+ * lunga o più corta di quella dell'originale, `allineate` diventava falso e
+ * **il conto del ri-stile scendeva a zero in silenzio**. Il rapporto scriveva
+ * «forma identica all'originale, nessun ri-stile» — cioè la stessa frase di un
+ * file mai toccato — su file che avevamo ri-stilato davvero.
+ *
+ * Non era un caso limite: quando il difetto è stato trovato, **`alert.tsx` era
+ * già cieco** (il commento del ri-stile del 2026-09-18 contiene «l'originale»)
+ * e con lui `item.tsx`. Un gate che tace su un ri-stile è peggio di un gate che
+ * ne inventa uno: il primo lo si scopre alla prossima versione di shadcn, con
+ * le modifiche già mescolate.
+ *
+ * Lo scanner attraversa il sorgente una volta sola tenendo conto di dove si
+ * trova — testo, stringa (con gli escape), commento di riga, commento di
+ * blocco — e restituisce le due cose separate. Non si può fare col solo
+ * ordine delle regex: togliendo prima i commenti si romperebbe un `https://`
+ * dentro una stringa, togliendo prima le stringhe si ricade qui.
+ */
+function scansiona(src: string): { stringhe: string[]; senzaCommenti: string } {
+  const stringhe: string[] = [];
+  let fuori = "";
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i]!;
+    const d = src[i + 1];
+    if (c === "/" && d === "/") {
+      while (i < src.length && src[i] !== "\n") i++;
+      fuori += " ";
+      continue;
+    }
+    if (c === "/" && d === "*") {
+      i += 2;
+      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++;
+      i += 2;
+      fuori += " ";
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      const apice = c;
+      let s = c;
+      i++;
+      while (i < src.length) {
+        if (src[i] === "\\") {
+          s += src[i]! + (src[i + 1] ?? "");
+          i += 2;
+          continue;
+        }
+        s += src[i]!;
+        if (src[i] === apice) {
+          i++;
+          break;
+        }
+        i++;
+      }
+      stringhe.push(s);
+      fuori += s;
+      continue;
+    }
+    fuori += c;
+    i++;
+  }
+  return { stringhe, senzaCommenti: fuori };
+}
+
 function estraiStringhe(src: string): string[] {
-  return (src.replace(USE_CLIENT_RE, "").match(STRING_RE) ?? []).map(normalizzaClassi);
+  return scansiona(src.replace(USE_CLIENT_RE, "")).stringhe.map(normalizzaClassi);
 }
 
 /**
@@ -175,12 +247,14 @@ const USE_CLIENT_RE = /^\s*(["'])use client\1\s*;?\s*/;
 const REACT_NAMESPACE_IMPORT_RE = /^\s*import \* as React from (["'])react\1\s*;?\s*$/m;
 
 function forma(src: string): string {
-  return src
-    .replace(USE_CLIENT_RE, "")
-    .replace(REACT_NAMESPACE_IMPORT_RE, "")
+  // Commenti e stringhe li separa lo scanner (v. `scansiona`): con le due
+  // regex in fila, un apostrofo in un commento italiano falsava anche questo
+  // confronto, non solo il conto del ri-stile.
+  const senzaCommenti = scansiona(
+    src.replace(USE_CLIENT_RE, "").replace(REACT_NAMESPACE_IMPORT_RE, ""),
+  ).senzaCommenti;
+  return senzaCommenti
     .replace(STRING_RE, '"·"')
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/\/\/[^\n]*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

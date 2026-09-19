@@ -1,12 +1,38 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { CopyIcon, EllipsisVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react'
-
-import { apriCol } from '@/prove/apri'
+import type { Column, RowData } from '@tanstack/react-table'
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
+  PencilIcon,
+  PinIcon,
+  PinOffIcon,
+  Trash2Icon,
+  XIcon,
+} from 'lucide-react'
+import * as React from 'react'
+
+import { cn } from 'cn'
+import { apriCol, apriColDestro } from '@/prove/apri'
+import {
+  CellaAlbero,
   DataTable,
   IntestazioneColonna,
+  RowMenuItem,
+  RowMenuSeparator,
   creaColonne,
+  useDataTableRow,
+  type CaratteristicheTabella,
+  type IstanzaTabella,
 } from '@/registry/tassullo/blocks/data-table'
+import { FiltroData } from '@/registry/tassullo/blocks/data-table-filtro-data'
+import { FiltroIntervallo } from '@/registry/tassullo/blocks/data-table-filtro-intervallo'
+import { FiltroResetTutti } from '@/registry/tassullo/blocks/data-table-filtro-reset'
+import { FiltroSfaccettato } from '@/registry/tassullo/blocks/data-table-filtro-sfaccettato'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -19,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/registry/tassullo/ui/dropdown-menu'
+import { Input } from '@/registry/tassullo/ui/input'
 
 /* ────────────────────────────────────────────────────────────────────────
  * I dati finti
@@ -231,6 +258,61 @@ const COLONNE = col.columns([
       </DropdownMenu>
     ),
     enableHiding: false,
+  }),
+])
+
+/**
+ * Le colonne di `ridimensionabile`/`colonneBloccabili` (M3bis.3): `size`/
+ * `minSize` al posto di `meta.larghezza` — la colonna dichiara la sua
+ * larghezza di partenza a TanStack, non a Tailwind, perché qui sarà anche
+ * acquisita dall'utente (v. il commento su `MetaColonna` nel blocco). Una
+ * sola senza `size`, `famiglia`, che assorbe lo spazio che avanza — la stessa
+ * elasticità di `COLONNE` sopra, un meccanismo diverso.
+ */
+const colRidimensionabile = creaColonne<Prodotto>()
+const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
+  colRidimensionabile.accessor('codice', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+    meta: { titolo: 'Codice' },
+    sortFn: 'alphanumeric',
+    size: 140,
+    minSize: 90,
+    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+  }),
+  colRidimensionabile.accessor('nome', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+    meta: { titolo: 'Nome' },
+    sortFn: 'text',
+    size: 220,
+    minSize: 120,
+    cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+  }),
+  colRidimensionabile.accessor('famiglia', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Famiglia" />,
+    meta: { titolo: 'Famiglia' },
+    sortFn: 'text',
+  }),
+  colRidimensionabile.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato' },
+    sortFn: 'text',
+    size: 130,
+    minSize: 90,
+    cell: ({ getValue }) => {
+      const stato = getValue<Prodotto['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+  colRidimensionabile.accessor('aggiornato', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
+    ),
+    meta: { titolo: 'Aggiornato' },
+    sortFn: 'datetime',
+    size: 140,
+    minSize: 100,
+    cell: ({ getValue }) => <div className="text-right">{DATA.format(getValue<Date>())}</div>,
+    enableGlobalFilter: false,
   }),
 ])
 
@@ -449,6 +531,284 @@ export const MenuDelleColonne: Story = {
 }
 
 /**
+ * **Colonne ridimensionabili** (M3bis.3, D17 riaperta e generalizzata). Il
+ * filo sul bordo destro di ogni intestazione si trascina col mouse — o si
+ * comanda da tastiera: `Tab` fino alla maniglia, frecce sinistra/destra per
+ * allargare o restringere di 16px alla volta, `Home` per tornare alla
+ * larghezza di partenza. `Famiglia` non dichiara `size`: assorbe lo spazio
+ * che avanza, come farebbe senza `meta.larghezza` nella forma non
+ * ridimensionabile.
+ *
+ * Nessun `play`: la maniglia non apre un popup — è un `role="separator"`
+ * misurato a riposo, in entrambi gli stati del gate come ogni altra story.
+ */
+export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 15),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    ridimensionabile: true,
+  },
+}
+
+/**
+ * **Colonne riordinabili** (M3bis.8, porting di "Column DnD Table") —
+ * **insieme al ridimensionamento** (M3bis.3), nella stessa story: è
+ * esattamente il criterio d'accettazione di `PIANO.md`
+ * («compatibilità verificata con resize colonne nella stessa story»), non
+ * una comodità. Stesse `COLONNE_RIDIMENSIONABILI` di `Ridimensionabile`
+ * sopra — provare entrambi i gesti sulle stesse intestazioni è il punto:
+ * la maniglia di riordino (`⠿`, a sinistra del titolo) e il filo di resize
+ * (sul bordo destro) coesistono sulla stessa `<th>` senza rubarsi il gesto.
+ *
+ * **Da mouse e da tastiera**: `Tab` porta il fuoco sulla maniglia della
+ * prima intestazione trascinabile; `Spazio` l'afferra, le frecce sinistra/
+ * destra la spostano, `Spazio` di nuovo la rilascia, `Escape` annulla —
+ * `KeyboardSensor` di dnd-kit, la stessa forma di `Riordino` (righe, sotto).
+ *
+ * **A differenza di `Riordino`, ordinamento e ricerca restano attivi**: il
+ * prop non li spegne (v. `colonneRiordinabili`, il blocco) — si può ordinare
+ * per «Aggiornato» *e* trascinare «Nome» prima di «Codice» nella stessa
+ * sessione, senza che l'uno interferisca con l'altro.
+ */
+export const RiordinoColonne: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Riordino Colonne',
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 15),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    ridimensionabile: true,
+    colonneRiordinabili: true,
+  },
+}
+
+/**
+ * **Il pin generalizzato, aperto** — il menu che `PinIcon` apre in ogni
+ * intestazione bloccabile: "Blocca a sinistra" / "Blocca a destra" / "Non
+ * bloccare". A differenza di `bloccaPrimaColonna` (v. `Stretta`, sopra) qui
+ * qualunque colonna può bloccarsi, su entrambi i lati — lo sticky si calcola
+ * dalle larghezze acquisite (`ancoraggioColonna`), non da una classe fissa
+ * per indice.
+ *
+ * Il primo grilletto `dropdown-menu-trigger` della pagina è quello di
+ * `Codice`, la prima colonna: nessuna colonna di selezione o d'azioni qui,
+ * per la stessa ragione di `MenuDelleColonne` sopra — un popup che il gate
+ * non apre è un popup di cui non sa niente.
+ */
+export const ColonneBloccabili: Story = {
+  name: 'Colonne Bloccabili',
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 10),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    colonneBloccabili: true,
+  },
+  play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Un solo menu per ordinamento e pin (niko-table, "Column Pinning Table")
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * **Confermata da Francesco (2026-09-17)** dopo il confronto a occhio con
+ * `Ridimensionabile`/`ColonneBloccabili`: due bottoni sempre visibili accanto
+ * al nome colonna (il titolo che ordina, l'icona che blocca) erano rumore.
+ * Il riferimento è
+ * [niko-table, "Column Pinning Table"](https://niko-table.com/examples/column-pinning-table/):
+ * lì il titolo torna testo semplice e un solo grilletto «⋮» — visibile
+ * al passaggio del mouse o quando la colonna è già ordinata/bloccata,
+ * altrimenti spento — apre un menu con **entrambe** le famiglie di azioni,
+ * "Ordina" sopra e "Blocca" sotto (`DataTableColumnActions` +
+ * `DataTableColumnSortOptions`/`DataTableColumnPinOptions`, lette dal
+ * sorgente pubblico via `data-table.json`/`data-table-core.json`, non
+ * indovinate).
+ *
+ * **Ricostruzione scritta per questa story**, con le nostre primitive
+ * (`DropdownMenu`, non le loro) e la stessa forma di scelta di
+ * `MenuBloccaColonna` nel blocco — un'opzione `disabled` per lo stato già
+ * attivo, non un segno di spunta. **Resta qui, non in `CellaIntestazione`/
+ * `IntestazioneColonna`**: l'ambito confermato per M3bis.11b la usa su
+ * Prodotti (v. `WORKLOG.md`), portarla come forma di default del blocco —
+ * se mai deciso — è un passo ulteriore, non compreso in questa conferma.
+ */
+function MenuAzioniColonna<TValore>({
+  colonna,
+  titolo,
+}: {
+  colonna: Column<CaratteristicheTabella, Prodotto, TValore>
+  titolo: string
+}) {
+  const ordine = colonna.getIsSorted()
+  const posizionePin = colonna.getCanPin() ? colonna.getIsPinned() : false
+  const attiva = !!ordine || !!posizionePin
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              '-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+              // `text-foreground`, lo stesso colore del titolo della colonna
+              // (`IntestazioneColonnaAzioni`, sotto) — non un colore
+              // "attivo" a parte: rilievo di Francesco, il grilletto acceso
+              // deve leggere come lo stesso testo, non come un accento.
+              // Prima era `text-accent-ink` (già corretto da `text-primary`,
+              // la trappola di `CLAUDE.md`), un passo ancora più vicino al
+              // sorgente niko invece che alla nostra pagina.
+              attiva && 'text-foreground opacity-100'
+            )}
+          />
+        }
+        aria-label={`Azioni sulla colonna «${titolo}»`}
+      >
+        <EllipsisVerticalIcon aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Ordina</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => colonna.toggleSorting(false)}
+            disabled={ordine === 'asc'}
+          >
+            <ArrowUpIcon aria-hidden />
+            Crescente
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => colonna.toggleSorting(true)}
+            disabled={ordine === 'desc'}
+          >
+            <ArrowDownIcon aria-hidden />
+            Decrescente
+          </DropdownMenuItem>
+          {ordine ? (
+            <DropdownMenuItem onClick={() => colonna.clearSorting()}>
+              <XIcon aria-hidden />
+              Rimuovi ordinamento
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+        {colonna.getCanPin() ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Blocca</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => colonna.pin('start')}
+                disabled={posizionePin === 'start'}
+              >
+                <PinIcon aria-hidden />
+                Blocca a sinistra
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => colonna.pin('end')}
+                disabled={posizionePin === 'end'}
+              >
+                <PinIcon aria-hidden className="-scale-x-100" />
+                Blocca a destra
+              </DropdownMenuItem>
+              {posizionePin ? (
+                <DropdownMenuItem onClick={() => colonna.pin(false)}>
+                  <PinOffIcon aria-hidden />
+                  Non bloccare
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/**
+ * Il titolo torna testo semplice — `TableColumnTitle` di niko non è un
+ * bottone — e il `group` sta sul contenitore, non sulla `<th>`: è quello
+ * che dice al grilletto quando diventare visibile.
+ */
+function IntestazioneColonnaAzioni<TValore>({
+  colonna,
+  titolo,
+}: {
+  colonna: Column<CaratteristicheTabella, Prodotto, TValore>
+  titolo: string
+}) {
+  return (
+    <div className="group flex min-w-0 items-center justify-between gap-1">
+      <span className="min-w-0 truncate font-medium">{titolo}</span>
+      <MenuAzioniColonna colonna={colonna} titolo={titolo} />
+    </div>
+  )
+}
+
+const colMenuAzioni = creaColonne<Prodotto>()
+const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
+  colMenuAzioni.accessor('codice', {
+    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Codice" />,
+    // `azioniProprie`: l'header sopra porta già il pin nel proprio menu —
+    // senza, `colonneBloccabili` (sotto) aggiungerebbe anche il suo, due
+    // grilletti di pin per la stessa colonna (rilievo di Francesco).
+    meta: { titolo: 'Codice', azioniProprie: true },
+    sortFn: 'alphanumeric',
+    size: 140,
+    minSize: 90,
+    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+  }),
+  colMenuAzioni.accessor('nome', {
+    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Nome" />,
+    meta: { titolo: 'Nome', azioniProprie: true },
+    sortFn: 'text',
+    size: 220,
+    minSize: 120,
+    cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+  }),
+  colMenuAzioni.accessor('famiglia', {
+    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Famiglia" />,
+    meta: { titolo: 'Famiglia', azioniProprie: true },
+    sortFn: 'text',
+  }),
+  colMenuAzioni.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato', azioniProprie: true },
+    sortFn: 'text',
+    size: 130,
+    minSize: 90,
+    cell: ({ getValue }) => {
+      const stato = getValue<Prodotto['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+])
+
+/**
+ * Stessi dati di `Ridimensionabile`/`ColonneBloccabili` sopra, un solo
+ * grilletto invece di due. Da tastiera: `Tab` porta il fuoco sul grilletto
+ * di ogni intestazione (si rivela da sé, `group-focus-within`), `Invio`/
+ * `Spazio` apre lo stesso menu.
+ */
+export const MenuColonna: Story = {
+  name: 'Menu Colonna',
+  args: {
+    colonne: COLONNE_MENU_AZIONI,
+    dati: PRODOTTI.slice(0, 15),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 10,
+    colonneBloccabili: true,
+  },
+  play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+/**
  * **Non c&apos;è ancora niente.** Lo stato di una tabella appena creata: un
  * rimedio c&apos;è, ed è creare il primo record — quindi il bottone lo dichiara
  * la pagina, che è l&apos;unica a sapere dove porta.
@@ -520,4 +880,966 @@ export const ConAzioniDiMassa: Story = {
         </Button>
       ) : null,
   },
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * L'albero (M3bis.1) — righe annidate con subtotale
+ *
+ * Il caso reale che ha aperto la FASE 3bis: il "Computo metrico estimativo"
+ * di Studio Tassullo, dove ogni **voce** (uno scavo, un intonaco, una
+ * tinteggiatura) porta le proprie **misurazioni** — righe di dettaglio con
+ * quantità e importo, dati veri e non un raggruppamento per colonna
+ * (`WORKLOG.md`, valutazione niko-table).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Misurazione = {
+  id: string
+  voce: string
+  udm: string
+  quantita: number
+  importo: number
+}
+
+type Voce = {
+  id: string
+  voce: string
+  udm: ''
+  quantita: undefined
+  importo: undefined
+  figli: Misurazione[]
+}
+
+/** Una riga di computo è una voce (con figli) o una sua misurazione (senza). */
+type RigaComputo = Voce | Misurazione
+
+const VOCI_COMPUTO = [
+  {
+    voce: '01.01 — Scavo di sbancamento in terreno di qualsiasi natura, fino a 2 m',
+    udm: 'm³',
+    prezzo: 18.4,
+  },
+  {
+    voce: '02.03 — Formazione di massetto in calcestruzzo alleggerito, spessore 8 cm',
+    udm: 'm²',
+    prezzo: 22.1,
+  },
+  {
+    voce: '03.05 — Intonaco deumidificante a base di calce e pozzolana, tre mani',
+    udm: 'm²',
+    prezzo: 34.7,
+  },
+  {
+    voce: '04.02 — Rimozione di pavimentazione esistente e trasporto a discarica',
+    udm: 'm²',
+    prezzo: 9.8,
+  },
+  {
+    voce: '05.04 — Tinteggiatura con pittura ai silicati, due mani a coprire',
+    udm: 'm²',
+    prezzo: 11.6,
+  },
+]
+
+const AMBIENTI = [
+  'Piano terra — ambiente 1',
+  'Piano terra — ambiente 2',
+  'Piano terra — corridoio',
+  'Piano primo — ambiente 1',
+  'Piano primo — ambiente 2',
+  'Piano primo — corridoio',
+  'Piano secondo — ambiente 1',
+]
+
+/** Stesso generatore delle 500 righe di `Prodotti`: seme fisso, stesso conto ogni volta. */
+function generaComputo(): Voce[] {
+  const caso = seminato(20260916)
+  return VOCI_COMPUTO.map((v, i) => {
+    const quante = 2 + Math.floor(caso() * 3) // 2, 3 o 4 misurazioni per voce
+    const figli: Misurazione[] = Array.from({ length: quante }, (_, k) => {
+      const dimensione = 3 + caso() * 9
+      const quantita = Math.round(dimensione * 100) / 100
+      return {
+        id: `${i + 1}.${k + 1}`,
+        voce: AMBIENTI[(i + k) % AMBIENTI.length],
+        udm: v.udm,
+        quantita,
+        importo: Math.round(quantita * v.prezzo * 100) / 100,
+      }
+    })
+    return {
+      id: String(i + 1),
+      voce: v.voce,
+      udm: '',
+      quantita: undefined,
+      importo: undefined,
+      figli,
+    }
+  })
+}
+
+const COMPUTO = generaComputo()
+
+const NUMERO = new Intl.NumberFormat('it-IT', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+const VALUTA = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+
+const colAlbero = creaColonne<RigaComputo>()
+
+const COLONNE_ALBERO = colAlbero.columns([
+  colAlbero.accessor('voce', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Voce / misurazione" />,
+    meta: { titolo: 'Voce' },
+    sortFn: 'text',
+    // Il rientro e lo `chevron` stanno **dentro** questa colonna, non in una
+    // colonna a sé: è la colonna che identifica la riga, la stessa scelta di
+    // un esploratore di file.
+    cell: ({ row, getValue }) => <CellaAlbero riga={row}>{getValue<string>()}</CellaAlbero>,
+  }),
+  colAlbero.accessor('udm', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="U.M." />,
+    meta: { titolo: 'U.M.', larghezza: 'w-16' },
+    enableGlobalFilter: false,
+  }),
+  colAlbero.accessor('quantita', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Quantità" allinea="fine" />
+    ),
+    meta: {
+      titolo: 'Quantità',
+      larghezza: 'w-28',
+      // Una funzione, non `"somma"`: l'unità di misura va scritta insieme al
+      // numero, e quella è la stessa formattazione della cella normale sotto.
+      sottototale: (figli: RigaComputo[]) => (
+        <div className="text-right font-medium">
+          {NUMERO.format(figli.reduce((tot, f) => tot + (f.quantita ?? 0), 0))}
+        </div>
+      ),
+    },
+    sortFn: 'basic',
+    cell: ({ getValue }) => {
+      const v = getValue<number | undefined>()
+      return <div className="text-right">{v === undefined ? null : NUMERO.format(v)}</div>
+    },
+    enableGlobalFilter: false,
+  }),
+  colAlbero.accessor('importo', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Importo" allinea="fine" />
+    ),
+    meta: {
+      titolo: 'Importo',
+      larghezza: 'w-32',
+      sottototale: (figli: RigaComputo[]) => (
+        <div className="text-right font-semibold">
+          {VALUTA.format(figli.reduce((tot, f) => tot + (f.importo ?? 0), 0))}
+        </div>
+      ),
+    },
+    sortFn: 'basic',
+    cell: ({ getValue }) => {
+      const v = getValue<number | undefined>()
+      return <div className="text-right">{v === undefined ? null : VALUTA.format(v)}</div>
+    },
+    enableGlobalFilter: false,
+  }),
+])
+
+/**
+ * **Righe annidate, subtotale, selezione a cascata** — il pattern "Tree" di
+ * niko-table, portato: `getSottoRighe` legge `figli` dal dato vero (non un
+ * raggruppamento), `CellaAlbero` disegna rientro e `chevron` nella colonna
+ * "Voce", e `meta.sottototale` calcola quantità e importo di ogni voce dalle
+ * sue misurazioni — sempre visibile, anche a riga collassata.
+ *
+ * **Da tastiera**: `Tab` porta al `chevron` di una voce, `Invio` o `Spazio`
+ * la espande; la casella della voce, selezionata, seleziona a cascata tutte
+ * le misurazioni sotto — prova con la prima voce, "Scavo di sbancamento".
+ */
+/**
+ * **Espandi tutto/Comprimi tutto**, sopra la tabella — porting da "Grouping
+ * Table" di niko-table. Comanda `table.toggleAllRowsExpanded()`, un metodo
+ * che l'istanza TanStack ha già da sé: non serve un prop nuovo su
+ * `DataTable` per uno stato che il blocco continua a tenere per conto
+ * suo, solo `onTabellaPronta` per arrivarci da fuori (v. il commento su
+ * quel prop in `data-table.tsx`). Nessuno stato locale a questo
+ * componente: i bottoni comandano l'istanza direttamente, `DataTable` si
+ * ri-rende da sé quando lo stato di espansione cambia, come già fa per
+ * ogni `chevron` cliccato a mano.
+ */
+function BottoniEspansione<TDato extends RowData>({
+  tabellaRef,
+}: {
+  tabellaRef: React.RefObject<IstanzaTabella<TDato> | null>
+}) {
+  return (
+    <div className="flex gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => tabellaRef.current?.toggleAllRowsExpanded(true)}
+      >
+        <ChevronsUpDownIcon aria-hidden />
+        Espandi tutto
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => tabellaRef.current?.toggleAllRowsExpanded(false)}
+      >
+        <ChevronsDownUpIcon aria-hidden />
+        Comprimi tutto
+      </Button>
+    </div>
+  )
+}
+
+function AlberoConControlli() {
+  const tabellaRef = React.useRef<IstanzaTabella<RigaComputo> | null>(null)
+  return (
+    <div className="flex flex-col gap-3">
+      <BottoniEspansione tabellaRef={tabellaRef} />
+      <DataTable
+        colonne={COLONNE_ALBERO}
+        dati={COMPUTO}
+        cerca={false}
+        selezione
+        colonneNascondibili={false}
+        getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+        nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+        vuoto={{ titolo: 'Nessuna voce nel computo' }}
+        onTabellaPronta={(t) => {
+          tabellaRef.current = t
+        }}
+      />
+    </div>
+  )
+}
+
+export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
+  render: () => <AlberoConControlli />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * L'espansione (M3bis.2) — pannello di dettaglio per riga
+ *
+ * Diverso dall'Albero qui sopra: lì `figli` sono righe vere del dato
+ * (misurazioni di una voce), qui il pannello non è un dato — è markup libero,
+ * sempre fratello della riga che lo apre, mai un figlio. Il caso qui è un
+ * riepilogo tecnico del prodotto, quello che oggi in Anagrafe costerebbe
+ * aprire la scheda solo per leggere due righe.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * **Il pannello di dettaglio, aperto/chiuso da un chevron proprio** —
+ * porting da "Row Expansion Table" di niko-table. La colonna del chevron la
+ * aggiunge il blocco da sé (`pannelloRiga` come prop, come `colonnaSelezione`
+ * per `selezione`): la pagina scrive solo cosa mostrare.
+ *
+ * **Non tutte le righe hanno un chevron**: `pannelloRiga` restituisce `null`
+ * per i prodotti `archiviato` — niente da riepilogare su un prodotto ritirato
+ * — e quella riga resta senza controllo, `getCanExpand()` risulta falso.
+ *
+ * **Da tastiera**: `Tab` porta al chevron della prima riga espandibile,
+ * `Invio` o `Spazio` apre il pannello sotto — una riga in più nella tabella,
+ * non un popup: nessun fuoco da intrappolare, nessuna guardia di Base UI.
+ */
+function EspansioneConControlli() {
+  const tabellaRef = React.useRef<IstanzaTabella<Prodotto> | null>(null)
+  return (
+    <div className="flex flex-col gap-3">
+      <BottoniEspansione tabellaRef={tabellaRef} />
+      <DataTable
+        colonne={COLONNE.filter((c) => c.id !== 'azioni')}
+        dati={PRODOTTI.slice(0, 10)}
+        cerca={false}
+        colonneNascondibili={false}
+        perPagina={10}
+        pannelloRiga={(prodotto: Prodotto) =>
+          prodotto.stato === 'archiviato' ? null : (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
+              <dt className="text-muted-foreground">Famiglia</dt>
+              <dd>{prodotto.famiglia}</dd>
+              <dt className="text-muted-foreground">Stato</dt>
+              <dd>{prodotto.stato}</dd>
+              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+              <dd>{DATA.format(prodotto.aggiornato)}</dd>
+            </dl>
+          )
+        }
+        onTabellaPronta={(t) => {
+          tabellaRef.current = t
+        }}
+      />
+    </div>
+  )
+}
+
+export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
+  render: () => <EspansioneConControlli />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * La virtualizzazione (M3bis.4) — `perPagina="virtuale"`
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * **10.000 prodotti finti, e mai più di una trentina di `<tr>` nel DOM.**
+ * Non è la stessa mole di `Prodotti` (500) caricata in un colpo: è la prova
+ * che serve, perché a 500 righe una tabella non virtualizzata già scorre
+ * senza intoppi — il vantaggio si vede solo dove smette di reggere, ed è lì
+ * che questa story si mette apposta.
+ *
+ * Riquadro a `h-140` (altezza fissa, la stessa forma di `altezza="ferma"`
+ * ovunque nel registry): senza un tetto non c&apos;è una finestra da
+ * calcolare, ed è la stessa ragione per cui `perPagina="infinito"` lo vuole.
+ * Più alto di un `h-96`: con la sola barra di ricerca e il conto sopra e
+ * sotto, un riquadro troppo basso lascerebbe vedere talmente poche righe da
+ * non dimostrare niente — lo scorrimento va visto scorrere.
+ *
+ * **Da tastiera**: `Tab` porta il fuoco sulla prima riga, poi frecce
+ * su/giù muovono di una riga, `Home`/`End` saltano a inizio/fine
+ * dell&apos;elenco — 10.000 righe di distanza, non solo quelle già montate —
+ * e `Pagina Su`/`Pagina Giù` di una finestra intera. La riga a fuoco si
+ * **monta da sé** se non lo è già: è il difetto noto di ogni tabella
+ * virtualizzata (il fuoco resta su un nodo smontato) e la ragione per cui
+ * questa story esiste, non decorazione.
+ */
+const PRODOTTI_VIRTUALIZZAZIONE = generaProdotti(10000)
+
+export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
+  args: {
+    colonne: COLONNE.filter((c) => c.id !== 'azioni'),
+    dati: PRODOTTI_VIRTUALIZZAZIONE,
+    cerca: 'Cerca per codice, nome o famiglia…',
+    selezione: true,
+    perPagina: 'virtuale',
+    altezza: 'ferma',
+    nomeRighe: { singolare: 'prodotto', plurale: 'prodotti' },
+  },
+  render: (args) => (
+    <div className="flex h-140 flex-col">
+      <DataTable {...args} className="min-h-0 flex-1" />
+    </div>
+  ),
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * I filtri (M3bis.6) — sfaccettato, intervallo numerico, intervallo di
+ * date, reset di tutti insieme.
+ *
+ * Colonne a parte (`colFiltri`/`COLONNE_FILTRI`), come già `COLONNE_
+ * RIDIMENSIONABILI`/`COLONNE_ALBERO` sopra: aggiungere `filterFn` a
+ * `COLONNE` metterebbe i controlli di filtro in **ogni** story di questo
+ * file, comprese quelle che non li devono avere. Nessun campo nuovo sui
+ * prodotti finti: `revisione` (già numerico) e `aggiornato` (già data)
+ * bastano a dimostrare `FiltroIntervallo`/`FiltroData` senza aggiungere un
+ * `prezzo` che le altre 20 story di questo file non userebbero mai.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+const colFiltri = creaColonne<Prodotto>()
+const COLONNE_FILTRI = colFiltri.columns([
+  colFiltri.accessor('nome', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+    meta: { titolo: 'Nome' },
+    sortFn: 'text',
+  }),
+  colFiltri.accessor('famiglia', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Famiglia" />,
+    meta: { titolo: 'Famiglia' },
+    sortFn: 'text',
+    // Un valore per riga: `arrHas` tiene la riga il cui valore compare fra
+    // quelli scelti. Vedi la nota su `caratteristiche` in `data-table.tsx`.
+    filterFn: 'arrHas',
+  }),
+  colFiltri.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato', larghezza: 'w-32' },
+    sortFn: 'text',
+    filterFn: 'arrHas',
+    cell: ({ getValue }) => {
+      const stato = getValue<Prodotto['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+  colFiltri.accessor('revisione', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Rev." allinea="fine" />
+    ),
+    meta: { titolo: 'Revisione', larghezza: 'w-20' },
+    sortFn: 'basic',
+    filterFn: 'inNumberRange',
+    cell: ({ getValue }) => <div className="text-right">{getValue<number>()}</div>,
+    enableGlobalFilter: false,
+  }),
+  colFiltri.accessor('aggiornato', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
+    ),
+    meta: { titolo: 'Aggiornato', larghezza: 'w-32' },
+    sortFn: 'datetime',
+    filterFn: 'inDateRange',
+    cell: ({ getValue }) => <div className="text-right">{DATA.format(getValue<Date>())}</div>,
+    enableGlobalFilter: false,
+  }),
+])
+
+/**
+ * `barra` nella forma a funzione riceve **anche l'istanza TanStack** come
+ * secondo argomento: è la stessa della passata di render in corso, non una
+ * di un render indietro come consegnerebbe `tabellaRef`/`onTabellaPronta`
+ * (misurato scrivendo questa story: `<FiltroResetTutti>` composto con
+ * quella coppia restava invisibile finché non arrivava un'interazione
+ * qualunque successiva). `tabellaRef` resta solo per l'unico uso legittimo
+ * rimasto — impostare il filtro iniziale una volta sola, in un effetto a
+ * parte — non per il render dei filtri stessi. V. il commento su `barra`
+ * in `data-table.tsx`.
+ */
+function TabellaConFiltri({ statoIniziale }: { statoIniziale?: string[] }) {
+  const tabellaRef = React.useRef<IstanzaTabella<Prodotto> | null>(null)
+
+  React.useEffect(() => {
+    if (statoIniziale) tabellaRef.current?.getColumn('stato')?.setFilterValue(statoIniziale)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statoIniziale?.join('|')])
+
+  return (
+    <DataTable
+      colonne={COLONNE_FILTRI}
+      dati={PRODOTTI}
+      cerca="Cerca per nome o famiglia…"
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
+      barra={(_scelti, tabella) => {
+        tabellaRef.current = tabella
+        return (
+          <>
+            <FiltroSfaccettato tabella={tabella} accessore="stato" titolo="Stato" />
+            <FiltroSfaccettato tabella={tabella} accessore="famiglia" titolo="Famiglia" />
+            <FiltroIntervallo tabella={tabella} accessore="revisione" titolo="Revisione" />
+            <FiltroData tabella={tabella} accessore="aggiornato" titolo="Aggiornato" />
+            <FiltroResetTutti tabella={tabella} />
+          </>
+        )
+      }}
+    />
+  )
+}
+
+/**
+ * I quattro filtri di M3bis.6 sulla stessa barra: sfaccettato (Stato,
+ * Famiglia), a intervallo numerico (Revisione), a intervallo di date
+ * (Aggiornato), e il reset che li cancella insieme.
+ */
+export const Filtri: StoryObj<typeof DataTable<Prodotto>> = {
+  play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
+  render: () => <TabellaConFiltri />,
+}
+
+/**
+ * Con "Bozza" già scelto: il grilletto porta il valore e il segno «X» per
+ * cancellarlo, le opzioni delle **altre** faccette (Famiglia) restano
+ * intere — il filtro di Stato non le tocca — e `<FiltroResetTutti>` compare
+ * dal primo render, non un render dopo.
+ */
+export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Filtri Con Filtro Attivo',
+  play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
+  render: () => <TabellaConFiltri statoIniziale={['bozza']} />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il riordino manuale (M3bis.7) — `riordinabile`, porting di "Row DnD Table"
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Colonne a parte, come già `COLONNE_RIDIMENSIONABILI`/`COLONNE_ALBERO`
+ * sopra: una colonna **Ordine** in più, che non serve alle altre story.
+ * Non è un dato di `Prodotto` — è la posizione, `row.index + 1` nel modello
+ * di riga già in vista — perché è esattamente quello che la pagina reale
+ * mostra: `Caratteristiche` di Anagrafe (`anagrafe.tassullo.it/caratteristiche`)
+ * tiene un campo **Ordine** per riga, oggi scritto a mano in un modulo di
+ * modifica riga per riga; il riordino a trascinamento lo sostituisce, e
+ * questa colonna prova che il numero segue davvero la riga mentre si sposta,
+ * non solo che le righe cambiano posto. `row.index` e non un contatore a
+ * parte: con `riordinabile` la paginazione è già tutta su una pagina sola
+ * (v. il prop), quindi l'indice del modello di riga **è** la posizione vera.
+ */
+const COLONNE_RIORDINO = col.columns([
+  col.display({
+    id: 'ordine',
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Ordine" allinea="fine" />,
+    meta: { titolo: 'Ordine', larghezza: 'w-16' },
+    cell: ({ row }) => (
+      <div className="text-right tabular-nums text-muted-foreground">{row.index + 1}</div>
+    ),
+  }),
+  ...COLONNE.filter((c) => c.id !== 'azioni'),
+])
+
+/**
+ * `dati` resta della story, come ovunque: `riordinabile.onRiordina` consegna
+ * il nuovo ordine intero, `<DataTable>` non lo tiene per sé. Otto righe, non
+ * cinquecento: il riordino si prova a occhio, e cinquecento renderebbero la
+ * riga trascinata invisibile fuori dallo schermo prima di poterla vedere
+ * muoversi.
+ */
+function RiordinoConControlli() {
+  const [prodotti, setProdotti] = React.useState(() => PRODOTTI.slice(0, 8))
+  return (
+    <DataTable
+      colonne={COLONNE_RIORDINO}
+      dati={prodotti}
+      idRiga={(p) => p.id}
+      riordinabile={{ onRiordina: setProdotti }}
+      piePagina={false}
+    />
+  )
+}
+
+/**
+ * **Da mouse e da tastiera.** `Tab` porta il fuoco sulla maniglia (⠿) della
+ * prima riga; `Spazio` l'afferra, le frecce su/giù la spostano, `Spazio` di
+ * nuovo la rilascia, `Escape` annulla — `KeyboardSensor` di dnd-kit, non
+ * scritto qui.
+ *
+ * **Niente ricerca, niente intestazioni ordinabili**: `riordinabile` li
+ * spegne da sé (`PIANO.md`, M3bis.7) — l'indice che il trascinamento calcola
+ * viene dall'ordine **visibile** delle righe, e un ordinamento o una ricerca
+ * attivi lo farebbero divergere da `dati`. Resta il menu «Colonne»: nascondere
+ * una colonna non tocca l'ordine delle righe.
+ *
+ * **La colonna Ordine si aggiorna da sé** dopo ogni trascinamento — `1`
+ * resta sempre in cima, non la riga che c'era prima: è la riprova visibile
+ * che `onRiordina` ha scritto davvero il nuovo array, non solo spostato una
+ * riga a schermo. Il caso reale è `Caratteristiche` di Anagrafe: oggi
+ * quell'`Ordine` si cambia a mano, un numero alla volta, in un modulo
+ * separato per ogni riga.
+ */
+export const Riordino: StoryObj<typeof DataTable<Prodotto>> = {
+  render: () => <RiordinoConControlli />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il menu di riga condiviso (M3bis.9) — `menuRiga`, porting
+ * "Row Context Menu Table"
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Le stesse colonne di `COLONNE`, meno la colonna `azioni` scritta a mano
+ * con un `DropdownMenu` diretto (v. `MenuDiRiga` sopra): `menuRiga` (sotto)
+ * aggiunge la propria tendina «⋯» da sé, in coda.
+ */
+const COLONNE_MENU_RIGA = COLONNE.filter((c) => c.id !== 'azioni')
+
+/**
+ * Il componente di azioni-riga — **una sola definizione**, montata sia
+ * nella tendina «⋯» sia nel tasto destro sull'intera riga: legge la riga
+ * corrente con `useDataTableRow<Prodotto>()`, non da una prop che il
+ * chiamante dovrebbe passare due volte. Le tre voci sono identiche a quelle
+ * che la colonna `azioni` di `COLONNE` scrive a mano sopra — stesso elenco,
+ * stavolta scritto una volta sola.
+ */
+function MenuAzioniProdotto() {
+  const prodotto = useDataTableRow<Prodotto>()
+  return (
+    <>
+      <RowMenuItem onClick={() => console.info(`Modifica ${prodotto.codice}`)}>
+        <PencilIcon aria-hidden />
+        Modifica
+      </RowMenuItem>
+      <RowMenuItem onClick={() => console.info(`Duplica ${prodotto.codice}`)}>
+        <CopyIcon aria-hidden />
+        Duplica
+      </RowMenuItem>
+      <RowMenuSeparator />
+      {/* `variant="destructive"`, non una classe di colore: stessa regola
+          della colonna `azioni` sopra (v. `CLAUDE.md`, le due trappole). */}
+      <RowMenuItem
+        variant="destructive"
+        onClick={() => console.info(`Elimina ${prodotto.codice}`)}
+      >
+        <Trash2Icon aria-hidden />
+        Elimina
+      </RowMenuItem>
+    </>
+  )
+}
+
+/**
+ * Una riga **archiviata** (`enabledFor`) prova l'esclusione: né la tendina
+ * né il tasto destro compaiono su di lei, le altre restano intatte. Otto
+ * righe come `Riordino`: bastano a provare a occhio due righe abilitate più
+ * quella esclusa, senza il rumore di cinquecento.
+ */
+function MenuRigaCondivisoConControlli() {
+  const [prodotti] = React.useState(() =>
+    PRODOTTI.slice(0, 8).map((p, indice) =>
+      indice === 2 ? { ...p, stato: 'archiviato' as const } : p
+    )
+  )
+  return (
+    <DataTable
+      colonne={COLONNE_MENU_RIGA}
+      dati={prodotti}
+      idRiga={(p) => p.id}
+      menuRiga={{
+        menu: <MenuAzioniProdotto />,
+        enabledFor: (p) => p.stato !== 'archiviato',
+        ariaLabel: (p) => `Azioni su ${p.nome}`,
+      }}
+      piePagina={false}
+    />
+  )
+}
+
+/**
+ * **Identiche da tendina e da tasto destro**: le tre voci — Modifica,
+ * Duplica, Elimina — vengono dalla stessa `<MenuAzioniProdotto />`, letta
+ * due volte da due `Popup` diversi. **La terza riga (archiviata) non apre
+ * né l'una né l'altra**: `enabledFor` spegne insieme la tendina e il tasto
+ * destro, con la stessa domanda.
+ *
+ * **Da tastiera resta raggiungibile solo la tendina**: `Tab` raggiunge il
+ * bottone «⋯» di ogni riga abilitata e `Invio` apre lo stesso identico
+ * menu che il tasto destro apre — il tasto destro non è mai l'unica via
+ * (v. `context-menu.stories.tsx`, «il costo d'ingresso»).
+ */
+export const MenuRigaCondiviso: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Menu Riga Condiviso',
+  // Il tasto destro, non la tendina: quest'ultima è già misurata aperta
+  // dalle story sopra (`Ridimensionabile`/`ColonneBloccate`/`Albero`), qui
+  // manca ancora una misura del popup nuovo.
+  play: apriColDestro('[data-slot="context-menu-trigger"]', 'context-menu-content'),
+  render: () => <MenuRigaCondivisoConControlli />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Editing in-riga leggero (M3bis.10) — `chiaveMemoRiga`, porting
+ * "Inline Edit Table"
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type BozzaProdotto = { nome: string; revisione: string }
+type ErroriProdotto = { nome?: string; revisione?: string }
+
+/**
+ * Tutto lo stato di editing **fuori da `dati`** (v. il prop `chiaveMemoRiga`
+ * di `<DataTable>`, in `data-table.tsx`): `editingId`/`bozza`/`errori` sono
+ * `useState` separati, mai un `isEditing` scritto dentro la riga — quello
+ * sostituirebbe l'array `prodotti` a ogni tasto, e ricalcolerebbe ogni riga
+ * memoizzata. `prodotti` si aggiorna una sola volta, dentro `salva()`.
+ */
+function useEditingInRiga(setProdotti: React.Dispatch<React.SetStateAction<Prodotto[]>>) {
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [bozza, setBozza] = React.useState<BozzaProdotto>({ nome: '', revisione: '' })
+  const [errori, setErrori] = React.useState<ErroriProdotto>({})
+
+  const iniziaModifica = React.useCallback((prodotto: Prodotto) => {
+    setEditingId(prodotto.id)
+    setBozza({ nome: prodotto.nome, revisione: String(prodotto.revisione) })
+    setErrori({})
+  }, [])
+
+  const annulla = React.useCallback(() => {
+    setEditingId(null)
+    setBozza({ nome: '', revisione: '' })
+    setErrori({})
+  }, [])
+
+  const impostaCampo = React.useCallback((campo: keyof BozzaProdotto, valore: string) => {
+    setBozza((precedente) => ({ ...precedente, [campo]: valore }))
+    setErrori((precedente) => ({ ...precedente, [campo]: undefined }))
+  }, [])
+
+  const salva = React.useCallback(() => {
+    const prossimi: ErroriProdotto = {}
+    if (!bozza.nome.trim()) prossimi.nome = 'Il nome è obbligatorio'
+    const revisione = Number.parseInt(bozza.revisione, 10)
+    if (!Number.isFinite(revisione) || revisione <= 0) prossimi.revisione = 'Numero positivo'
+    if (Object.keys(prossimi).length > 0) {
+      setErrori(prossimi)
+      return
+    }
+    setProdotti((precedenti) =>
+      precedenti.map((p) =>
+        p.id === editingId ? { ...p, nome: bozza.nome.trim(), revisione } : p
+      )
+    )
+    annulla()
+  }, [bozza, editingId, annulla, setProdotti])
+
+  /**
+   * `""` per ogni riga che non è quella in modifica — nessun cambio, nessun
+   * render — e per la riga in modifica una stringa che porta bozza ed
+   * errori insieme. Ogni tasto cambia `bozza.nome` → nuova stringa →
+   * `RigaTabellaCorpo` (in `data-table.tsx`) ricalcola **solo questa riga**,
+   * mai le altre.
+   */
+  const chiaveMemoRiga = React.useCallback(
+    (prodotto: Prodotto): string => {
+      if (prodotto.id !== editingId) return ''
+      return `${bozza.nome}|${bozza.revisione}|${errori.nome ?? ''}|${errori.revisione ?? ''}`
+    },
+    [editingId, bozza, errori]
+  )
+
+  return { editingId, bozza, errori, iniziaModifica, annulla, impostaCampo, salva, chiaveMemoRiga }
+}
+
+type StatoEditingInRiga = ReturnType<typeof useEditingInRiga>
+
+/**
+ * Il campo `nome`: un `Input` sulla riga in modifica, il testo altrimenti.
+ * `Invio` salva, `Esc` annulla — le due scorciatoie dell'esempio originale.
+ */
+function CampoNomeProdotto({
+  prodotto,
+  editing,
+}: {
+  prodotto: Prodotto
+  editing: StatoEditingInRiga
+}) {
+  if (prodotto.id !== editing.editingId) {
+    return <span className="font-medium">{prodotto.nome}</span>
+  }
+  const idErrore = `errore-nome-${prodotto.id}`
+  return (
+    <div className="flex flex-col gap-1">
+      <Input
+        aria-label={`Nome di ${prodotto.nome}`}
+        // `-my-1`, come i bottoni-icona di `RowMenuItem`/`colonnaAzioniRiga`
+        // nelle altre celle di questo blocco (v. `-my-1 ml-auto flex` sulla
+        // colonna `azioni` più sotto): senza, l'`Input` di default (`h-8`,
+        // 32px in densità normale) è più alto della riga a riposo — righe
+        // che cambiano altezza quando una si mette in modifica, mentre la
+        // riga deve restare della stessa altezza in entrambi gli stati.
+        className="-my-1"
+        value={editing.bozza.nome}
+        onChange={(evento) => editing.impostaCampo('nome', evento.target.value)}
+        aria-invalid={!!editing.errori.nome}
+        aria-describedby={editing.errori.nome ? idErrore : undefined}
+        autoFocus
+        onKeyDown={(evento) => {
+          if (evento.key === 'Enter') editing.salva()
+          if (evento.key === 'Escape') editing.annulla()
+        }}
+      />
+      {editing.errori.nome ? (
+        <p id={idErrore} className="text-xs text-destructive-subtle-foreground">
+          {editing.errori.nome}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/** Lo stesso principio per `revisione`, l'unico campo numerico dell'esempio. */
+function CampoRevisioneProdotto({
+  prodotto,
+  editing,
+}: {
+  prodotto: Prodotto
+  editing: StatoEditingInRiga
+}) {
+  if (prodotto.id !== editing.editingId) {
+    return <div className="text-right">{prodotto.revisione}</div>
+  }
+  const idErrore = `errore-revisione-${prodotto.id}`
+  return (
+    <div className="flex flex-col gap-1">
+      <Input
+        aria-label={`Revisione di ${prodotto.nome}`}
+        type="number"
+        min={1}
+        value={editing.bozza.revisione}
+        onChange={(evento) => editing.impostaCampo('revisione', evento.target.value)}
+        aria-invalid={!!editing.errori.revisione}
+        aria-describedby={editing.errori.revisione ? idErrore : undefined}
+        // `-my-1`: stessa ragione del campo `Nome`, sopra.
+        className="-my-1 text-right"
+        onKeyDown={(evento) => {
+          if (evento.key === 'Enter') editing.salva()
+          if (evento.key === 'Escape') editing.annulla()
+        }}
+      />
+      {editing.errori.revisione ? (
+        <p id={idErrore} className="text-xs text-destructive-subtle-foreground">
+          {editing.errori.revisione}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * La colonna «Render»: non è un dato del prodotto, è lo strumento della
+ * story — un contatore per riga, incrementato **solo quando la cella si
+ * ricalcola davvero**, che rende visibile a occhio ciò che `chiaveMemoRiga`
+ * promette a parole (lo stesso principio del contatore di render che
+ * "Inline Edit Table" usa nella propria dimostrazione). `contatori` vive in
+ * un `useRef`, mai in uno stato — uno stato in più romperebbe da sé la
+ * memoizzazione che si sta misurando.
+ */
+function useContatoreRenderRighe() {
+  const contatori = React.useRef(new Map<string, number>())
+  return React.useCallback((id: string) => {
+    const prossimo = (contatori.current.get(id) ?? 0) + 1
+    contatori.current.set(id, prossimo)
+    return prossimo
+  }, [])
+}
+
+const colEditing = creaColonne<Prodotto>()
+
+/**
+ * Le colonne si ricostruiscono a ogni cambio dello stato di editing — le
+ * chiusure di `cell` devono vedere la bozza e gli errori aggiornati, non
+ * quelli del render in cui la colonna fu creata (lo stesso motivo per cui
+ * l'esempio originale ricostruisce le proprie `columns` in un `useMemo` che
+ * dipende da `editingId`/`draft`/`errors`).
+ */
+function costruisciColonneEditing(
+  editing: StatoEditingInRiga,
+  contaRender: (id: string) => number
+) {
+  return colEditing.columns([
+    colEditing.accessor('codice', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+      meta: { titolo: 'Codice', larghezza: 'w-28' },
+      sortFn: 'alphanumeric',
+      cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+    }),
+    colEditing.accessor('nome', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+      meta: { titolo: 'Nome', larghezza: 'w-52' },
+      sortFn: 'text',
+      cell: ({ row }) => <CampoNomeProdotto prodotto={row.original} editing={editing} />,
+    }),
+    colEditing.accessor('famiglia', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Famiglia" />,
+      meta: { titolo: 'Famiglia' },
+      sortFn: 'text',
+    }),
+    colEditing.accessor('revisione', {
+      header: ({ column }) => (
+        <IntestazioneColonna colonna={column} titolo="Rev." allinea="fine" />
+      ),
+      meta: { titolo: 'Revisione', larghezza: 'w-24' },
+      sortFn: 'basic',
+      cell: ({ row }) => <CampoRevisioneProdotto prodotto={row.original} editing={editing} />,
+      enableGlobalFilter: false,
+    }),
+    colEditing.display({
+      id: 'render',
+      meta: { titolo: 'Render', larghezza: 'w-20' },
+      header: () => <span className="text-xs text-muted-foreground">Render</span>,
+      cell: ({ row }) => (
+        <Badge variant="outline" className="tabular-nums">
+          {contaRender(row.original.id)}
+        </Badge>
+      ),
+      enableHiding: false,
+      enableGlobalFilter: false,
+    }),
+    colEditing.display({
+      id: 'azioni',
+      // `w-24`, non `w-16` come la colonna `azioni` di `COLONNE`: lì c'è un
+      // solo bottone, qui in modifica ce ne sono **due** affiancati (Salva
+      // e Annulla) — con `w-16` la croce usciva dalla cella e `truncate`
+      // (regola del blocco, v. `DataTableBody`) la tagliava a metà.
+      meta: { larghezza: 'w-24' },
+      header: () => <span className="sr-only">Azioni</span>,
+      cell: ({ row }) => {
+        const prodotto = row.original
+        if (prodotto.id === editing.editingId) {
+          return (
+            <div className="-my-1 ml-auto flex w-fit gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Salva ${prodotto.nome}`}
+                onClick={editing.salva}
+              >
+                <CheckIcon aria-hidden className="text-success-subtle-foreground" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Annulla la modifica"
+                onClick={editing.annulla}
+              >
+                <XIcon aria-hidden className="text-destructive-subtle-foreground" />
+              </Button>
+            </div>
+          )
+        }
+        return (
+          // `-my-1 ml-auto flex`, non un `<Button>` nudo: senza, il bottone
+          // resta allineato a sinistra nella cella e scivola a sinistra
+          // rispetto alla coppia Salva/Annulla non appena la colonna è più
+          // larga del bottone stesso — stesso principio della colonna
+          // `azioni` di `COLONNE`, sopra.
+          <Button
+            size="icon"
+            variant="ghost"
+            className="-my-1 ml-auto flex"
+            aria-label={`Modifica ${prodotto.nome}`}
+            onClick={() => editing.iniziaModifica(prodotto)}
+          >
+            <PencilIcon aria-hidden />
+          </Button>
+        )
+      },
+      enableHiding: false,
+    }),
+  ])
+}
+
+/**
+ * Otto righe, non cinquecento: la colonna «Render» si legge a occhio solo
+ * su un elenco corto, e il caso reale (`pagina-lista`) non è mai la stessa
+ * tabella da 500 righe di `Prodotti` sopra.
+ */
+function EditingInRigaConControlli() {
+  const [prodotti, setProdotti] = React.useState(() => PRODOTTI.slice(0, 8))
+  const editing = useEditingInRiga(setProdotti)
+  const contaRender = useContatoreRenderRighe()
+  const colonne = React.useMemo(
+    () => costruisciColonneEditing(editing, contaRender),
+    // `contaRender` è stabile (`useCallback` senza dipendenze, v. sopra):
+    // non serve nell'elenco, e includerlo forzerebbe una ricostruzione delle
+    // colonne a ogni render invece che a ogni cambio di editing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editing.editingId, editing.bozza, editing.errori]
+  )
+  return (
+    <DataTable
+      colonne={colonne}
+      dati={prodotti}
+      idRiga={(p) => p.id}
+      chiaveMemoRiga={editing.chiaveMemoRiga}
+      piePagina={false}
+    />
+  )
+}
+
+/**
+ * **La colonna «Render» è la prova, non un ornamento**: si modifichi il
+ * `Nome` di una riga a caso e si digiti — il suo numero sale a ogni tasto,
+ * quello di ogni altra riga resta fermo. Senza `chiaveMemoRiga` sarebbero
+ * salite tutte insieme, perché lo stato di editing (`bozza`) vive fuori da
+ * `dati` e senza quel prop `React.memo` non avrebbe modo di saperlo.
+ *
+ * **Invio salva, Esc annulla** — verificato da tastiera, non solo dal
+ * mouse sulle due icone. Un nome vuoto o una revisione non positiva
+ * mostrano l'errore sotto il campo **senza chiudere l'editing**: `salva()`
+ * si ferma prima di toccare `prodotti` quando `Object.keys(prossimi).length
+ * > 0`.
+ */
+export const EditingInRiga: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Editing In Riga',
+  render: () => <EditingInRigaConControlli />,
 }

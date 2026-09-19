@@ -320,6 +320,50 @@ Ogni blocco dichiara i suoi `registryDependencies` sulle primitive che usa, cos�
 
 ---
 
+### FASE 3bis — Tabelle avanzate (niko-table) — 12 sessioni
+
+Obiettivo: colmare i pattern di tabella che `data-table` (M3.3) non copre e che un caso reale di Studio (`/computo`, "Computo metrico estimativo") richiede — righe annidate con subtotale, espansione, resize/pin colonne, scroll infinito, editing tipo foglio elettronico, filtri sfaccettati, riordino righe/colonne. Segnalato da Francesco: [niko-table](https://niko-table.com) (MIT, Semir N., github.com/Semkoo/niko-table-registry), un registry shadcn su TanStack Table v9 compatibile Base UI che copre già questi pattern. **Si porta (si riscrive), non si installa**: l'installazione diretta (`npx shadcn add @niko-table/...`) importa file con `@/components/ui/table` e `@/lib/utils` fissi (non il nostro alias, regola 1), valori Tailwind arbitrari nel core (regola 3), e sovrascriverebbe il nostro `ui/table.tsx` già ri-stilato. Ogni sessione parte dal JSON pubblico dell'item (`https://niko-table.com/r/<nome>.json`), lo riscrive con import/token/API nostri in un solo passaggio, mantiene la nota di attribuzione MIT.
+Gate: `pagina-lista` mostra almeno un esempio di ciascuna nuova capacità, senza CSS di pagina; `npm run check` verde sui cinque gate.
+Dipendenze: FASE 3 (M3.3 `data-table`), M4.2 (`pagina-lista`, da riaprire in coda).
+Valutazione completa, incluso cosa resta fuori ambito e perché, in `docs/DECISIONI.md` §40.
+
+**M3bis.0 — Inventario e mappa di adattamento (1 sessione) — DONE** — completa la lettura di `niko-table/overview/{core,filters,hooks,lib,types,config}` e degli esempi non ancora aperti; produce in `WORKLOG.md` la mappa di adattamento (icone/etichette da tradurre, conferma che si bypassa `DataTableRoot`/`detectFeaturesFromChildren` — il nostro blocco registra già le feature TanStack in modo esplicito) che le sessioni successive useranno come riferimento.
+
+**M3bis.1 — Righe annidate con subtotale, "Tree" (1 sessione)** — estende `data-table.tsx` con dati annidati (`getSubRows`, non raggruppamento: la struttura è nel modello dati, come il caso reale di "Computo") — indentazione + chevron per livello, selezione a cascata, subtotale sulla riga genitore. Porting dal pattern "Tree Table".
+- Accettazione: righe annidate su almeno due livelli, subtotale corretto, espandi/collassa e selezione a cascata da tastiera, `test:a11y` zero violazioni.
+
+**M3bis.2 — Espansione righe (1 sessione)** — `getExpandedRowModel`, porting da "Row Expansion Table"; pannello di dettaglio per riga a contenuto libero.
+- Accettazione: apertura/chiusura da tastiera (Invio/Spazio), `test:a11y` zero violazioni.
+
+**M3bis.3 — Resize e pin colonne generalizzato (1 sessione, tocca la primitiva `ui/table.tsx`)** — larghezze/colgroup, classi sticky, `tabIndex={0}` sul contenitore di scroll (oggi assente). Riapre **D17** ("no per ora") con nuova evidenza: niko-table lo fa senza Radix nativo. Il pin non parte da zero — `bloccaPrimaColonna` (M3.3) è già un pin fisso; qui si generalizza (qualunque colonna, entrambi i lati, dal menu intestazione). **Blocca in attesa della conferma esplicita di Francesco prima di scrivere codice** (4bis.4 — tocca una primitiva, la forma diverge dall'originale shadcn); riga nuova in `componenti-propri.json`.
+- Accettazione: colonna ridimensionabile da mouse e tastiera (o eccezione motivata come D14); pin verificato a 375px come già fatto per `bloccaPrimaColonna` in M3.3.
+
+**M3bis.4 — Virtualizzazione / scroll infinito (1 sessione)** — corpo virtualizzato per `data-table` (nuova dipendenza `@tanstack/react-virtual`), capacità autonoma (non solo prerequisito della Data Grid) — terza opzione accanto a `perPagina`/`altezza="ferma"`.
+- Accettazione: scroll fluido su 10.000 righe finte; tastiera (frecce, Home/End, Page Up/Down) verificata esplicitamente — la virtualizzazione è nota per romperla se il fuoco non segue le righe montate/smontate.
+
+**M3bis.5 — Data Grid editabile (3 sessioni, fissato in M3bis.0)** — nuovo blocco fratello `data-grid.tsx`, porting da `data-table-grid` + `data-table-grid-changes`: navigazione da tastiera, focus/selezione, clipboard, fill, annulla/ripeti, tracciamento modifiche creazione/aggiornamento/cancellazione. Dipende da M3bis.3 e M3bis.4. Include celle tipizzate (testo/numero/valuta `it-IT`/checkbox/data/select, porting da "Cell Types") e validazione per cella con Zod (porting da "Validation", coerente con `form-field` M3.4). **M3bis.0 ha scartato `getRowMemoKey`** (editing in-riga leggero, senza clipboard/undo-redo): il caso reale del "Computo" vuole tutti e tre. Le tre sessioni: (1) motore `useDataGrid`/`<DataGrid>` + clipboard/fill/undo-redo, innestato su `data-table` virtualizzato e resizabile; (2) celle tipizzate + validazione Zod; (3) `useGridChanges` (persistenza) più la prova end-to-end sul dataset finto a forma di computo, che è dove si verifica per intero il criterio d'accettazione sotto.
+- Accettazione: prova su ~500 righe finte con editing, incolla da appunti, annulla/ripeti; celle numeriche/valuta/select su dati di un computo finto; verifica a11y **a mano** oltre ad axe (niko-table non certifica WCAG su virtualizzazione/pinning).
+
+**M3bis.6 — Filtri sfaccettati (1 sessione)** — `data-table` ha già lo stato dei filtri per colonna (`columnFilteringFeature`) ma nessuna UI pronta. Porting di `data-table-faceted-filter` + `useGeneratedOptions` (conteggio per opzione, es. "Categoria: Elettronica 12", ricalcolato sulle righe filtrate) — solo primitive già esistenti (Popover/Command/Checkbox), nessun tocco a `ui/`.
+- Accettazione: filtro multi-valore con conteggio corretto e ricalcolato; apertura/selezione da tastiera; `test:a11y` zero violazioni.
+
+**M3bis.7 — Drag&drop righe (1 sessione)** — riordino manuale via trascinamento, porting da "Row DnD Table" (`@dnd-kit/*`, nuova dipendenza). Non va combinato con ordinamento/filtri attivi — disabilitati esplicitamente quando il riordino è attivo.
+- Accettazione: riordino completo da tastiera (non solo mouse); `test:a11y` zero violazioni.
+
+**M3bis.8 — Drag&drop colonne (1 sessione)** — riordino intestazioni, porting da "Column DnD Table"; sicuro da combinare con ordinamento/filtri/virtualizzazione.
+- Accettazione: riordino da tastiera; compatibilità verificata con resize colonne (M3bis.3) nella stessa story.
+
+**M3bis.9 — Menu di riga condiviso, dropdown e tasto destro (1 sessione)** — aggiunta il 2026-09-16 su richiesta di Francesco, a partire dal pattern annotato in M3bis.0 ("Row Context Menu Table"): un solo componente di azioni-riga (`RowMenuItem`/`RowMenuSeparator`/`RowMenuSub` polimorfici, che leggono la riga da `useDataTableRow<T>()`) si monta sia nel dropdown "…" sia nel menu del tasto destro, senza duplicare l'elenco delle azioni. Porting da `data-table-row-context-menu` — non tocca `ui/table.tsx`, si compone su `tassullo-data-table` come le altre sessioni della fase. Include l'`enabledFor` per escludere il menu da righe singole (bloccate, di sola lettura).
+- Accettazione: azioni identiche da dropdown e da tasto destro su almeno due righe della story; `enabledFor` verificato su una riga esclusa; tastiera (il dropdown resta raggiungibile e operabile senza mouse anche quando il tasto destro non lo è); `test:a11y` zero violazioni.
+
+**M3bis.10 — Editing in-riga leggero, `getRowMemoKey` (1 sessione)** — aggiunta il 2026-09-16 su richiesta di Francesco, dal pattern "Inline Edit Table" già scartato in M3bis.0 **per il caso Computo** (niente clipboard/undo, non basta lì) ma non fuori ambito in assoluto: per un elenco dove si corregge un campo alla volta senza aprire la scheda (una `pagina-lista` di Anagrafe, non il computo), è la strada più leggera — non dipende da resize/virtualizzazione/Data Grid, quindi non aspetta M3bis.3/M3bis.4. Porta lo stato di editing (`editingId`/`draft`/`errors`) **fuori dai dati** — mai un `isEditing` dentro la riga, che farebbe ri-renderizzare l'intera tabella a ogni tasto — e usa `getRowMemoKey` (già in `DataTableBody`/`DataTableVirtualizedBody` di M3.3/M3bis.4) per far ri-renderizzare solo la riga in modifica. Validazione inline sugli stessi campi, non Zod (quella resta il confine della Data Grid, M3bis.5): due-tre regole semplici come nell'esempio niko-table bastano al caso d'uso.
+- Accettazione: modifica di un campo senza che le altre righe ri-renderizzino (verificabile con un contatore di render per riga in story, come fa niko-table); Invio salva, Esc annulla; errore di validazione mostrato senza chiudere l'editing; `test:a11y` zero violazioni.
+
+**M3bis.11 — Aggiornamento di `pagina-lista` e gate di fase (1 sessione)** — `pagina-lista` (M4.2) oggi non mostra nessuna capacità di questa fase: si aggiunge almeno un esempio rappresentativo. `pagina-scheda` non necessita modifiche (le menzioni di `data-table` lì sono solo commenti).
+- Accettazione: `npm run check` verde sui cinque gate; screenshot prima/dopo in `WORKLOG.md`; pagina senza CSS di pagina.
+
+---
+
 ### FASE 4 — Pagine modello — 6 sessioni
 
 Obiettivo: pagine intere pronte da installare, sul modello di `ui.shadcn.com/blocks` (dove `npx shadcn add dashboard-01` cala nel progetto un `page.tsx` completo, non uno spezzone). Sono il livello sopra i blocchi: una nuova app dello studio non parte più da una pagina bianca, ma da una pagina Tassullo funzionante da svuotare e riempire.
@@ -348,6 +392,10 @@ Ogni pagina modello è un item `registry:block` con dati finti tipizzati e comme
 
 **M4.6 — Stati di sistema e gate (1 sessione)** — `pagina-errore` nelle sue varianti: 404, accesso negato (l'utente senza ruoli di Anagrafe è sola lettura e la UI glielo deve dire), errore del server, manutenzione. Poi il gate: app Vite vuota, tre `shadcn add`, e si verifica che in dieci minuti ci sia un'app navigabile e in stile.
 - Accettazione: cronometrata davvero e annotata in WORKLOG — se ci vuole di più, il problema è nella documentazione o nei `registryDependencies`, e si corregge lì.
+
+**M4.7 — `item`, la lista non tabellare (1 sessione)** — aggiunto in coda alla fase il 2026-09-18, su indicazione di Francesco, dopo la revisione a video della dashboard. Si installa la primitiva `item` di shadcn (originale, gradino 1 della regola 4bis: `add`, poi **snapshot prima di toccarla**), si scrive la story `Primitive/Item`, e la si compone in un caso reale — il tab **documenti** di `tassullo-pagina-scheda`, che oggi è un `ReactNode` libero.
+- Motivo, misurato sui tre siti: i selettori CSS di riga/voce sono **~120 in Officina, ~22 in Studio, ~19 in Anagrafe**. È il secondo pattern più ripetuto dopo la tabella, e copre il buco fra `data-table` (la lista che si cerca e si ordina) e `card` (un contenitore, non una riga): la lista **non tabellare** — allegati, impostazioni, elenchi selezionabili. Quattro casi di Anagrafe si mappano uno a uno sulla sua anatomia: `sed-riga` (`SistemaEditor`), `nrm-elenco-voce` (`Norme`), `adm-accordion-voce` (`Admin`), `abc-modifica-riga` (`AdminBC`).
+- Accettazione: `npm run check` verde sui cinque gate; `check:registry` deve vedere l'originale in `registry/.upstream/item.tsx` e **nessuna riga** in `componenti-propri.json`, che resta vuoto; il tab documenti di `Pagine/Scheda` rende una lista di allegati veri; pannello Accessibility a zero in chiaro e scuro.
 
 ---
 

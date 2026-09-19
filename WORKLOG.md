@@ -4161,3 +4161,1135 @@ Ricaduta sulla story: `AnagraficaLettura`/`AnagraficaModifica` (due componenti) 
 ### Verifiche
 
 `npm run check` verde su tutti e cinque i gate: **a11y 1148 scansioni (4 passate) / 0 violazioni**, invariato. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. Provato in Chromium: campi disabilitati in lettura dentro la card bianca, campi attivi in modifica (stessa posizione, nessun salto), "Annulla" che scarta, "Salva" che aggiorna titolo/breadcrumb e torna alla lettura, chiaro e scuro.
+
+---
+
+## Valutazione niko-table e apertura FASE 3bis (2026-09-16)
+
+Francesco ha segnalato [niko-table](https://niko-table.com), un registry shadcn su TanStack Table v9 compatibile Base UI, con esempi già pronti per pattern che `data-table` (M3.3) non copre — righe espandibili, selezionabili, resize colonne, ecc. Sessione di sola valutazione (nessun codice scritto), condotta in gran parte in modalità piano: letta la documentazione niko-table quasi per intero (Introduction, Installation, Components, Config, Core, Filters, Hooks, Library, Types, Skills) e tutti gli esempi Table/Grid tranne Simple/Basic/Search (sottoinsiemi di capacità già nostre) e l'"Overview" specifico della Data Grid.
+
+**Riscontro con un caso reale**: screenshot del "Computo metrico estimativo" di Studio Tassullo (`/computo`, login richiesto — non acceduto, valutato solo dallo screenshot fornito da Francesco). Righe di voce con sotto-righe di misurazione annidate (dati veri, non raggruppamento — corretto un'ipotesi sbagliata in corso di valutazione leggendo "Tree Table", che distingue Tree/Grouping/Row Expansion come tre pattern separati da non mischiare), subtotale per voce, totale generale, editing inline.
+
+**Verificato perché l'installazione diretta (`npx shadcn add @niko-table/...`) non regge**: import fissi non sul nostro alias (regola 1), valori Tailwind arbitrari nel core (regola 3), sovrascriverebbe il nostro `ui/table.tsx` già ri-stilato via `@niko-table/data-table-ui`. **Verdetto: si porta (si riscrive), non si installa** — dettaglio motivato in `docs/DECISIONI.md` §40.
+
+**Verificato sul codice reale di `data-table.tsx`, non solo sulla documentazione niko-table**, cosa è già coperto e cosa no: Row Selection + barra di azioni di massa già completi (M3.3: `selezione` + `barra` come funzione); Column Pinning solo parziale (`bloccaPrimaColonna` è già un pin fisso, va generalizzato); filtri per colonna hanno già lo stato TanStack ma nessuna UI (gap reale).
+
+**Aperta FASE 3bis — Tabelle avanzate (niko-table), 10 sessioni** in `PIANO.md` e `CHECKLIST.md` (M3bis.0-9, tutte TODO): inventario/mappa di adattamento, righe annidate con subtotale (Tree), espansione righe, resize+pin colonne generalizzato (tocca `ui/table.tsx`, **blocca sulla conferma esplicita di Francesco**, riapre D17), virtualizzazione/scroll infinito, Data Grid editabile con celle tipizzate e validazione Zod (2-3 sessioni), filtri sfaccettati, drag&drop righe, drag&drop colonne, aggiornamento di `pagina-lista`. Ambito ampliato in corso di discussione su richiesta di Francesco (inizialmente valutato solo Tree+Data Grid, poi aggiunti DnD righe/colonne, virtualizzazione autonoma e filtri sfaccettati dopo revisione più a fondo degli esempi niko-table). Deliberatamente fuori ambito: `data-table-aside`, export CSV (già coperto lato Studio da Excel/Primus/ZIP), colonne dinamiche a runtime, filtri query-builder AND/OR, grid server-side vero e proprio, e la skill `niko-table-best-practices` (scartata: insegnerebbe le convenzioni di import/API inglesi che questa fase decide di non adottare).
+
+Nessun file di registry toccato in questa sessione. Prossimo passo: M3bis.0.
+
+---
+
+## M3bis.0 — Inventario e mappa di adattamento (2026-09-16)
+
+Completata la lettura lasciata aperta dalla valutazione precedente: le sei pagine `niko-table/overview/{core,filters,hooks,lib,types,config}` (l'API reference completa lato Table — la sessione di valutazione aveva letto le pagine narrative "Core/Filters/Hooks/Library/Types", non questi dump di riferimento), l'Introduction della Data Grid (`/data-grid/introduction/`, non ancora aperta), e gli esempi Simple/Basic/Search Table più Row Context Menu Table. Nessun codice scritto: è la sessione di sola mappa, come da `PIANO.md`.
+
+### Bypass di `DataTableRoot`/`detectFeaturesFromChildren`: confermato, e ora con la prova nel testo di niko-table stesso
+
+`config/feature-detection.tsx` (letto in `niko-table/overview/config/`) fa esattamente quello che il nome dice: cammina l'albero React cercando nomi di componente noti (`DataTableFacetedFilter`, `DataTableSortMenu`, …) e ne deriva `enableFilters`/`enableSorting`/ecc. — con una cache che usa il **nome del componente** come chiave, quindi fragile a wrapping/rinomina, e comunque un costo (50-150ms al primo giro, per loro stessa documentazione). `tassullo-data-table.tsx` non lo fa: dichiara le feature esplicitamente su `tableFeatures()` (visto in `lib/data-table-features`, dove niko-table stessa lo raccomanda come "il modo giusto" per una tabella su misura — la loro auto-detection è lo zucchero per chi installa i pezzi a pioggia, non l'unico modo). **Confermato**: si continua a costruire `useTable({ features, data, columns })` a mano in ogni sessione della fase, mai `DataTableRoot`. Le sessioni M3bis.1-8 vanno lette con questo in testa — quando la documentazione niko-table dice "si abilita da sé mettendo il componente", da noi si abilita scrivendo la feature nel nostro `tableFeatures()`.
+
+### Cosa serve tradurre — l'inventario per le sessioni 1-8
+
+Nessuna icona Lucide da cambiare: niko-table usa `lucide-react`, già nostra dipendenza (M3.3). Da tradurre sono **solo le stringhe**, tutte lette nelle pagine di riferimento:
+
+- **Etichette di ordinamento** (`config/data-table.tsx`, tabella "Sort Labels"): "Asc"/"Desc" (testo), "Low to High"/"High to Low" (numeri), "Oldest First"/"Newest First" (date), "False First"/"True First" (booleani) — quattro coppie, non una sola, perché il tipo di colonna cambia la frase intera, non solo il verso.
+- **Etichette degli operatori di filtro** (menzionate ma non elencate per esteso in `lib/overview` — vanno lette dal sorgente al momento di portare `table-inline-filter`/`table-filter-menu`, M3bis.6): "Contains", "Equals", "Is empty", ecc.
+- **Comandi della Data Grid**: "Add rows", "Add column", "Export CSV" (fuori ambito, §40), "Undo"/"Redo", "Clear all", il segnaposto "Paste a spreadsheet (Ctrl/Cmd+V) to fill rows", le colonne dello stato demo ("Focused Cell", "Editing Cell", "Selection Anchor", "Can Undo / Redo", "Last Commit").
+- **Scorciatoie da tastiera pubblicate a schermo**: `DataGridShortcutsButton` apre un elenco ("Arrows, Tab, Enter, Escape navigate and edit…") che va riscritto, non solo tradotto — la nostra tastiera per `data-table` (M3.3) già diverge da quella di shadcn (ordina con un clic, non un menu), quindi l'elenco pubblicato deve descrivere *la nostra* tastiera, non quella di niko-table.
+- **Il registro dei filtri** (`lib/constants`, tabella `FILTER_OPERATORS`): i valori (`ilike`, `eq`, `between`, …) sono nomi in stile PostgREST, restano tecnici e non si traducono; le **label** che li accompagnano nell'UI sì.
+
+### Conferma sul confine di M3bis.5 e sul numero di sessioni
+
+Letta `/data-grid/introduction/` per intero: la Data Grid **non è un blocco a sé che si aggiunge**, è `tassullo-data-table` più un motore separato (`useDataGrid`, non controllato — "like `defaultValue`", la ragione scritta è che uno stato controllato ricalcolerebbe il modello di tabella a ogni tasto e romperebbe l'undo) e componenti opt-in dentro un nuovo `<DataGrid>` che avvolge `<DataTable>`. Conferma quanto già scritto in `PIANO.md`: **non basta `getRowMemoKey`** (editing in-riga leggero) per il caso reale del "Computo" — quel pattern non ha clipboard, non ha fill, non ha undo/redo, e il computo li vuole tutti e tre (voci numeriche incollate da un foglio esterno, corretta a mano dal caso reale mostrato da Francesco).
+
+**Fissato a 3 sessioni**, come da margine lasciato in `PIANO.md`:
+1. **Motore + composizione minima**: `useDataGrid`, `<DataGrid>`, `DataGridClipboard`, `DataGridFillHandle`, `DataGridUndo`/`DataGridRedo`, innestato dentro `tassullo-data-table` (dipende da M3bis.3 per il resize/pin, da M3bis.4 per il corpo virtualizzato — la Data Grid nasce già virtualizzata, `DataTableVirtualizedBody` non `DataTableBody`).
+2. **Celle tipizzate + validazione**: porting dei `GridTextCell`/numero/valuta (`it-IT`)/checkbox/data/select da "Cell Types", e la validazione per cella da "Validation" (Zod, coerente con `tassullo-form-field` M3.4).
+3. **Persistenza**: `useGridChanges` (da "Persistence", crea/aggiorna/cancella come change-set) più la prova end-to-end su un dataset finto a forma di computo (voci con subtotale, dalla M3bis.1) — è qui che il criterio d'accettazione di `PIANO.md` ("~500 righe, incolla, annulla/ripeti, celle di un computo finto") si verifica per intero, non prima.
+
+Le colonne dinamiche a runtime (Dynamic Columns) **restano fuori ambito** (già deciso in §40): la Data Grid le usa nella sua demo ma il caso reale di Studio ha colonne fisse.
+
+### Una precisazione sul pattern Tree (M3bis.1), vista ora sul motore Data Grid
+
+L'esempio "Tree" della Data Grid Introduction usa `getSubRows` esattamente come l'omonimo pattern lato Table puro (già letto nella valutazione precedente) — **stesso meccanismo**, la sola differenza è se le celle sono editabili. Conferma che M3bis.1 (Tree su `data-table`, sola lettura) e la parte "editabile" dello stesso pattern dentro la Data Grid (M3bis.5) condividono `getSubRows` e non vanno reinventati due volte: la sessione 1 di M3bis.5 riusa la struttura ad albero di M3bis.1, aggiungendovi sopra il motore di editing.
+
+### Un pattern trovato, non richiesto, annotato e non aperto
+
+`Row Context Menu Table` (letto per completezza, non nell'ambito delle 10 sessioni): un solo componente di menu-riga (`RowMenuItem`/`RowMenuSeparator` polimorfici) che si monta sia nel dropdown "…" sia nel menu del tasto destro, tramite `useDataTableRow<T>()` per leggere la riga da contesto. `tassullo-data-table` oggi non ha un pattern equivalente — chi vuole azioni di riga scrive la propria colonna con un `DropdownMenu` a mano, senza tasto destro. Non è fra le 10 sessioni aperte in §40 e non lo si aggiunge qui: annotato perché se un caso reale lo richiede (un elenco con azioni di riga frequenti, dove il tasto destro farebbe risparmiare un clic) la strada è già mappata.
+
+### Coda: due sessioni aggiunte, e il worktree che le ospiterà
+
+Rilette le note di questa sessione, Francesco ha chiesto di aprire due sessioni in più, entrambe dai pattern annotati "non richiesti" sopra — non più annotazioni, task veri:
+
+- **M3bis.9 — Menu di riga condiviso, dropdown e tasto destro**: il pattern "Row Context Menu Table" annotato sopra. Aggiunto in `PIANO.md`/`CHECKLIST.md`.
+- **M3bis.10 — Editing in-riga leggero (`getRowMemoKey`)**: dal pattern "Inline Edit Table" (niko-table), letto in coda a questa sessione. È lo stesso `getRowMemoKey` già scartato **per il caso Computo** in M3bis.5 (niente clipboard/undo, non basta a un foglio di calcolo) — ma resta la strada giusta per un caso diverso e reale: correggere un campo alla volta in un elenco (una `pagina-lista` di Anagrafe) senza aprire la scheda e senza pagare il costo della Data Grid intera. Punto chiave del pattern originale: lo stato di editing (`editingId`/`draft`/`errors`) sta **fuori dai dati**, mai un `isEditing` dentro la riga — quello farebbe ri-renderizzare l'intera tabella a ogni tasto — e `getRowMemoKey` (già nel nostro `data-table.tsx` core, M3.3) fa ri-renderizzare solo la riga in modifica.
+
+La sessione di gate finale slitta da M3bis.9 a **M3bis.11**. Fase ora **12 sessioni** (era 10 in apertura, 11 dopo la sola M3bis.9). Aggiornato `PIANO.md` §FASE 3bis (righe M3bis.9-11) e `CHECKLIST.md` (righe e conteggio in testa).
+
+**Chiesto anche se rinominare questo worktree** (`esecuzione-m3bis-0-9de1d4` → `implementazione-niko-table`) per riusarlo esplicitamente su tutta la fase. Verificato: l'harness non offre un comando di rename, solo `EnterWorktree` (ne crea uno nuovo) ed `ExitWorktree` (lo lascia) — un rename a mano (`git worktree move` + branch) rischiava di disallineare il tracciamento della sessione per il cleanup finale. **Deciso da Francesco: non rinominare.** Il nome resta `esecuzione-m3bis-0-9de1d4`/branch `claude/esecuzione-m3bis-0-9de1d4`, ma **è questo il worktree su cui vanno fatte tutte le sessioni M3bis.1..11**: chi apre la prossima sessione della fase continua qui, non ne crea uno nuovo.
+
+### Verifiche
+
+Nessun file di registro toccato. `npm run check` non rilanciato: nessuna modifica al registry in questa sessione. Prossimo passo: M3bis.1 (righe annidate con subtotale, Tree), in questo stesso worktree.
+
+---
+
+## M3bis.1 — Righe annidate con subtotale, "Tree" (2026-09-16)
+
+Prima sessione di scrittura della FASE 3bis, nel worktree indicato da M3bis.0 (qui la sessione risulta avviata su un worktree diverso, `fase-m3bis-1-90120f`: nessun problema, il lavoro segue comunque il branch corretto).
+
+**Esteso `registry/tassullo/blocks/data-table.tsx`**, non creato un blocco nuovo: righe annidate, subtotale, selezione a cascata sono capacità in più del blocco esistente, non un pattern a sé — la stessa ragione per cui M3bis.2/.5 lo estenderanno ancora.
+
+**`rowExpandingFeature` e `createExpandedRowModel()` sono ora registrate sempre** in `caratteristiche`, non condizionate a un prop: a differenza delle funzioni di ordinamento (che una colonna deve nominare), restano inerti da sole finché nessuna riga ha `subRows` — `getCanExpand()` resta falso su ogni riga di una tabella piatta. Verificato leggendo la sorgente di TanStack v9 (`node_modules/@tanstack/table-core`, non solo i `.d.ts`): la catena dei modelli di riga è `core → filtering → grouping → sorting → expanding → pagination`, e `paginateExpandedRows` (default `true`) è ciò che fa sì che `getRowModel()` restituisca già le righe in ordine di visualizzazione, figli compresi quando espansi — nessuna ricorsione manuale nel rendering.
+
+**`getSottoRighe`** (nuovo prop, traduzione di `getSubRows` — l'unica opzione di questa natura che il blocco espone, a differenza delle colonne dove i nomi restano quelli di TanStack) abilita il modo albero. Passato `undefined`, il comportamento di ogni pagina esistente è bit-per-bit invariato: nessuna riga acquisisce `subRows`, `rowExpandingFeature` non ha niente su cui lavorare.
+
+**`CellaAlbero`** disegna rientro e `chevron` **dentro il `cell` della colonna che identifica la riga**, non in una colonna a sé — la stessa scelta di un esploratore di file, e la pagina decide quale colonna sia. Il rientro è una tabella di classi Tailwind (`pl-0`, `pl-5`, …, satura all'ultimo livello previsto), non uno `style` con un calcolo: niente valore arbitrario (regola 3). Il bottone è `size="icon"` (32px normale, 48 touch), non `icon-sm`: stessa ragione già scritta per `PaginazioneTabella` — sotto i 44px di WCAG in touch.
+
+**Selezione a cascata**: `colonnaSelezione` ora legge anche `row.getIsAllSubRowsSelected()`/`row.getIsSomeSelected()` per lo stato della casella di una riga con figli — TanStack cascata già da sé la selezione dei figli quando si tocca il genitore (`mutateRowIsSelected`), quello che mancava era solo far *apparire* selezionato un genitore i cui figli sono stati scelti uno per uno.
+
+**Subtotale**: `MetaColonna` prende un parametro generico e una terza chiave, `sottototale?: (righeFiglie, riga) => ReactNode`, chiamata al posto della cella normale sulle sole righe con `subRows.length > 0`. **Decisione a verbale** (`docs/DECISIONI.md` §41): una funzione, non `rowAggregationFeature`/`columnGroupingFeature` di TanStack — la struttura è dato vero e non raggruppamento (punto fermo della fase), e un subtotale di computo porta l'unità di misura col numero, formattazione che è dominio della pagina.
+
+### La story `Albero`
+
+Dataset finto ma realistico: 5 "voci" di un computo metrico (scavo, massetto, intonaco, rimozione pavimento, tinteggiatura), ciascuna con 2-4 "misurazioni" (ambiente + quantità + importo), generato con lo stesso LCG a seme fisso delle altre story. Colonne: `Voce / misurazione` (con `CellaAlbero`), `U.M.`, `Quantità` e `Importo` (entrambe con `sottototale` che somma le misurazioni e formatta con `Intl.NumberFormat('it-IT', …)`). La story non condivide il tipo `Story` delle altre (legato a `DataTable<Prodotto>`): dichiarata come `StoryObj<typeof DataTable<RigaComputo>>` a sé, perché il file ha un solo `meta` fissato su `Prodotto`.
+
+### Un abbaglio dello strumento di verifica, non del codice
+
+Verificando `Enter`/`Spazio` sul `chevron` nel pannello del browser di questa sessione, nessuna reazione — né con quello strumento né in un primo giro con Playwright headless. Prima di scrivere "bug" si è misurato meglio: con **Playwright** e un selettore scoperto per `aria-label`, il click del mouse funzionava (`8 → 11` righe, i tre figli comparivano); isolando poi la query su `tbody tr` **senza** scoprire prima che la pagina porta *due* `<table>` — quella vera e la tabella dei Controls di Storybook, nascosta ma presente nel DOM — il primo `tr` trovato non era mai una riga della tabella vera, ma una riga della tabella dei controlli (`<button>Set string</button>`), sempre non visibile e quindi sempre "senza reazione". Scoperto scopando la query su `[data-slot="table"] tbody tr`: **Enter e Spazio funzionano**, sia per espandi/collassa sia per la selezione a cascata (footer «1 di 5 voci selezionate» dopo `Spazio` sulla prima voce). Nessun codice cambiato per questo — il difetto era nel selettore del test, non nel componente. Vale la stessa lezione già a verbale su questo strumento (`CLAUDE.md`, «Il pannello del browser dell'app non è un banco di misura»): qui il problema non era `requestAnimationFrame` ma un DOM con più di una tabella, e la morale è la stessa — misurare nel posto giusto prima di concludere.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1152 scansioni (4 passate, +1 story) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. `check:registry`: 0 errori, `data-table.tsx` resta sotto la sola regola 3 (blocco, nessun originale shadcn). Provato in Chromium reale (Playwright contro `build-storybook`, non committato): espandi/collassa da tastiera, selezione a cascata da tastiera, subtotali corretti a riga collassata ed espansa; nel pannello del browser di questa sessione, mouse (espandi, seleziona-tutto, seleziona voce), chiaro e scuro. Prossimo passo: M3bis.2 (espansione righe, pannello di dettaglio), stesso worktree.
+
+### Coda: due rilievi di Francesco sulla story `Albero`, presi guardando lo storybook
+
+Due difetti visivi, entrambi nello spaziatore di `CellaAlbero`, non nel meccanismo di espansione/selezione (che restava corretto):
+
+1. **Le righe senza figli erano più alte di quelle con figli**, non uguali come sembrava a un primo sguardo — misurato: 49px contro 35,57px. Causa: il bottone del `chevron` ha `-my-2 -ml-2` per pareggiare la propria altezza (32px) col `p-2` della cella, ma lo spaziatore che lo sostituisce sulle righe senza figli era `size-8` — stessa larghezza **e stessa altezza** del bottone, senza però il margine negativo che la compensa. Risultato: lo spaziatore restava l'elemento più alto della cella e **alzava la riga**, mentre il bottone (compensato) no. Corretto: lo spaziatore diventa `w-8` — solo la larghezza, mai l'altezza — e la riga torna a essere alta quanto il testo, come le righe col bottone.
+2. **Il bottone del chevron si confondeva nel fondo della riga aperta.** `TableRow` tinge di `bg-muted/50` ogni riga con un discendente `aria-expanded="true"` (già in `ui/table.tsx`, non toccato), e il bottone stesso prende `bg-muted` pieno quando è lui espanso: due tinte troppo vicine, il bottone spariva nel fondo. Corretto aggiungendo `aria-expanded:border-border` alla classe del bottone — un bordo non dipende dal colore di fondo, resta il segno che lì c'è un controllo.
+
+Provato in Chromium (pannello di questa sessione): le quattro righe della voce "03.05" espansa sono ora alte quanto le righe voce collassate, e il bottone del chevron resta un riquadro visibile sul fondo tinto. `npm run check`: invariato, 0 violazioni.
+
+**Terza correzione, sullo stesso bottone**: Francesco preferisce il bottone **senza sfondo** — solo il bordo, niente riquadro pieno. Aggiunta `aria-expanded:bg-transparent` alla classe (vince sull'`aria-expanded:bg-muted` che `Button` darebbe da sé), mantenuto `aria-expanded:border-border`. Verificato via `getComputedStyle`: `background-color: rgba(0,0,0,0)`, bordo ancora presente. `npm run check`: invariato, 0 violazioni.
+
+**Quarta correzione, ancora sullo stesso bottone**: Francesco chiede di togliere anche il bordo — il bottone aperto deve essere **identico** a se stesso chiuso, senza nessun segno di stato proprio. Tolta `aria-expanded:border-border`, resta solo `aria-expanded:bg-transparent`. Il ragionamento a verbale: `aria-expanded:bg-muted` di `variant="ghost"` (`ui/button.tsx`) è corretto per un bottone che **è** il solo segno che un menu è aperto — qui il segno di stato è già la freccia ruotata, e un secondo segno sul bottone è ridondante. Non si tocca la primitiva `ui/button.tsx`: resta giusta per chi la usa davvero come grilletto. Verificato via `getComputedStyle`: bottone chiuso e aperto hanno **la stessa** `background-color` e `border-color` (entrambe `rgba(0,0,0,0)`). `npm run check`: invariato, 0 violazioni.
+
+**Quinta correzione: il passaggio del mouse si era spento insieme allo stato.** Rilievo di Francesco: il bottone aperto non si tinge più passandoci sopra, mentre quello chiuso sì. Causa, trovata misurando le regole CSS vere e non leggendo il JSX: `.aria-expanded\:bg-transparent[aria-expanded="true"]` e `.hover\:bg-muted:hover` hanno **la stessa specificità** (una classe più un selettore ciascuna) — a parità vince quella scritta *dopo* nel foglio compilato, e non è detto sia la nostra, perché **l'ordine con cui Tailwind compila le varianti non è quello con cui le si scrive nel JSX**. Corretto aggiungendo `aria-expanded:hover:bg-muted` (più `dark:aria-expanded:hover:bg-muted/50` per la stessa attenuazione che `ghost` usa in scuro): un terzo selettore (`[aria-expanded="true"]:hover`) è **più specifico** dei primi due per costruzione — tre componenti contro due — e vince sempre, indipendentemente dall'ordine nel foglio di stile.
+
+Misurato in **Playwright reale**, non nel pannello del browser: prima lettura fuorviante, un `getComputedStyle` preso 50ms dopo l'hover cadeva **a metà della transizione CSS** (`transition-all` di `Button`) e restituiva un colore intermedio che sembrava un difetto — allungata l'attesa a 400ms il quadro è tornato pulito nei quattro incroci chiaro/scuro × chiuso/aperto: stessa tinta in hover, stessa trasparenza a riposo, in tutti e quattro. `npm run check`: invariato, 0 violazioni.
+
+### Coda: etichette di ordinamento per tipo di colonna (miglioramento, richiesto da Francesco)
+
+Domanda di Francesco sul confronto con niko-table: l'ordinamento delle colonne usa componenti diversi da niko — verificato che **il meccanismo** (bottone a tre tempi, crescente→decrescente→nessun ordine) resta la scelta voluta di M3.3, a verbale in `docs/DECISIONI.md`, non in discussione. La sola differenza reale erano le **etichette**: niko dà a ogni tipo di colonna la propria frase — «Asc»/«Desc» per il testo, «Low to High»/«High to Low» per i numeri, «Oldest First»/«Newest First» per le date, «False First»/«True First» per i booleani (`config/data-table.tsx`, tabella "Sort Labels", già annotata come inventario in M3bis.0) — mentre `IntestazioneColonna` diceva sempre e solo «crescente»/«decrescente».
+
+**Aggiunta `ETICHETTE_ORDINE`** in `data-table.tsx`: una mappa da `sortFn` (la chiave che la colonna già dichiara a TanStack per ordinare) alle due frasi del proprio verso — `basic` → «dal più piccolo al più grande»/«dal più grande al più piccolo», `datetime` → «dal meno recente al più recente»/«dal più recente al meno recente». Nessuna prop nuova su `IntestazioneColonna`: la chiave è `colonna.columnDef.sortFn`, già dichiarata dalla colonna una volta sola — dichiararla una seconda volta all'intestazione sarebbe la duplicazione che il resto del blocco evita apposta (`meta.titolo`, non due etichette). `alphanumeric`/`text` restano `crescente`/`decrescente`, la stessa frase generica di niko per il testo. Nessuna colonna booleana oggi (nessuna `sortFn` in `caratteristiche` la copre): la coppia False/True first di niko resta annotata nel commento, non scritta come codice morto.
+
+Provato nel pannello del browser sulla story `Prodotti`: «Ordina per Codice: crescente» (alphanumeric, invariato), «Ordina per Rev.: dal più piccolo al più grande» (basic), «Ordina per Aggiornato: dal meno recente al più recente» (datetime). `npm run check`: invariato, 0 violazioni.
+
+---
+
+## M3bis.2 — Espansione righe, "Row Expansion" (2026-09-16)
+
+Estesa ancora `registry/tassullo/blocks/data-table.tsx`, stesso blocco di M3bis.1 e per la stessa ragione: il pannello di dettaglio per riga è una capacità in più del blocco esistente, non un pattern a sé.
+
+**Distinto dall'Albero (M3bis.1), e il confine è nel commento a verbale**: `getSottoRighe` innesta righe *vere* nel modello dati (le misurazioni di una voce di computo); `pannelloRiga` apre una riga *in più solo per la vista*, sempre fratella mai figlia, con markup libero deciso dalla pagina — la scheda di un cliente sotto la sua riga d'elenco, non un altro giro di celle. Entrambi condividono `rowExpandingFeature`/`getIsExpanded`/`getToggleExpandedHandler` (sempre registrata, M3bis.0), ma la determinazione di *quali* righe possano espandersi cambia: verificato sul sorgente di TanStack v9 (`row_getCanExpand`, `node_modules/@tanstack/table-core`) che `getCanExpand()` ricade su `options.getRowCanExpand?.(row) ?? (!!row.subRows.length)` — quindi `getRowCanExpand: pannelloRiga ? (riga) => pannelloRiga(riga.original) != null : undefined` basta a innestare il pattern senza toccare quello dell'Albero, che resta sul suo predefinito.
+
+**`colonnaEspansione`** si aggiunge da sé quando `pannelloRiga` è passato — come `colonnaSelezione` per `selezione` — e non la scrive la pagina. Il chevron nasce da `row.getCanExpand()`: una riga per cui `pannelloRiga` risponde `null`/`undefined` non ha bottone, non solo un bottone disattivato — verificato nella story sulle righe `archiviato`. Stessa classe di stato di `CellaAlbero` (`aria-expanded:bg-transparent`, `aria-expanded:hover:bg-muted`) per la stessa ragione già a verbale in M3bis.1: la freccia ruotata è già il segno di apertura.
+
+**Riga di dettaglio**: `colSpan={colonneVisibili}`, subito dopo la riga che apre (stesso `React.Fragment` per tenerle insieme nella `key`, non due `.map()` separati — un primo tentativo con due mappe separate avrebbe messo tutti i pannelli dopo tutte le righe, sbagliato, corretto prima di provarlo in pagina). `id={pannello-riga-${riga.id}}` più `aria-controls` sul bottone: non un popup, non c'è portale né guardia di Base UI da intrappolare — una riga di tabella in più, sempre navigabile con `Tab` come le altre.
+
+**Presa una violazione axe in corsa, prima della story**: la colonna `colonnaEspansione` senza `header` rendeva un `<th>` vuoto — regola `empty-table-header`, 1 violazione × 4 passate. Corretto con `header: () => <span className="sr-only">Dettaglio</span>`, lo stesso pattern già usato per la colonna «azioni» nelle story.
+
+### La story `Espansione`
+
+10 prodotti (stessa fonte di `Prodotti`), `pannelloRiga` che riepiloga famiglia/stato/data — un `<dl>` semplice — e restituisce `null` per `stato === 'archiviato'`: 7 righe su 10 hanno il chevron, 3 no.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1156 scansioni (4 passate) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi.
+
+**Tastiera verificata in Chromium reale**, non nel pannello del browser di questa sessione: lì `Return`/`Spazio` sul chevron non toglievano/mettevano `aria-expanded` in modo osservabile con l'imbracatura usata — lo stesso genere di limite già a verbale in `CLAUDE.md` (`document.visibilityState` nascosto, tasti che non arrivano alla pagina prima di un clic vero). Costruito `build-storybook` (non committato) e provato con **Playwright** (`node_modules/playwright`, già dipendenza del progetto per il gate a11y) contro un server statico locale: `Enter` apre (`aria-expanded: false→true`, pannello `#pannello-riga-0` visibile), un secondo `Enter` chiude, `Spazio` riapre — tre esiti, tutti corretti. Script di verifica scritto nello scratchpad di sessione, mai committato.
+
+Nessun altro file di registro toccato. Prossimo passo: M3bis.3 (resize e pin colonne generalizzato) — **blocca sulla conferma esplicita di Francesco** prima di scrivere codice, tocca `ui/table.tsx` e riapre D17.
+
+### Coda: rilievo di Francesco, il chevron non centrato sulla riga
+
+Il bottone di `colonnaEspansione` non aveva il `<span className="flex items-center">` che `CellaAlbero` già usa (M3bis.1) — senza, il bottone (`inline-flex`) si allinea alla riga di base del testo della cella e non al suo centro: nella story `Espansione` il chevron stava visibilmente più in alto delle altre celle. Corretto avvolgendolo nello stesso `<span className="flex items-center">`. Verificato via `getBoundingClientRect` in un browser vero: centro della riga e centro del bottone coincidono a **0px di scarto**. `npm run check`: invariato, 0 violazioni.
+
+## M3bis.3 — Resize e pin colonne generalizzato (2026-09-16)
+
+**D17 riaperta con la conferma esplicita di Francesco**, chiesta prima di scrivere codice (regola 4bis.4, tocca — o avrebbe toccato, v. sotto — una primitiva): confermato di procedere sapendo dei quattro costi già a verbale in D17 (`docs/DECISIONI.md` §34) — pixel, densità, persistenza, tastiera.
+
+### `ui/table.tsx` non è stato toccato — scostamento dal piano, con la ragione
+
+`PIANO.md` e la riga precedente di `CHECKLIST.md` davano per necessario toccare la primitiva, per due cose: `tabIndex={0}` sul contenitore di scorrimento (assente) e il `<colgroup>`. Verificato che **nessuna delle due lo richiede davvero**:
+
+- il `<colgroup>` è JSX passato come figlio di `<Table>` dal blocco (`registry/tassullo/blocks/data-table.tsx`), non dalla primitiva — `Table` spande `{...props}` sul `<table>` e non filtra i figli, quindi un `<colgroup>` prima di `<TableHeader>`/`<TableBody>` è legittimo senza toccare `ui/table.tsx`;
+- il `tabIndex` sul `[data-slot="table-container"]` non l'ho aggiunto in questa sessione (non era nel perimetro stretto di resize/pin, e aggiungerlo avrebbe comunque richiesto lo stesso ragionamento: si può scrivere imperativamente da un effetto nel blocco, con lo stesso pattern già usato lì per `ResizeObserver`/`IntersectionObserver` su quel nodo via `querySelector('[data-slot="table-container"]')` — **resta un debito**, annotato sotto, non silenzioso).
+
+Risultato: `check:registry` **non ha bisogno di nessuna eccezione nuova** — `ui/table.tsx` è rimasto identico all'originale shadcn, 0 errori, la stessa forma di sempre. Non serve un meccanismo di "primitiva con divergenza approvata": non ce n'è una. La riga "riga nuova in `componenti-propri.json`" del piano non si applica per lo stesso motivo — vedi sotto.
+
+### L'architettura
+
+`caratteristiche` guadagna tre feature TanStack sempre registrate e inerti finché nessuna prop le accende (stesso pattern di `rowExpandingFeature`, M3bis.1/.2): `columnSizingFeature`, `columnResizingFeature`, `columnPinningFeature`.
+
+Due prop nuove, indipendenti da `bloccaPrimaColonna` (M3.3), che resta **invariato** per chi non ha bisogno d'altro:
+
+- **`ridimensionabile`**: ogni intestazione riceve una maniglia sul bordo destro (`ManigliaRidimensiona`, locale al blocco — non un componente proprio, v. sotto). Sposta la larghezza da `meta.larghezza` (classe Tailwind) a `size`/`minSize`/`maxSize` **di TanStack** sulla colonna — restare sui loro nomi è la stessa scelta di `accessor`/`columns` già fatta per il resto del file. La tabella passa da `table-fixed` con larghezze nella prima riga a un `<colgroup>` vero.
+- **`colonneBloccabili`**: il pin generalizzato — qualunque colonna, un lato o l'altro, da un menu (`MenuBloccaColonna`) nell'intestazione. Implica `ridimensionabile` internamente: lo scarto sticky (`left`/`right` in px) si calcola dalle larghezze **acquisite** con `column.getStart("start")`/`getAfter("end")` di TanStack, che senza il `<colgroup>` non esistono. **Sostituisce** `bloccaPrimaColonna` quando i due sono passati insieme (`bloccoLegacy = bloccaPrimaColonna && !colonneBloccabili`): i due meccanismi disegnano lo sticky in due modi incompatibili — classi fisse per indice (`classiBloccate`, invariata) contro scarti calcolati (`ancoraggioColonna`, nuova) — e sovrapporli avrebbe rotto l'uno o l'altro.
+
+Con `colonneBloccabili`, l'ordine di intestazioni e celle cambia: `getStartLeafHeaders()`/`getCenterLeafHeaders()`/`getEndLeafHeaders()` (e l'equivalente sulle righe, `get{Start,Center,End}VisibleCells()`) spostano le colonne bloccate ai due bordi, qualunque posizione avessero fra le colonne dichiarate — è il modo con cui TanStack tiene coerenti lo sticky e il `<colgroup>`: un `<col>` fuori ordine darebbe a una colonna la larghezza di un'altra. Senza `colonneBloccabili` l'ordine resta quello dichiarato (`getHeaderGroups()[0]`/`getVisibleCells()`), zero regressione sulle story esistenti.
+
+### I quattro costi di D17, uno per uno
+
+1. **I pixel**: le larghezze acquisite (`dimensioni`, stato `columnSizing`) e gli scarti sticky del pin (`ancoraggioColonna`) sono `style={{ width/left/right }}` inline con numeri, non classi — l'eccezione a regola 3 che D17 chiedeva **circoscritta** («larghezze acquisite dall'utente», non «larghezze» in generale) e non una in più: sono la stessa famiglia, documentata nei due punti dove compare.
+2. **La densità**: documentato esplicitamente nel commento di `ridimensionabile` come seconda eccezione nota, della stessa natura di `sidebar.tsx` (regola 5) — una larghezza acquisita in pixel non segue `--spacing` quando si commuta la densità. Non è stato inseguito un rimedio (ricalcolare i pixel acquisiti a ogni cambio di densità): fuori perimetro per questa sessione, scritto e non scoperto.
+3. **La persistenza**: `columnSizing`/`columnPinning` restano stato interno del blocco (`useState`, non prop controllate). Nessuna pagina oggi salva un ridimensionamento o un pin fra un caricamento e l'altro — è il limite scritto nel commento della prop, non un'omissione silenziosa. Se una pagina futura vorrà salvarli, è un'API in più da disegnare (prop controllate `columnSizing`/`onColumnSizingChange` e equivalenti), fuori da questa sessione.
+4. **La tastiera**: `ManigliaRidimensiona` è `role="separator"` `aria-orientation="vertical"`, `tabIndex=0`, `aria-valuenow`/`min`/`max`; `ArrowLeft`/`ArrowRight` spostano di 16px (`PASSO_RIDIMENSIONA`), `Home` torna alla larghezza di partenza con `column.resetSize()` (TanStack, già pronta). Verificato in un browser vero (v. sotto): 140→156 su `ArrowRight`, 156→140 su `Home`. Il pin non ha bisogno di lavoro a parte: è un `DropdownMenu`, già interamente da tastiera.
+
+### `componenti-propri.json` resta vuoto
+
+La maniglia di ridimensionamento (`ManigliaRidimensiona`) e il menu del pin (`MenuBloccaColonna`) restano **locali al blocco** — funzioni non esportate in `data-table.tsx`, come `colonnaSelezione`, `classiBloccate`, `TabellaVuota`. Il registro `componenti-propri.json` è per ciò che sta **al posto di una primitiva** `ui/` (regola 4bis.4, gradino 4): una maniglia composta da uno `<span>` con due gestori, o un bottone che apre un `DropdownMenu` già esistente, non sostituisce nessuna primitiva — non più di quanto lo faccia `colonnaEspansione` (M3bis.2), mai messo a registro. `npm run check:registry` non lo richiede per la cartella `blocks/` (verifica solo la regola 3 lì). "Oggi entrambi sono vuoti, ed è la condizione da difendere" (`CLAUDE.md`) resta vera — stesso esito di D13 (il marchio), per una ragione diversa ma della stessa famiglia: non tutto ciò che è nuovo è un componente proprio.
+
+### Un bug preso e corretto prima di misurare: `sticky` scartato da `relative`
+
+Prima stesura: `className={cn(..., ancoraColonna?.className, (ridimensionabile || colonneBloccabili) && "relative")}` sul `<TableHead>`. `cn` (tailwind-merge) tratta le utility di posizionamento (`relative`/`sticky`/`absolute`/`fixed`) come un **gruppo di conflitto solo**: le due scritte insieme si scartano a vicenda, vince l'ultima — `sticky` (dentro `ancoraColonna.className`) veniva scartata a favore di `relative`, scritta dopo. Preso non da axe (non è un difetto di accessibilità, è visivo) ma da una verifica manuale in un browser vero: `getComputedStyle(th).position` tornava `"relative"` invece di `"sticky"` su una colonna appena bloccata, e lo scorrimento la portava via con la pagina. Corretto condizionando `relative` a `!ancoraColonna`: `sticky` è già un contenimento per i figli `absolute` (la maniglia), come lo sarebbe `relative`, quindi non serve comunque quando la colonna è bloccata.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1164 scansioni (4 passate) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi tre avvisi preesistenti, zero nuovi. `check:registry`: 0 errori, `ui/table.tsx` identico all'originale (nessuna nuova eccezione).
+
+**Tastiera e sticky verificati in un browser vero** (non nel pannello di questa sessione, per il limite già a verbale su `document.visibilityState`): `ArrowRight`/`Home` sulla maniglia di `Codice` (story `Ridimensionabile`) — 140→156→140px, `aria-valuenow` coerente. Pin generalizzato (story `Colonne Bloccabili`): "Blocca a sinistra" su `Codice` e "Blocca a destra" su `Aggiornato` **contemporaneamente**, entrambe `position: sticky` con lo scarto giusto (`left: 0px`, `right: 0px`), poi "Non bloccare" su `Codice` — il menu perde la voce quando la colonna non è più bloccata, la riacquisisce quando lo è. Cella e intestazione bloccate condividono `ancoraggioColonna`: stesso scarto, fondo diverso (`bg-accent` in testata, `bg-card` nel corpo), come già per `bloccaPrimaColonna`.
+
+**`npm run misura:bersagli`**: il bottone del pin (`size="icon"` di default, non un `size-6` come nella prima stesura — corretto perché rompeva il bersaglio touch, v. sotto) si posa nello stesso scaglione (~41-42px) degli altri bottoni-icona già in tabella, **0 piccoli in entrambe le direzioni**, nessuna regressione. La maniglia di ridimensionamento **non è misurata**: `[role="separator"]` non è fra i selettori di `misura-bersagli.ts` (stessa famiglia dei nodi esclusi del combobox, D14) — è un limite noto dello strumento, non una controprova. Larga 8px per disegno (un filo sul bordo, come in VS Code o in un foglio di calcolo), alta quanto la riga: un bersaglio da 44×44px per un affordance di trascinamento continuo, non discreto, snaturerebbe il gesto. La via primaria da tastiera resta comunque tastabile e azionabile senza puntatore — è il motivo per cui il quarto costo di D17 chiedeva la tastiera, non un bersaglio più largo.
+
+**Bug preso e corretto durante lo sviluppo**: il bottone del menu del pin nella prima stesura aveva `className="size-6"` (24px, per farlo stare compatto accanto al bottone d'ordinamento) — rompeva il bersaglio touch, sotto i 44px richiesti e senza scalare con `--spacing`. Corretto tornando a `size="icon"` di default (32px normale / ~42-48px touch) con margini negativi (`-my-2 -mr-2`, lo stesso pattern di `CellaAlbero`/`colonnaEspansione`) per non allargare la riga dell'intestazione.
+
+### Debito annotato, non silenzioso
+
+Il `tabIndex={0}` sul contenitore di scorrimento orizzontale — menzionato in `PIANO.md` come parte di M3bis.3 — **non è stato fatto** in questa sessione: non serve al resize/pin in sé (la tabella scorre già col mouse e con lo scroll della rotellina; da tastiera oggi non c'è modo di scorrerla in orizzontale se non tabbando dentro un controllo interattivo di una colonna fuori vista). Resta un miglioramento a sé — impostabile da un effetto nel blocco su `[data-slot="table-container"]`, senza toccare `ui/table.tsx` — da riprendere in una sessione dedicata o dentro M3bis.11 (gate di fase).
+
+### Coda: la barra-guida a tutta altezza, rilievo di Francesco
+
+Segnalato dopo la prima consegna: in niko-table il trascinamento di una maniglia mostra una barra nera **a tutta altezza della tabella**, non solo il filo sull'intestazione — un segno che qui mancava, e che su una tabella con molte righe è la sola cosa che dice *dove* passa il bordo che si sta trascinando (il filo della maniglia, alto quanto la sola cella `<th>`, si perde visivamente non appena si scorre lo sguardo verso il basso).
+
+Aggiunta come un secondo `<span>`, figlio dello stesso `<th>` della maniglia, visibile solo mentre `colonna.getIsResizing()` è vero: un `<th>` non ritaglia l'overflow dei propri figli, quindi un discendente assoluto più alto della cella disegna oltre il suo bordo, nelle righe sotto — e **eredita da solo** lo scorrimento orizzontale della tabella, perché è dentro lo stesso `<table>` che scorre, non un elemento a parte nel `table-container` con uno scarto calcolato a mano. Nessun tocco a `ui/table.tsx`: stessa scelta architetturale del resto della sessione.
+
+L'altezza si misura da un nuovo `tabellaRef` sull'intera `<table>` (non solo la testata, che `testataRef` già misura per un altro motivo) — `Table` (`ui/table.tsx`) non usa `React.forwardRef`, ma non ne ha bisogno: spande `{...props}` sul `<table>`, e da React 19 un `ref` dentro `props` arriva comunque all'elemento, lo stesso meccanismo per cui `testataRef` funziona già oggi su `TableHeader`.
+
+**Un avviso di lint preso e corretto prima di consegnare**: la prima stesura leggeva `tabellaRef.current?.getBoundingClientRect().height` **durante il render**, dentro lo `style` inline — oxlint (`react/refs`) l'ha segnalato: un `ref` letto in fase di render può restare indietro di un commit. Corretto misurando **una volta sola**, in un `useEffect` che scatta quando `inTrascinamento` diventa vero (un ridimensionamento orizzontale non cambia l'altezza della tabella, quindi non serve rimisurare a ogni `mousemove`) — lo stesso principio delle altre misure del blocco (`altezzaMax`, sopra): mai leggere un `ref` in fase di render, sempre in un effetto o in un gestore.
+
+**Verificato in un browser vero**, simulando `mousedown`/`mousemove`/`mouseup` sulla maniglia: la barra compare con l'altezza vera della tabella (409.5px in story, coerente con `getBoundingClientRect()`), attraversa tutte le righe, e sparisce al rilascio. `npm run check`: invariato, **1164 scansioni / 0 violazioni** — la barra è `aria-hidden` (puramente visiva, il segnale accessibile resta `role="separator"`/`aria-valuenow` sulla maniglia, invariato).
+
+### Coda 2: un segno solo, non due — e intestazioni pulite a riposo
+
+Francesco, provando il trascinamento: il bordo arancione della maniglia (alto quanto la sola intestazione) e la barra-guida nera (a tutta altezza, aggiunta sopra) non coincidevano — la guida *trapassava* il bordo invece di continuarlo, due segni scostati invece di uno solo. «Non sono convinto», e giustamente: erano due `<span>` indipendenti, con larghezze (`w-2`/`w-px`) e scarti (`-right-1`/`right-0`) diversi.
+
+**Riscritto come un elemento solo.** La zona sensibile (`role="separator"`, hit-area, tastiera, `aria-*`) resta un `<span>` largo `w-2` come prima; il segno visivo è ora un **unico discendente centrato al suo interno** (`<span aria-hidden>`), che cambia stato invece di duplicarsi — stessa posizione orizzontale sempre, mai due elementi da far coincidere.
+
+**Seconda correzione, chiesta subito dopo**: Francesco non voleva nessuna separazione visibile fra le colonne dell'intestazione quando nessuna è in trascinamento — niko-table mostra un filo sempre presente, qui si è scelto di **non farlo**: intestazioni pulite a riposo. Il filo interno parte `bg-transparent` (1px, invisibile) invece di `bg-border`, e si accende solo in due momenti — al passaggio del mouse o al fuoco da tastiera (`group-hover/maniglia`, `group-focus-visible/maniglia`, entrambi `w-1 bg-primary/60`) — e **a tutta altezza, pieno (`bg-primary`)** durante il trascinamento vero, la stessa misura di `tabellaRef` di prima. Tre stati di un solo elemento: invisibile, visibile-sottile, visibile-pieno-e-alto — non tre elementi.
+
+Verificato in un browser vero: a riposo `background-color: rgba(0,0,0,0)`, `width: 1px` — nessuna riga fra le colonne. In trascinamento (`mousedown`+`mousemove` simulati): un solo nodo, `width: 4px`, `background-color` piena, `height: 409.5px`, centrato esattamente sul bordo che si sta spostando. `npm run check`: invariato, **1164 scansioni (4 passate) / 0 violazioni**; `tsc -b` e `lint` puliti (nessun avviso nuovo).
+
+---
+
+## M3bis.4 — Virtualizzazione / scroll infinito (2026-09-16)
+
+Estesa ancora `registry/tassullo/blocks/data-table.tsx`, stesso blocco delle sessioni precedenti della fase, non un blocco nuovo.
+
+### La forma: `perPagina="virtuale"`, non una prop a parte
+
+`PIANO.md` chiedeva «terza opzione accanto a `perPagina`/`altezza="ferma"`», ed è diventata un terzo valore dello stesso prop — `perPagina?: number | "infinito" | "virtuale"` — non un booleano `virtualizzata` indipendente: la tabella ha comunque **una** strategia di caricamento righe alla volta (pagine, infinito, virtuale), mai due insieme, e un prop a parte avrebbe permesso combinazioni senza senso (`perPagina={25}` insieme a un ipotetico `virtualizzata`). La differenza reale con `"infinito"`: quello **carica progressivamente e monta ogni riga caricata per sempre** (a 10.000 righe, arrivati in fondo, sono comunque 10.000 `<tr>` nel DOM); `"virtuale"` monta **solo la finestra in vista**, sempre — la forma che serve quando i dati sono grandi fin dall'inizio, non quando crescono scorrendo. Entrambi vogliono `altezza="ferma"` per lo stesso motivo (serve un tetto per calcolare una finestra), non imposto a runtime — la stessa scelta documentale già presa per `"infinito"`.
+
+`Number.MAX_SAFE_INTEGER` come `pageSize` per `"virtuale"`: niente ricalcolo a ogni filtro (a differenza di `caricate` per `"infinito"`), il modello di paginazione si ferma comunque al numero di righe vere.
+
+### `DataTableBody`/`DataTableVirtualizedBody`, estratti per nome
+
+Il corpo non virtualizzato (`naturale`/`ferma`/`infinito`) era JSX inline dentro `DataTable`; estratto in `DataTableBody`, **esportato** — e accanto, `DataTableVirtualizedBody`, anche lui esportato. Non è stato un refactoring a piacere: il WORKLOG di M3bis.0 registra già questi due nomi esatti come cosa la Data Grid (M3bis.5) innesterà («la Data Grid nasce già virtualizzata, `DataTableVirtualizedBody` non `DataTableBody`») — nomi decisi prima ancora di scrivere questa sessione, da rispettare perché M3bis.5 li cerca.
+
+### La tecnica delle due righe-cuscinetto, non `position: absolute`
+
+Un `<table>` non ha un contenitore libero su cui posizionare figli in assoluto senza rompere il `<colgroup>`: si usa la stessa forma che TanStack documenta per una tabella vera — un `<tr>` vuoto prima (alto quanto lo spazio scorso oltre) e uno dopo (alto quanto resta da scorrere), `aria-hidden`, un solo `<td colSpan>` ciascuno. `useVirtualizer({ count, getScrollElement, estimateSize, overscan: 10 })`, con `estimateSize: () => 44` — un segnaposto, non una misura: `measureElement` (passato come `ref` a ogni riga, via lo stesso meccanismo React 19 già usato per `testataRef`/`tabellaRef`) corregge subito con l'altezza vera resa, densità compresa. La stessa disciplina di `altezzaMax` (M3bis.3 e prima): si misura, non si assume.
+
+`getScrollElement` punta a `[data-slot="table-container"]`, non al riquadro bordato attorno — lo stesso nodo che l'osservatore di `"infinito"` già cerca, per la stessa ragione CSS (un `overflow-x-auto` dichiarato fa calcolare l'altro asse come `auto`, quindi è quel div interno a scorrere davvero). Trovato con lo stesso `querySelector` in uno stato (`elementoScorrevole`), non un `ref` diretto: il nodo non esiste al primo render.
+
+### La tastiera — il punto vero della sessione, e due bug prima di funzionare
+
+**Bug 1, preso subito allo screenshot**: `tabIndex={indice === focoValido ? 0 : -1}` lasciava **zero** righe tabbabili appena si scorreva via dalla riga a fuoco — `focoValido` non era più montata, nessun nodo del DOM aveva `tabIndex="0"`, `Tab` non trovava più niente da raggiungere. Corretto assegnando `tabIndex={0}` non a `focoValido` ma alla riga **montata più vicina** a `focoValido` (`indiceRovente`, un `reduce` sugli elementi virtuali correnti): quando coincide è la stessa riga di sempre, quando `focoValido` è fuori vista diventa il punto di ingresso sensato per chi preme `Tab` da fuori.
+
+**Bug 2, preso nello stesso giro**: l'effetto che sposta il fuoco reale del browser sul nodo appena montato (`rigaRefs.current.get(focoValido)?.focus()`, necessario perché `scrollToIndex` porta la riga in vista ma non sposta da solo il fuoco) girava a **ogni render senza guardia**, quindi anche al primissimo montaggio — la tabella si apriva e rubava il fuoco alla riga 0 non appena entrava nel DOM, prima ancora che l'utente toccasse la tastiera. Mai il comportamento di nessun'altra story del blocco. Corretto con un `interagitoRef`, `false` finché non c'è una vera interazione (`onFocus` nativo di un `Tab`, o una freccia già dentro la tabella): l'effetto resta inerte finché non diventa `true`.
+
+Verificato in un browser vero (Chromium della sessione, non Playwright): `Tab` dalla ricerca raggiunge la prima riga (nono stop, dopo ricerca/Colonne/select-all/quattro intestazioni ordinabili); `Home` da centro-lista porta a `RA-191` (riga 0) e `scrollTop` torna a 0; `End` porta all'ultima delle 10.000 righe, `scrollTop` in fondo; `ArrowUp`/`PageUp` da lì spostano rispettivamente di una riga e di una finestra intera (`scrollTop` 439432 → 438906.5, un salto coerente con le righe in vista). In ogni momento `document.querySelectorAll('tbody tr')` restava fra 21 e 36 — mai vicino a 10.000.
+
+### `pannelloRiga` resta fuori, annotato nel prop
+
+`virtualizzata` non compone con `pannelloRiga` (M3bis.2): il pannello inserisce una riga vera in più quando si apre, e il virtualizzatore conta le righe per indice fisso (`righe.length`) — un conto che il pannello sposterebbe ogni volta che una riga qualunque si espande. `getSottoRighe` (l'albero di M3bis.1) invece compone senza problemi: le righe figlie sono già righe vere nel modello dati, incluse nello stesso elenco piatto che il virtualizzatore scorre — nessun lavoro in più, verificato leggendo il codice (non provato con una story a parte: fuori dal criterio di accettazione di questa sessione). Annotato nel commento di `perPagina`, non silenzioso.
+
+### La story `Virtualizzata`
+
+10.000 prodotti finti (`generaProdotti(10000)`, lo stesso generatore deterministico delle altre story), riquadro `h-140` (più alto di un `h-96`: con la sola barra di ricerca e il conto sopra/sotto, un riquadro troppo basso avrebbe mostrato talmente poche righe da non dimostrare niente). `perPagina="virtuale"` implica anche togliere la fascia di paginazione dal piè — bug preso subito dopo il primo screenshot: `PaginazioneTabella` riceveva `infinito={infinito}` e non sapeva niente di `virtualizzata`, quindi mostrava ancora «Righe / Pagina 1 di 1 / frecce» su una tabella che non pagina affatto. Corretto passando `infinito={infinito || virtualizzata}` — stessa fascia tolta, stessa ragione di `"infinito"`.
+
+### `@tanstack/react-virtual`, nuova dipendenza
+
+`npm install @tanstack/react-virtual` → `^3.14.13`, dichiarata in `registry.json` fra le `dependencies` di `tassullo-data-table` (accanto a `@tanstack/react-table`, `cn`, `lucide-react`) e ricompilata con `registry:build` — o un'app che installa il blocco non avrebbe la libreria e non compilerebbe (regola 7, `CLAUDE.md`).
+
+### Avviso oxlint nuovo, accettato con motivazione
+
+`lint` segnala un avviso in più rispetto ai tre preesistenti: `incompatible-library` su `useVirtualizer` — l'hook restituisce funzioni (`scrollToIndex`, `measureElement`, …) che React Compiler non può memoizzare in modo sicuro, quindi il compilatore salta la memoizzazione del componente che lo usa. È un avviso noto e atteso di qualunque uso di `@tanstack/react-virtual` con React Compiler, non un difetto nel nostro codice: `DataTableVirtualizedBody` non passa quelle funzioni a componenti figli memoizzati, quindi il rischio che l'avviso descrive (UI stantia) non si applica qui. Non risolvibile ri-stilando (non è una stringa di classi) né spostando la chiamata (l'hook va comunque chiamato nel componente che rende le righe). Accettato, annotato qui invece che silenzioso.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1168 scansioni (4 passate, +4 dalla story `Virtualizzata`) / 0 violazioni**. `tsc -b` ✔ · `lint`: tre avvisi preesistenti più il nuovo `incompatible-library` motivato sopra, nessun altro avviso nuovo. `check:registry`: 0 errori. `misura:bersagli`: 2574 bersagli su 292 story, 0 piccoli in entrambe le direzioni (nessuna regressione). Provato in un browser vero (Chromium della sessione): scorrimento a rotellina su 10.000 righe, mai più di ~36 `<tr>` montati contemporaneamente; tastiera (frecce, Home, End, PageUp) verificata come sopra. Non riprovato `PageDown`/`ArrowDown` singolarmente: stesso ramo di codice di `PageUp`/`ArrowUp`, già esercitato.
+
+Prossimo passo: M3bis.5 (Data Grid editabile, 3 sessioni) — dipende da questa e da M3bis.3, entrambe chiuse; stesso worktree.
+
+---
+
+## M3bis.5 sessione 1/3 — Data Grid, il motore (2026-09-16)
+
+Nuovo blocco fratello `registry/tassullo/blocks/data-grid.tsx` (non dentro `data-table.tsx`, per lo stesso motivo di sempre: `check:registry` distingue `ui/` da `blocks/`, e un blocco nuovo è un file nuovo). `useDataGrid`, `<DataGrid>`, `DataGridClipboard`, `DataGridFillHandle`, `DataGridUndo`, `DataGridRedo` — i nomi fissati in M3bis.0, non tradotti.
+
+### L'architettura: `<DataGrid>` innesta `<DataTable perPagina="virtuale" altezza="ferma">`, non una tabella a sé
+
+Niko-table compone la Data Grid dentro `<DataTableRoot>`, coi figli auto-rilevati (`detectFeaturesFromChildren`) — il meccanismo che M3bis.0 ha già scartato per tutta la fase. Qui `<DataGrid>` innesta direttamente il blocco esistente, passando due prop **private** aggiunte a `DataTableProps`/`DataTableVirtualizedBody` per l'occasione (`internoGriglia`, `attributiTabella`) — non pubbliche, non pensate per una pagina:
+
+- **`senzaFocoRiga`**: spegne il giro riga-per-riga di `DataTableVirtualizedBody` (tabIndex/onFocus/onKeyDown sulla `<tr>`, M3bis.4) — la Data Grid naviga **per cella**, non per riga, e i due meccanismi userebbero lo stesso tasto (`ArrowUp`/`ArrowDown`) per cose diverse nello stesso istante se restassero entrambi accesi.
+- **`alVirtualizzatore`**: consegna a chi monta il corpo il solo `scrollToIndex` (già clampato) del virtualizzatore — non l'istanza intera — così la Data Grid può portare in vista una riga fuori dalla finestra montata quando il fuoco si sposta verticalmente da tastiera, riusando lo stesso meccanismo che le righe già usano invece di duplicarlo.
+- **`attributiTabella`**: passa `role="grid"`/`aria-rowcount`/`aria-colcount` al `<table>` così com'è — nessuna tabella non-Data-Grid ne ha bisogno.
+
+Nessuna ricerca/ordinamento/filtro nella Data Grid: la tastiera naviga **per indice** sull'array che il motore tiene, e se TanStack potesse riordinare le righe sotto (un clic su un'intestazione, un filtro) una `ArrowDown` porterebbe alla riga sbagliata. `<DataGrid>` passa sempre `cerca={false}` e le colonne non dichiarano `sortFn`.
+
+### Il fuoco: una cella vera (roving tabindex), non `role="gridcell"` duplicato
+
+Ogni cella non in modifica è un `<div tabIndex={attiva ? 0 : -1}>` dentro il `<TableCell>` (`<td>`) che `DataTableBody`/`DataTableVirtualizedBody` già disegnano — **senza** `role="gridcell"` esplicito: preso da axe (`aria-required-parent`, **critical**) prima di capirlo, perché quel `<td>` è **già** un `gridcell` implicito per la mappatura HTML-ARIA (un `<td>` con un antenato che dichiara `role="grid"`), e dichiararlo di nuovo sul `<div>` annidato mette in mezzo un genitore («cell», il `<td>`) fra due `gridcell` — la regola vuole `row` come genitore immediato. Tolto il `role` dal `<div>`, la stessa scansione passa.
+
+**Bug preso in Playwright, non nella stessa sessione in cui è stato scritto**: `CellaTestoGriglia` aveva anche `onFocus={() => motore.vaiA(id)}`, pensato per sincronizzare lo stato quando il fuoco arriva da un `Tab` esterno. Ma è lo stesso effetto che sposta il fuoco reale dopo una `ArrowDown` (`divRef.current?.focus()`) a **innescare** quell'`onFocus` — che richiama `vaiA(id)` **senza** `estendi`, azzerando l'ancora della selezione un istante dopo che `Shift+ArrowDown` l'aveva impostata. Sintomo: `Shift+Freccia` spostava la cella attiva ma non estendeva mai la selezione visibile (né il copia). Tolto `onFocus` — è ridondante col roving tabindex: la cella tabbabile è **sempre** quella già attiva nello stato, per costruzione, quindi non c'è niente da sincronizzare al fuoco.
+
+**Secondo bug preso nello stesso giro**: `Ctrl+Invio` (riempimento da tastiera) apriva la modifica invece di riempire. Lo switch su `evento.key` aveva `case "Enter": apriModifica(id)` **prima** del controllo `if (mod && evento.key === "Enter") riempi()` sotto di esso — ma `evento.key` per Ctrl+Invio è comunque `"Enter"`, quindi lo switch lo intercettava e usciva (`return`) prima che il controllo sul modificatore venisse mai raggiunto. Corretto spostando tutte le combinazioni con Ctrl/Cmd (riempi, copia, incolla, annulla/ripeti, seleziona tutto) **prima** dello switch, non dopo.
+
+### Copia/incolla: `navigator.clipboard`, non l'evento nativo
+
+Una cella non in modifica (`<div>`, non un campo di testo) non genera `copy`/`paste` nativo su Ctrl/Cmd+C/V — quell'evento nasce solo da una selezione di testo vera o da un campo modificabile. Si intercetta la combinazione da tastiera e si passa da `navigator.clipboard.writeText`/`readText` (richiede un contesto sicuro, sempre vero qui). `DataGridClipboard` non aggiunge nessun listener: il copia/incolla è già acceso sempre in `onKeyDownCella`; il componente esiste come segnaposto testuale ("Copia con Ctrl/Cmd+C…", la stessa frase già anticipata nell'inventario di M3bis.0) e come punto in cui una sessione futura potrebbe appendere un indicatore di stato senza toccare il motore.
+
+### Annulla/ripeti: snapshot dell'intero array, non un diff per cella
+
+`passato`/`futuro` sono `TDato[][]` (array di snapshot), non un registro di patch — più semplice e corretto per ~500 righe (il criterio d'accettazione), a costo di più memoria per voce di cronologia che un diff non avrebbe. Cappato a 100 voci (`CRONOLOGIA_MAX`). `annulla`/`ripeti` leggono `righe`/`passato`/`futuro` dalla chiusura dell'handler (chiamato direttamente da un tasto, non da un altro `setState` in corso) e fanno tre `setState` paralleli, non annidati — un `setState` dentro l'updater di un altro avrebbe raddoppiato l'effetto sotto `StrictMode`, che invoca due volte gli updater.
+
+### Non controllata — seminata una volta, mai risincronizzata
+
+`useDataGrid` tiene `righe` in uno stato suo, inizializzato **una volta sola** da `righeIniziali` con un inizializzatore pigro di `useState` (non un `useMemo` con `[]` — la stessa cosa, ma la forma dice da sé che gira solo al montaggio, invece di sembrare un elenco di dipendenze dimenticato). Uno stato controllato ricalcolerebbe il modello a ogni tasto e romperebbe l'annulla/ripeti — la stessa ragione che niko-table stessa documenta.
+
+### Incolla: righe/colonne oltre i confini sono scartate, non creano righe nuove
+
+`useDataGrid` non sa creare una riga vuota (`createEmptyRow`/`addRows`, non in questa sessione — plausibilmente sessione 3, persistenza). Incollare un foglio più grande della griglia riempie quello che c'è e si ferma: un limite scritto nel commento della funzione, non scoperto incollando 600 righe su una griglia da 500.
+
+### La story `Editabile`
+
+60 voci finte (id, codice, descrizione, unità, quantità), `colonnaTestoGriglia` — la sola cella tipizzata di questa sessione (testo semplice; numero/valuta/checkbox/data/select in sessione 2) — `DataGridUndo`/`DataGridRedo` nella barra, `DataGridClipboard`/`DataGridFillHandle` come figli di `<DataGrid>`.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1172 scansioni (4 passate, +4 dalla story) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi quattro avvisi preesistenti (compreso l'`incompatible-library` di M3bis.4), zero nuovi. `check:registry`: 0 errori (la cartella `blocks/` verifica solo la regola 3, che il file rispetta). `misura:bersagli`: 2577 bersagli su 293 story, 0 piccoli in entrambe le direzioni — nessuna regressione (le celle della griglia non hanno `data-slot` e non entrano nel conto dello strumento, un limite dello strumento già noto per altri nodi, non una lacuna di questa sessione).
+
+**Tastiera, clipboard, riempimento e cronologia verificati in Playwright** (Chromium reale, non il pannello del browser di questa sessione — stesso limite già a verbale: `document.visibilityState` vi risulta `hidden`, e i tasti non hanno mosso il fuoco in modo osservabile con quell'imbracatura). Con `context.grantPermissions(['clipboard-read','clipboard-write'])`: clic+frecce spostano la cella attiva; un carattere qualunque apre la modifica scrivendolo; Invio conferma e scende di una riga; Escape annulla senza scrivere; Ctrl+Z/Ctrl+Shift+Z annullano/ripetono; Ctrl+C su una selezione di due righe e Ctrl+V altrove incolla gli stessi due valori nell'ordine giusto; Ctrl+Invio su una selezione di tre celle le riempie tutte col valore della prima; Tab conferma la modifica in corso e sposta a destra; Home/End si fermano ai bordi della riga. Script di verifica scritto nello scratchpad di sessione, mai committato.
+
+Prossimo passo: M3bis.5 sessione 2/3 (celle tipizzate — numero/valuta `it-IT`/checkbox/data/select — e validazione per cella con Zod), stesso worktree, dipende da questa sessione.
+
+---
+
+## M3bis.5 sessione 2/3 — Celle tipizzate e validazione Zod (2026-09-16)
+
+Esteso lo stesso `registry/tassullo/blocks/data-grid.tsx` di sessione 1. Sei celle: `colonnaTestoGriglia` (già c'era, ora con `validazione` opzionale), `colonnaNumeroGriglia`, `colonnaValutaGriglia`, `colonnaCheckboxGriglia`, `colonnaDataGriglia`, `colonnaSelectGriglia`.
+
+### Il confine resta lo stesso di sessione 1: il motore parla solo stringhe
+
+`useDataGrid` non sa cos'è un numero o una data — `leggiCella`/`scriviCella` restano il confine di stringhe già fissato. È la **cella** a formattare per la vista (`Intl.NumberFormat('it-IT')` per numero/valuta, `toLocaleDateString('it-IT')` per la data) e a interpretare ciò che l'utente scrive. Checkbox e select non passano da `apriModifica`/`commitModifica`: un gesto solo (spuntare, scegliere) scrive subito con un nuovo metodo del motore, `impostaValore(id, valore)` — niente testo intermedio da confermare, e se la cella era in modifica (il `select` aperto) la richiude anche lei.
+
+### La data: `<input type="date">`, non il `Calendar` del registry
+
+Scelta esplicita, non un rinvio silenzioso: la tastiera di un calendario a griglia dentro una griglia è un problema a sé — la stessa `D15` di `CLAUDE.md` (zero violazioni axe su una griglia del tutto non navigabile) è il motivo per cui non si presume che regga senza misurarla apposta, e questa sessione non è quella misura. Il controllo nativo tiene comunque la stringa grezza in `AAAA-MM-GG`, la stessa forma con cui la colonna la conserva — nessun adattamento in più quando (o se) una sessione futura vorrà il `Calendar` vero.
+
+### Validazione: `validaConZod`, coerente con `tassullo-form-field` (M3.4)
+
+`validaConZod(schema)` adatta uno schema Zod a validatore di cella — `z.coerce.number()`/`z.coerce.date()` accettano **direttamente** la stringa grezza della cella, senza un passaggio di conversione in mezzo. Stessa disciplina di `FormField` (`aria-invalid`, `aria-describedby`) ma senza l'etichetta accanto a cui mettere l'errore in chiaro che un campo di modulo ha: qui il segnale per chi vede è l'anello rosso, per chi non vede è un `aria-describedby` verso un testo `sr-only`.
+
+**Un commit invalido non chiude la modifica.** `commitModificaInterno`/`impostaValore` ora restituiscono `boolean` — `false` se il validatore della colonna rifiuta il valore, e in quel caso non scrivono niente. `onKeyDownCella` controlla il valore di ritorno: Invio/Tab restano aperti sulla cella (l'errore resta a schermo, si corregge senza aver perso dov'era il fuoco); `Escape` invece annulla **sempre**, valido o no — è la via d'uscita che non deve mai bloccarsi. Sul `blur` (cliccare via, o `Tab` verso un controllo fuori dalla griglia) un commit rifiutato **scarta** il draft invece di restare bloccato: il fuoco è già uscito dalla cella a quel punto, non c'è modo onesto di "restare".
+
+### Il validatore è per colonna, letto in due posti diversi apposta
+
+Il motore tiene un registro dei validatori (`validatoriRef`, una `Map` dentro una `ref`, popolata da un `useEffect` di ogni cella tipizzata montata — `registraValidatore`) usato **solo** da `commitModificaInterno`/`impostaValore`, dentro un gestore d'evento. L'errore mostrato a schermo **non** passa da lì: ogni cella lo calcola da sé chiamando la propria `validazione` (già nella sua chiusura) sul `draftModifica` corrente del motore. Scelta presa da un avviso di `lint` (`react/refs`, "Cannot access refs during render"): la prima stesura esponeva un `erroreModifica` calcolato **in fase di render** leggendo la stessa `Map` — corretto perché il letta è una `ref` che cambia dentro l'effetto di *un'altra* cella, senza che nulla dica a questo render di ripartire quando succede. Non un falso positivo da liquidare: un vero rischio di schermata stantia, evitato smettendo di derivare la vista da quella `ref`.
+
+### Il `Select` in modifica: `onValueChange` e `onOpenChange` non si distinguono, e non serve
+
+Scegliere una voce chiude il popup: `onValueChange` (scrive con `impostaValore`, che chiude già la modifica) e `onOpenChange(false)` (che chiamerebbe `annullaModifica`) scattano entrambi sulla stessa interazione, in un ordine che Base UI non promette. Non è un problema: quando `onOpenChange(false)` arriva, `cellaInModifica` è già `null` per mano di `impostaValore` (se è arrivato prima) — e `annullaModifica` su una modifica già chiusa è un no-op. Funziona in entrambi gli ordini, senza bisogno di distinguere "chiuso perché scelto" da "chiuso con `Escape`".
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1176 scansioni (4 passate, +4 dalla story `Celle Tipizzate`) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi quattro avvisi preesistenti, zero nuovi — corretto anche il `react/refs` preso durante lo sviluppo (v. sopra, mai arrivato a `main`). `check:registry`: 0 errori, `checkbox`/`select` aggiunti a `registryDependencies`, `zod` alle `dependencies` npm (`registry.json`, `registry:build` rilanciato).
+
+**Verificato in Playwright** (Chromium reale, stesso motivo di sessione 1 per non usare il pannello di questa sessione): scrivere `-5` in `Quantità` (validata `z.coerce.number().min(0)`) marca `aria-invalid="true"` mentre si scrive, e Invio **non sposta** la cella (resta un `<input>` a fuoco) finché non si corregge a un valore valido; `Escape` su un draft invalido (`"abc"`) scarta e il valore resta quello di partenza; `Prezzo unitario` mostra `22,59 €` (formattazione `it-IT`, non l'input grezzo); un clic sul checkbox `Disp.` lo commuta subito (`aria-checked` `true`→`false`, nessuna modifica intermedia); `U.M.` apre un `role="listbox"` vero (il `Select` del registry, non un elenco a parte) e la scelta scrive nella cella; `Scadenza` è un `<input type="date">` reale; `Ctrl+Z` dopo una scelta di `select` la annulla correttamente.
+
+Prossimo passo: M3bis.5 sessione 3/3 — `useGridChanges` (persistenza: creazione/aggiornamento/cancellazione come change-set) e la prova end-to-end sul dataset finto a forma di computo (voci con subtotale, da M3bis.1) — è lì che il criterio di accettazione di `PIANO.md` si verifica per intero. Stesso worktree, dipende da questa sessione.
+
+### Coda: rilievo di Francesco — incollare da un'altra app non faceva niente
+
+Provando la story `Editabile` da Safari (rete locale, `npm run storybook --host 0.0.0.0`), incollare il blocco di celle dello screenshot (4×4, copiato da Excel/Numbers) non faceva **niente**: nessun errore a schermo, nessuna cella scritta.
+
+**Causa**: `navigator.clipboard.readText()` **non è implementata in Safari/WebKit** — non un difetto di questa sessione, una scelta di WebKit per motivi di sicurezza che non ha equivalente per `writeText()` (quella invece funziona). `onKeyDownCella` (sessione 1) intercettava Ctrl/Cmd+V, chiamava `preventDefault()`, e tentava `navigator.clipboard.readText().then(…).catch(() => {})` — in Safari la Promise si rifiuta subito, il `.catch` inghiotte l'errore, e non resta traccia di niente: esattamente "sembra che non succeda nulla". La copia (`writeText`), funzionando in Safari, non aveva mai fatto sospettare l'asimmetria.
+
+**Corretto spostando copia/incolla/taglia fuori da `onKeyDownCella`**, dentro `DataGridClipboard` (che prima non faceva nulla, solo un testo di suggerimento): un `addEventListener('keydown', …, true)` in cattura sul contenitore intercetta Ctrl/Cmd+C/X/V **prima** che arrivi al gestore generico, sposta il fuoco su una `<textarea>` nascosta (non controllata — il suo valore lo scrive `alTastoGiu` in modo imperativo, non c'è nessuno stato React di cui sia il riflesso) **senza chiamare `preventDefault()` sul tasto** — se lo facesse, sopprimerebbe il comando di sistema prima che la textarea possa riceverlo. Il comando copia/incolla del sistema operativo scatta quindi sulla textarea, un campo di testo vero: gli eventi nativi `copy`/`cut`/`paste` funzionano lì in ogni motore browser, senza nessun permesso da chiedere — la stessa tecnica di prima che esistesse l'API asincrona del clipboard, ed è quella che i browser continuano a supportare ovunque.
+
+Il motore (`useDataGrid`) resta immutato nel confine: `incolla(testo)` e `serializzaSelezione()` erano già funzioni pure, ora **esposte** sul tipo pubblico invece di restare chiuse dentro `onKeyDownCella`. `DataGridClipboard` diventa così davvero opt-in in senso pieno — prima l'header del file diceva "il copia/incolla vero è già acceso sempre", un'affermazione che si è rivelata sbagliata nella pratica (l'architettura pensata come opt-in, spiegata nel commento di testa a `<DataGrid>`, ora la rispetta anche per questa parte).
+
+### Verifica in Playwright, con WebKit vero — non solo Chromium
+
+Installato `npx playwright install webkit` (assente finora, solo Chromium era scaricato per il gate a11y): è il motore di rendering di Safari, il solo modo di riprodurre davvero il difetto invece di fidarsi della lettura del codice. Scritto un blocco 2×2 negli appunti di sistema con `navigator.clipboard.writeText` (quella funziona ovunque) e incollato con la tastiera vera (`Meta+V`) dentro la story `Editabile`:
+
+- **Chromium**: incolla corretto (le 4 celle di destinazione prendono i valori giusti), il fuoco torna sulla cella attiva, e la copia successiva (`Ctrl+C` su due celle, riletta con `navigator.clipboard.readText()`) restituisce esattamente il TSV atteso — prova che il valore è arrivato **davvero** negli appunti di sistema, non solo nel nostro stato.
+- **WebKit**: stesso incolla, stesso risultato — le 4 celle si scrivono correttamente e il fuoco torna alla cella attiva. La rilettura della copia con `readText()` fallisce **nello script di verifica stesso** (`NotAllowedError`) — la stessa assenza che ha causato il difetto originale, qui però è la mia verifica a non poter rileggere, non il prodotto a non poter scrivere: la copia passa dall'evento nativo `copy` sulla textarea, indipendente da `readText()`.
+
+`npm run check`: invariato, **1176 scansioni (4 passate) / 0 violazioni**. `tsc -b`/`lint`: nessun avviso nuovo. Script di verifica nello scratchpad di sessione, mai committato.
+
+---
+
+## M3bis.5 sessione 3/3 — Persistenza e prova end-to-end (2026-09-16)
+
+Ultima sessione della fase: `useGridChanges`, `aggiungiRiga`/`rimuoviRighe` sul motore, e la story `Computo` — 500 righe finte, dove il criterio di accettazione di `PIANO.md` si verifica per intero.
+
+### `useGridChanges`: un confronto puro, non un registro incrementale
+
+`useGridChanges(righeCorrenti, righeSalvate, idRiga)` calcola `creati`/`aggiornati`/`cancellati`/`cePendente` confrontando **due istantanee** — `motore.righe` e l'ultimo salvataggio, che la pagina tiene lei (un `useState` aggiornato dopo un salvataggio riuscito) — non accumulando un registro a ogni commit. La ragione è la stessa della trappola sulle dipendenze derivate già a verbale in `CLAUDE.md`: un registro incrementale dovrebbe disfare la propria contabilità a ogni `annulla` (una riga "creata" seguita da un annulla dev'essere di nuovo "non c'era"), ed è facile sbagliarlo. Un confronto puro non ha questo problema per costruzione: qualunque stato la griglia raggiunga, il change-set è sempre "cosa differisce adesso".
+
+### `aggiungiRiga`/`rimuoviRighe`: commit come tutti gli altri, annullabili
+
+Aggiungono/tolgono righe passando dalla stessa `registraCommit` delle modifiche di cella — stessa cronologia, stesso `annulla`/`ripeti`. Due nuovi valori in `CommitGriglia["tipo"]` (`"creazione"`/`"cancellazione"`). `rimuoviRighe` prende id, non indici — coerente col resto del motore, dove l'identità di una riga è sempre `idRiga`, mai la posizione.
+
+### Uno scarto accertato, non un rinvio silenzioso: niente righe annidate
+
+Il file dichiarava (dalla sessione 1) che le righe annidate di M3bis.1 sarebbero arrivate qui. **Non arrivano, e non è un rinvio**: verificato che la Data Grid non può comporre con `getSottoRighe` per un motivo strutturale, non di tempo. La tastiera della griglia naviga per indice su `motore.righe`, un array **piatto**; con `getSottoRighe` TanStack produce un modello reso in ordine ad albero (righe madri e figlie intrecciate) che **non coincide** con quell'array piatto — la stessa classe di scostamento per cui la griglia non ha ricerca/ordinamento, ma strutturale e non evitabile con un `cerca={false}`. Annotato nel file (`CLAUDE.md`: uno scostamento dal piano si corregge o si annota con la ragione, mai in silenzio): la story `Computo` usa un dataset **piatto** — una riga per voce di misurazione, la forma che la maggior parte dei computi ha comunque.
+
+### Un bug preso a 500 righe, invisibile a 60: la virtualizzazione non reggeva
+
+La story `Computo` (500 righe) montava **469 `<tr>`**, non una finestra — la virtualizzazione promessa da `perPagina="virtuale"` semplicemente non stava succedendo, e a 60 righe (le story di sessione 1-2) il difetto non si vedeva perché anche renderle tutte "sembra" funzionare.
+
+**Causa**: `<DataGrid>` è sempre `altezza="ferma"`/`perPagina="virtuale"` — una combinazione che, in `data-table.tsx`, richiede un **genitore ad altezza vera** per calcolare quanto spazio c'è (lo stesso prerequisito che la story `Virtualizzata` di `data-table.stories.tsx` rispetta con `<div className="flex h-140 flex-col">`). Le story di questa fase non lo rispettavano — `<DataGrid>` veniva reso nudo — **e il `<div>` proprio di `<DataGrid>`** (quello con `contenitoreRef`, per clipboard/maniglia di riempimento) non aveva `flex-1`: anche avvolgendolo in un contenitore ad altezza ferma, quel `<div>` non si sarebbe comunque allargato a riempirlo, e il vincolo non sarebbe mai arrivato al `<DataTable>` innestato sotto — che continuava a crescere con tutte le righe, senza errore, senza avviso.
+
+**Corretto in due punti**: `flex-1` sul `<div>` di `<DataGrid>` (`data-grid.tsx`), e le tre story (`Editabile`, `Celle Tipizzate`, `Computo`) ora avvolgono `<DataGrid>` in `<div className="flex h-140 flex-col">` con `className="min-h-0 flex-1"` sul componente. Documentato nel commento di testa a `<DataGrid>`, con l'esempio esatto — non lasciato all'intuizione di chi installa il blocco.
+
+### La story `Computo`
+
+500 voci finte (`generaVociComputo`, generatore deterministico), colonne `Codice`/`Descrizione`/`U.M.` (select)/`Quantità` (numero, validata)/`Prezzo unitario` (valuta, validata), più una colonna `azioni` — un bottone «elimina» per riga, **non** costruita con `colonnaXGriglia`: è un `col.display` semplice, fuori da `colonneId` (non editabile, non nella navigazione a frecce), che arriva al motore con `useContestoDataGrid` — la stessa via che usano le celle tipizzate, ora **esportata** come via d'uscita per una pagina che ha bisogno di una colonna che le sei celle di questo file non coprono.
+
+Barra: `DataGridUndo`/`DataGridRedo`, «Aggiungi riga» (`motore.aggiungiRiga`), tre `Badge` (creat-e/modificat-e/cancellat-e, da `useGridChanges`) e un bottone «Salva» (`disabled={!changeSet.cePendente}`) che aggiorna lo stato "ultimo salvataggio" — finto, nessun server dietro questa story, ma il giro intero (modifica → contatore sale → Salva → contatore torna a zero) si prova per davvero.
+
+### Verifiche
+
+`npm run check` verde su tutti e cinque i gate: **a11y 1180 scansioni (4 passate, +4 dalla story `Computo`) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi quattro avvisi preesistenti, zero nuovi. `check:registry`: 0 errori. `misura:bersagli`: 2636 bersagli su 295 story, 0 piccoli in entrambe le direzioni — nessuna regressione.
+
+**Verificato in Playwright** (Chromium): dopo la correzione, **21 righe montate** su 500 (prima: 469) — la virtualizzazione regge davvero. Modifica di una cella → badge "1 modificata" e bottone Salva attivo; «Aggiungi riga» → badge "1 creata", conteggio "501 voci"; Salva → entrambi i contatori tornano a 0, Salva torna disabilitato; bottone elimina → conteggio "500 voci" e badge "1 cancellata"; `Ctrl+Z` (dopo aver riportato il fuoco su una cella) → conteggio torna a "501 voci", la cancellazione si annulla come qualunque altro commit.
+
+**Raggiungibilità da tastiera verificata a mano, non solo con axe** — il criterio esplicito di `PIANO.md` per questa fase (niko-table non certifica WCAG sulla Data Grid), e la stessa disciplina di `D15` (`CLAUDE.md`): dal bottone «Annulla», cinque `Tab` in sequenza raggiungono nell'ordine «Ripeti» → «Aggiungi riga» → «Salva» → «Colonne» → la prima cella della griglia — i tre `Badge` (non interattivi) vengono saltati correttamente, nessuna zona morta.
+
+Con questa sessione **M3bis.5 è chiusa** (3/3). Prossimo passo: M3bis.6 (filtri sfaccettati), stesso worktree, dipende da M3bis.0.
+
+---
+
+## Coda M3bis.5 — cinque rilievi di Francesco sulla story `Computo` (2026-09-16)
+
+Rivisto insieme il risultato della fase, in un browser vero (non il pannello di questa sessione) da Safari e Chrome sulla rete locale. Cinque difetti reali, tutti presi e corretti nella stessa seduta — nessuno dei cinque era emerso da `npm run check` (0 violazioni prima e dopo ogni correzione): la conferma pratica del limite già a verbale altrove in questo file, che axe e i gate automatici non vedono tutto.
+
+**1. Incollare da un'altra app non faceva niente, solo in Safari** (`59ace66`). `navigator.clipboard.readText()` non è implementata in WebKit — non un difetto di questa sessione, una scelta di sicurezza di WebKit senza equivalente per `writeText()` (quella funziona), da cui l'asimmetria "copia va, incolla no" passata inosservata. Corretto spostando copia/incolla/taglia da `onKeyDownCella` a `DataGridClipboard`: un ascolto in cattura sul contenitore intercetta Ctrl/Cmd+C/X/V, sposta il fuoco su una `<textarea>` nascosta **senza** `preventDefault()` sul tasto (altrimenti il comando di sistema non scatterebbe mai), e il comando nativo colpisce quindi un campo di testo vero — un evento `copy`/`cut`/`paste`, che funziona in ogni motore browser senza permessi. Verificato con **WebKit vero** (`npx playwright install webkit`, prima assente — solo Chromium era scaricato per il gate a11y): stesso incolla, stesso risultato in entrambi i motori.
+
+**2. Due bug presi insieme rivedendo `Celle Tipizzate`** (`aef84a5`). La `select` aperta in modifica allargava la riga rispetto alle altre — `SelectTrigger` porta il proprio `data-[size=default]:h-8`/`py-2`, pensati per un modulo isolato, e `h-full` da solo non li batteva (`cn`/tailwind-merge confronta solo classi con lo stesso prefisso di variante). E: svuotare una cella `select` con `Delete` la rendeva irraggiungibile — `h-full` sul `<div>` di vista non si risolve contro il `<td>` che lo contiene (misurato: `0px` senza testo), quindi una cella vuota non si vedeva e non si poteva più riaprire. Corretto rispettivamente sovrascrivendo `data-[size=default]:h-full` sul trigger, e sostituendo `h-full` con `min-h-5` in `classiVistaCella` (condivisa da tutte e sei le celle).
+
+**3. L'anello di fuoco "risicato", e la maniglia che usciva dallo schermo** (`8506c9c`). L'anello stava dentro il padding dell'8px del `<td>`, non contro il suo bordo vero — confrontato col comportamento di niko-table (il riquadro lì copre l'intera cella). Corretto con un margine negativo che brucia il `p-2` del `<td>` e lo riscrive come proprio padding, `min-h-9` al posto di `min-h-5` per la stessa altezza di riga di prima. La maniglia di riempimento (`DataGridFillHandle`), scorrendo, usciva dal bordo della tabella e saliva sullo schermo: una riga montata nell'`overscan` del virtualizzatore non è detto sia **visibile** (può essere scorsa sopra la testata), e la posizione si calcolava solo rispetto a tutto `<DataGrid>` (barra compresa), mai nascosta per quel caso — corretto verificando anche i confini di `table-container`. Bug imparentato preso verificando la correzione: tornando in cima dopo uno scorrimento enorme la maniglia restava sparita finché non arrivava un secondo scorrimento qualunque — l'ascolto in cattura su un antenato arriva prima del riadattamento del virtualizzatore, leggendo lo stato di un fotogramma vecchio; risolto rimandando la lettura con `requestAnimationFrame`.
+
+**4. Le colonne della story `Computo` erano tutte della stessa larghezza** (`5c1f9c7`). Le `size` per colonna erano già dichiarate ma inerti: `ridimensionabile` (M3bis.3, già pronta) non era acceso su `<DataGrid>`, e senza quello `table-fixed` spartisce lo spazio in parti uguali qualunque sia il contenuto — da cui il cestino «elimina» che galleggiava lontano dal bordo destro. Accesa la prop, nessun lavoro sul motore.
+
+**5. Espandi/Comprimi tutto; resize e maniglia, ancora Safari** (`5000709`). Aggiunto `onTabellaPronta` a `<DataTable>` (consegna l'istanza TanStack a ogni render, senza sollevare uno stato che il blocco tiene per sé — stesso principio delle `registra*` di `<DataGrid>`) e i bottoni «Espandi tutto»/«Comprimi tutto» alle story `Albero` ed `Espansione` (porting da "Grouping Table" di niko-table). Due bug Safari-only nella stessa seduta: trascinare la maniglia di ridimensionamento colonna faceva scattare anche la selezione di testo nativa (un `mousedown` non impedito; Chrome la sopprime da sé, WebKit no) — corretto con `preventDefault()`; e la maniglia di riempimento restava visibile col fuoco fuori dalla griglia (un clic su «Salva» o «Colonne») — `cellaAttiva` non si scorda mai l'ultima cella (serve a `Invio` per tornarci), ma la maniglia è un comando sulla cella **a fuoco**, e `contenitore.contains(activeElement)` non bastava a distinguerlo (la barra è anche lei dentro il contenitore) — corretto verificando `data-riga-id` sull'elemento a fuoco, con `focusin`/`focusout` ad aggiornare subito.
+
+Tutti e cinque verificati in Playwright (Chromium e, per i due difetti Safari-only, WebKit vero) prima di consegnare, non solo letti nel codice. `npm run check` verde a ogni commit: 1180 scansioni (4 passate) / 0 violazioni, invariato dall'inizio a oggi di questa coda.
+
+---
+
+## M3bis.6 — Filtri sfaccettati (2026-09-16)
+
+Porting di `data-table-faceted-filter` + `use-generated-options` (niko-table) sopra `columnFilteringFeature`, già registrata su `caratteristiche` da M3.3 ma senza interfaccia. Nuovo file `data-table-filtro-sfaccettato.tsx` (non dentro `data-table.tsx`, già a 2500+ righe): esporta `FiltroSfaccettato` e l'hook `useOpzioniSfaccettate`, senza toccare `ui/`.
+
+**Cosa non si è portato, e perché.** Il loro `useGeneratedOptions` cammina tutte le colonne cercando `meta.variant === "select"|"multiSelect"`, con tre strategie di fusione fra opzioni statiche e generate. Quel sistema di meta non esiste qui — M3bis.0 aveva già scartato `DataTableRoot`/`detectFeaturesFromChildren` — quindi l'hook lavora su **una** colonna alla volta, dichiarata esplicitamente da chi scrive la pagina. `getFilteredRowsExcludingColumn` (il conteggio "ricalcolato sulle righe filtrate dalle altre colonne, non dalla propria") si è portato quasi identico: TanStack non ha un filtered-model-meno-una-colonna pronto, va ricostruito applicando a mano il `filterFn` di ogni altra colonna attiva più il filtro globale.
+
+**Un filtro nuovo per TanStack, non solo per il blocco**: `filterFn_arrHas` (tiene la riga se il suo valore scalare è uno dei valori scelti — la forma giusta per `stato`/`famiglia`, un valore per riga, a differenza di `arrIncludes*` che vuole un valore-elenco sulla riga) registrato in `caratteristiche` come `arrHas`, accanto a `includesString`. Una colonna lo dichiara con `filterFn: "arrHas"`.
+
+**Il segno di spunta non è quello di niko-table.** Loro lo disegnano a mano, a sinistra dell'etichetta, con un `<div>` bordato. `CommandItem` di questo registry ce l'ha già pronto, a destra (`data-checked` → `group-data-[checked=true]/command-item:opacity-100`, la stessa convenzione già scritta per `SelectItem` ma non ancora usata da nessun consumer). Riusarlo — un attributo invece di importare `Checkbox` come primitiva in più — è il gradino 2 di 4bis (solo le stringhe di classi), e tiene il segno dove la tastiera lo trova già nel `select`. Scostamento dal riferimento niko-table, annotato qui come da regola.
+
+**Due difetti presi dal gate a11y, non dalla lettura del codice.** Primo giro di `npm run test:a11y` su questo file: `aria-dialog-name` (il `PopoverContent` è `role="dialog"` e vuole un nome accessibile — la stessa trappola già a verbale in `popover.stories.tsx`; risolto con `PopoverHeader`/`PopoverTitle` in `sr-only`, il grilletto già dice "Stato"/"Famiglia" a chi vede) e `aria-required-children` su `CommandList` (`role="listbox"`) per via di un `CommandSeparator` fra le opzioni e "Cancella i filtri" — esattamente il difetto già documentato in `command.stories.tsx` ("`CommandSeparator` non va dentro `CommandList`"), preso di nuovo perché è la forma che mostrano gli esempi di shadcn/niko-table. Risolto togliendo il separatore: due `CommandGroup` bastano.
+
+**La quiete apparente della «X» annidata.** La prima bozza rispecchiava niko-table alla lettera: un `<div role="button">` cliccabile per la cancellazione rapida, dentro lo stesso `<button>` del grilletto (uno swap di icona Più/X). Contenuto interattivo dentro un `<button>` è HTML non valido — `nested-interactive` di axe l'avrebbe preso, anche se in questo caso non è arrivato a misurarlo perché la story non aveva ancora superato gli altri due errori. Corretto **prima** di lanciare il gate, non dopo un rosso: due bottoni reali affiancati (`rounded-r-none`/`rounded-l-none`, bordo condiviso), la X visibile solo quando c'è una selezione — via Tab si raggiungono entrambi, nessun annidamento.
+
+**Il tranello del `barra` a funzione.** `<FiltroSfaccettato>` va composto nella *forma a funzione* di `barra` (`barra={() => tabellaRef.current && <FiltroSfaccettato .../>}`), non come nodo fisso: `<DataTable>` la richiama a ogni suo render, ed è l'unico modo per cui il filtro rilegge uno stato dei filtri cambiato da fuori (un'altra faccetta, la ricerca globale) — un nodo React con la stessa identità a ogni render verrebbe scavalcato dal bail-out del reconciler e la sua funzione non gira più. La prima bozza della story `Predefinito` non passava nemmeno questo: `tabellaRef.current` restava `null` per `barra()` perché nessun render successivo al mount veniva mai sollecitato (l'`useEffect` di `onTabellaPronta`, senza dipendenze, non alza `setState`). Risolto come già fa `EspansioneConControlli`/`AlberoConControlli` — non con `useState<IstanzaTabella>` (l'istanza è un oggetto nuovo a ogni render di `<DataTable>`, quindi `setState` non si fermerebbe mai), ma con un booleano che flippa una volta sola (`setPronta(true)`, no-op sulle chiamate successive perché stesso valore) solo per portare `barra` al primo render utile.
+
+Story `Predefinito` (Stato + Famiglia sulla stessa barra, si leggono a vicenda) e `Con Filtro Attivo` (Bozza pre-selezionato, verificato a schermo: conteggi ricalcolati — 26/29/36/29 su 120 prodotti finti — grilletto con badge "1" e bottone di cancellazione separato, seconda selezione via tastiera/mouse porta il conteggio a "2" e la tabella filtra su entrambi). Registrato in `registry.json` come `tassullo-data-table-filtro-sfaccettato`, dipendenza `@tassullo/data-table`.
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **a11y 1188 scansioni (4 passate, +8 dalle due nuove story) / 0 violazioni**. `tsc -b` ✔ · `lint`: gli stessi quattro avvisi preesistenti, zero nuovi. `check:registry`: 0 errori, nessuna riga richiesta in `componenti-propri.json` (blocco, non sostituisce una primitiva). Verificato a schermo in Storybook (Chromium reale, non solo axe): apertura/selezione/cancellazione da tastiera e da mouse, conteggi che si aggiornano nei due sensi (Stato ↔ Famiglia).
+
+Con questa sessione **M3bis.6 è chiusa**. Prossimo passo: M3bis.7 (drag&drop righe), stesso worktree, dipende da M3bis.0.
+
+### Coda — ri-disegno del grilletto e del segno di spunta su indicazione di Francesco (2026-09-16)
+
+Rivisto il risultato contro la pagina reale di niko-table (non il sorgente JSON, la resa a schermo): tre scostamenti dalla prima consegna.
+
+**1-2. Segno di spunta a sinistra, conteggio flush a destra.** Prima bozza: segno incorporato di `CommandItem` (a destra, `data-checked`). Spostato a sinistra come chiede lo screenshot — ma **non** con la primitiva `Checkbox`: è `CheckboxPrimitive.Root` di Base UI, che rende `role="checkbox"` su un `<button>` vero, e un bottone dentro `<div role="option">` (`CommandItem`) è `nested-interactive` per axe **anche con** `aria-hidden`/`tabIndex={-1}` — il gate l'ha preso al primo giro dopo il cambio, col messaggio che lo dice alla lettera («negative tabindex … does not prevent assistive technologies»). Corretto con uno `<span aria-hidden>` disegnato a mano, stesse classi di stato di `Checkbox` (`data-checked:border-primary`/`bg-primary`) ma senza ruolo né elemento nativamente interattivo — lo stesso principio della «X» separata (v. sotto), applicato al segno di spunta: mai un controllo interattivo vero dentro un `role="option"`. Il segno incorporato di `CommandItem`, ora ridondante, si spegne con `[&>svg:last-child]:hidden` — libera lo slot `ml-auto` che il conteggio ora occupa da solo, arrivando davvero al bordo destro della riga (prima condivideva quello spazio con l'icona spenta, e restava rientrato).
+
+**3. Il grilletto mostra i valori scelti, non un numero.** Come niko-table: fino a due opzioni, le loro etichette come pillole (`Badge`); da tre in su, «N selezionati». Un conteggio da solo non dice *cosa* è filtrato senza aprire la tendina.
+
+**«Cancella i filtri» allineato a destra** nella tendina (`justify-end text-right`, era centrato) — richiesta esplicita, coerente con dove sta già il conteggio delle opzioni sopra.
+
+Verificato di nuovo in Storybook (Chromium): due stati selezionati mostrano "Bozza" e "In revisione" come pillole distinte nel grilletto, checkbox e conteggi allineati nella tendina. `npm run check`: cinque gate verdi, **1188 scansioni / 0 violazioni**, invariato.
+
+---
+
+## Coda M3bis.6 — tre filtri in più, due rilievi di layout, un bug reale (2026-09-16)
+
+Rivisto insieme il risultato di M3bis.6 contro la pagina reale di niko-table ("Faceted Filter Table", non solo il sorgente JSON): la loro pagina di riferimento mostra **quattro** controlli — faccettato, intervallo numerico, intervallo di date, reset — e Francesco ha chiesto di completare tutt'e quattro nella stessa sessione, visto che due delle primitive (`slider`, `calendar`) erano già nel registry.
+
+**Tre blocchi nuovi**, stessa architettura del sfaccettato: `data-table-filtro-intervallo.tsx` (`FiltroIntervallo`, porting di `data-table-slider-filter`: slider + due campi numerici, conteggio ricalcolato riusando `righeSenzaFiltroColonna` — ora esportata dal file del sfaccettato apposta per questo), `data-table-filtro-data.tsx` (`FiltroData`, porting della sola variante a intervallo di `data-table-date-filter`: `Calendar` con `mode="range"`, `locale={it}`, `captionLayout="dropdown"` — D15 resta, la tastiera non naviga la griglia dei giorni, limite già accertato della primitiva), `data-table-filtro-reset.tsx` (`FiltroResetTutti`, porting di `data-table-clear-filter`, **ristretto**: cancella solo i filtri per colonna, non ricerca globale/ordinamento come fa di default l'originale — mischiarli avrebbe cancellato un testo scritto nella ricerca senza che il bottone lo dicesse). Due `filterFn` in più registrate su `caratteristiche` in `data-table.tsx`: `inNumberRange`/`inDateRange`, già pronte in TanStack (non scritte qui, come `arrHas`).
+
+**Niente `columnFacetingFeature`**: il loro slider legge `column.getFacetedMinMaxValues()`, una caratteristica TanStack che `caratteristiche` non registra. Introdurla per un solo dato (min/max della colonna) costava più di quanto rende — min/max si calcolano scandendo le righe correnti, stessa idea già in uso per le opzioni del sfaccettato.
+
+### Quattro correzioni prese in revisione con Francesco
+
+**1. La "X" del grilletto, due volte sbagliata prima di essere giusta.** Prima bozza: segno di spunta incorporato di `CommandItem` a destra delle opzioni, bottone di cancellazione **separato** accanto al grilletto. Francesco ha corretto entrambe, contro lo screenshot vero di niko-table: il segno di spunta va a **sinistra** di ogni opzione (non la primitiva `Checkbox` — un bottone reale, `nested-interactive` per axe dentro un `role="option"`, misurato: il gate lo prende anche con `aria-hidden`/`tabIndex={-1}` — ma uno `<span>` decorativo con le stesse classi di stato) e la "X" di cancellazione rapida sta **dentro** il bottone del grilletto, al posto del «+», non in un bottone a fianco. Quel secondo punto è mouse-only per costruzione (un controllo vero lì dentro sarebbe di nuovo `nested-interactive`): l'equivalente da tastiera resta "Cancella i filtri" nella tendina — stesso compromesso di D14 sul `combobox`.
+
+**2. Il separatore verticale nel grilletto si fermava a metà altezza.** `<Separator orientation="vertical" className="h-4" />`: l'altezza esplicita sovrascriveva `data-vertical:self-stretch`, già presente di default sulla primitiva. Tolta la classe, il separatore torna alto quanto il bottone da solo.
+
+**3. La barra dei filtri andava a capo a metà bottone.** Con quattro filtri più ricerca e menu Colonne su una riga sola (`flex-wrap`), lo spazio finiva a mancare in mezzo a un controllo, non fra due. Corretto in `data-table.tsx`: la fascia sopra la tabella è ora **due righe fisse** — ricerca e menu Colonne sopra, `barra` sotto, mai sulla stessa riga. Cambia la resa di `ConAzioniDiMassa` (M3.3) e di ogni pagina che passa `barra`: un cambiamento di forma su un blocco già `DONE`, annotato qui perché tale, non silenzioso.
+
+**4. Il bug vero, preso scrivendo la story `Con Filtro Attivo`**: `<FiltroResetTutti>` restava invisibile al primo render nonostante "Bozza" fosse già filtrato. Causa: tutti i filtri di questa sessione erano composti con `tabellaRef` + `onTabellaPronta`, la coppia pensata per comandi imperativi one-off (`toggleAllRowsExpanded()` in un `onClick`, come già in `BottoniEspansione`) — l'istanza vi arriva **dopo il commit**, in un `useEffect` senza dipendenze, quindi un render indietro rispetto a quella che `barra` sta già rendendo. Per un comando imperativo lanciato da un clic il ritardo non si vede (l'utente non guarda cosa succede nel frattempo); per un componente che **si disegna** in base allo stato dei filtri, un render di ritardo è un difetto visibile — confermato leggendo il fiber React in Chromium: `FiltroResetTutti` montato con `columnFilters: []` mentre la tabella filtrava già su "Bozza", e tornato corretto solo dopo un'interazione qualunque successiva (bastava scrivere e cancellare un carattere nella ricerca).
+
+**Corretto alla radice, non nella story**: `barra` nella forma a funzione riceve ora **anche `tabella`** come secondo argomento (`barra={(scelti, tabella) => ...}`, `data-table.tsx`) — l'istanza della stessa passata di render, senza indirezione. Le quattro `Filtro*` si leggono da lì, non più da un ref; le story hanno perso tutta la coreografia `useState(pronta)`/`useEffect` che serviva solo a inseguire quel render in ritardo. `tabellaRef` resta nella story solo per l'unico uso legittimo rimasto — impostare il filtro iniziale una volta sola in un effetto a parte, aggiornato durante il render di `barra` con una semplice assegnazione (non uno stato).
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **a11y 1188 scansioni (4 passate) / 0 violazioni**, invariato — nessuna story nuova, solo più filtri nelle due esistenti. `tsc -b` ✔ (preso e corretto un ordine di hook scorretto in `FiltroIntervallo`, che chiamava `useMemo` dopo un `return` condizionale — la guardia `!colonna` è ora l'ultima riga prima del render, con tutti gli hook sopra). `lint`: stessi avvisi preesistenti. `check:registry`: 0 errori. Verificato a schermo in Chromium: slider e campi numerici sincronizzati in entrambe le direzioni, calendario a intervallo che filtra davvero (un giorno solo scelto due volte → "Nessuna riga", corretto), Reset visibile dal primo render e che cancella tutti e quattro insieme lasciando ricerca/ordinamento intatti.
+
+Con questa coda **M3bis.6 è chiusa nella forma allargata**. Prossimo passo: M3bis.7 (drag&drop righe), stesso worktree, dipende da M3bis.0.
+
+### Coda — le story spostate dentro `data-table.stories.tsx` (2026-09-16)
+
+Un file di story a parte (`data-table-filtro-sfaccettato.stories.tsx`) apriva una voce propria in barra laterale, "Data Table Filtri", separata da "Data Table" — sbagliato secondo Francesco: i filtri sono un modo di usare `<DataTable>`, non un componente a sé con una pagina Storybook sua. Spostate in coda a `data-table.stories.tsx` (`Filtri`/`Filtri Con Filtro Attivo`), file eliminato. Colonne a parte (`COLONNE_FILTRI`), stesso principio già in uso per `COLONNE_RIDIMENSIONABILI`/`COLONNE_ALBERO`: aggiungere `filterFn` a `COLONNE` avrebbe messo i controlli di filtro in ogni story del file. Riusati `revisione` (numerico) e `aggiornato` (data), già nel tipo `Prodotto` — nessun campo nuovo, niente `prezzo` isolato che solo due story su ventidue avrebbero usato.
+
+Segnalato anche un "Importing a module script failed" nel pannello di Francesco durante la stessa sessione: cache di Vite/Storybook invalidata dai molti salvataggi ravvicinati, non un difetto del codice — sparito con una build pulita (`rm -rf storybook-static node_modules/.cache/storybook`).
+
+`npm run check` verde a fine coda: 1188 scansioni (4 passate) / 0 violazioni, invariato — stesse due story, spostate di file.
+
+### Coda — la tendina che "scappava", e "Cancella i filtri" centrato (2026-09-16)
+
+**Bug vero preso da Francesco, non un vezzo estetico**: scegliendo una seconda opzione in una faccetta già aperta, la tendina si spostava — misurato: succedeva perché il riquadro Controls/Accessibility di Storybook occupa la metà inferiore del pannello, e senza spazio sotto Base UI sposta la tendina **di lato** (`data-side="right"`); a quel punto l'ancoraggio è il bordo **destro** del bottone, che si muove ogni volta che il bottone si allarga per una pillola in più — da cui il salto. Con spazio a sufficienza sotto (`side="bottom"`) il bordo di riferimento è quello **sinistro**, che non si muove: lì il difetto non si vede, ma la condizione che lo scatena (poco spazio sotto un filtro) è reale anche fuori da Storybook.
+
+Corretto con `collisionAvoidance={{ side: "shift", fallbackAxisSide: "none" }}`: la tendina resta **sempre sotto** il grilletto, spostandosi in orizzontale se lo spazio manca, mai su un fianco. Base UI lo espone su `Popover.Positioner`, ma `ui/popover.tsx` non lo passa attraverso — provato ad aggiungerlo lì (un prop in più nel `Pick<...>` inoltrato al Positioner) e il gate l'ha respinto subito: «diverge dall'originale FUORI dalle stringhe di classi» — è un cambio di forma della primitiva, il gradino che `CLAUDE.md` §4bis riserva a una conferma esplicita, non a questa sessione. Rifatto senza toccare `ui/`: `PopoverContentFerma`, in `data-table-filtro-sfaccettato.tsx` (esportata, la usano anche `-intervallo.tsx` e `-data.tsx`) — la stessa `PopoverContent`, ricomposta a mano sopra `@base-ui/react/popover` con quella sola aggiunta. Duplica qualche riga di classi, ma resta dentro `blocks/`, dove il gate controlla solo la regola 3.
+
+**"Cancella i filtri" torna centrato**: era stato allineato a destra in una coda precedente leggendo male l'annotazione di uno screenshot — Francesco ha corretto: resta com'era già per gli altri bottoni della tendina (`Cancella`, `Reset`), centrato.
+
+`npm run check` verde: 1188 scansioni (4 passate) / 0 violazioni, invariato.
+
+### Coda — `BORDO_FILTRO`, una costante invece di tre stringhe (2026-09-16)
+
+Su domanda di Francesco ("serve una primitiva per il bordo tratteggiato?"): no — quella composizione (`variant="outline"` più `border-dashed`) è come shadcn stesso disegna il proprio esempio di filtro sfaccettato, non una variante a parte, e farne una variante di `Button` toccherebbe la primitiva (gradino da confermare, non implicito). Fatta invece la versione minima: `BORDO_FILTRO`, una costante esportata da `data-table-filtro-sfaccettato.tsx` accanto a `PopoverContentFerma`/`righeSenzaFiltroColonna`, che i quattro grilletti (sfaccettato, intervallo, data — non `FiltroResetTutti`, bottone pieno e non un filtro removibile) importano invece di scrivere `"border-dashed"` a mano tre volte. Resta dentro `blocks/`, nessuna primitiva toccata.
+
+`npm run check` verde: 1188 scansioni (4 passate) / 0 violazioni, invariato.
+
+---
+
+## M3bis.7 — Drag&drop righe (2026-09-17)
+
+Porting di "Row DnD Table" (niko-table): riordino manuale via trascinamento, con `@dnd-kit/{core,sortable,utilities,modifiers}` come dipendenza nuova. Nuovo prop `riordinabile={{ onRiordina }}` su `<DataTable>`, tutto dentro `data-table.tsx` — non un file a sé come i quattro filtri di M3bis.6: qui il meccanismo è innestato nel corpo della tabella (righe/celle), non un componente che una pagina compone accanto, e l'unico altro precedente di questa natura (virtualizzazione, M3bis.4) era rimasto anch'esso dentro il blocco.
+
+**Non due `useSortable({id: riga.id})` come mostra la lettera del sorgente niko-table.** Loro chiamano l'hook due volte con lo stesso id — una in `TableDraggableRow` per `setNodeRef`/`transform`, una in `TableRowDragHandle` per `attributes`/`listeners` — perché nel loro registry le due funzioni vivono in file diversi senza un genitore comune facile da usare come tramite. Qui la riga (`RigaCorpo`) e la sua maniglia (`ManigliaRiordinoRiga`, dentro la colonna `colonnaRiordino`) sono già imparentate da React: `RigaCorpo` chiama `useSortable` **una volta sola** e porta `attributes`/`listeners` alla maniglia con un contesto locale (`ContestoRigaTrascinabile`), non con un secondo hook sullo stesso id — che duplicherebbe la registrazione nella mappa interna di dnd-kit invece di condividerla.
+
+**`useSortable` chiamato sempre, mai dietro un `if`.** `RigaCorpo` lo invoca a ogni riga indipendentemente da `trascinabile`, con `disabled: !trascinabile`: le regole degli hook vogliono la stessa sequenza a ogni render, e `disabled` è la via che dnd-kit stesso offre per spegnerlo senza una guardia prima dell'hook. Fuori da un `<DataTableRiordinoRighe>` (nessun `riordinabile`) l'hook ricade sul contesto predefinito di dnd-kit — no-op, non un errore.
+
+**Ordinamento, ricerca/filtri e paginazione si spengono sulla tabella, non solo in vista** (`PIANO.md` lo chiede esplicitamente). La ragione tecnica: il trascinamento calcola l'indice di partenza e d'arrivo dall'ordine **visibile** delle righe (`tabella.getRowModel().rows`) e li applica all'array **grezzo** (`dati`) passato a `onRiordina` — se ordinamento, filtro o paginazione sono attivi i due ordini divergono, e la riga rilasciata finirebbe in un punto diverso da quello mostrato. `enableSorting`/`enableColumnFilters`/`enableGlobalFilter: false` sulla tabella (non solo `cerca` nascosto: la ricerca globale andrebbe comunque spenta, o resterebbe attiva senza controllo visibile) e `pageSize: Number.MAX_SAFE_INTEGER` come già fa `"virtuale"`, con `infinito`/`virtualizzata` che ricadono su `false` quando `riordinabile` è passato (una `const` sola, `trascinamento`, li spegne insieme).
+
+**Un dettaglio di TypeScript preso da `tsc -b`, non ovvio**: `const infinito = perPagina === "infinito" && !trascinamento` smette di restringere il tipo letterale di `perPagina` più sotto (la ternaria di `pageSize`), perché le "aliased conditions" che TypeScript 4.4+ riconosce valgono solo per un confronto semplice (`const x = a === "y"`), non per un `&&` composto. Corretto con due alias separati, `perPaginaInfinito`/`perPaginaVirtuale`, usati nella ternaria di `pageSize`, mentre `infinito`/`virtualizzata` (con `!trascinamento` già dentro) restano quelli che governano il resto del componente.
+
+**Verificato in Playwright reale, non nel pannello del browser dell'app.** Il pannello ha lo stesso difetto già a verbale in `CLAUDE.md` per i popup di Base UI — `document.visibilityState` non torna necessariamente `"hidden"` qui (si è controllato: risultava `"visible"`), ma un tentativo di trascinamento sintetico (eventi `mousedown`/`mousemove`/`mouseup` costruiti a mano) non produceva alcun riordino nel pannello nonostante `isDragging` diventasse vero — probabilmente la stessa famiglia di problemi (dnd-kit misura i rettangoli e aggiorna la posizione trascinata dentro un ciclo legato al frame, e il pannello dell'app non è un banco di misura affidabile per questo). Lanciato invece Chromium vero via `playwright` (già una dipendenza transitiva di `@storybook/addon-vitest`, nessuna aggiunta al repo, stessa disciplina di M2.3): `page.mouse.down()/move()/up()` sulla maniglia sposta la riga (`RA-191` da indice 0 a indice 2 trascinando 90px in basso), e `Tab` sulla maniglia + `Spazio` (afferra) + `ArrowDown` × 2 + `Spazio` (rilascia) sposta la riga successiva di una posizione — riordino **completo da tastiera**, il criterio d'accettazione di `PIANO.md`, verificato e non promesso.
+
+Story `Riordino` in `data-table.stories.tsx`: otto prodotti finti (non cinquecento — a quella mole la riga trascinata uscirebbe dallo schermo prima di potersi vedere muovere), `dati`/`onRiordina` in uno `useState` della story come sempre, `piePagina={false}` (nessuna pagina da saltare con tutte le righe già in vista).
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **a11y 1192 scansioni (4 passate, +4 dalla nuova story) / 0 violazioni**. `tsc -b` ✔ (i due tipi di dnd-kit, `DraggableAttributes`/`DraggableSyntheticListeners`, importati dal pacchetto — niente import da `dist/` interni). `lint`: stessi quattro avvisi preesistenti, zero nuovi. `check:registry`: 0 errori, nessuna riga richiesta in `componenti-propri.json` (blocco, non sostituisce una primitiva). `registry.json`: `@dnd-kit/{core,modifiers,sortable,utilities}` aggiunte alle `dependencies` di `tassullo-data-table`, `docs` aggiornato.
+
+Con questa sessione **M3bis.7 è chiusa**. Prossimo passo: M3bis.8 (drag&drop colonne), stesso worktree, dipende da M3bis.0.
+
+### Coda — la riga rilasciata "saltava" invece di scorrere (2026-09-17)
+
+Rilievo di Francesco, contro la pagina di riferimento (`niko-table.com/examples/row-dnd-table`): a rilascio, la riga arrivava alla sua posizione finale di scatto, non scorrendo come le righe che le fanno spazio intorno. La causa è nel predefinito di dnd-kit: `defaultAnimateLayoutChanges` (`@dnd-kit/sortable`) torna `false` per la riga appena stata `wasDragging`, apposta per chi usa `<DragOverlay>` — lì la riga sotto è già ferma al proprio posto mentre il trascinamento la mostra su un livello sopra, quindi al rilascio non c'è niente da animare. Qui non c'è overlay — la riga stessa segue il puntatore — e quello stesso ramo lasciava l'ultimo passo (dalla posizione di trascinamento a quella di riposo) senza transizione.
+
+Corretto con `animateLayoutChanges` passato a `useSortable` in `RigaCorpo`: una funzione (`animaRilascioRiga`, costante di modulo, non ricreata a ogni render) che richiama `defaultAnimateLayoutChanges` forzando `wasDragging: true` sempre — lo stesso ramo che l'originale prende solo a overlay attivo. Verificato in Playwright: la riga rilasciata porta ora `transition: transform 200ms` nello `style` subito dopo il rilascio (prima, assente).
+
+`npm run check` verde: 1192 scansioni (4 passate) / 0 violazioni, invariato.
+
+### Coda — la correzione precedente era sbagliata, misurata contro `niko-table.com` vero (2026-09-17)
+
+Francesco ha segnalato che l'animazione restava diversa da niko anche dopo la coda precedente. Prima di correggere di nuovo, confronto diretto — non a occhio, con Playwright contro `https://niko-table.com/examples/row-dnd-table/` vero, lo stesso strumento già usato per M2.3 (`docs/DECISIONI.md` §32: le transizioni CSS si misurano in un browser vero, non nel pannello dell'app) — e contro la nostra story, stesso script, stessa misura: lo `style` di ogni riga durante e subito dopo il trascinamento.
+
+**La riga trascinata**: niko `opacity: 0.8; z-index: 1; transform: translate3d(…)` — **nessuna `transition`**, segue il puntatore diretta. La nostra, identica (a parte `opacity-80` come classe invece che inline, stesso effetto). Su questo, nessuno scarto.
+
+**Le righe che si spostano per fare posto**: niko `transition: transform 200ms; transform: translate3d(0, -48px, 0)`. Le nostre, identiche nella forma (`-38px`, la differenza è solo l'altezza di riga fra le due densità/font). Nessuno scarto neanche qui.
+
+**Dopo il rilascio**: niko, **su tutte le righe, nessuna `transition` residua** (`opacity: 1; z-index: 0; position: relative`, e basta). La coda precedente aveva aggiunto `animateLayoutChanges` a `useSortable` per far *scorrere* la riga rilasciata invece di farla scattare — ma la misura contro niko dice che niko **stessa non anima quel passo**: il predefinito di dnd-kit (nessun `<DragOverlay>` in nessuna delle due implementazioni) lascia la riga rilasciata scattare al proprio posto, ed è quello che niko mostra davvero, non un difetto della porting. La correzione della coda precedente non riportava le due implementazioni allo stesso comportamento: le allontanava, lasciando sulla riga rilasciata una `transition: transform 200ms` che niko non ha mai avuto.
+
+**Revertita**: tolti `animaRilascioRiga`, l'import di `defaultAnimateLayoutChanges`/`AnimateLayoutChanges`, e l'opzione `animateLayoutChanges` da `useSortable` in `RigaCorpo`. `useSortable({id, disabled})` torna la sola forma che c'era **prima** della coda precedente — quella che la misura conferma essere già identica a niko in ogni fase (durante, durante-le-altre-righe, dopo).
+
+**Uno scarto residuo preso e non richiuso**: a 60ms dal rilascio, tre righe della nostra tabella portano ancora `transition: transform 200ms;` senza un valore di `transform` — niko a quel punto non ne ha nessuna. Non è visibile (nessuna proprietà sta davvero transitando: la stringa resta scritta nello `style` ma non anima niente finché nessun'altra proprietà cambia sopra), ma è uno scarto di implementazione vero, non ancora spiegato — probabile eco della finestra di 50ms che `useSortable` tiene aperta internamente su `previous.current.activeId` prima di azzerarlo (`sortable.esm.js`, il `setTimeout` dentro l'`useEffect` che segue `activeId`), qui forse allungata da qualcos'altro nella composizione (il contesto `ContestoRigaTrascinabile`, o l'ordine con cui `DataTableRiordinoRighe` e `RigaCorpo` si rendono). Annotato per non perderlo, non richiuso qui: non ha conseguenza visibile misurata, e la sessione era già su un'altra domanda.
+
+`npm run check` verde: 1192 scansioni (4 passate) / 0 violazioni, invariato.
+
+### Coda — la vera causa: l'id di riga era l'indice, non l'entità (2026-09-17)
+
+Francesco ha insistito, giustamente: l'animazione restava diversa anche dopo il revert, e ha descritto il sintomo con precisione — «sembra che si veda l'ombra della nostra riga che si sposta da quella di partenza». Misurato con `getComputedStyle(tr).transform` a passi di 16ms (un fotogramma) dal rilascio, su entrambe le tabelle: la riga rilasciata (e due vicine) **scivolava per ~150ms** da un `translate3d` diverso da zero fino a `none`, mentre su niko era `none` già al fotogramma zero. Non un residuo cosmetico nello `style` (quello preso nella coda precedente): un'animazione vera, visibile.
+
+**La causa**: `<DataTable>` non passa `getRowId` a TanStack, quindi l'id di ogni riga è il suo **indice nell'array** (il predefinito). Funziona finché `dati` cambia forma — un filtro, una pagina — mai finché cambia **ordine**, che è esattamente ciò che il riordino fa. `useSortable` (dnd-kit) tiene per ogni id uno stato interno (`previous` in `sortable.esm.js`) che confronta il rettangolo di quella riga *prima* e *dopo* un cambio di layout per decidere se animare l'assestamento — e con l'id legato all'indice, la riga che finisce in una data posizione **non è mai la stessa entità di prima** per dnd-kit: è sempre "quella che sta lì ora". Il confronto vede quindi un salto di rettangolo che in realtà non c'è (la riga è la stessa entità, solo spostata), e anima un assestamento spurio. Trovato leggendo il proprio esempio di niko-table (il JSDoc di `data-table-row-dnd.json`, già scaricato in M3bis.7): `<DataTableRoot data={data} columns={columns} getRowId={(row) => row.id}>` — lo passano sempre, non è un dettaglio.
+
+**Corretto con un prop nuovo, non solo dentro `riordinabile`**: `idRiga?: (riga: TDato) => string` su `<DataTable>`, passato a TanStack come `getRowId`. Non è ristretto al riordino — è la correzione giusta ogni volta che `dati` può cambiare ordine sotto una tabella che tiene stato per riga (selezione, espansione) — ma è `riordinabile` a renderlo visibile e a doverlo richiedere: la story `Riordino` ora passa `idRiga={(p) => p.id}` (`Prodotto` ha già un `id` vero). Verificato di nuovo con la stessa misura a fotogrammi: `none` dal primo fotogramma dopo il rilascio, su tutte le righe — identico a niko.
+
+`npm run check` verde: 1192 scansioni (4 passate) / 0 violazioni, invariato. `registry.json`: `docs` di `tassullo-data-table` aggiornato con la spiegazione di `idRiga`.
+
+## M3bis.8 — Drag&drop colonne (2026-09-17)
+
+Porting di "Column DnD Table" (niko-table): riordino manuale delle **intestazioni** via trascinamento, nuovo prop `colonneRiordinabili` su `<DataTable>`. Stesse dipendenze di M3bis.7 (`@dnd-kit/{core,sortable,utilities,modifiers}`, già in `dependencies`), niente da aggiungere lì.
+
+**Letto il sorgente vero di niko-table** (`https://niko-table.com/r/data-table-column-dnd.json`, JSON scaricato e letto per intero, non solo la pagina di documentazione) prima di scrivere: `TableDraggableHeader` spreme `attributes`/`listeners` di dnd-kit **sull'intero `<th>`**, che diventa `role="button"` — e in niko quel `<th>` contiene già un bottone vero (il menu di ordinamento) o due (con `colonneBloccabili`-equivalente, il pin). Provata la lettera prima di scartarla: un `role="button"` che contiene un `<button>` è la violazione `nested-interactive` di axe, gravità *critical*. Non portata: qui l'intestazione tiene una **maniglia separata** (`ManigliaRiordinoColonna`, `⠿`), esattamente lo stesso principio già in verbale per le righe (`ContestoRigaTrascinabile`, M3bis.7) — `CellaIntestazione` (il `<th>`, estratto in un componente a sé per la stessa ragione di `RigaCorpo`: le regole degli hook non tollerano `useSortable` dentro un `.map()`) chiama `useSortable` **una volta sola** e porta `ref`/`transform` (lo scorrimento visivo) sul `<th>`, mentre `attributes`/`listeners` (il grab, la tastiera) vanno alla maniglia via contesto. Tre controlli fratelli nel `<th>` — ordina, trascina, blocca — mai annidati.
+
+**Le celle non seguono il trascinamento a fotogrammi**, a differenza del sorgente originale (`TableDragAlongCell`, un `useSortable` per cella per riga, per far scivolare visivamente l'intera colonna durante il trascinamento). Scarto deliberato: `row.getVisibleCells()` rispetta già `state.columnOrder` da sé, quindi il corpo scatta alla posizione nuova al rilascio invece di scivolarci — un `useSortable` per cella per riga avrebbe un costo che cresce con `dati`, proprio dove virtualizzazione (M3bis.4) e Data Grid (M3bis.5) esistono apposta per tenerlo basso, e il criterio di `PIANO.md` non chiede un fotogramma per fotogramma sul corpo.
+
+**A differenza di `riordinabile` (righe), `colonneRiordinabili` non spegne niente**: `PIANO.md` lo chiede esplicitamente («sicuro da combinare con ordinamento/filtri/virtualizzazione») — l'indice di partenza e d'arrivo si calcola sull'ordine delle **intestazioni** (`intestazioni.map(h => h.column.id)`), che non dipende da quali righe sono visibili o in che ordine, a differenza del riordino di riga dove l'indice viene dalle righe stesse. Story `Riordino Colonne`: stesse `COLONNE_RIDIMENSIONABILI` di `Ridimensionabile` (M3bis.3), con `ridimensionabile` **e** `colonneRiordinabili` insieme — il criterio d'accettazione di `PIANO.md` («compatibilità verificata con resize colonne nella stessa story»), non una comodità.
+
+Le tre colonne che il blocco aggiunge da sé (selezione, espansione, maniglia di riordino riga) restano fuori dal riordino — `COLONNE_UTILITY`, un insieme di id fissi — e non ricevono la maniglia: non sono "una colonna" nel senso di quelle dichiarate da `colonne`, sono chrome del blocco. `columnOrderingFeature` (TanStack v9) registrata sempre in `caratteristiche`, come le altre di M3bis.3 — nessun `enable*` da spegnere, a differenza di resize/pin: la feature non ne ha uno, `state.columnOrder` resta uno stato interno del blocco (`ordineColonne`) finché nessuna pagina chiede di salvarlo.
+
+### Coda — il riordino da tastiera era muto, e lo era anche su M3bis.7 (2026-09-17)
+
+Verificato con Playwright reale (Chromium, storybook-static su `python3 -m http.server`, stessa disciplina di M2.3/M3bis.7): il mouse riordinava le colonne correttamente, ma `Tab` sulla maniglia + `Spazio` (afferra) + `ArrowLeft` + `Spazio` (rilascia) **non spostava niente** — misurato a fotogrammi, la maniglia scivolava di 25px in stile libero (`translate3d(-25px, 0, 0)`) e tornava al proprio posto al rilascio, senza mai attraversare il confine della colonna vicina (140-220px di larghezza).
+
+**La causa**: `useSensor(KeyboardSensor, {})` usa il `coordinateGetter` predefinito di `@dnd-kit/core` — un passo fisso di 25px in stile libero, pensato per un trascinamento senza vicini noti, non per un elenco ordinabile. Serve `coordinateGetter: sortableKeyboardCoordinates` (da `@dnd-kit/sortable`, non `@dnd-kit/core`): quello salta **alla posizione della prossima/precedente voce nell'elenco**, qualunque sia la sua dimensione — la stessa nozione di "vicino" che il mouse usa con `closestCenter`.
+
+**Lo stesso difetto era già in `DataTableRiordinoRighe` (M3bis.7)**, chiusa con lo stesso `useSensor(KeyboardSensor, {})` — ma lì passava per buono: una riga alta 38-48px è quasi sempre superata da un passo fisso di 25px (specie su più pressioni, dove ogni passo si misura contro un layout già in parte riordinato dal passo precedente), quindi il criterio d'accettazione di `PIANO.md` («riordino completo da tastiera») risultava vero *per un margine che quella story non esponeva mai* — non per costruzione. Una colonna, molto più larga di una riga, ha reso visibile un difetto che c'era già.
+
+**Corretto in entrambi i punti** (`DataTableRiordinoRighe` e `DataTableRiordinoColonne`): `useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })`. Riverificato con Playwright su entrambe le story: `Riordino` (righe) sposta ancora `RA-191` da indice 0 a indice 2 con due `ArrowDown` — lo stesso esito già a verbale in M3bis.7, ora per il motivo giusto — e `Riordino Colonne` sposta `Nome` davanti a `Codice` con un solo `ArrowLeft` (`sortableKeyboardCoordinates` salta alla posizione della colonna vicina in un solo passo, non a incrementi).
+
+### Verifiche
+
+`npm run check` verde sui cinque gate: **a11y 1196 scansioni (4 passate, +4 dalla nuova story) / 0 violazioni**. `tsc -b` ✔. `lint`: stessi quattro avvisi preesistenti, zero nuovi. `check:registry`: 0 errori, nessuna riga richiesta in `componenti-propri.json` (blocco, non sostituisce una primitiva). `misura:bersagli`: 2703 bersagli/299 story, 0 piccoli in entrambe le direzioni (la nuova maniglia è `size="icon"`, la stessa misura già a verbale). Mouse **e** tastiera verificati in Playwright reale su `Riordino Colonne` (drag di `Nome` davanti a `Codice`, sia da mouse sia da tastiera) e riverificati su `Riordino` (righe) dopo la coda. `registry.json`: `docs` di `tassullo-data-table` aggiornato con `colonneRiordinabili`; `dependencies` invariate (`@dnd-kit/*` già presenti da M3bis.7).
+
+Con questa sessione **M3bis.8 è chiusa**. Prossimo passo: M3bis.9 (menu di riga condiviso, dropdown e tasto destro), stesso worktree, dipende da M3bis.0.
+
+---
+
+## M3bis.9 — Menu di riga condiviso, dropdown e tasto destro (2026-09-17)
+
+Porting di "Row Context Menu Table" (niko-table, annotato non richiesto in M3bis.0, poi aperto come sessione a sé su richiesta di Francesco). Un solo elenco di voci si monta sia nella tendina «⋯» sia nel tasto destro sull'intera riga — **senza duplicare l'elenco**: `menu` è un `React.ReactNode` scritto una volta sola, la stessa istanza montata in due `Popup` di Base UI diversi (`DropdownMenuContent`/`ContextMenuContent`).
+
+**API**: nuovo prop `menuRiga={{ menu, enabledFor, ariaLabel }}` su `<DataTable>` — stesso principio di `pannelloRiga`/`selezione`: aggiunge da sé una colonna (`colonnaAzioniRiga`, in coda, non in testa come le altre — è un'azione, non un modo di leggere la riga) e non va scritta a mano. `enabledFor` esclude una riga da **entrambe** le vie con una domanda sola: la stessa funzione passata a `colonnaAzioniRiga` (per la tendina) e a `RigaCorpo` (per il tasto destro), non due controlli che potrebbero disallinearsi.
+
+**Come si condivide l'elenco**: due contesti nuovi, privati al blocco — `ContestoTipoMenuRiga` (`"dropdown" | "tastoDestro"`, letto da chi sceglie la primitiva) e `ContestoRigaMenu` (la riga corrente, `unknown` perché un `React.Context` non può essere generico). `RowMenuItem`/`RowMenuSeparator`/`RowMenuSub`, esportati, leggono il primo per rendere `DropdownMenuItem`/`ContextMenuItem` (stessa forma, `inset`/`variant`: sotto sono davvero i due originali shadcn, mai un terzo componente che li imiti) o l'equivalente `Separator`/`Sub`. `useDataTableRow<TDato>()`, esportato, legge il secondo — va chiamato da dentro una voce di menu, mai fuori: lancia un errore esplicito se il contesto vale `undefined`, non un valore finto.
+
+**Il tasto destro avvolge l'intera `<tr>`**, non un'altra colonna: `RigaCorpo` (già il punto in cui M3bis.7 avvolge la riga per il trascinamento) sceglie fra `<TableRow>` nuda e `<ContextMenu><ContextMenuTrigger render={<TableRow .../>} />…</ContextMenu>` a seconda di `menuRiga.abilitato` — lo stesso `<TableRow>`, passato come `render` al Trigger invece di duplicato, con Base UI che vi fonde `data-slot`/`onContextMenu`/il ref. Non tocca `useSortable`/`ContestoRigaTrascinabile`: le due funzionalità restano indipendenti nello stesso componente.
+
+**Scarto deliberato, annotato come per `pannelloRiga` (M3bis.4)**: il tasto destro non compone con `perPagina="virtuale"` — `DataTableVirtualizedBody` non passa da `RigaCorpo`, quindi nessuna `<tr>` virtualizzata è avvolta in un `ContextMenu`. La tendina «⋯» resta e funziona lì (è una cella come le altre), solo il tasto destro manca. Non è una perdita che conta: `context-menu.stories.tsx` lo scrive già a verbale — «il tasto destro non è una via d'accesso… ogni azione che sta lì deve stare anche altrove» — qui sta sempre anche nella tendina.
+
+**Story `Menu Riga Condiviso`** (non `Menu Riga`, per non confondersi con `Menu Di Riga` — la story preesistente della tendina scritta a mano su `COLONNE`): otto righe come `Riordino`, `menu` = un componente `MenuAzioniProdotto` che legge `useDataTableRow<Prodotto>()` e rende Modifica/Duplica/Elimina (`variant="destructive"`, non una classe di colore — la stessa trappola di `CLAUDE.md`). Due righe risultano `archiviato` nel dataset deterministico (una lo era già nel generatore, `MA-528`; una forzata a mano per essere sicuri, `AD-961`, indice 2) — entrambe correttamente escluse da `enabledFor: (p) => p.stato !== 'archiviato'`, il che ha mostrato la regola funzionare sul campo dato reale, non solo sull'indice scelto a mano.
+
+### Verifiche
+
+**Il pannello del browser dell'app non basta per la tastiera**, di nuovo (`CLAUDE.md`, la nota su `document.visibilityState`): `Invio` sulla tendina «⋯» non l'apriva lì (mouse sì), mentre in un browser vero funziona al primo colpo — non un difetto del componente, lo stesso limite di sempre dello strumento, non del codice. Verificato con Playwright reale (`storybook-static` servito via `http-server`, stessa disciplina di M2.3/M3bis.7/M3bis.8): `Tab` raggiunge la tendina della prima riga abilitata (il primo `dropdown-menu-trigger` incontrato è quello del menu «Colonne» nella barra — occorre filtrare per `aria-label` che comincia per «Azioni su», non fermarsi al primo match), `Invio` apre esattamente `['Modifica', 'Duplica', 'Elimina']`; il tasto destro sulla stessa riga apre lo **stesso identico array**, e lo stesso vale su una seconda riga diversa (`MA-268`) — le voci vengono dalla stessa istanza, non da due copie che potrebbero divergere. La riga esclusa non ha la tendina nel DOM e il tasto destro su di lei non apre niente. `useDataTableRow` risolve la riga giusta anche nella tendina: cliccando «Modifica» sulla riga `MA-268` il gestore riceve `MA-268`, non un'altra.
+
+`npm run check` verde sui cinque gate: **a11y 1200 scansioni (4 passate, +4 dalla nuova story) / 0 violazioni** — misurato sia sulla tendina (già coperta da story preesistenti) sia sul tasto destro (`play: apriColDestro('[data-slot="context-menu-trigger"]', 'context-menu-content')` sulla nuova story, prima misura di quel popup specifico su questa tabella). `tsc -b` ✔. `lint`: stessi avvisi preesistenti, zero nuovi. `check:registry`: 0 errori. `misura:bersagli`: 2720 bersagli/300 story, 0 piccoli in entrambe le direzioni (la tendina è la stessa `size="icon"` di sempre). `registry.json`: `@tassullo/context-menu` aggiunto a `registryDependencies` di `tassullo-data-table` (nuova dipendenza vera: il blocco ora importa anche da `ui/context-menu.tsx`), `docs` aggiornato con `menuRiga`; `registry:build` rilanciato, `public/r/tassullo-data-table.json`/`public/r/registry.json` committati.
+
+Con questa sessione **M3bis.9 è chiusa**. Prossimo passo: M3bis.10 (editing in-riga leggero, `getRowMemoKey`), stesso worktree, dipende da M3bis.0.
+
+---
+
+## M3bis.10 — Editing in-riga leggero, `chiaveMemoRiga` (2026-09-17)
+
+### Una rettifica, prima di scrivere codice
+
+M3bis.0 (WORKLOG, coda) diceva: «`getRowMemoKey` (già nel nostro `data-table.tsx` core, M3.3) fa ri-renderizzare solo la riga in modifica». **Non era vero**: `grep` sul file non trova niente, e non può esserci — `getRowMemoKey` non è un'API di TanStack Table (verificato in `node_modules/@tanstack/table-core`), è un prop **di niko-table stesso**, del suo componente `<DataTableBody>`, letto oggi per la prima volta sulla pagina vera (`https://niko-table.com/examples/inline-edit-table/`, non solo il riassunto di M3bis.0). `data-table.tsx` non aveva **nessuna** forma di memoizzazione per riga prima di questa sessione — ogni riga era un `<tr>` inline dentro `.map()`, ricalcolato a ogni render del corpo, come tutte le otto capacità precedenti della fase si aspettano. Annotato qui perché lo vuole `CLAUDE.md` («uno scostamento… mai in silenzio») e perché la sessione futura che leggesse M3bis.0 alla lettera avrebbe presunto un meccanismo che non c'era.
+
+### Il pattern vero, letto da niko-table
+
+Dalla pagina "Inline Edit Table": `<DataTableBody>` di niko avvolge **ogni** riga in `React.memo`, sempre. `getRowMemoKey(row)` è la via d'uscita per lo stato che vive fuori da `data` — torna `""` per ogni riga che non c'entra (nessun cambio, nessun render) e una stringa che porta bozza/errori per la riga in modifica. Le colonne si ricostruiscono (`useMemo` su `editingId`/`draft`/`errors`) perché le chiusure di `cell` devono vedere lo stato fresco.
+
+### L'adattamento: `chiaveMemoRiga`, e perché non è un `React.memo` cieco
+
+Portare **solo** `getRowMemoKey` senza il resto dell'architettura di niko è il punto delicato di questa sessione: niko-table memoizza *ogni* riga di *ogni* tabella per costruzione, mentre qui otto capacità (`M3bis.1`-`M3bis.9`) già `DONE` non passano nessuna chiave e non devono smettere di ri-renderizzare quando cambiano selezione, ordinamento, resize/pin/riordino colonne, espansione. **Verificato leggendo `node_modules/@tanstack/table-core`**: gli oggetti `Row` restano gli stessi riferimenti quando cambia solo `rowSelection`/`columnOrder`/`columnSizing`/`columnPinning`/`columnVisibility` (quegli stati non sono dipendenze del modello di riga core — solo `data`/`columns` lo sono), quindi un comparatore che guardasse solo `riga === riga` **romperebbe silenziosamente** la casella di selezione, il riordino colonne (M3bis.8) e il pin (M3bis.3) di ogni riga che non fosse quella appena toccata.
+
+Soluzione, in `data-table.tsx`: `RigaTabellaCorpo` (nuovo, `React.memo` con comparatore proprio) prende `selezionata`/`espansa` **come prop esplicite** (mai richiamando `riga.getIsSelected()` da dentro il comparatore, che guarda solo le prop) e una `strutturaColonne` — un'impronta di `columnOrder`/`sorting`/`columnSizing`/`columnPinning`/`columnVisibility`, ricalcolata una volta per render da `DataTableBody` e uguale per ogni riga — che forza il ri-render di **tutte** le righe quando cambia qualunque di quegli assetti. Il comparatore **senza `chiaveMemoRiga`** (`chiaveMemo === undefined`) torna sempre `false` ("diverse"): nessuna memoizzazione, comportamento bit-per-bit invariato per le otto capacità che non lo passano — verificato con `npm run check` per intero (nessuna regressione sulle story esistenti) prima di considerare la sessione chiusa.
+
+**Non compone con `perPagina="virtuale"`** (scarto annotato, come `pannelloRiga` e il tasto destro di `menuRiga` con la stessa prop): `DataTableVirtualizedBody` ricalcola già ogni riga a ogni scorrimento per misurarne l'altezza (`measureElement`), e `tabIndex`/`onFocus`/`onKeyDown` lì sono chiusure nuove a ogni render — comporre la memoizzazione avrebbe voluto dire riscrivere anche quella parte, senza un caso reale che lo richieda (nessuna pagina edita un campo su 10.000 righe virtualizzate). `chiaveMemoRiga` si passa perciò solo a `DataTableBody`, mai a `DataTableVirtualizedBody`.
+
+### La story `Editing In Riga`
+
+Otto prodotti (non 500: la colonna «Render» si legge a occhio solo su un elenco corto). Stato di editing fuori da `dati` (`useEditingInRiga`, porting di `useInlineEdit`): `editingId`/`bozza`/`errori` sono `useState` separati, `salva()` tocca `prodotti` una volta sola. Due campi editabili (`Nome`, testo obbligatorio; `Revisione`, numero positivo), errore mostrato sotto il campo senza chiudere l'editing (`aria-invalid`/`aria-describedby`, non solo il bordo rosso — `CLAUDE.md`, `destructive` è colore di fondo, il testo vuole `destructive-subtle-foreground`). La colonna «Render» è lo strumento della story, non un dato del prodotto: un contatore per riga in un `useRef` (mai in uno stato, o romperebbe da sé la memoizzazione misurata), incrementato solo quando la cella si ricalcola davvero.
+
+**Verificato in Chromium reale** (Playwright via il pannello, non a occhio): digitando nel campo `Nome` della prima riga il suo contatore avanza a ogni cambio di valore, le **altre sette righe restano ferme a 1** — la prova diretta del criterio d'accettazione. `Invio` salva (verificato con un `keydown` reale, non solo il click sulle icone) e **tutte** le righe avanzano di uno insieme all'uscita — corretto, non un difetto: uscire dall'editing ricostruisce le colonne (`useMemo` su `editingId`), TanStack ricrea ogni `Row` da capo, e il comparatore lo vede giustamente come "diverse". `Esc` annulla senza toccare `prodotti`. Un nome vuoto mostra «Il nome è obbligatorio» sotto il campo, `aria-invalid="true"`, `aria-describedby` collegato, editing **ancora aperto** — verificato leggendo l'attributo dal DOM dopo l'`Invio`, non dedotto dallo screenshot.
+
+### Verifiche
+
+`npx tsc -b` pulito. `npm run lint` — nessun avviso nuovo (l'unico su `data-table.tsx` è preesistente, `useVirtualizer` in `DataTableVirtualizedBody`, non toccato da questa sessione). `npm run check` verde sui cinque gate: `check:contrast` 0 violazioni, `check:registry` 0 errori (18 componenti ri-stilati, `componenti-propri.json` resta vuoto — `chiaveMemoRiga` è una prop del blocco, non un componente nuovo), `check:font`/`check:logo` allineati, `test:a11y` **1204 scansioni (4 passate), 0 violazioni**. `npm run misura:bersagli`: 2735 bersagli su 301 story, 0 piccoli in entrambe le direzioni — le tre icone nuove (matita/spunta/croce, `size="icon"`) non hanno introdotto un bersaglio sotto soglia. `registry:build` rilanciato, `public/r/tassullo-data-table.json`/`public/r/registry.json` aggiornati.
+
+### Coda di M3bis.10 (2026-09-17): tre rilievi di Francesco sulla story
+
+Tre difetti visti a occhio sulla story `Editing In Riga`, nessuno nella logica di `chiaveMemoRiga` — tutti nella colonna `azioni` scritta per la story, non nel blocco.
+
+1. **Matita, spunta e croce non ancorate a destra.** La matita era un `<Button>` nudo e la coppia Salva/Annulla un `<div className="flex gap-1">` senza `ml-auto`: entrambe scivolavano a sinistra non appena la colonna era più larga del loro contenuto. Corretto con `-my-1 ml-auto flex` — la stessa classe che la colonna `azioni` di `COLONNE` (in cima al file) già usa per il proprio bottone, qui semplicemente non riportata.
+2. **La croce usciva dalla cella.** `w-16` (64px) bastava per un solo bottone (`size="icon"`, 32px) ma non per due affiancati — misurato: area di contenuto ~40px dopo il padding della cella, 70px di bottoni + gap non ci stavano, e `truncate` (regola del blocco su ogni `TableCell`) la tagliava a metà senza errore. Portata a `w-24` (96px).
+3. **La riga cambiava altezza passando in modifica** (41px → 49px, misurato in Chromium): l'`Input` di default (`h-8`, 32px in densità normale) è più alto della riga a riposo, e senza compensazione la fa crescere. La stessa cosa succede da sempre ai bottoni-icona delle celle (`size-8`, 32px) e la si tiene a freno con un margine verticale negativo — `-my-1 ml-auto flex` sulla colonna `azioni`, già in uso da prima di questa sessione — che annulla lo scarto rispetto al padding della cella. Applicata la stessa `-my-1` ai due `Input` (`Nome`, `Revisione`): **41px misurati in entrambi gli stati**, non un numero scelto a occhio.
+
+Il primo rilievo non richiedeva misura, gli altri due sì: diagnosticati leggendo `getBoundingClientRect()` in Chromium reale (via il pannello, `javascript_tool`), non a occhio dallo screenshot — lo stesso principio già a verbale per le transizioni e la tastiera dei popup (`docs/DECISIONI.md` §32, `CLAUDE.md`). Tre commit separati, ciascuno verificato con `check:registry` + `test:a11y -- --una` prima del successivo. Nessuna modifica a `data-table.tsx`: i tre difetti stavano tutti nella story, `chiaveMemoRiga` e `RigaTabellaCorpo` restano quelli descritti sopra.
+
+### Verifiche di chiusura fase
+
+`npm run check` per intero (i cinque gate) rilanciato dopo i tre commit di coda: verde, `test:a11y` 1204 scansioni/0 violazioni (invariato — nessuno dei tre rilievi tocca l'accessibilità). `registry:build` non necessario: nessuna modifica a `registry/tassullo/blocks/data-table.tsx`, solo alla story.
+
+Prossimo passo: **M3bis.11** (aggiornamento di `pagina-lista` e gate di fase), stesso worktree, dipende da M3bis.1..M3bis.10.
+
+### 2026-09-17 — M3bis.11 divisa in due sessioni, su richiesta di Francesco
+
+Prima di avviare M3bis.11, Francesco ha chiesto di dividerla: le pagine da rivedere con le capacità di FASE 3bis sono due, non una, e sono cose diverse — `pagina-lista` (M4.2, item di registry `registry:block`, pagina modello generica) e la pagina Prodotti di Anagrafe (`stories/PaginaProdotti.stories.tsx`, ricostruzione a scopo di verifica nata come gate di FASE 3 in M3.10, **non** un item di registry — v. §Le due trappole più sopra dove si distingue `stories/` dal registry). `pagina-scheda` resta esclusa, come già annotato in `PIANO.md` §M3bis.11 (le menzioni di `data-table` lì sono solo commenti).
+
+`CHECKLIST.md` aggiornata: la riga `M3bis.11` è ora due — **M3bis.11a** (`pagina-lista`) e **M3bis.11b** (pagina Prodotti, dipende da 11a, porta il gate di fase). FASE 3bis passa da 13 a 14 sessioni (nota di testa aggiornata).
+
+Prossimo passo: **M3bis.11a** — `pagina-lista`, almeno un esempio rappresentativo delle capacità aggiunte in M3bis.1..10, screenshot prima/dopo.
+
+### 2026-09-17 — M3bis.11a: `pagina-lista` con le capacità di FASE 3bis
+
+**Scelta di ambito.** Delle otto capacità aggiunte in M3bis.1..10, solo alcune hanno senso su una pagina **sola lista** come `pagina-lista` (Prodotti, Norme, Certificazioni…): resize/pin/riordino colonne (M3bis.3, M3bis.8) e il menu di riga condiviso (M3bis.9). Tree con subtotale, espansione, virtualizzazione e Data Grid editabile (M3bis.1, 2, 4, 5) sono il pattern del caso reale "Computo" — una tabella di calcolo, non un elenco — e forzarli su Norme solo per completezza avrebbe prodotto un esempio artificiale. Il conto «un esempio di ciascuna capacità» (Gate di FASE 3bis, `PIANO.md`) si chiude su **M3bis.11b**, dove la pagina Prodotti reale di Anagrafe dà a ciascuna capacità un caso concreto o la ragione per cui non si applica.
+
+**`pagina-lista.tsx`**: `PaginaListaProps` inoltra ora cinque prop di `DataTable` che prima si fermavano al blocco — `idRiga`, `ridimensionabile`, `colonneBloccabili`, `colonneRiordinabili`, `menuRiga` — tutti passati con lo stesso tipo di `DataTableProps<TDato>`, nessuna rideclare a mano.
+
+**`pagina-lista.stories.tsx`**: due story nuove sulle stesse Norme finte.
+- **`Colonne`** — `ridimensionabile` + `colonneBloccabili` + `colonneRiordinabili` insieme, stessa combinazione già provata su `DataTable` nudo (`data-table.stories.tsx`, `Riordino Colonne`): qui la prova è che compongono anche dentro `PaginaLista`. Colonne riscritte con `size`/`minSize` al posto di `meta.larghezza` (obbligatorio quando `ridimensionabile`, v. il commento su `MetaColonna`).
+- **`Menu Riga`** — `menuRiga` con `<MenuAzioniNorma />` (Modifica/Duplica/Elimina, `useDataTableRow`), la stessa forma di `MenuRigaCondiviso` in `data-table.stories.tsx`. Verificato in Chromium reale: tendina «⋯» e tasto destro aprono lo stesso menu sulla stessa riga.
+
+**Un rilievo di misura, non di prodotto.** Il primo tentativo di `play` per `Menu Riga` puntava al primo `[data-slot="dropdown-menu-trigger"]` della pagina — ma `PaginaLista` vive dentro `<AppShell>`, che monta **prima** nel DOM il proprio menu utente (stesso slot, sidebar in basso a sinistra). L'imbracatura ha aperto quello, non la tendina della riga, e l'ha scoperto da sola: il `waitFor` sul contenuto falliva a un clic ravvicinato ma non su un `page-header`/`data-table` isolato — perché lì il grilletto è uno solo. **`npm run test:a11y` era comunque passato a zero violazioni**, ed è la stessa lezione già a verbale (`CLAUDE.md`, «un popup non aperto non è un popup senza violazioni»): il menu **sbagliato** si apriva comunque, quindi il gate misurava un popup vero — solo non quello dichiarato. Corretto restringendo il selettore a `tbody [data-slot="dropdown-menu-trigger"]`, che nel DOM esiste solo dentro le celle di `colonnaAzioniRiga`. Non è un difetto di `data-table.tsx` o di `pagina-lista.tsx`: è la prima volta che una story di questo registry compone `menuRiga` **dentro** un guscio che ha già un proprio menu a tendina, e la regola per chi scriverà `M3bis.11b` (stesso guscio, stessi popup potenzialmente ambigui) è la stessa: il selettore del grilletto va scritto pensando a *tutti* i `dropdown-menu-trigger` della pagina, non solo a quello del blocco che si sta misurando.
+
+### Verifiche
+
+`npx tsc -b` pulito. `npm run lint` — solo i 3 avvisi preesistenti (`carousel.tsx` ×2, `use-mobile.ts`, `data-table.tsx`/`useVirtualizer`, nessuno nuovo). `npm run check:registry` — 0 errori, 52 avvisi (tutti valori ereditati da shadcn upstream, nessuno nuovo), `componenti-propri.json` resta vuoto. `npm run build-storybook` pulito. `npm run test:a11y` — **1212 scansioni (4 passate), 0 violazioni** (1204 → 1212, le due story nuove). `npm run check` per intero: cinque gate verdi.
+
+Verificato in Chromium reale (Storybook via `preview_start`, porta 6006/autoPort — nessun conflitto con l'altro workbench su 5180): `Colonne` — il pin apre "Blocca a sinistra/destra" sulla colonna "Codice"; `Menu Riga` — la tendina apre Modifica/Duplica/Elimina sulla prima riga, `Interactions` verde («RUNS», 3 passi).
+
+Prossimo passo: **M3bis.11b** — pagina Prodotti di Anagrafe (`stories/PaginaProdotti.stories.tsx`), gate di fase: `check` verde su tutti e cinque i gate, e per ciascuna delle capacità di FASE 3bis un caso reale o la ragione scritta per cui non si applica.
+
+### Coda di M3bis.11a (2026-09-17): rilievo di Francesco, `select-none` sulle maniglie di riordino
+
+**Il difetto**: durante il trascinamento di un'intestazione (story `Colonne`), Safari mostrava un'anteprima nativa di drag-and-drop — testo enorme e deformato, i titoli di due colonne sovrapposti — al posto dello spostamento pulito di dnd-kit. Francesco l'ha screenshottato da Safari vero (non riproducibile nel Chromium di questa sessione: è esattamente la stessa divergenza già a verbale su `ManigliaRidimensiona`, M3bis.3 — «Chrome la sopprime da sé qui, WebKit no»). **Non è un difetto della pagina**: la stessa maniglia (`ManigliaRiordinoColonna`, M3bis.8) è nel blocco `data-table.tsx`, quindi il difetto era già in produzione su `data-table.stories.tsx` (story `Riordino Colonne`) — la pagina l'ha solo reso visibile per prima.
+
+**La causa**: `ManigliaRiordinoColonna` e `ManigliaRiordinoRiga` (M3bis.7, stessa forma) portano ciascuna uno `<span className="sr-only">` col nome accessibile — invisibile ma pur sempre testo nel DOM. Senza `select-none`, un `mousedown` che parte lì è per Safari l'inizio di una selezione di testo, e trascinandola genera l'anteprima nativa che si vede nello screenshot: non un bug dei dati o del calcolo dell'ordine, un conflitto fra il testo nascosto e il gesto di dnd-kit. Il rimedio già in uso per il resize (`ManigliaRidimensiona`) è `preventDefault()` nel proprio `onMouseDown` — qui non applicabile senza riscrivere l'integrazione con `useSortable`, che possiede già l'handler tramite `contesto?.listeners`; il rimedio equivalente è togliere il testo dalla contesa con `user-select: none` (`select-none`).
+
+**Corretto in `data-table.tsx`**: `select-none` aggiunta a entrambe le maniglie (`ManigliaRiordinoColonna`, `ManigliaRiordinoRiga`), con un commento che rimanda a `ManigliaRidimensiona` per chi incontra la stessa famiglia di difetto altrove. Verificato: `tsc -b` pulito, `lint` invariato (i 3 avvisi preesistenti), `check` verde sui cinque gate, `test:a11y` 1212 scansioni/0 violazioni (nessuna story nuova, solo una classe). Riordino colonne riprovato in Chromium (drag reale, non `play`): nessuna regressione — la stessa divergenza per cui il difetto non compariva lì impedisce anche di vedere la correzione lì, la prova resta sulla lettura del codice e sul precedente di M3bis.3.
+
+**Non serve toccare altre pagine**: `DataTable`/`PaginaLista` compaiono solo in `pagina-lista.*` e in `stories/PaginaProdotti.stories.tsx` — verificato (`grep -rl DataTable registry/tassullo/pages stories`). `pagina-scheda` non la usa (solo menzioni in commento, `PIANO.md`). Il fix su `data-table.tsx` copre entrambe da sé, essendo nel blocco: **M3bis.11b** (Prodotti) erediterà `select-none` senza bisogno di ulteriori modifiche.
+
+**Rettifica, stessa sessione: il primo `select-none` non bastava.** Francesco ha riprovato dopo il fix e il difetto c'era ancora — con una precisazione che ha smontato la diagnosi: **si riproduce anche in Chrome**, non solo in Safari. La nota già a verbale su `ManigliaRidimensiona` («Chrome la sopprime da sé, WebKit no») non si applicava qui: quella riguardava un bersaglio di trascinamento (`role="separator"`) senza testo vicino, questo un bersaglio minuscolo (`size="icon"`, la maniglia `⠿`) **accanto** al testo del bottone d'ordinamento («Codice»). Un trascinamento che parte un pixel a destra della maniglia atterra sul bottone — che non aveva `select-none` — e la selezione/il trascinamento nativo del titolo parte in entrambi i motori, non per una divergenza WebKit.
+
+**Corretto per davvero**: `select-none` spostato dal solo bottone-maniglia a **tutto** il contenitore dell'intestazione trascinabile (`<div className="flex select-none items-center gap-1">` in `CellaIntestazione`) — copre maniglia, titolo e menu-pin insieme, così qualunque punto di partenza del trascinamento dentro l'intestazione è coperto, non solo l'icona. Riprodotto **prima** del fix in Chromium facendo partire il trascinamento sul testo "Codice" invece che sulla maniglia (coordinate spostate di ~15px a destra rispetto al centro dell'icona); **dopo** il fix, stesso gesto: nessuna selezione residua (`window.getSelection().toString()` vuoto), nessuna anteprima deformata. `check` verde sui cinque gate, `test:a11y` invariato (1212/0 — solo classi, nessuna story nuova).
+
+### Coda di M3bis.11a (2026-09-17): terzo rilievo, il vero difetto era `CSS.Transform` invece di `CSS.Translate`
+
+Francesco ha riprovato dopo il secondo fix: il testo si deformava ancora, ma stavolta con una precisazione che ha smontato anche la seconda diagnosi — **"non è solo l'icona, è tutto warpato quando sposto Codice a destra. Appena passo sopra Titolo si warpa tutta l'intestazione della colonna che sto trascinando"**. Non un'anteprima nativa del browser (quella si vede una volta, ferma, non "durante" il gesto): un artefatto **live**, mentre l'intestazione trascinata scivola sopra un'altra.
+
+**Diagnosi, senza indovinare**: seguito il consiglio di Francesco — leggere di nuovo il sorgente vero di niko-table invece di ragionare a tavolino — e riscaricato `https://niko-table.com/r/data-table-column-dnd.json` (`TableDraggableHeader`, `filters/table-column-dnd.tsx`). Lì lo stile del trascinamento è `transform: CSS.Translate.toString(transform)`. Il nostro `CellaIntestazione` (M3bis.8) scrive `CSS.Transform.toString(transform)` — **stesso hook, funzione diversa**: `CSS.Transform` porta anche `scaleX`/`scaleY`, che dnd-kit calcola quando le due intestazioni che si scambiano hanno **larghezze diverse** (qui la norma: `size`/`minSize` per colonna, non un'eccezione); `CSS.Translate` scarta la scala e trasla soltanto. Uno `scaleX` applicato a un'intestazione di testo **è** il testo deformato — e spiega perché si vedeva "appena passo sopra Titolo" (140px → 320px, uno scarto di scala vero) e non fra colonne di larghezza uguale, e perché si riproduceva in Chrome **e** Safari (un calcolo di stile, non una divergenza fra motori come la nota su `ManigliaRidimensiona`).
+
+**Corretto in `data-table.tsx`**: `CSS.Transform` → `CSS.Translate` in `CellaIntestazione` (M3bis.8, il difetto vero) e, per la stessa causa e lo stesso rischio, anche in `RigaCorpo` (M3bis.7) — lì più raro perché le righe sono quasi sempre alte uguali, ma la stessa combinazione (`useSortable` + righe di altezza diversa, es. `pannelloRiga`/editing in-riga) potrebbe produrlo. `CSS` resta importato per intero da `@dnd-kit/utilities` — `CSS.Translate` è nello stesso namespace, nessun import nuovo.
+
+**Limite di questa sessione, onestamente annotato**: non sono riuscito a **catturare a schermo** il fotogramma dal vivo, prima o dopo il fix — gli strumenti di automazione di questa sessione hanno solo un gesto di trascinamento atomico (pressione-movimento-rilascio in un'unica chiamata), senza un fermo immagine a metà. La correzione è verificata per lettura di codice (stessa causa, stesso meccanismo di `TableDraggableHeader`, la fonte che l'intero porting M3bis.8 dichiara di seguire) e per il fatto che il reindirizzamento del comportamento sotto `check`/`test:a11y` resta identico (il riordino Codice↔Titolo, coppia esatta del rilievo, funziona invariato dopo il cambio). **Da confermare da Francesco nel proprio browser** prima di chiudere la coda per davvero.
+
+Verificato: `tsc -b` pulito, `lint` invariato (i 3 avvisi preesistenti), `check` verde sui cinque gate, `test:a11y` 1212/0 (nessuna story nuova, solo due righe di stile).
+
+### Coda di M3bis.11a (2026-09-17): le capacità vanno sulla pagina "vera", non in una story a parte
+
+Ultimo rilievo di Francesco: "Con Dati" e "Poche Righe" — le story che chiunque guarda per prime — restavano con la tabella di prima (colonne fisse, nessun menu riga), mentre `Colonne` e `Menu Riga` duplicavano lo stesso caso Norme isolato. Chi apre la pagina non vede mai le capacità nuove se restano in una story a sé.
+
+**Unificato**: `COLONNE` e `COLONNE_RIDIMENSIONABILI` erano due definizioni delle stesse quattro colonne (una con `meta.larghezza`, una con `size`/`minSize`) — ora una sola, con `size`/`minSize` (obbligatorio con `ridimensionabile`) **e** la cella-link di "Codice" che prima solo `COLONNE` aveva. `idRiga`/`ridimensionabile`/`colonneBloccabili`/`colonneRiordinabili`/`menuRiga` sono ora prop di `Norme`, il componente condiviso da `ConDati`, `PocheRighe`, `Caricamento`, `Errore`, `VuotoIniziale` — non di una funzione a parte. Rimosse le story `Colonne` e `MenuRiga` e le loro funzioni (`NormeColonne`, `NormeMenuRiga`, `COLONNE_RIDIMENSIONABILI`), diventate ridondanti; il `play` che dichiara l'apertura del menu di riga (`tbody [data-slot="dropdown-menu-trigger"]`) si è spostato su `ConDati`.
+
+Verificato in Chromium: `Con Dati` mostra pin/maniglie di riordino sulle intestazioni e il menu di riga aperto (Modifica/Duplica/Elimina) insieme a ricerca, filtro ente e "Nuova norma"; `Poche Righe` idem, piè fermo invariato. `tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` **1204 scansioni (4 passate)/0 violazioni** (301 story, -2 rispetto a prima: le due story rimosse, non un calo di copertura — le stesse capacità restano, sulla pagina vera).
+
+Prossimo passo: **M3bis.11b** — pagina Prodotti di Anagrafe. Da chiarire con Francesco lo scopo esatto (in sospeso: quali fra filtri avanzati/riordino righe abbiano un caso reale sui dati di Prodotti, oltre a resize/pin/riordino colonne + menu riga già visti su Norme) prima di scrivere codice.
+
+### 2026-09-17 — Valutazione: un solo menu colonna per ordinamento e pin (niko-table)
+
+Ambito deciso per **M3bis.11b**: resize, pin, menu di riga (con test reale anche sul "Modifica", non uno stub), filtri sfaccettati. Prima di applicare **pin** a Prodotti, Francesco ha chiesto di valutare un'alternativa vista su niko-table — [«Column Pinning Table»](https://niko-table.com/examples/column-pinning-table/) — dove ordinamento e pin non sono due bottoni sempre visibili accanto al titolo (la nostra forma attuale, `IntestazioneColonna` + `MenuBloccaColonna`), ma un solo grilletto «⋮» che si rivela al passaggio del mouse (o resta acceso se la colonna è già ordinata/bloccata) e apre un menu con entrambe le famiglie di azioni insieme.
+
+**Letto il sorgente vero**, non indovinato: il nome del componente che l'esempio usa (`DataTableColumnActions`) non è un item scaricabile a sé — irraggiungibile ai primi tentativi (`data-table-column-actions.json` → 404). Trovato risalendo dagli import nella pagina dell'esempio (`https://niko-table.com/examples/column-pinning-table/`, il codice sorgente è incorporato nell'HTML della pagina): il file vive dentro l'item base `data-table` (`components/data-table-column-actions.tsx`, `filters/table-column-actions.tsx`), insieme a `data-table-column-title.tsx` (il titolo, tornato testo semplice, non più un bottone). Le due famiglie di opzioni (`TableColumnSortOptions`, in `data-table-column-sort.json`; `TableColumnPinOptions`, in `data-table-column-pin.json`) sono invece item a sé, pensati per essere composti dentro il contenitore comune.
+
+**Prototipo scritto come sola story** (`data-table.stories.tsx`, `MenuColonna` — "Menu Colonna (niko, in valutazione)"), **non un cambiamento al blocco**: `MenuAzioniColonna`/`IntestazioneColonnaAzioni` sono funzioni locali alla story, con le nostre primitive (`DropdownMenu`) e la stessa grammatica di scelta di `MenuBloccaColonna` nel blocco — un `disabled` sull'opzione già attiva, non un segno di spunta (niko usa `Check` + sfondo `accent`, coerenza con la nostra unica trappola di colore già a verbale non richiedeva quella scelta). Il grilletto: `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100`, `text-primary opacity-100` fisso se la colonna è già ordinata o bloccata — fedele all'originale.
+
+**Un errore preso e corretto prima del commit**: `DropdownMenuLabel` usata fuori da `DropdownMenuGroup` lancia `Base UI: MenuGroupContext is missing` — non un'eccezione nascosta, un **fallimento visibile** del gate a11y (`test:a11y` è passato da 0 a 2 violazioni, ma classificate `imbracatura` non un vero id di regola axe: il messaggio di errore non conteneva un id `rules/axe/...`, segno che non era axe a fallire ma il render stesso). Diagnosticato lanciando la sola story fallita (`VITE_POPUP=aperto npx vitest run --project=storybook -t "Menu Colonna"`), non l'intero gate: lo stack indicava `MenuGroupLabel` dentro Base UI, la stessa causa già nota per `MenuBloccaColonna`, che infatti la incapsula — dimenticata scrivendo la versione combinata. Corretto avvolgendo le due sezioni ("Ordina", "Blocca") ciascuna nel proprio `DropdownMenuGroup`.
+
+Verificato in Chromium: il grilletto sparisce del tutto a riposo su una colonna non attiva, resta acceso su una già bloccata; il menu aperto mostra "Ordina" (Crescente/Decrescente) e "Blocca" (a sinistra/a destra/Non bloccare) nello stesso popup. `tsc -b` pulito, `lint` invariato, `check:registry` 0 errori (nessun componente nuovo — è una story, non un componente registrato), `check` verde sui cinque gate, `test:a11y` **1208 scansioni (4 passate)/0 violazioni**.
+
+**Non ancora deciso**: se portare questa forma dentro `CellaIntestazione`/`IntestazioneColonna` nel blocco (sostituendo la maniglia di riordino a parte? Il grip di riordino colonne, M3bis.8, resta comunque un controllo a sé — un gesto di trascinamento non entra in un menu a tendina). Sessione a sé se Francesco conferma dopo il confronto a occhio con `Ridimensionabile`/`ColonneBloccabili`.
+
+### Coda, stessa sessione (2026-09-17): due rilievi di Francesco sullo screenshot
+
+1. **Pin duplicato.** Lo screenshot mostrava «⋮ 📌 Codice»: due grilletti di pin per la stessa colonna. Causa reale, non solo della story: `colonneBloccabili` (in `CellaIntestazione`, `data-table.tsx`) aggiunge **sempre** da sé `MenuBloccaColonna` accanto a qualunque `header` la colonna dichiari — un header personalizzato non ha modo di dirlo al blocco. Serviva un aggancio nel blocco, non solo nella story: `MetaColonna` ha ora `azioniProprie?: boolean`, che `CellaIntestazione` legge per **non** aggiungere il proprio `MenuBloccaColonna` quando la colonna dichiara di gestirsi da sé — `colonneBloccabili` resta acceso (il pin funziona lo stesso, `getCanPin()`/`pin()` non cambiano), spegne solo l'icona. Le quattro colonne di `COLONNE_MENU_AZIONI` lo dichiarano.
+2. **Il colore del pallino attivo era `text-primary`** — copiato alla lettera dal sorgente niko, che non ha la nostra regola. È esattamente la prima delle «due trappole» di `CLAUDE.md`: `--primary` è il brand, mai un colore di testo o icona. Corretto in `text-accent-ink`. Verificato via `getComputedStyle` in Chromium: il colore reso (`oklch(0.549 0.1456 48.87)`) coincide con `--accent-ink`, non con `--primary` (`oklch(0.795 0.1473 73.78)`) — non a occhio, misurato.
+
+`azioniProprie` è l'unica riga toccata in `data-table.tsx` per questa valutazione — additiva, non cambia il comportamento di nessuna colonna esistente (il flag è assente ovunque tranne qui). `tsc -b` pulito, `lint` invariato, `check:registry` 0 errori, `check` verde sui cinque gate, `test:a11y` 1208 scansioni/0 violazioni (invariato). Verificato in Chromium: un solo grilletto per intestazione, nessun pin duplicato.
+
+**Terzo rilievo, stessa sessione**: il pallino acceso non deve leggere come un accento a parte — stesso colore del titolo della colonna, non `text-accent-ink` (comunque corretto rispetto a `text-primary`, ma ancora un colore "in più"). Cambiato in `text-foreground`, lo stesso che eredita `<span>` in `IntestazioneColonnaAzioni`. `check` verde, invariato nel resto.
+
+### 2026-09-17 — Scopo di M3bis.11b confermato, non ancora eseguito
+
+Francesco ha confermato l'ambito della sessione **M3bis.11b** (pagina Prodotti di Anagrafe) senza volerla avviare ora — solo pianificazione, registrata qui e in `CHECKLIST.md` perché la sessione che la eseguirà parta senza dover ricostruire il contesto:
+
+1. **Resize** colonne (M3bis.3), come già su Norme.
+2. **Menu colonna** — non pin separato: la forma validata in `Menu Colonna` (`Blocchi/Data Table`, coda di questa sessione), un solo grilletto che compone ordinamento (righe crescenti/decrescenti) e pin. `MetaColonna.azioniProprie` è già nel blocco per questo. Manca ancora la decisione se questa forma sostituisce anche `IntestazioneColonna`/`MenuBloccaColonna` di default o resta un'alternativa opt-in — da chiarire scrivendo Prodotti, non prima.
+3. **Menu di riga condiviso** (M3bis.9) con azioni **testabili davvero**, non uno stub: "Elimina" apre `confirm-dialog` (già nel registry, `registry/tassullo/blocks/confirm-dialog.tsx`), la conferma toglie la riga dai dati finti della story e mostra `toast-con-annullo` (idem, già nel registry) — non un `console.info` come nelle story precedenti (`MenuAzioniNorma`, `MenuAzioniProdotto`). "Modifica" ha bisogno di un test reale altrettanto concreto: da decidere in sessione se una `responsive-dialog`/`form-field` (già nel registry, M3.4) o un rimando alla pagina scheda.
+4. **Filtri sfaccettati** (M3bis.6) su Famiglia e Tipo, al posto dei due `Select` semplici attuali — già descritto in dettaglio prima nella sessione (proposta 3, mai eseguita).
+
+Non incluso, deliberatamente: il riordino di colonna per trascinamento (`colonneRiordinabili`, M3bis.8) — l'elenco di Francesco non lo nomina, e il "menu colonna" già copre ordinamento+pin. Tree/subtotale, espansione, virtualizzazione, Data Grid restano il pattern "Computo", come già deciso.
+
+Prossimo passo: eseguire **M3bis.11b** con questo ambito.
+
+### 2026-09-17 — Conferma del menu colonna, e un difetto di allineamento preso in coda
+
+**Confermato**: dopo il confronto a occhio, Francesco ha approvato il menu colonna unico (ordinamento+pin). Tolto "(niko, in valutazione)" dal nome della story e dai commenti — resta comunque una story a sé in `Blocchi/Data Table`, non la forma di default di `CellaIntestazione`/`IntestazioneColonna`: l'adozione per Prodotti è nell'ambito di M3bis.11b già scritto sopra.
+
+**Rilievo indipendente, story `Riordino` (M3bis.7)**: la maniglia di trascinamento riga (`⠿`) non era centrata verticalmente nella cella — appariva più in alto dei numeri della colonna "Ordine" e delle altre celle della riga. **Stesso difetto già preso una volta**, per `colonnaEspansione` (M3bis.2): un `Button` (`inline-flex`) dentro una `<TableCell>` (`align-middle`) si allinea alla riga di base del testo, non al suo centro — serve un `<span className="flex items-center">` che lo avvolga, l'esatta correzione già in verbale lì (con lo stesso commento a spiegarne il perché). `ManigliaRiordinoRiga` (M3bis.7) non l'aveva mai ricevuta: due colonne-utility con lo stesso pattern (bottone-icona `size="icon"` con margini negativi), una corretta e una no, perché il rilievo del difetto era arrivato solo sulla prima. Misurato con `getBoundingClientRect()` in Chromium prima di intervenire: centro della cella a y=119.78, centro del grip a y=117.5 — 2.28px di scarto, coerente con l'allineamento a riga di base invece che al centro. Corretto avvolgendo il `Button` nello stesso `<span className="flex items-center">`, verificato a occhio dopo (grip allineato con "1", "2", …).
+
+Non toccata `colonnaAzioniRiga` (il menu «⋯», M3bis.9): usa un pattern diverso (`flex` sul `Button` stesso, non uno `<span>` che lo avvolge) e nessun rilievo l'ha segnalata — non è detto che sia sana, ma non si corregge un difetto non osservato.
+
+`tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` 1208 scansioni/0 violazioni (invariato — nessuna story nuova, solo classi e testo).
+
+### 2026-09-18 — M3bis.11b: pagina Prodotti di Anagrafe, gate di fase — **FASE 3bis chiusa**
+
+Eseguito l'ambito confermato il 2026-09-17 (v. sopra), tutto su `stories/PaginaProdotti.stories.tsx`, nessun tocco a `data-table.tsx`.
+
+**Resize + menu colonna unico.** Le sette colonne passano da `meta.larghezza` a `size`/`minSize` (`ridimensionabile`); l'intestazione di ognuna monta `IntestazioneColonnaAzioni`/`MenuAzioniColonna`, riscritte **in loco** — non importate da `data-table.stories.tsx`, che è un file di story del blocco, non un modulo condiviso. È la lettura della nota lasciata lì il 2026-09-17 («resta qui, non in `CellaIntestazione`»): la forma è confermata come alternativa opt-in di **pagina**, e adottarla su una seconda pagina significa riscriverla per il tipo di quella pagina, non esportarla. Ogni colonna dichiara `meta.azioniProprie: true` (altrimenti `colonneBloccabili` aggiungerebbe un secondo grilletto di pin, il difetto già preso il 2026-09-17). Verificato in Chromium: le sette maniglie di resize sul bordo destro di ogni intestazione, il grilletto «⋮» che compone Ordina/Blocca, "Blocca a sinistra" su Famiglia — la colonna si fissa a sinistra e scorre col resto.
+
+**Menu di riga con azioni vere, non `console.info`.** `MenuAzioniProdotto` legge la riga da `useDataTableRow<Prodotto>()` e inoltra il click a due callback della pagina (`onModifica`/`onElimina`), perché i due dialoghi che aprono vivono **fuori** dal menu — la stessa ragione per cui `confirm-dialog` (story `DaUnMenuDiRiga`) è controllato: cliccare una voce chiude il menu e lo smonta, e con lui si smonterebbe un dialogo montato dentro.
+
+- **Elimina**: `ConfirmDialog` controllato (`aperto`/`onApertoChange` sullo stato `inEliminazione`) → alla conferma la riga è tolta **subito** da `prodotti` (stato di pagina, non più un array costante) e si apre `toastConAnnullo` (D18): «Annulla» entro 5s la rimette (`onAnnulla`), altrimenti resta tolta. Provato col dito: Elimina su «Termo Adesivi» → 220→219 prodotti, toast con Annulla → clic Annulla → 220 di nuovo.
+- **Modifica**: `ResponsiveDialog` controllato (`open`/`onOpenChange` — prop inglesi di Base UI, non le `aperto`/`onApertoChange` italiane di `ConfirmDialog`: sono due componenti diversi con due API) monta `ModuloModificaProdotto`, un `form-field` con Denominazione/Famiglia/Variante e `zodResolver`. Il bottone «Salva» vive nel piè del dialogo, fuori dal `<form>` che sta nel corpo: li collega l'attributo HTML `form="modifica-prodotto"`, non uno stato in più. Provato col dito: cambiato il nome in «Termo Adesivi PROVATO», Salva, dialogo chiuso, la cella "Nome" della riga mostra il nuovo valore — non un console.log, una scrittura vera sullo stato della pagina.
+
+**Filtri sfaccettati Famiglia/Tipo**, al posto dei due `Select` semplici di prima: colonne con `filterFn: 'arrHas'`, `barra` nella forma a funzione (`(scelti, tabella) => …`, secondo argomento) per leggere l'istanza TanStack senza il render-indietro di `tabellaRef` (stessa nota di M3bis.6). Tipo passa `opzioni` statiche (`LABEL_TIPO`) perché senza le etichette derivate sarebbero i valori grezzi (`materia_prima`, non «Materia prima»); Famiglia usa la derivazione automatica, già in maiuscolo corretto. **Stato resta un `Select` esterno**, come da ambito confermato — non tutto è diventato sfaccettato, solo le due colonne indicate. Provato col dito: Famiglia → «Massetti» → 220 → 30 prodotti, badge del filtro attivo sulla barra, conteggi per opzione visibili nel popover.
+
+**Un dettaglio unico su cui inciampare, annotato perché muto**: cliccare un grilletto appena aperto da un altro (⋮ colonna dopo il menu di riga, o viceversa) a volte non apre nulla al primo colpo — il clic chiude il popup precedente invece di aprirne uno nuovo, e serve un secondo clic. Non è un difetto del blocco: è lo stesso comportamento di Base UI già noto altrove nel registry (un clic che chiude un popup aperto conta come "fuori", non arriva al nuovo trigger). Non ha prodotto nessuna violazione — il gate misura lo stato a riposo o il popup dichiarato aperto, mai la transizione fra due.
+
+`tsc -b` pulito, `lint` invariato (stessi 4 avvisi preesistenti, nessuno nuovo), `check` verde sui cinque gate, `test:a11y` **1208 scansioni/0 violazioni** (invariato: nessuna story nuova, solo `ConDati` più composita). `npm run check:registry` non guarda `stories/` (solo `ui/`/`blocks/`): 0 errori, invariato.
+
+**FASE 3bis chiusa: 14/14 sessioni `DONE`.** Prossimo passo: **M4.4 `pagina-dashboard`** (FASE 4, indipendente da FASE 3bis).
+
+### Coda di M3bis.11b (2026-09-18): tre rilievi di Francesco, uno è un difetto vero del blocco
+
+**1) Il pin ridondante sulla colonna «azioni».** Con `colonneBloccabili`, la colonna utility «azioni» (`colonnaAzioniRiga`, montata da sé da `menuRiga`) riceveva anche lei un proprio `MenuBloccaColonna` — un secondo modo di bloccare, quando il pin è già raggiungibile dal menu «⋮» di ciascuna colonna vera. **Tolto in `data-table.tsx`**: `colonnaAzioniRiga` dichiara ora `meta.azioniProprie: true`, la stessa via già usata per le colonne di `PaginaProdotti` — resta bloccabile via API, non mostra più l'icona.
+
+**2) Stato: da `Select` a `toggle-group`.** «Filtro come gli altri a sinistra, questo è booleano — come lo risolviamo?» Tre vie che si cliccano non sono un elenco che si apre: `ToggleGroup` a scelta singola (`Attivi e non`/`Attivi`/`Disattivi`), la stessa primitiva che `toggle-group.stories.tsx` documenta apposta per questo — «il nome dice la funzione, non l'aspetto», e uno stato a tre vie è un comando che si preme, non una lista da scorrere. **Guardia sul cambio**: Base UI permette di spegnere l'unico bottone acceso in un gruppo a scelta singola (torna un array vuoto) — qui si ignora e resta sul valore precedente, perché «nessuno stato scelto» non è una condizione che questo filtro sappia rappresentare.
+
+**3) Il difetto vero: intestazione di colonna bloccata che mostra il valore della prima riga.** Bloccando una colonna (sinistra *o* destra, riprodotto su entrambe da Francesco) su `Pagine/Prodotti (Anagrafe)`, l'intestazione mostrava il testo della cella di riga 0 al posto del titolo — «Termo Adesivi» dove doveva leggersi «Nome». **Non un difetto di contenuto**: letto il DOM, `<th>` conteneva davvero il testo «Nome» — è un'illusione visiva, la riga 0 dipinta *sopra* la propria intestazione. Riprodotto anche su `Pagine/Lista` (Norme), quindi preesistente a questa sessione e non specifico a `PaginaProdotti`.
+
+**Prima diagnosi, sbagliata — e la correzione che ne è seguita, superflua.** Il primo sospetto è caduto sullo scroll-snap: `scrollTop` (misurato sul `table-container`) non scendeva mai sotto 40px, l'altezza della testata, qualunque valore gli si scrivesse — sintomo coerente con `snap-y`/`snap-proximity` (M3.10) che allinea la riga al bordo del contenitore ignorando la testata *sticky*. Un primo tentativo di correzione (`scroll-padding-top`/`scroll-margin-top`, la leva che la specifica prevede apposta) non aveva alcun effetto misurabile sulle posizioni intermedie — letto come un limite del motore di resa su `scroll-snap-align` dentro elementi `display: table-row` — e la conclusione, a quel punto, è stata togliere lo snap del tutto (`snap-y`/`snap-proximity`/`snap-start` rimossi da `data-table.tsx`, `fermo` uscito da `RigaTabellaCorpoProps`/`DataTableBody`). **Era la diagnosi sbagliata**: rimuovere lo snap faceva sparire il sintomo (`scrollTop` tornava libero) ma non toccava la causa, e Francesco l'ha verificato subito dopo — con lo snap tolto, il difetto **si riproduceva lo stesso**, bastava un filtro attivo e uno scorrimento qualunque.
+
+**La causa vera, isolata misurando l'elemento colpito invece del valore di `scrollTop`**: `document.elementFromPoint` sulla testata restituiva il `<td>` della riga sottostante, non il `<th>`. Con `colonneBloccabili`, sia l'intestazione bloccata sia ogni cella di corpo bloccata portano lo stesso `sticky z-10` (`ancoraggioColonna`). `<thead>` e `<tbody>` non sono loro stessi posizionati, quindi lo stacking context della `<th>` bloccata e quello della `<td>` bloccata finiscono confrontati allo stesso livello — e **a z-index pari vince l'ordine nel DOM**: `<tbody>` viene dopo `<thead>`, quindi la cella di corpo si dipinge sopra la testata ogni volta che una riga attraversa la sua fascia di 40px. Non serviva lo snap per innescarlo, e infatti si riproduceva identico con `scroll-snap-type: none` — bastava scorrere di un pixel con una colonna bloccata.
+
+**Corretto per davvero sulla `<TableHeader>`**: `z-10` → `z-20`. Mette l'intero stacking context della testata sopra quello di qualunque cella di corpo bloccata (`z-10`, invariato in `ancoraggioColonna`/`classiBloccate`) — una riga sola, non due meccanismi di pin da toccare uno per uno. **Lo snap è tornato**: con la vera causa corretta, `snap-y`/`snap-proximity`/`snap-start` non avevano mai avuto colpa, e rimuoverli era stata solo una correzione del sintomo sbagliato. Verificato in Chromium su `Pagine/Prodotti (Anagrafe)`, colonna bloccata, `scrollTop` scritto a mano su otto posizioni (0 → 900px) **sia con lo snap attivo sia con `scroll-snap-type: none`**: `document.elementFromPoint` sulla testata torna sempre lo `<span>` del titolo, mai la cella. **Lezione per chi ripete questa misura, scritta anche nel commento in `data-table.tsx`**: un difetto che sembra uno scroll-snap capriccioso può essere uno stacking context deciso dall'ordine nel DOM — si distingue misurando *quale elemento* riceve il punto (`elementFromPoint`), non il valore che `scrollTop` assume.
+
+**Rilievo indipendente, non corretto qui**: passando il mouse su una riga con una colonna bloccata **e** la tabella scorsa in orizzontale, il fondo di sorvolo della cella bloccata (`group-hover/riga:bg-muted/50`, sia in `ancoraggioColonna` che nel `classiBloccate` legacy di `bloccaPrimaColonna`) è **translucido**: la colonna che sta scorrendo sotto vi si intravede, un valore di un'altra colonna che affiora dentro quella bloccata. Preesistente da M3.3 (non introdotto qui — la stessa stringa di classi è in entrambi i meccanismi di pin), mai osservato prima perché serve la combinazione esatta sorvolo + scorrimento orizzontale + colonna bloccata. Il fondo di **selezione** (`group-data-[state=selected]/riga:bg-muted`, senza opacità) non ha questo problema — solo l'hover. Annotato e non corretto in questa sessione: fuori dall'ambito confermato, e il fix (probabilmente un `bg-muted` opaco solo nel ramo sticky) va provato e misurato a sé.
+
+`tsc -b` pulito, `lint` invariato. `check` verde sui cinque gate, `test:a11y` 1208 scansioni/0 violazioni (invariato — stesse story, nessuna nuova).
+
+### Coda di M3bis.11b (2026-09-18, bis): la colonna «azioni» elastica su tabella ridimensionabile
+
+Quarto rilievo di Francesco, sulla stessa pagina: uno spazio vuoto enorme fra il bordo destro della colonna «Stato» e il grilletto «⋯» delle azioni di riga.
+
+**Causa**: `colonnaAzioniRiga` (e con lei `colonnaSelezione`/`colonnaEspansione`/`colonnaRiordino`, stesso pattern) dichiara solo `meta.larghezza: "w-10"/"w-12"`, mai `size`/`minSize`. Su una tabella `ridimensionabile`/`colonneBloccabili` `larghezza` si ignora (v. il commento in testa a `MetaColonna` — già scritto, mai applicato a queste quattro colonne finora): una colonna senza `size` in un `<colgroup>` `table-fixed` è **elastica**, e con tutte le colonne vere di `PaginaProdotti` già dotate di `size` (M3bis.11b, sopra), l'unica elastica rimasta era «azioni» — che si è presa tutto lo spazio che avanzava.
+
+**Corretto**: `size`/`minSize` aggiunti a tutte e quattro le colonne utility in `data-table.tsx` — 40px per le tre `w-10` (selezione, espansione, riordino), 48px per «azioni» (`w-12`). I due numeri non sono a caso: misurati sulla larghezza resa oggi da `w-10` su una tabella **non** ridimensionabile (`Blocchi/Data Table` → `Prodotti`, `bloccaPrimaColonna`), 40px esatti — `w-12` è proporzionale, 48. Corretto anche in `colonnaSelezione`/`colonnaEspansione`/`colonnaRiordino`, non solo in quella segnalata: stesso difetto latente, stessa causa, si sarebbe ripresentato identico alla prima pagina che avesse composto una di quelle tre con `ridimensionabile`. Verificato in Chromium su `Pagine/Prodotti (Anagrafe)`: «Azioni» passa da colonna che assorbe la metà della tabella a 66px, proporzionata alle colonne vicine. `tsc -b` pulito, `check` verde sui cinque gate, `test:a11y` 1208 scansioni/0 invariato.
+
+### Coda di M3bis.11b (2026-09-18, tris): Stato torna sfaccettato, e il menu di riga che si stacca scorrendo
+
+**Stato: da `toggle-group` a filtro sfaccettato.** Richiesto da Francesco: coerenza con Famiglia/Tipo — stessa forma, stesso posto, di default nessuna opzione scelta e tutti i prodotti visibili. `col.accessor('attivo', …)` porta ora un `filterFn` scritto a mano, non `arrHas`: `arrHas` di TanStack confronta con `===` senza stringificare (`node_modules/@tanstack/table-core/dist/features/column-filtering/filterFns.js`), e un valore **booleano** contro le stringhe che le opzioni statiche del filtro portano ("true"/"false") non troverebbe mai un pari — un filtro sfaccettato su un campo booleano è quindi un caso che `arrHas` da solo non copre, non un errore di composizione. `opzioni` statiche (`{value:'true',label:'Attivo'}`/`{value:'false',label:'Disattivo'}`) perché la derivazione automatica avrebbe scritto «True»/«False» (`formattaEtichetta` capitalizza, non traduce). Tolti `useState`/`useMemo` per lo stato esterno, `ToggleGroup` non serve più in questa pagina. Verificato: conteggi delle opzioni (199 Attivo, 21 Disattivo su 220), filtro «Disattivo» → 21 prodotti in tabella.
+
+**Il menu di riga che si stacca scorrendo con la rotella.** Rilievo di Francesco: aperta la tendina «⋯» e scorsa la tabella col mouse, il menu resta a schermo ma si stacca dalla riga — non segue, non chiude, resta sospeso in un punto vuoto. Causa: Base UI insegue il grilletto (`trackAnchor`, di serie in ogni `Popup` posizionato) finché resta a schermo — comportamento giusto per un popup che non vive dentro un contenitore che scorre per conto proprio, sbagliato qui, dove la riga può scorrere sotto la testata *sticky* o sotto il bordo del riquadro e il menu continua a inseguire un punto che non è più la riga. **Non c'è un prop di Base UI per spegnere l'inseguimento** (nessun `trackAnchor` esposto nei tipi di `MenuPositioner`) — la correzione è controllare l'apertura da fuori.
+
+`colonnaAzioniRiga` (`data-table.tsx`) non rende più il `<DropdownMenu>` inline nel `cell`: estratto in `MenuAzioniRiga`, un componente vero con uno stato (`aperto`) e un `ref` sul grilletto. Un effetto, attivo solo quando `aperto`, cerca l'antenato `[data-slot="table-container"]` da quel `ref` e vi ascolta `scroll`: al primo scorrimento, `setAperto(false)` — il menu si chiude, non insegue. Verificato con la rotella vera (non `scrollTop` scritto da script, che in questo ambiente di misura non sempre fa scattare un evento `scroll` reale — nota per chi ripete la prova: usare uno scorrimento genuino, non l'assegnazione diretta della proprietà): tendina aperta, tre tacche di rotella, tendina chiusa, tabella scorsa sotto — mai più staccata a mezz'aria. `tsc -b` pulito, `check` verde sui cinque gate, `test:a11y` 1208 scansioni/0 invariato.
+
+### Coda di M3bis.11b (2026-09-18, quater): il bottone Reset mancante, e un riquadro che non tornava alto — non riprodotto
+
+**Il bottone Reset mancante.** `data-table-filtro-reset.tsx` (`FiltroResetTutti`, M3bis.6) esisteva già nel registry e non era mai stato composto su `PaginaProdotti` — semplice dimenticanza nella barra filtri di M3bis.11b, non un difetto del blocco. Aggiunto accanto ai tre `FiltroSfaccettato`: sparisce da sé quando `tabella.state.columnFilters` è vuoto, come documentato.
+
+**Il riquadro che non tornava alto disattivando i filtri — non riprodotto, dopo prova estesa.** Rilievo di Francesco, con screenshot: tabella filtrata a poche righe, poi filtri tolti, il riquadro resta basso invece di tornare a riempire la pagina. Provato a fondo in Chromium, con clic e digitazione **veri** (non eventi sintetici da script, per lo stesso motivo del rilievo precedente): filtro di ricerca fino a 1 prodotto poi «×» sul campo, sfaccettato Famiglia+Stato fino a 1 prodotto poi rimosso un chip alla volta, poi col nuovo bottone Reset — in ogni caso il riquadro è tornato pieno (220 prodotti, tutta l'altezza disponibile) non appena l'ultimo filtro è sparito. L'effetto che calcola `altezzaMax` (`DataTable`, commento esteso in testa: «non si misura il riquadro stesso», già corretto due volte per lo stesso genere di difetto — finestra ridimensionata, riga tagliata) ricalcola da `radice`/`piePagina`/`testata` via `ResizeObserver`, non dal numero di righe — ma la richiesta funziona comunque, perché il conteggio delle righe rese sposta l'altezza vera di quegli elementi osservati (il piè «N prodotti» cambia larghezza, la testata idem) e quindi il ricalcolo scatta. **Non chiuso**: se il difetto si ripresenta, serve lo screenshot **insieme** alla sequenza esatta di clic che ci ha portato — coi tentativi di oggi la stessa sequenza guardata a mano è sempre guarita da sola.
+
+### 2026-09-18 — M4.4: `pagina-dashboard`, quarta pagina modello
+
+Sessione delegata a un sub-agente (Sonnet) con prompt autosufficiente; diff riletto e corretto in revisione prima di chiudere.
+
+**Cosa c'è.** `registry/tassullo/pages/pagina-dashboard.tsx` + `.stories.tsx` (`Pagine/Dashboard`, quattro story: `ConDati`, `Caricamento`, `Errore`, `SenzaAttivitaNeAvvisi`), voce `tassullo-pagina-dashboard` in `registry.json`, `public/r/` ricostruito. Le quattro capacità che `PIANO.md` §M4.4 chiede — indicatori, due grafici, attività recenti, avvisi — composte da ciò che il registry ha già: `page-header`, `page-skeleton`, `error-state`, `card`, `table`, `alert`, `lib/toni`. **Zero componenti nuovi proposti**, `componenti-propri.json` resta vuoto.
+
+**Le scelte di forma, e perché.**
+- `indicatori: Indicatore[]` è una **forma fissa** (etichetta, valore già formattato, descrizione, tendenza), perché un indicatore è la stessa cosa ovunque. `grafici: [ReactNode, ReactNode]` è invece una **tupla di due nodi già completi**, con la loro `Card`/`ChartContainer`/`config`: `Primitive/Chart` da solo mostra barre, linee, aree, torta e ciambella, e non c'è un denominatore comune sotto cui incapsularli senza perderne il resto. Il blocco fissa che siano **due**, non cosa siano — stessa libertà di `documenti` in `pagina-scheda`.
+- **La freccia di tendenza non si colora mai** (`text-muted-foreground` fisso): un aumento non è un successo e un calo non è un errore — «Schede aperte» che sale è un problema, «Norme approvate» che sale è una buona notizia, e il blocco non lo sa. È la stessa regola già misurata su `Primitive/Chart`, story `Scostamenti`.
+- **Le attività recenti non sono `data-table`**: lista corta, già ordinata, senza ricerca né paginazione. `DataTable` vorrebbe colonne TanStack per tre celle statiche — gradino 1 della regola 4bis, il default shadcn (`table` dentro `Card`) basta.
+- `avvisi` porta il `tono` da `TONO_ALERT` (quattro voci, `neutro` escluso: un avviso per definizione chiede attenzione) e `chiudibile` + `onChiudiAvviso` **esterno** — il blocco non tiene stato proprio, perché è l'app a sapere se un avviso chiuso va anche segnato come letto sul server. Stessa ragione per cui `modifica` in `pagina-scheda` è controllabile.
+- `stato: pronto|caricamento|errore` come le altre tre pagine modello: la coerenza fra le pagine conta più dell'eleganza della singola.
+- **Gli avvisi stanno in cima, non in coda**: l'ordine del piano è quello in cui le capacità si sono pensate, non quello in cui si leggono. «La sincronizzazione con SAP è ferma da tre ore» non deve aspettare lo scorrimento sotto due grafici. Scostamento minimo dal piano, annotato qui e nei commenti di testa dei due file.
+
+**Il difetto muto preso in revisione — e vale oltre questo caso.** La prima versione montava gli indicatori in `Card size="sm"`. `CardTitle` porta `group-data-[size=sm]/card:text-sm`: quella variante **vince su `text-2xl`** scritto sulla stessa `CardTitle`, e il numero dell'indicatore — l'unica cosa che in un cruscotto si deve leggere da lontano — rendeva a **13px**, esattamente la misura della sua etichetta. Nessun errore di compilazione, nessuna violazione di axe, nessun avviso di `check:registry`: si vede solo misurando. Misurato in Chromium (`getComputedStyle` su `[data-slot="card-title"]`): **13px con `size="sm"`, 27px senza**. Corretto togliendo `size="sm"`, con il commento accanto perché non ci si ricaschi. È l'unico `Card size=` del registry, quindi il difetto non è latente altrove — verificato con `grep`.
+
+**Secondo rilievo di revisione: la fascia fra `md` e `xl`.** Con `md:grid-cols-4` i quattro riquadri a ~800px di contenuto diventavano colonne da 180px, e la riga di tendenza («↗ +4,2% sul mese scorso») si spezzava in tre frammenti disallineati. Passata a `grid-cols-2 xl:grid-cols-4` (più `flex-wrap` sulla riga di tendenza): sotto 1280px due riquadri larghi invece di quattro stretti. Verificato a 900px e a 1440px.
+
+**Provato col dito** (Storybook servito via HTTP, Chromium): chiusi entrambi gli avvisi col mouse — spariscono, e l'area si azzera senza lasciare un vuoto; tooltip di barre e ciambella corretti, con i nomi presi dal `config`; Tab da tastiera lungo tutta la pagina (logo → nav → menu utente → Dashboard → «Esporta report» → i due «Chiudi avviso»), anello di fuoco visibile su ognuno. Densità touch (bottone a 48px, controllo dello strumento) e 375px: sidebar fuori schermo, azioni d'intestazione nel menu «⋮», grafici a colonna singola, tabella senza scorrimento orizzontale forzato.
+
+**Un limite di misura, annotato perché non sia scambiato per un collaudo.** L'attivazione da tastiera (Invio/Spazio) sui bottoni **non è stata osservata**: nell'automazione di questa sessione i tasti «Return»/«space» arrivano al documento con `event.key` **vuoto** (un tasto qualunque come «a» arriva correttamente), quindi il browser non esegue l'attivazione nativa del `<button>`. Gli elementi sono `<button data-slot="button">` nativi, lo stesso `Button` di tutto il registry, quindi non c'è ragione tecnica di aspettarsi un comportamento diverso — ma è una deduzione, non una misura. Da riprovare con altro strumento se il dubbio conta.
+
+**Un effetto collaterale legittimo, che è anche un rilievo.** `npm run registry:build` ha riallineato anche `public/r/tassullo-data-table.json` e `public/r/tassullo-pagina-lista.json`: erano rimasti indietro di tre commit — `data-table.tsx` è stato modificato nelle code di M3bis.11b senza rilanciare `registry:build` prima di chiudere. Nessun contenuto di questa sessione dentro quei due file. **Promemoria**: `registry:build` va rilanciato dopo *ogni* modifica a un file che un item spedisce, non solo quando si aggiunge un item.
+
+`npx tsc -b` pulito. `npm run lint`: i soliti 4 avvisi preesistenti (`carousel.tsx`, `.upstream/carousel.tsx`, `use-mobile.ts`, `data-table.tsx`), nessuno nuovo. `npm run check` verde sui cinque gate; `test:a11y` **1224 scansioni (4 passate), 0 violazioni** — da 1208, +16 = le quattro story nuove per le quattro passate. Nessun popup nuovo da dichiarare: quelli che la pagina eredita da `AppShell`/`PageHeader` sono già dichiarati nei loro componenti. Unica `incomplete` residua sulle story col grafico (`color-contrast`, 16 nodi sulle etichette SVG degli assi): preesistente e identica a quella di `Primitive/Chart`, story `Barre`.
+
+Prossimo passo: **M4.5 `pagina-admin`**.
+
+### 2026-09-18 — M4.5: `pagina-admin`, quinta pagina modello — **due passate, la seconda per indirizzo di Francesco**
+
+Sessione delegata a un sub-agente (Sonnet); diff riletto, forcella sottoposta a Francesco, correzioni di revisione applicate a mano.
+
+**La forcella, e come si è chiusa.** La prima passata aveva fatto di `PaginaAdmin` un **guscio a tab**: il blocco possedeva la fascia dei tab e il banner di sola lettura, mentre `sezioni[].contenuto` era una funzione libera e la gestione utenti — tabella, ruoli multipli, menu di riga, dialoghi — viveva **nella story**. L'argomento era coerente (`documenti` in `pagina-scheda`, `grafici` in `pagina-dashboard`), ma non regge al confronto col precedente opposto: `pagina-scheda` monta **sempre** `VersionTimeline` per `storico`, «perché lo storico delle revisioni è la stessa forma per ogni entità», e `pagina-lista` possiede la propria `data-table`. Un utente — nome, email, ruoli multipli, attivo — è la stessa forma in ogni app dello studio, esattamente come lo storico; una tabella **ruoli** no. E la riga di `PIANO.md` chiede quelle capacità *della pagina modello*, col motivo che Anagrafe e SuperTM hanno la stessa pagina. **Decisione di Francesco: il blocco possiede gli utenti.** La forma approvata:
+
+```tsx
+<PaginaAdmin
+  percorso={[{ titolo: 'Amministrazione' }]}
+  utenti={{ dati: utenti, ruoli: RUOLI, onRimuovi, onCambiaRuoli }}
+  sezioni={[{ value: 'ruoli', titolo: 'Ruoli', contenuto: () => <TabellaRuoli /> }]}
+  soloLettura={!ammin}
+/>
+```
+
+**Cosa c'è.** `registry/tassullo/pages/pagina-admin.tsx` + `.stories.tsx` (`Pagine/Admin`: `ConDati`, `SenzaPermessi`, `Caricamento`, `Errore`), voce `tassullo-pagina-admin` in `registry.json`, `public/r/` ricostruito. Quando `utenti` è presente il blocco monta **da sé** il primo tab: `data-table` (nome / email / ruoli come badge affiancati / stato), `menuRiga` con «Ruoli…» e «Rimuovi», `ResponsiveDialog` con `ToggleGroup multiple` per i ruoli, `ConfirmDialog` distruttivo per la rimozione. `sezioni` resta per il resto. **Zero componenti nuovi**, `componenti-propri.json` resta vuoto.
+
+**Le scelte di forma, e perché.**
+- `UtenteAdmin.ruoli` è `string[]`, **mai un'unione chiusa**: il vocabolario dei ruoli è dell'app, e Anagrafe e SuperTM non hanno gli stessi. `utenti.ruoli` è invece `{valore, etichetta, tono?}[]`, un array solo che alimenta sia i badge in tabella sia le voci del `ToggleGroup`: senza `etichetta` in UI comparirebbe il valore grezzo (è il difetto già preso in M3bis.11b sui filtri sfaccettati), e `tono` referenzia `lib/toni` **per nome**, così l'app non deve importare `TONO` per costruire una classe.
+- Un ruolo portato da un utente ma non più fra quelli assegnabili **ricade sul valore grezzo, non sparisce**: un utente non perde in silenzio l'informazione di averlo ancora.
+- `onRimuovi(id)` e `onCambiaRuoli(id, ruoli)` (l'elenco intero, non la differenza) sono **callback esterne**: il blocco non sa se la rimozione debba toccare il server. Stessa ragione di `onChiudiAvviso` in `pagina-dashboard` e di `modifica` in `pagina-scheda`.
+- **Il banner di sola lettura non è chiudibile**, a differenza degli `avvisi` di `pagina-dashboard`: quelli raccontano un fatto del mondo che si legge e si archivia, questo racconta lo stato dei permessi di chi guarda. Chiuderlo lascerebbe una pagina con le azioni assenti e nessuna spiegazione scritta da nessuna parte — e chi non lo ricorda la scambia per rotta. Nome `soloLettura` e non `puoAmministrare`: descrive cosa succede alla pagina, non un giudizio sull'utente.
+- `soloLettura` toglie `menuRiga` dalla tabella utenti (niente tendina, niente tasto destro) invece di disabilitare le voci, e la tabella resta **leggibile**: stesso numero di colonne nelle due rese.
+
+**Correzione di revisione: `colonne` e `menuRiga` in `useMemo`.** `TabUtenti` costruiva le colonne e l'oggetto `menuRiga` **inline a ogni render**, e quel componente ri-renderizza a ogni apertura e chiusura di dialogo. `data-table.tsx` documenta in proprio perché non va fatto («il `useMemo` non è ottimizzazione: `colonne` che cambia identità a ogni render farebbe ricostruire la tabella e perdere ordinamento e pagina»), e il suo memo interno su `colonneEffettive` dipende proprio da `colonne` e `menuRiga`: passarli instabili lo disarma. Ogni altra tabella del registry tiene le colonne in una **costante di modulo**; qui non si può, perché dipendono dai ruoli che arrivano dal chiamante, e la forma equivalente è memorizzarle su quelli. **Onestà sulla misura**: provato in Chromium *prima* della correzione, il difetto **non si manifestava** — ordinamento su Nome e colonna Email nascosta sopravvivevano all'apertura e chiusura del dialogo, perché lo stato di TanStack vive nello stato React di `DataTable` e non nelle colonne. Corretto lo stesso: è il contratto che il blocco dichiara, e un consumatore che lo viola è una divergenza latente, non un difetto già visibile.
+
+**Provato col dito** (Storybook via HTTP, Chromium, dopo la correzione): menu «⋯» → «Ruoli…» su Francesco Sartori → acceso «Supervisore» → Salva → **la riga mostra davvero i tre badge** Amministratore/Editor/Supervisore, non un log; «Rimuovi» su Roberto Zanetti fino alla **conferma vera** → la riga sparisce e il conteggio scende da 4 a 3; ramo **Annulla** → la riga resta. Ordinamento su Nome (due clic, ↓), colonna Email nascosta da «Colonne», dialogo aperto e chiuso: entrambi sopravvivono. **Esc chiude il dialogo dei ruoli** — questo è stato osservato, a differenza di Invio/Spazio. `SenzaPermessi`: banner in cima, nessuna tendina, nessun tasto destro, tabella comunque leggibile. 375px e 1440px, densità normale e touch.
+
+**Due cose annotate e non corrette.**
+1. **Il nome svanisce mentre il dialogo si chiude**: la descrizione è `inModificaRuoli?.nome ?? ""`, e lo stato va a `null` all'istante del Salva mentre il dialogo è ancora nell'animazione d'uscita — per ~200ms si vede il riquadro senza il nome. Cosmetico, e lo stesso schema è in `PaginaProdotti`: si corregge in tutti i posti insieme o in nessuno.
+2. **Il clic che chiude un popup non ne apre un altro**: già noto da M3bis.11b, comportamento di Base UI, riprodotto anche qui aprendo il menu di riga subito dopo averne chiuso un altro.
+
+`npx tsc -b` pulito. `npm run lint`: 4 avvisi, gli stessi preesistenti, nessuno nuovo. `npm run check` **uscita 0** sui cinque gate; `check:registry` 0 errori, 52 avvisi invariati, **0 componenti nostri dichiarati**. `test:a11y` **1240 scansioni (4 passate), 0 violazioni** — da 1224, +16 = le quattro story nuove per le quattro passate. Le due `incomplete` sulle story a popup aperto («Hidden element focus», «ARIA attribute values valid») sono le famiglie già documentate in `CLAUDE.md` per ogni `dropdown-menu` di Base UI, non nuove.
+
+Prossimo passo: **M4.6 — stati di sistema (`pagina-errore`) e gate di fase cronometrato**.
+
+### 2026-09-18 — M4.6: `pagina-errore` e il gate di fase — **FASE 4 chiusa**
+
+Sessione delegata a un sub-agente (Sonnet); diff riletto, e la correzione di `process.env` presa per indirizzo di Francesco dopo averla sottoposta.
+
+**Lavoro 1 — `pagina-errore`.** `registry/tassullo/pages/pagina-errore.tsx` + `.stories.tsx` (`Pagine/Errore`: `NonTrovata`, `AccessoNegato`, `ErroreServer`, `Manutenzione`, `Confronto`), voce `tassullo-pagina-errore` in `registry.json`. Composta sulla **primitiva `Empty`** — gradino 1 della regola 4bis — e non su `empty-state`/`error-state`: nessuno dei due porta un **tono per variante**, `error-state` è sempre `destructive` e `empty-state` sempre neutro, mentre qui `warning` è l'accesso negato, `destructive` l'errore del server, `info` la manutenzione, e il **404 non ha tono** perché non è un fatto grave, è un indirizzo sbagliato.
+
+- **`schermoIntero` ha un default per variante, non uno solo.** Un 404 su una rotta dell'app ha la navigazione attorno: l'utente ha sbagliato un link interno, non l'app intera — quindi si monta **dentro** il guscio, nello stesso posto in cui `pagina-lista` monta `ErrorState`. Un errore del server o una manutenzione capitano spesso **prima** che il guscio abbia dati per popolarsi (sessione, menu utente, permessi): dentro `AppShell` mostrerebbero una barra vuota, quindi vanno **fuori**, sul modello di `pagina-login`. Resta una prop esplicita, perché il caso limite esiste (una manutenzione annunciata dentro l'app già aperta).
+- **«Accesso negato» dice la verità su Anagrafe.** Non "non hai i permessi" e basta: il messaggio di default dice che le sezioni che non richiedono un ruolo restano visibili **in sola lettura**, che è esattamente ciò che il banner `soloLettura` di `pagina-admin` rende. La variante serve per una rotta che non ha *nulla* da mostrare senza un ruolo preciso, non per l'amministrazione intera.
+- `azione` è un `ReactNode` e non una callback: cambia natura da variante a variante — un link, un bottone che ritenta, un `mailto:` — e il blocco non sa se l'app abbia un router.
+- Le classi di tono stanno in due mappe letterali (`ICONA_DI_TONO`, `DESCRIZIONE_DI_TONO`), **mai costruite a runtime**: Tailwind scansiona stringhe letterali, e un `text-${tono}-…` concatenato sparirebbe dalla build senza errore.
+
+**Lavoro 2 — il gate di fase, cronometrato davvero. Il primo giro non è arrivato in fondo**, e non per lentezza: si è fermato tre volte.
+
+1. **Prerequisiti mai scritti.** `npm create vite` non porta né Tailwind v4 né l'alias `@/*`, e nessun nostro documento lo diceva. Di più: se l'alias sta solo in `tsconfig.app.json` e non nel `tsconfig.json` **alla radice**, la CLI shadcn non lo trova e scrive i componenti dentro una cartella letterale `./@/` invece che in `src/`.
+2. **`components.json` senza la mappatura del registry `@tassullo`** fa fallire *ogni* item con dipendenze interne — cioè quasi tutti i blocchi e tutte le pagine — con `Unknown registry "@tassullo"`.
+3. **Il difetto vero: 26 `registryDependencies` rotte su 12 item.** Dichiaravano il nome nudo (`@tassullo/data-table`) invece del nome **pubblicato** (`@tassullo/tassullo-data-table`), e la CLI risponde `item not found`. Colpiti `pagina-lista`, `pagina-scheda`, `pagina-admin`, `pagina-dashboard`, i quattro filtri di `data-table`, `data-grid`, `diff-view`, `pdf-preview`. **Non è un difetto di questa sessione**: era lì da quando quei pezzi sono stati scritti, e nessuno dei cinque gate lo vede — `check:registry` confronta la *forma* dei componenti, non risolve i riferimenti fra item. **Si vede solo installando da fuori**, che è ciò che M4.6 ha fatto per la prima volta. Con quel difetto attivo il gate non finisce a nessun tempo.
+
+Corretti tutti e tre — i 26 riferimenti, la sezione «Prerequisiti in un'app Vite appena creata» nel `README` — e **rimisurato da zero**: `npm create vite` → Tailwind + alias → `shadcn init` → i tre `add` → `react-router-dom` e un `App.tsx` minimo (guscio + rotta elenco + rotta login, **zero righe di layout scritte**) → app aperta in un browser vero, tema presente, navigazione fra le due rotte, console pulita. **≈6 minuti e 30 secondi**, sotto i dieci che il piano chiede; i tre `add` da soli **9 secondi**. Verificato in revisione che tutti i riferimenti risolvano: **0 rotti su 82 item**.
+
+La misura è stata fatta **dal registry locale in HTTP**, non dalla scorciatoia pubblica: la correzione delle 26 dipendenze vive su questo branch e non su `main`, quindi il registry pubblico è ancora quello rotto finché il branch non è mergiato. È la ragione per cui la PR verso `main` è stata aperta subito.
+
+**Terzo difetto, corretto su indirizzo di Francesco: `process.env.NODE_ENV` in quattro blocchi.** `page-header.tsx` (M3.2) e i tre filtri `data-table-filtro-data/intervallo/sfaccettato.tsx` (M3bis.6) usavano `process.env.NODE_ENV` per decidere se stampare un avviso di **sviluppo** in console. `process` non esiste in un'app Vite appena creata: a runtime non succede niente (Vite lo sostituisce a build), ma il **typecheck del consumatore** si ferma su `Cannot find name 'process'` finché non installa `@types/node` — un pacchetto che nessun documento gli dice di installare, per un errore che non ha nulla a che vedere con ciò che stava facendo. Difetto **muto della stessa famiglia** degli altri due di oggi: qui dentro compila, perché il workbench ha i tipi di Node in albero. Entrato **due volte in due fasi diverse** con lo stesso gesto — un avviso scritto alla maniera di Next.
+
+Passati tutti e quattro a **`import.meta.env.DEV`**, con il commento accanto che dice perché, così non rientra una terza volta. Le tre uscite erano: cambiare le quattro righe, tenerle e documentare `@types/node`, o rimandare a M5.1 — **Francesco ha scelto la prima**, coerente con lo stack Vite dichiarato in `CLAUDE.md` e con le app dello studio. Conseguenza accettata: il registry è esplicitamente roba da Vite, e un consumatore Next andrebbe adattato. Semantica invariata: `import.meta.env.DEV` è vero in sviluppo e falso nella build, esattamente come il controllo di prima — quindi gli avvisi restano dove servono e tacciono in produzione, e le misure che girano sullo Storybook **costruito** (`test:a11y`, `misura:bersagli`) li vedono spenti come li vedevano prima.
+
+**Nota di conto, corretta qui.** Le righe di `CHECKLIST.md` di M4.4 e M4.5 riportavano «76» e «77 item», numeri presi dai rapporti dei sub-agenti e non verificati: i conti veri, letti da `registry.json` a ciascun commit, sono **80** dopo M4.4, **81** dopo M4.5, **82** dopo M4.6. Le due righe sono state corrette. I conti delle righe precedenti (M4.1–M4.3: 72/74/75) restano come scritti, perché non si sa su quale base fossero calcolati e riscriverli a posteriori sarebbe peggio che segnalare la discrepanza.
+
+`npx tsc -b` pulito. `npm run lint`: 4 avvisi, gli stessi preesistenti. `npm run check` **uscita 0** sui cinque gate. `test:a11y` **1260 scansioni (4 passate), 0 violazioni** — da 1240, +20 = le cinque story nuove per le quattro passate.
+
+**FASE 4 chiusa: 6/6 sessioni `DONE`, sei pagine modello, 82 item.** Prossimo passo: **FASE 5**, e M5.1 — le `dependencies` npm di ogni item — eredita da qui la lezione che il gate ha insegnato: i riferimenti fra item e le dipendenze npm **non li verifica nessuno dei cinque gate**, e finché non lo fa qualcuno, si scoprono installando.
+
+### 2026-09-18 — Coda di FASE 4: sei rilievi di Francesco sulla dashboard, tutti misurati
+
+Revisione a video di `Pagine/Dashboard` con Francesco davanti al pannello. Sei rilievi, sei correzioni; due toccano il registry oltre la pagina.
+
+**1) La X dell'alert sembrava tagliata, ed era un difetto della primitiva.** Su un alert di **una riga sola** il bottone-icona sbordava dal riquadro: alert 38.6px, bottone 32px ancorato a 9px dal bordo, **2.4px fuori** — non tagliato dall'`overflow` (che è visibile) ma uscito dal fondo colorato. Causa: `AlertAction` di shadcn è `absolute top-2 right-2`, forma giusta per un alert di due righe. **Corretto nella primitiva** (`registry/tassullo/ui/alert.tsx`), non nella pagina, così non si ripresenta altrove: `absolute top-1/2 right-2 -translate-y-1/2`. Misure dopo: 12.6px sopra e sotto sull'alert di due righe, 3.3 e 3.3 su quello di una. Ri-stile di gradino 2, struttura e props invariate.
+
+**2) L'hover della X era una macchia grigia su un riquadro tinto.** `Button variant="ghost"` porta `hover:bg-muted hover:text-foreground`: il fondo diventa grigio neutro **e** l'icona perde il colore del tono annerendo. Nuova mappa **`TONO_CHIUSURA`** in `lib/toni.ts`: il fondo di hover è il `--*-border` della stessa famiglia, e `hover:text-*-subtle-foreground` annulla l'annerimento. Le due alternative scartate, con la ragione: `hover:bg-current/10` introdurrebbe un colore che **nessun token dichiara** e che `check:contrast` non sa verificare (controlla coppie di token, non opacità in composizione); una variante nuova del bottone è già stata provata e bocciata in M2.4, manda `check:registry` in rosso. Contrasto dell'icona in hover, misurato col colore risolto su canvas: **5.19:1** su warning, **5.39:1** su info.
+
+**3) La ciambella era piccola dentro un riquadro grande.** `outerRadius="62%"` rendeva 132.7px in un contenitore da 577×256. Portata a `95%/58%`, stesso rapporto di spessore dell'anello: **203.3px**, +53%.
+
+**4) I due grafici erano poveri.** Valore scritto sopra ogni barra (`LabelList position="top"`, `fill-foreground`) e **totale al centro della ciambella** («543 schede»). Il totale non è nuovo: è la composizione già misurata in `Primitive/Chart`, story `Ciambella`, comprese le due correzioni verticali che servono perché il blocco cada sul centro dell'anello — il baricentro di due righe non sta su `cy`, e con la legenda accesa Recharts sposta l'anello ma **lascia `cy` dov'era**. **Riscritta** nella story, non importata: `chart.stories.tsx` è un file di story, non un modulo condiviso.
+
+**5) Mancavano i bordi della tabella.** La primitiva `table` non porta nessuna cornice; `data-table` sì (`overflow-hidden rounded-lg border`). Stessa stringa applicata alla tabella attività e alla tabella Ruoli di `pagina-admin`, che aveva lo stesso problema.
+
+**6) La decisione di sostanza: che tabella va dentro una `Card`.** Le tre varianti sono state costruite e messe **una sotto l'altra sugli stessi dati** in una story temporanea (`Prove/Tabelle in card`, poi eliminata): primitiva nuda, `DataTable` col solo ordinamento, `DataTable` col menu di riga. **Francesco ha scelto la seconda.** La tabella attività di `pagina-dashboard` monta ora `DataTable` con `cerca={false}`, `colonneNascondibili={false}`, `piePagina={false}`, `altezza="naturale"`: resta la freccia di ordinamento sulle tre intestazioni.
+
+  **La soglia che ne è uscita, scritta nel commento di testa del blocco perché vale oltre il caso**: serve una qualunque opzione — ordina, cerca, nascondi, pagina, menu di riga — e allora si monta `DataTable` spegnendo le altre; non ne serve nessuna, e allora la primitiva `table` con quella cornice. Ciò che non si fa **mai** è aggiungere a mano un'opzione a una tabella semplice: rifare l'intestazione ordinabile significa riscrivere `IntestazioneColonna`, che è la duplicazione che la regola 4bis esiste per impedire.
+
+  **Due dettagli che si vedono solo provando.** L'ordine delle colonne è **chi / cosa / quando** su indicazione di Francesco, e solo «Attività» resta senza `meta.larghezza`: senza larghezze dichiarate «Quando» si prendeva un terzo della tabella per undici caratteri — stesso difetto della colonna «azioni» di M3bis.11b, stessa causa (in una tabella a colonne fisse, una colonna senza larghezza è elastica). Misure: 176 / 865 / 128px. E `colonneNascondibili` è **acceso di default**: senza spegnerlo comparivano il bottone «Colonne» e un «0» in fondo. `messaggioAttivitaVuote` è passato da `ReactNode` a `string`, perché `StatoVuoto.titolo` vuole una stringa — meglio cambiare il tipo che forzarlo con `String()`.
+
+`tassullo-pagina-dashboard` dichiara ora `@tanstack/react-table` e `@tassullo/tassullo-data-table`; `@tassullo/table` non serve più. `npx tsc -b` pulito, `lint` invariato, `npm run check` verde sui cinque gate, `test:a11y` **1260 scansioni / 0 violazioni**.
+
+**Aperto, da decidere**: se importare la primitiva **`Item`** di shadcn. Contati nei CSS delle tre app i selettori di riga/voce — **~120 in Officina, ~22 in Studio, ~19 in Anagrafe** (filtro grezzo, prende anche `card`) — e letti quattro casi di Anagrafe che si mappano uno a uno sulla sua anatomia: `sed-riga` di `SistemaEditor`, `nrm-elenco-voce` di `Norme`, `adm-accordion-voce` di `Admin`, `abc-modifica-riga` di `AdminBC`. Copre il buco fra `data-table` e `card`: la lista **non tabellare**. È un originale shadcn su Base UI (`useRender`), quindi entrerebbe come gradino 1. Da fare come coda o come task di FASE 5 — non installato di iniziativa.
+
+### 2026-09-19 — Coda: le soglie della dashboard passano al contenitore
+
+Rilievo nato da una domanda di Francesco su `dashboard-01` di shadcn («che componente usano per i riquadri in alto?»). Risposta: **nessun componente dedicato** — `Card` più `Badge`, la stessa anatomia che `pagina-dashboard` ha già. Ma il confronto ha fatto vedere due cose che noi non facevamo, e una era un difetto vero.
+
+**Le soglie erano sul viewport, e il viewport è la misura sbagliata.** `xl:grid-cols-4` guarda la finestra, mentre la dashboard vive dentro `tassullo-app-shell`, dove la colonna laterale si apre e si chiude portandosi via ~208px: a parità di finestra i quattro riquadri restavano quattro anche quando lo spazio vero si era ristretto. **Misurato a 1100px di finestra**: con la colonna aperta il contenuto è **812px** e ora rende **2 colonne**; chiudendo la colonna diventa **1020px** e passa a **4** — prima erano 4 in entrambi i casi, cioè riquadri da ~190px quando la colonna era aperta.
+
+Il blocco dichiara `@container/dashboard` **sulla propria radice**, non lo chiede al guscio: un blocco che si appoggiasse a un contenitore dichiarato dal guscio, montato senza guscio, non vedrebbe mai scattare le soglie e resterebbe a una colonna per sempre. Le due griglie misurano quello — `@4xl/dashboard:grid-cols-4` per gli indicatori, `@3xl/dashboard:grid-cols-2` per i grafici. Non è una novità per il repo: `page-header.tsx` usa `@container/fascia` dal M3.2 e il suo commento spiega già perché non `md:`.
+
+**Il numero dell'indicatore cresce col riquadro**, forma presa da `dashboard-01`: `@container/card` sulla `Card` e `@[250px]/card:text-3xl` sul titolo. Misure: a 1440 il riquadro è 276px e la cifra **31px**; a 375 il riquadro è 164px e la cifra torna a **27px**, senza andare a capo e senza scorrimento orizzontale (verificato: `scrollWidth === clientWidth`).
+
+Da sapere, perché è il rovescio della medaglia: un nome di contenitore che non esiste **non è un errore** — la utility semplicemente non scatta mai, e la griglia resta al valore di base. È lo stesso genere di difetto muto di `text-md`, e la difesa è tenere il `@container` e le sue soglie **nello stesso file**.
+
+`tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` 1260 scansioni / 0 violazioni.
+
+### 2026-09-19 — D19 chiusa: `native-select` non entra, e perché
+
+L'analisi delle primitive mancanti (coda di M4.6) aveva messo `native-select` in cima ai candidati, con gli **81 `<select>` scritti a mano** nelle tre app come prova: Officina 46, Studio 23, Anagrafe 12. **Francesco l'ha bocciata, e la ragione non è nel conto.**
+
+La tendina di un `<select>` nativo **non la disegna il browser, la disegna il sistema operativo**: è l'unico pezzo d'interfaccia che un design system non può né vestire né uniformare. E la differenza non è estetica — su **Windows**, premendo una lettera, la tendina nativa **non salta alla voce corrispondente**; su **macOS** sì. Spedire `native-select` alle app significherebbe spedire un componente che si comporta diversamente a seconda della macchina di chi lo usa. È esattamente la ragione per cui a suo tempo si era scelto il `select` di Base UI: parità di funzionalità fra sistemi, non gusto.
+
+**Verificato invece di darlo per buono**, perché la motivazione attribuisce al nostro `select` una capacità e una capacità si misura. Su `Primitive/Select`, popup aperto, in Chromium: `p` evidenzia **Pubblicato**, `a` evidenzia **Archiviato**, la sequenza `i`+`n` evidenzia **In revisione**. La ricerca a tastiera c'è, regge più caratteri, ed è **la stessa ovunque** perché è nostra.
+
+**Cosa ne segue.** Nessun task nuovo: **M4.8 non si apre**. Gli 81 `<select>` non restano dove sono, ma la loro sostituzione col `select` esistente è materia della **guida di migrazione (M5.5)** — e il costo vero da scrivere lì non è cambiare il tag, è il passaggio da `value`/`onChange` di un `<select>` alle props di Base UI. Le 4 `aria-hidden-focus` a popup aperto restano il prezzo noto e accettato del popup: questa decisione lo conferma.
+
+Registrata come **D19** in `CHECKLIST.md` e `docs/DECISIONI.md` §42. Resta aperto il solo **M4.7** (`item`), già a piano.
+
+### 2026-09-19 — M4.7: la primitiva `item`
+
+Aggiunta in coda alla FASE 4 (v. la voce del 2026-09-18). Ordine rispettato alla lettera, che è ciò che il `CLAUDE.md` §4ter chiede: `npx shadcn@latest add @shadcn/item`, poi **`check:registry -- --snapshot item` prima di toccare il file**. Uno snapshot preso dopo avrebbe registrato come "originale" il nostro, e il controllo di aggiornabilità sarebbe diventato una tautologia.
+
+**Un solo ri-stile, ed è la trappola di sempre alla settima occorrenza.** `ItemDescription` dava ai link `[&>a:hover]:text-primary` — l'arancio del brand come **testo**, 1.79:1 in modalità chiara. Ora `text-accent-ink`, che è corretto in entrambe le modalità. Il gate lo registra come 1 stringa ri-stilata su forma identica (`◐`), e i componenti ri-stilati passano da 17 a 18. Resta un avviso ereditato, `ring-[3px]`: è la stessa classe che sei altri componenti del registry già portano da shadcn, quindi non è una nostra deriva e non si tocca da sola.
+
+**Il gate ha preso 8 violazioni al primo giro, ed erano vere.** `aria-required-children`, 2 per ciascuna delle 4 passate. `ItemGroup` dichiara `role="list"`, e una lista ARIA ammette **solo** `listitem` come figli. Due cause distinte:
+
+1. **`Item` non si dichiara `listitem` da sé** — ed è una scelta di shadcn, non una dimenticanza: un `Item` può stare benissimo fuori da una lista. Dentro un `ItemGroup` il ruolo lo passa chi compone: `<Item role="listitem">`.
+2. **Il filo di `ItemSeparator` è un figlio non ammesso.** Qui la prima correzione era sbagliata e la misura l'ha detto: `role="none"` ha portato il conto **da 2 a 1**, non a 0, e ha cambiato regola — Base UI mette `aria-orientation` sul separatore, e quell'attributo su un `role="none"` è a sua volta una violazione (`aria-allowed-attr`). La forma giusta è `aria-hidden`: dentro una lista il filo è decorazione, non contenuto. **0 violazioni.** Tutte e due le trappole sono scritte nel commento di testa della story, perché si ripresenteranno a chiunque usi `ItemGroup`.
+
+**Il caso reale**: il tab «documenti» di `Pagine/Scheda` era una `<ul>` con `rounded-lg border p-3` scritti a mano — cioè esattamente il pattern per cui M4.7 è stata aperta. Ora è composizione, e non resta nessuna classe di struttura nostra. La story `Primitive/Item` copre cinque scene: forma nuda, tre varianti, tre taglie, l'impostazione con interruttore (`adm-accordion-voce` di Anagrafe) e l'elenco allegati.
+
+**Un punto cieco del gate, trovato qui e da tenere presente.** Il contenuto del tab «documenti» **non viene mai scansionato** da `test:a11y`: i pannelli dei `Tabs` non sono montati finché non si clicca la linguetta, quindi axe non li vede. È lo stesso genere di problema dei popup non aperti (`docs/DECISIONI.md` §22), ma su un meccanismo diverso — e nessuna dichiarazione di popup lo copre, perché un tab non è un popup. Verificato a mano in Chromium: cliccata la linguetta, l'elenco rende, e il DOM riporta `ItemGroup` con `role="list"` e due figli `role="listitem"`. **Chi tocca i tab in futuro sappia che quella misura va presa col dito.**
+
+`tsc -b` pulito, `lint` invariato (4 avvisi preesistenti), `check:registry` 0 errori / 53 avvisi / **0 componenti nostri**, `check` verde sui cinque gate, `test:a11y` **1280 scansioni (4 passate), 0 violazioni** — da 1260, +20 = le cinque story nuove per le quattro passate. Il registry passa a **83 item**.
+
+### 2026-09-19 — Coda di M4.7: `sm` corregge shadcn, cinque scene nuove, e **un difetto del gate**
+
+**1) `size="sm"` non faceva niente, ed era un difetto di shadcn.** Rilievo di Francesco sulla story «Taglie»: `default` e `sm` a schermo sono identici. Verificato: nell'originale hanno **le stesse identiche classi** (`gap-2.5 px-3 py-2.5`). Non è la nostra installazione — **misurato sulla pagina di documentazione di shadcn**, dove le due righe della sezione "Size" rendono entrambe **66.3px** con lo stesso padding — mentre il testo accanto promette «a compact size for dense layouts». Codice e documentazione dicono cose diverse.
+
+`sm` non era però del tutto inerte: cambia lo spazio **fra** le righe dentro un `ItemGroup` (`gap-4`→`gap-2.5`) e la **miniatura** di `ItemMedia variant="image"` (`size-10`→`size-8`). La story non mostrava né l'una né l'altra — righe sciolte e icone — quindi il prop sembrava morto.
+
+**Scelta di Francesco: ri-stilare `sm` perché faccia quello che la loro documentazione dichiara.** È la prima volta che ci scostiamo da shadcn per **correggerlo** e non per vestirlo, ed è annotato come tale. `sm` diventa `gap-2 px-3 py-2`: sulla scala del tema non esiste un gradino fra 10px e 8px, quindi la densità si prende sul verticale e l'orizzontale resta `px-3` — che è poi ciò che distingue `sm` da `xs`, il quale stringe anche ai lati. Misure delle tre taglie dopo: altezza **63.4 / 59.4 / 53.9**, padding `10px 12px` / `8px 12px` / `8px 10px`, gap del gruppo **16 / 10 / 8**, miniatura **40 / 32 / 24**.
+
+**2) Cinque scene nuove**, sul modello della pagina di shadcn, perché è una primitiva che le app useranno in molti posti: `Gruppo` (avatar, filo fra le righe), `ConMiniatura` (`variant="image"`), `ConIntestazione` (`ItemHeader`/`ItemFooter`), `ComeCollegamento` (prop `render`), più «Taglie» rifatta dentro un `ItemGroup` con miniatura, o la differenza non si vedrebbe. Due cose accertate scrivendole:
+
+- La documentazione di shadcn parla di `ItemMedia variant="avatar"`, che nel preset `base-nova` **non esiste**: le varianti sono `default`, `icon`, `image`. L'avatar ci va dentro come componente.
+- **La riga-collegamento non può stare in un `ItemGroup`**: il gruppo è `role="list"` e vuole figli `listitem`, ma scrivere `role="listitem"` sull'ancora le toglie il ruolo di collegamento — axe: `aria-allowed-role`. Si usa `<ul>`/`<li>` e si riscrive la spaziatura. Misurato: 1 violazione → 0.
+- Le miniature sono finte (un riquadro `bg-muted` con un'icona): nel repo, che è pubblico, non entrano binari, e un `data:` con un esadecimale violerebbe la regola 3.
+
+**3) Il difetto del gate, ed è il rilievo che pesa di più.** Ri-stilando `sm` il rapporto di `check:registry` ha cominciato a dire **«forma identica all'originale, nessun ri-stile»** su `item.tsx` — cioè la stessa frase di un file mai toccato, su un file appena modificato in due punti.
+
+**Causa**: `estraiStringhe` usava una regex che riconosce `'…'` **ovunque, anche dentro un commento**. I commenti di questo repo sono in italiano e pieni di apostrofi (`l'originale`, `dell'app`): il primo apostrofo apriva una stringa fantasma, la lista delle stringhe usciva disallineata da quella dell'originale, `allineate` diventava falso e il conto del ri-stile **scendeva a zero in silenzio**.
+
+**Non era ipotetico: `alert.tsx` era già cieco.** Il ri-stile del 2026-09-18 (la X centrata) porta accanto un commento che contiene «l'originale», e dal giorno dopo il gate non lo contava più. Due file su diciotto raccontati come intatti mentre non lo erano — e un gate che *tace* su una divergenza è peggio di uno che ne inventa una: il primo lo si scopre alla prossima versione di shadcn, con le modifiche già mescolate.
+
+**Corretto** con uno scanner che attraversa il sorgente una volta sola tenendo conto di dove si trova — testo, stringa con gli escape, commento di riga, commento di blocco — e restituisce stringhe e sorgente-senza-commenti separati. Non si risolve con l'ordine delle regex: togliendo prima i commenti si romperebbe un `https://` dentro una stringa, togliendo prima le stringhe si ricade nel difetto. Lo usa ora anche `forma()`, che aveva lo stesso buco e poteva dare il difetto opposto — un falso *errore* di forma. Dopo la correzione il rapporto cambia esattamente su due righe: `alert.tsx` e `item.tsx` passano da «nessun ri-stile» a «2 stringhe di classi ri-stilate». Nessun altro componente si muove.
+
+`tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` **1296 scansioni (4 passate), 0 violazioni** — da 1280, +16 = le quattro scene nuove per le quattro passate.
+
+### 2026-09-19 — Gap analysis delle tre app: cosa il registry non sa ancora esprimere
+
+Sessione di **sola analisi**, su indirizzo di Francesco: nessuna riga di componente scritta.
+La domanda non era «le app funzionano?» ma «**quando un'app passerà al v2, il registry saprà
+esprimere tutto quello che quella pagina già fa?**». Tre sub-agenti Sonnet in parallelo, uno
+per app — Anagrafe in locale, Studio e Officina in sola lettura via `gh api` (solo GET).
+Esito in **`docs/ANALISI-COPERTURA-APP.md`**, 12 pattern da fare, 8 coperti, 1 differito.
+
+**I conteggi dei sub-agenti erano sbagliati, e vanno rifatti sempre.** Due rapporti su tre
+contavano i selettori CSS con `grep -c "{"`, che conta anche `@media`, `@keyframes` e i
+fotogrammi `0%`/`100%`. Riscritto il conto in **`scripts/conta-css.mjs`** — toglie i
+commenti, attraversa il sorgente, conta un selettore per elemento di lista davanti a un
+blocco (`.a, .b { }` = 2), at-rule fuori. Numeri veri: **Anagrafe 391, Officina 1 720,
+Studio 2 229 — 4 340 in tutto**. Da cui il dato che pesa di più: **Anagrafe è il 9%** del CSS
+che la migrazione dovrà assorbire, ed è l'app su cui M5.5 prevede di collaudare la guida.
+
+**E tre errori miei, tutti dello stesso genere: ordinare per conteggio senza chiedersi cosa
+il conteggio stesse contando.** Li elenco perché la lezione vale più delle voci.
+
+1. **Il «titolo di pagina visibile» era il rilievo numero uno — 56 file, 73 `<h1>` — ed è
+   ritirato.** Rilievo di Francesco: «l'abbiamo sostituito col breadcrumb, o parli d'altro?».
+   Verificato: negli **elenchi** l'argomento di M3.2 vale in pieno (Officina non ha **nessun**
+   breadcrumb in 26 file con `<h1>`: migrando perde una riga, non una funzione); nei
+   **dettagli** breadcrumb e titolo convivono dicendo cose diverse — `Anagrafe/Sistema.tsx:148`
+   ha `← Sistemi` (il genitore) e `ST042 Risanamento muratura umida` (il record). E il v2 lo
+   fa già: `page-header` senza titolo, `pagina-scheda` con. Il numero era vero ma misurava
+   **lo stato del v1, non una lacuna del v2**.
+2. **Il «doppio volto» da «manca un blocco» a «manca un hook e una story».** Verificato
+   elemento per elemento sul Triage di Officina: 13 su 14 compongono già — i chip mobili sono
+   `toggle-group` a scelta singola, la riga espansa è `pannelloRiga` di `data-table`
+   (M3bis.2), la scheda è `card`. Scoperta la sola miniatura.
+3. **Il «wizard» come componente non esiste.** Guardando i tre passi della registrazione di
+   Studio: le card selezionabili sono `FieldLabel` attorno a `radio-group` (`field.tsx:107`
+   porta già `has-data-checked:border-primary/30`), i campi affiancati sono
+   `Field orientation="responsive"` (`field.tsx:60`), i consensi `Field orientation="horizontal"`.
+   Manca **la barra a segmenti**, che serve tre volte in due pagine (i passi, il misuratore di
+   robustezza della password, i passi del calcolo strutturale). Il *gating* non è un
+   componente: dipende da quali campi ha quel passo.
+
+**Due difetti veri dei sub-agenti, corretti**: Studio dava «expand-in-row» mancante mentre
+`data-table.tsx:2917` ha `pannelloRiga` (e dichiarava di non aver interrogato l'MCP);
+Officina contava 4 pagine a doppio volto e sono **5** (anche `Admin.tsx`).
+
+**La lezione di metodo che resta, ed è quella che ha cambiato di più il risultato.**
+«L'ho chiesto all'MCP» **non** è gradino 1 esaurito: è gradino 1 esaurito *sui registry
+dichiarati in `components.json`*, e lì ce n'era uno solo. Il calendario a eventi risultava
+introvabile per questo. Francesco ne ha trovati tre fuori — `shadcnui-blocks`, `big-calendar`,
+`reui` — e da lì sono nate D21 e D22.
+
+**Quattro decisioni chiuse**: **D20** (l'immagine d'entità, primo componente nostro, `4:3`
+di default e `16:9` disponibile), **D21** (`@reui` dichiarato in `components.json`), **D22**
+(il calendario si adotta da reui, MIT, non si scrive), **D23** (`pagina-login` prende `modo`
+a tre vie). Motivazioni per esteso in `CHECKLIST.md` e in `docs/ANALISI-COPERTURA-APP.md`.
+
+**Sulla licenza di reui, perché il rilievo di Francesco era fondato e il taglio passa
+altrove.** «I blocchi sono una feature pro, non ho una licenza»: vero. `reui.io/legal/license`
+governa i **543 Pro Blocks** e vieta alla lettera «Publish the Licensed Materials in a public
+or open-source repository» e «Repackage… into another component library» — il nostro registry
+è pubblico ed è una component library. Ma il **componente** `event-calendar` sta in
+`keenthemes/reui`, **MIT**, sotto `registry-reui/bases/base/…`, cioè proprio la variante Base
+UI. Motore MIT, layout composti a pagamento; il layout lo scriviamo comunque. Condizione MIT:
+l'avviso di copyright di Keenthemes va conservato nei file e dichiarato nell'item, come già si
+fa con l'OFL di Inter in `tema-font`.
+
+**Tre demo costruiti per guardare le pagine invece di descriverle** — markup e CSS **veri**
+scaricati dai repo, dati finti, serviti in HTTP: il Triage di Officina (il doppio volto, col
+salto a 1024px), il Calendario di Officina (griglia del mese con «+N altri» e agenda), la
+`CantiereContextBar` di Studio. Non conservati: erano strumenti di conversazione. Sulla
+context bar l'indirizzo di Francesco ha corretto la mia proposta binaria — **il blocco si fa**
+(`item` + `dropdown-menu`, gradino 2), **si rimanda il solo slot in `app-shell`**.
+
+**Scritto, non pianificato.** Su indirizzo di Francesco questa sessione chiude le *decisioni*
+e lascia il **piano di dettaglio a dopo**: `PIANO.md` non è toccato, e i sei lavori (L1
+immagine, L2 auth, L3 bivio, L4 sei scorpori, L5 calendario, L6 barra di contesto) stanno in
+`docs/ANALISI-COPERTURA-APP.md` §4bis come contenuto, non come task numerati. Anche la
+divisione di M5.5 — collaudo su Anagrafe sola contro Anagrafe più Studio e Officina — resta
+aperta e si decide con la FASE 5.
+
+`components.json` dichiara `@reui`; `check:registry` **0 errori / 53 avvisi / 0 componenti
+nostri**, `check:contrast`, `check:font` e `check:logo` verdi. Nessun file del registry
+toccato, quindi `test:a11y` invariato.

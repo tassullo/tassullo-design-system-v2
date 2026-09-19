@@ -1,10 +1,24 @@
 import { useMemo, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { BookOpenIcon, FileWarningIcon, PlusIcon } from 'lucide-react'
+import {
+  BookOpenIcon,
+  CopyIcon,
+  FileWarningIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react'
 
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
-import { creaColonne, IntestazioneColonna } from '@/registry/tassullo/blocks/data-table'
+import {
+  creaColonne,
+  IntestazioneColonna,
+  RowMenuItem,
+  RowMenuSeparator,
+  useDataTableRow,
+} from '@/registry/tassullo/blocks/data-table'
 import { PaginaLista } from '@/registry/tassullo/pages/pagina-lista'
+import { apriCol } from '@/prove/apri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -28,6 +42,16 @@ import {
  * forma con dati diversi: la prova che il blocco è generico e non "Prodotti
  * con un altro nome". A differenza di quella story, qui ci sono anche i due
  * stati che Prodotti non aveva ancora: `caricamento` ed `errore`.
+ *
+ * **Da M3bis.11a**, la pagina porta anche le capacità di FASE 3bis che una
+ * pagina sola lista usa davvero: colonne ridimensionabili, bloccabili,
+ * riordinabili (M3bis.3, M3bis.8) e un menu di riga condiviso fra tendina e
+ * tasto destro (M3bis.9) — sul caso comune (`Con Dati`, `Poche Righe`), non
+ * in una story isolata a parte. Tree/subtotale, espansione, virtualizzazione
+ * e la Data Grid editabile (M3bis.1, 2, 4, 5) restano fuori: sono il pattern
+ * del caso reale "Computo" (già mostrato in `Blocchi/Data Table` e
+ * `Blocchi/Data Grid`, story `Computo`), non di un elenco — non si sono
+ * voluti forzare qui solo per completezza.
  *
  * ## D10 — la cella `375px × touch`
  *
@@ -109,13 +133,22 @@ function generaNorme(quante: number): Norma[] {
 
 const NORME = generaNorme(48)
 
+/**
+ * Le quattro colonne di Norme — `size`/`minSize`, non `meta.larghezza`
+ * (M3bis.3): con `ridimensionabile` la larghezza di partenza la dichiara
+ * l'utente trascinando, `larghezza` verrebbe ignorata. Nessuna colonna
+ * azioni scritta a mano: `menuRiga`, su `Norme` sotto, la aggiunge da sé
+ * in coda.
+ */
 const col = creaColonne<Norma>()
 
 const COLONNE = col.columns([
   col.accessor('codice', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
-    meta: { titolo: 'Codice', larghezza: 'w-36' },
+    meta: { titolo: 'Codice' },
     sortFn: 'alphanumeric',
+    size: 140,
+    minSize: 90,
     // Il codice è il varco alla scheda di norma — `variant="link"` e non un
     // colore a mano, stessa forma della colonna "Nome" di Prodotti: senza una
     // pagina scheda da aprire in Storybook resta un `#`, qui conta la forma.
@@ -132,20 +165,24 @@ const COLONNE = col.columns([
   }),
   col.accessor('titolo', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Titolo" />,
-    // Nessuna `larghezza`: è la colonna che assorbe lo spazio libero — le
-    // altre sono tutte a larghezza fissa (identificatori o etichette corte).
     meta: { titolo: 'Titolo' },
     sortFn: 'text',
+    size: 320,
+    minSize: 160,
   }),
   col.accessor('categoria', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Categoria" />,
-    meta: { titolo: 'Categoria', larghezza: 'w-28' },
+    meta: { titolo: 'Categoria' },
     sortFn: 'text',
+    size: 150,
+    minSize: 100,
   }),
   col.accessor('vigente', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
-    meta: { titolo: 'Stato', larghezza: 'w-28' },
+    meta: { titolo: 'Stato' },
     sortFn: 'basic',
+    size: 130,
+    minSize: 90,
     cell: ({ getValue }) =>
       getValue<boolean>() ? (
         <Badge className={TONO.success}>Vigente</Badge>
@@ -154,6 +191,34 @@ const COLONNE = col.columns([
       ),
   }),
 ])
+
+/**
+ * Il menu di riga condiviso (M3bis.9): una sola definizione, letta da
+ * `useDataTableRow<Norma>()`, montata da `menuRiga` sia nella tendina «⋯»
+ * (aggiunta in coda da sé) sia sul tasto destro dell'intera riga.
+ */
+function MenuAzioniNorma() {
+  const norma = useDataTableRow<Norma>()
+  return (
+    <>
+      <RowMenuItem onClick={() => console.info(`Modifica ${norma.codice}`)}>
+        <PencilIcon aria-hidden />
+        Modifica
+      </RowMenuItem>
+      <RowMenuItem onClick={() => console.info(`Duplica ${norma.codice}`)}>
+        <CopyIcon aria-hidden />
+        Duplica
+      </RowMenuItem>
+      <RowMenuSeparator />
+      {/* `variant="destructive"`, non una classe di colore — la trappola di
+          `CLAUDE.md` sul testo di `--destructive`. */}
+      <RowMenuItem variant="destructive" onClick={() => console.info(`Elimina ${norma.codice}`)}>
+        <Trash2Icon aria-hidden />
+        Elimina
+      </RowMenuItem>
+    </>
+  )
+}
 
 function BarraFiltri({ ente, setEnte }: { ente: string; setEnte: (v: string) => void }) {
   return (
@@ -203,6 +268,17 @@ function Norme({
       perPagina={25}
       nomeRighe={{ singolare: 'norma', plurale: 'norme' }}
       barra={<BarraFiltri ente={ente} setEnte={setEnte} />}
+      // Le capacità di FASE 3bis rilevanti per una pagina sola lista
+      // (M3bis.11a): colonne che si ridimensionano, si bloccano, si
+      // riordinano (M3bis.3, M3bis.8) e il menu di riga condiviso fra
+      // tendina e tasto destro (M3bis.9) — sulla pagina "vera" (`Con Dati`,
+      // `Poche Righe`), non in una story isolata a parte: altrimenti chi
+      // guarda il caso comune non le vede mai.
+      idRiga={(n) => String(n.id)}
+      ridimensionabile
+      colonneBloccabili
+      colonneRiordinabili
+      menuRiga={{ menu: <MenuAzioniNorma />, ariaLabel: (n) => `Azioni su ${n.codice}` }}
       vuotoIniziale={{
         icona: <FileWarningIcon />,
         titolo: 'Nessuna norma in anagrafica',
@@ -236,9 +312,18 @@ function Guscio({ dati, stato }: { dati: Norma[]; stato?: 'pronto' | 'caricament
   )
 }
 
-/** Il caso comune: 48 norme finte, ricerca, un filtro, paginazione a 25. */
+/**
+ * Il caso comune: 48 norme finte, ricerca, un filtro, paginazione a 25 —
+ * più le capacità di FASE 3bis (M3bis.11a): colonne ridimensionabili,
+ * bloccabili, riordinabili, e il menu di riga condiviso (tendina «⋯» e
+ * tasto destro), sulla stessa `<MenuAzioniNorma />`.
+ */
 export const ConDati: Story = {
   render: () => <Guscio dati={NORME} />,
+  // Non il primo `dropdown-menu-trigger` della pagina: quello è il menu
+  // utente della sidebar (`AppShell`), montato prima della tabella nel DOM.
+  // Il grilletto di riga vive dentro il `<tbody>`.
+  play: apriCol('tbody [data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 }
 
 /**
@@ -271,3 +356,4 @@ export const Errore: Story = {
 export const VuotoIniziale: Story = {
   render: () => <Guscio dati={[]} />,
 }
+
