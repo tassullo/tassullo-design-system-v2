@@ -6,12 +6,22 @@ riconosce?*
 
 **Provenienza**: sono immagini di Tassullo, prese dalla sezione **Sistemi** di
 <https://www.tassullo.it/sistemi> su indicazione di Francesco (2026-09-19).
-`sistema-*.jpg` sono i render di stratigrafia delle sei categorie di sistema
-(sorgente **1080×1080**); `prodotto-*.jpg` sono le foto pacco della linea Wall,
+`sistema-*.png` sono i render di stratigrafia delle sei categorie di sistema
+(sorgente **1080×1080**); `prodotto-*.png` sono le foto pacco della linea Wall,
 da <https://www.tassullo.it/prodotti> (sorgente **1800×1800**); `cantiere.jpg` è
-la fotografia di testata della sezione Sistemi (1920×931). Ridimensionate per il
-repo (640px le quadrate, 900px la fotografia) e nient'altro: non ritoccate, non
-ritagliate.
+la fotografia di testata della sezione Sistemi (1920×931).
+
+**I `.png` sono scontornati, senza fondo**, rifatti da Francesco il 2026-09-19.
+La prima versione era quella del sito, su bianco, e il difetto si è visto
+subito: una foto su fondo bianco dentro una card scura è un blocco chiaro. Il
+fondo appartiene alla pagina, non all'immagine — per questo `entity-image` non
+dipinge più un fondo sulla radice. Verificato sui nove file: alpha a 252-253 sul
+soggetto, **zero pixel di frangia bianca** sul bordo, ombra portata tolta
+insieme al piano. `cantiere.jpg` resta una fotografia col suo sfondo, perché una
+fotografia non si scontorna.
+
+Ridimensionate per il repo (640px le quadrate, 900px la fotografia) e
+nient'altro: non ritoccate, non ritagliate. 1,0 MB in tutto.
 
 **Tutte e due le librerie di Tassullo sono quadrate**, ed è il fatto che ha
 fatto entrare il rapporto `1:1` in `entity-image` (v. `docs/DECISIONI.md` §45).

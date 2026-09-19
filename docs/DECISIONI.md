@@ -2687,3 +2687,42 @@ sé, la riga è negli `staticDirs` di `.storybook/main.ts`.
 **Quello che le immagini vere hanno cambiato davvero** non è l'estetica della
 story: è che hanno fatto vedere il rapporto sbagliato. Con tre disegni inventati
 a 4:3 la domanda del rapporto non si sarebbe mai posta.
+
+### (j) Le immagini rifatte scontornate, e il fondo che il componente non deve dipingere
+
+Il rilievo era mio, a fine sessione: le sorgenti erano su bianco, e una foto su
+bianco dentro una card scura è un blocco chiaro. La risposta di Francesco è
+stata rifarle — **PNG scontornati, senza fondo**, stessi nove soggetti (sei
+render di sistema, tre foto pacco), 640×640.
+
+**Verificata la qualità dello scontorno prima di committarlo**, perché un
+ritaglio fatto male su bianco si vede solo su scuro — cioè esattamente nella
+modalità che si stava cercando di aggiustare:
+
+| | misura |
+|---|---|
+| alpha sul soggetto | **252–253**, non 255: il tool lascia ~1% di velo, invisibile in composizione |
+| pixel di frangia bianca sul bordo | **0 su tutti e nove** (bordo = alpha fra 8 e 250, frangia = semitrasparente quasi bianco) |
+| ombra portata e riflesso sul piano | **tolti** insieme al fondo |
+| cornice dell'immagine | interamente trasparente su tutti e nove |
+| peso | 52–83 KB l'uno, **1,0 MB** la cartella |
+
+Niente WebP, quindi: i PNG con alpha pesano quanto i JPEG che sostituiscono,
+perché il soggetto occupa il 33–48% della tela e il resto è trasparenza, che si
+comprime a niente.
+
+**La conseguenza sul componente**, che è la parte che resta. La radice aveva
+`bg-muted`: con sorgenti su bianco quel grigio non si vedeva **mai**, coperto
+dall'immagine. Con le immagini scontornate si vedrebbe *dietro* l'oggetto, e
+sarebbe un grigio diverso da quello della superficie su cui la card sta — cioè
+un riquadro dentro la card invece di una foto nella card. Tolto: **la radice non
+ha più un fondo**, e `bg-muted` resta dov'è informazione, sul solo segnaposto.
+
+La regola generale che ne esce, e che vale oltre `entity-image`: **un componente
+non dipinge un fondo che non gli è stato chiesto.** Un fondo messo «tanto non si
+vede» è un fondo che si vedrà il giorno in cui cambia il contenuto, e allora
+nessuno si ricorderà perché c'è.
+
+`cantiere.jpg` resta com'era, con il suo sfondo: una fotografia non si
+scontorna, ed è giusto che nella style guide ci sia anche il caso di
+un'immagine che il fondo ce l'ha.

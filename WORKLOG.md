@@ -6976,3 +6976,54 @@ verdi. `misura:bersagli` **3014 bersagli su 339 story** (59 popup), 35 tipi,
   — è una proprietà delle immagini — ma è una scelta che prima o poi va presa.
 - La domanda «a 268px la foto si riconosce» adesso **si può rispondere**: prima
   erano disegni miei, ora sono le immagini vere.
+
+#### Coda 2 di M4ter.3: le immagini scontornate, e un fondo che il componente non doveva dipingere (2026-09-19)
+
+**Il rilievo era mio** — le sorgenti erano su bianco, e una foto su bianco
+dentro una card scura è un blocco chiaro — **e la risposta di Francesco è stata
+rifarle**: nove PNG scontornati, senza fondo, stessi soggetti, 640×640.
+
+#### Lo scontorno, verificato prima di committarlo
+
+Un ritaglio fatto male su bianco si vede **solo su scuro**, cioè esattamente
+nella modalità che si stava cercando di aggiustare. Quindi misurato, non
+guardato:
+
+| | esito |
+|---|---|
+| alpha sul soggetto | **252–253**, non 255 — ~1% di velo, invisibile in composizione |
+| frangia bianca sul bordo | **0 pixel su tutti e nove** |
+| ombra portata e riflesso | **tolti** insieme al fondo |
+| cornice dell'immagine | interamente trasparente, tutti e nove |
+| peso | 52–83 KB l'uno, **1,0 MB** la cartella |
+
+**Niente conversione in WebP**, che avevo preannunciato: non serve. I PNG con
+alpha pesano quanto i JPEG che sostituiscono, perché il soggetto occupa il
+33–48% della tela e il resto è trasparenza, che si comprime a niente.
+
+#### La conseguenza sul componente, che è la parte che resta
+
+La radice aveva `bg-muted`. Con sorgenti su bianco quel grigio non si vedeva
+**mai**, coperto dall'immagine; con le scontornate si vedrebbe *dietro*
+l'oggetto, e sarebbe un grigio diverso da quello della superficie su cui la card
+sta — cioè un riquadro **dentro** la card invece di una foto **nella** card.
+
+Tolto: la radice non ha più un fondo, e `bg-muted` resta dov'è informazione, sul
+solo segnaposto. La regola che ne esce vale oltre `entity-image`: **un
+componente non dipinge un fondo che non gli è stato chiesto**. Un fondo messo
+«tanto non si vede» è un fondo che si vedrà il giorno in cui cambia il
+contenuto, e allora nessuno ricorderà perché c'è.
+
+`cantiere.jpg` resta com'era, col suo sfondo: una fotografia non si scontorna,
+ed è giusto che nella style guide ci sia anche il caso di un'immagine che il
+fondo ce l'ha.
+
+#### Numeri
+
+`npm run check` verde sui cinque; `test:a11y` **1356**/0 (339 story × 4);
+`check:registry` 0/62/**1 componente nostro**/19; **90 item**; `build` e `lint`
+verdi, zero warning dal componente. `misura:bersagli` **3013 bersagli su 339
+story**, 35 tipi, **0 piccoli in entrambe le direzioni**.
+
+Verificato a video in **entrambe** le modalità: in scuro le stratigrafie
+galleggiano sul fondo della card, senza blocco bianco e senza alone.

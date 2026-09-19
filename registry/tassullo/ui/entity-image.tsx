@@ -80,7 +80,7 @@ function EntityImage({
       data-ratio={ratio}
       ratio={RAPPORTI[ratio]}
       className={cn(
-        "w-full overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/10",
+        "w-full overflow-hidden rounded-lg ring-1 ring-foreground/10",
         className
       )}
       {...props}
@@ -93,6 +93,13 @@ function EntityImage({
        * ragione: un bordo quadrato dentro un contenitore che ritaglia tondo si
        * vede tagliato agli angoli. Al suo posto un `ring` sulla radice, come fa
        * `card`.
+       *
+       * E la radice **non ha un fondo**. Ce l'aveva (`bg-muted`), e con sorgenti
+       * su bianco non si vedeva mai; con le immagini **scontornate** di Tassullo
+       * si vedrebbe dietro l'oggetto, e sarebbe un grigio diverso da quello
+       * della superficie su cui la card sta. Un componente non dipinge un fondo
+       * che non gli è stato chiesto: il grigio resta dov'è informazione, cioè
+       * sul solo segnaposto.
        */}
       <Avatar className="size-full rounded-none after:hidden">
         {src ? (

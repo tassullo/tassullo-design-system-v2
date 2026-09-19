@@ -130,21 +130,27 @@ type Story = StoryObj<typeof meta>
  * (2026-09-19): i `sistema-*` dalla sezione **Sistemi**, i `prodotto-*` dalla
  * linea **Wall**, `cantiere` è la fotografia di testata dei Sistemi.
  *
+ * Sono **PNG scontornati, senza fondo** — rifatti da Francesco il 2026-09-19,
+ * dopo che la prima versione su bianco aveva fatto emergere il problema: una
+ * foto su fondo bianco dentro una card scura è un blocco chiaro. Il fondo
+ * appartiene alla pagina, non all'immagine. `cantiere.jpg` resta una
+ * fotografia con il suo sfondo, perché una fotografia non si scontorna.
+ *
  * Sono **locali** di proposito, e non è pignoleria: con indirizzi remoti, in
  * una CI senza rete l'immagine non arriva, `AvatarFallback` ripiega, e le scene
  * «con foto» misurerebbero il **segnaposto**. Provenienza e confini in
  * `public/esempi/LEGGIMI.md`.
  */
 const FOTO = {
-  cappotto: '/esempi/sistema-cappotto.jpg',
-  seta: '/esempi/sistema-effetto-seta.jpg',
-  ripristino: '/esempi/sistema-ripristino-storico.jpg',
-  crm: '/esempi/sistema-crm.jpg',
-  risanamento: '/esempi/sistema-risanamento.jpg',
-  radiante: '/esempi/sistema-radiante.jpg',
-  intocalx: '/esempi/prodotto-intocalx.jpg',
-  opus: '/esempi/prodotto-opus.jpg',
-  t300: '/esempi/prodotto-t300.jpg',
+  cappotto: '/esempi/sistema-cappotto.png',
+  seta: '/esempi/sistema-effetto-seta.png',
+  ripristino: '/esempi/sistema-ripristino-storico.png',
+  crm: '/esempi/sistema-crm.png',
+  risanamento: '/esempi/sistema-risanamento.png',
+  radiante: '/esempi/sistema-radiante.png',
+  intocalx: '/esempi/prodotto-intocalx.png',
+  opus: '/esempi/prodotto-opus.png',
+  t300: '/esempi/prodotto-t300.png',
   cantiere: '/esempi/cantiere.jpg',
 }
 
