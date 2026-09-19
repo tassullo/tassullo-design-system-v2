@@ -1945,6 +1945,15 @@ bordo sdoppiato — ed è la prima cosa che si nota. Chiuso con
 quello di dentro è di troppo. **Misurato**: `borderTopWidth` del contenitore
 1px, della vista 0px, distanza fra i due bordi superiori 1px (era 2).
 
+**E poi lo stesso nell'agenda**, che ha il suo `border-t`
+(`event-calendar-agenda-view.tsx:200`) — corretto la prima volta sul solo
+mese e trovato da Francesco nell'altra vista. La lezione, che vale per il
+prossimo che aggiunge una vista: **ogni vista del motore apre con un
+`border-t` proprio**, perché ReUI la disegna per stare sotto la sua `nav`
+senza un contenitore attorno. Chi la monta dentro un contenitore con bordo li
+somma. Ora sono spenti tutti e due (`monthView`, `agendaView`) e la misura è
+la stessa su mese, agenda e vuoto: contenitore 1px, vista 0px, distanza 1.
+
 **Le iniziali uscivano dal pallino.** `Avatar size-4` (16px) con `text-xs`
 (12px, il gradino più piccolo che il tema tara): due lettere non ci stanno.
 ReUI lo risolve con `text-[9px]`, che è un **valore arbitrario** e per giunta
@@ -1958,3 +1967,51 @@ Vale come regola generale: **quando un testo non sta in un contenitore, in
 questo design system si allarga il contenitore.** Scendere sotto `text-xs`
 richiede un valore arbitrario, che la regola 3 vieta e che in densità touch
 resterebbe fermo mentre tutto il resto cresce.
+### (g) La story si riorganizza: introduzione più **una** scena, e il vuoto torna nostro
+
+Indirizzo di Francesco dopo la seconda passata: «una pagina di introduzione
+con tutte le funzionalità, e **una story unica** in cui integriamo tutte le
+funzionalità delle diverse story. Lavoriamo su una vista unificata.»
+
+**Il difetto della forma precedente** era che otto scene mostravano lo stesso
+calendario con una funzione accesa per volta: chi guardava non vedeva mai il
+pezzo come sarà davvero, e chi doveva provare il trascinamento sull'evento
+colorato doveva tenere a mente due scene. Otto scene non sono otto casi: sono
+un caso spezzato in otto.
+
+**La forma nuova**, che segue il precedente di `data-table` e `data-grid`:
+`tags: ['autodocs']`, e il JSDoc del meta diventa la **pagina di
+introduzione** — cosa sa fare, i quattro default, le tre cose da sapere prima
+di usarlo, le due che si vedono e non si possono cambiare. Poi **quattro**
+story, e solo la prima è una funzione:
+
+| story | perché esiste |
+|---|---|
+| **Completo** | la scena unica: calendari, corsie, «+N altri», dialogo, trascinamento, mese e agenda |
+| **Dialogo dell'evento** | la stessa, con la `play` che apre il dialogo — serve al gate |
+| **Densità touch** | uno **stato**, non una funzione; qui è dichiarato l'altro popup |
+| **Vuoto** | uno **stato** |
+
+Le due che restano oltre alla principale sono **stati**, non funzioni, e le
+due `play` stanno lì perché una story ne dichiara una sola e i popup del
+blocco sono due. Sulla scena completa non ce n'è nessuna, apposta: Storybook
+esegue le `play` anche nel canvas, e un popup aperto all'arrivo coprirebbe
+proprio ciò che si vuole provare.
+
+**E il vuoto torna nostro.** Rilievo esplicito: «quando non vi sono eventi
+possiamo usare le schermate per *vuoto* previste nelle primitive, **non
+aggiungiamo nulla di ReUI per quest'ultimo aspetto**». Giusto, ed è la regola
+permanente del `CLAUDE.md` applicata a un caso che sembrava innocuo: il vuoto
+ha uno standard unico, `tassullo-empty-state` (M3.5), e un calendario che se
+ne inventasse un altro sarebbe la deriva da cui tutto il resto comincia. Il
+blocco passa quindi `renderNoEvents` e monta il nostro `EmptyState`; la prop
+`statoVuoto` lo sostituisce, ed è la strada per metterci una CTA.
+
+Conseguenza da conoscere: **`icon-stack.tsx` resta nel registry ma non rende
+più niente**. È dipendenza del *codice* di `event-calendar-agenda-view`, non
+una nostra scelta, quindi non si toglie — ma chi un giorno cercherà di capire
+perché c'è, lo trova scritto qui.
+
+Conto: **1352 → 1332 scansioni** (333 story), 0 violazioni — otto scene
+diventate quattro, per quattro passate, fanno sedici scansioni in meno più le
+quattro della scena che il riordino ha unito.

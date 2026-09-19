@@ -6160,7 +6160,7 @@ nel chip da `-5`.
 | servono più colori | cinque, i `--chart-*` del tema |
 | serve l'avatar della persona | nel chip, dal calendario |
 | celle da almeno 3 eventi | `min-h-30` sulla riga |
-| doppio bordo · iniziali fuori dal pallino | `border-t-0` · `size-5` |
+| doppio bordo (mese **e** agenda) · iniziali fuori dal pallino | `border-t-0` su entrambe le viste · `size-5` |
 
 #### Il rilievo che ha cambiato il modello
 
@@ -6264,6 +6264,14 @@ piccoli in entrambe le direzioni**. I due del calendario: `event-calendar-more`
 **17,33 × 165px** (era 4,78 prima della correzione) e `event-calendar-event`
 **25,5 × 342px** ×28.
 
+**Il doppio bordo era in due posti, non in uno.** Corretto prima sul solo
+mese, e Francesco l'ha ritrovato nell'agenda. **Ogni vista del motore apre
+con un `border-t` proprio**, perché ReUI la disegna per stare sotto la sua
+`nav` senza un contenitore attorno: chi la mette dentro un contenitore con
+bordo li somma. Ora `monthView` e `agendaView` sono entrambe `border-t-0`, e
+la misura è la stessa su mese, agenda e vuoto — contenitore 1px, vista 0px,
+distanza 1.
+
 #### Quello che resta di mio, e resta aperto
 
 - **Il numero del giorno in basso a destra** è una scelta di ReUI
@@ -6276,3 +6284,56 @@ piccoli in entrambe le direzioni**. I due del calendario: `event-calendar-more`
 - **`aria-required-children` resta spenta** sulle sole scene con barre
   pluri-giorno: il piano delle barre è figlio diretto di `role="row"` ed è
   struttura di ReUI.
+
+#### Coda 2 di M4ter.2: la story si riorganizza, e il vuoto torna nostro (2026-09-19)
+
+**Due indirizzi di Francesco, e il secondo è una questione di principio.**
+
+**1. Otto scene erano un caso spezzato in otto.** «Una pagina di
+introduzione con tutte le funzionalità, e una story unica in cui integriamo
+tutte le funzionalità delle diverse story.» Il difetto era vero: ogni scena
+mostrava lo stesso calendario con una funzione accesa per volta, e nessuna
+mostrava il pezzo come sarà davvero.
+
+Rifatta seguendo il precedente di `data-table` e `data-grid`:
+`tags: ['autodocs']`, e il JSDoc del meta diventa la **pagina di
+introduzione** — cosa sa fare, i quattro default, le tre cose da sapere prima
+di usarlo, le due che si vedono e non si possono cambiare. Restano **quattro**
+story, e solo la prima è una funzione: **Completo** (tutto acceso),
+**Dialogo dell'evento** e **Densità touch** (che portano le due `play`, perché
+una story ne dichiara una sola e i popup del blocco sono due), **Vuoto**. Le
+ultime due sono **stati**, non funzioni.
+
+Sulla scena completa non c'è nessuna `play`, apposta: Storybook le esegue
+anche nel canvas, e un popup aperto all'arrivo coprirebbe proprio ciò che si
+vuole provare.
+
+E i dati sono uno solo per tutte: un mese che esercita insieme tre corsie
+nella settimana del 7, una giornata affollata il 15 per il «+N altri», e un
+evento senza calendario che tiene il colore per sé.
+
+**2. Il vuoto non si prende da ReUI.** «Quando non vi sono eventi possiamo
+usare le schermate per *vuoto* previste nelle primitive, **non aggiungiamo
+nulla di ReUI per quest'ultimo aspetto**.» È la regola permanente del
+`CLAUDE.md` applicata a un caso che sembrava innocuo — l'avevo lasciato
+perché *funzionava*, che è esattamente il ragionamento che fa derivare le app.
+Il vuoto ha uno standard unico, `tassullo-empty-state` (M3.5): il blocco passa
+`renderNoEvents` e monta quello, e `statoVuoto` lo sostituisce quando serve
+una CTA.
+
+Conseguenza a verbale: **`icon-stack.tsx` resta nel registry e non rende più
+niente**. È dipendenza del *codice* di `event-calendar-agenda-view`, non una
+nostra scelta, quindi non si toglie.
+
+**Chiuso anche il doppio bordo dell'agenda**, che era rimasto: ogni vista del
+motore apre con un `border-t` proprio, perché ReUI la disegna per stare sotto
+la sua `nav` senza un contenitore attorno. Ora `monthView` e `agendaView` sono
+entrambe `border-t-0`.
+
+**Numeri**: `test:a11y` **1352 → 1332 scansioni** (333 story), **0
+violazioni**; `check` verde sui cinque; `check:registry` 0/61/0/24 invariati;
+88 item, `registry validate` verde; `build` e `lint` verdi.
+`misura:bersagli`, controllo dello strumento ✔ (47,875px, atteso 48): **3009
+bersagli su 333 story**, 35 tipi distinti, **0 piccoli in entrambe le
+direzioni**; i due del calendario sono `event-calendar-more` 17,33 × 165px e
+`event-calendar-event` 26 × 700px.

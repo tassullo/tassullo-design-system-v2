@@ -13,30 +13,90 @@ import {
  * motore `@reui/event-calendar` adottato in M4ter.1.
  *
  * ```tsx
- * <Calendario eventi={fermi} onEventoClick={(o) => apriPannello(o.event)} />
+ * const [fermi, setFermi] = useState(fermiIniziali)
+ *
+ * <Calendario
+ *   calendari={squadra}
+ *   eventi={fermi}
+ *   onEventiChange={setFermi}
+ *   modifica
+ *   trascinamento
+ * />
  * ```
  *
- * **Quattro cose che questo blocco decide, e che il motore da solo non
- * deciderebbe**: la settimana comincia di **lunedì**, il clic su una cella
- * **non crea niente**, il **trascinamento è spento** (prop `trascinamento`
- * per riaccenderlo) e l'evento prende **`start` e `end`**, non un istante.
- * Il perché di ognuna sta in testa a `calendario.tsx`.
+ * ## Cosa sa fare
  *
- * **Il bivio mese/agenda lo dichiara la pagina.** L'agenda è la faccia
- * stretta — la vista che Officina si è scritta a mano — e quale mostrare
- * dipende da quanto spazio ha *quella* pagina: da M4ter.6 si scriverà con
- * `useSoglia`. Qui la testata commuta le due quando `vista` non è
- * controllata.
+ * - **Due viste**, mese e agenda, con la testata che le commuta. L'agenda è
+ *   la faccia stretta — la vista che Officina si è scritta a mano.
+ * - **Barre pluri-giorno con il calcolo delle corsie**: una barra che dura
+ *   tre giorni si legge come *un* fermo, e più barre che si accavallano
+ *   trovano ognuna la propria riga. È la parte cara, ed è la ragione per cui
+ *   il motore si adotta invece di scriverlo.
+ * - **«+N altri»** quando in una cella non ci stanno: apre un popover col
+ *   resto del giorno.
+ * - **Calendari**: un evento appartiene a un calendario, e da lì vengono il
+ *   suo **colore** e l'**avatar**. In Officina un calendario è la persona a
+ *   cui il fermo è affidato; ma può essere una linea, un reparto, una
+ *   commessa.
+ * - **Un dialogo per crea / modifica / elimina** (`modifica`), che si apre
+ *   dal clic su un evento, dal clic su un giorno vuoto e dal bottone
+ *   «Nuovo».
+ * - **Trascinamento** (`trascinamento`) per riprogrammare, e il bordo per
+ *   cambiare quanti giorni dura.
  *
- * **Il numero del giorno sta in basso a destra**, ed è una scelta del
- * motore adottato (`// Day number + add affordance, bottom-right
- * (Notion-style)`): spostarlo in alto sarebbe muovere un nodo del DOM, non
- * cambiare una stringa di classi, cioè fuori dal gradino 2 della regola
- * 4bis.
+ * ## I quattro default di casa
+ *
+ * Presi dal `Calendario.tsx` di Officina, e **restano default anche adesso
+ * che l'interattività c'è**: `modifica` e `trascinamento` dicono quanto
+ * aprirlo, non cambiano il punto di partenza.
+ *
+ * 1. **La settimana comincia di lunedì**, scritto esplicito e non dedotto dal
+ *    locale: il motore legge `weekStartsOn ?? locale?.options?.weekStartsOn
+ *    ?? 0`, quindi chi dimentica il locale avrebbe la domenica in prima
+ *    colonna **senza nessun errore**.
+ * 2. **Niente creazione dell'evento dal clic sulla griglia.**
+ * 3. **Trascinamento spento.** «La riprogrammazione è un date-picker nel
+ *    pannello, non un drag&drop: trascinare su una griglia da 42 celle è
+ *    preciso col mouse e impossibile col pollice, e sarebbe l'unica azione
+ *    dell'app senza una conferma.»
+ * 4. **L'evento prende `start` e `end`**, non un istante. `end` è
+ *    **esclusivo**: un fermo del solo 9 finisce alle 00:00 del 10.
+ *
+ * ## Tre cose da sapere prima di usarlo
+ *
+ * **Gli eventi sono controllati.** Trascinamento e dialogo non mutano niente
+ * da sé: chiamano `onEventiChange` con l'elenco nuovo, e l'app lo rimette
+ * dentro da `eventi`. Lo vuole il motore — in modo controllato emette il
+ * callback e non tocca lo stato interno — ed è anche giusto, perché una
+ * riprogrammazione passa dal backend. Accendere `modifica` o `trascinamento`
+ * **senza** `onEventiChange` fa un calendario che sembra rispondere e non
+ * salva niente.
+ *
+ * **Il contenitore deve avere un'altezza**, e il blocco è `min-h-0 flex-1`:
+ * dentro un genitore `flex flex-col` con altezza nota riempie lo spazio. Le
+ * celle del mese hanno un'altezza minima che tiene **tre** eventi, e quando
+ * le sei righe non ci stanno il mese **scorre** invece di schiacciarle.
+ *
+ * **Il bivio mese/agenda lo dichiara la pagina**, non il blocco: quale
+ * mostrare dipende da quanto spazio ha *quella* pagina, e da M4ter.6 si
+ * scriverà con `useSoglia`.
+ *
+ * ## Due cose che si vedono e non si possono cambiare
+ *
+ * **Il numero del giorno sta in basso a destra**: è una scelta del motore
+ * adottato («Notion-style»), e spostarlo in alto sarebbe muovere un nodo del
+ * DOM, fuori dal gradino 2 della regola 4bis.
+ *
+ * **Le frecce non spostano una selezione nella griglia.** Misurato in
+ * Chromium vero: 42 celle, **nessuna** focalizzabile, e axe dà zero
+ * violazioni — è D15. Non morde col default di casa, perché una cella non ha
+ * azioni; con `modifica` acceso l'appiglio da tastiera è il «+» che compare
+ * in ogni cella.
  */
 const meta = {
   title: 'Blocchi/Calendario',
   component: Calendario,
+  tags: ['autodocs'],
 
   /**
    * **Una regola axe spenta, e solo qui: `aria-required-children`.**
@@ -47,8 +107,6 @@ const meta = {
    * "event-calendar-month-bar-overlay"`) che è **figlio diretto della riga**.
    * La riga è `role="row"`, e un `row` ammette per figli solo `gridcell`:
    * axe trova dei `button[aria-label]` e chiama `aria-required-children`.
-   * Compare **solo** sulle scene con barre pluri-giorno (Mese, Barre
-   * pluri-giorno, Densità touch); Agenda, «+N altri» e Vuoto sono pulite.
    *
    * **Non si chiude ri-stilando**: un `role` non è una stringa di classi, e
    * la posizione del piano nell'albero è struttura — fuori dal gradino 2
@@ -63,9 +121,9 @@ const meta = {
    * fuoco — e la regola, in queste scene, non ha altro soggetto che la
    * griglia. Escludere il piano perderebbe ogni misura sulle barre;
    * spegnere la regola perde una misura sola, su un difetto già accertato.
-   * Il costo residuo, scritto perché si sappia: in queste sei scene un
-   * *altro* `aria-required-children` — un `tablist` senza `tab`, un `grid`
-   * senza `row` — non verrebbe più visto.
+   * Il costo residuo, scritto perché si sappia: in queste scene un *altro*
+   * `aria-required-children` — un `tablist` senza `tab`, un `grid` senza
+   * `row` — non verrebbe più visto.
    *
    * Misura e ragionamento per esteso in `docs/DECISIONI.md` §44.
    */
@@ -97,237 +155,144 @@ const SQUADRA: CalendarioSorgente[] = [
   { id: 'ext', nome: 'Ditta esterna', colore: 'grigio' },
 ]
 
-const fermi: EventoCalendario[] = [
-  { id: 'f1', title: 'Fermo pressa 3', start: g(7, 7), end: g(10, 18), calendarioId: 'fs' },
-  { id: 'f2', title: 'Manutenzione forno', start: g(9, 8), end: g(9, 12), calendarioId: 'mr' },
-  { id: 'f3', title: 'Collaudo linea B', start: g(15, 9), end: g(15, 17), calendarioId: 'lb' },
-  { id: 'f4', title: 'Revisione muletto', start: g(23, 14), end: g(23, 16), calendarioId: 'ext' },
+/**
+ * Un mese di fermi che esercita tutto insieme: tre barre pluri-giorno che si
+ * accavallano nella stessa settimana (le corsie), una giornata affollata che
+ * fa comparire il «+N altri», e un evento senza calendario che tiene il
+ * colore per sé.
+ */
+const FERMI: EventoCalendario[] = [
+  // La settimana del 7: tre barre sovrapposte, tre corsie.
+  { id: 'e1', title: 'Fermo pressa 3 — guarnizioni', start: g(7, 6), end: g(10, 22), calendarioId: 'fs' },
+  { id: 'e2', title: 'Fermo forno A — refrattario', start: g(8, 6), end: g(12, 22), calendarioId: 'ext' },
+  { id: 'e3', title: 'Ferie squadra manutenzione', start: g(9, 0), end: g(10, 0), allDay: true, calendarioId: 'mr' },
+  // La settimana del 14: una giornata affollata, per il «+N altri».
+  { id: 'e4', title: 'Cambio stampo', start: g(15, 6), end: g(15, 8), calendarioId: 'fs' },
+  { id: 'e5', title: 'Taratura bilance', start: g(15, 8, 30), end: g(15, 10), calendarioId: 'mr' },
+  { id: 'e6', title: 'Collaudo linea B', start: g(15, 10, 30), end: g(15, 13), calendarioId: 'lb' },
+  { id: 'e7', title: 'Revisione muletto', start: g(15, 14), end: g(15, 16), calendarioId: 'ext' },
+  { id: 'e8', title: 'Verifica antincendio', start: g(15, 16, 30), end: g(15, 18), colore: 'ardesia' },
+  // Sparsi, perché il mese non sia tutto in due settimane.
+  { id: 'e9', title: 'Fermo compressore', start: g(21, 6), end: g(23, 18), calendarioId: 'lb' },
+  { id: 'e10', title: 'Manutenzione forno', start: g(25, 8), end: g(25, 12), calendarioId: 'mr' },
 ]
 
-/**
- * La griglia del mese come la vede un'app: qualche fermo sparso, uno che
- * dura quattro giorni.
- */
-export const Mese: Story = {
-  args: { eventi: fermi, dataIniziale: ANCORA },
-  render: (args) => (
-    <div className="flex h-200 flex-col">
-      <Calendario {...args} />
-    </div>
-  ),
+function Guscio({ children }: { children: React.ReactNode }) {
+  return <div className="flex h-200 flex-col">{children}</div>
 }
 
 /**
- * **La ragione per cui questo motore si adotta invece di scriverlo.** Cinque
- * fermi che durano giorni e si accavallano: il calcolo delle corsie decide
- * su che riga sta ognuno, e una barra che dura tre giorni si legge come
- * **un** fermo, non come tre.
- */
-export const BarrePluriGiorno: Story = {
-  name: 'Barre pluri-giorno',
-  args: {
-    dataIniziale: ANCORA,
-    eventi: [
-      { id: 'p1', title: 'Fermo pressa 3 — guarnizioni', start: g(7, 6), end: g(10, 22), colore: 'arancio' },
-      { id: 'p2', title: 'Fermo forno A — refrattario', start: g(8, 6), end: g(12, 22), colore: 'blu' },
-      { id: 'p3', title: 'Ferie squadra manutenzione', start: g(9, 0), end: g(10, 0), allDay: true, colore: 'verde' },
-      { id: 'p4', title: 'Collaudo linea B', start: g(14, 6), end: g(16, 18), colore: 'ardesia' },
-      { id: 'p5', title: 'Fermo compressore', start: g(15, 6), end: g(18, 18), colore: 'grigio' },
-    ],
-  },
-  render: (args) => (
-    <div className="flex h-200 flex-col">
-      <Calendario {...args} />
-    </div>
-  ),
-}
-
-/**
- * Quando in una cella non ci stanno, il motore mette un **«+N altri»** che
- * apre un popover col resto del giorno. La story lo **dichiara** con una
- * `play` da `@/prove/apri`, perché un popup non aperto non è un popup senza
- * violazioni.
- */
-export const PiuAltri: Story = {
-  name: 'Mese con «+N altri»',
-  args: {
-    dataIniziale: ANCORA,
-    maxEventiPerCella: 2,
-    eventi: [
-      { id: 'a1', title: 'Fermo pressa 3', start: g(9, 6), end: g(9, 8) },
-      { id: 'a2', title: 'Manutenzione forno', start: g(9, 8, 30), end: g(9, 10) },
-      { id: 'a3', title: 'Cambio stampo', start: g(9, 10, 30), end: g(9, 12) },
-      { id: 'a4', title: 'Collaudo linea B', start: g(9, 13), end: g(9, 15) },
-      { id: 'a5', title: 'Revisione muletto', start: g(9, 15, 30), end: g(9, 17) },
-    ],
-  },
-  play: apriCol('[data-slot="event-calendar-more"]', 'event-calendar-more-popover'),
-  render: (args) => (
-    <div className="flex h-200 flex-col">
-      <Calendario {...args} />
-    </div>
-  ),
-}
-
-/**
- * La faccia stretta: gli eventi in elenco, raggruppati per giorno. La
- * finestra è di sette giorni (`giorniAgenda`) e comincia dalla data
- * d'ancoraggio.
- */
-export const Agenda: Story = {
-  args: {
-    dataIniziale: g(7),
-    vistaIniziale: 'agenda',
-    eventi: [
-      { id: 'g1', title: 'Fermo pressa 3', start: g(7, 7), end: g(10, 18) },
-      { id: 'g2', title: 'Manutenzione forno', start: g(9, 8), end: g(9, 12) },
-      { id: 'g3', title: 'Cambio stampo', start: g(9, 14), end: g(9, 16) },
-      { id: 'g4', title: 'Collaudo linea B', start: g(11, 9), end: g(11, 17) },
-    ],
-  },
-  render: (args) => (
-    <div className="flex h-200 flex-col">
-      <Calendario {...args} />
-    </div>
-  ),
-}
-
-/**
- * **Non si sceglie un colore: si sceglie il calendario a cui l'evento
- * appartiene**, e il colore è la conseguenza. Qui i calendari sono le
- * persone della squadra, che è il caso di Officina: il colore del fermo dice
- * a chi è affidato, e l'avatar lo ripete con le iniziali.
+ * **La scena unica: tutto acceso.** Calendari e persone, barre pluri-giorno
+ * con le corsie, «+N altri», mese e agenda, dialogo e trascinamento.
  *
- * Nel motore il concetto c'è già e si chiama `resource`: il blocco gli dà il
- * nome di casa (`calendari`, `calendarioId`) e ne **deriva il colore del
- * chip**, che il motore da sé non fa — legge solo `event.color`.
+ * Cosa provare, in ordine di quanto è facile sbagliarlo:
  *
- * I cinque colori sono i `--chart-*` del tema e si scelgono **per nome**,
- * mai per valore: `color` del motore è una `string` e accetterebbe un
- * esadecimale **senza che nessun gate se ne accorga**, perché la regola 3
- * guarda le classi di Tailwind e non i valori delle prop.
+ * - **trascina** un fermo su un altro giorno, e **tira il bordo** di una
+ *   barra per cambiarne la durata;
+ * - **clicca un evento**: si apre in modifica, col suo calendario già scelto;
+ * - **clicca un giorno vuoto**, o «Nuovo»: si apre in creazione;
+ * - cambia il **calendario** nel dialogo e guarda cambiare colore e iniziali;
+ * - apri il **«+N altri»** del 15;
+ * - passa all'**agenda** e torna al **mese**.
  *
- * L'ultimo evento (*Revisione muletto*) non ha calendario: è il caso in cui
- * il colore torna a essere un dato dell'evento.
+ * Gli eventi stanno in uno `useState` di questa story: è il modo in cui
+ * un'app li tiene, perché il calendario **non muta niente da sé**.
  */
-export const ColoriEAssegnatari: Story = {
-  name: 'Calendari e persone',
+export const Completo: Story = {
   args: {
+    eventi: [],
     dataIniziale: ANCORA,
     calendari: SQUADRA,
-    eventi: [
-      { id: 'c1', title: 'Fermo pressa 3', start: g(8, 7), end: g(8, 12), calendarioId: 'fs' },
-      { id: 'c2', title: 'Manutenzione forno', start: g(9, 8), end: g(9, 12), calendarioId: 'mr' },
-      { id: 'c3', title: 'Collaudo linea B', start: g(10, 9), end: g(10, 17), calendarioId: 'lb' },
-      { id: 'c4', title: 'Fermo compressore', start: g(15, 6), end: g(17, 18), calendarioId: 'ext' },
-      { id: 'c5', title: 'Revisione muletto', start: g(16, 14), end: g(16, 16), colore: 'ardesia' },
-      { id: 'c6', title: 'Taratura bilance', start: g(22, 9), end: g(22, 11), calendarioId: 'mr' },
-    ],
+    modifica: true,
+    trascinamento: true,
   },
-  render: (args) => (
-    <div className="flex h-200 flex-col">
-      <Calendario {...args} />
-    </div>
-  ),
-}
-
-/**
- * **Il calendario che si usa, non quello che si guarda.** Clic su un evento →
- * si apre in modifica; clic su un giorno vuoto → si apre in creazione;
- * «Nuovo» in testata → lo stesso dialogo. Le barre si **trascinano** per
- * riprogrammare e si **ridimensionano** dal bordo per cambiare quanti giorni
- * durano. Dialogo e campi vengono da `c-event-calendar-3`, con le nostre
- * primitive.
- *
- * **Gli eventi sono controllati.** Il motore non muta niente da sé: chiama
- * `onEventiChange` con l'elenco nuovo, e la pagina lo rimette dentro — come
- * fa lo `useState` qui sotto. Accendere `modifica` o `trascinamento` senza
- * `onEventiChange` fa un calendario che sembra rispondere e non salva niente.
- *
- * **Restano spenti per default**, che è la scelta di Officina: «la
- * riprogrammazione è un date-picker nel pannello, non un drag&drop». Queste
- * due prop dicono quanto aprirlo, non cambiano il default.
- */
-export const ModificaETrascinamento: Story = {
-  name: 'Modifica e trascinamento',
-  args: { eventi: [], dataIniziale: ANCORA, calendari: SQUADRA, modifica: true, trascinamento: true },
-  render: function ConModifica(args) {
-    const [eventi, setEventi] = useState<EventoCalendario[]>([
-      { id: 'm1', title: 'Fermo pressa 3', start: g(8, 7), end: g(9, 18), calendarioId: 'fs' },
-      { id: 'm2', title: 'Manutenzione forno', start: g(10, 8), end: g(10, 12), calendarioId: 'mr' },
-      { id: 'm3', title: 'Collaudo linea B', start: g(16, 9), end: g(16, 17), calendarioId: 'lb' },
-    ])
+  render: function Tutto(args) {
+    const [eventi, setEventi] = useState<EventoCalendario[]>(FERMI)
     return (
-      <div className="flex h-200 flex-col">
+      <Guscio>
         <Calendario {...args} eventi={eventi} onEventiChange={setEventi} />
-      </div>
+      </Guscio>
     )
   },
 }
 
 /**
- * **Il dialogo, aperto.** È la stessa scena di sopra con una `play` che preme
+ * **Il dialogo, aperto.** È la scena di sopra con una `play` che preme
  * «Nuovo»: serve al gate, perché **un popup non aperto non è un popup senza
- * violazioni** e questo file ne ha due (il «+N altri» e il dialogo).
+ * violazioni**.
  *
- * Sta in una scena a parte e non sulla precedente per una ragione pratica:
- * Storybook esegue le `play` anche nel canvas, quindi la scena col dialogo
- * dichiarato **arriva col dialogo davanti** — e sulla scena
- * dell'interattività quel dialogo coprirebbe proprio ciò che si vuole
- * provare, cioè il trascinamento.
- *
- * Avvertenza per il rapporto del gate: la tabella «Popup che l'imbracatura
- * apre davvero» stampa **una sola** dichiarazione per componente, la prima
- * che trova nel file. Le `play` però girano tutte, e axe misura lo stato vero
- * di ogni story: il dialogo è scansionato, anche se la tabella nomina il
- * «+N altri».
+ * Sta a parte e non sulla scena principale per una ragione pratica:
+ * Storybook esegue le `play` anche nel canvas, quindi la story che dichiara
+ * un popup **arriva col popup davanti** — e sulla scena completa il dialogo
+ * coprirebbe proprio ciò che si vuole provare, cioè il trascinamento.
  */
 export const DialogoEvento: Story = {
   name: "Dialogo dell'evento",
-  args: { eventi: [], dataIniziale: ANCORA, calendari: SQUADRA, modifica: true },
+  args: {
+    eventi: [],
+    dataIniziale: ANCORA,
+    calendari: SQUADRA,
+    modifica: true,
+  },
   play: apriIlBottone(/^Nuovo$/, 'dialog-content'),
   render: function ConDialogo(args) {
-    const [eventi, setEventi] = useState<EventoCalendario[]>([
-      { id: 'd1', title: 'Fermo pressa 3', start: g(8, 7), end: g(9, 18), calendarioId: 'fs' },
-    ])
+    const [eventi, setEventi] = useState<EventoCalendario[]>(FERMI)
     return (
-      <div className="flex h-200 flex-col">
+      <Guscio>
         <Calendario {...args} eventi={eventi} onEventiChange={setEventi} />
-      </div>
+      </Guscio>
     )
   },
-}
-
-/**
- * Nessun evento: la griglia resta leggibile e l'agenda dice «Nessun
- * evento». È lo stato con cui una pagina si apre la prima volta, non un
- * caso limite.
- */
-export const Vuoto: Story = {
-  args: { eventi: [], dataIniziale: ANCORA },
-  render: (args) => (
-    <div className="flex flex-col gap-4">
-      <div className="flex h-96 flex-col">
-        <Calendario {...args} />
-      </div>
-      <div className="flex h-96 flex-col">
-        <Calendario {...args} vistaIniziale="agenda" />
-      </div>
-    </div>
-  ),
 }
 
 /**
  * **Lo schermo del capannone.** In densità touch i bersagli crescono con
- * `--spacing`, e la domanda vera è se una cella si tocca col guanto senza
- * sbagliare giorno: il numero dei bersagli piccoli sta a verbale in
- * `WORKLOG.md`, misurato con `npm run misura:bersagli`.
+ * `--spacing` — le celle passano da 120 a 180px — e la domanda vera è se una
+ * cella si tocca col guanto senza sbagliare giorno. Il conto dei bersagli
+ * piccoli sta a verbale in `WORKLOG.md`, misurato con
+ * `npm run misura:bersagli`.
+ *
+ * Qui è dichiarato anche l'altro popup del blocco, il **«+N altri»** del 15.
  */
 export const DensitaTouch: Story = {
   name: 'Densità touch',
-  args: { eventi: fermi, dataIniziale: ANCORA },
+  args: {
+    eventi: FERMI,
+    dataIniziale: ANCORA,
+    calendari: SQUADRA,
+    maxEventiPerCella: 2,
+  },
+  play: apriCol('[data-slot="event-calendar-more"]', 'event-calendar-more-popover'),
   render: (args) => (
     <div data-density="touch" className="bg-background text-foreground flex h-200 flex-col">
+      <Calendario {...args} />
+    </div>
+  ),
+}
+
+/**
+ * **Il vuoto è quello nostro, non quello di ReUI.** Il motore monterebbe una
+ * sua illustrazione; qui il vuoto passa da `tassullo-empty-state`, che è lo
+ * standard unico di M3.5 — icona, frase, e una CTA quando c'è un'azione
+ * sensata. Un calendario che si inventasse un vuoto proprio sarebbe
+ * esattamente la deriva che il design system esiste per non avere.
+ *
+ * `statoVuoto` lo sostituisce, ed è la strada per aggiungerci il bottone che
+ * porta fuori dal vuoto.
+ *
+ * La scena mostra l'**agenda**, perché è lì che il vuoto si vede: nel mese la
+ * griglia c'è comunque — trentun caselle numerate non sono uno stato vuoto,
+ * sono un mese senza niente dentro.
+ */
+export const Vuoto: Story = {
+  args: {
+    eventi: [],
+    dataIniziale: ANCORA,
+    calendari: SQUADRA,
+    vistaIniziale: 'agenda',
+  },
+  render: (args) => (
+    <div className="flex h-128 flex-col">
       <Calendario {...args} />
     </div>
   ),

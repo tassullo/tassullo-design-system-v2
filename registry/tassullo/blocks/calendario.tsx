@@ -66,7 +66,7 @@
  * viste scorrono al proprio interno.
  */
 import * as React from "react"
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react"
+import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react"
 import {
   addDays,
   addMinutes,
@@ -86,6 +86,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/registry/tassullo/ui/avatar"
+import { EmptyState } from "@/registry/tassullo/blocks/empty-state"
 import { Button } from "@/registry/tassullo/ui/button"
 import { ButtonGroup } from "@/registry/tassullo/ui/button-group"
 import {
@@ -738,6 +739,13 @@ export interface CalendarioProps<TData = unknown> {
   testata?: boolean
   /** Nodi in fondo alla testata, prima di «Nuovo» (filtri, una legenda). */
   azioni?: React.ReactNode
+  /**
+   * Cosa mostrare quando non c'è nessun evento. Il default è
+   * `tassullo-empty-state`, cioè lo standard unico del vuoto di M3.5 — **non**
+   * lo stato vuoto di ReUI, che porterebbe una sua illustrazione e un suo
+   * tono. Si passa un nodo per cambiare la frase o aggiungerci una CTA.
+   */
+  statoVuoto?: React.ReactNode
   /** Fuso orario di visualizzazione. @default quello del browser */
   fusoOrario?: string
   /**
@@ -773,6 +781,7 @@ export function Calendario<TData = unknown>({
   maxEventiPerCella = "auto",
   testata = true,
   azioni,
+  statoVuoto,
   fusoOrario,
   calendari = VUOTI,
   coloreDefault = "arancio",
@@ -963,6 +972,22 @@ export function Calendario<TData = unknown>({
         showDayAddButton={modifica || onGiornoClick !== undefined}
         maxEventsPerCell={maxEventiPerCella}
         resources={calendari.map((c) => ({ id: c.id, title: c.nome }))}
+        // **Il vuoto è il nostro, non quello di ReUI.** Il loro monta
+        // `IconStack` con una sua illustrazione; da noi il vuoto ha uno
+        // standard unico — `tassullo-empty-state`, M3.5 — e un calendario
+        // che se ne inventasse un altro sarebbe la deriva che il design
+        // system esiste per non avere. Conseguenza da sapere: `icon-stack`
+        // resta nel registry perché `event-calendar-agenda-view` lo importa,
+        // ma non rende più niente.
+        renderNoEvents={() =>
+          statoVuoto ?? (
+            <EmptyState
+              icona={<CalendarIcon />}
+              titolo="Nessun evento"
+              descrizione="In questo periodo non è programmato niente."
+            />
+          )
+        }
         renderEvent={chip}
         classNames={{
           // **Il «+N altri» non si lascia schiacciare.** Il motore lo mette
@@ -1003,6 +1028,9 @@ export function Calendario<TData = unknown>({
           // scorrono sotto. `bg-card` perché una riga trasparente lascerebbe
           // vedere le celle passarci dietro.
           monthHeader: "bg-card sticky top-0 z-20",
+          // Stessa ragione del mese: anche l'agenda apre con un `border-t`
+          // suo, e sopra c'è già il bordo del contenitore.
+          agendaView: "border-t-0",
         }}
       >
         {testata ? (
