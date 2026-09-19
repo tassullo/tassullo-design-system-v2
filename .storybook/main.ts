@@ -25,7 +25,15 @@ const config: StorybookConfig = {
    * una copia di un file generato diverge al primo ritocco, ed è esattamente
    * ciò che la disciplina dei file generati esiste per impedire.
    */
-  staticDirs: [{ from: '../registry/tassullo/theme', to: '/tema' }],
+  staticDirs: [
+    { from: '../registry/tassullo/theme', to: '/tema' },
+    // Le foto di esempio di `Primitive/EntityImage`. Stanno in `public/` — che
+    // Storybook non serve da sé — e **non vengono spedite da nessun item**:
+    // `registry.json` elenca i file uno per uno, e le story non ci sono. Sono
+    // disegni, non fotografie: dicono se il riquadro è della misura giusta, non
+    // se una foto vera si riconosce.
+    { from: '../public/esempi', to: '/esempi' },
+  ],
 }
 
 export default config

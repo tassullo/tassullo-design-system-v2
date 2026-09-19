@@ -178,8 +178,15 @@ shadcn provate, chi ha approvato e quando.
 *è* il ramo condizionale che serve. Il nuovo file lo mette in un riquadro non tondo insieme
 ad `AspectRatio`.
 
-**Resta aperto**: la larghezza della cella della griglia — la stessa domanda del rapporto
-vista dall'altro lato. Va presa guardando una card vera a 4:3, nella sessione che scrive.
+**Chiuso in M4ter.3 (2026-09-19): la larghezza della cella è 256px**, cioè `--container-3xs`
+— misurata in Chromium su cinque candidate (208/240/256/288/320) e sulle larghezze vere
+dell'area contenuto del guscio (343 / 960 / 1120px). Sotto i 256 la foto scende a 211px e il
+catalogo si legge come una pagina di francobolli; sopra, a 320, il portatile — che è lo
+schermo del capannone — scende a due colonne. Fra 256 e 288 a 1280 non c'è differenza:
+decide 1440, dove 256 dà una macchina in più per riga. Tabella e ragionamento in
+`docs/DECISIONI.md` §45 (d). **Non ricontate le 16 soglie `minmax`**: i repo di Studio e
+Officina non erano sulla macchina della sessione, e il mandato vieta di simulare la
+ricognizione.
 
 **La prova che manca una convenzione condivisa**: `function MacchinaIcon()` — stesso SVG,
 parola per parola — è scritta in **quattro file** di Officina (`Triage`, `Lavori`,

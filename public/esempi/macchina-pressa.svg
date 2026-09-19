@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="Pressa idraulica in officina">
+  <defs>
+    <linearGradient id="p-muro" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9aa2a8"/><stop offset="1" stop-color="#63696e"/>
+    </linearGradient>
+    <linearGradient id="p-pav" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#50545a"/><stop offset="1" stop-color="#303438"/>
+    </linearGradient>
+    <linearGradient id="p-corpo" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2f4d63"/><stop offset="0.4" stop-color="#40657f"/><stop offset="1" stop-color="#253d4f"/>
+    </linearGradient>
+    <linearGradient id="p-acc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6f7479"/><stop offset="0.45" stop-color="#d4d9dd"/><stop offset="1" stop-color="#7c8186"/>
+    </linearGradient>
+    <radialGradient id="p-luce" cx="0.6" cy="0.15" r="0.8">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#p-muro)"/>
+  <rect y="620" width="1200" height="280" fill="url(#p-pav)"/>
+  <g opacity="0.22" stroke="#1d2022" stroke-width="3">
+    <path d="M0 660 H1200 M0 730 H1200 M0 820 H1200"/>
+    <path d="M240 620 L170 900 M560 620 L540 900 M860 620 L910 900"/>
+  </g>
+  <rect x="820" y="90" width="330" height="330" rx="10" fill="#767c81" opacity="0.45"/>
+  <ellipse cx="600" cy="770" rx="340" ry="36" fill="#1b1e20" opacity="0.5"/>
+  <rect x="330" y="700" width="540" height="90" rx="10" fill="#22303c"/>
+  <rect x="380" y="120" width="90" height="590" rx="10" fill="url(#p-corpo)"/>
+  <rect x="730" y="120" width="90" height="590" rx="10" fill="url(#p-corpo)"/>
+  <rect x="340" y="90" width="520" height="100" rx="12" fill="url(#p-corpo)"/>
+  <rect x="340" y="90" width="520" height="16" rx="8" fill="#6d93ad" opacity="0.55"/>
+  <rect x="540" y="180" width="120" height="180" rx="8" fill="url(#p-acc)"/>
+  <rect x="500" y="355" width="200" height="70" rx="8" fill="#2b3a46"/>
+  <rect x="470" y="560" width="260" height="60" rx="6" fill="url(#p-acc)"/>
+  <rect x="440" y="615" width="320" height="90" rx="8" fill="#22303c"/>
+  <g fill="#1a2731" opacity="0.6">
+    <rect x="470" y="640" width="260" height="10" rx="5"/>
+    <rect x="470" y="665" width="180" height="10" rx="5"/>
+  </g>
+  <rect x="860" y="300" width="170" height="300" rx="12" fill="#233642"/>
+  <rect x="878" y="322" width="134" height="104" rx="6" fill="#86b0c6"/>
+  <g fill="#233642" opacity="0.6">
+    <rect x="890" y="340" width="84" height="10" rx="5"/>
+    <rect x="890" y="362" width="108" height="10" rx="5"/>
+    <rect x="890" y="384" width="62" height="10" rx="5"/>
+  </g>
+  <g fill="#d3d8dc">
+    <circle cx="900" cy="462" r="14"/><circle cx="946" cy="462" r="14"/><circle cx="992" cy="462" r="14"/>
+    <rect x="884" y="500" width="124" height="18" rx="9"/>
+  </g>
+  <circle cx="946" cy="556" r="26" fill="#c94f3d"/>
+  <rect x="180" y="470" width="140" height="240" rx="10" fill="#2b3a46"/>
+  <circle cx="250" cy="530" r="34" fill="url(#p-acc)"/>
+  <rect width="1200" height="900" fill="url(#p-luce)"/>
+</svg>

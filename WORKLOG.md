@@ -6688,3 +6688,211 @@ sotto. Ora i **tre** `select` del dialogo hanno
 `check:registry` 0/62/0/19, **89 item**, `build` e `lint` verdi.
 `misura:bersagli`: **3013 bersagli su 333 story, 59 popup aperti**, 35 tipi,
 **0 piccoli in entrambe le direzioni**.
+
+### 2026-09-19 — M4ter.3: `entity-image`, il primo componente nostro — e due difetti muti trovati per strada
+
+**Verdetto in una riga: `registry/componenti-propri.json` non è più vuoto, e
+il numero della larghezza di cella è misurato e non scelto.** Ma le due cose
+che valgono più del componente sono due difetti **muti** incontrati mentre lo
+si verificava: uno smonta l'assunzione del mandato sull'`alt`, l'altro è un
+`var()` che cade in silenzio.
+
+#### Prima di tutto: la PR #7 era aperta
+
+Il mandato dice di fermarsi se M4ter.2 non è in `main`, e non lo era —
+`main` era a `401bfe3` (merge della #6). Unita la #7 su indicazione di
+Francesco (merge commit `a295e9e`, gate verde), ramo `claude/m4ter-3-entity-image`
+creato da lì. I numeri di partenza si sono verificati sul posto: **89 item**,
+`check:registry` 0/62/**0 componenti nostri**/19 ri-stilati, `test:a11y`
+**1332**/0 su 333 story.
+
+**E la ricognizione delle 16 soglie non si è potuta fare.** Studio e Officina
+non sono su questa macchina — cercati sotto `~/Documents`, `~/Desktop`,
+`~/Developer`, `~/Projects`, `~/code`, `~/src`, nessuno dei due compare — e il
+mandato dice che in quel caso **non si simula**. Niente sub-agente, quindi: la
+larghezza è decisa dalla sola misura in Chromium, che è comunque la prova che
+il piano chiedeva, e **quante volte ciascuna delle 16 soglie ricorra resta un
+dato mai ricontato**.
+
+#### Cosa c'è dentro
+
+`registry/tassullo/ui/entity-image.tsx` e la sua story a **sei scene** —
+Predefinita (4:3 con foto), Senza foto, Sedici noni, In griglia di card,
+Miniatura in riga, Densità touch. Item `entity-image`, **89 → 90**. E la
+**prima riga** di `registry/componenti-propri.json`, che fino a oggi era
+quello che il `CLAUDE.md` chiama «la condizione da difendere».
+
+Il componente è circa quaranta righe: `AspectRatio` fuori,
+`Avatar`/`AvatarImage`/`AvatarFallback` dentro, e le **cinque classi tonde**
+della primitiva annullate **una volta sola** invece che in ogni pagina. Il
+ramo condizionale — mostra l'immagine, altrimenti il segnaposto, compreso il
+caso della `src` che c'è e non arriva — non è scritto da noi: è quello di Base
+UI. La scala 4bis percorsa gradino per gradino, con la misura che chiude
+ciascuno, sta in `docs/DECISIONI.md` §45 (a) e nella riga del registro.
+
+Due scelte di forma che valgono un rigo. **Il raggio sta sulla radice** e
+dentro è tutto `rounded-none`, con un `ring-1 ring-foreground/10` al posto
+dell'`after:border` della primitiva: un bordo quadrato dentro un contenitore
+che ritaglia tondo si vede **tagliato agli angoli**, e con una leva sola
+`rounded-b-none` incastra la foto in testa a una `card` senza scoprire niente.
+E **l'icona del segnaposto si passa** — default `ImageOff` a `size-8`, che
+segue la densità (32px normale, **48 misurati** in touch) — perché
+`MacchinaIcon` scritta identica in quattro file di Officina è la prova della
+lacuna, non il modello.
+
+#### I due autotest del gate, e il secondo non era chiesto
+
+| prova | esito |
+|---|---|
+| riga tolta da `componenti-propri.json` | **esce 1**, «non ha un originale in `registry/.upstream` e non è dichiarato in …» |
+| riga presente ma **senza `approvatoDa`** | **esce 1**, «dichiarato … ma senza approvatoDa» |
+| riga completa | `✔ 0 errori / 62 avvisi / **1 componente nostro** / 19 ri-stilati` |
+
+Il secondo l'ho aggiunto perché una riga incompleta è il modo realistico in cui
+il registro si svuota di significato: nessuno toglie una riga, la si scrive
+male.
+
+#### (1) Il difetto muto dell'`alt` — l'assunzione del mandato era sbagliata
+
+Il mandato: «l'immagine senza `alt` deve far fallire il gate, quindi l'`alt` è
+obbligatorio nell'API — e questa è una cosa da provare, non da assumere».
+Provata: **è falsa**.
+
+Tolto `alt` dal render e rifatta la passata chiaro/chiuso: **339 story, 0
+violazioni**. Il DOM dice perché — `<img alt="" data-slot="avatar-image" …>`.
+**Base UI scrive `alt=""` su ogni `<img>` che renda**, se non gliene arriva uno
+(`@base-ui/react/internals/useRenderElement.js:183`). Una foto senza
+alternativa testuale non è quindi un errore: diventa in silenzio una foto
+**decorativa**, che è una cosa diversa e sbagliata, e `image-alt` non ha più
+soggetto. Stessa famiglia di `text-md` (§30): non rompe, non avverte, cambia il
+significato.
+
+Il solo controllo che lo vede è **il tipo** — verificato nell'altra direzione,
+`<EntityImage src="…" />` senza alt dà `TS2741: Property 'alt' is missing`. Ma
+**in CI non girava nessun `tsc`**: `npm run check` sono i cinque gate, e
+`build-storybook` passa da esbuild, che i tipi non li guarda. Quindi una story
+con una prop obbligatoria non rispettata sarebbe passata liscia.
+
+**Scostamento, a verbale**: aggiunto un passo `- run: npm run build` a
+`.github/workflows/gate.yml`, col perché scritto accanto. Non cambia il
+vocabolario dei «cinque gate» e non tocca `npm run check`; è ciò che rende
+**vero** il criterio d'accettazione invece di dichiararlo.
+
+#### (2) Il difetto muto di Tailwind v4: un `var()` che cade e non dice niente
+
+Prima soglia provata per la griglia, `--container-2xs` (18rem): griglia a **una
+colonna a tutta larghezza**, foto 1200×900 a 1440. La soglia non c'entra —
+**`--container-2xs` non è nel foglio di stile**. In Tailwind v4 un token del
+tema finisce in CSS **solo se un'utility lo usa**, e nessuna qui usa
+`w-2xs`/`max-w-2xs`. `minmax(var(--container-2xs), 1fr)` con la variabile vuota
+non è un errore: la dichiarazione cade e `repeat(auto-fill, …)` ricade su una
+traccia sola.
+
+Regola che ne esce, e che vale per ogni `var(--token)` scritto **fuori** da
+un'utility (uno `style`, un `calc`): o quel token è usato da un'utility da
+qualche parte nel codice compilato, o non esiste. Nella story sono le altre
+scene, con `w-3xs`, a far emettere il token che la griglia legge.
+
+#### La larghezza di cella: **256px**, cinque candidate misurate
+
+Larghezze d'area contenuto **misurate sul guscio** e non stimate
+(`Blocchi/App shell` in Chromium: colonna 256px, `main` 375 / 1024 / 1184px,
+meno il respiro di pagina → **343 / 960 / 1120** utili). Poi la scena `In
+griglia di card` a ciascuna, con cinque soglie:
+
+| soglia | telefono 375 | portatile 1280 | scrivania 1440 |
+|---|---|---|---|
+| 208px | 1 col · 343×257 | 4 col · **228×171** | 5 col · **211×158** |
+| 240px | 1 col · 343×257 | 3 col · 309×232 | 4 col · 268×201 |
+| **256px** | **1 col · 343×257** | **3 col · 309×232** | **4 col · 268×201** |
+| 288px | 1 col · 343×257 | 3 col · 309×232 | 3 col · 363×272 |
+| 320px | 1 col · 343×257 | **2 col** · 472×354 | 3 col · 363×272 |
+
+**208 cade**: 211px di foto è il fondo delle 16 soglie di oggi, ed è la misura
+che fa leggere un catalogo di macchine come una pagina di francobolli. **320
+cade** all'altro estremo — sul portatile, che è lo schermo del capannone,
+scende a **due** colonne. Fra 256 e 288 la differenza **non esiste dove
+conta**: a 1280 danno la stessa identica griglia. Si separano solo a 1440, dove
+256 dà una macchina in più per riga. Vince **256**, cioè `--container-3xs`, che
+è anche la misura della colonna del guscio.
+
+**E deve restare un token della scala contenitori.** Misurato: vale 16rem in
+entrambe le densità, mentre una soglia legata a `--spacing` farebbe **384px in
+touch** — più larga dei 343 di un telefono — e la griglia **sborderebbe**
+invece di ripiegare a una colonna.
+
+#### `ItemGroup` ha ripreso la sua trappola, e il gate l'ha presa in un minuto
+
+La scena della miniatura in riga è uscita alla prima passata con **una
+violazione su 339**: `aria-required-children` sul `role="list"` di `ItemGroup`.
+È la trappola scritta in testa a `Primitive/Item` in M4.7 — una lista ARIA
+ammette solo `listitem`, e `Item` rende un `div` senza ruolo. Vale averlo a
+verbale due volte: era documentata, è stata riletta, ed è ricapitata lo stesso.
+
+#### Le foto di esempio, e cosa **non** dimostrano
+
+Tre `.svg` in `public/esempi/` (tornio, pressa, fresatrice), più una riga di
+`staticDirs` in `.storybook/main.ts` perché Storybook `public/` non la serve da
+sé. Sono **locali di proposito**: con indirizzi remoti — come fa la story del
+calendario per gli avatar — in CI senza rete l'avatar ripiega e le scene «con
+foto» misurerebbero il **segnaposto**, cioè lo stesso difetto di «un popup non
+aperto non è un popup senza violazioni». Verificato a video: **4/4 immagini
+caricate** nella griglia, `object-fit: cover`, rapporti 1.333 e 1.778 esatti.
+
+**Ma sono disegni, non fotografie**, e vanno detti per quello che sono: dicono
+se il riquadro è della misura giusta, **non** se una foto vera di una macchina
+a 268px si riconosce. Quella è la domanda di Francesco qui sotto, e per
+rispondere basta lasciar cadere una foto vera in `public/esempi/`.
+
+#### Numeri
+
+`npm run check` **verde sui cinque**. `check:contrast` 48/48.
+`check:registry` **0 errori / 62 avvisi / 1 componente nostro / 19 ri-stilati**
+(avvisi e ri-stilati invariati: il componente non è ri-stilato sopra niente).
+`test:a11y` **1332 → 1356 scansioni** (339 story × 4 passate), **0 violazioni**
+su tutte e quattro — esattamente la previsione, 6 scene × 4.
+`registry.json` **89 → 90 item**, `registry validate` verde; `build` e `lint`
+verdi, **nessun warning oxlint** dal componente.
+
+`misura:bersagli`, controllo dello strumento ✔: **3013 bersagli su 339 story**
+(59 popup aperti), 2049 sotto i 44px, **35 tipi distinti, 0 piccoli in entrambe
+le direzioni**. Il conto dei bersagli **non si muove** pur salendo di sei story,
+ed è giusto così: in nessuna scena l'immagine è cliccabile, e un riquadro che
+non fa niente non è un bersaglio.
+
+**Sulla tavolozza estesa: niente da aggiungere.** Il componente usa `muted`,
+`muted-foreground` e `foreground/10`, tutti token che il tema ha già; nessun
+colore è mancato.
+
+#### Verifiche di Francesco, preparate e non spuntate
+
+- **A quella larghezza la foto della macchina si riconosce, sullo schermo su
+  cui la si guarderà davvero?** `Primitive/EntityImage → In griglia di card`.
+  La misura è a verbale: a 1280 (capannone) **309×232**, a 1440 **268×201**, a
+  375 **343×257**. Quello che la misura non risolve è se una **foto vera** a
+  268px basti: le tre di esempio sono disegni. Se metti una foto tua in
+  `public/esempi/` la scena la prende così com'è.
+- **Il segnaposto dice «foto mancante» e non «errore»?** `Senza foto`, e la
+  seconda scatola mostra l'icona di dominio passata da chi chiama. Il default è
+  `ImageOff` di Lucide su `bg-muted`/`text-muted-foreground`: nessun rosso,
+  nessun bordo d'allarme. **Se leggi il taglio dell'icona come «vietato»** e
+  non come «assente», il default si cambia con una parola.
+- **`4:3` è il rapporto giusto per la card di catalogo di Studio *e* per la
+  scheda macchina di Officina, o uno dei due vuole `16:9`?** `Sedici noni`
+  mette i due rapporti sulla **stessa foto**, così si vede che a cambiare è il
+  ritaglio e non la scala. `16:9` è già una prop e non costa niente cambiarla;
+  quello che costa è averne **tre**.
+- **Il passo `npm run build` in CI** (v. il difetto muto dell'`alt`): è uno
+  scostamento dal piano e te lo segnalo invece di darlo per buono.
+
+#### Prossimi passi
+
+1. **M4ter.6 dipende da questo**: la faccia larga della lista a due facce vuole
+   la miniatura, ed è la scena `Miniatura in riga`.
+2. Le 16 soglie `minmax` di Studio e Officina **restano non ricontate**: quando
+   i due repo saranno su una macchina raggiungibile, il dato va preso, e se
+   contraddice i 256px la scelta si riapre con la misura in mano.
+3. Il difetto muto di `var(--token)` fuori da un'utility (§45 (e)) vale per
+   tutto il registry, non solo per questa griglia: vale la pena chiedersi se
+   `check:registry` possa vederlo. Non l'ho aperto qui per non allargare un
+   gate dentro il task che lo cita.

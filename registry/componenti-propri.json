@@ -15,5 +15,13 @@
     "Ogni voce: file, cosa fa, quale strada shadcn è stata provata e perché non è",
     "bastata, chi ha approvato e quando."
   ],
-  "componenti": []
+  "componenti": [
+    {
+      "file": "entity-image.tsx",
+      "cosaFa": "La foto di un'entità — una macchina, un impianto, un articolo di catalogo — ritagliata con object-cover a un rapporto dichiarato: 4:3 di default, 16:9 come valore di prop. Quando la foto non c'è, o c'è e non arriva, mostra un segnaposto a icona Lucide (quella di dominio la passa chi chiama). `alt` è obbligatorio nell'API, e il TIPO è l'unico controllo che lo vede: misurato il 2026-09-19, Base UI scrive alt=\"\" su ogni <img> che renda senza alt (internals/useRenderElement.js:183), quindi una foto senza alternativa testuale diventa in silenzio una foto decorativa e test:a11y resta a zero violazioni. Da qui anche il passo `npm run build` aggiunto a .github/workflows/gate.yml.",
+      "stradaShadcnProvata": "GRADINO 1 — shadcn non ha nessun componente immagine (chiesto all'MCP su @shadcn); `aspect-ratio` c'è ma dà il solo rapporto, non il ritaglio né il segnaposto. GRADINO 2 — `avatar` sovrascritto dal punto di chiamata: funziona, ma sono CINQUE classi da annullare in ogni pagina (size-8 e rounded-full sulla radice, after:rounded-full del bordo, aspect-square rounded-full su AvatarImage, rounded-full su AvatarFallback), cioè la stessa duplicazione che si vuole togliere, in forma di stringa invece che di SVG; `ItemMedia variant=\"image\"` dà 40/32/24px QUADRATI, cioè la miniatura in riga, non la foto 4:3 di una scheda. GRADINO 3 — una variante dentro avatar.tsx: vietata dalla regola 4bis, e non per principio ma per misura: provata in M4ter.2 (una taglia `xs`), check:registry esce con codice 1, «diverge dall'originale FUORI dalle stringhe di classi». Il v1 non ha niente su questo, quindi non c'è nemmeno una scelta precedente da adattare. GRADINO 4 — un file nuovo, dove la divergenza sta in un punto in cui un originale shadcn non esiste: non c'è niente da riallineare per sempre. Il MECCANISMO però non è inventato: AvatarImage/AvatarFallback di Base UI È già il ramo condizionale, e viene riusato qui dentro un riquadro non tondo insieme ad AspectRatio, annullando le cinque classi UNA VOLTA SOLA. PROVA DELLA LACUNA: `function MacchinaIcon()` — stesso SVG, parola per parola — è scritta in QUATTRO file di Officina (Triage, Lavori, Macchina, Impianti), e le 33 griglie repeat(auto-fill/fit) di Studio e Officina usano 16 soglie minmax distinte, da 104 a 320px.",
+      "approvatoDa": "Francesco (D20, docs/ANALISI-COPERTURA-APP.md §4)",
+      "data": "2026-09-19"
+    }
+  ]
 }

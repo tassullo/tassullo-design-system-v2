@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="Tornio parallelo in officina">
+  <defs>
+    <linearGradient id="muro" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8f9296"/><stop offset="1" stop-color="#5d6165"/>
+    </linearGradient>
+    <linearGradient id="pavimento" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a4d51"/><stop offset="1" stop-color="#2f3235"/>
+    </linearGradient>
+    <linearGradient id="corpo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7d8d7a"/><stop offset="0.45" stop-color="#5d6b5b"/><stop offset="1" stop-color="#3c4640"/>
+    </linearGradient>
+    <linearGradient id="acciaio" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d9dde0"/><stop offset="0.5" stop-color="#9aa0a5"/><stop offset="1" stop-color="#6d7276"/>
+    </linearGradient>
+    <radialGradient id="luce" cx="0.38" cy="0.18" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#muro)"/>
+  <rect y="600" width="1200" height="300" fill="url(#pavimento)"/>
+  <g opacity="0.25" stroke="#1e2123" stroke-width="3">
+    <path d="M0 640 H1200 M0 700 H1200 M0 780 H1200"/>
+    <path d="M150 600 L60 900 M420 600 L390 900 M700 600 L740 900 M980 600 L1110 900"/>
+  </g>
+  <rect x="70" y="120" width="420" height="260" rx="8" fill="#6f7478" opacity="0.5"/>
+  <rect x="90" y="140" width="180" height="220" rx="4" fill="#565b5f" opacity="0.6"/>
+  <ellipse cx="620" cy="720" rx="470" ry="40" fill="#1c1f21" opacity="0.45"/>
+  <rect x="210" y="560" width="120" height="150" rx="6" fill="#3c4640"/>
+  <rect x="880" y="560" width="120" height="150" rx="6" fill="#3c4640"/>
+  <rect x="180" y="470" width="850" height="110" rx="10" fill="url(#corpo)"/>
+  <rect x="180" y="470" width="850" height="18" rx="6" fill="#98a394" opacity="0.7"/>
+  <rect x="200" y="300" width="230" height="180" rx="12" fill="url(#corpo)"/>
+  <circle cx="315" cy="392" r="62" fill="url(#acciaio)"/>
+  <circle cx="315" cy="392" r="34" fill="#4a4f52"/>
+  <circle cx="315" cy="392" r="12" fill="#22262a"/>
+  <rect x="430" y="360" width="470" height="30" rx="8" fill="url(#acciaio)"/>
+  <rect x="600" y="390" width="150" height="90" rx="6" fill="#4d5a4c"/>
+  <rect x="640" y="330" width="34" height="70" rx="4" fill="#2b2f31"/>
+  <rect x="880" y="320" width="150" height="170" rx="10" fill="url(#corpo)"/>
+  <circle cx="955" cy="360" r="40" fill="url(#acciaio)"/>
+  <g stroke="#2b2f31" stroke-width="7" stroke-linecap="round">
+    <path d="M955 360 L985 335"/>
+  </g>
+  <rect x="1000" y="250" width="150" height="230" rx="12" fill="#2f3a33"/>
+  <rect x="1016" y="268" width="118" height="92" rx="6" fill="#7fa88c"/>
+  <g fill="#2f3a33" opacity="0.55">
+    <rect x="1026" y="284" width="72" height="9" rx="4"/>
+    <rect x="1026" y="304" width="96" height="9" rx="4"/>
+    <rect x="1026" y="324" width="54" height="9" rx="4"/>
+  </g>
+  <g fill="#c8ced2">
+    <circle cx="1034" cy="392" r="12"/><circle cx="1074" cy="392" r="12"/><circle cx="1114" cy="392" r="12"/>
+    <rect x="1022" y="420" width="106" height="16" rx="8"/>
+  </g>
+  <rect width="1200" height="900" fill="url(#luce)"/>
+</svg>
