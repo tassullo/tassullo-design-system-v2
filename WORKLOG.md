@@ -5293,3 +5293,136 @@ aperta e si decide con la FASE 5.
 `components.json` dichiara `@reui`; `check:registry` **0 errori / 53 avvisi / 0 componenti
 nostri**, `check:contrast`, `check:font` e `check:logo` verdi. Nessun file del registry
 toccato, quindi `test:a11y` invariato.
+
+### 2026-09-19 — Pianificazione della FASE 4ter: i sei lavori diventano dieci task
+
+Sessione di **sola pianificazione**, su indirizzo di Francesco: nessuna riga di componente
+scritta. La gap analysis del mattino aveva chiuso il *contenuto* (D20–D23, i sei lavori
+L1–L6 di `docs/ANALISI-COPERTURA-APP.md` §4bis) e lasciato aperta la *confezione*. Qui si
+chiude la confezione.
+
+**Fase e non coda, e il conto che l'ha deciso.** In coda alla FASE 4 sarebbero state nove
+sessioni (M4.8…M4.16) senza gate; come fase sono **dieci**. La sessione in più la paga il
+precedente di **M4.6**, dove il gate identico trovò **26 `registryDependencies` rotte su 12
+item** — il registry pubblico era *ininstallabile* per ogni blocco con dipendenze interne —
+più due prerequisiti mai documentati e quattro blocchi che rompevano `tsc` in un'app Vite
+pura, **con `registry validate` verde su tutti e quattro**. Qui entrano otto item nuovi, e
+per la prima volta item che **ridistribuiscono file di un registry terzo**. E la domanda
+del gate è diversa da quella della FASE 4 («dieci minuti a un'app navigabile»): qui è «una
+pagina vera di Studio o Officina si ricompone senza scrivere CSS nuovo?». Un gate che
+ripete la domanda della fase precedente non varrebbe la sessione. **Il nome della fase —
+`4ter` e non `4bis` — è scelta di Francesco.**
+
+**Le divisioni, motivate su quanto c'è da fare e non a occhio.** L2, L4 e L5 valgono due
+sessioni ciascuno; L1, L3 e L6 una. L5 perché `M4ter.1` è ricognizione più installazione
+più **codice negli script** (`snapshot()` scarica da `@shadcn` hardcodato, riga 341, e
+`PROVENIENZA.md` dichiara una provenienza per l'intera cartella: vanno fatte per-file),
+mentre `M4ter.2` è il blocco con le sue sei scene e la tastiera di una griglia. L2 perché
+`M4ter.4` sono **quattro punti d'API** che cambiano la firma di una pagina già installata,
+e `M4ter.5` sono sette scene di story. L4 diviso **per peso e non per tema**: in `M4ter.7`
+lo scorporo che crea un item e le due prop di sola forma, in `M4ter.8` le due che hanno
+logica — il `piede` va scritto in **due rami di render** di `data-table` (righe 2137 e
+2560, normale e virtualizzato) e deve seguire il filtro, e `ConfirmDialog` oggi mette la
+`descrizione` in `AlertDialogDescription`, cioè nell'elemento di `aria-describedby`, dove
+un campo di testo non ci va. **Nessun accorpamento**: L6 è il task più leggero ed è il
+candidato naturale ad assorbire lo sforamento di un altro, ma accorparlo a L3 metterebbe
+nella stessa sessione un hook, un blocco e due story, di cui una — la lista a nove colonne
+a due facce — è la più grossa del repo.
+
+**L'ordine: il rischio per primo.** `M4ter.1` apre la fase perché è l'unico task che può
+fallire *in modo da cambiare il piano*: se una delle tre verifiche bloccanti non regge,
+D22 si riapre e il calendario torna da scrivere. Scoprirlo al settimo task è peggio che al
+primo. `M4ter.2` gli sta attaccato perché la conoscenza del sorgente reui è cara da
+ricostruire; `M4ter.6` dipende da `M4ter.3` perché la faccia larga della lista vuole la
+miniatura.
+
+**La forma dei task cambia da qui in avanti, su richiesta di Francesco: cinque voci.**
+Alle tre di sempre (Prompt / File / Accettazione, quest'ultima divisa) si aggiungono
+**Obiettivo** — una frase che dice cosa esiste alla fine che prima non esisteva — e la
+divisione dell'accettazione in **Verifiche mie**, meccaniche e riproducibili, ciascuna con
+un numero atteso, e **Verifiche di Francesco**, scritte come domande a cui si risponde sì o
+no. La divisione non è cosmetica: in questo ambiente i tasti `Invio` e `Spazio` arrivano
+con `event.key` vuoto e non attivano i bottoni, quindi l'attivazione da tastiera **io posso
+solo dichiarare di non averla provata**, mai «verificata». Ogni task lo scrive a chiare
+lettere.
+
+**I sub-agenti, verdetto task per task e non come regola generale.** Sì su `M4ter.1` (tre
+Sonnet in parallelo, una verifica ciascuno: sono letture indipendenti su fonti esterne e
+nessuna scrive nel registry) e su una sola ricognizione di `M4ter.3` (ricontare le 16
+soglie `minmax` nelle due app e dirne la frequenza). **No su tutti gli altri otto**, per
+due ragioni: il codice del registry deve passare cinque gate e stare dentro la regola 4bis,
+e comunque ogni task tocca `registry.json` e `public/r/`, dove due sub-agenti in parallelo
+si pestano i piedi. No anche sul gate: il cronometro non si delega, una misura presa da due
+mani non è la misura. E dove il sub-agente c'è, **l'orchestratore rifà il numero**: il
+2026-09-19 due rapporti su tre avevano conteggi falsi e uno dichiarava «verificato» un
+criterio mai osservato.
+
+#### Tre misure prese oggi, e due di loro hanno corretto qualcosa che stavo per scrivere
+
+**(1) Il gate era rosso su `main` pulito, ed era `npm install`.** `npm run test:a11y -- --una`
+dava **85 violazioni su 283 story**. Non era una regressione: dopo il merge di FASE 3bis
+mancavano **cinque dipendenze** (`@dnd-kit/core`, `-modifiers`, `-sortable`, `-utilities`,
+`@tanstack/react-virtual`), perché l'hook `SessionStart` fa `pull` ma non `npm install`. E
+il modo in cui il guasto si presenta è la parte che vale: le 84 `scrollable-region-focusable`
+erano **tutte sull'elemento `vite-error-overlay`**. Cioè **axe scansiona l'overlay d'errore
+di Vite**, e una build rotta si traveste da violazioni di accessibilità su componenti sani.
+Chi vede un numero tondo di `scrollable-region-focusable` guardi lì prima di cercare un
+difetto nel proprio CSS.
+
+**(2) La baseline vera.** Dopo `npm install`: **324 story, 0 violazioni** in una passata,
+cioè **1296 scansioni** sulle quattro. Da cui la regola con cui sono scritte tutte le
+previsioni dei dieci task: **una scena di story vale 4 scansioni**, e a fine fase il conto
+atteso è **1472**. `check:registry` **0 errori / 53 avvisi / 0 componenti nostri / 18
+ri-stilati**; **83 item**, che diventeranno **91**.
+
+**(3) Il wizard di reui, e un criterio d'accettazione che avevo scritto sbagliato.**
+Rilievo di Francesco: «su `reui.io/blocks/application/wizard` c'è un wizard già fatto, da
+verificare essendo fra i blocchi che sembrano a pagamento». Verificato, e **il taglio passa
+dove passava per il calendario**: gli item `wizard-1…7` sono di tipo `registry:block`, cioè
+Pro Blocks, la cui licenza vieta alla lettera di pubblicare in un repo pubblico e di
+reimpacchettare in un'altra component library — il nostro registry è tutt'e due. **Ma sotto
+c'è `@reui/stepper`, tipo `registry:ui`**, cioè una delle primitive in-house: l'API GitHub
+dà `keenthemes/reui` come **MIT** (3513 stelle) e il file esiste a
+`registry-reui/bases/base/reui/stepper.tsx` (HTTP 200), che è la variante Base UI. Letto per
+intero: importa `@base-ui/react` (`useRender`, `mergeProps`), `cn` dal pacchetto, ha
+`role="tablist"`/`role="tab"`, frecce, `Home`/`End`, **zero esadecimali e zero valori
+arbitrari**, e i due corpi che usa (`text-xs`, `text-sm`) sono gradini che il tema tara.
+**Conseguenza: la «barra a segmenti» non è più un componente nostro** — si adotta lo
+stepper, e `componenti-propri.json` resta a **una riga sola**, quella di D20. La loro demo
+`c-stepper-12` si chiama, per inciso, «Stepper with segmented progress bar».
+
+E nel confrontare il file servito con l'originale MIT è saltato fuori il **difetto del mio
+criterio**: avevo scritto «0 righe di differenza», e i due file **non sono identici né lo
+saranno mai**. Su 474 righe differiscono in **due punti**: il sorgente MIT porta le classi
+di *tutti* gli stili (`style-vega:rounded-sm style-nova:rounded-sm style-maia:rounded-full …`)
+e `reui.io` **risolve il prefisso** per lo stile richiesto (`base-nova` → `rounded-sm`); più
+il newline finale. Cioè reui serve una *risoluzione per stile* del sorgente MIT, non un file
+diverso: la provenienza regge, e il criterio giusto è **«le sole differenze ammesse sono i
+prefissi `style-*` risolti e il newline finale»**. Scritto così in `M4ter.1`. Un criterio
+sbagliato avrebbe fatto fallire il task su un file sano — che è il modo in cui un gate si
+smette di leggere.
+
+**E una previsione da smentire, non da assumere**: il `target` dello stepper è
+`components/reui/stepper.tsx`, quindi col nostro alias i file reui atterrerebbero in
+`registry/tassullo/reui/`, che `check:registry` **non guarda** (scandisce `ui/`, `blocks/`,
+`pages/`, `lib/`). È lo stesso punto cieco di **`hooks/`**, trovato oggi guardando dove
+finirà `use-soglia.ts`: due cartelle che il gate non vede. `M4ter.1` e `M4ter.6` le
+prendono in carico, una ciascuna.
+
+**La trappola del nome, un'altra volta.** Il misuratore di robustezza della password
+somiglia alla barra dei passi ma non lo è: lo stepper è un `tablist` di `tab` cliccabili,
+il misuratore non si naviga e non si seleziona. È `badge` scambiato per `toggle-group`, e
+delle tre occorrenze che giustificavano il componente ne restano **due**. **Decisione di
+Francesco: il misuratore resta dell'app** — occorrenza singola, codice di pagina.
+
+**Scritto**: `PIANO.md` §FASE 4ter (dieci task nella forma a cinque voci) e §2 aggiornato
+(**67 sessioni**, da 42: FASE 3bis 14, M4.7 1, FASE 4ter 10); `CHECKLIST.md` con le dieci
+righe `TODO`, la sezione **Candidati sospesi** (lo slot in `app-shell`, con l'innesco), le
+colonne «Blocca» di D20–D23 che ora puntano ai task veri, e la riga M5.5 che punta alle
+note nuove; `docs/ANALISI-COPERTURA-APP.md` §4bis rettificata e **§7 «Note per M5.5»**
+aperta, con dentro il dato di Officina (`EventoCalendario.programmato_il` è un istante dove
+servono inizio e fine: è un prerequisito del suo backend, non un dettaglio).
+
+**Non toccati**, come da indirizzo: il codice del registry, i repo delle app, e **M5.5** —
+la cui divisione (Anagrafe sola contro Anagrafe più Studio e Officina) resta aperta e si
+decide affrontando la FASE 5, col dato che Anagrafe è il **9%** del CSS delle tre app.
