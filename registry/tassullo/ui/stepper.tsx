@@ -1,38 +1,10 @@
 /**
- * stepper.tsx — adottato da ReUI (Keenthemes), variante Base UI, senza modifiche.
+ * stepper.tsx — ReUI (Keenthemes), adottato senza modifiche di forma.
+ * SPDX-License-Identifier: MIT — Copyright (c) 2025 Keenthemes Inc
  *
- * Non è un componente nostro e non è un componente shadcn: viene dal registry
- * `@reui` (`components.json`), che serve una risoluzione per stile del sorgente
- * pubblicato sotto MIT in `keenthemes/reui`. L'originale sta in
- * `registry/.upstream/stepper.tsx`, la provenienza in
- * `registry/.upstream/provenienze.json`.
- *
- * NOI RIDISTRIBUIAMO QUESTO FILE alle app, quindi l'avviso qui sotto deve
- * restare nel file: è l'unica condizione che la licenza MIT pone, e
- * `npm run check:registry` fallisce se sparisce. Il testo integrale della
- * licenza viaggia con l'item, in `reui-MIT.txt`.
- *
- *   MIT License
- *
- *   Copyright (c) 2025 Keenthemes Inc
- *
- *   Permission is hereby granted, free of charge, to any person obtaining a
- *   copy of this software and associated documentation files (the "Software"),
- *   to deal in the Software without restriction, including without limitation
- *   the rights to use, copy, modify, merge, publish, distribute, sublicense,
- *   and/or sell copies of the Software, and to permit persons to whom the
- *   Software is furnished to do so, subject to the following conditions:
- *
- *   The above copyright notice and this permission notice shall be included in
- *   all copies or substantial portions of the Software.
- *
- *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- *   DEALINGS IN THE SOFTWARE.
+ * L'avviso qui sopra va conservato: `npm run check:registry` fallisce se
+ * sparisce. Testo integrale della licenza in `reui-MIT.txt`, che l'item
+ * installa accanto e che non si cancella.
  */
 
 import type { HTMLAttributes, ReactElement } from "react"
