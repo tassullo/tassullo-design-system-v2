@@ -43,6 +43,21 @@
  * `IntestazioneColonna`, che è la duplicazione che la regola 4bis esiste per
  * impedire.
  *
+ * ── Le soglie sono sul contenitore, non sul viewport ─────────────────────
+ *
+ * La dashboard vive dentro `tassullo-app-shell`, e la colonna laterale si
+ * apre e si chiude portandosi via ~256px: con `xl:grid-cols-4` i quattro
+ * riquadri resterebbero quattro anche quando lo spazio vero si è ristretto,
+ * perché la finestra non è cambiata. Il blocco dichiara quindi **da sé**
+ * `@container/dashboard` sulla propria radice — non lo chiede al guscio, o
+ * senza guscio le soglie non scatterebbero mai e la griglia resterebbe a una
+ * colonna per sempre — e le griglie misurano quello. È la stessa ragione già
+ * scritta in `tassullo-page-header`, che usa `@container/fascia` e non `md:`.
+ *
+ * Il numero dell'indicatore cresce con la stessa logica
+ * (`@[250px]/card:text-3xl`, la forma di `dashboard-01` di shadcn): riquadro
+ * largo, cifra grande; riquadro stretto, cifra che non va a capo.
+ *
  * ── Le larghezze si dichiarano, o le prende la data ──────────────────────
  *
  * L'ordine è **chi / cosa / quando**: il soggetto per primo, l'azione al
@@ -194,7 +209,7 @@ const ICONA_TENDENZA: Record<NonNullable<Indicatore["tendenza"]>["direzione"], I
 
 function RigaIndicatori({ indicatori }: { indicatori: Indicatore[] }) {
   return (
-    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 @4xl/dashboard:grid-cols-4">
       {indicatori.map((ind) => {
         const IconaTendenza = ind.tendenza ? ICONA_TENDENZA[ind.tendenza.direzione] : null
         return (
@@ -202,10 +217,12 @@ function RigaIndicatori({ indicatori }: { indicatori: Indicatore[] }) {
           // `group-data-[size=sm]/card:text-sm`, che vince su `text-2xl` e
           // rende il numero dell'indicatore a 13px — la stessa misura della
           // sua etichetta. Misurato in Chromium: 13px con `sm`, 27px senza.
-          <Card key={ind.etichetta}>
+          <Card key={ind.etichetta} className="@container/card">
             <CardHeader>
               <CardDescription>{ind.etichetta}</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">{ind.valore}</CardTitle>
+              <CardTitle className="text-2xl tabular-nums @[250px]/card:text-3xl">
+                {ind.valore}
+              </CardTitle>
             </CardHeader>
             {ind.tendenza || ind.descrizione ? (
               <CardContent className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
@@ -223,7 +240,7 @@ function RigaIndicatori({ indicatori }: { indicatori: Indicatore[] }) {
 
 function DueGrafici({ grafici }: { grafici: [ReactNode, ReactNode] }) {
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 @3xl/dashboard:grid-cols-2">
       {grafici[0]}
       {grafici[1]}
     </div>
@@ -376,17 +393,17 @@ export function PaginaDashboard({
   className,
 }: PaginaDashboardProps) {
   return (
-    <div data-slot="pagina-dashboard" className={cn("flex flex-col gap-4", className)}>
+    <div data-slot="pagina-dashboard" className={cn("@container/dashboard flex flex-col gap-4", className)}>
       <PageHeader percorso={percorso} azioni={azioni} />
 
       {stato === "caricamento" ? (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 @4xl/dashboard:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <PageSkeleton key={i} variante="scheda" righe={1} />
             ))}
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 @3xl/dashboard:grid-cols-2">
             <PageSkeleton variante="scheda" righe={4} />
             <PageSkeleton variante="scheda" righe={4} />
           </div>

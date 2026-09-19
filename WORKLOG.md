@@ -5144,3 +5144,17 @@ Revisione a video di `Pagine/Dashboard` con Francesco davanti al pannello. Sei r
 `tassullo-pagina-dashboard` dichiara ora `@tanstack/react-table` e `@tassullo/tassullo-data-table`; `@tassullo/table` non serve più. `npx tsc -b` pulito, `lint` invariato, `npm run check` verde sui cinque gate, `test:a11y` **1260 scansioni / 0 violazioni**.
 
 **Aperto, da decidere**: se importare la primitiva **`Item`** di shadcn. Contati nei CSS delle tre app i selettori di riga/voce — **~120 in Officina, ~22 in Studio, ~19 in Anagrafe** (filtro grezzo, prende anche `card`) — e letti quattro casi di Anagrafe che si mappano uno a uno sulla sua anatomia: `sed-riga` di `SistemaEditor`, `nrm-elenco-voce` di `Norme`, `adm-accordion-voce` di `Admin`, `abc-modifica-riga` di `AdminBC`. Copre il buco fra `data-table` e `card`: la lista **non tabellare**. È un originale shadcn su Base UI (`useRender`), quindi entrerebbe come gradino 1. Da fare come coda o come task di FASE 5 — non installato di iniziativa.
+
+### 2026-09-19 — Coda: le soglie della dashboard passano al contenitore
+
+Rilievo nato da una domanda di Francesco su `dashboard-01` di shadcn («che componente usano per i riquadri in alto?»). Risposta: **nessun componente dedicato** — `Card` più `Badge`, la stessa anatomia che `pagina-dashboard` ha già. Ma il confronto ha fatto vedere due cose che noi non facevamo, e una era un difetto vero.
+
+**Le soglie erano sul viewport, e il viewport è la misura sbagliata.** `xl:grid-cols-4` guarda la finestra, mentre la dashboard vive dentro `tassullo-app-shell`, dove la colonna laterale si apre e si chiude portandosi via ~208px: a parità di finestra i quattro riquadri restavano quattro anche quando lo spazio vero si era ristretto. **Misurato a 1100px di finestra**: con la colonna aperta il contenuto è **812px** e ora rende **2 colonne**; chiudendo la colonna diventa **1020px** e passa a **4** — prima erano 4 in entrambi i casi, cioè riquadri da ~190px quando la colonna era aperta.
+
+Il blocco dichiara `@container/dashboard` **sulla propria radice**, non lo chiede al guscio: un blocco che si appoggiasse a un contenitore dichiarato dal guscio, montato senza guscio, non vedrebbe mai scattare le soglie e resterebbe a una colonna per sempre. Le due griglie misurano quello — `@4xl/dashboard:grid-cols-4` per gli indicatori, `@3xl/dashboard:grid-cols-2` per i grafici. Non è una novità per il repo: `page-header.tsx` usa `@container/fascia` dal M3.2 e il suo commento spiega già perché non `md:`.
+
+**Il numero dell'indicatore cresce col riquadro**, forma presa da `dashboard-01`: `@container/card` sulla `Card` e `@[250px]/card:text-3xl` sul titolo. Misure: a 1440 il riquadro è 276px e la cifra **31px**; a 375 il riquadro è 164px e la cifra torna a **27px**, senza andare a capo e senza scorrimento orizzontale (verificato: `scrollWidth === clientWidth`).
+
+Da sapere, perché è il rovescio della medaglia: un nome di contenitore che non esiste **non è un errore** — la utility semplicemente non scatta mai, e la griglia resta al valore di base. È lo stesso genere di difetto muto di `text-md`, e la difesa è tenere il `@container` e le sue soglie **nello stesso file**.
+
+`tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` 1260 scansioni / 0 violazioni.
