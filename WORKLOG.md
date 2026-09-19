@@ -5814,3 +5814,76 @@ maggiore. In cambio: barre pluri-giorno e **calcolo delle corsie** già fatti, c
 cinque primitive ri-stilate), e i file si portano dentro con `shadcn view` — lo
 stesso comando che usa già `check:registry -- --snapshot`, quindi nessuna
 macchina nuova.
+
+#### I dieci file del calendario, dentro (2026-09-19)
+
+Chiusa D22, l'obiettivo di M4ter.1 si completa: le due viste sono nel registry,
+col loro motore. **87 item**, `check` verde sui cinque, `registry validate`
+verde, `lint` verde.
+
+**Da dove sono presi, e perché non da reui.io.** A metà lavoro reui ha
+cominciato a rispondere **`Forbidden`**: troppe richieste. Verificato che
+`keenthemes/reui` pubblica in `public/r/styles/base-nova/*.json` **gli stessi
+artefatti** che il sito serve — confronto su tre item, **byte per byte
+identici** — e presi da lì. Non è un ripiego di comodo: è la stessa risorsa, e
+per giunta quella sotto licenza MIT.
+
+**Tutti e dieci stanno piatti in `ui/`**, non in una sottocartella: `fileUi()`
+non è ricorsiva e `.upstream/` è piatto per basename, quindi una
+`ui/event-calendar/` sarebbe stata invisibile al gate. I nomi non collidono, e
+la scelta costa zero macchina.
+
+**Quattro cose che il gate ha dovuto imparare**, tutte trovate sbattendoci
+contro e tutte con la loro ragione scritta nel sorgente:
+
+1. **Gli import non si normalizzano più per prefisso, ma per modulo.** Loro
+   spediscono `@/components/reui/event-calendar/event-calendar-lib`, da noi quel
+   file è piatto e diventa `@/registry/tassullo/ui/event-calendar-lib`: prefisso
+   diverso **e un segmento in meno**, che `ALIAS_REGISTRY_RE` non vedeva. Senza
+   la correzione, dieci file che si importano a vicenda risultavano «ri-stilati»
+   di una dozzina di stringhe ciascuno senza che nessuno avesse toccato una
+   classe. Ora un percorso interno si riduce al suo **ultimo segmento**: di un
+   import conta *quale modulo*, non in che cartella l'installazione l'ha messo.
+2. **Due dichiarazioni morte a monte**, tolte perché sotto `noUnusedLocals` il
+   file **non compila**: un'`interface PackedPosition` mai usata e una `const
+   instance` mai letta. Stesso caso dell'`import * as React` di M2.4, stesso
+   trattamento — una tabella `MORTE_A_MONTE` che le toglie da **entrambi** i
+   lati. **E una trappola pagata**: le `const instance = useEventCalendar()` in
+   `month-view` sono **due**, e una è usata; togliendo la prima che capita la
+   compilazione si rompe 500 righe più in là.
+3. **Un falso positivo del gate**: `border-b-primary` è «bordo inferiore
+   primary», e la regex leggeva `b-primary` come nome di token, segnalando un
+   refuso che non c'era. Aggiunta `LATO_RE`, che salta il lato fra prefisso e
+   token.
+4. **`shadcn view` tronca l'output a 64 KiB esatti, in silenzio.**
+   `@reui/event-calendar` è l'item *ombrello* e ne spedisce 13 di file: il suo
+   JSON esce tagliato a **65536** byte, in mezzo a una stringa, e `JSON.parse`
+   muore con un messaggio di sintassi che non fa sospettare un buffer.
+   `maxBuffer` non c'entra, il tetto è dentro la CLI. `--snapshot` ora
+   **controlla anche la lunghezza esatta** — non solo che il parse riesca,
+   perché un item poco sopra il limite potrebbe spezzarsi in un punto che parsa
+   lo stesso e scrivere originali monchi senza dire niente — e ripiega sull'URL
+   che `components.json` dichiara per quel registry. Provato: `--snapshot
+   event-calendar` riscarica e `git diff registry/.upstream/` esce **vuoto** a
+   meno del conteggio in `PROVENIENZA.md`.
+
+**Il ri-stile, e i tre valori arbitrari del piano.** `text-[0.6875rem]` → **`text-xs`**:
+era il difetto muto di §30, un corpo fuori scala che non segue la densità (11px →
+12px). `@max-[36rem]` → **`@max-xl`**, che è lo stesso valore con un nome, perché
+`--container-xl` di Tailwind vale esattamente 36rem. **`@max-[10rem]` resta**, e
+la ragione è che un nome non ce l'ha: la misura di contenitore più piccola che
+Tailwind nomina è `@3xs`, 16rem. È una soglia di layout, non un token, e il gate
+infatti non la segnala.
+
+**Tre item, non due**, perché il motore è condiviso: `calendario-motore` (gli 8
+file di sostanza più la licenza), `calendario-mese` e `calendario-agenda`, che
+lo dichiarano fra le proprie `registryDependencies`. I default di casa non stanno
+qui: stanno nel blocco `tassullo-calendario` di M4ter.2, che è il pezzo nostro.
+
+**Una dipendenza npm nuova**: `@date-fns/tz`, che il motore importa e che il repo
+non aveva.
+
+**Conto finale di M4ter.1**: 83 → **87 item**; ri-stilati 18 → **24**; componenti
+nostri **0**, come previsto; avvisi 53 → **61**, sopra il «≤56» del piano, e sono
+tutti dei dieci file nuovi — sei segnaposto d'icona e i valori arbitrari
+ereditati che §6.11 aveva già contato come legittimi. `test:a11y` **1316**/0.

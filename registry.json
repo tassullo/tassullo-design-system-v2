@@ -1685,6 +1685,110 @@
         }
       ],
       "docs": "Non e un componente shadcn e non e un componente nostro: viene dal registry @reui\n(ReUI, Keenthemes), variante Base UI dello stesso preset base-nova che usiamo noi,\nadottato senza modifiche.\n\nLICENZA. Il file e distribuito sotto MIT. L'unica condizione che quella licenza pone\ne che l'avviso di copyright resti nelle copie: l'avviso sta in testa a stepper.tsx e\nnon si toglie, e src/tassullo-reui-MIT.txt e il testo integrale della licenza, che\ndeve restare accanto al componente. Vale per chi installa esattamente come vale per\nnoi che lo ridistribuiamo.\n\nCOSA E, E COSA NON E. Lo stepper e un tablist di tab cliccabili: i passi si navigano\ne uno e selezionato. Non e il misuratore di robustezza di una password, che gli\nsomiglia ma non si naviga e non si seleziona - quello resta codice della pagina.\n\nLa barra a segmenti non e una variante: e lo stesso componente con l'indicatore\nnascosto e il separatore lasciato a vista."
+    },
+    {
+      "name": "calendario-motore",
+      "type": "registry:ui",
+      "title": "Motore del calendario a eventi (ReUI)",
+      "description": "Lo store, le date, le ricorrenze, il trascinamento e i tipi del calendario a eventi. Non si usa da solo: lo installano le due viste. Adottato da ReUI (Keenthemes), licenza MIT — l'avviso di copyright viaggia dentro ogni file e per esteso in reui-MIT.txt.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "date-fns",
+        "@date-fns/tz",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/event-calendar.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/event-calendar-dnd.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/event-calendar-event.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/event-calendar-i18n.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/event-calendar-lib.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/event-calendar-recurrence.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/event-calendar-types.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/icon-stack.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/tassullo/ui/reui-MIT.txt",
+          "type": "registry:file",
+          "target": "src/tassullo-reui-MIT.txt"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/tooltip",
+        "@tassullo/scroll-area"
+      ],
+      "docs": "Il motore, non una vista: da solo non rende niente. Lo tirano dentro\n@tassullo/calendario-mese e @tassullo/calendario-agenda, che sono i due item da\ninstallare.\n\nLICENZA. Viene da ReUI (Keenthemes) ed e distribuito sotto MIT. L'avviso di\ncopyright sta in testa a ogni file e non si toglie; src/tassullo-reui-MIT.txt e\nil testo integrale e deve restare accanto ai sorgenti.\n\nI default di casa Tassullo — settimana da lunedi, niente creazione dal clic sulla\ngriglia, trascinamento spento — NON stanno qui: stanno nel blocco\n@tassullo/calendario, che e il pezzo nostro."
+    },
+    {
+      "name": "calendario-mese",
+      "type": "registry:ui",
+      "title": "Calendario a eventi — vista mese",
+      "description": "La griglia del mese con le barre che attraversano piu giorni e il calcolo delle corsie, piu il «+N altri» quando le barre non ci stanno. Adottata da ReUI (Keenthemes), MIT.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "date-fns",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/event-calendar-month-view.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/calendario-motore",
+        "@tassullo/popover",
+        "@tassullo/scroll-area"
+      ],
+      "docs": "La vista mese del calendario a eventi. Le barre pluri-giorno e il calcolo delle\ncorsie — quali barre si sovrappongono e su che riga metterle — sono la ragione per\ncui questa vista si adotta invece di scriverla.\n\nVuole @tassullo/calendario-motore, che la CLI installa da se.\n\nI default di casa (settimana da lunedi, niente creazione dal clic) stanno nel\nblocco @tassullo/calendario."
+    },
+    {
+      "name": "calendario-agenda",
+      "type": "registry:ui",
+      "title": "Calendario a eventi — vista agenda",
+      "description": "L'elenco degli eventi giorno per giorno: e la faccia stretta del calendario, quella che su telefono sostituisce la griglia. Adottata da ReUI (Keenthemes), MIT.",
+      "dependencies": [
+        "@base-ui/react",
+        "cn",
+        "date-fns",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/event-calendar-agenda-view.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/calendario-motore",
+        "@tassullo/scroll-area"
+      ],
+      "docs": "La vista agenda: gli eventi in elenco, raggruppati per giorno, con uno stato\nvuoto quando non ce ne sono.\n\nE la faccia stretta del calendario — su schermo largo si mostra la griglia del\nmese, su stretto questa. Il bivio fra le due lo dichiara la pagina, non la vista.\n\nVuole @tassullo/calendario-motore, che la CLI installa da se."
     }
   ]
 }

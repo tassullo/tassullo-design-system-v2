@@ -131,6 +131,15 @@ const ELENCO_PROPRIETA_RE = /^[a-z-]+-\[[a-z-]+(?:,[a-z-]+)*\]$/;
 const FORMA_TOKEN =
   /(foreground|primary|secondary|muted|accent|destructive|success|warning|info|sidebar|popover|chart|overlay|border|ring|card)/;
 
+/**
+ * Il **lato** fra il prefisso e il token: `border-b-primary` è «bordo inferiore
+ * di colore primary», non un token che si chiama `b-primary`. Senza questa
+ * riga il gate segnalava «`*-b-primary` ha la forma di un token ma il tema non
+ * lo definisce: refuso?» su una classe perfettamente sana — trovato in M4ter.1
+ * sul calendario di reui. Un gate che grida al lupo si smette di leggere.
+ */
+const LATO_RE = /^(?:[trblsexy]|inline|block)-(?=[a-z])/;
+
 /** Prefissi di utility Tailwind che puntano a un colore del tema. */
 const COLOR_PREFIXES = [
   "bg", "text", "border", "ring", "fill", "stroke", "outline", "shadow", "divide",
@@ -260,7 +269,56 @@ const CN_FONT_HEADING_RE = /cn-font-heading\s*/g;
  */
 const ALIAS_REGISTRY_RE = /@\/registry\/[a-z0-9-]+\//g;
 
+/**
+ * ...e con `@reui` (M4ter.1) non basta più normalizzare il **prefisso**, perché
+ * cambia anche la **profondità**. Loro spediscono
+ * `@/components/reui/event-calendar/event-calendar-lib`, da noi quel file sta
+ * piatto in `ui/` e diventa `@/registry/tassullo/ui/event-calendar-lib`: un
+ * prefisso diverso *e* un segmento in meno. `ALIAS_REGISTRY_RE` non lo vede, e
+ * dieci file che si importano a vicenda risulterebbero «ri-stilati» di una
+ * dozzina di stringhe ciascuno senza che nessuno abbia toccato una classe.
+ *
+ * Quel che di un import conta, per il confronto di forma, è **quale modulo**
+ * viene importato — non in che cartella la CLI lo abbia messo, che è una cosa
+ * decisa all'installazione e diversa per costruzione fra un monorepo e un'app.
+ * Quindi un percorso interno si riduce al suo ultimo segmento. Le classi non
+ * cominciano per `@/`, quindi questa regola non le tocca.
+ */
+const IMPORT_INTERNO_RE = /^@\/[\w.()-]+(?:\/[\w.()-]+)*\/([\w.-]+)$/;
+
+/**
+ * **Dichiarazioni morte a monte**, tolte dalla nostra copia perché sotto
+ * `noUnusedLocals` / `noUnusedParameters` — che è il nostro `tsconfig` — il file
+ * **non compila**. Non è un ri-stile e non è una scelta: è l'unico modo di avere
+ * il componente, ed è lo stesso caso dell'`import * as React` di M2.4 (§ qui
+ * sopra), con la differenza che lì la forma era una sola e qui vanno elencate.
+ *
+ * Si tolgono da **entrambi** i lati prima di confrontare, quindi il giorno in
+ * cui reui le cancellasse a monte questa tabella resterebbe corretta senza
+ * toccarla. Ogni riga dice *quale file*, *cosa* e *perché*: una voce che non
+ * corrisponde più a niente non fa danno, ma va tolta alla prossima `--snapshot`.
+ *
+ * Attenzione a una trappola, pagata scrivendo questa riga: in
+ * `event-calendar-month-view.tsx` le `const instance = useEventCalendar()` sono
+ * **due**, e una delle due è usata (`instance.api.getActiveRange()`). Togliere
+ * la prima che capita rompe la compilazione in un punto lontano.
+ */
+const MORTE_A_MONTE: { file: string; re: RegExp; cosa: string }[] = [
+  {
+    file: "event-calendar-lib.tsx",
+    re: /interface PackedPosition \{[^}]*\}\s*/,
+    cosa: "`interface PackedPosition`, dichiarata e mai usata",
+  },
+  {
+    file: "event-calendar-month-view.tsx",
+    re: /\n[ \t]*const instance = useEventCalendar\(\)(?=\n[ \t]*const settings = useEventCalendarSettings\(\)\n[ \t]*const viewConfig)/,
+    cosa: "la seconda `const instance`, assegnata e mai letta",
+  },
+];
+
 function normalizzaClassi(s: string): string {
+  const modulo = IMPORT_INTERNO_RE.exec(s);
+  if (modulo) return `@/·/${modulo[1]}`;
   return s.replace(CN_FONT_HEADING_RE, "").replace(ALIAS_REGISTRY_RE, "@/registry/·/");
 }
 
@@ -305,13 +363,13 @@ const USE_CLIENT_RE =
  */
 const REACT_NAMESPACE_IMPORT_RE = /^\s*import \* as React from (["'])react\1\s*;?\s*$/m;
 
-function forma(src: string): string {
+function forma(src: string, nome?: string): string {
+  let pulito = src.replace(USE_CLIENT_RE, "").replace(REACT_NAMESPACE_IMPORT_RE, "");
+  for (const m of MORTE_A_MONTE) if (m.file === nome) pulito = pulito.replace(m.re, "");
   // Commenti e stringhe li separa lo scanner (v. `scansiona`): con le due
   // regex in fila, un apostrofo in un commento italiano falsava anche questo
   // confronto, non solo il conto del ri-stile.
-  const senzaCommenti = scansiona(
-    src.replace(USE_CLIENT_RE, "").replace(REACT_NAMESPACE_IMPORT_RE, ""),
-  ).senzaCommenti;
+  const senzaCommenti = scansiona(pulito).senzaCommenti;
   return senzaCommenti
     .replace(STRING_RE, '"·"')
     .replace(/\s+/g, " ")
@@ -372,7 +430,7 @@ function controllaBlocchi(): Set<string> {
       for (const m of s.matchAll(
         new RegExp(`(?:^|[\\s"'\`:\\[])(?:${COLOR_PREFIXES.join("|")})-([a-z][a-z0-9-]*)`, "g"),
       )) {
-        tokenUsati.add(m[1]!);
+        tokenUsati.add(m[1]!.replace(LATO_RE, ""));
       }
       if (/#[0-9a-fA-F]{3,8}\b/.test(s)) err(nome, `colore esadecimale nel sorgente: ${s}`);
       for (const m of s.matchAll(ARBITRARIO_RE)) {
@@ -389,6 +447,55 @@ function controllaBlocchi(): Set<string> {
   return tokenUsati;
 }
 
+/**
+ * **`shadcn view` tronca l'output a 64 KiB esatti, e lo fa in silenzio.**
+ * Misurato in M4ter.1: `@reui/event-calendar` è l'item *ombrello* del
+ * calendario e ne spedisce 13 di file, quindi il suo JSON esce tagliato a
+ * `65536` byte — in mezzo a una stringa, per giunta, così `JSON.parse` muore
+ * con un messaggio che parla di sintassi e non lascia sospettare un limite di
+ * buffer. `maxBuffer` non c'entra: il tetto è dentro la CLI.
+ *
+ * Il guaio non è l'errore, è il modo: un item poco più grande del limite
+ * potrebbe in teoria spezzarsi in un punto che *parsa* lo stesso, e allora
+ * `--snapshot` scriverebbe originali monchi senza dire niente. Per questo qui
+ * si controlla **anche** la lunghezza esatta, non solo che il parse riesca.
+ *
+ * Il ripiego non è una scorciatoia: si chiede lo stesso identico documento
+ * all'URL che `components.json` dichiara per quel registry — cioè la fonte da
+ * cui la CLI lo prende — invece che alla CLI. Verificato in M4ter.1 che i due
+ * coincidono byte per byte.
+ */
+function scaricaItem(item: string): { files?: { path: string; content: string }[] }[] {
+  const out = execFileSync("npx", ["shadcn@latest", "view", item], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  if (out.length !== 65536) {
+    try {
+      return JSON.parse(out.slice(out.indexOf("[")));
+    } catch {
+      /* cade nel ripiego qui sotto */
+    }
+  }
+  const [registry, nome] = [registryDi(item), item.slice(item.indexOf("/") + 1)];
+  const url: string | undefined = JSON.parse(readFileSync("components.json", "utf8")).registries?.[
+    registry
+  ];
+  if (!url) {
+    throw new Error(
+      `\`shadcn view ${item}\` ha restituito ${out.length} byte non leggibili ` +
+        `(il tetto della CLI è 65536), e ${registry} non è fra i \`registries\` di ` +
+        `components.json, quindi non c'è un URL a cui ripiegare.`,
+    );
+  }
+  const grezzo = execFileSync("curl", ["-sL", url.replace("{name}", nome)], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  console.log(`  ↻ ${item}: \`view\` troncato a ${out.length} byte, preso da ${registry}`);
+  return [JSON.parse(grezzo)];
+}
+
 function snapshot(nomi: string[]): void {
   mkdirSync(UPSTREAM_DIR, { recursive: true });
   const mappa = provenienze();
@@ -402,11 +509,7 @@ function snapshot(nomi: string[]): void {
     // Un file che la mappa non conosce si scarica da @shadcn come prima, e il
     // controllo qui sotto lo segnalerà comunque alla prossima esecuzione.
     const item = mappa[`${nome}.tsx`] ?? `@shadcn/${nome}`;
-    const out = execFileSync("npx", ["shadcn@latest", "view", item], {
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-    });
-    const items = JSON.parse(out.slice(out.indexOf("[")));
+    const items = scaricaItem(item);
     for (const file of items.flatMap((i: { files?: unknown[] }) => i.files ?? []) as {
       path: string;
       content: string;
@@ -519,7 +622,7 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
       for (const m of s.matchAll(
         new RegExp(`(?:^|[\\s"'\`:\\[])(?:${COLOR_PREFIXES.join("|")})-([a-z][a-z0-9-]*)`, "g"),
       )) {
-        tokenUsati.add(m[1]!);
+        tokenUsati.add(m[1]!.replace(LATO_RE, ""));
       }
       // Un hex dentro un selettore d'attributo — `[stroke='#ccc']` — non è un
       // colore che scriviamo: è un colore che *intercettiamo*. Recharts cuce
@@ -580,7 +683,7 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
           "classi sono controllate lo stesso): alla prossima versione di shadcn questo file va " +
           "riletto a mano.",
       );
-    } else if (forma(nostro) !== forma(originale)) {
+    } else if (forma(nostro, nome) !== forma(originale, nome)) {
       err(
         nome,
         "diverge dall'originale FUORI dalle stringhe di classi: struttura, props, nomi di varianti o export. " +
