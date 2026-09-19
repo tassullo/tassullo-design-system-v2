@@ -1703,3 +1703,762 @@ trascinamento per prenotare — da cui leggere come si monta il motore senza
 scriverlo a tentativi. Sono materiale di lettura; il blocco `tassullo-calendario`
 resta nostro, coi default di casa (settimana da lunedì, niente creazione dal
 clic, trascinamento spento).
+
+---
+
+## 44. Il calendario montato: la testata è nostra, la griglia non si naviga con le frecce (M4ter.2, 2026-09-19)
+
+**Prima cosa da sapere, perché cambia come si legge tutto il resto: i dieci file
+del motore, che M4ter.1 ha portato dentro senza mai renderizzarli, *rendono*.**
+Un mese con le barre pluri-giorno e il calcolo delle corsie, un'agenda,
+il «+N altri» col suo popover, la densità touch. Nessuna sorpresa strutturale.
+Quello che è emerso montandolo sono quattro fatti, e tre sono scomodi.
+
+### (a) La testata: la nostra, non `event-calendar-nav`
+
+Guardata rendere prima di decidere, com'era prescritto: si è installata la loro
+in via temporanea e la si è montata sopra il mese. **Rende**, ed è fatta bene.
+Ma il conto è questo:
+
+| | la loro (`event-calendar-nav`) | la nostra (in `calendario.tsx`) |
+|---|---:|---:|
+| righe | **648** | ~50 |
+| peso | **19,6 KB** di codice di terzi | nessun file in più |
+| viste offerte dal commutatore | **sei** (mese, settimana, giorno, N giorni, agenda, risorse) | le **due** che spediamo |
+| composizione | `dropdown-menu` + `calendar` + `popover` + `tooltip` + scorciatoie da tastiera | `button-group` + `toggle-group` |
+| lingua | inglese, da tradurre con `i18n` | italiana, scritta |
+
+Le ragioni per scartarla, in ordine di peso. **Il loro commutatore offre le sei
+viste del motore e noi ne spediamo due**: `time-grid` e `resource-view` non sono
+nel registry, quindi metà di quel menù aprirebbe viste che non esistono — si
+restringe con `views`, ma è codice che resta e che nessuno esercita. **La
+testata di Officina è già composta così**: `docs/ANALISI-COPERTURA-APP.md` §6.8
+la elenca pezzo per pezzo, `button-group` per «‹ Oggi ›» e `toggle-group` per le
+viste, cioè esattamente ciò che si è scritto. E **una testata nostra la
+governiamo**: la loro sarebbero 19,6 KB in più da rileggere a ogni aggiornamento
+di ReUI, per una barra che è tre bottoni e un interruttore.
+
+Restano fuori, come previsto, anche `time-grid`, `resource-view` e `content` —
+e `content` merita una riga: è solo un commutatore di viste (`month` →
+`EventCalendarMonthView`, `agenda` → `EventCalendarAgendaView`, …). Con due
+viste, il commutatore è un ternario nel blocco.
+
+### (b) La griglia del mese **non si naviga con le frecce**, ed è D15 di nuovo
+
+Misurato in **Chromium vero**, headless, dalla cartella temporanea, con il
+controllo dello strumento fatto prima della misura — i tasti arrivano con
+`event.key` pieno (`ArrowRight`, `ArrowDown`, `Home`, `End`, tutti
+`defaultPrevented: false`) e `document.visibilityState` è `visible`, quindi
+«non è successo niente» vuol dire davvero *niente*, non «il tasto non è
+arrivato».
+
+| | misura |
+|---|---|
+| struttura ARIA | `role="grid"` × 1 → `role="row"` × 7 → `role="gridcell"` × **42** — corretta |
+| celle con `tabindex` | **0** su 42 |
+| frecce / `Home` / `End` sul chip a fuoco | **nessun movimento**, né del fuoco né della selezione |
+| `Tab` | cammina i chip uno a uno, in ordine di documento |
+| `Invio` su un chip | **seleziona** (`aria-pressed="true"`) |
+| «+N altri» | a fuoco con `Tab`, apre con `Invio`, il fuoco entra nel pannello, `Esc` chiude e **il fuoco torna al grilletto** |
+
+**E axe dà zero violazioni su tutto questo.** È esattamente la lezione di D15:
+una griglia con la struttura ARIA giusta e nessuna navigazione da tastiera
+passa ogni regola automatica.
+
+**Perché non è (oggi) un difetto bloccante, e a quale condizione lo diventa.**
+Col default di casa una cella **non ha azioni**: il clic sulla griglia non crea
+niente. Un elemento senza azioni non deve prendere il fuoco, quindi la griglia
+non navigabile è *coerente* con la scelta di prodotto, non in contraddizione con
+essa. Diventa un difetto nel momento in cui un'app passa `onGiornoClick`, perché
+allora la cella ha un'azione raggiungibile solo col mouse. Per questo il blocco
+accende `showDayAddButton` **insieme** a `onGiornoClick` e non prima: quel
+bottone è un `<button>` vero, invisibile finché non lo si sfiora o non lo si
+mette a fuoco, ed è l'unico appiglio da tastiera che il motore offre per creare.
+
+### (c) Una stringa ri-stilata dentro `event-calendar-agenda-view.tsx`, e il gate **non la vede**
+
+L'intestazione di giorno dell'agenda formattava la data con `"MMMM d, yyyy"`,
+**scritto a mano nel file**, non preso da `i18n.formats`: col `locale` italiano
+usciva «settembre 7, 2026». Non si chiude dal blocco — il `locale` traduce le
+parole, non ne cambia l'ordine — e la stessa variabile alimenta anche
+l'`aria-label` del gruppo, quindi il difetto era doppio. Cambiata in
+**`"d MMMM yyyy"`**: una stringa, gradino 2, e le altre tre intestazioni
+(titolo del periodo, intervallo d'agenda, popover del «+N altri») si sono
+invece chiuse **dal blocco**, riscrivendo `i18n.functions` e
+`formats.moreDayHeader`, che è configurazione e non un ri-stile.
+
+**Il fatto da conoscere è però un altro, e riguarda il gate.**
+`event-calendar-agenda-view.tsx` cade nella categoria `◌` di `check:registry`
+(«originale a segnaposto d'icona: la forma non è confrontabile»), e in quella
+categoria il gate **non conta le stringhe ri-stilate**. Quindi questa
+divergenza è **muta**: `check:registry` esce verde e non la nomina. È scritta
+qui perché è qui che la cercherà chi, alla prossima versione di ReUI, dovrà
+rileggere a mano i file `◌` — che è l'avviso che il gate stampa già oggi su
+sette file. Non si è allargata la macchina del gate per un caso solo; se i casi
+diventano due, si allarga.
+
+### (d) `renderAgendaDayHeader` e `renderAgendaDaySummary` sono configurazione morta
+
+`EventCalendarViewConfig` le dichiara, ma `event-calendar-agenda-view.tsx` non
+le chiama mai (verificato a grep su tutti e dieci i file): descrivono un'agenda
+ripiegabile che nella versione adottata non c'è. Non è un difetto nostro ed è
+innocuo — ma chi provasse a passarle per aggirare (c) perderebbe un pomeriggio.
+
+### (e) Seconda passata, su sei rilievi di Francesco (2026-09-19)
+
+Il blocco della prima passata era **di sola lettura e senza bordi**: si
+guardava, non si usava. I sei rilievi, e cosa ne è uscito.
+
+**Il principio che li tiene insieme, ed è di Francesco: «le funzioni che ti ho
+chiesto sono tutte presenti su ReUI, non serve inventare nulla».** Ogni pezzo
+qui sotto viene da una loro demo, adattato ai nostri token — che è esattamente
+ciò che §43 chiama «prendere la geometria, non il file»:
+
+| pezzo | demo |
+|---|---|
+| dialogo unico crea/modifica/elimina, `apiRef` | `c-event-calendar-3` |
+| `renderEvent` con pallino/icona e titolo | `c-event-calendar-4` |
+| avatar dell'assegnatario dentro il chip | `c-event-calendar-5` |
+| `interactions: { drag, resize }` | `c-event-calendar-3/4/5` |
+
+**1. I bordi.** La griglia del mese ha i soli tratti *interni* (`border-e`
+sulle celle, `border-b` sulle righe, `border-t` sulla vista): sui quattro lati
+esterni non c'è niente, e su un fondo chiaro il calendario sembrava appoggiato
+sul nulla. Chiuso sul nostro contenitore, non sul loro file:
+`rounded-lg border bg-card`.
+
+**2. Celle alte da tre eventi.** `min-h-30` sulla riga via
+`classNames.monthRow`. Il conto: tre corsie da `--ec-month-bar-h` (28px) = 84,
+più 6 di `pt-1.5` e 26 di numero del giorno = **116px**, cioè 30 unità di
+spaziatura. Deriva da `--spacing`, quindi in touch diventa 180 da sé.
+
+**E qui è nato un difetto, chiuso al secondo tentativo.** Sei righe da 120px
+sono 720: `month-view` ha `overflow-hidden`, quindi l'ultima settimana
+**spariva senza scrollbar**. Primo rimedio, `classNames.monthBody:
+"overflow-y-auto"` — e il gate l'ha preso: `scrollable-region-focusable`,
+*critical*, sulla scena **Vuoto**, perché una regione che scorre senza niente
+di focalizzabile dentro non si raggiunge da tastiera (con eventi i chip
+bastano, con zero eventi no). Rimedio giusto: lo scorrimento sta sul **nostro**
+contenitore, che è un `div` nostro e può prendere `tabIndex={0}` e un anello di
+fuoco; la vista passa a `overflow-visible` e l'intestazione dei giorni diventa
+`sticky`. Vale come regola: **una classe `overflow-*` passata a un componente
+di terzi via `classNames` crea una regione che non possiamo rendere
+focalizzabile.**
+
+**3. I colori — e poi il rilievo che ha cambiato il modello.** La prima
+stesura metteva un `colore` sull'evento e cinque pastiglie nel dialogo.
+Rilievo di Francesco: **«non è propriamente il colore, si cambia il calendario
+a cui è assegnato l'evento; in questo caso il calendario corrisponde alla
+persona a cui è affidato il task»**. Ha ragione, ed è un modello diverso, non
+un'etichetta diversa: non si sceglie una tinta, si sceglie *a chi appartiene*
+l'evento, e il colore è la conseguenza.
+
+**Il concetto esiste già nel motore e non si inventa**: è `resource`
+(`EventCalendarResource`: `id`, `title`, `color`) con `event.resourceId`. Il
+blocco gli dà il nome di casa — `calendari`, `calendarioId` — e aggiunge la
+sola cosa che manca: **derivare il colore del chip dalla risorsa**, che ReUI
+da sé non fa (`event-calendar-event.tsx:483` legge solo `event.color`). Da lì
+viene anche l'avatar, perché un calendario che è una persona ha un nome e
+un'immagine.
+
+Il concetto regge oltre il caso: un calendario può essere una linea, un
+reparto, una commessa. Per questo la prop si chiama `calendari` e non
+`persone`, e `colore` resta sull'evento **solo** per chi non ha calendari.
+
+I cinque colori sono i `--chart-*` del tema e si scelgono **per nome**: `color`
+del motore è una `string`, quindi accetterebbe `#F4AC3D` **senza che nessun
+gate se ne accorga** — la regola 3 guarda le classi di Tailwind, non i valori
+delle prop. Un insieme chiuso di nomi è il solo modo di farla rispettare per
+costruzione. Delle demo di ReUI non si prende la tavolozza: loro usano
+`var(--color-blue-500)` e `bg-violet-500`, che la regola 3 vieta.
+
+Nel dialogo il campo è quindi **«Calendario»**, un `select` con pallino
+colorato e nome; le cinque pastiglie restano solo quando `calendari` è vuoto.
+Provato in Chromium: scegliendo «Luca Boni» l'evento nuovo esce con
+`--chart-2` e le iniziali `LB`.
+
+**4. L'avatar del calendario**, e il chip che diventa nostro. Qui il gate ha
+trovato **due contrasti sotto soglia, entrambi ereditati dalla ricetta di
+ReUI**, e vanno conosciuti perché nascono dallo stesso errore — *un colore su
+sé stesso*:
+
+| | ricetta ReUI | misura (scuro) | rimedio |
+|---|---|---:|---|
+| iniziali nell'avatar | `text-(--ec-event-color)` su `bg-(--ec-event-color)/25` | **2,35** (grigio) … 4,11 (arancio) | `text-foreground`, tinta a `/20` |
+| ora dentro il chip | `text-muted-foreground` sul fondo tinto | **4,11** (grigio) | `text-foreground` con `opacity-70` |
+
+La tinta è scesa da `/25` a `/20` per un motivo che vale la pena scrivere:
+a `/25` l'arancio in scuro dava **4,49:1**, cioè un centesimo sotto. Un gate
+che si fermasse a «quasi» non servirebbe a niente.
+
+Conseguenza di forma: **il chip lo rendiamo noi in tutte le viste a griglia**,
+non solo quando c'è un calendario. Titolo e ora si distinguono per **peso**,
+non per colore, perché sul fondo tinto di cinque colori diversi l'unico colore
+di testo che regge sempre è `foreground`.
+
+**5. Il dialogo e l'interattività.** `modifica` accende il dialogo unico —
+clic su un evento apre in modifica, clic su un giorno vuoto in creazione,
+«Nuovo» in testata fa lo stesso — e `trascinamento` accende `drag` e `resize`.
+**I default non cambiano**: entrambe partono spente, che è la scelta di
+Officina; le due prop dicono quanto aprirlo.
+
+Del dialogo di ReUI non si prende il bottone Elimina: loro lo fanno
+`variant="ghost"` con `text-destructive`, che sul menu scuro dà 3,52:1 ed è la
+trappola scritta in `CLAUDE.md`. Da noi è `variant="destructive"`.
+
+**Gli eventi sono controllati, e non è una scelta nostra**: in modo controllato
+`setField` emette `onEventsChange` e **non** tocca lo stato interno, quindi
+trascinamento e dialogo non muovono niente finché l'app non rimette dentro
+l'elenco. È anche il comportamento giusto: una riprogrammazione passa dal
+backend.
+
+**Misurato in Chromium vero** (il pannello dell'app non apriva il dialogo: è il
+solito `requestAnimationFrame` di §32):
+
+| prova | esito |
+|---|---|
+| clic su un evento | apre «Modifica evento» col titolo giusto |
+| «Nuovo» | apre «Nuovo evento», 5 pastiglie di colore |
+| creazione | 3 → **4** eventi |
+| clic su giorno vuoto | apre in creazione su «domenica 20 settembre 2026» |
+| eliminazione | 4 → **3** eventi |
+| trascinamento di due colonne | giovedì 10 → **sabato 12** |
+
+**Una trappola di misura pagata due volte, e vale oltre il caso.** Il primo
+test del trascinamento diceva «non si muove»: leggeva l'`aria-label` del chip,
+che per un evento di poche ore è *«Manutenzione forno, 08:00–12:00»* — **l'ora,
+non il giorno**. Spostandolo di due giorni l'etichetta non cambia di una
+lettera. La misura giusta è la **cella** che lo contiene (`data-ec-day`). E il
+secondo test è fallito per il motivo opposto: Storybook esegue le `play` anche
+nel canvas, quindi la story col dialogo dichiarato **arriva col dialogo
+aperto**, e l'overlay intercettava il puntatore. Da lì la scena separata per il
+dialogo (`Dialogo dell'evento`), così quella dell'interattività si prova
+com'è.
+
+
+### (f) Terza passata: due difetti visti a video, e la misura che li chiude
+
+**Doppio bordo.** Il contenitore nostro porta `border`, e `month-view` ha un
+suo `border-t`: due tratti a 1px di distanza, che a video si leggono come un
+bordo sdoppiato — ed è la prima cosa che si nota. Chiuso con
+`classNames.monthView: "border-t-0"`, perché il bordo di fuori è nostro e
+quello di dentro è di troppo. **Misurato**: `borderTopWidth` del contenitore
+1px, della vista 0px, distanza fra i due bordi superiori 1px (era 2).
+
+**E poi lo stesso nell'agenda**, che ha il suo `border-t`
+(`event-calendar-agenda-view.tsx:200`) — corretto la prima volta sul solo
+mese e trovato da Francesco nell'altra vista. La lezione, che vale per il
+prossimo che aggiunge una vista: **ogni vista del motore apre con un
+`border-t` proprio**, perché ReUI la disegna per stare sotto la sua `nav`
+senza un contenitore attorno. Chi la monta dentro un contenitore con bordo li
+somma. Ora sono spenti tutti e due (`monthView`, `agendaView`) e la misura è
+la stessa su mese, agenda e vuoto: contenitore 1px, vista 0px, distanza 1.
+
+**Le iniziali uscivano dal pallino.** `Avatar size-4` (16px) con `text-xs`
+(12px, il gradino più piccolo che il tema tara): due lettere non ci stanno.
+ReUI lo risolve con `text-[9px]`, che è un **valore arbitrario** e per giunta
+non scala con la densità. La strada nostra è l'opposta — si allarga il
+cerchio, non si rimpicciolisce il testo fuori scala: `size-5` (20px in
+normale, **30 in touch**, perché `size-*` deriva da `--spacing`) più
+`tracking-tight` e `leading-none`. **Misurato** in entrambe le densità:
+`scrollWidth === clientWidth`, cioè nessun trabocco.
+
+Vale come regola generale: **quando un testo non sta in un contenitore, in
+questo design system si allarga il contenitore.** Scendere sotto `text-xs`
+richiede un valore arbitrario, che la regola 3 vieta e che in densità touch
+resterebbe fermo mentre tutto il resto cresce.
+### (g) La story si riorganizza: introduzione più **una** scena, e il vuoto torna nostro
+
+Indirizzo di Francesco dopo la seconda passata: «una pagina di introduzione
+con tutte le funzionalità, e **una story unica** in cui integriamo tutte le
+funzionalità delle diverse story. Lavoriamo su una vista unificata.»
+
+**Il difetto della forma precedente** era che otto scene mostravano lo stesso
+calendario con una funzione accesa per volta: chi guardava non vedeva mai il
+pezzo come sarà davvero, e chi doveva provare il trascinamento sull'evento
+colorato doveva tenere a mente due scene. Otto scene non sono otto casi: sono
+un caso spezzato in otto.
+
+**La forma nuova**, che segue il precedente di `data-table` e `data-grid`:
+`tags: ['autodocs']`, e il JSDoc del meta diventa la **pagina di
+introduzione** — cosa sa fare, i quattro default, le tre cose da sapere prima
+di usarlo, le due che si vedono e non si possono cambiare. Poi **quattro**
+story, e solo la prima è una funzione:
+
+| story | perché esiste |
+|---|---|
+| **Completo** | la scena unica: calendari, corsie, «+N altri», dialogo, trascinamento, mese e agenda |
+| **Dialogo dell'evento** | la stessa, con la `play` che apre il dialogo — serve al gate |
+| **Densità touch** | uno **stato**, non una funzione; qui è dichiarato l'altro popup |
+| **Vuoto** | uno **stato** |
+
+Le due che restano oltre alla principale sono **stati**, non funzioni, e le
+due `play` stanno lì perché una story ne dichiara una sola e i popup del
+blocco sono due. Sulla scena completa non ce n'è nessuna, apposta: Storybook
+esegue le `play` anche nel canvas, e un popup aperto all'arrivo coprirebbe
+proprio ciò che si vuole provare.
+
+**E il vuoto torna nostro.** Rilievo esplicito: «quando non vi sono eventi
+possiamo usare le schermate per *vuoto* previste nelle primitive, **non
+aggiungiamo nulla di ReUI per quest'ultimo aspetto**». Giusto, ed è la regola
+permanente del `CLAUDE.md` applicata a un caso che sembrava innocuo: il vuoto
+ha uno standard unico, `tassullo-empty-state` (M3.5), e un calendario che se
+ne inventasse un altro sarebbe la deriva da cui tutto il resto comincia. Il
+blocco passa quindi `renderNoEvents` e monta il nostro `EmptyState`; la prop
+`statoVuoto` lo sostituisce, ed è la strada per metterci una CTA.
+
+Conseguenza da conoscere: **`icon-stack.tsx` resta nel registry ma non rende
+più niente**. È dipendenza del *codice* di `event-calendar-agenda-view`, non
+una nostra scelta, quindi non si toglie — ma chi un giorno cercherà di capire
+perché c'è, lo trova scritto qui.
+
+Conto: **1352 → 1332 scansioni** (333 story), 0 violazioni — otto scene
+diventate quattro, per quattro passate, fanno sedici scansioni in meno più le
+quattro della scena che il riordino ha unito.
+
+
+### (h) L'agenda non mostrava lo stesso periodo del mese
+
+Rilievo di Francesco sulla scena unificata: «l'agenda non riflette gli
+appuntamenti visti nella vista mese, devono essere sincronizzati».
+
+**La causa sta nel motore, ed è una riga di `getViewDateRange`**: il mese
+ancora a `startOfMonth(date)` e prende il mese intero; l'agenda ancora a
+`startOfDay(date)` e prende `agendaDayCount` giorni. Con la data al 1° e
+sette giorni d'agenda si vedevano due periodi diversi — 1–30 contro 1–7 — e
+i fermi dopo il 7 sparivano commutando vista. Non è un difetto di ReUI: è il
+comportamento di un'agenda a finestra scorrevole. È però il comportamento
+sbagliato per **questo** blocco, dove mese e agenda sono due facce della
+stessa cosa e a cambiare deve essere la faccia, non il periodo.
+
+Chiuso in due pezzi, entrambi nel blocco:
+
+1. `giorniAgenda` passa da `number` a **`number | "mese"`**, e `"mese"` è il
+   nuovo default: la finestra vale `getDaysInMonth(ancora)`. Un numero resta
+   possibile per chi vuole davvero una finestra scorrevole.
+2. **L'ancora si porta all'inizio del mese** quando la vista è l'agenda,
+   perché con la finestra giusta ma l'ancora al 19 si vedrebbe comunque un
+   pezzo diverso. Il blocco segue `onDateChange` in uno stato proprio e
+   chiama `api.goTo(startOfMonth(...))` in un effetto che **converge in un
+   giro**.
+
+**La dipendenza di quell'effetto è il millisecondo, non l'oggetto `Date`.**
+Un `Date` è un riferimento nuovo a ogni render: l'effetto ripartirebbe, e la
+`§17` di questo file racconta come finisce — React non interrompe il ciclo e
+non stampa niente.
+
+**Misurato** in Chromium, prima e dopo aver premuto «Oggi»: mese «settembre
+2026» e agenda «1 – 30 settembre 2026», stessi eventi. L'agenda ne elenca
+dieci contro i sette del mese, ed è giusto: i tre in più sono quelli dietro
+il «+3 altri» del 15, che nella griglia non stanno nel DOM finché non si apre
+il popover.
+
+**E una nota tipografica dallo stesso giro**: il titolo diceva «1–7 settembre
+2026» e il trattino sembrava appiccicato all'1. Non era un'impressione —
+l'«1» di Inter ha la spalla destra stretta — e gli altri due rami di
+`formatTitle` gli spazi ce li avevano già. Ora sono tutti e tre ` – `.
+
+### (i) La vista settimana entra, e il gate aveva un falso positivo che nessuno vedeva
+
+Richiesta di Francesco: le tre opzioni di vista (weekend, numero di settimana,
+fumetto sull'evento) e **la settimana fra le viste**.
+
+**La settimana era uno dei quattro file che M4ter.1 aveva lasciato fuori.**
+Misurata la chiusura degli import prima di prenderla, come vuole §43:
+`event-calendar-time-grid.tsx` è **1372 righe / 45,9 KB** e importa **solo**
+`event-calendar`, `-dnd`, `-event`, `-lib`, `-types` — che abbiamo già — più
+`cn`, `date-fns`, Base UI e `scroll-area`. **Chiusura pulita, un file solo.**
+
+**Il prezzo di D22 va aggiornato dove è scritto:**
+
+| | file | KB | righe |
+|---|---:|---:|---:|
+| M4ter.1, mese + agenda | 10 | 234 | 7 012 |
+| **con la settimana** | **11** | **280** | **8 384** |
+| restano fuori (`resource-view`, `nav`, `content`) | 3 | 49 | 1 548 |
+
+Nello stesso file arrivano gratis `EventCalendarDayView` e
+`EventCalendarDaysView`: il blocco spedisce nel commutatore la sola
+settimana, ma chi compone da sé le ha in casa.
+
+Procedura identica a M4ter.1: artefatto da `keenthemes/reui`, import
+normalizzati, avviso MIT in testa, riga in `provenienze.json`, snapshot in
+`.upstream/`. E **la trappola prevista si è presentata**: il file importa
+`EventCalendarSlotDraft` e non lo usa, quindi sotto `noUnusedLocals` non
+compila — terza riga di `MORTE_A_MONTE`.
+
+#### Il falso positivo: la normalizzazione degli import non ha mai morso
+
+Portando dentro `time-grid`, il gate lo ha dichiarato **«6 stringhe di classi
+ri-stilate»** su un file identico all'originale a meno dei suoi **6 import**.
+Cercando il perché è saltata fuori una cosa più grossa: la
+`IMPORT_INTERNO_RE` scritta in M4ter.1 — quella che doveva ridurre un percorso
+al suo ultimo segmento, proprio per non contare gli import — **è ancorata a
+`^@\/`**, mentre `scansiona` restituisce le stringhe **comprese le
+virgolette**. Non ha mai trovato niente.
+
+La prova che lo inchioda: `event-calendar-i18n.tsx` ha **un** import interno e
+dichiarava **una** stringa ri-stilata; `time-grid` ne ha sei e ne dichiarava
+sei. Corretta l'ancora, i sei file ReUI che nessuno ha toccato passano da
+«ri-stilati» a **«forma identica all'originale, nessun ri-stile»**, e il conto
+totale scende da **25 a 19**.
+
+**Perché conta più di un numero**: i ri-stilati sono il *costo dichiarato* di
+ogni aggiornamento di shadcn e di ReUI — quante stringhe andranno riportate a
+mano. Gonfiarlo con percorsi che la CLI riscrive da sé rende quella cifra
+inutilizzabile, ed è il caso in cui `CLAUDE.md` dice «se il gate segnala un
+falso positivo, si corregge il gate».
+
+#### Le tre opzioni, e un date-picker che era già nel mandato
+
+`weekend`, `numeroSettimana` e `fumetto` sono `viewSettings.weekends`,
+`viewSettings.weekNumbers` e `eventTooltip`: configurazione del motore.
+Il contenuto del fumetto è però **nostro**, e serve a qualcosa di preciso —
+ci sta il **nome per esteso** del calendario, che nel cerchio dell'avatar non
+ci sta.
+
+**E il dialogo ha preso un campo «Data».** Rilievo di Francesco: dal «+» di
+una cella il giorno è deciso, ma dal bottone «Nuovo» no, e senza campo si
+sarebbe costretti a creare sempre «oggi» e poi trascinare. Il campo c'è
+**anche in modifica**, e lì chiude un cerchio: è letteralmente il pattern che
+il commento di testa del `Calendario.tsx` di Officina descrive — «la
+riprogrammazione è un **date-picker nel pannello**, non un drag&drop». Il
+trascinamento resta la scorciatoia senza conferma; il dialogo è la strada con.
+
+Composto con `popover` + `calendar`, cioè la stessa composizione della story
+`Primitive/Calendar → Date picker`: nessun componente nuovo.
+
+#### Due difetti visti a video, e la regola che ne esce
+
+**Il doppio bordo era in tre posti, non in due.** Dopo mese e agenda, la
+settimana. **Ogni vista del motore apre con un `border-t` proprio**, perché
+ReUI la disegna per stare sotto la sua `nav` senza un contenitore attorno.
+Sono spente tutte e tre (`monthView`, `agendaView`, `timeGrid`), e chi
+aggiunge una quarta vista deve aggiungere la sua riga.
+
+**Le iniziali uscivano ancora dal cerchio, e stavolta la misura lo dice.**
+`size-5` non bastava: due lettere a `text-xs` in un cerchio da 20px danno
+`FS` 14,3px, `DE` 15,3 e **`MR` 18,3** — cioè **0,9px di margine per lato**,
+che in un cerchio si legge come lettere fuori, perché il bordo curva proprio
+lì. Le due strade scartate: `text-[10px]` è un valore arbitrario e non
+scalerebbe con la densità; `size-6` porta il margine a 2,85 e riempie un chip
+alto 26. **Si è passati a una iniziale sola**: la lettera più larga (`M`)
+misura 10,8px, margine **4,6**. Il nome per esteso non si perde — sta nel
+fumetto, ed è la ragione per cui le due richieste si sono chiuse insieme.
+
+La regola generale, che vale oltre il caso: **quando un testo non sta in un
+contenitore, o si allarga il contenitore o si accorcia il testo — non si
+scende sotto `text-xs`**, perché sotto ci sono solo valori arbitrari e in
+densità touch resterebbero fermi mentre tutto il resto cresce.
+
+### (l) Una story sola, il menù delle opzioni, e le scene di misura nascoste
+
+Indirizzo di Francesco, in tre messaggi: «togliamo le story dialogo
+dell'evento, settimana, densità touch — sono tutte integrate in completo»,
+«Docs ne spiega l'utilizzo di ogni funzionalità», e poi anche il vuoto.
+
+**Il conflitto è reale e va detto**: una story sola vuol dire che axe misura
+una scena sola. Il dialogo, la griglia oraria e lo stato vuoto non si
+raggiungono da «Completo», e una vista che nessuna story monta è una vista
+che il gate non ha mai visto — è la lezione della FASE 2, ripetuta tre volte.
+
+**Chiuso senza rinunciare a nessuna delle due cose**, col tag `!dev` di
+Storybook: `tags: ['!dev', '!autodocs']` toglie una story dalla barra
+laterale **e** dalla pagina Docs, ma **non** dai test. Nella style guide si
+vede una voce sola, `Completo`; il gate continua a eseguirne quattro.
+Verificato dal conto: 333 story scansionate, non 330.
+
+**La densità touch invece è stata tolta davvero**, ed è l'unica che non
+serviva: `misura:bersagli` forza `globals=density:touch` su **tutte** le
+story, quindi quella scena non aggiungeva nessuna misura. Il resto della
+style guide la prova dalla leva **Densità** in barra, che è globale.
+
+**Il popup dichiarato su «Completo» è il «+N altri», non il dialogo.**
+Storybook esegue le `play` anche nel canvas, quindi quello che si dichiara
+arriva **aperto**: un popover piccolo sopra una cella lascia vedere il
+calendario, il dialogo lo coprirebbe tutto. Il dialogo è misurato nella sua
+scena nascosta.
+
+#### Il menù «Opzioni», e la regola dell'interruttore che non fa niente
+
+Le tre leve erano prop, e Francesco cercava il **menù** — la richiesta era
+nata guardando il pannello «Settings» di `c-event-calendar-1`. Fatto: un
+popover con un interruttore per riga, geometria loro, tre leve invece della
+loro dozzina. Le altre non ci sono per scelta: lingua e fuso li decide
+l'app, e accendere il trascinamento da un menù metterebbe una
+riprogrammazione senza conferma a un clic di distanza — cioè l'opposto di
+quello che il commento di Officina chiede.
+
+**E qui è emersa una cosa che il motore non dice**: `weekNumbers` è letto
+**solo** dalla vista mese, e `weekends` non è letto dall'agenda — verificato
+a grep sui tre file delle viste. Un interruttore acceso dove non fa niente è
+il difetto peggiore di un pannello di impostazioni, perché chi lo tocca
+conclude che il calendario è rotto. Ogni riga dichiara quindi in quali viste
+vale, e fuori **si disabilita**. È la stessa regola per cui il commutatore
+delle viste sparisce quando commutare non cambierebbe niente.
+
+Prima stesura con una nota sotto l'etichetta («Solo nella vista mese»), e
+Francesco l'ha fatta togliere: l'interruttore spento dice già tutto, e tre
+righe di spiegazione fanno di un menù da tre voci un pannello da leggere.
+
+E «fumetto» è diventato **«tooltip»**, su sua indicazione: è il nome della
+primitiva che c'è già nel registry, e un design system che chiama due volte
+la stessa cosa in due modi diversi è un design system che si ricorda a
+memoria.
+
+#### La settimana ricadeva sempre sulla prima del mese
+
+Rilievo: «vista settimana mancano gli eventi, devono essere sincronizzati».
+La causa è la stessa dell'agenda, un giro più in là: il mese è ancorato al
+suo **primo giorno**, quindi passando alla settimana si finiva sempre sulla
+prima — che nella metà dei casi comincia nel mese prima, e che quasi sempre
+è vuota.
+
+La regola adottata è quella dei calendari che usiamo tutti: **se oggi sta nel
+mese che si sta guardando, la settimana è quella di oggi**; altrimenti si
+resta dov'era. Misurato: dal mese di settembre si atterra su «14 – 20
+settembre», che ha i fermi.
+
+#### E il campo Data era grigio
+
+Il trigger del date-picker è un `Button variant="outline"`, che porta
+`bg-background` — il grigio della **pagina**. Dentro un dialogo, che è
+`bg-popover`, diventava l'unico campo grigio in mezzo a tre trasparenti
+(misurato: `oklch(0.9726…)` contro `rgba(0,0,0,0)` di input e select).
+Allineato agli altri campi: stesso fondo, stesso bordo, stesso raggio, e
+niente hover — perché nemmeno i `select` accanto ce l'hanno.
+
+Vale oltre il caso: **la story `Primitive/Calendar → Date picker` compone il
+trigger così, e su una pagina è giusto**. Dentro una superficie più chiara
+non lo è più, e chi copia quella composizione in un dialogo deve saperlo.
+
+### (m) La distinzione che mancava: il calendario è il **tipo**, la persona è l'**assegnatario**
+
+Rilievo di Francesco guardando Officina, e ribalta una cosa che questo stesso
+verbale aveva scritto al punto (e). Nella barra dei filtri di Officina ci sono
+**«Tutti i reparti»** e **«Tutti gli assegnatari»**, e accanto una legenda a
+colori: **Guasto · Preventiva · Ispezione · Miglioria**.
+
+Quindi:
+
+| | cos'è | come si vede |
+|---|---|---|
+| **calendario** | il tipo di intervento | il **colore**, spiegato dalla legenda |
+| **assegnatario** | la persona | l'**avatar** |
+
+**Sono due canali, e tenerli separati non è pignoleria**: due persone possono
+lavorare allo stesso guasto, e lo stesso manutentore fa guasti e preventive.
+Il punto (e) di questo verbale aveva chiuso «il calendario è la persona»
+perché così sembrava dal primo rilievo; era una lettura parziale, e questa la
+corregge.
+
+**Regola del chip**: gli avatar quando ci sono assegnatari, **altrimenti** il
+pallino col colore del calendario. Il colore c'è sempre, la persona no.
+
+**Più di un assegnatario**, e la primitiva c'era già: `AvatarGroup`
+(`Primitive/Avatar → Gruppo`), con `AvatarGroupCount` dal terzo in poi —
+oltre i due, tre cerchi in un chip alto 26px non si distinguono, quindi il
+terzo posto dice **quanti** invece di **chi**.
+
+Nel dialogo il campo è un **`combobox` a più scelte con le pillole**, cioè la
+composizione di `Primitive/Combobox → Più scelte, con pillole`. Scartato il
+`toggle-group`: una squadra di manutenzione può essere di quindici persone, e
+un toggle-group «è un filtro che si clicca, non un campo che si cerca»
+(CLAUDE.md, «il nome dice la funzione»). Il gate non ha trovato i
+`button-name` di **D14** in questa scena, quindi **non** è servita nessuna
+esclusione per nodo: se un giorno comparissero, la strada è quella di D14.
+
+**La legenda** è geometria di `c-event-calendar-4` — pallino e nome per
+calendario — e sta **in testata**, che è dove la mette Officina. Senza, il
+colore di un chip è un'informazione che non si può decodificare.
+
+**Un limite della tavolozza, a verbale**: Officina usa il **rosso** per il
+guasto, e nei cinque `--chart-*` il rosso non c'è (arancio, verde, blu, due
+grigi). Il guasto prende l'arancio, che è il più caldo. Se il rosso servisse
+davvero, si aggiunge alla palette in `scripts/hex-to-oklch.ts` — che è la
+fonte unica — e non si scrive nel blocco.
+
+### (n) L'avatar nel chip: quattro misure per arrivarci
+
+Quattro rilievi di Francesco sullo stesso elemento, e vale la pena averli
+tutti scritti perché ognuno smonta un'assunzione.
+
+**1. Gli artefatti erano la trasparenza.** Il fallback aveva
+`bg-(--ec-event-color)/20`, cioè un fondo semi-trasparente: sovrapposti da
+`AvatarGroup` si vedevano l'uno attraverso l'altro, e l'anello della
+primitiva — un `after` con `mix-blend-darken` — ci si sommava sopra. La
+primitiva si usa **così com'è**: il fondo torna `bg-muted`, opaco, e il
+colore resta dov'è il suo posto, cioè il chip, che dice il calendario.
+
+**2. La taglia: il chip non scala, l'avatar sì.** `--ec-month-bar-h` è in
+`rem` e non deriva da `--spacing`, quindi il chip del mese resta **26px** in
+tutte e due le densità; l'avatar `size="sm"` invece fa 24px in normale e
+**36 in touch** — sforava. `size-4` fa 16 e 24: ci sta in entrambe.
+
+**3. Una taglia `xs` nella primitiva è stata provata, e il gate l'ha
+rifiutata.** Aggiungere un valore all'union di `size` è una divergenza di
+**forma**, non una stringa di classi: `check:registry` esce 1 con «diverge
+dall'originale FUORI dalle stringhe di classi». È lo stesso muro dello
+`stepper` in M4ter.1 — per passare servirebbe un meccanismo di «divergenza
+dichiarata» che il gate non ha, e con **un** punto d'uso la classe dal punto
+di chiamata costa meno della macchina. **Se i punti d'uso diventassero tre,
+la decisione si riapre** e allora si costruisce il meccanismo.
+
+**E la classe si posa sulla taglia base, non su `sm`**, che è il dettaglio
+che ha fatto sbagliare la prima volta: `data-[size=sm]:size-6` è una variante
+con attributo e ha specificità più alta di `size-4`, quindi vinceva lei — la
+misura diceva ancora 36px in touch. Sulla base è `tailwind-merge` a
+sostituire `size-8`, e funziona.
+
+**4. La sovrapposizione va scalata con la taglia.** Tolta e rimessa:
+`AvatarGroup` stringe di `-space-x-2`, cioè 8px, che è **un quarto** di
+`size-8` — la taglia per cui è disegnato. Su 16px quegli stessi 8px sono
+mezzo cerchio, e la prima iniziale spariva sotto la seconda. `-space-x-1` è
+lo stesso quarto alla metà della taglia. L'anello resta quello della
+primitiva: è ciò che rende leggibile la sovrapposizione, e toglierlo —
+provato — lasciava due cerchi grigi attaccati.
+
+La regola che ne esce, e che vale per ogni primitiva rimpicciolita:
+**quando si cambia la taglia di un componente, le sue distanze vanno
+riscalate nella stessa proporzione** — non ereditate.
+
+### (o) Le due iniziali, e il tetto che le limita: l'altezza dello schermo
+
+Rilievo: «nell'avatar come nella primitiva vanno messe le iniziali per
+Francesco Sartori, quindi **FS** e non solo F». Giusto — la primitiva le
+scrive così — ma due lettere in un cerchio piccolo è un problema di
+geometria, e la catena di vincoli merita di essere scritta perché è quella
+che governerà ogni prossima modifica al chip.
+
+**Il nodo: il chip del mese non scalava.** `--ec-month-bar-h` ha come default
+**1.75rem**, in `rem`: il chip resta 26px anche in densità touch, mentre
+avatar e testo crescono con `--spacing`. Da lì venivano due difetti diversi
+che sembravano scollegati — l'avatar `sm` che a 36px sforava un chip da 26, e
+le due iniziali che non ci stavano in un cerchio abbastanza piccolo da
+starci.
+
+**Chiuso legando la variabile al token**: `--ec-month-bar-h:
+calc(var(--spacing) * 8)`, messo come `style` sul root del calendario. Non è
+un valore arbitrario e non è un ri-stile: è una variabile che il motore
+espone apposta, e il valore è un calcolo su `--spacing`. Il chip fa **32px in
+normale e 48 in touch**, e cresce insieme a tutto il resto.
+
+**E poi il tetto**, che è il pezzo che vale oltre il caso. A `--spacing × 9`
+il chip faceva 36 e l'avatar `size-6` stava comodissimo — ma la riga del mese
+saliva a 140px, **sei righe non ci stavano più** e il mese scorreva lasciando
+fuori l'ultima settimana. Francesco l'ha visto subito.
+
+La catena, tutta misurata:
+
+| | vincolo |
+|---|---|
+| lo schermo del capannone | ~900px, meno il guscio ≈ **800** per il calendario |
+| sei righe + testata + legenda | ⇒ **≤ 128px per riga** |
+| tre corsie per cella (il requisito) | ⇒ chip ≤ **32px** (96 + 6 + 26 = 128) |
+| chip 32 con `py-1` | ⇒ avatar ≤ **20px** (`size-5`), 5px di margine |
+| due iniziali a `text-xs` in 20px | **14,6px**, margine 2,7 per lato — dentro |
+
+Cioè: **è l'altezza dello schermo a decidere quanto è grande l'avatar**, per
+una catena di quattro passaggi. Chi un domani vorrà l'avatar più grande deve
+sapere che sta chiedendo o meno di tre eventi per cella, o un mese che
+scorre.
+
+**Un'ultima misura, per non tornarci**: le barre pluri-giorno **non
+sbordano** fra un giorno e l'altro, e l'impressione che lo facciano viene dal
+weekend nascosto — una barra che finisce di sabato si interrompe all'ultima
+colonna visibile. Misurato: la barra del 7–10 va da 21 a 1138 dentro celle
+che vanno da 17 a 1142, cioè 4px di inset per lato, esattamente come le
+altre.
+
+**E il bug vero di questo giro**: `apriModifica` leggeva `calendarioId`
+dall'evento, ma l'evento che arriva dal motore è il **suo**, dove quel campo
+si chiama `resourceId`. Risultato: `undefined`, e il dialogo ricadeva sul
+**primo** calendario dell'elenco — un evento «Preventiva» si apriva come
+«Guasto». È il rovescio del mapping: si traduce in entrambe le direzioni o si
+sbaglia in una.
+
+### (p) Il chip nel popover era più basso, e la causa è il portale
+
+Rilievo: «gli eventi dentro al menù +3 altri sono più bassi di quelli nella
+vista mensile, così l'avatar sborda; devono sempre essere alti uguale».
+
+**Due cause che si sommano**, e va detto perché la prima da sola non basta a
+spiegarlo:
+
+1. il chip del popover ha `py-0.5` mentre quello del mese ha `py-1` — quattro
+   pixel di differenza;
+2. il popover sta in un **portale**, quindi la variabile
+   `--ec-month-bar-h` che il blocco dichiara sul proprio root **non ci
+   arriva**: `getComputedStyle` la legge **vuota**, e il chip non ha nemmeno
+   l'altezza del mese da cui partire.
+
+Misurato: **28px nel mese, 24 nel popover**, con un avatar da 20 che col
+padding usciva.
+
+**Il primo rimedio era sbagliato**, e vale la pena averlo scritto:
+`min-h-5` sul nostro contenuto. Non ha funzionato, e non poteva — il chip del
+mese ha un'altezza **fissa**, quindi ad allargare il contenuto sarebbe stato
+il contenuto a uscire dal chip, non il chip a crescere. La misura giusta è
+**il padding**, che è la differenza vera.
+
+**E serve l'important.** `classNames.event: "py-1"` non bastava: nella `cn()`
+del motore il `className` del **punto di chiamata** viene dopo `classNames`,
+e nel popover è proprio lì che sta `py-0.5`. Con `py-1!` i due chip misurano
+**28 e 28**.
+
+**Nota sulla variabile nei portali**, che vale oltre questo caso: una
+variabile CSS dichiarata sul root di un blocco non raggiunge i pannelli che
+Base UI monta in un portale. Se un valore deve valere anche lì, o si passa da
+una classe, o si accetta il default del componente.
+
+#### E un pixel in fondo alla settimana
+
+«Doppio bordo sull'ultima ora del giorno.» Le righe orarie della griglia sono
+un `repeating-linear-gradient`, e l'ultima linea che disegna cade
+**esattamente sul fondo della colonna**: lì il `border-t` della legenda ci si
+somma. Il bordo della legenda ora c'è nel mese e nell'agenda — dove quella
+linea non esiste e senza bordo la legenda sembrerebbe attaccata — e **non**
+nella settimana.
+
+### (q) Le due liste dei popup erano disallineate, e sotto c'era un difetto vero
+
+`scripts/gate-a11y.ts` legge le dichiarazioni dei popup da `ui/` **e**
+`blocks/`; `scripts/misura-bersagli.ts` leggeva il solo `ui/`. Allineate.
+
+**Il difetto non era estetico.** Con i blocchi fuori dall'elenco, lo script
+non *aspettava* i loro popup — App shell, Calendario, Data Table, Dialogo
+adattivo, Dialogo di conferma, Intestazione di pagina, Editor di testo — ma
+Storybook le `play` le esegue comunque: quei popup venivano misurati **o no a
+seconda di quanto ci metteva la pagina**. Non un conto sbagliato: **un conto
+diverso a ogni esecuzione**, che è peggio, perché non si nota.
+
+Misurato: i popup aperti passano da **47 a 59**.
+
+#### E il rapporto, appena allineato, ha trovato una cosa
+
+`Blocchi/Editor di testo`: **0 story su 4 aperte**, mentre in un test isolato
+il popover si apriva regolarmente. Tre ipotesi, misurate in quest'ordine:
+
+1. *il timeout d'attesa del popup è corto* — alzato da 2s a 5, poi a 9:
+   **nessun cambiamento**;
+2. *il grilletto è disabilitato* — no, `disabled` è false e `aria-expanded`
+   c'è;
+3. **la `play` cerca il grilletto prima che esista.** Confermato leggendo la
+   console della build statica: `Nessun grilletto [aria-label="Collegamento"]
+   in questa story`. L'editor monta Tiptap **prima** di disegnare la propria
+   barra, e la `play` parte nel mezzo.
+
+Chiuso in `.storybook/prove/apri.ts`: `grilletto()` ora **aspetta** che
+l'elemento sia nel DOM (`waitFor`) invece di pretenderlo subito. L'attesa non
+indebolisce il controllo — se il grilletto non arriva affatto, `waitFor`
+scade e l'errore resta, che è il caso in cui la dichiarazione nel meta non
+corrisponde alla story. Dopo: **1/4**, e i popup aperti salgono a 59.
+
+**Il timeout è tornato a 2s**, ed è la parte che vale più del difetto:
+alzare un'attesa è il rimedio che si prova per primo e che quasi sempre
+**nasconde** la causa invece di toglierla. Qui non funzionava nemmeno a nove
+secondi, ed è stato quello a far cercare altrove.
+
+**Perché il sintomo era invisibile sul dev server**: lì i tempi bastano e la
+`play` trova il grilletto. Si vedeva **solo** sullo Storybook costruito, che
+è quello che `misura:bersagli` usa — ed è la ragione per cui lo usa.

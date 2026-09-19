@@ -283,8 +283,20 @@ const ALIAS_REGISTRY_RE = /@\/registry\/[a-z0-9-]+\//g;
  * decisa all'installazione e diversa per costruzione fra un monorepo e un'app.
  * Quindi un percorso interno si riduce al suo ultimo segmento. Le classi non
  * cominciano per `@/`, quindi questa regola non le tocca.
+ *
+ * **E la regex comincia con l'apice, non con `@`.** `scansiona` restituisce
+ * le stringhe **comprese le virgolette** (`"@/…"`), quindi la prima stesura
+ * di questa regola — ancorata a `^@\/` — non ha mai trovato niente: la
+ * normalizzazione c'era e non mordeva, e gli import interni continuavano a
+ * contare come «stringhe ri-stilate». Trovato in M4ter.2 portando dentro
+ * `time-grid`, che risultava ri-stilato di **6** stringhe essendo identico
+ * all'originale a meno dei suoi 6 import; `event-calendar-i18n`, che di
+ * import interni ne ha **uno**, ne dichiarava **una**. Il conto dei
+ * ri-stilati è il costo dichiarato di ogni aggiornamento di shadcn e di
+ * ReUI: gonfiarlo con percorsi che la CLI riscrive da sé lo rende una cifra
+ * che non si può usare.
  */
-const IMPORT_INTERNO_RE = /^@\/[\w.()-]+(?:\/[\w.()-]+)*\/([\w.-]+)$/;
+const IMPORT_INTERNO_RE = /^(["'`])@\/[\w.()-]+(?:\/[\w.()-]+)*\/([\w.-]+)\1$/;
 
 /**
  * **Dichiarazioni morte a monte**, tolte dalla nostra copia perché sotto
@@ -314,11 +326,16 @@ const MORTE_A_MONTE: { file: string; re: RegExp; cosa: string }[] = [
     re: /\n[ \t]*const instance = useEventCalendar\(\)(?=\n[ \t]*const settings = useEventCalendarSettings\(\)\n[ \t]*const viewConfig)/,
     cosa: "la seconda `const instance`, assegnata e mai letta",
   },
+  {
+    file: "event-calendar-time-grid.tsx",
+    re: /\n[ \t]*EventCalendarSlotDraft,(?=\n\} from ")/,
+    cosa: "il tipo `EventCalendarSlotDraft`, importato e mai usato",
+  },
 ];
 
 function normalizzaClassi(s: string): string {
   const modulo = IMPORT_INTERNO_RE.exec(s);
-  if (modulo) return `@/·/${modulo[1]}`;
+  if (modulo) return `@/·/${modulo[2]}`;
   return s.replace(CN_FONT_HEADING_RE, "").replace(ALIAS_REGISTRY_RE, "@/registry/·/");
 }
 

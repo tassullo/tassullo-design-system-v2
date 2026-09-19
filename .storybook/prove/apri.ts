@@ -59,7 +59,25 @@ const soloChiuso = import.meta.env.VITE_POPUP === 'chiuso'
  * dichiarazione nel meta non corrisponde alla story, ed è esattamente
  * l'errore che questo file esiste per non lasciar passare in silenzio.
  */
-function grilletto(canvasElement: HTMLElement, selettore: string): HTMLElement | null {
+async function grilletto(
+  canvasElement: HTMLElement,
+  selettore: string,
+): Promise<HTMLElement | null> {
+  // **Si aspetta che il grilletto esista, non lo si pretende subito.** Un
+  // blocco che monta una libreria prima di disegnare la propria barra —
+  // `rich-text-editor` con Tiptap — al momento in cui la `play` parte non
+  // ha ancora il bottone nel DOM: la ricerca falliva, questa funzione
+  // lanciava, e il popup non veniva mai aperto. Il sintomo era muto sul dev
+  // server, dove i tempi bastano, e visibile solo sullo Storybook
+  // **costruito**: `misura:bersagli` dava «Editor di testo 0/4 story
+  // aperte» mentre in un test isolato il popover si apriva regolarmente.
+  //
+  // L'attesa non indebolisce il controllo: se il grilletto non arriva
+  // affatto, `waitFor` scade e l'errore resta — che è il caso in cui la
+  // dichiarazione nel meta non corrisponde alla story.
+  await waitFor(() => {
+    expect(canvasElement.querySelector(selettore)).toBeInTheDocument()
+  })
   const el = canvasElement.querySelector<HTMLElement>(selettore)
   if (!el) throw new Error(`Nessun grilletto ${selettore} in questa story`)
   if (el.hasAttribute('disabled') || el.getAttribute('data-disabled') !== null) return null
@@ -80,7 +98,7 @@ async function aspettaContenuto(slot: string) {
 export function apriCol(selettoreGrilletto: string, slotContenuto: string) {
   return async ({ canvasElement }: { canvasElement: HTMLElement }) => {
     if (soloChiuso) return
-    const el = grilletto(canvasElement, selettoreGrilletto)
+    const el = await grilletto(canvasElement, selettoreGrilletto)
     if (!el) return
     await userEvent.click(el)
     await aspettaContenuto(slotContenuto)
@@ -91,7 +109,7 @@ export function apriCol(selettoreGrilletto: string, slotContenuto: string) {
 export function apriColDestro(selettoreGrilletto: string, slotContenuto: string) {
   return async ({ canvasElement }: { canvasElement: HTMLElement }) => {
     if (soloChiuso) return
-    const el = grilletto(canvasElement, selettoreGrilletto)
+    const el = await grilletto(canvasElement, selettoreGrilletto)
     if (!el) return
     await userEvent.pointer({ keys: '[MouseRight]', target: el })
     await aspettaContenuto(slotContenuto)
@@ -102,7 +120,7 @@ export function apriColDestro(selettoreGrilletto: string, slotContenuto: string)
 export function apriPassandoci(selettoreGrilletto: string, slotContenuto: string) {
   return async ({ canvasElement }: { canvasElement: HTMLElement }) => {
     if (soloChiuso) return
-    const el = grilletto(canvasElement, selettoreGrilletto)
+    const el = await grilletto(canvasElement, selettoreGrilletto)
     if (!el) return
     await userEvent.hover(el)
     await aspettaContenuto(slotContenuto)

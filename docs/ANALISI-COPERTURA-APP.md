@@ -522,9 +522,33 @@ disegnare qualcosa, ed è tardi.
 
 - **Officina, il calendario: `EventoCalendario.programmato_il` è un istante.** Un fermo
   macchina può durare giorni, e la barra pluri-giorno vuole **inizio e fine**. Il blocco
-  `tassullo-calendario` (M4ter.2) prende `start`/`end` da subito — ma il dato lo produce il
+  `tassullo-calendario` prende `start`/`end` da subito — ma il dato lo produce il
   backend di Officina, che oggi non ce l'ha. **Va nella guida di migrazione come
   prerequisito**, non come dettaglio implementativo.
+
+  **Verificato in M4ter.2 che l'API scritta corrisponde**, e il lavoro vero ha fatto
+  emergere tre condizioni che il backend deve rispettare e che «inizio e fine» da solo non
+  dice. Vanno nella guida accanto al prerequisito, perché ognuna produce un calendario
+  *sbagliato* e non *vuoto*, cioè il genere di difetto che non si nota.
+
+  1. **`end` è esclusivo.** Un fermo che dura il solo 9 settembre ha `end` alle **00:00 del
+     10**, non alle 23:59 del 9. Con la fine inclusiva la barra si accorcia di un giorno e
+     l'ultimo giorno del fermo sparisce dalla griglia.
+  2. **Un evento `allDay` vuole le mezzanotti del fuso di visualizzazione**, non istanti
+     qualsiasi: la segmentazione cammina sugli istanti grezzi, e la mezzanotte di un altro
+     fuso dipinge i giorni sbagliati (è scritto nel contratto del motore,
+     `event-calendar-types.tsx`). Se il backend serve UTC e la pagina mostra
+     `Europe/Rome`, il fermo si sposta di un giorno per metà dell'anno.
+  3. **Serve un `id` stabile per evento**, perché è la chiave con cui il motore ricompone
+     le occorrenze (`${event.id}::${startISO}`). Un `id` rigenerato a ogni fetch fa
+     perdere la selezione a ogni aggiornamento.
+
+- **Officina, il calendario: la griglia del mese non si naviga con le frecce.** Misurato in
+  Chromium vero in M4ter.2 (`docs/DECISIONI.md` §44): 42 celle, **0 focalizzabili**, frecce
+  e `Home`/`End` senza effetto, e **axe dà zero violazioni** — è D15 di nuovo. Col default
+  di casa non morde, perché una cella non ha azioni; **morde se la pagina passa
+  `onGiornoClick`**. La guida deve dire che quella prop si accende sapendolo, e che
+  l'appiglio da tastiera è il bottone «+» che il blocco accende insieme a lei.
 - **La soglia del bivio tabella/schede la decide l'app.** `useSoglia(query)` (M4ter.6) non
   porta un numero: dipende da quante colonne ha *quella* lista — nove nel Triage di
   Officina, e a 768px sarebbero illeggibili. La guida deve dire **come si sceglie**, non

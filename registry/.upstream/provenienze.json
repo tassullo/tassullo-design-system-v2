@@ -28,6 +28,7 @@
   "event-calendar-lib.tsx": "@reui/event-calendar-lib",
   "event-calendar-month-view.tsx": "@reui/event-calendar-month-view",
   "event-calendar-recurrence.tsx": "@reui/event-calendar-recurrence",
+  "event-calendar-time-grid.tsx": "@reui/event-calendar-time-grid",
   "event-calendar-types.tsx": "@reui/event-calendar-types",
   "event-calendar.tsx": "@reui/event-calendar",
   "field.tsx": "@shadcn/field",
