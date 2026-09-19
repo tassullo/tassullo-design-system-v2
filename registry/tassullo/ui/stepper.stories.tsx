@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { CheckIcon } from 'lucide-react'
+import { CheckIcon, LoaderCircleIcon } from 'lucide-react'
 
 import {
   Stepper,
@@ -96,6 +96,14 @@ import {
  *   `grid-flow-col auto-cols-fr` dà a ogni passo la stessa frazione, e da lì i
  *   trattini escono tutti della stessa lunghezza. Con `flex-1` sui passi no: la
  *   larghezza la detta l'etichetta.
+ * · **Il trattino si ancora al centro dei pallini, non allo spazio fra loro.**
+ *   `absolute left-1/2 -right-1/2` dentro una riga larga quanto la colonna lo fa
+ *   partire dal centro di questo pallino e arrivare al centro del prossimo —
+ *   che è la geometria con cui reui fa il tratto verticale, portata in
+ *   orizzontale. Così il pallino può stare **centrato** nella sua colonna, col
+ *   titolo centrato sotto, invece di essere schiacciato a sinistra.
+ *   `top-1/2 -translate-y-1/2` lo centra sul pallino a **qualunque densità**:
+ *   nessun numero fisso da riaggiustare quando `--spacing` cambia.
  * · **L'etichetta sta fuori dal grilletto.** Il grilletto è `rounded-full` e
  *   porta l'anello di fuoco: se ci si mette dentro anche il titolo, premendo
  *   `Tab` si accende una pastiglia attorno a pallino *ed* etichetta invece del
@@ -149,8 +157,15 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** La spunta del passo fatto: è l'API della radice, non un `if` nel markup. */
-const INDICATORI = { completed: <CheckIcon className="size-3" /> }
+/**
+ * Cosa mostra il pallino quando non mostra il numero: è l'API della radice, non
+ * un `if` nel markup. `loading` compare solo sul passo **corrente**, perché il
+ * componente calcola `isLoading = loading && step === activeStep`.
+ */
+const INDICATORI = {
+  completed: <CheckIcon className="size-3" />,
+  loading: <LoaderCircleIcon className="size-3 animate-spin" />,
+}
 
 /**
  * Il trattino di **collegamento** fra un passo e il successivo. `m-0` toglie il
@@ -166,7 +181,16 @@ const INDICATORI = { completed: <CheckIcon className="size-3" /> }
  * è un'altra cosa — lì il tratto **è** il passo, non il collegamento, e il
  * corrente va acceso.
  */
-const TRATTO = 'm-0 h-0.5 flex-1 data-[state=completed]:bg-primary'
+const TRATTO =
+  'absolute top-1/2 left-1/2 -right-1/2 m-0 h-0.5 -translate-y-1/2 data-[state=completed]:bg-primary'
+
+/**
+ * La variante **in linea** dello stesso tratto: lì il pallino non è centrato in
+ * una colonna, sta in fila col proprio titolo, e il tratto è semplicemente
+ * quello che avanza fra un passo e il successivo. Niente posizionamento
+ * assoluto, quindi, ma un `flex-1` in mezzo alla riga.
+ */
+const TRATTO_IN_LINEA = 'm-0 h-0.5 flex-1 data-[state=completed]:bg-primary'
 
 /**
  * I pannelli. Il contenitore porta l'`id` a cui ogni scheda punta con
@@ -227,18 +251,18 @@ export const Orizzontale: Story = {
           <StepperItem
             key={passo.titolo}
             step={i + 1}
-            className="flex-col items-stretch gap-2"
+            className="flex-col items-center gap-2"
           >
-            <span className="flex w-full items-center">
+            <span className="relative flex w-full justify-center">
               <StepperTrigger
                 aria-label={`${passo.titolo}. ${passo.descrizione}`}
-                className="shrink-0"
+                className="relative z-10"
               >
                 <StepperIndicator>{i + 1}</StepperIndicator>
               </StepperTrigger>
               {i < PASSI.length - 1 && <StepperSeparator className={TRATTO} />}
             </span>
-            <span aria-hidden>
+            <span aria-hidden className="w-full text-center">
               <StepperTitle>{passo.titolo}</StepperTitle>
             </span>
           </StepperItem>
@@ -277,11 +301,15 @@ export const Verticale: Story = {
         className="flex w-full flex-col"
       >
         {PASSI.map((passo, i) => (
-          <StepperItem key={passo.titolo} step={i + 1} className="flex-col items-stretch">
+          <StepperItem
+            key={passo.titolo}
+            step={i + 1}
+            className="relative flex-col items-stretch not-last:flex-1 not-last:pb-10"
+          >
             <div className="flex items-start gap-3">
               <StepperTrigger
                 aria-label={`${passo.titolo}. ${passo.descrizione}`}
-                className="shrink-0"
+                className="relative z-10"
               >
                 <StepperIndicator>{i + 1}</StepperIndicator>
               </StepperTrigger>
@@ -291,16 +319,112 @@ export const Verticale: Story = {
               </div>
             </div>
             {i < PASSI.length - 1 && (
-              <div className="flex w-6 justify-center py-1">
-                <StepperSeparator
-                  className="m-0 h-8 w-0.5 data-[state=completed]:bg-primary"
-                />
-              </div>
+              <StepperSeparator
+                className="absolute top-7 bottom-1 left-3 m-0 w-0.5 -translate-x-1/2 data-[state=completed]:bg-primary"
+              />
             )}
           </StepperItem>
         ))}
       </div>
       <Pannelli testi={PASSI.map((p) => `Compila: ${p.titolo.toLowerCase()}.`)} />
+    </Stepper>
+  ),
+}
+
+/**
+ * **Il passo in attesa** (`c-stepper-3` della galleria reui). L'unico stato che
+ * non si deriva dal passo corrente e che va dichiarato: `loading` sul singolo
+ * `StepperItem`, per il passo che sta aspettando una risposta — la verifica di
+ * una partita IVA, il salvataggio, un calcolo che gira sul server.
+ *
+ * Il pallino si scambia col rotore, e il numero sparisce: è il segnale che
+ * qualcosa è in corso e che non serve ricliccare. Non è un forzante come
+ * `completed`, perché **vale solo sul passo corrente** — il componente calcola
+ * `loading && step === activeStep`, quindi un `loading` dimenticato su un passo
+ * che non è quello corrente non fa danno.
+ *
+ * Della demo di reui non si prende la tavolozza: loro fanno il passo fatto con
+ * `bg-green-500` e `text-white`, cioè colori grezzi di Tailwind, che la regola 3
+ * del `CLAUDE.md` non ammette — e che qui introdurrebbero il verde in una scena
+ * sola. Il meccanismo è il loro, i colori restano quelli del tema.
+ */
+export const Attesa: Story = {
+  render: () => (
+    <Stepper
+      role="group"
+      aria-orientation={undefined}
+      defaultValue={2}
+      indicators={INDICATORI}
+      className="w-full max-w-xl space-y-8"
+    >
+      <div
+        role="tablist"
+        aria-label="Passi della registrazione"
+        className="grid w-full grid-flow-col auto-cols-fr"
+      >
+        {PASSI.map((passo, i) => (
+          <StepperItem
+            key={passo.titolo}
+            step={i + 1}
+            loading={i + 1 === 2}
+            className="flex-col items-center gap-2"
+          >
+            <span className="relative flex w-full justify-center">
+              <StepperTrigger aria-label={passo.titolo} className="relative z-10">
+                <StepperIndicator>{i + 1}</StepperIndicator>
+              </StepperTrigger>
+              {i < PASSI.length - 1 && <StepperSeparator className={TRATTO} />}
+            </span>
+            <span aria-hidden className="w-full text-center">
+              <StepperTitle>{passo.titolo}</StepperTitle>
+            </span>
+          </StepperItem>
+        ))}
+      </div>
+      <Pannelli testi={PASSI.map((p) => p.descrizione)} />
+    </Stepper>
+  ),
+}
+
+/**
+ * **Titolo in linea** (`c-stepper-9`): il titolo sta **accanto** al pallino e
+ * non sotto. È la forma che ci sta dove l'altezza è poca — sopra un modulo in
+ * una card, dentro un pannello — e si paga in larghezza, quindi regge finché i
+ * titoli sono corti.
+ *
+ * Qui il titolo torna **dentro** il grilletto, al contrario della scena
+ * orizzontale, e non è un'incoerenza: in linea il pallino e la sua parola sono
+ * un bersaglio solo, e l'anello di fuoco che li abbraccia entrambi dice il
+ * vero. Sotto, invece, il titolo è una didascalia e l'anello attorno a tutta la
+ * colonna sarebbe una pastiglia storta.
+ */
+export const TitoloInLinea: Story = {
+  render: () => (
+    <Stepper
+      role="group"
+      aria-orientation={undefined}
+      defaultValue={2}
+      indicators={INDICATORI}
+      className="w-full max-w-xl space-y-8"
+    >
+      <div
+        role="tablist"
+        aria-label="Passi della registrazione"
+        className="flex w-full items-center"
+      >
+        {PASSI.map((passo, i) => (
+          <StepperItem key={passo.titolo} step={i + 1}>
+            <StepperTrigger className="justify-start gap-1.5">
+              <StepperIndicator>{i + 1}</StepperIndicator>
+              <StepperTitle>{passo.titolo}</StepperTitle>
+            </StepperTrigger>
+            {i < PASSI.length - 1 && (
+              <StepperSeparator className={`${TRATTO_IN_LINEA} mx-2`} />
+            )}
+          </StepperItem>
+        ))}
+      </div>
+      <Pannelli testi={PASSI.map((p) => p.descrizione)} />
     </Stepper>
   ),
 }
@@ -326,14 +450,18 @@ export const BarraASegmenti: Story = {
       <div
         role="tablist"
         aria-label="Avanzamento del calcolo"
-        className="grid w-full grid-flow-col auto-cols-fr gap-1"
+        className="grid w-full grid-flow-col auto-cols-fr"
       >
         {[1, 2, 3, 4, 5].map((n) => (
-          <StepperItem key={n} step={n} className="flex-col items-stretch">
-            <StepperTrigger className="w-full" aria-label={`Passo ${n} di 5`}>
-              <StepperSeparator
-                className={`${TRATTO} h-1 w-full data-[state=active]:bg-primary`}
-              />
+          <StepperItem
+            key={n}
+            step={n}
+            className="flex-1 overflow-hidden first:rounded-s-full last:rounded-e-full"
+          >
+            <StepperTrigger className="w-full">
+              <StepperIndicator className="h-2 w-full rounded-none!">
+                <span className="sr-only">{`Passo ${n} di 5`}</span>
+              </StepperIndicator>
             </StepperTrigger>
           </StepperItem>
         ))}

@@ -5664,6 +5664,59 @@ Francesco: prendere tutto il motore, prendere il calendario da un'altra parte,
 oppure scriverne uno nostro più piccolo sapendo che le corsie pluri-giorno sono la
 parte cara. **M4ter.2 non parte prima di quella risposta.**
 
+#### Coda: le demo di reui, e la licenza va riletta
+
+**Il discrimine fra libero e a pagamento non è `type: registry:block`.** Questo
+verbale, il 2026-09-19, aveva scritto che i `wizard-1…7` sono Pro Blocks
+«perché di tipo `registry:block`». La conclusione era giusta, il criterio no:
+**anche tutti i `c-stepper-1…15` sono `registry:block`**, e sono liberi. Il test
+che regge è un altro, ed è verificabile: **il sorgente sta nel repo MIT
+`keenthemes/reui`, sì o no?** I `c-stepper-*.tsx` ci sono, sotto
+`registry-reui/bases/base/components/stepper/`; dei `wizard-*` nel repo ci sono
+**soltanto gli screenshot** (`public/screenshots/blocks/application/`), il codice
+no. E il repo ha un `LICENSE.md` solo, MIT, senza deroghe. Chi domani vorrà
+adottare un altro pezzo di reui usi questo test, non il campo `type`.
+
+**Una trappola di lettura, pagata due volte in una sessione**: i titoli dei
+docs e quelli della galleria sono **sfasati**. Nei docs `c-stepper-12` compare
+sotto «Vertical», in `meta.json` — che è quel che la galleria mostra — si chiama
+«Stepper with segmented progress bar». Cercando la barra a segmenti coi titoli
+dei docs si conclude che non esista. Valgono i titoli di `meta.json`.
+
+**Tre demo adottate**, su scelta di Francesco (3, 9, 12), e in tutti e tre i casi
+si prende la **geometria**, non la composizione: le loro demo usano `StepperNav`,
+che qui non si può usare.
+
+- **`c-stepper-12`, la barra a segmenti**, al posto della nostra. La loro non usa
+  il separatore: usa l'**indicatore** reso `h-2 w-full rounded-none!` col numero
+  in `sr-only`. Due vantaggi misurabili: il colore dello stato arriva dal
+  componente senza classi nostre, e il nome della scheda non ha più bisogno di
+  `aria-label`. Il raggio sta agli estremi della **barra**
+  (`first:rounded-s-full last:rounded-e-full` + `overflow-hidden`), non di ogni
+  segmento, così i giunti interni restano vivi.
+- **`c-stepper-3`, il passo in attesa**: `loading` sul singolo `StepperItem` più
+  `indicators.loading`. È l'unico stato che non si deriva dal passo corrente. Ma
+  **la loro tavolozza non si prende**: fanno il passo fatto con `bg-green-500` e
+  `text-white`, cioè colori grezzi di Tailwind che la regola 3 non ammette.
+  Meccanismo loro, colori del tema.
+- **`c-stepper-9`, il titolo in linea**. Qui il titolo torna **dentro** il
+  grilletto, al contrario della scena orizzontale: in linea il pallino e la sua
+  parola sono un bersaglio solo, e l'anello di fuoco che li abbraccia dice il
+  vero.
+
+**E l'impaginazione orizzontale è stata rifatta due volte**, su rilievo di
+Francesco: pallino **centrato** nella colonna e titolo centrato sotto. Il pezzo
+che lo rende possibile è la geometria del tratto, presa dal loro verticale e
+portata in orizzontale: `absolute left-1/2 -right-1/2` dentro una riga larga
+quanto la colonna, così il tratto va dal centro di un pallino al centro del
+successivo invece di riempire lo spazio fra due blocchi. E `top-1/2
+-translate-y-1/2` invece di un `top-*` fisso, perché quel numero andrebbe
+rifatto a ogni cambio di `--spacing`. Della loro versione **non** si prende
+`h-[calc(100%-2rem)]`, che è un valore arbitrario: `top-7 bottom-1` fa lo stesso.
+
+**Cinque scene**: Orizzontale, Titolo in linea, Verticale, Attesa, Barra a
+segmenti. `test:a11y` **1308 → 1316**, 0 violazioni; `check` verde sui cinque.
+
 #### Prossimi passi
 
 1. La risposta su D22 e sull'eccezione 4bis per il `role="tablist"`.
