@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react-vite"
-import { CheckIcon } from "lucide-react"
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { CheckIcon } from 'lucide-react'
 
 import {
   Stepper,
@@ -11,7 +11,7 @@ import {
   StepperSeparator,
   StepperTitle,
   StepperTrigger,
-} from "@/registry/tassullo/ui/stepper"
+} from '@/registry/tassullo/ui/stepper'
 
 /**
  * **La barra dei passi — e non è un componente nostro.** Viene dal registry
@@ -33,6 +33,18 @@ import {
  * l'avviso sparisce dal file, perché senza di quello la ridistribuzione alle
  * app non è coperta.
  *
+ * ## Lo stato lo deriva il componente: `completed` quasi mai si passa
+ *
+ * `StepperItem` calcola da sé `step < activeStep → fatto`,
+ * `step === activeStep → corrente`, il resto **da fare**. La prop `completed`
+ * è un **forzante**, per il caso in cui non sia derivabile — un modulo con
+ * convalida dove si torna indietro a correggere il primo passo lasciando il
+ * secondo già buono. Passarla fissa in una barra che si clicca è un difetto
+ * che si vede subito: i passi forzati restano accesi **anche quando si torna
+ * al primo**, e una barra a cinque segmenti su «passo 1 di 5» ne mostra due
+ * accesi. Qui non si passa, e la spunta la dà `indicators` sulla radice, che
+ * è l'API fatta apposta.
+ *
  * ## Si compone così, e non come lo compongono loro
  *
  * **Queste story non usano `StepperNav`, e la ragione è un difetto ARIA del
@@ -44,13 +56,7 @@ import {
  * può stare») e `aria-required-parent` su **ogni** scheda.
  *
  * Qui il gruppo lo fa un elemento nostro con `role="tablist"` scritto sopra, e
- * la radice passa a `role="group"`. Le classi di impaginazione sono quelle che
- * `StepperNav` metterebbe da sé — il nome di gruppo `group/stepper-nav` e
- * `data-orientation` servono, perché `StepperItem` e `StepperSeparator` ci
- * leggono dentro con `group-data-[orientation=…]/stepper-nav:`.
- *
- * Tre conseguenze, tutte trovate misurando e non ragionando, e tutte da
- * rifare a ogni uso:
+ * la radice passa a `role="group"`. Tre conseguenze, tutte trovate misurando:
  *
  * 1. Cambiando ruolo alla radice va **tolta anche `aria-orientation`**, che il
  *    componente scrive per il `tablist` e che su `group` non è ammessa
@@ -59,18 +65,42 @@ import {
  * 2. Ogni scheda punta con `aria-controls` a `stepper-panel-N`, ma né
  *    `StepperPanel` né `StepperContent` scrivono quell'`id`: **lo deve mettere
  *    chi compone**, o l'attributo punta al nulla (`aria-valid-attr-value`).
- * 3. E i pannelli devono esserci **tutti**, non solo quello attivo:
- *    `StepperContent` rende `null` finché non tocca a lui, quindi l'`id` va sul
- *    contenitore attorno. Detto altrimenti, **una barra di passi senza pannelli
- *    non si può fare**: una scheda che non comanda niente non è una scheda — ed
- *    è la ragione per cui anche la barra a segmenti, qui sotto, un pannello ce
- *    l'ha.
+ * 3. E i pannelli devono esserci **tutti**, non solo quello attivo. Detto
+ *    altrimenti, **una barra di passi senza pannelli non si può fare**: una
+ *    scheda che non comanda niente non è una scheda — ed è la ragione per cui
+ *    anche la barra a segmenti, qui sotto, un pannello ce l'ha.
+ *
+ * Senza `StepperNav` cade anche il nome di gruppo `group/stepper-nav`, su cui
+ * `StepperItem` e `StepperSeparator` appoggiano le proprie misure. **Non si
+ * rimette**, e non è una perdita: quelle misure qui si scrivono in chiaro, ed
+ * è l'unico modo di avere l'impaginazione giusta (v. sotto).
  *
  * Nessuna delle tre si chiude ri-stilando: sono ruoli e attributi, non
  * stringhe di classi, e la regola 4bis non lascia toccarli. **In carico a
  * Francesco**: o la composizione resta questa e si ripete a ogni uso (M4ter.5
  * ne ha due), o si autorizza l'eccezione a 4bis e si sposta `role="tablist"`
  * dalla radice a `StepperNav` — una riga, che chiuderebbe il punto 1 e il 2.
+ *
+ * ## L'impaginazione orizzontale va scritta, non ereditata
+ *
+ * Due difetti visti sullo schermo, non dedotti, e valgono per chiunque componga
+ * una barra dei passi **con le etichette**:
+ *
+ * · **L'etichetta non può stare nella stessa riga del trattino.** Se ci sta, il
+ *   trattino si centra sull'altezza di pallino *più* etichetta, quindi cade
+ *   sotto il centro del pallino; e la sua lunghezza è quel che avanza dopo
+ *   l'etichetta, quindi **cambia da passo a passo** («Dati dell'impresa» è più
+ *   largo di «Tipo di utente», e si vede). Qui pallino e trattino stanno in una
+ *   riga loro, e l'etichetta sotto.
+ * · **Le colonne vanno rese uguali dalla griglia, non dal contenuto.**
+ *   `grid-flow-col auto-cols-fr` dà a ogni passo la stessa frazione, e da lì i
+ *   trattini escono tutti della stessa lunghezza. Con `flex-1` sui passi no: la
+ *   larghezza la detta l'etichetta.
+ * · **L'etichetta sta fuori dal grilletto.** Il grilletto è `rounded-full` e
+ *   porta l'anello di fuoco: se ci si mette dentro anche il titolo, premendo
+ *   `Tab` si accende una pastiglia attorno a pallino *ed* etichetta invece del
+ *   cerchio attorno al pallino. Il prezzo è che il nome della scheda va dato a
+ *   mano con `aria-label` — senza, la scheda si chiamerebbe «2».
  *
  * ## La trappola del nome, di nuovo
  *
@@ -80,13 +110,21 @@ import {
  * questo componente e resta codice della pagina. È `badge` scambiato per
  * `toggle-group`, un giro più in là.
  *
- * ## Niente da ri-stilare, ed è un dato
+ * ## Il ri-stile è una stringa sola
  *
  * Zero esadecimali, zero valori arbitrari, e i due corpi che usa — `text-xs`
  * e `text-sm` — sono gradini che il tema tara, quindi seguono la densità da
- * soli. I colori sono token standard (`primary`, `accent`, `muted`,
- * `muted-foreground`): il ri-stile sarebbe stato riscrivere ciò che già
- * combacia.
+ * soli.
+ *
+ * L'unico cambio è il **pallino del passo da fare**, che reui fa `bg-accent`:
+ * `--accent` in shadcn è il grigio di sorvolo dei menu, ed è talmente vicino al
+ * fondo che il pallino non si vede: i passi ancora da fare sembrano numeri
+ * appoggiati sul niente. Passa a `bg-muted text-muted-foreground`, cioè **lo
+ * stesso colore del trattino che collega i pallini** — così il non-fatto è una
+ * cosa sola, pallini e collegamenti, e il fatto e il corrente si staccano.
+ * È una stringa di classi e basta (gradino 2 della regola 4bis): forma, props,
+ * varianti ed export restano di reui, e `check:registry` lo conta fra i
+ * ri-stilati sopra una forma intatta.
  *
  * ## Da tastiera
  *
@@ -111,8 +149,24 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** Quel che `StepperNav` metterebbe da sé, meno il `<nav>` che rompe l'ARIA. */
-const CLASSI_NAV = 'group/stepper-nav inline-flex'
+/** La spunta del passo fatto: è l'API della radice, non un `if` nel markup. */
+const INDICATORI = { completed: <CheckIcon className="size-3" /> }
+
+/**
+ * Il trattino di **collegamento** fra un passo e il successivo. `m-0` toglie il
+ * margine che il componente si porta (lì serviva a staccarlo dentro il `<nav>`)
+ * così il trattino arriva al bordo del pallino; il colore rende leggibile
+ * l'avanzamento, visto che pallino fatto e pallino corrente condividono
+ * `bg-primary`.
+ *
+ * **Solo `completed`, mai `active`**, ed è una distinzione che si vede a colpo
+ * d'occhio quando è sbagliata: il tratto che segue il passo corrente è la
+ * strada *non ancora percorsa*. Accendendolo, una barra ferma al secondo di tre
+ * si legge come se fosse arrivata in fondo. Il segmento della barra a segmenti
+ * è un'altra cosa — lì il tratto **è** il passo, non il collegamento, e il
+ * corrente va acceso.
+ */
+const TRATTO = 'm-0 h-0.5 flex-1 data-[state=completed]:bg-primary'
 
 /**
  * I pannelli. Il contenitore porta l'`id` a cui ogni scheda punta con
@@ -142,10 +196,7 @@ function Pannelli({ testi }: { testi: string[] }) {
 
 const PASSI = [
   { titolo: 'Dati dell’impresa', descrizione: 'Ragione sociale e partita IVA' },
-  {
-    titolo: 'Tipo di utente',
-    descrizione: 'Impresa, studio o libero professionista',
-  },
+  { titolo: 'Tipo di utente', descrizione: 'Impresa, studio o libero professionista' },
   { titolo: 'Consensi', descrizione: 'Privacy e condizioni d’uso' },
 ]
 
@@ -154,10 +205,9 @@ const PASSI = [
  * stanno in riga sopra il modulo, il corrente è pieno d'arancio, i fatti
  * portano la spunta e quelli da fare restano sul grigio d'ambiente.
  *
- * `completed` si dichiara sul singolo `StepperItem`: non è il componente a
- * dedurre che i passi prima del corrente siano fatti, perché in un modulo con
- * convalida non è detto — si può tornare indietro a correggere il primo
- * lasciando il secondo già buono.
+ * Si clicca: i passi sono schede, e cambiando passo cambiano il pannello sotto
+ * **e** i trattini alle spalle. È il modo giusto di guardare se lo stato è
+ * derivato bene — una barra che si clicca e resta ferma sta dicendo il falso.
  */
 export const Orizzontale: Story = {
   render: () => (
@@ -165,28 +215,32 @@ export const Orizzontale: Story = {
       role="group"
       aria-orientation={undefined}
       defaultValue={2}
+      indicators={INDICATORI}
       className="w-full max-w-xl space-y-8"
     >
       <div
         role="tablist"
         aria-label="Passi della registrazione"
-        data-orientation="horizontal"
-        className={`${CLASSI_NAV} w-full flex-row`}
+        className="grid w-full grid-flow-col auto-cols-fr"
       >
         {PASSI.map((passo, i) => (
           <StepperItem
             key={passo.titolo}
             step={i + 1}
-            completed={i + 1 < 2}
-            className="flex-1"
+            className="flex-col items-stretch gap-2"
           >
-            <StepperTrigger className="flex-col gap-2">
-              <StepperIndicator>
-                {i + 1 < 2 ? <CheckIcon className="size-3" /> : i + 1}
-              </StepperIndicator>
+            <span className="flex w-full items-center">
+              <StepperTrigger
+                aria-label={`${passo.titolo}. ${passo.descrizione}`}
+                className="shrink-0"
+              >
+                <StepperIndicator>{i + 1}</StepperIndicator>
+              </StepperTrigger>
+              {i < PASSI.length - 1 && <StepperSeparator className={TRATTO} />}
+            </span>
+            <span aria-hidden>
               <StepperTitle>{passo.titolo}</StepperTitle>
-            </StepperTrigger>
-            {i < PASSI.length - 1 && <StepperSeparator />}
+            </span>
           </StepperItem>
         ))}
       </div>
@@ -201,8 +255,10 @@ export const Orizzontale: Story = {
  * l'`orientation` non è una scelta estetica ma una conseguenza di quanto testo
  * porta ogni passo.
  *
- * Qui il primo e il secondo sono fatti e il terzo è il corrente: si legge dalla
- * spunta, dal pieno e dal trattino che resta grigio dopo il corrente.
+ * Il tratto verticale va incolonnato **sotto il centro del pallino**, e lo fa
+ * un contenitore largo quanto il pallino (`w-6`, la stessa misura di `size-6`)
+ * che lo centra: così resta allineato anche se la densità cambia, perché
+ * entrambe le misure escono da `--spacing`.
  */
 export const Verticale: Story = {
   render: () => (
@@ -211,38 +267,40 @@ export const Verticale: Story = {
       aria-orientation={undefined}
       defaultValue={3}
       orientation="vertical"
+      indicators={INDICATORI}
       className="w-full max-w-md"
     >
       <div
         role="tablist"
         aria-label="Passi del calcolo strutturale"
         aria-orientation="vertical"
-        data-orientation="vertical"
-        className={`${CLASSI_NAV} flex-col`}
+        className="flex w-full flex-col"
       >
         {PASSI.map((passo, i) => (
-          <StepperItem
-            key={passo.titolo}
-            step={i + 1}
-            completed={i + 1 < 3}
-            className="w-full items-start"
-          >
-            <StepperTrigger className="w-full items-start gap-3 py-2">
-              <StepperIndicator>
-                {i + 1 < 3 ? <CheckIcon className="size-3" /> : i + 1}
-              </StepperIndicator>
-              <div className="space-y-0.5 text-start">
+          <StepperItem key={passo.titolo} step={i + 1} className="flex-col items-stretch">
+            <div className="flex items-start gap-3">
+              <StepperTrigger
+                aria-label={`${passo.titolo}. ${passo.descrizione}`}
+                className="shrink-0"
+              >
+                <StepperIndicator>{i + 1}</StepperIndicator>
+              </StepperTrigger>
+              <div className="space-y-0.5 text-start" aria-hidden>
                 <StepperTitle>{passo.titolo}</StepperTitle>
                 <StepperDescription>{passo.descrizione}</StepperDescription>
               </div>
-            </StepperTrigger>
-            {i < PASSI.length - 1 && <StepperSeparator className="ms-3" />}
+            </div>
+            {i < PASSI.length - 1 && (
+              <div className="flex w-6 justify-center py-1">
+                <StepperSeparator
+                  className="m-0 h-8 w-0.5 data-[state=completed]:bg-primary"
+                />
+              </div>
+            )}
           </StepperItem>
         ))}
       </div>
-      <Pannelli
-        testi={PASSI.map((p) => `Compila: ${p.titolo.toLowerCase()}.`)}
-      />
+      <Pannelli testi={PASSI.map((p) => `Compila: ${p.titolo.toLowerCase()}.`)} />
     </Stepper>
   ),
 }
@@ -250,9 +308,9 @@ export const Verticale: Story = {
 /**
  * **La barra a segmenti non è una variante**: è lo stesso componente con
  * l'indicatore tolto e il solo separatore a vista, che è la ragione per cui
- * non c'è stato bisogno di scriverla. Cinque trattini, due accesi — e sono
- * accesi perché `completed` lo dice, non perché un valore percentuale sia
- * stato tradotto in trattini.
+ * non c'è stato bisogno di scriverla. Cinque trattini, e quelli accesi sono
+ * quelli fino al passo corrente — **derivati**, non dichiarati: cliccando il
+ * primo resta acceso solo il primo.
  *
  * È il caso di `TaskCalcoloStrutturale` di Studio, dove i passi sono tanti e i
  * titoli non ci stanno: resta il conto, scritto a parole sotto.
@@ -264,22 +322,18 @@ export const Verticale: Story = {
  */
 export const BarraASegmenti: Story = {
   render: () => (
-    <Stepper
-      role="group"
-      aria-orientation={undefined}
-      defaultValue={3}
-      className="w-full max-w-sm space-y-3"
-    >
+    <Stepper role="group" aria-orientation={undefined} defaultValue={3} className="w-full max-w-sm space-y-3">
       <div
         role="tablist"
         aria-label="Avanzamento del calcolo"
-        data-orientation="horizontal"
-        className={`${CLASSI_NAV} w-full flex-row gap-1`}
+        className="grid w-full grid-flow-col auto-cols-fr gap-1"
       >
         {[1, 2, 3, 4, 5].map((n) => (
-          <StepperItem key={n} step={n} completed={n < 3} className="flex-1">
+          <StepperItem key={n} step={n} className="flex-col items-stretch">
             <StepperTrigger className="w-full" aria-label={`Passo ${n} di 5`}>
-              <StepperSeparator className="data-[state=active]:bg-primary data-[state=completed]:bg-primary h-1 w-full flex-1" />
+              <StepperSeparator
+                className={`${TRATTO} h-1 w-full data-[state=active]:bg-primary`}
+              />
             </StepperTrigger>
           </StepperItem>
         ))}
