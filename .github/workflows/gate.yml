@@ -45,3 +45,16 @@ jobs:
       # La style guide deve anche **costruirsi**: una story che compila nel
       # dev server e non nel build statico è rotta per chi la consulta.
       - run: npm run build-storybook
+
+      # E deve **tipare**. `build-storybook` passa da esbuild, che i tipi non
+      # li guarda: fino a M4ter.3 in CI non girava nessun `tsc`, e una prop
+      # obbligatoria non rispettata da una story sarebbe passata liscia.
+      #
+      # Non è un dettaglio di igiene, è un gate vero, e lo dimostra il caso che
+      # l'ha fatto aggiungere: `alt` su `entity-image`. Misurato il 2026-09-19 —
+      # Base UI scrive `alt=""` su OGNI `<img>` che renda senza alt
+      # (`internals/useRenderElement.js:183`), quindi una foto senza alternativa
+      # testuale diventa in silenzio una foto *decorativa*: axe la promuove e
+      # `test:a11y` resta a zero violazioni. Il solo controllo che la vede è il
+      # tipo, e il tipo qui dentro lo controlla solo questo passo.
+      - run: npm run build

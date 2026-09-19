@@ -193,6 +193,26 @@
       ]
     },
     {
+      "name": "entity-image",
+      "type": "registry:ui",
+      "title": "EntityImage",
+      "description": "La foto di un'entita ritagliata a 4:3, 16:9 o 1:1, col segnaposto quando la foto non c'e. Primo componente nostro (D20).",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@tassullo/aspect-ratio",
+        "@tassullo/avatar"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/entity-image.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "item",
       "type": "registry:ui",
       "title": "Item",

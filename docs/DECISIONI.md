@@ -2462,3 +2462,267 @@ secondi, ed è stato quello a far cercare altrove.
 **Perché il sintomo era invisibile sul dev server**: lì i tempi bastano e la
 `play` trova il grilletto. Si vedeva **solo** sullo Storybook costruito, che
 è quello che `misura:bersagli` usa — ed è la ragione per cui lo usa.
+
+---
+
+## 45. `entity-image`, il primo componente nostro: le misure che l'hanno deciso (D20, M4ter.3, 2026-09-19)
+
+`registry/componenti-propri.json` **non è più vuoto**. Era, nelle parole del
+`CLAUDE.md`, «la condizione da difendere»: vale la pena scrivere perché la si
+è lasciata cadere qui e non altrove, e cosa il gate ha detto lungo la strada.
+
+### (a) La scala 4bis, percorsa fino in fondo — e il gradino 3 non è un'opinione
+
+D20 era già approvata (`docs/ANALISI-COPERTURA-APP.md` §4): questo task la
+scrive, non la ridiscute. Ma la riga nel registro pretende che le strade
+scartate ci siano scritte, quindi eccole con la misura che le chiude.
+
+| gradino | strada | perché non basta |
+|---|---|---|
+| 1 | un componente immagine di `@shadcn` | non esiste |
+| 1 | `aspect-ratio` | dà il rapporto, non il ritaglio né il segnaposto |
+| 2 | `avatar` sovrascritto dal punto di chiamata | **cinque** classi da annullare *in ogni pagina* — `size-8` e `rounded-full` sulla radice, `after:rounded-full` del bordo, `aspect-square rounded-full` su `AvatarImage`, `rounded-full` su `AvatarFallback` |
+| 2 | `ItemMedia variant="image"` | 40/32/24px **quadrati**: è la miniatura in riga, non la foto di una scheda |
+| 3 | una variante dentro `avatar.tsx` | **il gate esce 1**, misurato in M4ter.2 su una taglia `xs`: «diverge dall'originale FUORI dalle stringhe di classi» |
+| 3 | adattare il v1 | il v1 non ha niente su questo: non c'è una scelta precedente da rispettare |
+| 4 | un file nuovo | la divergenza sta dove **un originale shadcn non c'è**: non resta niente da riallineare per sempre |
+
+**Il meccanismo, però, non è nuovo, e questa è la parte che tiene il
+componente dentro la disciplina.** `AvatarImage`/`AvatarFallback` di Base UI
+*è già* «mostra l'immagine, altrimenti mostra l'altro», compreso il caso che in
+produzione conta davvero — la `src` che c'è e non arriva. Il file nuovo lo mette
+dentro un riquadro non tondo insieme ad `AspectRatio` e annulla quelle cinque
+classi **una volta sola**. Un componente nostro che riusa un meccanismo altrui
+costa un file; uno che se lo riscrive costa per sempre.
+
+Il raggio sta **sulla radice** e dentro è tutto `rounded-none`, con un `ring-1
+ring-foreground/10` al posto dell'`after:border` della primitiva. Non è gusto:
+un bordo quadrato dentro un contenitore che ritaglia tondo si vede **tagliato
+agli angoli**, e con una leva sola (`className`) un `rounded-b-none` per
+incastrare la foto in testa a una `card` funziona senza scoprire niente.
+
+### (b) L'autotest del gate, nelle due direzioni
+
+Un gate che non sa fallire non è un gate, e qui si dimostra due volte:
+
+| prova | esito |
+|---|---|
+| riga tolta da `componenti-propri.json` | **esce 1**: «non ha un originale in `registry/.upstream` e non è dichiarato in `registry/componenti-propri.json`» |
+| riga presente ma senza `approvatoDa` | **esce 1**: «dichiarato … ma senza approvatoDa» |
+| riga completa | `✔ 0 errori / 62 avvisi / **1 componente nostro** / 19 ri-stilati` |
+
+### (c) **`alt` obbligatorio: l'assunzione era sbagliata, e il rimedio è un altro**
+
+Il mandato diceva «l'immagine senza `alt` deve far fallire il gate, quindi
+l'`alt` è obbligatorio nell'API — e questa è una cosa da provare, non da
+assumere». Provata, e **non è vero**.
+
+Tolto `alt` dal render e rifatta la passata: **339 story, 0 violazioni**. Il
+DOM dice perché — `<img alt="" data-slot="avatar-image" …>`. **Base UI scrive
+`alt=""` su ogni `<img>` che renda**, se non gliene arriva uno
+(`@base-ui/react/internals/useRenderElement.js:183`, `renderTag`). Quindi una
+foto senza alternativa testuale non è un errore che axe possa vedere: diventa
+in silenzio una foto **decorativa**, che è una cosa diversa e sbagliata, e la
+regola `image-alt` non ha più soggetto.
+
+È la stessa famiglia dei difetti **muti** di §30 (`text-md` che non emette
+niente): non rompe, non avverte, cambia il significato.
+
+**Il solo controllo che lo vede è il tipo** — e fino a oggi in CI non girava
+nessun `tsc`: `npm run check` sono i cinque gate, e `build-storybook` passa da
+esbuild, che i tipi non li guarda. Aggiunto quindi un passo
+`- run: npm run build` a `.github/workflows/gate.yml`. Non cambia il
+vocabolario dei «cinque gate», ed è ciò che rende vero il criterio di
+accettazione invece di dichiararlo.
+
+Verificato nell'altra direzione: `<EntityImage src="…" />` senza `alt` dà
+`TS2741: Property 'alt' is missing`.
+
+### (d) La larghezza della cella: **256px**, misurata su cinque candidate
+
+È il numero che sostituisce le **16 soglie `minmax` distinte** (104→320px)
+delle 33 griglie `repeat(auto-fill/fit)` di Studio e Officina. **La
+ricognizione di quante volte ciascuna ricorre non si è potuta fare**: i due
+repo non sono su questa macchina (cercati sotto tutto `~/Documents`,
+`~/Desktop`, `~/Developer`, `~/Projects`, `~/code`, `~/src`), e il mandato dice
+di non simularla. Il numero è quindi deciso dalla sola misura, che è comunque
+la prova che il piano chiedeva.
+
+Prese in Chromium vero sulla scena `Primitive/EntityImage → In griglia di
+card`, su larghezze d'area contenuto **misurate sul guscio** e non stimate
+(`Blocchi/App shell`, colonna 256px: `main` 375 / 1024 / 1184px, meno il
+respiro di pagina → **343 / 960 / 1120** utili):
+
+| soglia | telefono 375 | portatile 1280 | scrivania 1440 |
+|---|---|---|---|
+| 208px | 1 col · 343×257 | 4 col · **228×171** | 5 col · **211×158** |
+| 240px | 1 col · 343×257 | 3 col · 309×232 | 4 col · 268×201 |
+| **256px** | **1 col · 343×257** | **3 col · 309×232** | **4 col · 268×201** |
+| 288px | 1 col · 343×257 | 3 col · 309×232 | 3 col · 363×272 |
+| 320px | 1 col · 343×257 | **2 col** · 472×354 | 3 col · 363×272 |
+
+**208 cade**: 211px di foto è il fondo delle soglie di oggi, ed è la misura che
+fa leggere un catalogo di macchine come una pagina di francobolli. **320 cade**
+all'altro estremo, e sul portatile — lo schermo più diffuso, e quello del
+capannone — scende a **due** colonne: spende in grandezza lo spazio che
+servirebbe a vedere più macchine insieme. Fra **256 e 288 la differenza non
+esiste dove conta**: a 1280 danno la stessa identica griglia, 3 colonne da
+309px. Si separano solo sulla scrivania a 1440, dove 256 dà una macchina in
+più per riga. Vince **256**, che è poi `--container-3xs` e **la stessa misura
+della colonna del guscio**.
+
+**E deve restare un token della scala contenitori, non di `--spacing`.**
+Misurato: `--container-3xs` vale 16rem in entrambe le densità, mentre una
+soglia scritta in `--spacing` farebbe 384px in touch — più larga dei 343 di un
+telefono — e la griglia **sborderebbe** invece di ripiegare a una colonna.
+
+**È una larghezza, quindi non si muove col rapporto.** Rimisurata identica dopo
+il passaggio della scena a `1:1` (v. (g)): stesse colonne, stessi px di
+larghezza, a cambiare è solo l'altezza della cella.
+
+### (e) Un secondo difetto muto: Tailwind v4 emette solo i token che un'utility usa
+
+Prima candidata provata, `--container-2xs` (18rem). Risultato: griglia a **una
+colonna a tutta larghezza**, foto 1200×900 a 1440. La causa non è la soglia:
+`--container-2xs` **non è nel foglio di stile**, perché in Tailwind v4 un token
+del tema finisce in CSS solo se un'utility lo usa, e nessuna qui usa
+`w-2xs`/`max-w-2xs`. `minmax(var(--container-2xs), 1fr)` con la variabile vuota
+non è un errore: la dichiarazione cade e `repeat(auto-fill, …)` ricade su una
+traccia sola.
+
+Conseguenza operativa, che vale per ogni `var(--token)` scritto **fuori** da
+un'utility (uno `style`, un `calc`): il token o è usato da un'utility da
+qualche parte nel codice compilato, o non esiste. Nella story le altre scene
+usano `w-3xs`, ed è quello a far emettere il token che la griglia legge.
+
+### (f) `ItemGroup` ha ripreso la sua trappola, e il gate l'ha presa subito
+
+La scena della miniatura in riga è uscita alla prima passata con **una
+violazione su 339**: `aria-required-children` sul `role="list"` di `ItemGroup`.
+È la trappola già scritta in testa a `Primitive/Item` in M4.7 — una lista ARIA
+ammette **solo** `listitem`, e `Item` rende un `div` senza ruolo, quindi dentro
+un `ItemGroup` il ruolo si passa (`<Item role="listitem">`). Vale la pena
+averlo a verbale due volte: era documentata, è stata riletta, ed è ricapitata
+lo stesso. Il gate l'ha chiusa in una passata da un minuto.
+
+### Numeri
+
+`npm run check` **verde sui cinque**. `check:contrast` 48/48.
+`check:registry` **0 errori / 62 avvisi / 1 componente nostro / 19 ri-stilati**.
+`test:a11y` **1332 → 1356 scansioni** (339 story × 4 passate), **0 violazioni**
+su tutte e quattro — esattamente la previsione del piano, 6 scene × 4.
+`registry.json` **89 → 90 item**, `registry validate` verde, `build` e `lint`
+verdi (nessun warning oxlint dal componente). `misura:bersagli`, controllo
+dello strumento ✔: **3013 bersagli su 339 story** (59 popup aperti), 2049 sotto
+i 44px, **35 tipi distinti, 0 piccoli in entrambe le direzioni** — il conto dei
+bersagli **non si muove** perché in nessuna scena l'immagine è cliccabile, e un
+riquadro che non fa niente non è un bersaglio.
+
+### (g) `1:1` entra, e la regola con cui è entrato
+
+Rilievo di Francesco a lavoro finito, guardando le immagini vere: «sono
+quadrate! Forse allora dobbiamo anche aggiungere il rapporto 1:1». Verificato
+prima di scrivere, e la risposta alla domanda successiva — «e nella sezione
+prodotti sempre quadrate?» — è **sì**:
+
+| libreria | sorgente | misurato su |
+|---|---|---|
+| render di stratigrafia dei **sistemi** | **1080×1080** | 6 categorie, `tassullo.it/sistemi` |
+| foto pacco dei **prodotti** | **1800×1800** | 22 immagini di `/linea-wall`, una sola a 1779×1800 |
+
+Cioè **tutta** la libreria d'immagini di Tassullo è quadrata. Su una sorgente
+quadrata `object-cover` toglie il **25%** dell'altezza a `4:3` e il **43,75%** a
+`16:9`; e su un soggetto **verticale** dentro un quadrato — il sacco da 25 kg di
+INTOCALX — non è fondo bianco che se ne va: a `4:3` si perde la base del pacco,
+a `16:9` anche il nome. La scena `Primitive/EntityImage → Rapporti` mette i tre
+in fila sulla stessa sorgente.
+
+**Perché non è un'eccezione alla regola dell'insieme chiuso.** D20 chiudeva su
+`4:3` + `16:9` con questo argomento: un rapporto è il *valore di una prop*, non
+un componente, e l'insieme chiuso è ciò che impedisce alle 16 soglie di
+ripetersi. L'argomento regge identico a tre, e si irrigidisce: **ogni valore
+vuole un consumatore e una misura**. `16:9` era entrato senza consumatore
+proprio, per simmetria; `1:1` entra con due librerie intere e con la misura del
+ritaglio. Un insieme che cresce a ogni richiesta non è un insieme chiuso — ma
+uno che rifiuta il caso dominante dei propri dati non è un design system, è un
+dogma.
+
+**Conseguenza sulla griglia di catalogo**: la scena passa a `ratio="1:1"`,
+perché quello è il rapporto delle sorgenti vere. La larghezza di cella non si
+muove (v. (d)).
+
+### (h) Il canvas centrato misura sé stesso, non la pagina
+
+La scena della griglia rendeva **2 colonne invece di 4** a 1440, cioè proprio il
+numero che esiste per far vedere. Causa: `.storybook/preview.tsx` imposta
+`layout: 'centered'` per tutte le story, e un canvas centrato **stringe il
+contenuto al suo contenuto**. Una griglia `repeat(auto-fill, …)` dentro un
+contenitore che si stringe misura sé stessa, non lo spazio disponibile, e
+sceglie il numero di colonne sbagliato — senza errori, perché non c'è niente di
+rotto.
+
+Chiuso con `parameters: { layout: 'padded' }` sulla sola scena, come fanno già
+`data-table`, `data-grid` e il calendario. **La regola**: qualunque story che
+mostri un comportamento *responsivo* va tolta dal `centered`, o misura la
+propria scatola. E le misure di (d) restano valide perché l'imbracatura
+**imponeva** la larghezza del contenitore invece di ereditarla — che è anche la
+ragione per cui il difetto non era emerso lì.
+
+### (i) Le immagini d'esempio: reali, locali, e non spedite
+
+Le prime tre erano **disegni SVG** fatti in sessione. Sostituite con immagini
+vere di Tassullo su indicazione di Francesco — sei render di sistema, tre foto
+pacco, una fotografia di cantiere, 660 KB in tutto dopo il ridimensionamento
+(640px le quadrate, 900px la fotografia).
+
+Tre confini, scritti in `public/esempi/LEGGIMI.md` perché il repo è pubblico e
+qualcuno le troverà senza contesto: **nessun item del registry le spedisce**
+(`registry.json` elenca i file uno per uno, e le story non si spediscono
+affatto); **sono locali di proposito**, perché con indirizzi remoti in una CI
+senza rete l'immagine non arriva, `AvatarFallback` ripiega, e le scene «con
+foto» misurerebbero il **segnaposto** — lo stesso difetto di «un popup non
+aperto non è un popup senza violazioni»; e Storybook `public/` non la serve da
+sé, la riga è negli `staticDirs` di `.storybook/main.ts`.
+
+**Quello che le immagini vere hanno cambiato davvero** non è l'estetica della
+story: è che hanno fatto vedere il rapporto sbagliato. Con tre disegni inventati
+a 4:3 la domanda del rapporto non si sarebbe mai posta.
+
+### (j) Le immagini rifatte scontornate, e il fondo che il componente non deve dipingere
+
+Il rilievo era mio, a fine sessione: le sorgenti erano su bianco, e una foto su
+bianco dentro una card scura è un blocco chiaro. La risposta di Francesco è
+stata rifarle — **PNG scontornati, senza fondo**, stessi nove soggetti (sei
+render di sistema, tre foto pacco), 640×640.
+
+**Verificata la qualità dello scontorno prima di committarlo**, perché un
+ritaglio fatto male su bianco si vede solo su scuro — cioè esattamente nella
+modalità che si stava cercando di aggiustare:
+
+| | misura |
+|---|---|
+| alpha sul soggetto | **252–253**, non 255: il tool lascia ~1% di velo, invisibile in composizione |
+| pixel di frangia bianca sul bordo | **0 su tutti e nove** (bordo = alpha fra 8 e 250, frangia = semitrasparente quasi bianco) |
+| ombra portata e riflesso sul piano | **tolti** insieme al fondo |
+| cornice dell'immagine | interamente trasparente su tutti e nove |
+| peso | 52–83 KB l'uno, **1,0 MB** la cartella |
+
+Niente WebP, quindi: i PNG con alpha pesano quanto i JPEG che sostituiscono,
+perché il soggetto occupa il 33–48% della tela e il resto è trasparenza, che si
+comprime a niente.
+
+**La conseguenza sul componente**, che è la parte che resta. La radice aveva
+`bg-muted`: con sorgenti su bianco quel grigio non si vedeva **mai**, coperto
+dall'immagine. Con le immagini scontornate si vedrebbe *dietro* l'oggetto, e
+sarebbe un grigio diverso da quello della superficie su cui la card sta — cioè
+un riquadro dentro la card invece di una foto nella card. Tolto: **la radice non
+ha più un fondo**, e `bg-muted` resta dov'è informazione, sul solo segnaposto.
+
+La regola generale che ne esce, e che vale oltre `entity-image`: **un componente
+non dipinge un fondo che non gli è stato chiesto.** Un fondo messo «tanto non si
+vede» è un fondo che si vedrà il giorno in cui cambia il contenuto, e allora
+nessuno si ricorderà perché c'è.
+
+`cantiere.jpg` resta com'era, con il suo sfondo: una fotografia non si
+scontorna, ed è giusto che nella style guide ci sia anche il caso di
+un'immagine che il fondo ce l'ha.
