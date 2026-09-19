@@ -6515,3 +6515,53 @@ story), **0 violazioni** — il `combobox` nel dialogo **non** ha portato i
 `button-name` di D14, quindi nessuna esclusione; `check:registry` 0/62/0/19;
 **89 item**; `build` e `lint` verdi. `misura:bersagli` 3011 bersagli su 333
 story, 0 piccoli in entrambe le direzioni.
+
+#### Coda 6 di M4ter.2: la legenda in fondo, e quattro misure sull'avatar (2026-09-19)
+
+**La legenda è passata in fondo**, dentro il riquadro e sotto l'ultima
+settimana, com'è nella demo `c-event-calendar-4`. Per farlo il riquadro col
+bordo è diventato un contenitore a sé: dentro, la vista che scorre e la
+legenda che resta ferma — messa dentro l'area che scorre, scorrerebbe via
+insieme alle settimane.
+
+**Quattro rilievi sull'avatar, e ognuno smonta un'assunzione.**
+
+1. **Gli artefatti erano la trasparenza**: il fallback aveva
+   `bg-(--ec-event-color)/20`, e sovrapposti si vedevano l'uno attraverso
+   l'altro, con l'anello `mix-blend-darken` della primitiva sopra. La
+   primitiva si usa **così com'è**; il colore resta sul chip, che dice il
+   calendario.
+2. **Il chip non scala e l'avatar sì**: `--ec-month-bar-h` è in `rem`, quindi
+   il chip resta **26px** in entrambe le densità, mentre `size="sm"` fa 24 in
+   normale e **36 in touch** — sforava. `size-4` fa 16 e 24.
+3. **Una taglia `xs` nella primitiva è stata provata e il gate l'ha
+   rifiutata**: aggiungere un valore all'union di `size` è una divergenza di
+   forma, non una stringa di classi. Stesso muro dello stepper in M4ter.1.
+   Con un punto d'uso solo, la classe dal punto di chiamata costa meno della
+   macchina — se i punti d'uso diventano tre, si riapre. **E la classe va
+   sulla taglia base, non su `sm`**: `data-[size=sm]:size-6` è una variante
+   con attributo e vince su `size-4`, e infatti la misura dava ancora 36px.
+4. **La sovrapposizione va scalata con la taglia**: `-space-x-2` è 8px, cioè
+   un quarto di `size-8`; su 16px sono mezzo cerchio e la prima iniziale
+   spariva. `-space-x-1` è lo stesso quarto alla metà della taglia, e
+   l'anello resta quello della primitiva — toglierlo lasciava due cerchi
+   grigi attaccati.
+
+Regola che ne esce: **quando si rimpicciolisce una primitiva, le sue distanze
+vanno riscalate nella stessa proporzione, non ereditate.**
+
+**E la scena parte con weekend e numero della settimana spenti**, su
+indicazione: in fabbrica il fine settimana non si lavora, e il numero della
+settimana serve a pochi. Chi li vuole li accende dal menù «Opzioni».
+
+**Un rilievo verificato e rientrato**: l'allineamento del popup del `select`
+«Calendario» sembrava sfalsato. Misurato in Chromium — trigger a 544 largo
+352, popup a 549 largo 352, **5px di scarto**, contro 1px del
+`Primitive/Select` di riferimento. È il posizionamento `alignItemWithTrigger`
+di Base UI, che allinea la voce scelta al valore nel grilletto: il pallino
+colorato davanti al nome sposta il calcolo di quei pochi pixel. Non è un
+difetto nostro e non si corregge senza spegnere quel posizionamento per
+tutti.
+
+**Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
+`check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.

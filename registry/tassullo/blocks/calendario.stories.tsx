@@ -249,6 +249,11 @@ export const Completo: Story = {
     trascinamento: true,
     tooltip: true,
     opzioni: true,
+    // Officina in fabbrica non lavora il fine settimana, e il numero della
+    // settimana è un dato che serve a pochi: si parte con tutti e due
+    // spenti, e chi li vuole li accende dal menù «Opzioni».
+    weekend: false,
+    numeroSettimana: false,
   },
   // **Il popup dichiarato qui è il «+N altri»**, non il dialogo: Storybook
   // esegue le `play` anche nel canvas, quindi quello che si dichiara arriva

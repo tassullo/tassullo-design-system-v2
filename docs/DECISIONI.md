@@ -2277,3 +2277,47 @@ guasto, e nei cinque `--chart-*` il rosso non c'è (arancio, verde, blu, due
 grigi). Il guasto prende l'arancio, che è il più caldo. Se il rosso servisse
 davvero, si aggiunge alla palette in `scripts/hex-to-oklch.ts` — che è la
 fonte unica — e non si scrive nel blocco.
+
+### (n) L'avatar nel chip: quattro misure per arrivarci
+
+Quattro rilievi di Francesco sullo stesso elemento, e vale la pena averli
+tutti scritti perché ognuno smonta un'assunzione.
+
+**1. Gli artefatti erano la trasparenza.** Il fallback aveva
+`bg-(--ec-event-color)/20`, cioè un fondo semi-trasparente: sovrapposti da
+`AvatarGroup` si vedevano l'uno attraverso l'altro, e l'anello della
+primitiva — un `after` con `mix-blend-darken` — ci si sommava sopra. La
+primitiva si usa **così com'è**: il fondo torna `bg-muted`, opaco, e il
+colore resta dov'è il suo posto, cioè il chip, che dice il calendario.
+
+**2. La taglia: il chip non scala, l'avatar sì.** `--ec-month-bar-h` è in
+`rem` e non deriva da `--spacing`, quindi il chip del mese resta **26px** in
+tutte e due le densità; l'avatar `size="sm"` invece fa 24px in normale e
+**36 in touch** — sforava. `size-4` fa 16 e 24: ci sta in entrambe.
+
+**3. Una taglia `xs` nella primitiva è stata provata, e il gate l'ha
+rifiutata.** Aggiungere un valore all'union di `size` è una divergenza di
+**forma**, non una stringa di classi: `check:registry` esce 1 con «diverge
+dall'originale FUORI dalle stringhe di classi». È lo stesso muro dello
+`stepper` in M4ter.1 — per passare servirebbe un meccanismo di «divergenza
+dichiarata» che il gate non ha, e con **un** punto d'uso la classe dal punto
+di chiamata costa meno della macchina. **Se i punti d'uso diventassero tre,
+la decisione si riapre** e allora si costruisce il meccanismo.
+
+**E la classe si posa sulla taglia base, non su `sm`**, che è il dettaglio
+che ha fatto sbagliare la prima volta: `data-[size=sm]:size-6` è una variante
+con attributo e ha specificità più alta di `size-4`, quindi vinceva lei — la
+misura diceva ancora 36px in touch. Sulla base è `tailwind-merge` a
+sostituire `size-8`, e funziona.
+
+**4. La sovrapposizione va scalata con la taglia.** Tolta e rimessa:
+`AvatarGroup` stringe di `-space-x-2`, cioè 8px, che è **un quarto** di
+`size-8` — la taglia per cui è disegnato. Su 16px quegli stessi 8px sono
+mezzo cerchio, e la prima iniziale spariva sotto la seconda. `-space-x-1` è
+lo stesso quarto alla metà della taglia. L'anello resta quello della
+primitiva: è ciò che rende leggibile la sovrapposizione, e toglierlo —
+provato — lasciava due cerchi grigi attaccati.
+
+La regola che ne esce, e che vale per ogni primitiva rimpicciolita:
+**quando si cambia la taglia di un componente, le sue distanze vanno
+riscalate nella stessa proporzione** — non ereditate.

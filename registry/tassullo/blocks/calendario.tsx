@@ -421,23 +421,63 @@ function creaChip<TData>(perPersona: Map<string, PersonaEvento>) {
     return (
       <span className="text-foreground flex w-full min-w-0 items-center gap-1.5">
         {chi.length > 0 ? (
-          <AvatarGroup className="shrink-0">
+          // **Sovrapposti come vuole la primitiva, ma in proporzione.**
+          // `AvatarGroup` stringe di `-space-x-2`, cioè 8px: è un quarto di
+          // `size-8`, la taglia per cui è disegnato. Su un avatar da 16px
+          // quegli stessi 8px sono **mezzo cerchio**, e la prima iniziale
+          // spariva sotto la seconda. `-space-x-1` è lo stesso quarto alla
+          // metà della taglia — e l'anello resta quello della primitiva,
+          // che è ciò che rende leggibile la sovrapposizione.
+          <AvatarGroup className="shrink-0 -space-x-1">
             {mostrati.map((x) => (
-              <Avatar
-                key={x.id}
-                className="size-5"
-                title={x.nome}
-              >
+              // **La primitiva così com'è, senza vestirla.** Il fallback
+              // aveva `bg-(--ec-event-color)/20`, cioè un fondo
+              // **semi-trasparente**: sovrapposti da `AvatarGroup` (che li
+              // stringe di `-space-x-2`) si vedevano l'uno attraverso
+              // l'altro, e l'anello della primitiva — che è un `after` con
+              // `mix-blend-darken` — ci si sommava sopra. Gli artefatti
+              // venivano da lì. Il fondo torna quello di casa (`bg-muted`,
+              // opaco) e il colore resta dov'è il suo posto: **il chip**,
+              // che dice il calendario. L'avatar dice la persona.
+              //
+              // **`size-4` sopra la taglia `sm`, e non una taglia nuova.**
+              // La misura: il chip del mese è alto **26px e non scala**
+              // (`--ec-month-bar-h` è in `rem`, non deriva da `--spacing`),
+              // mentre l'avatar sì — `sm` fa 24px in normale e **36 in
+              // touch**, cioè sfora. `size-4` fa 16 e 24: ci sta in
+              // entrambe, e l'iniziale (7,1px) tiene 4,45px di margine.
+              //
+              // E la classe si posa sulla taglia **base**, non su `sm`:
+              // `data-[size=sm]:size-6` è una variante con attributo e ha
+              // specificità più alta di `size-4`, quindi vinceva lei — la
+              // misura lo diceva, 36px in touch anche con la classe. Sulla
+              // base, invece, è `tailwind-merge` a sostituire `size-8`.
+              //
+              // Una **taglia `xs` dentro `avatar.tsx`** sarebbe più pulita,
+              // ed è stata provata: `check:registry` la rifiuta, perché
+              // aggiungere un valore all'union di `size` è una divergenza di
+              // **forma**, non una stringa di classi — gradino 4 della
+              // regola 4bis, non 2. Lo stesso muro dello `stepper` in
+              // M4ter.1: per passare servirebbe un meccanismo di
+              // «divergenza dichiarata» che il gate oggi non ha. Con **un**
+              // punto d'uso, la classe dal punto di chiamata costa meno
+              // della macchina.
+              <Avatar key={x.id} className="size-4" title={x.nome}>
                 {x.immagine ? (
                   <AvatarImage src={x.immagine} alt={x.nome} />
                 ) : null}
-                <AvatarFallback className="bg-(--ec-event-color)/20 text-foreground text-xs leading-none font-semibold tracking-tight">
+                {/*
+                  `text-xs` esplicito: il corpo piccolo del fallback è
+                  agganciato a `data-[size=sm]`, e la taglia qui la dà una
+                  classe, non la prop — v. sopra.
+                */}
+                <AvatarFallback className="text-xs">
                   {iniziali(x)}
                 </AvatarFallback>
               </Avatar>
             ))}
             {restano > 0 ? (
-              <AvatarGroupCount className="size-5 text-xs">
+              <AvatarGroupCount className="size-4 text-xs">
                 +{restano}
               </AvatarGroupCount>
             ) : null}
@@ -471,7 +511,7 @@ function CalendarioLegenda({ calendari }: { calendari: CalendarioSorgente[] }) {
   return (
     <div
       data-slot="calendario-legenda"
-      className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 pb-3 text-xs"
+      className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-3 text-xs"
     >
       {calendari.map((c) => (
         <span key={c.id} className="flex items-center gap-1.5">
@@ -1547,9 +1587,6 @@ export function Calendario<TData = unknown>({
             azioni={azioni}
           />
         ) : null}
-        {legenda && calendari.length > 0 ? (
-          <CalendarioLegenda calendari={calendari} />
-        ) : null}
         {/*
           Il contenitore della vista. ReUI ce l'ha come file a sé
           (`event-calendar-content`, che non abbiamo preso): con sei viste è un
@@ -1559,24 +1596,40 @@ export function Calendario<TData = unknown>({
           soli tratti *interni*: senza, il mese resta aperto sui quattro lati.
         */}
         <div
-          data-slot="calendario-contenuto"
-          data-vista={vistaCorrente}
-          // `tabIndex` solo in vista mese, che è la sola che scorre qui
-          // dentro: l'agenda ha già il proprio `ScrollArea`, e un contenitore
-          // che non scorre non deve essere un fermo di tabulazione in più.
-          tabIndex={vistaCorrente === "mese" ? 0 : undefined}
-          className={cn(
-            "bg-card focus-visible:ring-ring relative flex min-h-0 min-w-0 flex-1 flex-col rounded-lg border outline-none focus-visible:ring-2",
-            vistaCorrente === "mese" ? "overflow-y-auto" : "overflow-hidden"
-          )}
+          data-slot="calendario-riquadro"
+          className="bg-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border"
         >
-          {vistaCorrente === "mese" ? (
-            <EventCalendarMonthView />
-          ) : vistaCorrente === "settimana" ? (
-            <EventCalendarWeekView />
-          ) : (
-            <EventCalendarAgendaView />
-          )}
+          <div
+            data-slot="calendario-contenuto"
+            data-vista={vistaCorrente}
+            // `tabIndex` solo in vista mese, che è la sola che scorre qui
+            // dentro: l'agenda ha già il proprio `ScrollArea`, e un
+            // contenitore che non scorre non deve essere un fermo di
+            // tabulazione in più.
+            tabIndex={vistaCorrente === "mese" ? 0 : undefined}
+            className={cn(
+              "focus-visible:ring-ring relative flex min-h-0 min-w-0 flex-1 flex-col outline-none focus-visible:ring-1 focus-visible:ring-inset",
+              vistaCorrente === "mese" ? "overflow-y-auto" : "overflow-hidden"
+            )}
+          >
+            {vistaCorrente === "mese" ? (
+              <EventCalendarMonthView />
+            ) : vistaCorrente === "settimana" ? (
+              <EventCalendarWeekView />
+            ) : (
+              <EventCalendarAgendaView />
+            )}
+          </div>
+          {/*
+            **La legenda sta in fondo, dentro il riquadro**, come nella demo
+            `c-event-calendar-4` — e fuori dall'area che scorre, o
+            scorrerebbe via insieme alle settimane. È per questo che il
+            riquadro col bordo è diventato un contenitore a sé: dentro, la
+            vista che scorre e la legenda che resta.
+          */}
+          {legenda && calendari.length > 0 ? (
+            <CalendarioLegenda calendari={calendari} />
+          ) : null}
         </div>
       </EventCalendar>
       {modifica ? (
