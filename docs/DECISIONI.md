@@ -1606,3 +1606,19 @@ Dettaglio completo delle 10 sessioni (M3bis.0-9), con file toccati e criteri di 
 2. **Un subtotale di computo porta l'unità di misura col numero** («21,63 m³», non «21.63»), ed è formattazione — dominio della pagina, non del blocco. Una funzione la scrive nella forma che serve (quantità con `Intl.NumberFormat('it-IT')`, importo con `style: 'currency'`); un nome di operazione (`"sum"`) costringerebbe il blocco a indovinare come renderla, o a esporre un secondo prop di formattazione che duplicherebbe quanto la cella normale già fa nel proprio `cell`.
 
 Verificato in Chromium reale (Playwright, non il pannello del browser di questa sessione — vedi il monito già a verbale su quello strumento): `Enter`/`Spazio` su `CellaAlbero` espandono e collassano, `Spazio` sulla casella della voce seleziona a cascata le misurazioni e il conto in fondo («1 di 5 voci selezionate») resta sulle voci, non sulle righe piatte. `npm run test:a11y`: 288 scansioni (passata unica)/0 violazioni sulla nuova story `Albero`; `npm run check` completo: 1152 scansioni (4 passate)/0 violazioni.
+
+## 42. D19: `native-select` **non entra** nel registry — la parità fra sistemi vale più del peso del popup (2026-09-19)
+
+**La domanda.** L'analisi delle tre app (M4.6, coda) ha contato **81 `<select>` scritti a mano**: Officina 46, Studio 23, Anagrafe 12. È il numero più alto emerso dal confronto fra il catalogo shadcn e ciò che il registry copre, e la primitiva `native-select` di shadcn sembrava la risposta ovvia: un `<select>` vero con `appearance-none` e un chevron disegnato sopra, `cn` come unica dipendenza, nessun portale, nessun fuoco da riportare indietro, e sul telefono la ruota del sistema.
+
+**Il verdetto è no, e lo dà Francesco con una ragione che il conto degli 81 non tocca.** La tendina di un `<select>` nativo **non la disegna il browser: la disegna il sistema operativo**, ed è l'unico pezzo di interfaccia che un design system non può vestire né uniformare. Le differenze non sono estetiche: su Windows, premendo una lettera, la tendina nativa **non salta alla voce corrispondente**, mentre su macOS sì. Adottare `native-select` significherebbe quindi spedire alle app un componente che **si comporta diversamente a seconda della macchina di chi lo usa** — e le app dello studio girano su entrambe.
+
+È anche la ragione per cui il `select` di Base UI era stato scelto a suo tempo: non per gusto, ma per avere **parità di funzionalità** fra sistemi.
+
+**Verificato, perché una motivazione che attribuisce una capacità va controllata e non data per buona.** Su `Primitive/Select` in Chromium, col popup aperto: premendo `p` si evidenzia **Pubblicato**, `a` evidenzia **Archiviato**, e la sequenza `i`+`n` evidenzia **In revisione** — quindi la ricerca a tastiera c'è, funziona anche su più caratteri, ed è **la stessa ovunque**, perché è la nostra, non quella del sistema operativo.
+
+**Conseguenze operative.**
+
+1. `native-select` **non si installa**, e non va riproposta senza un fatto nuovo. Il fatto nuovo che la riaprirebbe è uno solo: una misura che mostri che il popup di Base UI non regge un caso reale (un `<select>` dentro una tabella con centinaia di righe, per dire), non il semplice «è più leggero».
+2. Gli **81 `<select>` scritti a mano non restano dove sono**: si sostituiscono con il `select` che il registry ha già. Non è materia di una primitiva nuova, è materia della **guida di migrazione (M5.5)**, ed è lì che va scritta — con il costo vero, che non è la sostituzione del tag ma il passaggio da `value`/`onChange` di un `<select>` alle props di Base UI.
+3. Resta valido il rovescio già a verbale: il popup costa **4 `aria-hidden-focus`** a popup aperto, che il gate spegne nella sola passata `aperto` perché è Base UI a rendere inerte lo sfondo. Il costo è noto, misurato, e accettato — questa decisione lo conferma invece di rimetterlo in discussione.

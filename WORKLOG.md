@@ -5158,3 +5158,15 @@ Il blocco dichiara `@container/dashboard` **sulla propria radice**, non lo chied
 Da sapere, perché è il rovescio della medaglia: un nome di contenitore che non esiste **non è un errore** — la utility semplicemente non scatta mai, e la griglia resta al valore di base. È lo stesso genere di difetto muto di `text-md`, e la difesa è tenere il `@container` e le sue soglie **nello stesso file**.
 
 `tsc -b` pulito, `lint` invariato, `check` verde sui cinque gate, `test:a11y` 1260 scansioni / 0 violazioni.
+
+### 2026-09-19 — D19 chiusa: `native-select` non entra, e perché
+
+L'analisi delle primitive mancanti (coda di M4.6) aveva messo `native-select` in cima ai candidati, con gli **81 `<select>` scritti a mano** nelle tre app come prova: Officina 46, Studio 23, Anagrafe 12. **Francesco l'ha bocciata, e la ragione non è nel conto.**
+
+La tendina di un `<select>` nativo **non la disegna il browser, la disegna il sistema operativo**: è l'unico pezzo d'interfaccia che un design system non può né vestire né uniformare. E la differenza non è estetica — su **Windows**, premendo una lettera, la tendina nativa **non salta alla voce corrispondente**; su **macOS** sì. Spedire `native-select` alle app significherebbe spedire un componente che si comporta diversamente a seconda della macchina di chi lo usa. È esattamente la ragione per cui a suo tempo si era scelto il `select` di Base UI: parità di funzionalità fra sistemi, non gusto.
+
+**Verificato invece di darlo per buono**, perché la motivazione attribuisce al nostro `select` una capacità e una capacità si misura. Su `Primitive/Select`, popup aperto, in Chromium: `p` evidenzia **Pubblicato**, `a` evidenzia **Archiviato**, la sequenza `i`+`n` evidenzia **In revisione**. La ricerca a tastiera c'è, regge più caratteri, ed è **la stessa ovunque** perché è nostra.
+
+**Cosa ne segue.** Nessun task nuovo: **M4.8 non si apre**. Gli 81 `<select>` non restano dove sono, ma la loro sostituzione col `select` esistente è materia della **guida di migrazione (M5.5)** — e il costo vero da scrivere lì non è cambiare il tag, è il passaggio da `value`/`onChange` di un `<select>` alle props di Base UI. Le 4 `aria-hidden-focus` a popup aperto restano il prezzo noto e accettato del popup: questa decisione lo conferma.
+
+Registrata come **D19** in `CHECKLIST.md` e `docs/DECISIONI.md` §42. Resta aperto il solo **M4.7** (`item`), già a piano.
