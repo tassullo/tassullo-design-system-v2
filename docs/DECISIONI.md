@@ -2376,3 +2376,46 @@ si chiama `resourceId`. Risultato: `undefined`, e il dialogo ricadeva sul
 **primo** calendario dell'elenco — un evento «Preventiva» si apriva come
 «Guasto». È il rovescio del mapping: si traduce in entrambe le direzioni o si
 sbaglia in una.
+
+### (p) Il chip nel popover era più basso, e la causa è il portale
+
+Rilievo: «gli eventi dentro al menù +3 altri sono più bassi di quelli nella
+vista mensile, così l'avatar sborda; devono sempre essere alti uguale».
+
+**Due cause che si sommano**, e va detto perché la prima da sola non basta a
+spiegarlo:
+
+1. il chip del popover ha `py-0.5` mentre quello del mese ha `py-1` — quattro
+   pixel di differenza;
+2. il popover sta in un **portale**, quindi la variabile
+   `--ec-month-bar-h` che il blocco dichiara sul proprio root **non ci
+   arriva**: `getComputedStyle` la legge **vuota**, e il chip non ha nemmeno
+   l'altezza del mese da cui partire.
+
+Misurato: **28px nel mese, 24 nel popover**, con un avatar da 20 che col
+padding usciva.
+
+**Il primo rimedio era sbagliato**, e vale la pena averlo scritto:
+`min-h-5` sul nostro contenuto. Non ha funzionato, e non poteva — il chip del
+mese ha un'altezza **fissa**, quindi ad allargare il contenuto sarebbe stato
+il contenuto a uscire dal chip, non il chip a crescere. La misura giusta è
+**il padding**, che è la differenza vera.
+
+**E serve l'important.** `classNames.event: "py-1"` non bastava: nella `cn()`
+del motore il `className` del **punto di chiamata** viene dopo `classNames`,
+e nel popover è proprio lì che sta `py-0.5`. Con `py-1!` i due chip misurano
+**28 e 28**.
+
+**Nota sulla variabile nei portali**, che vale oltre questo caso: una
+variabile CSS dichiarata sul root di un blocco non raggiunge i pannelli che
+Base UI monta in un portale. Se un valore deve valere anche lì, o si passa da
+una classe, o si accetta il default del componente.
+
+#### E un pixel in fondo alla settimana
+
+«Doppio bordo sull'ultima ora del giorno.» Le righe orarie della griglia sono
+un `repeating-linear-gradient`, e l'ultima linea che disegna cade
+**esattamente sul fondo della colonna**: lì il `border-t` della legenda ci si
+somma. Il bordo della legenda ora c'è nel mese e nell'agenda — dove quella
+linea non esiste e senza bordo la legenda sembrerebbe attaccata — e **non**
+nella settimana.

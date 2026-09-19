@@ -504,11 +504,26 @@ function creaChip<TData>(perPersona: Map<string, PersonaEvento>) {
  * destra, accanto ai filtri, e lì l'abbiamo messa: senza, il colore di un
  * chip è un'informazione che non si può decodificare.
  */
-function CalendarioLegenda({ calendari }: { calendari: CalendarioSorgente[] }) {
+function CalendarioLegenda({
+  calendari,
+  vista,
+}: {
+  calendari: CalendarioSorgente[]
+  vista: VistaCalendario
+}) {
   return (
     <div
       data-slot="calendario-legenda"
-      className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-3 text-xs"
+      className={cn(
+        "text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-xs",
+        // **Il bordo in cima, tranne che nella settimana.** Le righe orarie
+        // della griglia sono un `repeating-linear-gradient`, e l'ultima
+        // linea che disegna cade esattamente **sul fondo della colonna**:
+        // lì il `border-t` della legenda ci si somma, e si legge come un
+        // bordo doppio sotto l'ultima ora. Nel mese e nell'agenda quella
+        // linea non c'è, e senza il bordo la legenda sembrerebbe attaccata.
+        vista !== "settimana" && "border-t"
+      )}
     >
       {calendari.map((c) => (
         <span key={c.id} className="flex items-center gap-1.5">
@@ -1556,6 +1571,24 @@ export function Calendario<TData = unknown>({
           // **4,78px** in densità touch. `shrink-0` gli ridà almeno la propria
           // riga di testo.
           moreIndicator: "shrink-0",
+          // **Lo stesso padding verticale in tutti i chip.** Nel mese ReUI
+          // gli dà `py-1`, nel popover «+N altri» `py-0.5`: quattro pixel
+          // di differenza, e l'avatar — che è alto quanto il contenuto del
+          // chip più grande — nel popover sbordava. Non bastava dare
+          // un'altezza minima al contenuto, perché il chip del mese ha
+          // un'altezza **fissa** e sarebbe stato il contenuto a uscire di
+          // là. La misura giusta è il padding, ed è una classe.
+          //
+          // (Il popover, per giunta, sta in un **portale**: la variabile
+          // `--ec-month-bar-h` che il blocco dichiara sul proprio root lì
+          // non arriva — `getComputedStyle` la legge vuota — quindi il chip
+          // non ha nemmeno l'altezza del mese da cui partire.)
+          // `!` perché nel popover il padding arriva dal **punto di
+          // chiamata** (`py-0.5` passato al chip), e nella `cn()` del
+          // motore il `className` del chiamante viene dopo `classNames`:
+          // senza l'important vincerebbe lui, e infatti la misura dava
+          // ancora 24px.
+          event: "py-1!",
           // **Tre eventi per cella, non uno.** La riga del mese è `min-h-0`,
           // quindi in un contenitore corto le celle si schiacciano e
           // `maxEventsPerCell: "auto"` ne mostra una sola. Il conto che dà
@@ -1653,7 +1686,7 @@ export function Calendario<TData = unknown>({
             vista che scorre e la legenda che resta.
           */}
           {legenda && calendari.length > 0 ? (
-            <CalendarioLegenda calendari={calendari} />
+            <CalendarioLegenda calendari={calendari} vista={vistaCorrente} />
           ) : null}
         </div>
       </EventCalendar>

@@ -6602,3 +6602,29 @@ all'ultima colonna visibile.
 
 **Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
 `check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.
+
+#### Coda 8 di M4ter.2: il chip del popover, e un pixel in fondo alla settimana (2026-09-19)
+
+**I chip dentro il «+N altri» erano più bassi** — 24px contro 28 — e
+l'avatar da 20 col padding usciva. **Due cause sommate**: il chip del popover
+ha `py-0.5` invece di `py-1`, **e** sta in un portale, dove la variabile
+`--ec-month-bar-h` che il blocco dichiara sul proprio root non arriva
+(`getComputedStyle` la legge vuota).
+
+Il primo rimedio era sbagliato e resta a verbale: `min-h-5` sul contenuto. Non
+poteva funzionare — il chip del mese ha un'altezza **fissa**, quindi ad
+allargare il contenuto sarebbe uscito il contenuto, non cresciuto il chip. La
+misura giusta è il **padding**. E serve l'important: nella `cn()` del motore
+il `className` del punto di chiamata viene dopo `classNames`, e nel popover è
+proprio lì che sta `py-0.5`. Con `py-1!` i due chip fanno **28 e 28**.
+
+**Nota che vale oltre il caso**: una variabile CSS dichiarata sul root di un
+blocco **non raggiunge i pannelli che Base UI monta in un portale**.
+
+**E il pixel in fondo alla settimana**: le righe orarie sono un
+`repeating-linear-gradient` e l'ultima linea cade esattamente sul fondo della
+colonna, dove il `border-t` della legenda ci si sommava. Il bordo resta nel
+mese e nell'agenda — dove quella linea non c'è — e sparisce nella settimana.
+
+**Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0,
+`check:registry` 0/62/0/19, 89 item, `build` e `lint` verdi.
