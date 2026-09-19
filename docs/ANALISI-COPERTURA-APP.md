@@ -208,10 +208,15 @@ parola per parola — è scritta in **quattro file** di Officina (`Triage`, `Lav
 
 ## 4bis. Il lavoro da fare — **l'impacchettamento resta aperto**
 
-Quattro blocchi di lavoro, in ordine di quanto resta da fare. **Come si impacchettano —
-una fase a sé oppure task in coda alla FASE 4, sul modello di M4.7 — è la decisione che
-Francesco ha messo da parte il 2026-09-19**, per prenderla quando il contenuto sarà
-tutto deciso. Qui c'è il contenuto, non la confezione.
+Quattro blocchi di lavoro, in ordine di quanto resta da fare.
+
+> **L'impacchettamento è deciso (2026-09-19, sera): FASE 4ter, dieci task.** I sei lavori
+> qui sotto sono diventati `M4ter.1…M4ter.10` in `PIANO.md`, con divisioni motivate — L2,
+> L4 e L5 valgono due sessioni ciascuno, L1, L3 e L6 una — più una sessione di gate. Il
+> conto che ha deciso fase contro coda sta in `PIANO.md` §FASE 4ter. **Una rettifica di
+> contenuto**: la «barra a segmenti» di L2 non è più un componente nostro, perché
+> `@reui/stepper` esiste, è `registry:ui` in-house, **MIT**, Base UI, e senza valori
+> arbitrari — si adotta, e `componenti-propri.json` resta a una riga sola, quella di D20.
 
 | lavoro | cosa | perché prima di M5.5 | dipendenze |
 |---|---|---|---|
@@ -488,3 +493,29 @@ che va guardata e non presunta.
    istante**. Un fermo che dura giorni vuole inizio e fine: il blocco deve prendere
    `start`/`end` da subito, ma il dato lo produce il backend di Officina. **Va scritto nella
    guida di migrazione**, o si scopre il giorno in cui si prova a disegnare la barra.
+
+## 7. Note per M5.5 — cose che il design system non può risolvere da sé
+
+Aperta il 2026-09-19, quando la fase è stata pianificata. Qui va ciò che una migrazione
+incontrerà e che **non si chiude nel registry**, perché dipende da un backend, da un dato o
+da una scelta dell'app. Senza questa sezione si scopre il giorno in cui non si riesce a
+disegnare qualcosa, ed è tardi.
+
+- **Officina, il calendario: `EventoCalendario.programmato_il` è un istante.** Un fermo
+  macchina può durare giorni, e la barra pluri-giorno vuole **inizio e fine**. Il blocco
+  `tassullo-calendario` (M4ter.2) prende `start`/`end` da subito — ma il dato lo produce il
+  backend di Officina, che oggi non ce l'ha. **Va nella guida di migrazione come
+  prerequisito**, non come dettaglio implementativo.
+- **La soglia del bivio tabella/schede la decide l'app.** `useSoglia(query)` (M4ter.6) non
+  porta un numero: dipende da quante colonne ha *quella* lista — nove nel Triage di
+  Officina, e a 768px sarebbero illeggibili. La guida deve dire **come si sceglie**, non
+  quale numero usare.
+- **Il logo Microsoft resta dell'app.** È un marchio di terzi a quattro colori fissi: come
+  SVG nel registry violerebbe la regola 3. `pagina-login` lo prende come nodo (M4ter.4), e
+  ogni app che usa l'SSO se lo porta.
+- **Il campo nascosto di `/registrati`** (Studio) è un honeypot anti-bot: non è materia del
+  design system e **non va assorbito** migrando la pagina.
+- **Il misuratore di robustezza della password resta dell'app** (deciso da Francesco il
+  2026-09-19): somiglia alla barra dei passi ma non lo è — lo stepper è un `tablist` di
+  `tab` cliccabili, il misuratore non si naviga e non si seleziona. Occorrenza singola,
+  codice di pagina.
