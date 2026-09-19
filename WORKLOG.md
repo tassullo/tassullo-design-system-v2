@@ -5694,11 +5694,19 @@ che qui non si può usare.
   `aria-label`. Il raggio sta agli estremi della **barra**
   (`first:rounded-s-full last:rounded-e-full` + `overflow-hidden`), non di ogni
   segmento, così i giunti interni restano vivi.
-- **`c-stepper-3`, il passo in attesa**: `loading` sul singolo `StepperItem` più
-  `indicators.loading`. È l'unico stato che non si deriva dal passo corrente. Ma
-  **la loro tavolozza non si prende**: fanno il passo fatto con `bg-green-500` e
-  `text-white`, cioè colori grezzi di Tailwind che la regola 3 non ammette.
-  Meccanismo loro, colori del tema.
+- **`c-stepper-11`, la barra con titoli**, che è l'alternativa preferita alla
+  barra nuda quando i passi hanno un nome: tratti staccati, uno per passo, col
+  titolo sotto che sbiadisce sui passi da fare. Anche qui il titolo sta dentro
+  il grilletto, perché il tratto è largo quanto la colonna e il bersaglio è già
+  tutta la colonna.
+- **`c-stepper-3`, il passo in attesa**, provata e poi **tolta su indicazione di
+  Francesco**. Resta a verbale quello che si è imparato: `loading` sul singolo
+  `StepperItem` più `indicators.loading` è l'unico stato che non si deriva dal
+  passo corrente. E **la loro tavolozza non si prende comunque**: fanno il passo
+  fatto con `bg-green-500` e `text-white`, colori grezzi che la regola 3 non
+  ammette. Con la scena è sparito anche `indicators.loading`, perché una
+  configurazione che nessuna story esercita è una configurazione che nessuno ha
+  guardato.
 - **`c-stepper-9`, il titolo in linea**. Qui il titolo torna **dentro** il
   grilletto, al contrario della scena orizzontale: in linea il pallino e la sua
   parola sono un bersaglio solo, e l'anello di fuoco che li abbraccia dice il
@@ -5714,8 +5722,15 @@ successivo invece di riempire lo spazio fra due blocchi. E `top-1/2
 rifatto a ogni cambio di `--spacing`. Della loro versione **non** si prende
 `h-[calc(100%-2rem)]`, che è un valore arbitrario: `top-7 bottom-1` fa lo stesso.
 
-**Cinque scene**: Orizzontale, Titolo in linea, Verticale, Attesa, Barra a
-segmenti. `test:a11y` **1308 → 1316**, 0 violazioni; `check` verde sui cinque.
+**E un ultimo rilievo sullo schermo**: nel loro esempio il tratto **non arriva
+al pallino**, si ferma poco prima, come nel verticale. Risolto con `mx-4` sul
+tratto assoluto — e il numero non è scelto a occhio: il raggio del pallino
+(`size-6`) vale **3 unità di spaziatura in entrambe le densità**, quindi `4` è
+raggio più un'unità di stacco, e resta giusto anche in touch.
+
+**Cinque scene**: Orizzontale, Titolo in linea, Verticale, Barra a segmenti,
+Barra con titoli. `test:a11y` **1308 → 1316**, 0 violazioni; `check` verde sui
+cinque.
 
 #### Prossimi passi
 

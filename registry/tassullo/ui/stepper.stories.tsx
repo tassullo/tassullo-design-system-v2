@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { CheckIcon, LoaderCircleIcon } from 'lucide-react'
+import { CheckIcon } from 'lucide-react'
 
 import {
   Stepper,
@@ -158,14 +158,17 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /**
- * Cosa mostra il pallino quando non mostra il numero: è l'API della radice, non
- * un `if` nel markup. `loading` compare solo sul passo **corrente**, perché il
- * componente calcola `isLoading = loading && step === activeStep`.
+ * La spunta del passo fatto: è l'API della radice, non un `if` nel markup.
+ *
+ * Lo stesso oggetto accetta `loading`, che è **l'unico stato che non si deriva**
+ * dal passo corrente: si dichiara con `loading` sul singolo `StepperItem` e vale
+ * solo se quel passo è anche quello corrente (`loading && step === activeStep`).
+ * Qui non è in scena perché nessuna delle quattro lo userebbe davvero — quando
+ * servirà, a un passo che aspetta il server, si aggiunge qui e si mette in
+ * scena: una configurazione che nessuna story esercita è una configurazione che
+ * nessuno ha guardato.
  */
-const INDICATORI = {
-  completed: <CheckIcon className="size-3" />,
-  loading: <LoaderCircleIcon className="size-3 animate-spin" />,
-}
+const INDICATORI = { completed: <CheckIcon className="size-3" /> }
 
 /**
  * Il trattino di **collegamento** fra un passo e il successivo. `m-0` toglie il
@@ -182,7 +185,7 @@ const INDICATORI = {
  * corrente va acceso.
  */
 const TRATTO =
-  'absolute top-1/2 left-1/2 -right-1/2 m-0 h-0.5 -translate-y-1/2 data-[state=completed]:bg-primary'
+  'absolute top-1/2 left-1/2 -right-1/2 mx-4 my-0 h-0.5 -translate-y-1/2 data-[state=completed]:bg-primary'
 
 /**
  * La variante **in linea** dello stesso tratto: lì il pallino non è centrato in
@@ -332,61 +335,6 @@ export const Verticale: Story = {
 }
 
 /**
- * **Il passo in attesa** (`c-stepper-3` della galleria reui). L'unico stato che
- * non si deriva dal passo corrente e che va dichiarato: `loading` sul singolo
- * `StepperItem`, per il passo che sta aspettando una risposta — la verifica di
- * una partita IVA, il salvataggio, un calcolo che gira sul server.
- *
- * Il pallino si scambia col rotore, e il numero sparisce: è il segnale che
- * qualcosa è in corso e che non serve ricliccare. Non è un forzante come
- * `completed`, perché **vale solo sul passo corrente** — il componente calcola
- * `loading && step === activeStep`, quindi un `loading` dimenticato su un passo
- * che non è quello corrente non fa danno.
- *
- * Della demo di reui non si prende la tavolozza: loro fanno il passo fatto con
- * `bg-green-500` e `text-white`, cioè colori grezzi di Tailwind, che la regola 3
- * del `CLAUDE.md` non ammette — e che qui introdurrebbero il verde in una scena
- * sola. Il meccanismo è il loro, i colori restano quelli del tema.
- */
-export const Attesa: Story = {
-  render: () => (
-    <Stepper
-      role="group"
-      aria-orientation={undefined}
-      defaultValue={2}
-      indicators={INDICATORI}
-      className="w-full max-w-xl space-y-8"
-    >
-      <div
-        role="tablist"
-        aria-label="Passi della registrazione"
-        className="grid w-full grid-flow-col auto-cols-fr"
-      >
-        {PASSI.map((passo, i) => (
-          <StepperItem
-            key={passo.titolo}
-            step={i + 1}
-            loading={i + 1 === 2}
-            className="flex-col items-center gap-2"
-          >
-            <span className="relative flex w-full justify-center">
-              <StepperTrigger aria-label={passo.titolo} className="relative z-10">
-                <StepperIndicator>{i + 1}</StepperIndicator>
-              </StepperTrigger>
-              {i < PASSI.length - 1 && <StepperSeparator className={TRATTO} />}
-            </span>
-            <span aria-hidden className="w-full text-center">
-              <StepperTitle>{passo.titolo}</StepperTitle>
-            </span>
-          </StepperItem>
-        ))}
-      </div>
-      <Pannelli testi={PASSI.map((p) => p.descrizione)} />
-    </Stepper>
-  ),
-}
-
-/**
  * **Titolo in linea** (`c-stepper-9`): il titolo sta **accanto** al pallino e
  * non sotto. È la forma che ci sta dove l'altezza è poca — sopra un modulo in
  * una card, dentro un pannello — e si paga in larghezza, quindi regge finché i
@@ -421,6 +369,55 @@ export const TitoloInLinea: Story = {
             {i < PASSI.length - 1 && (
               <StepperSeparator className={`${TRATTO_IN_LINEA} mx-2`} />
             )}
+          </StepperItem>
+        ))}
+      </div>
+      <Pannelli testi={PASSI.map((p) => p.descrizione)} />
+    </Stepper>
+  ),
+}
+
+/**
+ * **Barra con titoli** (`c-stepper-11` della galleria reui), ed è l'alternativa
+ * da preferire alla barra a segmenti nuda quando i passi hanno un nome.
+ *
+ * Stessa idea della barra a segmenti — il pallino diventa un **tratto pieno**,
+ * uno per passo — ma i segmenti sono staccati e sotto ognuno c'è la sua parola.
+ * Rispetto ai pallini numerati guadagna in larghezza, perché un tratto può
+ * essere corto quanto serve mentre un pallino no; rispetto alla barra nuda dice
+ * **a che punto si è**, non solo quanti ne mancano.
+ *
+ * Qui il titolo torna **dentro** il grilletto, come nella scena in linea e al
+ * contrario dell'orizzontale: il tratto è largo quanto la colonna, quindi il
+ * bersaglio è già tutta la colonna e l'anello di fuoco che la circonda è quello
+ * giusto. E il titolo che sbiadisce sui passi da fare
+ * (`group-data-[state=inactive]/step:text-muted-foreground`) è ciò che sostituisce
+ * il numero: senza pallino, è l'unica cosa che distingue il fatto dal da fare
+ * oltre al colore del tratto.
+ */
+export const BarraConTitoli: Story = {
+  render: () => (
+    <Stepper
+      role="group"
+      aria-orientation={undefined}
+      defaultValue={2}
+      className="w-full max-w-xl space-y-8"
+    >
+      <div
+        role="tablist"
+        aria-label="Passi della registrazione"
+        className="grid w-full grid-flow-col auto-cols-fr gap-5"
+      >
+        {PASSI.map((passo, i) => (
+          <StepperItem key={passo.titolo} step={i + 1} className="flex-col items-stretch">
+            <StepperTrigger className="w-full flex-col items-start gap-3">
+              <StepperIndicator className="h-1 w-full rounded-full">
+                <span className="sr-only">{`Passo ${i + 1}`}</span>
+              </StepperIndicator>
+              <StepperTitle className="group-data-[state=inactive]/step:text-muted-foreground text-start font-semibold">
+                {passo.titolo}
+              </StepperTitle>
+            </StepperTrigger>
           </StepperItem>
         ))}
       </div>

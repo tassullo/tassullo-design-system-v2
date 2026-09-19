@@ -473,13 +473,31 @@ nell'item del registry**, perché il nostro registry ridistribuisce quei file al
 primo caso del genere nel v2 — finora l'unica licenza di terzi che portiamo in giro è l'OFL
 di Inter, che ha un suo file dentro `tema-font`, e lo stesso trattamento vale qui.
 
-**Due cose ancora da verificare, prima di installare** (e sono condizioni di L5, non
-dettagli): che i file serviti da `reui.io/r/…` siano **gli stessi** di quelli pubblicati
-sotto MIT su GitHub — ho controllato che il nome del file ci sia, non ho confrontato i
-contenuti, e vale quello che è pubblicato sotto MIT; e che **`@reui/icon-stack`**, fra le
-dipendenze della vista agenda, non tiri dentro il set di icone, che nel loro listino sta nel
-piano **Ultimate**. Probabilmente è solo il contenitore, ma è esattamente il genere di cosa
-che va guardata e non presunta.
+**Le due cose da verificare sono state verificate in M4ter.1 (2026-09-19), e reggono
+entrambe.** I file serviti da `reui.io/r/…` sono quelli pubblicati sotto MIT: il `diff` sui
+tre file dà per sole differenze i prefissi `style-*` risolti, la riscrittura dei path
+d'import da monorepo a consumer, e il newline finale — nient'altro. E **`@reui/icon-stack`
+è solo il contenitore**: `dependencies: ["cn"]`, `registryDependencies: []`, un file che
+importa unicamente `cn`. Il piano Ultimate non c'entra.
+
+**Ma la terza verifica, quella su dove atterrano i file, NON regge, e questo paragrafo va
+letto con quella rettifica davanti** (dettaglio in `WORKLOG.md`, M4ter.1):
+
+- **«Si prende meno dell'ombrello… 93 KB su 326 lasciati fuori» è falso.** `month-view` e
+  `agenda-view` dipendono entrambi da `@reui/event-calendar`, che è l'ombrello e porta
+  **tutti e 13 i file**, `time-grid`, `resource-view` e `recurrence` compresi. Sono **14
+  file** con `icon-stack`, non 2.
+- **`shadcn add` non si può usare**: di una vista annuncia `~5 overwrite` su primitive
+  nostre già ri-stilate (`button`, `dropdown-menu`, `tooltip`, `scroll-area`, `calendar`),
+  perché le risolve da `@shadcn`. I file vanno portati con `shadcn view`, come fa
+  `check:registry -- --snapshot`.
+- **E le cinque demo libere di `reui.io/components/event-calendar` non sciolgono il nodo**:
+  sono composizioni, non il motore — `c-event-calendar-1.tsx` è 812 righe che importano
+  `event-calendar`, `-content`, `-i18n`, `-nav`, `-types`. Valgono come **materiale di
+  lettura** per M4ter.2, non come scorciatoia. Il criterio per sapere cosa di reui è libero
+  e a quali condizioni sta in `docs/DECISIONI.md` §43 — e **non è il campo `type`**.
+
+**D22 è quindi tornata a Francesco** con il prezzo vero sul tavolo.
 
 **Tre punti aperti, due tecnici e uno che è di Officina.**
 1. **`check:registry` va insegnato a una seconda provenienza.** Oggi popola `.upstream/` da
