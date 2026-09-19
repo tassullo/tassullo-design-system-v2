@@ -901,7 +901,22 @@ function CalendarioDialogoEvento({
                       })()}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  {/*
+                    **`alignItemWithTrigger={false}`**: di serie Base UI
+                    allinea la *voce scelta* al valore nel grilletto, come
+                    fa un `select` nativo di macOS. Qui il valore porta un
+                    pallino colorato davanti al nome e la voce dell'elenco
+                    no, quindi per far combaciare i due testi il pannello
+                    slitta — **5px contro 1** del `Primitive/Select`, che
+                    di pallini non ne ha. Cinque pixel bastano a farlo
+                    leggere come storto rispetto al campo sotto.
+                    Allineandolo al **grilletto** il pannello sta sul bordo
+                    del campo, che è quel che ci si aspetta da un modulo —
+                    e lo si fa su **tutti e tre** i `select` del dialogo,
+                    non solo su questo: in un modulo i pannelli che si
+                    aprono da campi allineati devono aprirsi allineati.
+                  */}
+                  <SelectContent alignItemWithTrigger={false} align="start">
                     {calendari.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         <span className="flex items-center gap-2">
@@ -1017,7 +1032,7 @@ function CalendarioDialogoEvento({
                         {`${String(bozza.oraInizio).padStart(2, "0")}:00`}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false} align="start">
                       {ORE.map((ora) => (
                         <SelectItem key={ora} value={String(ora)}>
                           {`${String(ora).padStart(2, "0")}:00`}
@@ -1040,7 +1055,7 @@ function CalendarioDialogoEvento({
                           `${bozza.durata} minuti`}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false} align="start">
                       {DURATE.map((d) => (
                         <SelectItem key={d.valore} value={String(d.valore)}>
                           {d.etichetta}

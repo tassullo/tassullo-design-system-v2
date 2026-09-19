@@ -54,15 +54,34 @@ const FISSANO_LA_DENSITA = ["Tema/Densità", "Tema/Tipografia"];
  */
 type Apertura = { gesto: string; grilletto: string; contenuto: string };
 
+/**
+ * **Le stesse due cartelle del gate axe, e non una sola.** Fino a M4ter.2
+ * questa funzione leggeva il solo `ui/`, mentre `scripts/gate-a11y.ts`
+ * leggeva anche `blocks/`: i popup dei blocchi — il «+N altri» del
+ * calendario, i menu di `data-table`, `app-shell`, `page-header` — non
+ * risultavano dichiarati, quindi lo script **non li aspettava**. Storybook
+ * esegue comunque le `play` nel canvas, perciò a volte erano aperti lo
+ * stesso e a volte no: i loro bersagli finivano nel rapporto a seconda di
+ * quanto ci metteva la pagina, che è il modo peggiore in cui un conto può
+ * sbagliare — non zero, ma **un numero diverso a ogni esecuzione**.
+ *
+ * Le due liste vanno tenute uguali. Se un giorno divergono di nuovo, il
+ * sintomo è questo: un tipo di bersaglio che compare e sparisce fra due
+ * esecuzioni identiche.
+ */
+const STORIE_DIR = ["registry/tassullo/ui", "registry/tassullo/blocks"];
+
 function aperture(): Map<string, Apertura> {
   const out = new Map<string, Apertura>();
-  const dir = "registry/tassullo/ui";
-  for (const f of readdirSync(dir)) {
-    if (!f.endsWith(".stories.tsx")) continue;
-    const testo = readFileSync(join(dir, f), "utf8");
-    const titolo = testo.match(/title: '([^']+)'/);
-    const play = testo.match(/play: (apri[A-Za-zÀ-ú]*)\(\s*'([^']+)',\s*'([^']+)'/);
-    if (titolo && play) out.set(titolo[1], { gesto: play[1], grilletto: play[2], contenuto: play[3] });
+  for (const dir of STORIE_DIR) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith(".stories.tsx")) continue;
+      const testo = readFileSync(join(dir, f), "utf8");
+      const titolo = testo.match(/title: '([^']+)'/);
+      const play = testo.match(/play: (apri[A-Za-zÀ-ú]*)\(\s*'([^']+)',\s*'([^']+)'/);
+      if (titolo && play) out.set(titolo[1], { gesto: play[1], grilletto: play[2], contenuto: play[3] });
+    }
   }
   return out;
 }
@@ -189,6 +208,15 @@ async function main() {
       }
       // Fino a due secondi: `hover-card` ha un ritardo d'apertura di circa
       // un secondo, e a 150ms risultava chiusa quando era solo lenta.
+      //
+      // **Due secondi bastano, ed è stato verificato invece che supposto.**
+      // Quando `Blocchi/Editor di testo` dava «0/4 story aperte» il sospetto
+      // era il timeout, e alzarlo a cinque — e poi a nove — non cambiava
+      // niente: la causa era un'altra, la `play` che cercava il grilletto
+      // prima che Tiptap avesse montato la barra (corretto in
+      // `.storybook/prove/apri.ts`). Alzare un'attesa è il rimedio che si
+      // prova per primo e che quasi sempre nasconde la causa invece di
+      // toglierla.
       const apertoDavvero = await pagina
         .waitForSelector(`[data-slot="${ap.contenuto}"]`, { timeout: 2_000, state: "attached" })
         .then(() => true)

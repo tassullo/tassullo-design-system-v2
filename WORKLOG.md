@@ -6646,3 +6646,45 @@ story**, 2048 sotto i 44px, **35 tipi distinti, 0 piccoli in entrambe le
 direzioni**; i due del calendario sono `event-calendar-event` **31,5 × 342px**
 (era 24, l'ha alzato il chip legato a `--spacing`) e `event-calendar-more`
 17,33 × 236px.
+
+#### Coda 9 di M4ter.2: le due liste dei popup, e un difetto che ne è uscito (2026-09-19)
+
+**Allineato `misura:bersagli` a `gate-a11y`**: legge le dichiarazioni dei
+popup da `ui/` **e** `blocks/`, non dal solo `ui/`. Il difetto non era
+estetico — con i blocchi fuori dall'elenco lo script non *aspettava* i loro
+popup, ma Storybook le `play` le esegue lo stesso: quei popup venivano
+misurati **o no a seconda di quanto ci metteva la pagina**. Un conto diverso
+a ogni esecuzione, che è peggio di un conto sbagliato. Popup aperti: **47 →
+59**.
+
+**E il rapporto, appena allineato, ha trovato un difetto vero.**
+`Blocchi/Editor di testo` dava **0 story su 4** mentre in un test isolato il
+popover si apriva. Tre ipotesi, misurate in ordine: il timeout (alzato a 5s e
+poi a 9: **nessun cambiamento**), il grilletto disabilitato (no), e infine la
+causa — **la `play` cerca il grilletto prima che esista**. Confermato dalla
+console della build statica: «Nessun grilletto [aria-label="Collegamento"] in
+questa story». L'editor monta Tiptap prima di disegnare la barra.
+
+Chiuso in `.storybook/prove/apri.ts`: `grilletto()` **aspetta** che
+l'elemento sia nel DOM invece di pretenderlo subito. Se non arriva affatto,
+`waitFor` scade e l'errore resta. Dopo: **1/4**.
+
+**Il timeout è tornato a 2s**, ed è la lezione che vale più del difetto:
+alzare un'attesa è il rimedio che si prova per primo e che quasi sempre
+nasconde la causa invece di toglierla. Non funzionava nemmeno a nove secondi,
+ed è stato quello a far cercare altrove. Il sintomo era **invisibile sul dev
+server** e si vedeva solo sullo Storybook costruito — che è esattamente la
+ragione per cui `misura:bersagli` usa quello.
+
+**E il menù a tendina del dialogo, ripreso.** L'avevo misurato (5px di scarto
+contro 1 del `Primitive/Select`) e archiviato come comportamento di Base UI:
+è vero che è suo — `alignItemWithTrigger` allinea la *voce scelta* al valore
+nel grilletto, e il pallino colorato davanti al nome sposta il calcolo — ma
+si spegne, e cinque pixel bastavano a farlo leggere storto rispetto al campo
+sotto. Ora i **tre** `select` del dialogo hanno
+`alignItemWithTrigger={false} align="start"`: scarto **0** su tutti e tre.
+
+**Numeri**: `check` verde sui cinque, `test:a11y` **1332**/0 (333 story),
+`check:registry` 0/62/0/19, **89 item**, `build` e `lint` verdi.
+`misura:bersagli`: **3013 bersagli su 333 story, 59 popup aperti**, 35 tipi,
+**0 piccoli in entrambe le direzioni**.

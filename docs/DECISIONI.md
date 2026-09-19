@@ -2419,3 +2419,46 @@ un `repeating-linear-gradient`, e l'ultima linea che disegna cade
 somma. Il bordo della legenda ora c'è nel mese e nell'agenda — dove quella
 linea non esiste e senza bordo la legenda sembrerebbe attaccata — e **non**
 nella settimana.
+
+### (q) Le due liste dei popup erano disallineate, e sotto c'era un difetto vero
+
+`scripts/gate-a11y.ts` legge le dichiarazioni dei popup da `ui/` **e**
+`blocks/`; `scripts/misura-bersagli.ts` leggeva il solo `ui/`. Allineate.
+
+**Il difetto non era estetico.** Con i blocchi fuori dall'elenco, lo script
+non *aspettava* i loro popup — App shell, Calendario, Data Table, Dialogo
+adattivo, Dialogo di conferma, Intestazione di pagina, Editor di testo — ma
+Storybook le `play` le esegue comunque: quei popup venivano misurati **o no a
+seconda di quanto ci metteva la pagina**. Non un conto sbagliato: **un conto
+diverso a ogni esecuzione**, che è peggio, perché non si nota.
+
+Misurato: i popup aperti passano da **47 a 59**.
+
+#### E il rapporto, appena allineato, ha trovato una cosa
+
+`Blocchi/Editor di testo`: **0 story su 4 aperte**, mentre in un test isolato
+il popover si apriva regolarmente. Tre ipotesi, misurate in quest'ordine:
+
+1. *il timeout d'attesa del popup è corto* — alzato da 2s a 5, poi a 9:
+   **nessun cambiamento**;
+2. *il grilletto è disabilitato* — no, `disabled` è false e `aria-expanded`
+   c'è;
+3. **la `play` cerca il grilletto prima che esista.** Confermato leggendo la
+   console della build statica: `Nessun grilletto [aria-label="Collegamento"]
+   in questa story`. L'editor monta Tiptap **prima** di disegnare la propria
+   barra, e la `play` parte nel mezzo.
+
+Chiuso in `.storybook/prove/apri.ts`: `grilletto()` ora **aspetta** che
+l'elemento sia nel DOM (`waitFor`) invece di pretenderlo subito. L'attesa non
+indebolisce il controllo — se il grilletto non arriva affatto, `waitFor`
+scade e l'errore resta, che è il caso in cui la dichiarazione nel meta non
+corrisponde alla story. Dopo: **1/4**, e i popup aperti salgono a 59.
+
+**Il timeout è tornato a 2s**, ed è la parte che vale più del difetto:
+alzare un'attesa è il rimedio che si prova per primo e che quasi sempre
+**nasconde** la causa invece di toglierla. Qui non funzionava nemmeno a nove
+secondi, ed è stato quello a far cercare altrove.
+
+**Perché il sintomo era invisibile sul dev server**: lì i tempi bastano e la
+`play` trova il grilletto. Si vedeva **solo** sullo Storybook costruito, che
+è quello che `misura:bersagli` usa — ed è la ragione per cui lo usa.
