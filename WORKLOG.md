@@ -5769,3 +5769,48 @@ solo `reui-MIT.txt` che l'item installa accanto. La MIT chiede che l'avviso stia
 file insieme** — quindi la condizione è soddisfatta dalla distribuzione, non
 dalla ripetizione del testo in ogni sorgente. Il gate continua a cercare la
 stringa `Copyright (c) 2025 Keenthemes Inc`, che è ciò che non deve sparire.
+
+#### Le due decisioni, chiuse con Francesco (2026-09-19)
+
+**1. Lo stepper resta com'è: nessuna eccezione alla regola 4bis.** La
+composizione di reui non passa il gate (il `<nav>` di `StepperNav` spezza la
+catena `tablist`→`tab`), e la si aggira dal punto di chiamata: `role="group"` e
+`aria-orientation={undefined}` sulla radice, un `<div role="tablist">` nostro al
+posto del loro `StepperNav`, e l'`id` dei pannelli scritto da chi compone.
+Spostare `role="tablist"` dentro `stepper.tsx` sarebbe **una riga**, ma non è una
+stringa di classi: `check:registry` fallirebbe, e per farlo passare servirebbe
+insegnare al gate un meccanismo di «divergenza dichiarata» che oggi non esiste,
+più la correzione da riapplicare a ogni aggiornamento di reui. **Gli usi previsti
+sono tre** (questa story più le due scene di M4ter.5): non vale la macchina. Le
+tre cose da rifare sono scritte in cima a `stepper.stories.tsx`, che è dove le
+cercherà chi compone la prossima.
+
+**2. D22 riconfermata: il calendario si adotta** — e stavolta col prezzo vero,
+perché **il numero che avevo dato era sbagliato**. Avevo scritto «14 file, e
+`time-grid`/`resource-view` entrano comunque»: quello è ciò che `shadcn add`
+risolve, perché tira l'**item** ombrello `@reui/event-calendar` che ne spedisce
+13. La dipendenza del **codice** è più stretta, e si misura chiudendo gli
+`import`:
+
+| | file | KB | righe |
+|---|---:|---:|---:|
+| chiusura da `month-view` + `agenda-view` | **10** | **234** | **7 012** |
+| restano fuori (`time-grid`, `resource-view`, `nav`, `content`) | 4 | 95 | 2 920 |
+
+Quindi il «93 KB su 326 lasciati fuori» di `ANALISI-COPERTURA-APP.md` §6.11 era
+**giusto**, e sono io ad averlo dichiarato falso. La lezione, che vale oltre il
+caso: **l'elenco dei file di un item non è l'elenco delle dipendenze del codice**,
+e confondere i due porta a sovrastimare di quattro file e 95 KB. `recurrence`
+invece serve davvero, perché `lib` lo importa — e quella è una dipendenza vera
+che a occhio non si sarebbe vista.
+
+Il metro con cui Francesco ha deciso: 7 012 righe di terzi contro le **18 736**
+del registry di oggi, e contro le **3 817** di `data-table`, che è il nostro
+pezzo più grosso. Il motore del calendario è quasi il doppio del nostro blocco
+maggiore. In cambio: barre pluri-giorno e **calcolo delle corsie** già fatti, che
+è la ragione per cui D22 esisteva e che non è cambiata.
+
+**Conseguenza operativa**: `shadcn add` resta inutilizzabile (sovrascriverebbe
+cinque primitive ri-stilate), e i file si portano dentro con `shadcn view` — lo
+stesso comando che usa già `check:registry -- --snapshot`, quindi nessuna
+macchina nuova.

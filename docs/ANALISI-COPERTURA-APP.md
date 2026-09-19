@@ -483,10 +483,11 @@ importa unicamente `cn`. Il piano Ultimate non c'entra.
 **Ma la terza verifica, quella su dove atterrano i file, NON regge, e questo paragrafo va
 letto con quella rettifica davanti** (dettaglio in `WORKLOG.md`, M4ter.1):
 
-- **«Si prende meno dell'ombrello… 93 KB su 326 lasciati fuori» è falso.** `month-view` e
-  `agenda-view` dipendono entrambi da `@reui/event-calendar`, che è l'ombrello e porta
-  **tutti e 13 i file**, `time-grid`, `resource-view` e `recurrence` compresi. Sono **14
-  file** con `icon-stack`, non 2.
+- **«Si prende meno dell'ombrello» regge, e il numero era giusto.** Misurata la chiusura
+  degli `import` da vista mese e agenda: **10 file, 234 KB, 7 012 righe**; restano fuori
+  `time-grid`, `resource-view`, `nav` e `content`, **95 KB**. Non sono 2 file come si
+  poteva leggere, ma nemmeno i 13 dell'ombrello: `add` risolve l'**item**, il codice
+  importa **meno**. `recurrence` però serve, perché `lib` lo importa.
 - **`shadcn add` non si può usare**: di una vista annuncia `~5 overwrite` su primitive
   nostre già ri-stilate (`button`, `dropdown-menu`, `tooltip`, `scroll-area`, `calendar`),
   perché le risolve da `@shadcn`. I file vanno portati con `shadcn view`, come fa

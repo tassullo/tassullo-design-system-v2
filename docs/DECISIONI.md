@@ -1682,9 +1682,15 @@ restano quelli del tema.
 Restano quindi tutti e due i fatti che hanno fermato M4ter.1, e vanno ricordati
 insieme a questa nota, o la si legge come una soluzione che non è:
 
-1. le due viste **non sono installabili separatamente** — dipendono
-   dall'ombrello `@reui/event-calendar`, che porta tutti e 13 i file, compresi
-   `time-grid`, `resource-view` e `recurrence` che §6.11 dava fuori;
+1. le due viste **non sono installabili separatamente da `add`** — dipendono
+   dall'ombrello `@reui/event-calendar`, che come *item* spedisce tutti e 13 i
+   file. **Ma la dipendenza del codice è più stretta**, e va misurata invece che
+   dedotta dall'item: chiudendo gli `import` a partire da vista mese e agenda si
+   arriva a **9 file** più `icon-stack`, cioè **10 — 234 KB, 7 012 righe**.
+   Restano fuori davvero `time-grid`, `resource-view`, `nav` e `content`, che
+   sono **95 KB**: il «93 KB su 326 lasciati fuori» di §6.11 era **giusto**, e
+   questo verbale l'aveva dichiarato falso confondendo ciò che `add` risolve con
+   ciò che il codice importa. `recurrence` invece serve, perché `lib` lo importa;
 2. `shadcn add` di una vista **sovrascrive cinque primitive nostre già
    ri-stilate** (`button`, `dropdown-menu`, `tooltip`, `scroll-area`,
    `calendar`), perché le risolve da `@shadcn`. I file vanno portati dentro con
