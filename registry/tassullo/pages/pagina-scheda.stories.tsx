@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
-import { BookOpenIcon, DownloadIcon, TrashIcon } from 'lucide-react'
+import { BookOpenIcon, DownloadIcon, FileTextIcon, TrashIcon } from 'lucide-react'
 
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 import { FormField } from '@/registry/tassullo/blocks/form-field'
@@ -12,6 +12,15 @@ import { PaginaScheda } from '@/registry/tassullo/pages/pagina-scheda'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from '@/registry/tassullo/ui/item'
 import { FieldGroup } from '@/registry/tassullo/ui/field'
 import { Input } from '@/registry/tassullo/ui/input'
 import { Textarea } from '@/registry/tassullo/ui/textarea'
@@ -194,20 +203,38 @@ function AnagraficaForm({
   )
 }
 
+const ALLEGATI = [
+  { nome: 'UNI_EN_1090-2_2018.pdf', dimensione: '2,4 MB' },
+  { nome: 'Rapporto_prova_2026-04.pdf', dimensione: '860 KB' },
+]
+
+/**
+ * **M4.7**: era una `<ul>` con `rounded-lg border p-3` scritti a mano — cioè
+ * esattamente il pattern che la primitiva `item` copre, e che nelle tre app
+ * ricorre in ~160 selettori CSS. Ora è composizione: `ItemGroup` porta da sé
+ * `role="list"`, `ItemMedia`/`ItemContent`/`ItemActions` mettono icona, testo
+ * e bottone al loro posto, e non resta nessuna classe di struttura nostra.
+ */
 function Documenti() {
-  const file = { nome: 'UNI_EN_1090-2_2018.pdf', dimensione: '2,4 MB' }
   return (
-    <ul className="flex flex-col gap-2">
-      <li className="flex items-center justify-between gap-3 rounded-lg border p-3">
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">{file.nome}</span>
-          <span className="text-sm text-muted-foreground">{file.dimensione}</span>
-        </div>
-        <Button variant="ghost" size="icon" aria-label={`Scarica ${file.nome}`}>
-          <DownloadIcon />
-        </Button>
-      </li>
-    </ul>
+    <ItemGroup>
+      {ALLEGATI.map((file) => (
+        <Item key={file.nome} role="listitem" variant="outline">
+          <ItemMedia variant="icon">
+            <FileTextIcon />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle>{file.nome}</ItemTitle>
+            <ItemDescription>{file.dimensione}</ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <Button variant="ghost" size="icon" aria-label={`Scarica ${file.nome}`}>
+              <DownloadIcon />
+            </Button>
+          </ItemActions>
+        </Item>
+      ))}
+    </ItemGroup>
   )
 }
 

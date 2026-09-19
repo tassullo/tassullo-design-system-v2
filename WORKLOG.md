@@ -5170,3 +5170,20 @@ La tendina di un `<select>` nativo **non la disegna il browser, la disegna il si
 **Cosa ne segue.** Nessun task nuovo: **M4.8 non si apre**. Gli 81 `<select>` non restano dove sono, ma la loro sostituzione col `select` esistente è materia della **guida di migrazione (M5.5)** — e il costo vero da scrivere lì non è cambiare il tag, è il passaggio da `value`/`onChange` di un `<select>` alle props di Base UI. Le 4 `aria-hidden-focus` a popup aperto restano il prezzo noto e accettato del popup: questa decisione lo conferma.
 
 Registrata come **D19** in `CHECKLIST.md` e `docs/DECISIONI.md` §42. Resta aperto il solo **M4.7** (`item`), già a piano.
+
+### 2026-09-19 — M4.7: la primitiva `item`
+
+Aggiunta in coda alla FASE 4 (v. la voce del 2026-09-18). Ordine rispettato alla lettera, che è ciò che il `CLAUDE.md` §4ter chiede: `npx shadcn@latest add @shadcn/item`, poi **`check:registry -- --snapshot item` prima di toccare il file**. Uno snapshot preso dopo avrebbe registrato come "originale" il nostro, e il controllo di aggiornabilità sarebbe diventato una tautologia.
+
+**Un solo ri-stile, ed è la trappola di sempre alla settima occorrenza.** `ItemDescription` dava ai link `[&>a:hover]:text-primary` — l'arancio del brand come **testo**, 1.79:1 in modalità chiara. Ora `text-accent-ink`, che è corretto in entrambe le modalità. Il gate lo registra come 1 stringa ri-stilata su forma identica (`◐`), e i componenti ri-stilati passano da 17 a 18. Resta un avviso ereditato, `ring-[3px]`: è la stessa classe che sei altri componenti del registry già portano da shadcn, quindi non è una nostra deriva e non si tocca da sola.
+
+**Il gate ha preso 8 violazioni al primo giro, ed erano vere.** `aria-required-children`, 2 per ciascuna delle 4 passate. `ItemGroup` dichiara `role="list"`, e una lista ARIA ammette **solo** `listitem` come figli. Due cause distinte:
+
+1. **`Item` non si dichiara `listitem` da sé** — ed è una scelta di shadcn, non una dimenticanza: un `Item` può stare benissimo fuori da una lista. Dentro un `ItemGroup` il ruolo lo passa chi compone: `<Item role="listitem">`.
+2. **Il filo di `ItemSeparator` è un figlio non ammesso.** Qui la prima correzione era sbagliata e la misura l'ha detto: `role="none"` ha portato il conto **da 2 a 1**, non a 0, e ha cambiato regola — Base UI mette `aria-orientation` sul separatore, e quell'attributo su un `role="none"` è a sua volta una violazione (`aria-allowed-attr`). La forma giusta è `aria-hidden`: dentro una lista il filo è decorazione, non contenuto. **0 violazioni.** Tutte e due le trappole sono scritte nel commento di testa della story, perché si ripresenteranno a chiunque usi `ItemGroup`.
+
+**Il caso reale**: il tab «documenti» di `Pagine/Scheda` era una `<ul>` con `rounded-lg border p-3` scritti a mano — cioè esattamente il pattern per cui M4.7 è stata aperta. Ora è composizione, e non resta nessuna classe di struttura nostra. La story `Primitive/Item` copre cinque scene: forma nuda, tre varianti, tre taglie, l'impostazione con interruttore (`adm-accordion-voce` di Anagrafe) e l'elenco allegati.
+
+**Un punto cieco del gate, trovato qui e da tenere presente.** Il contenuto del tab «documenti» **non viene mai scansionato** da `test:a11y`: i pannelli dei `Tabs` non sono montati finché non si clicca la linguetta, quindi axe non li vede. È lo stesso genere di problema dei popup non aperti (`docs/DECISIONI.md` §22), ma su un meccanismo diverso — e nessuna dichiarazione di popup lo copre, perché un tab non è un popup. Verificato a mano in Chromium: cliccata la linguetta, l'elenco rende, e il DOM riporta `ItemGroup` con `role="list"` e due figli `role="listitem"`. **Chi tocca i tab in futuro sappia che quella misura va presa col dito.**
+
+`tsc -b` pulito, `lint` invariato (4 avvisi preesistenti), `check:registry` 0 errori / 53 avvisi / **0 componenti nostri**, `check` verde sui cinque gate, `test:a11y` **1280 scansioni (4 passate), 0 violazioni** — da 1260, +20 = le cinque story nuove per le quattro passate. Il registry passa a **83 item**.

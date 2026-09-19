@@ -193,6 +193,26 @@
       ]
     },
     {
+      "name": "item",
+      "type": "registry:ui",
+      "title": "Item",
+      "description": "La riga di un elenco non tabellare: media, titolo, descrizione, azioni. Il mattone che sta fra data-table (la lista che si cerca e si ordina) e card (un contenitore, non una riga).",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/item.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/separator"
+      ]
+    },
+    {
       "name": "kbd",
       "type": "registry:ui",
       "title": "Kbd",
