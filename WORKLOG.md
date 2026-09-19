@@ -6137,3 +6137,142 @@ fascia dei bersagli larghi e bassi già accettata per menu e schede.
    difetto **preesistente** e non l'ho toccato in questa sessione per non
    cambiare i numeri di un rapporto dentro il task che li cita; va chiuso
    allineando le due liste.
+
+#### Coda di M4ter.2: sette rilievi di Francesco, e il calendario diventa usabile (2026-09-19)
+
+**Verdetto: il blocco della prima passata si guardava, non si usava** — di
+sola lettura, senza bordi, con le celle schiacciate. Sette rilievi, tutti
+chiusi, e uno ha cambiato il modello dei dati.
+
+**Il principio che li tiene insieme è di Francesco: «le funzioni che ti ho
+chiesto sono tutte presenti su ReUI, non serve inventare nulla».** Detto a
+metà lavoro, mentre stavo componendo un date-picker da zero. Ogni pezzo qui
+sotto viene da una loro demo, adattato ai nostri token — che è esattamente
+ciò che `docs/DECISIONI.md` §43 chiama «prendere la geometria, non il file»:
+dialogo e `apiRef` da `c-event-calendar-3`, `renderEvent` da `-4`, l'avatar
+nel chip da `-5`.
+
+| rilievo | esito |
+|---|---|
+| mancano i bordi | `rounded-lg border bg-card` sul contenitore |
+| manca il dettaglio e la modifica dell'evento | dialogo unico crea/modifica/elimina |
+| manca l'interattività | `trascinamento` accende drag e resize |
+| servono più colori | cinque, i `--chart-*` del tema |
+| serve l'avatar della persona | nel chip, dal calendario |
+| celle da almeno 3 eventi | `min-h-30` sulla riga |
+| doppio bordo · iniziali fuori dal pallino | `border-t-0` · `size-5` |
+
+#### Il rilievo che ha cambiato il modello
+
+«**Non è propriamente il colore: si cambia il calendario a cui è assegnato
+l'evento; in questo caso il calendario corrisponde alla persona a cui è
+affidato il task.**» Non è un'etichetta diversa, è un modello diverso: non si
+sceglie una tinta, si sceglie *a chi appartiene* l'evento, e il colore è la
+conseguenza.
+
+**E il concetto era già nel motore**: `resource` (`id`, `title`, `color`) con
+`event.resourceId`. Il blocco gli dà il nome di casa — `calendari`,
+`calendarioId` — e aggiunge la sola cosa che manca: **derivare il colore del
+chip dalla risorsa**, che ReUI non fa (`event-calendar-event.tsx:483` legge
+solo `event.color`). Da lì viene anche l'avatar. Regge oltre il caso di
+Officina: un calendario può essere una linea, un reparto, una commessa — per
+questo la prop si chiama `calendari` e non `persone`.
+
+Nel dialogo il campo è quindi **«Calendario»**, un `select` con pallino e
+nome; le cinque pastiglie di colore restano solo quando `calendari` è vuoto.
+Provato in Chromium: scegliendo «Luca Boni» l'evento nuovo esce con
+`--chart-2` e le iniziali `LB`.
+
+#### Tre difetti introdotti in corsa, e presi dal gate
+
+Vale la pena scriverli perché nascono tutti e tre dal **copiare ReUI senza
+misurare**.
+
+**Due contrasti, stesso errore: un colore su sé stesso.**
+
+| | ricetta ReUI | misura (scuro) | rimedio |
+|---|---|---:|---|
+| iniziali nell'avatar | `text-(--ec-event-color)` su `bg-(--ec-event-color)/25` | **2,35** (grigio) … 4,11 (arancio) | `text-foreground`, tinta a `/20` |
+| ora dentro il chip | `text-muted-foreground` sul fondo tinto | **4,11** (grigio) | `text-foreground` con `opacity-70` |
+
+La tinta è scesa da `/25` a `/20` per un dettaglio che vale la pena avere
+scritto: a `/25` l'arancio in scuro dava **4,49:1**, un centesimo sotto. Da
+cui la conseguenza di forma: **il chip lo rendiamo noi in tutte le viste a
+griglia**, e titolo e ora si distinguono per **peso**, non per colore — sul
+fondo di cinque colori diversi l'unico che regge sempre è `foreground`.
+
+**Una regione scorrevole senza tastiera.** Le celle da tre eventi (`min-h-30`,
+cioè 3 corsie da 28px + 6 + 26 = 116px) fanno 720px su sei righe, e
+`month-view` ha `overflow-hidden`: l'ultima settimana **spariva senza
+scrollbar**. Primo rimedio, `classNames.monthBody: "overflow-y-auto"`, e il
+gate l'ha preso — `scrollable-region-focusable`, *critical*, sulla scena
+**Vuoto**: con zero eventi non c'è nessun chip da mettere a fuoco. Rimedio
+giusto: lo scorrimento sul **nostro** contenitore, che è un `div` nostro e
+può prendere `tabIndex={0}`. Regola che ne esce: **una classe `overflow-*`
+passata a un componente di terzi via `classNames` crea una regione che non
+possiamo rendere focalizzabile.**
+
+#### Due trappole di misura, entrambe pagate
+
+**Il trascinamento «non funzionava».** Il test leggeva l'`aria-label` del
+chip, che per un evento di poche ore è *«Manutenzione forno, 08:00–12:00»* —
+**l'ora, non il giorno**. Spostandolo di due giorni non cambia di una lettera.
+La misura giusta è la **cella** che lo contiene (`data-ec-day`), e allora si
+vede: giovedì 10 → **sabato 12**.
+
+**E poi non funzionava per davvero, ma per un altro motivo**: Storybook
+esegue le `play` anche nel canvas, quindi la story col dialogo dichiarato
+**arriva col dialogo aperto** e l'overlay intercetta il puntatore. Da lì la
+scena separata `Dialogo dell'evento`: quella dell'interattività si prova
+com'è, e il dialogo ha la sua, misurata.
+
+#### Il CRUD, misurato in Chromium vero
+
+Il pannello dell'app non apriva il dialogo — è il `requestAnimationFrame` di
+§32, non un difetto del blocco.
+
+| prova | esito |
+|---|---|
+| clic su un evento | apre «Modifica evento» col titolo giusto |
+| «Nuovo» | apre «Nuovo evento», campo «Calendario» col pallino |
+| creazione | 3 → **4** eventi |
+| clic su giorno vuoto | apre in creazione su «domenica 20 settembre 2026» |
+| eliminazione | 4 → **3** eventi |
+| trascinamento di due colonne | giovedì 10 → **sabato 12** |
+
+**Gli eventi restano controllati, e non è una scelta nostra**: in modo
+controllato `setField` emette `onEventsChange` e **non** tocca lo stato
+interno. È anche il comportamento giusto — una riprogrammazione passa dal
+backend — ma va detto forte: `modifica` o `trascinamento` **senza**
+`onEventiChange` fanno un calendario che sembra rispondere e non salva niente.
+
+**I default non cambiano.** Dialogo e trascinamento partono **spenti**, che è
+la scelta di Officina: le due prop dicono quanto aprirlo.
+
+#### Numeri
+
+`npm run check` **verde sui cinque**. `test:a11y` **1340 → 1352 scansioni**
+(338 story, 8 scene del calendario × 4 passate), **0 violazioni**.
+`check:registry` **0 errori / 61 avvisi / 0 componenti nostri / 24
+ri-stilati**, invariati. `check:contrast` 48/48. `registry.json` **88 item**,
+`registry validate` verde, `build` e `lint` verdi — il blocco non porta
+**nessun** warning oxlint.
+
+`misura:bersagli`, controllo dello strumento ✔ (**47,98px**, atteso 48):
+**3048 bersagli su 338 story**, 2065 sotto i 44px, **35 tipi distinti, 0
+piccoli in entrambe le direzioni**. I due del calendario: `event-calendar-more`
+**17,33 × 165px** (era 4,78 prima della correzione) e `event-calendar-event`
+**25,5 × 342px** ×28.
+
+#### Quello che resta di mio, e resta aperto
+
+- **Il numero del giorno in basso a destra** è una scelta di ReUI
+  («Notion-style»): spostarlo in alto è muovere un nodo del DOM, fuori dal
+  gradino 2 della regola 4bis.
+- **Le frecce non navigano la griglia** — misurato, 42 celle e 0
+  focalizzabili, e axe dà zero violazioni (D15). Non morde col default di
+  casa, perché una cella non ha azioni; per questo `showDayAddButton` si
+  accende solo insieme a `onGiornoClick` o a `modifica`.
+- **`aria-required-children` resta spenta** sulle sole scene con barre
+  pluri-giorno: il piano delle barre è figlio diretto di `role="row"` ed è
+  struttura di ReUI.

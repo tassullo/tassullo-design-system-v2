@@ -1803,3 +1803,158 @@ diventano due, si allarga.
 le chiama mai (verificato a grep su tutti e dieci i file): descrivono un'agenda
 ripiegabile che nella versione adottata non c'è. Non è un difetto nostro ed è
 innocuo — ma chi provasse a passarle per aggirare (c) perderebbe un pomeriggio.
+
+### (e) Seconda passata, su sei rilievi di Francesco (2026-09-19)
+
+Il blocco della prima passata era **di sola lettura e senza bordi**: si
+guardava, non si usava. I sei rilievi, e cosa ne è uscito.
+
+**Il principio che li tiene insieme, ed è di Francesco: «le funzioni che ti ho
+chiesto sono tutte presenti su ReUI, non serve inventare nulla».** Ogni pezzo
+qui sotto viene da una loro demo, adattato ai nostri token — che è esattamente
+ciò che §43 chiama «prendere la geometria, non il file»:
+
+| pezzo | demo |
+|---|---|
+| dialogo unico crea/modifica/elimina, `apiRef` | `c-event-calendar-3` |
+| `renderEvent` con pallino/icona e titolo | `c-event-calendar-4` |
+| avatar dell'assegnatario dentro il chip | `c-event-calendar-5` |
+| `interactions: { drag, resize }` | `c-event-calendar-3/4/5` |
+
+**1. I bordi.** La griglia del mese ha i soli tratti *interni* (`border-e`
+sulle celle, `border-b` sulle righe, `border-t` sulla vista): sui quattro lati
+esterni non c'è niente, e su un fondo chiaro il calendario sembrava appoggiato
+sul nulla. Chiuso sul nostro contenitore, non sul loro file:
+`rounded-lg border bg-card`.
+
+**2. Celle alte da tre eventi.** `min-h-30` sulla riga via
+`classNames.monthRow`. Il conto: tre corsie da `--ec-month-bar-h` (28px) = 84,
+più 6 di `pt-1.5` e 26 di numero del giorno = **116px**, cioè 30 unità di
+spaziatura. Deriva da `--spacing`, quindi in touch diventa 180 da sé.
+
+**E qui è nato un difetto, chiuso al secondo tentativo.** Sei righe da 120px
+sono 720: `month-view` ha `overflow-hidden`, quindi l'ultima settimana
+**spariva senza scrollbar**. Primo rimedio, `classNames.monthBody:
+"overflow-y-auto"` — e il gate l'ha preso: `scrollable-region-focusable`,
+*critical*, sulla scena **Vuoto**, perché una regione che scorre senza niente
+di focalizzabile dentro non si raggiunge da tastiera (con eventi i chip
+bastano, con zero eventi no). Rimedio giusto: lo scorrimento sta sul **nostro**
+contenitore, che è un `div` nostro e può prendere `tabIndex={0}` e un anello di
+fuoco; la vista passa a `overflow-visible` e l'intestazione dei giorni diventa
+`sticky`. Vale come regola: **una classe `overflow-*` passata a un componente
+di terzi via `classNames` crea una regione che non possiamo rendere
+focalizzabile.**
+
+**3. I colori — e poi il rilievo che ha cambiato il modello.** La prima
+stesura metteva un `colore` sull'evento e cinque pastiglie nel dialogo.
+Rilievo di Francesco: **«non è propriamente il colore, si cambia il calendario
+a cui è assegnato l'evento; in questo caso il calendario corrisponde alla
+persona a cui è affidato il task»**. Ha ragione, ed è un modello diverso, non
+un'etichetta diversa: non si sceglie una tinta, si sceglie *a chi appartiene*
+l'evento, e il colore è la conseguenza.
+
+**Il concetto esiste già nel motore e non si inventa**: è `resource`
+(`EventCalendarResource`: `id`, `title`, `color`) con `event.resourceId`. Il
+blocco gli dà il nome di casa — `calendari`, `calendarioId` — e aggiunge la
+sola cosa che manca: **derivare il colore del chip dalla risorsa**, che ReUI
+da sé non fa (`event-calendar-event.tsx:483` legge solo `event.color`). Da lì
+viene anche l'avatar, perché un calendario che è una persona ha un nome e
+un'immagine.
+
+Il concetto regge oltre il caso: un calendario può essere una linea, un
+reparto, una commessa. Per questo la prop si chiama `calendari` e non
+`persone`, e `colore` resta sull'evento **solo** per chi non ha calendari.
+
+I cinque colori sono i `--chart-*` del tema e si scelgono **per nome**: `color`
+del motore è una `string`, quindi accetterebbe `#F4AC3D` **senza che nessun
+gate se ne accorga** — la regola 3 guarda le classi di Tailwind, non i valori
+delle prop. Un insieme chiuso di nomi è il solo modo di farla rispettare per
+costruzione. Delle demo di ReUI non si prende la tavolozza: loro usano
+`var(--color-blue-500)` e `bg-violet-500`, che la regola 3 vieta.
+
+Nel dialogo il campo è quindi **«Calendario»**, un `select` con pallino
+colorato e nome; le cinque pastiglie restano solo quando `calendari` è vuoto.
+Provato in Chromium: scegliendo «Luca Boni» l'evento nuovo esce con
+`--chart-2` e le iniziali `LB`.
+
+**4. L'avatar del calendario**, e il chip che diventa nostro. Qui il gate ha
+trovato **due contrasti sotto soglia, entrambi ereditati dalla ricetta di
+ReUI**, e vanno conosciuti perché nascono dallo stesso errore — *un colore su
+sé stesso*:
+
+| | ricetta ReUI | misura (scuro) | rimedio |
+|---|---|---:|---|
+| iniziali nell'avatar | `text-(--ec-event-color)` su `bg-(--ec-event-color)/25` | **2,35** (grigio) … 4,11 (arancio) | `text-foreground`, tinta a `/20` |
+| ora dentro il chip | `text-muted-foreground` sul fondo tinto | **4,11** (grigio) | `text-foreground` con `opacity-70` |
+
+La tinta è scesa da `/25` a `/20` per un motivo che vale la pena scrivere:
+a `/25` l'arancio in scuro dava **4,49:1**, cioè un centesimo sotto. Un gate
+che si fermasse a «quasi» non servirebbe a niente.
+
+Conseguenza di forma: **il chip lo rendiamo noi in tutte le viste a griglia**,
+non solo quando c'è un calendario. Titolo e ora si distinguono per **peso**,
+non per colore, perché sul fondo tinto di cinque colori diversi l'unico colore
+di testo che regge sempre è `foreground`.
+
+**5. Il dialogo e l'interattività.** `modifica` accende il dialogo unico —
+clic su un evento apre in modifica, clic su un giorno vuoto in creazione,
+«Nuovo» in testata fa lo stesso — e `trascinamento` accende `drag` e `resize`.
+**I default non cambiano**: entrambe partono spente, che è la scelta di
+Officina; le due prop dicono quanto aprirlo.
+
+Del dialogo di ReUI non si prende il bottone Elimina: loro lo fanno
+`variant="ghost"` con `text-destructive`, che sul menu scuro dà 3,52:1 ed è la
+trappola scritta in `CLAUDE.md`. Da noi è `variant="destructive"`.
+
+**Gli eventi sono controllati, e non è una scelta nostra**: in modo controllato
+`setField` emette `onEventsChange` e **non** tocca lo stato interno, quindi
+trascinamento e dialogo non muovono niente finché l'app non rimette dentro
+l'elenco. È anche il comportamento giusto: una riprogrammazione passa dal
+backend.
+
+**Misurato in Chromium vero** (il pannello dell'app non apriva il dialogo: è il
+solito `requestAnimationFrame` di §32):
+
+| prova | esito |
+|---|---|
+| clic su un evento | apre «Modifica evento» col titolo giusto |
+| «Nuovo» | apre «Nuovo evento», 5 pastiglie di colore |
+| creazione | 3 → **4** eventi |
+| clic su giorno vuoto | apre in creazione su «domenica 20 settembre 2026» |
+| eliminazione | 4 → **3** eventi |
+| trascinamento di due colonne | giovedì 10 → **sabato 12** |
+
+**Una trappola di misura pagata due volte, e vale oltre il caso.** Il primo
+test del trascinamento diceva «non si muove»: leggeva l'`aria-label` del chip,
+che per un evento di poche ore è *«Manutenzione forno, 08:00–12:00»* — **l'ora,
+non il giorno**. Spostandolo di due giorni l'etichetta non cambia di una
+lettera. La misura giusta è la **cella** che lo contiene (`data-ec-day`). E il
+secondo test è fallito per il motivo opposto: Storybook esegue le `play` anche
+nel canvas, quindi la story col dialogo dichiarato **arriva col dialogo
+aperto**, e l'overlay intercettava il puntatore. Da lì la scena separata per il
+dialogo (`Dialogo dell'evento`), così quella dell'interattività si prova
+com'è.
+
+
+### (f) Terza passata: due difetti visti a video, e la misura che li chiude
+
+**Doppio bordo.** Il contenitore nostro porta `border`, e `month-view` ha un
+suo `border-t`: due tratti a 1px di distanza, che a video si leggono come un
+bordo sdoppiato — ed è la prima cosa che si nota. Chiuso con
+`classNames.monthView: "border-t-0"`, perché il bordo di fuori è nostro e
+quello di dentro è di troppo. **Misurato**: `borderTopWidth` del contenitore
+1px, della vista 0px, distanza fra i due bordi superiori 1px (era 2).
+
+**Le iniziali uscivano dal pallino.** `Avatar size-4` (16px) con `text-xs`
+(12px, il gradino più piccolo che il tema tara): due lettere non ci stanno.
+ReUI lo risolve con `text-[9px]`, che è un **valore arbitrario** e per giunta
+non scala con la densità. La strada nostra è l'opposta — si allarga il
+cerchio, non si rimpicciolisce il testo fuori scala: `size-5` (20px in
+normale, **30 in touch**, perché `size-*` deriva da `--spacing`) più
+`tracking-tight` e `leading-none`. **Misurato** in entrambe le densità:
+`scrollWidth === clientWidth`, cioè nessun trabocco.
+
+Vale come regola generale: **quando un testo non sta in un contenitore, in
+questo design system si allarga il contenitore.** Scendere sotto `text-xs`
+richiede un valore arbitrario, che la regola 3 vieta e che in densità touch
+resterebbe fermo mentre tutto il resto cresce.
