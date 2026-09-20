@@ -165,23 +165,51 @@ solo l'errore, è anche `in-corso`. L'indicatore va sul bottone che è stato
 premuto, o in «entrambi» un accesso Microsoft in corso girerebbe la rotella
 sopra «Accedi».
 
-- `statoDi: "microsoft"` → `Alert variant="destructive"` **in cima alla
-  card**, sopra il form, e i campi non si tingono. È l'errore che in Studio
-  è catturato in `main.tsx`.
 - `statoDi: "credenziali"` → l'`Alert` sta **dentro il form**, e i campi
   prendono `aria-invalid`.
+- `statoDi: "microsoft"` → l'`Alert` sta **accanto al bottone Microsoft**,
+  sotto l'etichetta del team, e i campi non si tingono. Con una via sola
+  resta invece **in cima alla card**: lì non c'è niente da cui distinguerlo,
+  è la pagina intera ad aver fallito — ed è anche ciò che tiene Anagrafe e
+  Officina a DOM invariato.
+
+**Sulla posizione, e perché si diverge da Studio.** La prima stesura lo
+metteva sempre in cima, com'è in Studio. Rilievo di Francesco a video il
+2026-09-20: in cima quell'avviso finisce **sopra il campo Email**, e chi lo
+vede lì capisce «email sbagliata». **La posizione si legge prima delle
+parole**, quindi un titolo esplicito non basta a recuperarla. Studio lo mostra
+in cima perché lo cattura in `main.tsx` a pagina che si carica: era una
+conseguenza di *dove lo si intercetta*, non una scelta di composizione — e su
+questo il design system ha ragione contro l'app.
+
+Un caso limite che vale la pena dire, perché il difetto sarebbe **muto**:
+`modo="credenziali"` con `statoDi="microsoft"` è dichiarabile, e senza una
+ricaduta esplicita l'avviso non avrebbe dove andare e **sparirebbe in
+silenzio**. Ricade in cima.
 
 Il default è **la via principale del modo**: `microsoft` per `"microsoft"`,
 `credenziali` per `"credenziali"` e per `"entrambi"` — dove le credenziali
 sono la via principale, che è l'ordine stesso della pagina. Col default,
 `modo="microsoft"` rende la pagina di prima, identica.
 
-**Le parole.** I due errori si distinguono da soli, senza che l'app passi
-niente: «Email o password non corretti» / «Controlla l'indirizzo e la
-password, poi riprova» contro «Accesso non riuscito» / «Accesso non riuscito.
-Riprova.» — e quest'ultimo è il testo di oggi, invariato. La story
-`ErroreMicrosoft` mostra la frase che Studio userebbe («Il rientro da
-Microsoft non è andato a buon fine»).
+**Le parole, e il titolo nomina la via solo quando ce n'è più d'una.** Con
+una via sola «Accesso non riuscito» non è ambiguo, ed è il testo che Anagrafe
+e Officina hanno sempre avuto: resta identico. In `"entrambi"` diventa
+**«Accesso con Microsoft non riuscito»**, e il motivo è un rilievo di
+Francesco a video il 2026-09-20 — l'avviso sta **sopra il campo Email**, e col
+titolo generico chi lo legge capisce «email sbagliata», cioè proprio la
+confusione che `statoDi` doveva togliere. La distinzione era corretta nel
+codice e invisibile sullo schermo: `statoDi` funzionava, i campi non erano
+tinti, a11y a zero — era una parola, e nessuna misura poteva prenderla.
+
+La divisione dei compiti è la stessa nelle due vie: **il titolo dice cos'è
+andato storto, il corpo cosa fare.**
+
+| via | titolo | corpo (default) |
+|---|---|---|
+| credenziali | «Email o password non corretti» | «Controlla l'indirizzo e la password, poi riprova.» |
+| Microsoft, una via sola | «Accesso non riuscito» | «Accesso non riuscito. Riprova.» *(testo di oggi, invariato)* |
+| Microsoft, in `"entrambi"` | «Accesso con Microsoft non riuscito» | passato dall'app — la story usa «Torna indietro e riprova. Se succede ancora, contatta l'amministratore.» |
 
 ### 3.3 Il logo Microsoft → **nodo passato dall'app, e un trattamento solo**
 

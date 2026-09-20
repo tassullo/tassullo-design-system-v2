@@ -160,19 +160,28 @@ export const ErroreCredenziali: Story = {
 }
 
 /**
- * L'errore del **ritorno da Microsoft**: sta in cima alla card, sopra il
- * form, e non tocca i campi. In Studio è quello catturato in `main.tsx`.
+ * L'errore del **ritorno da Microsoft**: sta **accanto al bottone Microsoft**,
+ * non in cima, e non tocca i campi. La posizione si legge prima delle parole,
+ * ed è lei a dire quale via ha fallito.
  *
  * È la ragione di `statoDi`: indistinti, questo errore colorerebbe di rosso
  * il campo password di chi ha sbagliato tutt'altro.
+ *
+ * **Le parole dicono un'azione che esiste.** La prima stesura diceva «Torna
+ * indietro e riprova», ed era falsa: l'SSO è un redirect, quindi chi legge
+ * questo avviso **è già tornato** — non c'è nessuna schermata precedente, e
+ * il bottone per riprovare è quello subito sotto.
+ *
+ * E sta **su una riga sola**: misurato, 330px di larghezza utile. La seconda
+ * stesura ne prendeva due e lasciava «contatta l'amministratore» orfano sulla
+ * seconda, che in un avviso di tre righe si legge come un secondo messaggio.
  */
 export const ErroreMicrosoft: Story = {
   args: {
     ...Entrambi.args,
     stato: 'errore',
     statoDi: 'microsoft',
-    messaggioErrore:
-      'Il rientro da Microsoft non è andato a buon fine. Riprova, o contatta l’amministratore.',
+    messaggioErrore: 'Riprova o contatta l’amministratore.',
   },
 }
 

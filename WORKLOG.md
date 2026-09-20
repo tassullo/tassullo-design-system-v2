@@ -7204,6 +7204,146 @@ componente. È lo stesso genere di difetto muto di `check:font` e
 `check:logo`, che invece un controllo ce l'hanno. Segnalato, non risolto di
 iniziativa: è un gate nuovo, non una riga.
 
+### Coda 1 di M4ter.4: `check:registry-build`, il sesto gate (2026-09-20)
+
+Su indicazione di Francesco, subito dopo il rilievo qui sopra invece che in
+una sessione a parte: un gate che manca è un gate che si rimanda.
+
+**Cosa chiude.** `public/r/` non si compila, non si esegue e non si guarda
+mai — quindi un JSON vecchio lì dentro non rompe niente in casa. Rompe nelle
+app, settimane dopo, e nel modo peggiore: installano un componente che nel
+repo non esiste più, e il `git log` dice il contrario di quello che hanno in
+mano. `check:registry` non poteva vederlo, e non per svista: confronta i
+**componenti** con `registry/.upstream/`, cioè il nostro codice con
+l'originale shadcn. Nessuno confrontava l'**artefatto** col sorgente.
+
+**Perché si rilancia il costruttore vero.** La strada ovvia era leggere
+`registry.json`, rileggere i file e comporre i JSON attesi. Sarebbe stata una
+**seconda implementazione del formato di shadcn**: alla prima versione in cui
+loro cambiano una chiave, 90 falsi positivi, e un gate che dà falsi positivi
+si smette di leggere. Quindi si esegue `shadcn build` — quello vero, dal
+lockfile (`node_modules/.bin/shadcn`, **0,8 s**) — dentro una cartella
+temporanea **fuori dal repo**, e si confronta byte per byte. Il costruttore
+resta uno solo e il gate non sa niente del formato. Non scrive niente nel
+repo, e la temporanea si cancella anche quando il confronto fallisce.
+
+**Il gate ha trovato una deriva vera alla prima esecuzione, e non quella per
+cui era stato scritto: la mia.** Gli ultimi tre ritocchi a `pagina-login.tsx`
+— l'involucro del collegamento, `h-auto`, il link disabilitato con la via —
+erano finiti nel commit **senza** un `registry:build` dopo. Cioè: il difetto
+che il gate doveva impedire si era già ripetuto dentro la sessione che lo
+stava scrivendo, a poche ore dall'averlo descritto. È l'argomento migliore
+che avesse, e non l'ha fornito una prova costruita ad arte.
+
+**L'autotest, nelle due direzioni** (`-- --self-test`), sul modello di
+`check:contrast -- --self-test`. Lavora su due copie temporanee e non tocca
+`public/r/`:
+
+| direzione | esito |
+|---|---|
+| due copie identiche | **0** divergenze |
+| copia guastata in tre modi — contenuto cambiato, item tolto, item di troppo | **3** divergenze, una per genere |
+
+Le tre non sono zelo: sono i tre casi che il gate *dichiara* di saper
+distinguere, e un confronto che vede solo i contenuti cambiati passerebbe un
+item rinominato. Il self-test prova la **stessa** funzione che il gate usa
+davvero (`confronta`), non una scorciatoia: un controllo verificato per
+un'altra strada da quella che percorre non prova niente.
+
+Il messaggio d'errore dice **quale file dentro l'item** è cambiato, non solo
+che l'item diverge: `entity-image.json: diverge dal sorgente —
+registry/tassullo/ui/entity-image.tsx`. Quando i due JSON non sono
+confrontabili in quella forma non si inventa una spiegazione e resta il solo
+verdetto.
+
+**Cablato**: `package.json` (`check:registry-build`, e dentro `npm run
+check`), `CLAUDE.md` §Comandi — «i **cinque** gate» → «i **sei**», più la
+voce del comando e la nota su `registry:build`, che non è più una cosa da
+ricordare — e `.github/workflows/gate.yml`, dove il commento diceva ancora
+«i tre controlli statici». Nello stesso file corretta una testata che era
+diventata falsa: diceva «il repo non ha un `git remote`, quindi questo
+workflow non parte mai», ma D4 è chiusa dal 2026-09-10 e da allora gira su
+ogni push e ogni PR.
+
+`npm run check` verde sui **sei**, uscita 0.
+
+### Coda 2 di M4ter.4: il titolo dell'errore non diceva quale via (2026-09-20)
+
+**Rilievo di Francesco, a video, sulla scena `ErroreMicrosoft`**: «non si
+capisce che significa l'errore».
+
+Aveva ragione, e il difetto era proprio quello che `statoDi` doveva togliere,
+rientrato da una porta che non stavo guardando. L'avviso era giusto di
+posto — in cima, com'è in Studio — ma il **titolo** era rimasto generico:
+«Accesso non riuscito», sopra un campo Email. Chi lo legge capisce «email
+sbagliata», che è esattamente la cosa sbagliata da dire a chi ha sbagliato
+tutt'altro. Il corpo nominava Microsoft, ma il titolo è ciò che si legge per
+primo e spesso l'unica cosa che si legge.
+
+Il fatto istruttivo: **la distinzione era corretta nel codice e invisibile
+sullo schermo**. `statoDi` funzionava, l'`Alert` era nel posto giusto, i
+campi non erano tinti, a11y a zero e la non-regressione a zero. Nessuna
+misura poteva prenderlo, perché non era un difetto di struttura né di
+contrasto: era una parola.
+
+Primo rimedio: **il titolo nomina la via solo quando ce n'è più d'una.** Con
+una via sola «Accesso non riuscito» non è ambiguo — ed è il testo che
+Anagrafe e Officina hanno sempre avuto, quindi resta identico e la
+non-regressione con esso. In «entrambi» diventa «Accesso con Microsoft non
+riuscito».
+
+**Secondo rilievo, e questo è quello che risolve davvero**: «l'errore è
+posizionato sopra la mail, sarebbe meglio nella zona Team Tassullo, così si
+capisce che è un errore di accesso con Microsoft». Giusto, e il titolo era un
+rimedio a metà: **la posizione si legge prima delle parole**. In «entrambi»
+l'avviso è passato sotto l'etichetta del team, **sopra il bottone Microsoft**:
+adesso è il posto a dire quale via ha fallito, e il titolo non deve più
+reggere il peso da solo.
+
+Si diverge da Studio, che lo mostra in cima, e la divergenza è voluta: Studio
+lo cattura in `main.tsx` a pagina che si carica, quindi quella posizione era
+una conseguenza di **dove lo si intercetta**, non una scelta di composizione.
+
+Con una via sola resta in cima — lì non c'è niente da cui distinguerlo, è la
+pagina intera ad aver fallito — ed è anche ciò che tiene il DOM di Anagrafe e
+Officina invariato (riverificato dopo lo spostamento: **0 differenze**).
+
+**Terzo rilievo, sulle parole: «Torna indietro e riprova» era falso.** L'SSO
+è un redirect — chi legge quell'avviso **è già tornato**, non c'è nessuna
+schermata precedente, e il bottone per riprovare è quello subito sotto. Un
+messaggio che descrive un'azione inesistente è peggio di uno generico, perché
+manda a cercare qualcosa che non c'è. Sostituito con «Riprova o contatta
+l'amministratore.» — senza virgola, su indicazione di Francesco.
+
+**Resta una virgola non allineata**, ed è dichiarata invece che corretta di
+nascosto: la story `Errore` (quella di `modo="microsoft"`, che precede questo
+task) dice ancora «Riprova**,** o contatta l'amministratore». Toglierla è una
+battitura, ma quella frase è **dentro la linea di base del DOM**: la
+correzione produrrebbe una differenza voluta proprio nel confronto che serve
+a dimostrare che Anagrafe e Officina non sono cambiate. Non vale la pena
+spendere il criterio per una virgola senza che Francesco lo decida.
+
+**Quarto, e misurato**: la penultima stesura prendeva **due righe** e lasciava
+«contatta l'amministratore» orfano sulla seconda, che dentro un avviso di tre
+righe si legge come un secondo messaggio. Misurata la larghezza utile della
+descrizione — **330px** — e provati quattro candidati in pagina: quello scelto
+sta su **una riga sola**, verificato in densità normale **e** touch.
+
+E un caso limite chiuso mentre si spostava, perché sarebbe stato **muto**:
+`modo="credenziali"` con `statoDi="microsoft"` è dichiarabile, e senza una
+ricaduta esplicita l'avviso non avrebbe avuto dove andare e **sarebbe sparito
+in silenzio**. Ricade in cima.
+
+E rifatto il corpo del messaggio nella story, che era in una lingua strana
+(«il rientro da Microsoft non è andato a buon fine»): ora il titolo dice
+**cos'è andato storto** e il corpo **cosa fare** — «Torna indietro e riprova.
+Se succede ancora, contatta l'amministratore.» È la stessa divisione dei
+compiti dell'errore di credenziali («Email o password non corretti» /
+«Controlla l'indirizzo e la password, poi riprova»), e adesso le due coppie
+si distinguono dal titolo, senza leggere il corpo.
+
+`docs/SPEC-AUTH.md` §3.2 aggiornata di conseguenza.
+
 ### Prossimi passi
 
 M4ter.5 — le cinque schermate d'accesso di Studio composte, `@reui/stepper`

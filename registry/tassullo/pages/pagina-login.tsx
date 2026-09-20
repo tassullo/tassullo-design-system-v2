@@ -246,6 +246,40 @@ export function PaginaLogin({
     })
   }
 
+  /*
+   * **L'avviso dell'SSO sta accanto all'SSO**, e non in cima alla card.
+   *
+   * Rilievo di Francesco, a video, il 2026-09-20: in cima quell'avviso
+   * finisce **sopra il campo Email**, e la posizione si legge prima delle
+   * parole — chi lo vede lì capisce «email sbagliata», che è la confusione
+   * che `statoDi` doveva togliere. Messo sopra il bottone Microsoft, invece,
+   * è la posizione stessa a dire quale via ha fallito, e il titolo non deve
+   * più reggere il peso da solo. (Studio lo mostra in cima, perché lo cattura
+   * in `main.tsx` a pagina che si carica: qui si diverge apposta, ed è il
+   * design system ad avere ragione — quella era una conseguenza di dove lo
+   * si intercettava, non una scelta di composizione.)
+   *
+   * Con una via sola resta **dov'era**, in cima, perché lì non c'è niente da
+   * cui distinguerlo: è la pagina intera ad aver fallito. Ed è anche ciò che
+   * tiene Anagrafe e Officina a DOM invariato.
+   *
+   * Il `?? in cima` dell'ultimo caso non è teorico: `modo="credenziali"` con
+   * `statoDi="microsoft"` è una combinazione dichiarabile, e senza questa
+   * ricaduta l'errore **sparirebbe in silenzio** — che è il difetto peggiore
+   * dei tre, perché non si vede.
+   */
+  const avvisoMicrosoft = erroreMicrosoft ? (
+    <Alert variant="destructive">
+      <AlertTitle>
+        {conCredenziali ? "Accesso con Microsoft non riuscito" : "Accesso non riuscito"}
+      </AlertTitle>
+      <AlertDescription>
+        {messaggioErrore ?? "Accesso non riuscito. Riprova."}
+      </AlertDescription>
+    </Alert>
+  ) : null
+  const avvisoAccantoAlBottone = conCredenziali && conMicrosoft
+
   return (
     <div
       data-slot="pagina-login"
@@ -261,14 +295,7 @@ export function PaginaLogin({
           {descrizione ? <CardDescription>{descrizione}</CardDescription> : null}
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {erroreMicrosoft ? (
-            <Alert variant="destructive">
-              <AlertTitle>Accesso non riuscito</AlertTitle>
-              <AlertDescription>
-                {messaggioErrore ?? "Accesso non riuscito. Riprova."}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+          {avvisoAccantoAlBottone ? null : avvisoMicrosoft}
           {conCredenziali ? (
             <form onSubmit={inviaCredenziali} noValidate>
               <FieldGroup>
@@ -373,6 +400,7 @@ export function PaginaLogin({
                   {intestazioneSso}
                 </FieldDescription>
               ) : null}
+              {avvisoAccantoAlBottone ? avvisoMicrosoft : null}
               <Button
                 className="w-full"
                 variant={viaPrincipale === "microsoft" ? "default" : "outline"}
