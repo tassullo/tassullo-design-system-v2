@@ -9387,3 +9387,279 @@ Conto dopo la coda: `check` verde sui **sei** (uscita 0), `test:a11y`
 ri-stilati, `misura:bersagli` **3228** su 368 story con **0** piccoli —
 invariato, il cambio di carattere non ha ristretto nessun bersaglio —
 `build` e `lint` verdi, **26 avvisi prima e dopo**.
+
+---
+
+## M4ter.9 — `tassullo-barra-contesto`: la fascia che dice su cosa lavori (2026-09-20)
+
+**Verdetto: chiuso.** `registry.json` **93 → 94 item**, `npm run check` verde
+sui **sei** (uscita 0), `test:a11y` **1496 scansioni su 374 story, 0
+violazioni** in tutte e quattro le passate — 1472 + 4×6, e le scene sono sei.
+`check:registry` invariato dove deve esserlo: **0 errori, 62 avvisi, 1
+componente nostro, 19 ri-stilati** — un blocco non prende una riga in
+`componenti-propri.json`, e il conto resta a `entity-image`.
+`check:registry-build` allineato (**95 file**, indice compreso).
+`misura:bersagli` **3246** bersagli su 374 story, 61 popup aperti, **0
+piccoli in entrambe le direzioni**. `build` e `lint` verdi, **26 avvisi prima
+e 26 dopo**: zero nuovi dai file miei. `registry validate` verde su 94 item.
+
+**Le scene sono sei e non quattro**, quindi 1496 e non le 1488 che la
+previsione del mandato darebbe. Le due in più sono `NelGuscio` — la sola in
+cui la domanda di Francesco («ruba la scena alla pagina?») si può porre — e
+`SolaLettura`, che è il comportamento senza `voci` e non una variante grafica.
+
+### Composizione pura, gradino 2 — e niente di nuovo sulle primitive
+
+`item` (`ItemMedia variant="icon"` + `ItemContent` + `ItemActions`) più
+`dropdown-menu`, esattamente come la riga 12 della tabella §1 dell'analisi.
+**Nessuna variante e nessuna taglia aggiunta** a `item`, a `dropdown-menu` o a
+qualunque altra primitiva: tutto dal punto di chiamata.
+
+**Il grilletto sta in `ItemActions` e non è la riga intera**, ed è una scelta
+contro il bersaglio più grosso. Due ragioni che tirano dalla stessa parte: una
+fascia che è un bottone gigante *ruba la scena alla pagina*, che è il difetto
+che il blocco esiste per non avere; e dentro un bottone non ci va `azioni`,
+cioè l'azione di pagina che la barra spesso porta accanto al contesto. Il
+bersaglio resta comunque sopra soglia perché il grilletto è un `Button` di
+taglia **`default`** e non `sm`: misurato in touch, **48px** contro i 42 che
+darebbe `h-7`.
+
+**Le voci si passano come dati e non come figli**, al contrario del menù
+utente del guscio. La ragione è che questo menu ha uno **stato**: una voce è
+quella attiva e va spuntata. Coi dati il blocco monta un
+`DropdownMenuRadioGroup`, e letti dal DOM le voci portano
+`role="menuitemradio"` e `aria-checked` — la parte che una `div` a mano non ha
+e che nessuno riscriverebbe uguale cinque volte.
+
+**L'emoji 📍 non entra**: la disegna il sistema operativo, cioè in modo diverso
+su ogni macchina. Icona Lucide, e il default è `MapPinIcon`, che è la stessa
+cosa disegnata da noi. È l'obiezione con cui si è chiusa la decisione sul
+`<select>` nativo — **`docs/DECISIONI.md` §42**, che in `CHECKLIST.md` è
+chiamata D19; il numero D19 in `DECISIONI.md` compare **due volte**, §37
+(scorrimento infinito) e §42, quindi qui è citata per sezione.
+
+**Lo slot in `app-shell` non è stato aggiunto e non è stato proposto.** Resta
+sospeso con l'innesco scritto — «quando una seconda app ha un contesto attivo
+che attraversa le pagine» — e oggi non è scattato: Anagrafe e Officina un
+contesto del genere non ce l'hanno. La pagina se la monta, come oggi in
+Studio.
+
+### I tre difetti veri, e nessuno dei tre l'ha trovato un gate
+
+**(1) `MenuGroupContext is missing`, cioè la story che non renderizzava
+affatto.** `DropdownMenuLabel` è `Menu.GroupLabel` di Base UI e pretende un
+`Menu.Group` o un `Menu.RadioGroup` sopra di sé: scritto *sopra* il
+`DropdownMenuRadioGroup`, come lo scrive il menù utente del guscio (che però
+il proprio lo avvolge in un `DropdownMenuGroup`), lancia. `tsc -b` e `lint`
+erano verdi: si è visto aprendo la story.
+
+**(2) Il nome lungo non si troncava, sbordava.** È il difetto più istruttivo
+della sessione perché **le due classi che lo curano sembrano ridondanti**.
+`min-w-0` su `ItemContent` si sapeva. Ma `ItemTitle` nasce `w-fit`, e
+`width: fit-content` *dovrebbe* fermarsi alla larghezza disponibile: dentro
+`ItemContent`, che è una colonna flex, risolve invece alla larghezza a
+**contenuto massimo**. Misurato in un contenitore da 448px:
+
+| | prima | dopo `w-full` |
+|---|---:|---:|
+| `ItemContent` | 298.8px | 298.8px |
+| `ItemTitle` | **668.6px** | 298.8px |
+| nome (riquadro) | 591.9px | **222.2px** |
+| etichetta «Commessa» | 68.7px | 68.7px, intera |
+| sborda dal genitore | sì | **0px** |
+
+`truncate` non scattava mai, perché dal suo punto di vista lo spazio non
+mancava. E la sonda ingenua non l'avrebbe visto: `scrollWidth > clientWidth`
+coincide su una cella con `truncate`. Si legge `textContent` e i rettangoli di
+riga (`Range.getClientRects()`) contro la larghezza utile — è il rilievo di
+M4ter.7 e M4ter.8, alla terza occorrenza.
+
+L'ordine in cui le due parti cadono è voluto: l'**etichetta del tipo** è
+`shrink-0` e resta intera, il **nome** ha `truncate` e si accorcia. Al
+contrario si leggerebbe «Commessa 2026-114 — Ristrutt…», cioè si perderebbe
+per primo il soggetto. È l'accorgimento che nel piede del guscio fa cadere il
+cognome e non il nome.
+
+**(3) Scegliere una voce non chiudeva il menu.** In Base UI una
+`Menu.RadioItem` di suo **non chiude**, perché il caso per cui esiste è una
+preferenza che si commuta più volte di seguito. Qui è l'opposto: si sceglie
+l'entità su cui si lavora, e allora il menu ha finito. Misurato prima di
+correggerlo — `Invio` su una voce lasciava il pannello aperto e il fuoco
+dentro, cioè bisognava premere `Esc` dopo aver scelto. Chiuso con
+`closeOnClick` sulle voci, che è una prop del punto di chiamata: nessuna riga
+di `dropdown-menu.tsx` toccata.
+
+### La tastiera, misurata in Chromium vero
+
+Playwright è già in `node_modules` (dipendenza di `@storybook/addon-vitest`):
+importato per percorso assoluto contro `storybook-static` servito da un server
+statico minimo, senza aggiungere niente al repo. La story misurata è
+**`AltroContesto`**, che monta il grilletto e **non ha una `play`** — quindi
+parte a riposo, che è la sola condizione in cui si possano misurare i *gesti*
+(Storybook esegue le `play` anche nel canvas).
+
+| | esito |
+|---|---|
+| `Esc` chiude | **sì** |
+| `Esc` riporta il fuoco | **al grilletto** (`dropdown-menu-trigger`, testo «Cambia») |
+| clic fuori chiude | **sì**, e il fuoco torna al grilletto |
+| `Tab` per arrivare al grilletto | **1** |
+| `Invio` apre | **sì**, e il fuoco va sulla voce **attiva** (`aria-checked="true"`) |
+| `Spazio` apre | **sì** |
+| `↓` scorre | **sì**, alla voce successiva |
+| scegliere chiude | **sì** (dopo `closeOnClick`), fuoco al grilletto |
+
+Il fuoco dopo la chiusura è letto da `document.activeElement` **a cose fatte**,
+non durante. E la misura è in un browser vero per la ragione di sempre: nel
+pannello del browser dell'app `document.visibilityState` è `hidden`,
+`requestAnimationFrame` non scatta mai, e Base UI ci schedula dentro lo
+spostamento del fuoco — un popup sano sembrerebbe morto.
+
+**Il giro completo della scelta**, sulla story controllata `Predefinita`: si
+sceglie la terza voce → il pannello si chiude → titolo, descrizione **e**
+`aria-label` del grilletto passano tutti e tre a «2025-233 — Capannone Pergine
+lotto B» → riaprendo, la spunta si è spostata (`false, false, true`).
+
+### Lo slot del grilletto, guardato e non dedotto
+
+`barra-contesto` è stato aggiunto a `CON_POPUP` in `scripts/gate-a11y.ts`, o
+il gate l'avrebbe considerata «senza popup» e non avrebbe mai segnalato una
+dichiarazione mancante — cioè avrebbe fatto passare per «zero violazioni» una
+story che il popup non l'ha mai aperto. La coda di `test:a11y` adesso la
+elenca fra i diciannove, con `apriCol`.
+
+Il grilletto è `DropdownMenuTrigger render={<Button/>}`, e nel DOM lo slot
+**resta `dropdown-menu-trigger`** — come il menù utente del guscio, e
+all'opposto del `combobox`, dove `InputGroupButton` se lo riprende. Guardato
+nel DOM prima di scrivere il selettore, non presunto.
+
+### Le due `incomplete`, lette a mano su rilievo di Francesco
+
+Il pannello Accessibility di `Predefinita` dà **0 violazioni** e **2
+incomplete**: `aria-hidden-focus` (serious, 6 nodi) e `aria-valid-attr-value`
+(critical, 1). L'addon le registra e **non le asserisce mai**, quindi il gate
+verde non dice niente su di loro — è il limite noto, e in M2.8 il difetto vero
+della sessione stava proprio lì dentro. Lette:
+
+- **`aria-valid-attr-value`** — «Unable to determine if aria-controls
+  referenced ID exists on the page while using aria-haspopup». Risolto a mano:
+  `aria-controls="_r_1_"` punta a un elemento che **esiste**, il
+  `<div data-slot="dropdown-menu-content" role="menu">`. axe non lo trova
+  perché il pannello sta in un **portale**. Attributo e identificatore li
+  scrive Base UI.
+- **`aria-hidden-focus`** — le sei **guardie del fuoco**
+  (`data-base-ui-focus-guard`), la famiglia già a verbale in `CLAUDE.md`.
+  Misurato: dopo 1 `Tab` il fuoco è sul grilletto, dopo 2 esce dalla story —
+  **sulle guardie non ci passa mai**.
+
+**Nessuna delle due è nostra, e la prova è che compaiono identiche su
+`Primitive/Dropdown Menu → Con sottomenu e spunte`**, che di questo blocco non
+ha una riga: stesso `_r_1_`, stesse sei guardie. Lì `aria-hidden-focus` è
+perfino una *violazione* invece che una *incomplete*, ed è la regola che il
+gate spegne nella sola passata `aperto`.
+
+### La prova delle dipendenze, con la CLI vera
+
+`npm run dev` acceso e
+`npx shadcn@latest add @tassullo/tassullo-barra-contesto --dry-run` in un'app
+usa-e-getta (con `components.json` a `"style": "base-nova"` e l'alias `@/*`).
+Risolve **9 file**: tema, font Inter, licenza OFL, marchio, `button`,
+`dropdown-menu`, `separator` — tirato da `item` — `item`, e il blocco. Quattro
+dipendenze npm: `@base-ui/react`, `class-variance-authority`, `cn`,
+`lucide-react`. È il controllo che in M4.6 trovò 26 `registryDependencies`
+rotte su 12 item con `registry validate` verde su tutti.
+
+### Cosa non è stato fatto, e perché
+
+- **Nessuna non-regressione.** Non è stata saltata per fretta: `git status`
+  dice che i soli file toccati sono i due nuovi, `registry.json`, `public/r/` e
+  la riga di `CON_POPUP`. Nessun componente e nessuna story esistente è
+  cambiata, quindi non c'è niente da confrontare.
+- **Nessuno slot in `app-shell`**, che è la cosa che il mandato chiede
+  esplicitamente di non fare e che resta sospesa col suo innesco.
+- **Nessuna riga in `componenti-propri.json`**: un blocco non è un componente
+  nostro al posto di una primitiva. Il conto resta **1**.
+- **Nessun colore nuovo**: la riga «tavolozza estesa» di `CHECKLIST.md` non si
+  è innescata.
+- **Studio non è stato riletto.** `gh api` dà il metadato del repo ma **404**
+  su `contents` e `trees`: il token non ci arriva più, a differenza del
+  2026-09-19. Il blocco è quindi costruito sulla riga 12 della tabella §1
+  dell'analisi, che fissa composizione, pagine e misura. Da sapere per
+  M4ter.10, che una ricognizione su Studio la prevede.
+
+### Coda della sessione: due passaggi a video, in direzioni opposte
+
+Due rilievi di Francesco sullo Storybook, misurati invece di aggiustati a
+occhio. **Nel mezzo si è sciolto anche un limite di ricognizione**: su suo
+indirizzo il repo di Studio è stato **clonato in locale usa-e-getta**
+(`git clone --depth 1` via SSH, 500 file, 20 MB, fuori dal repo e
+cancellabile), e la barra vera si è finalmente potuta **leggere** invece di
+dedurla dall'analisi — `frontend/src/components/cantiere/CantiereContextBar.tsx`
+e il suo CSS.
+
+**(1) «C'è poco contrasto fra la barra e lo sfondo, si fa fatica a vedere».**
+Vero, e la causa era `variant="muted"`: `bg-muted/50` **senza bordo**.
+Misurato col colore risolto su canvas — il browser restituisce `oklch`, e
+leggerlo come tre numeri RGB dà misure senza senso:
+
+| | chiaro | scuro |
+|---|---:|---:|
+| fondo translucido (`bg-muted/50`) vs pagina | **1.053:1** | 1.093:1 |
+| fondo pieno (`bg-muted`) vs pagina | **1.109:1** | 1.217:1 |
+| **bordo** (`border-border`) vs pagina | **1.274:1** | — |
+
+**È il bordo a portare il salto, non il fondo**, e il sorgente di Studio dice
+la stessa cosa: `.ccb` ha `background: var(--color-surface-3)` — un grigio che
+dalla pagina non si distingue quasi — **più**
+`border: 1px solid var(--color-border)`. Anche lì il fondo da solo non separa
+niente. Passata a `variant="outline"` con `bg-muted`: fondo pieno **e** filo.
+
+**(2) «Troppo in risalto, proviamo la versione del bottone con solo bordo?»**
+Col fondo pieno, a spiccare era diventato il **grilletto**: `Button
+variant="outline"` porta `bg-background`, cioè il bianco della carta, e su una
+fascia grigia quel bianco si legge **prima del nome della commessa**, che è la
+cosa che la fascia esiste per dire. Ora il grilletto ha
+`bg-transparent dark:bg-transparent` — il `dark:` non è ridondante, perché in
+scuro la variante porta `dark:bg-input/30`. Letto dal DOM a pagina ferma:
+`backgroundColor: rgba(0, 0, 0, 0)` e `borderTopColor: oklch(0.3012 0 0)`,
+cioè solo il filo, in entrambe le modalità.
+
+**Un errore di misura che vale più del risultato**: la prima lettura diceva
+«bordo trasparente, altezza 0». `document.querySelector('[data-slot="dropdown-menu-trigger"]')`
+in `Nel guscio` pesca il **primo dei tre** che ci sono nella pagina — il menù
+utente del guscio — non quello della barra. La misura giusta enumera e filtra
+per `barra.contains(b)`. È la forma della trappola di sempre: la sonda non
+sbaglia il numero, sbaglia l'elemento.
+
+Dopo le due correzioni i gate sono rimasti dove erano: `check` verde sui
+**sei** (uscita 0), `test:a11y` **1496**/0, `misura:bersagli` **3246** su 374
+story con **0** piccoli, `lint` **26** avvisi. Nessuna primitiva toccata:
+sono due stringhe di classi al punto di chiamata, cioè gradino 2.
+
+**Il clone di Studio va cancellato a fine sessione** — è usa-e-getta per
+scelta. Ma la lezione resta per **M4ter.10**: `gh api` non arriva più al
+codice delle app (404 su `contents` e `trees`), mentre `git clone` via SSH
+funziona. Se quella sessione deve rileggere Studio, quella è la strada.
+
+### Quello che resta da guardare a Francesco
+
+- **La barra dice su cosa stai lavorando senza rubare la scena?**
+  `Blocchi/Barra di contesto → Nel guscio`, che la monta sotto la testata vera
+  e sopra il contenuto vero. Le tre leve, se rubasse la scena: `className`
+  (`bg-transparent`, cioè senza fondo), la `descrizione` (toglierla riduce la
+  fascia a una riga), e il grilletto, che con una voce sola non si monta.
+- **L'icona Lucide al posto dell'emoji dice la stessa cosa?** Il default è
+  `MapPinIcon`; `Predefinita` e `Nel guscio` usano `HardHatIcon` perché il
+  contesto è un cantiere, `Altro contesto` un `CalculatorIcon`.
+- **Il menu si apre da tastiera e `Esc` lo chiude riportando il fuoco dov'era?**
+  — **dichiarato e misurato: sì**, tabella qui sopra.
+
+### Prossimi passi
+
+**M4ter.10**, il gate di fase: l'installazione cronometrata degli item nuovi
+in un'app Vite vergine (confronto coi 6m30s di M4.6), compresi quelli che
+ridistribuiscono file di `@reui` in un'app che `@reui` non lo dichiara; poi la
+tabella §1 dell'analisi ripercorsa riga per riga con l'item che la copre. La
+riga 12 è chiusa da qui. Numeri di partenza per quella sessione: **94 item**,
+`test:a11y` **1496**/0, `misura:bersagli` **3246** su 374 story con **0**
+piccoli.
