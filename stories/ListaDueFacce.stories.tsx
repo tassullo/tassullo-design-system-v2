@@ -351,7 +351,10 @@ const DATA = new Intl.DateTimeFormat('it-IT', {
   year: 'numeric',
 })
 
-const ORE = new Intl.NumberFormat('it-IT')
+// `useGrouping: 'always'`: in italiano il CLDR non raggrupperebbe le parti
+// intere di quattro cifre (`2086` invece di `2.086`). Convenzione Tassullo,
+// `docs/DECISIONI.md` §47.
+const ORE = new Intl.NumberFormat('it-IT', { useGrouping: 'always' })
 
 /* ────────────────────────────────────────────────────────────────────────
  * Le nove colonne — la faccia larga

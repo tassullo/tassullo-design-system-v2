@@ -980,11 +980,29 @@ function generaComputo(): Voce[] {
 
 const COMPUTO = generaComputo()
 
+/*
+ * `useGrouping: 'always'`, e non è un dettaglio di gusto.
+ *
+ * In italiano il CLDR dichiara `minimumGroupingDigits: 2`, quindi
+ * `Intl.NumberFormat('it-IT')` **non** raggruppa le parti intere di quattro
+ * cifre: `2086,93` e non `2.086,93`, mentre `12.345,00` lo raggruppa. In una
+ * colonna di numeri incolonnati è il caso peggiore possibile — il separatore
+ * compare e sparisce a seconda del valore, e proprio sui numeri fra mille e
+ * diecimila, che sono la maggior parte di un computo.
+ *
+ * La convenzione Tassullo è **sempre il punto delle migliaia** (decisa da
+ * Francesco il 2026-09-20, `docs/DECISIONI.md` §47).
+ */
 const NUMERO = new Intl.NumberFormat('it-IT', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
+  useGrouping: 'always',
 })
-const VALUTA = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+const VALUTA = new Intl.NumberFormat('it-IT', {
+  style: 'currency',
+  currency: 'EUR',
+  useGrouping: 'always',
+})
 
 const colAlbero = creaColonne<RigaComputo>()
 

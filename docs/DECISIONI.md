@@ -2790,3 +2790,51 @@ prima di misurare, guarda quale dei due è in gioco.
 query sulla finestra, quindi la scena «faccia stretta» della lista a due facce
 non può contare sul global. La scelta fra le due strade del punto 2 va presa
 all'inizio e scritta, non improvvisata a metà.
+
+## 47. Il separatore delle migliaia si scrive **sempre** (M4ter.8, coda, 2026-09-20)
+
+**Decisa da Francesco**, guardando il piede della story `Blocchi/Data Table →
+Con Piede`: il totale rendeva `2086,93 €`. La convenzione Tassullo è
+`2.086,93 €` — **il punto delle migliaia c'è sempre**, qualunque sia la
+grandezza del numero.
+
+**Perché non c'era, e non era un difetto nostro.** In italiano il CLDR
+dichiara `minimumGroupingDigits: 2`, cioè «raggruppa solo da cinque cifre in
+su»: `Intl.NumberFormat('it-IT')` lascia quindi `2086,93` e scrive
+`12.345,00`. Misurato nel Chromium del gate:
+
+| chiamata | risultato |
+|---|---|
+| `(2086.93).toLocaleString('it-IT')` | `2086,93` |
+| `(2086.93).toLocaleString('it-IT', { useGrouping: 'always' })` | **`2.086,93`** |
+| `(12345.67).toLocaleString('it-IT')` | `12.345,67` |
+
+**È il caso peggiore possibile in colonna**, ed è la ragione della
+convenzione: il separatore non è *assente*, è **intermittente** — compare o
+sparisce a seconda del valore, e proprio nella fascia fra mille e diecimila,
+che in un computo o in un listino è la maggior parte delle righe. Due numeri
+incolonnati con e senza punto si leggono di ordini di grandezza diversi. Il
+`tabular-nums` del tema allinea le cifre ma non può inventare un separatore
+che non c'è.
+
+**La leva è `useGrouping: 'always'`**, opzione ES2023 (Chrome 106+, Node 18+),
+da mettere su **ogni** `Intl.NumberFormat` e `toLocaleString` italiano.
+Applicata in M4ter.8 a: `data-table.stories.tsx` (`NUMERO`, `VALUTA` — il
+piede e i subtotali dell'albero), `data-table-filtro-intervallo.tsx`
+(`formattaNumero`, che è **codice del registry** e non una story: i due
+estremi di un intervallo si leggono affiancati), `chart.stories.tsx` e
+`pagina-dashboard.stories.tsx` (il totale al centro della ciambella),
+`stories/ListaDueFacce.stories.tsx` (`ORE`).
+
+**Un posto resta scoperto, e non si può chiudere ri-stilando**:
+`ui/chart.tsx:257`, il valore nel tooltip, fa `item.value.toLocaleString()`
+**senza locale** — è il codice di shadcn, identico all'originale. Senza locale
+prende quella del browser: nel Chromium del gate, `navigator.language` è
+`en-US` e il numero esce **`2,086.93`**, cioè con la virgola alle migliaia e
+il punto ai decimali. Non è un problema di raggruppamento, è la formattazione
+di un'altra lingua. Aggiungere argomenti a quella chiamata è una divergenza di
+**forma** e `check:registry` esce 1 (regola 4bis): la via è `formatter` sul
+`chartConfig`, che shadcn già prevede e che la pagina passa da sé. **Non
+chiuso in M4ter.8** — con i dati delle story attuali (valori a due cifre) non
+morde, ma morde alla prima app che mette in un grafico un numero sopra il
+migliaio.

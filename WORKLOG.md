@@ -9200,3 +9200,72 @@ Chi rifà una non-regressione su quella story la ignori, o la misuri due volte.
 
 M4ter.9 — `tassullo-barra-contesto`. Il conto da cui parte è **1472**, non le
 1456 scritte nel piano: quattro scene nuove lì fanno **1488**.
+
+### Coda di M4ter.8 — il separatore delle migliaia, deciso da Francesco
+
+Rilievo sul piede di `Con Piede`: il totale rendeva **`2086,93 €`**. La
+convenzione Tassullo è `2.086,93 €` — **il punto delle migliaia c'è sempre**.
+Chiusa come **`docs/DECISIONI.md` §47**, con una riga in `CLAUDE.md` fra le
+trappole, perché è un difetto **muto**: nessun errore, nessun avviso, solo un
+numero che si legge male.
+
+**Non era un difetto nostro, ed è per questo che nessuno lo aveva visto.** In
+italiano il CLDR dichiara `minimumGroupingDigits: 2`: `Intl.NumberFormat('it-IT')`
+raggruppa da **cinque** cifre in su e lascia in pace le quattro. Misurato nel
+Chromium del gate:
+
+| chiamata | risultato |
+|---|---|
+| `(2086.93).toLocaleString('it-IT')` | `2086,93` |
+| `(2086.93).toLocaleString('it-IT', { useGrouping: 'always' })` | **`2.086,93`** |
+| `(12345.67).toLocaleString('it-IT')` | `12.345,67` |
+
+**È il caso peggiore possibile in colonna, e questa è la motivazione della
+convenzione**: il separatore non è *assente*, è **intermittente** — c'è o non
+c'è a seconda del valore, e proprio nella fascia fra mille e diecimila, che in
+un computo o in un listino è la maggior parte delle righe. Due numeri
+incolonnati, uno col punto e uno senza, si leggono di ordini di grandezza
+diversi. Il `tabular-nums` del tema allinea le cifre ma non può inventare un
+separatore che non c'è.
+
+Applicato `useGrouping` a cinque posti: `data-table.stories.tsx` (`NUMERO` e
+`VALUTA` — il piede **e** i subtotali dell'albero), `data-table-filtro-intervallo.tsx`
+(`formattaNumero`, che è **codice del registry** e non una story: i due estremi
+di un intervallo si leggono affiancati), `chart.stories.tsx` e
+`pagina-dashboard.stories.tsx` (il totale al centro della ciambella),
+`stories/ListaDueFacce.stories.tsx` (`ORE`).
+
+**E il difetto era già spedito, non solo nella story nuova.** Riletto dal DOM
+dopo la correzione, `Pagine/Lista a due facce → Faccia larga` mostra ora
+`4.128`, `2.210`, `9.874`, `1.560`, `15.402`: i primi quattro erano `4128`,
+`2210`, `9874`, `1560`, e `15.402` aveva il punto — cinque celle sulla stessa
+colonna, quattro senza separatore e una con. Verificato anche il piede
+(`106,38` / **`2.086,93 €`**, virtualizzato `28.369,69` / `556.835,00 €`) e i
+subtotali dell'albero (`397,99 €`, `359,34 €`, `855,70 €`).
+
+**Un posto resta scoperto e non si chiude ri-stilando**: `ui/chart.tsx:257`, il
+valore nel tooltip, fa `item.value.toLocaleString()` **senza locale** — codice
+di shadcn, identico all'originale. Senza locale prende quella del browser: nel
+Chromium del gate `navigator.language` è `en-US` e il numero esce
+**`2,086.93`**, cioè virgola alle migliaia e punto ai decimali. Non è un
+problema di raggruppamento, è un'altra lingua. Aggiungere argomenti a quella
+chiamata è una divergenza di **forma** e `check:registry` uscirebbe 1 (regola
+4bis, trappola 8 del mandato): la via è `formatter` sul `chartConfig`, che
+shadcn già prevede e che la pagina passa da sé. **Non chiuso qui** — coi dati
+delle story attuali (valori a due cifre) non morde, ma morde alla prima app
+che mette in un grafico un numero sopra il migliaio. Scritto in §47 con quel
+nome accanto, perché una lacuna senza un nome si riscopre da zero.
+
+**Quello che non ho fatto, e che propongo.** La convenzione oggi vive in sei
+formattatrici scritte a mano in sei file: è esattamente la forma che si perde
+in poche settimane, e in un'app consumer si perde **subito** perché la
+convenzione non viaggia col registry. Il rimedio sarebbe un item
+`tassullo-numeri` sul modello di `lib/toni.ts` — due o tre formattatrici già
+tarate (numero, valuta, percentuale) che le app importano invece di
+riscrivere. **Non l'ho aggiunto**: è un item nuovo (93), una API nuova, e va
+deciso, non fatto di iniziativa. Se Francesco dice sì è mezza sessione, e la
+sede naturale è M4ter.9 o la coda della fase.
+
+Conto invariato dopo la coda: `check` verde sui **sei**, `test:a11y`
+**1472**/0, `check:registry` 0 errori / 62 avvisi / 1 componente nostro / 19
+ri-stilati, `lint` **26 avvisi prima e dopo**, `build` verde.

@@ -53,8 +53,19 @@ function numeroDiRiga(
   return Number.isFinite(numero) ? numero : undefined
 }
 
+/*
+ * `useGrouping: "always"`: in italiano il CLDR dichiara
+ * `minimumGroupingDigits: 2`, quindi senza, una parte intera di **quattro**
+ * cifre non prende il punto (`2086` invece di `2.086`) mentre una di cinque
+ * sì. Su un filtro a intervallo i due estremi si leggono affiancati, e il
+ * separatore che compare su uno e non sull'altro fa sembrare i due numeri di
+ * ordini di grandezza diversi. Convenzione Tassullo, `docs/DECISIONI.md` §47.
+ */
 function formattaNumero(valore: number): string {
-  return valore.toLocaleString("it-IT", { maximumFractionDigits: 0 })
+  return valore.toLocaleString("it-IT", {
+    maximumFractionDigits: 0,
+    useGrouping: "always",
+  })
 }
 
 export type FiltroIntervalloProps<TDato extends RowData> = {

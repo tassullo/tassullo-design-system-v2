@@ -154,7 +154,7 @@ function TotaleAlCentro({
   return (
     <text x={vb.cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground">
       <tspan x={vb.cx} y={cy} className="fill-foreground text-2xl font-semibold tabular-nums">
-        {totale.toLocaleString('it-IT')}
+        {totale.toLocaleString('it-IT', { useGrouping: 'always' })}
       </tspan>
       <tspan x={vb.cx} y={cy + RIGA_TOTALE} className="fill-muted-foreground text-sm">
         schede
