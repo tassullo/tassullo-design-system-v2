@@ -8799,3 +8799,75 @@ niente in casa. `tassullo-indicatori` dichiara `@tassullo/card` e
 ### Prossimi passi
 
 M4ter.8 — il piede della tabella, la conferma digitata, il chip col conteggio.
+
+### Coda di M4ter.7 — tre difetti presi da Francesco a video, zero da un gate
+
+Arrivati mentre chiudevo la sessione, guardando la dashboard a finestra
+stretta. Conto finale: a11y **1448**/0 su 362 story, bersagli **3199** con 0
+piccoli, sei gate verdi.
+
+**(1) La legenda del grafico veniva tagliata.** `ChartLegendContent` è
+`flex items-center justify-center gap-4` **senza** `flex-wrap` — così
+nell'originale shadcn. Cinque voci in una card stretta non ci stanno su una
+riga, e la `Card` ha `overflow-hidden`: si leggeva «alcestruzzi … Add».
+Aggiunto `flex-wrap`, che è una riga di classi e basta (4bis gradino 2):
+`check:registry` continua a dire «forma identica all'originale».
+
+**(2) La tabella delle attività non degradava**, ed è il **difetto numero 1
+di M4ter.6 riapparso su un'altra tabella**: `w-44` su «Utente», `w-32` su
+«Quando», «Attività» elastica, e con `table-fixed` sotto spazio l'elastica va
+a zero — testo tagliato a metà parola, intestazioni sovrapposte. Che sia lo
+stesso difetto due sessioni di fila dice che la regola «*ogni* colonna
+dichiara la sua larghezza» non è ancora un riflesso.
+
+Rimedio, la ricetta di `Pagine/Lista a due facce`: prop `faccia`
+(`auto` | `larga` | `stretta`), `useSoglia('(min-width: 768px)')` sul ramo
+`auto`, faccia stretta a **elenco**. Perché elenco e non tabella che scorre:
+le colonne sono tre e la riga si legge benissimo impilata; lo scorrimento è
+la risposta giusta per una lista a nove colonne che si vuole leggere intera.
+Impilata l'ordine si ribalta — in tabella `chi / cosa / quando`, in elenco
+l'**attività** in cima e `utente · quando` come contesto: scorrendo si cerca
+cosa è successo. Commutazione misurata: a 430px **0 tabelle / 1 elenco**, a
+1440 **1 tabella / 0 elenchi**.
+
+**(3) La legenda, poi, si è messa sopra la ciambella.** Tre stati, e i primi
+due sbagliati:
+
+| `height` di `<ChartLegend>` | cosa succede |
+|---|---|
+| `32` (com'era) | riserva una riga; la seconda finisce sotto il bordo e sparisce |
+| assente | Recharts riserva l'altezza vera (wrapper 60px, misurato) ma **non rimpicciolisce la torta**, che si dispone prima: la legenda le finisce sopra |
+| `60` | il riquadro è giusto in partenza |
+
+Poi `h-72` sul contenitore, per restituire alla ciambella i 30px di diametro
+che la riserva le toglie — e **Francesco ha cerchiato la fascia bianca** che
+ne usciva: la griglia stira le due card dei grafici alla stessa altezza,
+quindi allungare questa lasciava sotto le barre uno spazio che non usa
+nessuno. Rimesso `h-64`, le due card tornano a **347px uguali**, la ciambella
+sta a 177 invece di 207, e la fascia morta non c'è. Misurato a 390px:
+ciambella che finisce a 460, legenda 465→525, card a 546 — niente
+sovrapposto, niente tagliato.
+
+**E per la terza volta in una sessione mi ha ingannato l'animazione di
+Recharts.** La ciambella «sparita» dagli screenshot c'era eccome — la
+geometria diceva 177px al posto giusto — ma la foto la coglieva a raggio
+ancora zero. Dopo il diff degli alberi e la fascia della legenda, è il terzo
+caso: **su una pagina con un grafico, non si guarda e non si misura niente
+prima di 2,5 secondi.**
+
+### La domanda di Francesco: un indicatore per riga sotto una certa larghezza?
+
+**No**, e la misura è netta. A 375px la fila a due colonne è alta **303px** in
+densità normale e **425** in touch; a una colonna diventa **553** e **718**.
+718px sono più di uno schermo di telefono occupato dai soli indicatori, prima
+degli avvisi, dei grafici e della tabella — e la fila esiste per il colpo
+d'occhio: a una colonna il quarto numero sta sotto la piega.
+
+Lo stretto il numero lo regge: a 320px di finestra la carta è **132px** e
+`1.284` sta a **27px** su una riga sola.
+
+**L'eccezione, misurata, e non si risolve con le colonne**: oltre i ~7
+caratteri il numero viene **tagliato** (la `Card` ha `overflow-hidden`) già a
+375px in due colonne — `1.284.500` e `€ 1.284.500,00` escono, e la valuta
+esce anche a 480. Se un'app mette valuta o milioni in un indicatore il rimedio
+è quello, non la colonna. **Resta aperta**, non l'ho toccata.
