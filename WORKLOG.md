@@ -7555,9 +7555,9 @@ browser dell'app, §32): dal campo **Email** al bottone **Avanti** ci sono
 
 Studio non è su questa macchina e `docs/SPEC-AUTH.md` è la sola fonte: i valori
 che la spec non dà sono **assunzioni della story**, non rilievi. Sono tre, tutte
-in testi visibili: la password di **almeno 10 caratteri**, il link di reimposta
-che **vale un'ora**, e il codice invito di **otto o più caratteri**. Sono
-politiche del backend, e la pagina le passerebbe dall'app.
+in testi visibili: i requisiti della password (vedi la coda qui sotto), il link
+di reimposta che **vale un'ora**, e il codice invito di **otto o più
+caratteri**. Sono politiche del backend, e la pagina le passerebbe dall'app.
 
 ### Cosa resta aperto
 
@@ -7566,6 +7566,94 @@ politiche del backend, e la pagina le passerebbe dall'app.
   un'app le scriverà davvero — in M5.5, o quando Studio migra.
 - **Tavolozza estesa**: in M4ter.5 non è emerso nessun colore mancante. Le sette
   scene stanno dentro i token del tema.
+
+### Coda 1 di M4ter.5: i requisiti della password diventano un controllo dinamico (2026-09-20)
+
+**Tre rilievi di Francesco a video, sulla scena `Registrati — 1. Accesso`.**
+Nessuno dei tre l'avrebbe preso un gate: sono tutti fatti di ciò che si legge.
+
+**(1) «Non è precompilato».** Il codice invito aveva `defaultValue="TAS-2026-0418"`
+ed era l'unico campo pieno fra quattro vuoti, quindi si leggeva come un dato già
+acquisito invece che come il formato da rispettare. Passato a `placeholder`,
+come l'Email.
+
+**(2) «Si può trasformare in un controllo dinamico», al posto della riga fissa
+«Almeno 10 caratteri.»** — con la richiesta esplicita di guardare cosa si usa
+davvero come requisito di password nei login web.
+
+**E quello che si usa non è quello che si dovrebbe usare.** Le regole di
+composizione — una maiuscola, un numero, un carattere speciale — sono ancora
+diffusissime, e **NIST SP 800-63B e OWASP ASVS le sconsigliano
+esplicitamente**: producono `Password1!`, che le soddisfa tutte ed è fra le
+password violate più comuni al mondo, e spostano lo sforzo dall'entropia alla
+contabilità dei simboli. La raccomandazione corrente è **lunghezza** (8 minimo,
+12–15 raccomandati, fino a 64 ammessi, tutti i caratteri accettati spazi
+compresi), **niente regole di composizione**, **niente scadenza periodica**, e
+**screening contro le password più usate e violate**. Implementato così, con la
+ragione scritta in `docs/SPEC-AUTH.md` §2.1ter e le regole in **una costante
+sola** — cambiarle è una riga, se un domani si decide altrimenti.
+
+Le tre regole, e la prova che sono quelle giuste sul caso che conta:
+
+| password | 12 caratteri | non fra le più usate | non contiene l'email |
+|---|---|---|---|
+| `mario` | · | ✓ | · |
+| `password` | · | · | ✓ |
+| **`Rossi2026!!!`** | ✓ | ✓ | **·** |
+| `tegola-ponte-neve` | ✓ | ✓ | ✓ |
+
+La terza riga è il punto: `Rossi2026!!!` **soddisfa ogni regola di composizione**
+— maiuscola, cifre, simboli, dodici caratteri — e con email `mario.rossi@studio.it`
+è la peggiore password possibile. La prende la regola sull'email, non quelle sui
+simboli.
+
+**Un difetto della prima stesura, trovato provandola**: la regola confrontava la
+parte locale **intera**, quindi password `mario` con email `mario.rossi@…`
+**passava** — «mario» non contiene «mario.rossi». Corretta spezzando su ciò che
+non è lettera o cifra e confrontando ogni pezzo da quattro caratteri in su.
+
+**(3) «Controllo per verificare che le password coincidano».** Aggiunto sotto il
+secondo campo, e si vede **mentre si scrive**, che è il momento in cui costa
+correggere. Compare solo a campo non vuoto — una crocetta rossa su un campo
+vuoto è un rimprovero per non aver ancora cominciato — ma il contenitore
+`aria-live` resta montato sempre, o la comparsa non verrebbe annunciata.
+
+E ha scoperto **un difetto vero della validazione**: la coincidenza stava in un
+`else if` dopo il controllo di lunghezza, quindi una password corta **nascondeva
+anche** la ripetizione sbagliata — due difetti al prezzo di un messaggio. Ora è
+indipendente.
+
+**Come sono fatte, e cosa non sono.** La stessa costante `REGOLE_PASSWORD`
+alimenta il riscontro a video **e** il rifiuto all'invio: non possono divergere,
+e il rifiuto nomina ciò che manca («Manca: almeno 12 caratteri; non contiene il
+tuo indirizzo email.») invece della regola generica. Un requisito non ancora
+soddisfatto è **muto, non rosso**: finché non si preme «Avanti» non è un errore,
+è una cosa da fare; il rosso arriva col `FieldError`. Il verde è
+**`success-subtle-foreground`** e non `success` — quello è il colore dei fondi,
+la stessa trappola di `destructive`. L'annuncio per i lettori di schermo è **un
+conto solo** («2 requisiti su 3 soddisfatti»), non la lista riletta a ogni
+battuta.
+
+**Non è il misuratore di robustezza, e la decisione del 2026-09-19 regge.**
+Quello è una barra che dà un punteggio; questo è il riscontro di una
+validazione. Ed è comunque **codice di pagina**, come il gating — `registry.json`
+resta a 90 item e `check:registry` a 1 componente nostro.
+
+Lo stesso modulo (`ModuloNuovaPassword`) sta anche su **«Reimposta la
+password»**: sono i due punti in cui una password si sceglie, e se dicessero
+cose diverse uno dei due mentirebbe.
+
+**Una conseguenza dichiarata**: Email, Password e Ripetizione diventano
+**controllate**, mentre il resto del modulo resta non controllato. Non è
+incoerenza — il riscontro va aggiornato a ogni battuta e per farlo serve il
+valore a ogni render; sugli altri campi non c'è niente da mostrare mentre si
+scrive, e `FormData` basta.
+
+**I gate dopo la coda**: `npm run check` verde sui sei (uscita 0), `test:a11y`
+**1404 scansioni, 0 violazioni** — invariate, perché non nascono story nuove —
+`misura:bersagli` **3094** bersagli (erano 3092: il «Mostra» aggiunto alla
+scena di reimposta), **0 piccoli in entrambe le direzioni**. `build` e `lint`
+verdi.
 
 ### Prossimi passi
 

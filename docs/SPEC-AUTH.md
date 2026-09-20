@@ -157,6 +157,49 @@ non è prevedibile**, e questo repo è pubblico (D4): un campo che il registry
 mostrasse a tutti sarebbe un campo che tutti riconoscono. Dirlo serve, mostrarlo
 lo indebolisce — sta scritto nella testata della story.
 
+### 2.1ter I requisiti della password sono un **controllo dinamico**
+
+Aggiunto il 2026-09-20 su rilievo di Francesco, che ha guardato la riga fissa
+«Almeno 10 caratteri.» sotto il campo e ha chiesto un controllo che si aggiorni
+mentre si scrive — più un riscontro che le due password **coincidano**.
+
+**Quello che si usa di solito e quello che si dovrebbe usare non coincidono**,
+ed è la ragione per cui l'elenco non ha «una maiuscola, un numero, un carattere
+speciale». Le regole di composizione sono ancora diffusissime, ma **NIST SP
+800-63B e OWASP ASVS le sconsigliano esplicitamente**: producono `Password1!`,
+che le soddisfa tutte ed è fra le password violate più comuni al mondo. La
+raccomandazione corrente è **lunghezza** (8 minimo, 12–15 raccomandati, fino a
+64 ammessi, tutti i caratteri accettati), **niente scadenza periodica**, e
+**screening contro le password più usate e violate**.
+
+Le tre regole in scena, in una costante sola:
+
+| regola | perché |
+|---|---|
+| Almeno 12 caratteri | è la sola leva che aumenta davvero l'entropia |
+| Non è fra le password più usate | in scena un elenco illustrativo; il vero screening è del backend, contro una lista di password violate |
+| Non contiene il tuo indirizzo email | si confrontano i **pezzi** della parte locale (`mario`, `rossi`), non la stringa intera — o `mario` con email `mario.rossi@…` passerebbe |
+
+La stessa costante alimenta il **riscontro a video** e il **rifiuto all'invio**,
+quindi non possono divergere; e il rifiuto nomina quello che manca, non la
+regola generica. La coincidenza si controlla **sempre**, non solo a password
+valida: con un `else if` una password corta nascondeva anche la ripetizione
+sbagliata, cioè due difetti al prezzo di un messaggio.
+
+**Non è il misuratore di robustezza, e la decisione del 2026-09-19 regge.** Il
+misuratore è una barra che dà un punteggio (debole/media/forte) e resta
+dell'app; questo è il riscontro di una validazione — ed è comunque **codice di
+pagina**, come il gating, non un componente del registry. Un requisito non
+ancora soddisfatto è **muto, non rosso**: finché non si preme «Avanti» non è un
+errore, è una cosa da fare.
+
+Il verde è **`success-subtle-foreground`** e non `success`: quello è il colore
+dei fondi, ed è la stessa trappola di `destructive` (`CLAUDE.md`).
+
+Lo stesso modulo sta anche su **«Reimposta la password»**, che è l'altro punto
+in cui una password si sceglie: se i due dicessero cose diverse, uno dei due
+mentirebbe.
+
 ### 2.2 Tutto il resto compone con quello che c'è — verificato
 
 **`/login` ibrido — zero elementi mancanti.**

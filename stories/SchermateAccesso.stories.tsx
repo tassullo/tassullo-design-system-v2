@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { CheckIcon, MailIcon, ShieldCheckIcon } from 'lucide-react'
+import { CheckIcon, CircleIcon, MailIcon, ShieldCheckIcon, XIcon } from 'lucide-react'
+
+import { cn } from 'cn'
 
 import { Alert, AlertDescription, AlertTitle } from '@/registry/tassullo/ui/alert'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -213,6 +215,172 @@ function BarraPassi({
   )
 }
 
+/**
+ * ## I requisiti della password, e perché sono **questi**
+ *
+ * Aggiunti il 2026-09-20 su richiesta di Francesco, che chiedeva un controllo
+ * **dinamico** al posto della riga fissa «Almeno 10 caratteri.» — e di guardare
+ * cosa si usa davvero come requisito di password nei login web.
+ *
+ * Quello che si usa **di solito** e quello che si dovrebbe usare non coincidono,
+ * ed è il motivo per cui la lista qui sotto non ha «una maiuscola, un numero, un
+ * carattere speciale». Le regole di composizione sono ancora diffusissime, ma
+ * **NIST SP 800-63B e OWASP ASVS le sconsigliano esplicitamente**: producono
+ * `Password1!` — che soddisfa ogni regola ed è fra le prime cento password
+ * violate al mondo — e spostano lo sforzo dall'entropia alla contabilità dei
+ * simboli. La raccomandazione corrente è:
+ *
+ * - **la lunghezza è la leva**: minimo 8 obbligatorio, **12–15 raccomandati**,
+ *   fino a 64 ammessi;
+ * - **tutti i caratteri accettati**, spazi e Unicode compresi — nessuna
+ *   restrizione sul set;
+ * - **niente regole di composizione** e **niente scadenza periodica**;
+ * - **screening contro le password più usate e violate**, che è ciò che toglie
+ *   davvero i casi peggiori.
+ *
+ * Le tre regole stanno in una **costante sola**, e sono la stessa fonte che usa
+ * la validazione all'invio: una regola nuova si aggiunge lì, e il controllo a
+ * video e il rifiuto di «Avanti» restano d'accordo per costruzione.
+ *
+ * **Questo non è il misuratore di robustezza**, e la decisione del 2026-09-19
+ * regge: quello è una barra che dà un punteggio (debole/media/forte), questo è
+ * il riscontro di una validazione. Ed è comunque **codice di pagina**, come il
+ * gating — non un componente del registry.
+ */
+const PASSWORD_PIU_USATE = new Set([
+  'password', 'password1', 'passw0rd!', '123456789', '1234567890',
+  'qwertyuiop', 'qwerty123', 'iloveyou', 'benvenuto', 'juventus1',
+])
+
+type RegolaPassword = {
+  id: string
+  testo: string
+  prova: (password: string, email: string) => boolean
+}
+
+const REGOLE_PASSWORD: RegolaPassword[] = [
+  {
+    id: 'lunghezza',
+    testo: 'Almeno 12 caratteri',
+    prova: (pw) => pw.length >= 12,
+  },
+  {
+    id: 'non-usata',
+    // L'elenco qui sopra è **illustrativo**: il vero screening è del backend,
+    // contro una lista di password violate (in genere l'API di HIBP, che si
+    // interroga per prefisso di hash e non vede mai la password).
+    testo: 'Non è fra le password più usate',
+    prova: (pw) => pw.length > 0 && !PASSWORD_PIU_USATE.has(pw.toLowerCase()),
+  },
+  {
+    id: 'non-email',
+    testo: 'Non contiene il tuo indirizzo email',
+    prova: (pw, email) => {
+      if (pw.length === 0) return false
+      /*
+       * Si confrontano i **pezzi** del nome, non la stringa intera: con
+       * `mario.rossi@studio.it` e password `mario` un confronto su tutta la
+       * parte locale passava — «mario» non contiene «mario.rossi» — cioè
+       * proprio il caso che la regola esiste per prendere. Spezzata su ciò che
+       * non è lettera o cifra, e ogni pezzo da quattro caratteri in su vale.
+       */
+      const pezzi = email
+        .split('@')[0]
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((t) => t.length >= 4)
+      const minuscola = pw.toLowerCase()
+      return !pezzi.some((t) => minuscola.includes(t))
+    },
+  },
+]
+
+/**
+ * La lista che si accende mentre si scrive. Il verde è
+ * `success-subtle-foreground` e non `success`: quello è il colore dei **fondi**,
+ * ed è la stessa trappola di `destructive` (`CLAUDE.md`, §Le due trappole).
+ *
+ * Un requisito non ancora soddisfatto è **muto, non rosso**: finché non si preme
+ * «Avanti» non è un errore, è una cosa da fare. Il rosso arriva col `FieldError`.
+ *
+ * L'annuncio per i lettori di schermo è **un conto solo** e non la lista intera:
+ * rileggere tre righe a ogni battuta sarebbe rumore, e il contenitore resta
+ * montato sempre, o `aria-live` non annuncerebbe niente.
+ */
+function RequisitiPassword({
+  id,
+  password,
+  email = '',
+}: {
+  id: string
+  password: string
+  email?: string
+}) {
+  const esiti = REGOLE_PASSWORD.map((r) => ({ ...r, fatto: r.prova(password, email) }))
+  const fatti = esiti.filter((e) => e.fatto).length
+
+  return (
+    <div id={id} className="flex flex-col gap-1">
+      <ul className="flex flex-col gap-1">
+        {esiti.map((e) => (
+          <li
+            key={e.id}
+            className={cn(
+              'flex items-center gap-2 text-sm leading-normal',
+              e.fatto ? 'text-success-subtle-foreground' : 'text-muted-foreground'
+            )}
+          >
+            {e.fatto ? (
+              <CheckIcon aria-hidden className="size-3.5 shrink-0" />
+            ) : (
+              <CircleIcon aria-hidden className="size-3.5 shrink-0" />
+            )}
+            {e.testo}
+          </li>
+        ))}
+      </ul>
+      <span className="sr-only" aria-live="polite">
+        {`${fatti} requisiti su ${REGOLE_PASSWORD.length} soddisfatti.`}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * Il riscontro che le due password coincidono — chiesto da Francesco il
+ * 2026-09-20, e non è la stessa cosa del rifiuto all'invio: qui si vede
+ * **mentre si scrive**, che è il momento in cui costa correggere.
+ *
+ * Compare solo quando nel secondo campo c'è qualcosa: prima non c'è niente da
+ * confrontare, e una crocetta rossa su un campo vuoto sarebbe un rimprovero per
+ * non aver ancora cominciato. Il contenitore però resta montato sempre, o
+ * `aria-live` non annuncerebbe la comparsa.
+ */
+function CoincidonoPassword({ password, ripeti }: { password: string; ripeti: string }) {
+  const coincidono = password === ripeti
+  return (
+    <div aria-live="polite" className="empty:hidden">
+      {ripeti.length > 0 ? (
+        <p
+          className={cn(
+            'flex items-center gap-2 text-sm leading-normal',
+            coincidono
+              ? 'text-success-subtle-foreground'
+              : 'text-destructive-subtle-foreground'
+          )}
+        >
+          {coincidono ? (
+            <CheckIcon aria-hidden className="size-3.5 shrink-0" />
+          ) : (
+            <XIcon aria-hidden className="size-3.5 shrink-0" />
+          )}
+          {coincidono ? 'Le due password coincidono' : 'Le due password non coincidono'}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 type Errori = Record<string, string>
 
 /**
@@ -234,6 +402,17 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
   const [errori, setErrori] = useState<Errori>({})
   const [categoria, setCategoria] = useState('impresa')
   const [mostraPassword, setMostraPassword] = useState(false)
+  /*
+   * Email, password e ripetizione sono **controllate**, e gli altri campi no.
+   * Non è incoerenza: il riscontro dei requisiti e quello della coincidenza
+   * devono aggiornarsi a ogni battuta, e per farlo serve il valore a ogni
+   * render. Tutto il resto lo legge `FormData` all'invio, come in
+   * `pagina-login`, perché su quei campi non c'è niente da mostrare mentre si
+   * scrive.
+   */
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [ripeti, setRipeti] = useState('')
   const [consensi, setConsensi] = useState({ uso: false, privacy: false, novita: false })
 
   function vaiA(n: number) {
@@ -247,12 +426,29 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
     const testo = (n: string) => String(dati.get(n) ?? '').trim()
 
     if (passo === 1) {
-      if (!testo('invito')) nuovi.invito = 'Serve il codice ricevuto da Tassullo.'
-      if (!testo('email').includes('@')) nuovi.email = 'Scrivi un indirizzo email valido.'
-      if (testo('password').length < 10)
-        nuovi.password = 'La password deve essere di almeno 10 caratteri.'
-      else if (testo('password') !== testo('ripeti'))
-        nuovi.ripeti = 'Le due password non coincidono.'
+      if (testo('invito').length < 8)
+        nuovi.invito = 'Il codice è di otto o più caratteri, com’è scritto nella mail.'
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+        nuovi.email = 'Scrivi un indirizzo email valido.'
+
+      /*
+       * Gli stessi `REGOLE_PASSWORD` che la lista mostra: una fonte sola,
+       * quindi ciò che si vede e ciò che «Avanti» rifiuta non possono
+       * divergere. Il rifiuto nomina **quello che manca**, non la regola
+       * generica.
+       */
+      const mancanti = REGOLE_PASSWORD.filter((r) => !r.prova(password, email))
+      if (password.length === 0) nuovi.password = 'Scegli una password.'
+      else if (mancanti.length > 0)
+        nuovi.password = `Manca: ${mancanti.map((m) => m.testo.toLowerCase()).join('; ')}.`
+
+      /*
+       * La coincidenza si controlla **sempre**, non solo se la password passa
+       * i requisiti: con un `else if` una password corta nascondeva anche la
+       * ripetizione sbagliata, cioè due difetti al prezzo di un messaggio.
+       */
+      if (ripeti.length === 0) nuovi.ripeti = 'Ripeti la password.'
+      else if (password !== ripeti) nuovi.ripeti = 'Le due password non coincidono.'
     }
 
     if (passo === 2) {
@@ -308,10 +504,17 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
                 <FieldGroup>
                   <Field data-invalid={!!errori.invito}>
                     <FieldLabel htmlFor="reg-invito">Codice invito</FieldLabel>
+                    {/*
+                     * `placeholder` e non `defaultValue`: il codice lo scrive
+                     * chi si registra, copiandolo dalla mail. Con un valore
+                     * vero era l'unico campo pieno fra quattro vuoti, e si
+                     * leggeva come un dato già acquisito invece che come il
+                     * formato da rispettare.
+                     */}
                     <Input
                       id="reg-invito"
                       name="invito"
-                      defaultValue="TAS-2026-0418"
+                      placeholder="TAS-2026-0418"
                       aria-invalid={!!errori.invito || undefined}
                     />
                     <FieldDescription>
@@ -327,6 +530,8 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
                       type="email"
                       autoComplete="username"
                       placeholder="nome@studio.it"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       aria-invalid={!!errori.email || undefined}
                     />
                     <FieldDescription>
@@ -343,6 +548,9 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
                         name="password"
                         type={mostraPassword ? 'text' : 'password'}
                         autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        aria-describedby="reg-requisiti"
                         aria-invalid={!!errori.password || undefined}
                       />
                       <InputGroupAddon align="inline-end">
@@ -354,7 +562,11 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
                         </InputGroupButton>
                       </InputGroupAddon>
                     </InputGroup>
-                    <FieldDescription>Almeno 10 caratteri.</FieldDescription>
+                    <RequisitiPassword
+                      id="reg-requisiti"
+                      password={password}
+                      email={email}
+                    />
                     <FieldError>{errori.password}</FieldError>
                   </Field>
                   <Field data-invalid={!!errori.ripeti}>
@@ -362,10 +574,13 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
                     <Input
                       id="reg-ripeti"
                       name="ripeti"
-                      type="password"
+                      type={mostraPassword ? 'text' : 'password'}
                       autoComplete="new-password"
+                      value={ripeti}
+                      onChange={(e) => setRipeti(e.target.value)}
                       aria-invalid={!!errori.ripeti || undefined}
                     />
+                    <CoincidonoPassword password={password} ripeti={ripeti} />
                     <FieldError>{errori.ripeti}</FieldError>
                   </Field>
                 </FieldGroup>
@@ -747,6 +962,70 @@ export const PasswordDimenticata: Story = {
  * qui**: resta dell'app (deciso il 2026-09-19). Somiglia alla barra dei passi
  * e non lo è — quella è un `tablist` di schede che si cliccano.
  */
+/**
+ * Il modulo della password nuova. Gli stessi `REGOLE_PASSWORD` e lo stesso
+ * riscontro di coincidenza del passo 1 della registrazione: sono i due punti in
+ * cui si **sceglie** una password, e se dicessero cose diverse una delle due
+ * mentirebbe.
+ *
+ * Qui l'email non c'è — si arriva dal link, l'indirizzo lo sa già il server —
+ * quindi la regola «non contiene il tuo indirizzo email» passa da sé. È voluto:
+ * la regola sa cavarsela senza il dato, invece di sparire dall'elenco e far
+ * sembrare che i requisiti siano due in una pagina e tre nell'altra.
+ */
+function ModuloNuovaPassword() {
+  const [password, setPassword] = useState('')
+  const [ripeti, setRipeti] = useState('')
+  const [mostra, setMostra] = useState(false)
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+      }}
+      noValidate
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="rp-nuova">Nuova password</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              id="rp-nuova"
+              name="nuova"
+              type={mostra ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-describedby="rp-requisiti"
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton onClick={() => setMostra((m) => !m)} aria-pressed={mostra}>
+                {mostra ? 'Nascondi' : 'Mostra'}
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+          <RequisitiPassword id="rp-requisiti" password={password} />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="rp-ripeti">Ripetila</FieldLabel>
+          <Input
+            id="rp-ripeti"
+            name="ripeti"
+            type={mostra ? 'text' : 'password'}
+            autoComplete="new-password"
+            value={ripeti}
+            onChange={(e) => setRipeti(e.target.value)}
+          />
+          <CoincidonoPassword password={password} ripeti={ripeti} />
+        </Field>
+        <Button type="submit" className="w-full">
+          Salva la password
+        </Button>
+      </FieldGroup>
+    </form>
+  )
+}
+
 export const ReimpostaPassword: Story = {
   name: 'Reimposta la password',
   render: () => (
@@ -761,27 +1040,7 @@ export const ReimpostaPassword: Story = {
           Se scade prima che tu abbia finito, chiedine un altro dalla pagina di accesso.
         </AlertDescription>
       </Alert>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-        }}
-        noValidate
-      >
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="rp-nuova">Nuova password</FieldLabel>
-            <Input id="rp-nuova" name="nuova" type="password" autoComplete="new-password" />
-            <FieldDescription>Almeno 10 caratteri.</FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="rp-ripeti">Ripetila</FieldLabel>
-            <Input id="rp-ripeti" name="ripeti" type="password" autoComplete="new-password" />
-          </Field>
-          <Button type="submit" className="w-full">
-            Salva la password
-          </Button>
-        </FieldGroup>
-      </form>
+      <ModuloNuovaPassword />
     </GuscioAccesso>
   ),
 }
