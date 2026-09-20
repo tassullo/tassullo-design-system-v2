@@ -9,6 +9,7 @@ import {
   creaColonne,
 } from '@/registry/tassullo/blocks/data-table'
 import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
+import { intero } from '@/registry/tassullo/lib/numeri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -351,10 +352,10 @@ const DATA = new Intl.DateTimeFormat('it-IT', {
   year: 'numeric',
 })
 
-// `useGrouping: 'always'`: in italiano il CLDR non raggrupperebbe le parti
-// intere di quattro cifre (`2086` invece di `2.086`). Convenzione Tassullo,
-// `docs/DECISIONI.md` §47.
-const ORE = new Intl.NumberFormat('it-IT', { useGrouping: 'always' })
+// Le ore passano da `intero` di `lib/numeri`: senza la convenzione Tassullo
+// il CLDR italiano lascerebbe `4128` accanto a `15.402` — quattro celle
+// della stessa colonna senza punto e una con. `docs/DECISIONI.md` §47.
+const ORE = { format: intero }
 
 /* ────────────────────────────────────────────────────────────────────────
  * Le nove colonne — la faccia larga

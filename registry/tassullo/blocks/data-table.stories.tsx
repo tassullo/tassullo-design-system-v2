@@ -34,6 +34,7 @@ import { FiltroData } from '@/registry/tassullo/blocks/data-table-filtro-data'
 import { FiltroIntervallo } from '@/registry/tassullo/blocks/data-table-filtro-intervallo'
 import { FiltroResetTutti } from '@/registry/tassullo/blocks/data-table-filtro-reset'
 import { FiltroSfaccettato } from '@/registry/tassullo/blocks/data-table-filtro-sfaccettato'
+import { decimale, valuta } from '@/registry/tassullo/lib/numeri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -981,28 +982,13 @@ function generaComputo(): Voce[] {
 const COMPUTO = generaComputo()
 
 /*
- * `useGrouping: 'always'`, e non è un dettaglio di gusto.
- *
- * In italiano il CLDR dichiara `minimumGroupingDigits: 2`, quindi
- * `Intl.NumberFormat('it-IT')` **non** raggruppa le parti intere di quattro
- * cifre: `2086,93` e non `2.086,93`, mentre `12.345,00` lo raggruppa. In una
- * colonna di numeri incolonnati è il caso peggiore possibile — il separatore
- * compare e sparisce a seconda del valore, e proprio sui numeri fra mille e
- * diecimila, che sono la maggior parte di un computo.
- *
- * La convenzione Tassullo è **sempre il punto delle migliaia** (decisa da
- * Francesco il 2026-09-20, `docs/DECISIONI.md` §47).
+ * I numeri di queste story passano da **`lib/numeri`** (`decimale`, `valuta`)
+ * e non da una `Intl.NumberFormat` dichiarata qui. Il motivo sta per esteso
+ * in quel file: `Intl.NumberFormat('it-IT')` da solo rende `2086,93` e non
+ * `2.086,93`, perché il CLDR italiano raggruppa solo da cinque cifre in su —
+ * un separatore *intermittente*, che in colonna è il caso peggiore.
+ * `docs/DECISIONI.md` §47.
  */
-const NUMERO = new Intl.NumberFormat('it-IT', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-  useGrouping: 'always',
-})
-const VALUTA = new Intl.NumberFormat('it-IT', {
-  style: 'currency',
-  currency: 'EUR',
-  useGrouping: 'always',
-})
 
 const colAlbero = creaColonne<RigaComputo>()
 
@@ -1032,14 +1018,14 @@ const COLONNE_ALBERO = colAlbero.columns([
       // numero, e quella è la stessa formattazione della cella normale sotto.
       sottototale: (figli: RigaComputo[]) => (
         <div className="text-right font-medium">
-          {NUMERO.format(figli.reduce((tot, f) => tot + (f.quantita ?? 0), 0))}
+          {decimale(figli.reduce((tot, f) => tot + (f.quantita ?? 0), 0))}
         </div>
       ),
     },
     sortFn: 'basic',
     cell: ({ getValue }) => {
       const v = getValue<number | undefined>()
-      return <div className="text-right">{v === undefined ? null : NUMERO.format(v)}</div>
+      return <div className="text-right">{v === undefined ? null : decimale(v)}</div>
     },
     enableGlobalFilter: false,
   }),
@@ -1052,14 +1038,14 @@ const COLONNE_ALBERO = colAlbero.columns([
       larghezza: 'w-32',
       sottototale: (figli: RigaComputo[]) => (
         <div className="text-right font-semibold">
-          {VALUTA.format(figli.reduce((tot, f) => tot + (f.importo ?? 0), 0))}
+          {valuta(figli.reduce((tot, f) => tot + (f.importo ?? 0), 0))}
         </div>
       ),
     },
     sortFn: 'basic',
     cell: ({ getValue }) => {
       const v = getValue<number | undefined>()
-      return <div className="text-right">{v === undefined ? null : VALUTA.format(v)}</div>
+      return <div className="text-right">{v === undefined ? null : valuta(v)}</div>
     },
     enableGlobalFilter: false,
   }),
@@ -1940,13 +1926,13 @@ const COLONNE_PIEDE = colPiede.columns([
       // (`tabular-nums` su `<table>`, v. `ui/table.tsx`).
       piede: (righe) => (
         <div className="text-right font-semibold" data-prova="piede-quantita">
-          {NUMERO.format(somma(righe, 'quantita'))}
+          {decimale(somma(righe, 'quantita'))}
         </div>
       ),
     } satisfies MetaColonna<MisurazioneComputo>,
     sortFn: 'basic',
     cell: ({ getValue }) => (
-      <div className="text-right">{NUMERO.format(getValue<number>())}</div>
+      <div className="text-right">{decimale(getValue<number>())}</div>
     ),
     enableGlobalFilter: false,
   }),
@@ -1959,13 +1945,13 @@ const COLONNE_PIEDE = colPiede.columns([
       larghezza: 'w-32',
       piede: (righe) => (
         <div className="text-right font-semibold" data-prova="piede-importo">
-          {VALUTA.format(somma(righe, 'importo'))}
+          {valuta(somma(righe, 'importo'))}
         </div>
       ),
     } satisfies MetaColonna<MisurazioneComputo>,
     sortFn: 'basic',
     cell: ({ getValue }) => (
-      <div className="text-right">{VALUTA.format(getValue<number>())}</div>
+      <div className="text-right">{valuta(getValue<number>())}</div>
     ),
     enableGlobalFilter: false,
   }),

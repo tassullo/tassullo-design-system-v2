@@ -21,6 +21,7 @@ import {
   type Indicatore,
   PaginaDashboard,
 } from '@/registry/tassullo/pages/pagina-dashboard'
+import { intero } from '@/registry/tassullo/lib/numeri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import {
@@ -222,7 +223,7 @@ function TotaleAlCentro({ viewBox, totale }: { viewBox?: unknown; totale: number
   return (
     <text x={vb.cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground">
       <tspan x={vb.cx} y={cy} className="fill-foreground text-2xl font-semibold tabular-nums">
-        {totale.toLocaleString('it-IT', { useGrouping: 'always' })}
+        {intero(totale)}
       </tspan>
       <tspan x={vb.cx} y={cy + RIGA_TOTALE} className="fill-muted-foreground text-sm">
         schede

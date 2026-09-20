@@ -2819,12 +2819,51 @@ che non c'è.
 
 **La leva è `useGrouping: 'always'`**, opzione ES2023 (Chrome 106+, Node 18+),
 da mettere su **ogni** `Intl.NumberFormat` e `toLocaleString` italiano.
-Applicata in M4ter.8 a: `data-table.stories.tsx` (`NUMERO`, `VALUTA` — il
-piede e i subtotali dell'albero), `data-table-filtro-intervallo.tsx`
-(`formattaNumero`, che è **codice del registry** e non una story: i due
-estremi di un intervallo si leggono affiancati), `chart.stories.tsx` e
-`pagina-dashboard.stories.tsx` (il totale al centro della ciambella),
-`stories/ListaDueFacce.stories.tsx` (`ORE`).
+
+### La convenzione sta in un item, non in una regola da ricordare
+
+Applicata dapprima a mano ai sei punti d'uso del repo, e **subito dopo tolta
+di lì**: sei formattatrici scritte a mano in sei file sono la forma che si
+perde in qualche settimana, e in un'app consumer si perde **subito**, perché
+una convenzione che non viaggia col registry non è una convenzione, è un
+ricordo. Su indirizzo di Francesco (stessa sessione) è nato quindi l'item
+**`numeri`** (`registry/tassullo/lib/numeri.ts`, item **93**), sul modello di
+`lib/toni.ts`: la stessa forma — un file di libreria che mette in un posto
+solo ciò che altrimenti si riscrive in ogni punto d'uso.
+
+```tsx
+import { decimale, intero, valuta } from "@/lib/numeri"
+intero(15402)     // "15.402"
+decimale(106.376) // "106,38"
+valuta(2086.93)   // "2.086,93 €"
+```
+
+**Tre funzioni e non quattro.** `percentuale` non c'è, perché oggi non la usa
+nessuno e `formattatore({ style: "percent" })` la rende una riga: è la stessa
+regola con cui è entrato `1:1` in `entity-image` — ogni valore vuole un
+consumatore. `formattatore(opzioni)` è l'uscita di sicurezza, ed è ciò che
+evita che il caso non previsto riparta da `new Intl.NumberFormat('it-IT')`.
+
+**Una seconda ragione, indipendente dalla convenzione**: `new
+Intl.NumberFormat(...)` è caro, e costruirlo dentro la cella di una tabella
+vuol dire costruirlo una volta per riga a ogni render. Le istanze sono
+memorizzate in una cache di modulo.
+
+**E una regola che il file scrive perché è il rovescio della convenzione**: un
+anno, un codice, un identificativo, un CAP **non si formattano**. Sono
+stringhe scritte con delle cifre, e `2026` passato di lì diventa `2.026`. Il
+criterio è netto: se sommarne due non ha senso, non è un numero.
+
+I punti d'uso ricablati sull'item sono: `data-table.stories.tsx` (`decimale`,
+`valuta` — il piede e i subtotali dell'albero), `data-table-filtro-intervallo.tsx`
+(`intero`, ed è **codice del registry** e non una story: i due estremi di un
+intervallo si leggono affiancati — l'item è nelle sue `registryDependencies`,
+verificato con `add --dry-run`, che tira dietro `src/lib/numeri.ts`),
+`chart.stories.tsx` e `pagina-dashboard.stories.tsx` (il totale al centro
+della ciambella), `stories/ListaDueFacce.stories.tsx` (`ORE`). La convenzione
+è anche **in scena**, nella sezione 7 di `Tema/Cifre`, accanto a
+`tabular-nums`: sono le due metà della stessa cosa, e l'una senza l'altra non
+incolonna.
 
 **Un posto resta scoperto, e non si può chiudere ri-stilando**:
 `ui/chart.tsx:257`, il valore nel tooltip, fa `item.value.toLocaleString()`

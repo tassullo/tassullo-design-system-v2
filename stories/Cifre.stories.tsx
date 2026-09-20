@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
+import { decimale } from '@/registry/tassullo/lib/numeri'
+
 /**
  * Tema / Cifre — i numeri nelle tabelle, e perché NON serve un secondo font.
  *
@@ -669,6 +671,62 @@ function Pagina() {
             oggi</strong>: sono annotate perché esistano nella testa di chi progetta una pagina, non
             perché si adottino adesso. Non porta invece <code>zero</code> né <code>onum</code>, che
             Replica aveva — nessuna delle due era in uso, quindi non si perde niente.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">
+            7. Il separatore delle migliaia, che <code>tabular-nums</code> non può dare
+          </h2>
+          <p className="text-base text-muted-foreground">
+            Le cifre allineate non bastano se il <strong>punto delle migliaia</strong> compare a
+            intermittenza — ed è quello che fa{' '}
+            <code>Intl.NumberFormat(&apos;it-IT&apos;)</code> lasciato a sé: il CLDR italiano
+            dichiara <code>minimumGroupingDigits: 2</code>, cioè raggruppa solo da{' '}
+            <strong>cinque</strong> cifre in su. Un importo di quattro cifre esce senza punto e uno
+            di cinque col punto, nella stessa colonna.
+          </p>
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full text-base tabular-nums">
+              <thead className="bg-accent">
+                <tr>
+                  <th className="p-2 text-left font-medium">valore</th>
+                  <th className="p-2 text-right font-medium">
+                    <code>it-IT</code> così com&apos;è
+                  </th>
+                  <th className="p-2 text-right font-medium">
+                    con <code>useGrouping</code>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[812.4, 4128, 9874.5, 15402, 556835].map((v) => (
+                  <tr key={v} className="border-t border-border">
+                    <td className="p-2 font-mono text-sm text-muted-foreground">{v}</td>
+                    <td className="p-2 text-right">
+                      {v.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-2 text-right font-medium">{decimale(v)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-base text-muted-foreground">
+            Nella colonna di mezzo <strong>due valori su cinque</strong> perdono il punto, ed è
+            esattamente la fascia fra mille e diecimila — in un computo o in un listino, la maggior
+            parte delle righe. <code>812,40</code> non lo perde perché di cifre ne ha tre e non
+            c&apos;è niente da raggruppare. Due numeri incolonnati, uno col punto e uno senza, si leggono di ordini di
+            grandezza diversi: <code>tabular-nums</code> allinea le cifre, ma non può inventare un
+            separatore che non c&apos;è.
+          </p>
+          <p className="text-base text-muted-foreground">
+            La convenzione Tassullo è <strong>sempre il punto delle migliaia</strong>, e non si
+            riscrive a mano: sta nell&apos;item <code>numeri</code> —{' '}
+            <code>intero()</code>, <code>decimale()</code>, <code>valuta()</code> — che le app
+            installano insieme al tema. Una formattatrice scritta nel punto d&apos;uso è la riga in
+            cui <code>useGrouping</code> si dimentica, e dimenticarla non dà nessun errore.{' '}
+            <code>docs/DECISIONI.md</code> §47.
           </p>
         </section>
 

@@ -9256,16 +9256,64 @@ delle story attuali (valori a due cifre) non morde, ma morde alla prima app
 che mette in un grafico un numero sopra il migliaio. Scritto in §47 con quel
 nome accanto, perché una lacuna senza un nome si riscopre da zero.
 
-**Quello che non ho fatto, e che propongo.** La convenzione oggi vive in sei
-formattatrici scritte a mano in sei file: è esattamente la forma che si perde
-in poche settimane, e in un'app consumer si perde **subito** perché la
-convenzione non viaggia col registry. Il rimedio sarebbe un item
-`tassullo-numeri` sul modello di `lib/toni.ts` — due o tre formattatrici già
-tarate (numero, valuta, percentuale) che le app importano invece di
-riscrivere. **Non l'ho aggiunto**: è un item nuovo (93), una API nuova, e va
-deciso, non fatto di iniziativa. Se Francesco dice sì è mezza sessione, e la
-sede naturale è M4ter.9 o la coda della fase.
+### L'item `numeri`, approvato nella stessa sessione
 
-Conto invariato dopo la coda: `check` verde sui **sei**, `test:a11y`
-**1472**/0, `check:registry` 0 errori / 62 avvisi / 1 componente nostro / 19
-ri-stilati, `lint` **26 avvisi prima e dopo**, `build` verde.
+Avevo **proposto** e non fatto: la convenzione viveva in sei formattatrici
+scritte a mano in sei file, cioè la forma che si perde in qualche settimana —
+e in un'app consumer si perde **subito**, perché una convenzione che non
+viaggia col registry non è una convenzione, è un ricordo. Francesco ha detto
+di farlo, ed è fatto: **`registry/tassullo/lib/numeri.ts`, item 93**, sul
+modello di `lib/toni.ts` (stessa forma: un file di libreria che mette in un
+posto solo ciò che altrimenti si riscrive in ogni punto d'uso).
+
+```tsx
+import { decimale, intero, valuta } from "@/lib/numeri"
+intero(15402)        // "15.402"
+decimale(106.376)    // "106,38"
+decimale(3.14159, 3) // "3,142"
+valuta(2086.93)      // "2.086,93 €"
+```
+
+**Tre funzioni e non quattro.** `percentuale` **non c'è**: oggi non la usa
+nessuno, e `formattatore({ style: "percent" })` la rende una riga. È la
+stessa regola con cui è entrato `1:1` in `entity-image` — ogni valore vuole
+un consumatore. `formattatore(opzioni)` è l'uscita di sicurezza, ed è ciò che
+evita che il caso non previsto riparta da `new Intl.NumberFormat('it-IT')`,
+cioè dal difetto.
+
+**Una seconda ragione, indipendente dalla convenzione.** `new
+Intl.NumberFormat(...)` è caro: costruirlo nella cella di una tabella vuol
+dire costruirlo una volta per riga a ogni render. Le istanze stanno in una
+cache di modulo, e le funzioni sono involucri sottili.
+
+**Il rovescio della regola, scritto nel file perché è la parte che si
+sbaglia.** Un anno, un codice, un identificativo, un CAP **non si
+formattano**: sono stringhe scritte con delle cifre, e `2026` passato di lì
+diventa `2.026`. Il criterio è netto — se sommarne due non ha senso, non è un
+numero.
+
+Ricablati tutti e sei i punti d'uso; `grep` su `Intl.NumberFormat` e
+`toLocaleString('it-IT')` nel registry e nelle story restituisce ora solo le
+due date di `pagina-dashboard.tsx`, che date sono. `LINGUA` è una costante
+sola nel file: il giorno in cui un'app non fosse italiana si cambia lì.
+
+**La dipendenza dichiarata e provata.** `tassullo-data-table-filtro-intervallo`
+importa `intero`, quindi ha guadagnato `@tassullo/numeri` fra le
+`registryDependencies` — la classe di difetto che il gate di M4.6 trovò 26
+volte. Verificata con la CLI vera, non a occhio: `shadcn add
+@tassullo/tassullo-data-table-filtro-intervallo --dry-run` in un'app di prova
+elenca **`src/lib/numeri.ts`** fra i 25 file creati.
+
+**E la convenzione è in scena**, non solo nei commenti: sezione **7** di
+`Tema/Cifre`, accanto a `tabular-nums`. Una tabella di cinque valori con e
+senza convenzione, dove **due su cinque** perdono il punto — e sono quelli
+fra mille e diecimila. Sta lì perché sono le due metà della stessa cosa:
+`tabular-nums` allinea le cifre, il raggruppamento dà il righello, e l'una
+senza l'altra non incolonna. Nessuna scansione nuova: è una sezione dentro la
+story che c'era già.
+
+Conto dopo la coda: `check` verde sui **sei**, `test:a11y` **1472**/0,
+`check:registry` 0 errori / 62 avvisi / **1** componente nostro / 19
+ri-stilati (un `lib` non è un componente nostro, come `toni`),
+`registry.json` **92 → 93 item**, `public/r/` 94 file, `lint` **26 avvisi
+prima e dopo**, `build` verde.

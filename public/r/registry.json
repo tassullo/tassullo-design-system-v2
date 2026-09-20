@@ -97,6 +97,19 @@
       ]
     },
     {
+      "name": "numeri",
+      "type": "registry:lib",
+      "title": "Numeri italiani",
+      "description": "Le formattatrici numeriche italiane con la convenzione Tassullo gia dentro — sempre il punto delle migliaia: intero(), decimale(), valuta(). Serve perche Intl.NumberFormat('it-IT') da solo non raggruppa le quattro cifre (2086,93 invece di 2.086,93), un separatore intermittente che in colonna e il caso peggiore.",
+      "files": [
+        {
+          "path": "registry/tassullo/lib/numeri.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "docs": "  import { decimale, intero, valuta } from '@/lib/numeri'\n\n  intero(15402)        // \"15.402\"\n  decimale(106.376)    // \"106,38\"\n  decimale(3.14159, 3) // \"3,142\"\n  valuta(2086.93)      // \"2.086,93 €\"\n\nPerche non basta Intl.NumberFormat('it-IT'): il CLDR italiano dichiara\nminimumGroupingDigits 2, cioe raggruppa solo da cinque cifre in su. Un\nimporto di quattro cifre esce quindi 2086,93 e uno di cinque 12.345,67 — il\nseparatore non e assente, e INTERMITTENTE, e proprio nella fascia fra mille\ne diecimila che in un computo o in un listino e la maggior parte delle\nrighe. Due numeri incolonnati, uno col punto e uno senza, si leggono di\nordini di grandezza diversi, e tabular-nums allinea le cifre ma non inventa\nun separatore che non c'e.\n\nLa convenzione Tassullo e quindi sempre il punto delle migliaia\n(useGrouping: 'always'), decisa il 2026-09-20 — docs/DECISIONI.md §47.\n\nPer un caso che le tre funzioni non coprono si parte da `formattatore`, che\ne la convenzione piu le opzioni che servono:\n\n  const PERCENTO = formattatore({ style: 'percent', maximumFractionDigits: 1 })\n\nLe istanze Intl sono costruite una volta sola e memorizzate: costruirne una\ndentro la cella di una tabella vuol dire costruirla una volta per riga a\nogni render.\n\nNON si formattano di qui un anno, un codice, un identificativo o un CAP:\nsono stringhe scritte con delle cifre, e 2026 diventerebbe 2.026. Se\nsommarne due non ha senso, non e un numero."
+    },
+    {
       "name": "toni",
       "type": "registry:lib",
       "title": "Toni semantici",
@@ -1167,6 +1180,7 @@
         "@tassullo/tassullo-data-table-filtro-sfaccettato",
         "@tassullo/input",
         "@tassullo/label",
+        "@tassullo/numeri",
         "@tassullo/popover",
         "@tassullo/separator",
         "@tassullo/slider",
