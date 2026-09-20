@@ -173,7 +173,7 @@ const COLONNE = col.columns([
     // `IN-10`, perché confronterebbe i caratteri e non i numeri.
     sortFn: 'alphanumeric',
     cell: ({ getValue }) => (
-      <span className="font-mono text-sm">{getValue<string>()}</span>
+      <span className="text-sm">{getValue<string>()}</span>
     ),
   }),
   col.accessor('nome', {
@@ -279,7 +279,7 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
-    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+    cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
   }),
   colRidimensionabile.accessor('nome', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
@@ -763,7 +763,7 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
-    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+    cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
   }),
   colMenuAzioni.accessor('nome', {
     header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Nome" />,
@@ -1715,7 +1715,7 @@ function costruisciColonneEditing(
       header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
       meta: { titolo: 'Codice', larghezza: 'w-28' },
       sortFn: 'alphanumeric',
-      cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+      cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
     }),
     colEditing.accessor('nome', {
       header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
@@ -1901,7 +1901,7 @@ const COLONNE_PIEDE = colPiede.columns([
       piede: (righe) => `Totale — ${righe.length} misurazioni filtrate`,
     } satisfies MetaColonna<MisurazioneComputo>,
     sortFn: 'alphanumeric',
-    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+    cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
   }),
   colPiede.accessor('ambiente', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Ambiente" />,

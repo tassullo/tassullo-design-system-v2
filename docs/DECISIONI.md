@@ -2877,3 +2877,74 @@ di un'altra lingua. Aggiungere argomenti a quella chiamata è una divergenza di
 chiuso in M4ter.8** — con i dati delle story attuali (valori a due cifre) non
 morde, ma morde alla prima app che mette in un grafico un numero sopra il
 migliaio.
+
+
+## 48. Il `font-mono` sui codici è sospeso (M4ter.8, coda, 2026-09-20)
+
+**Chiesto da Roberto, riferito da Francesco**, e con la parola «per ora»: la
+scelta del monospaziato per codici, lotti e simili si toglie, e si tiene il
+carattere del testo dappertutto. È quindi **reversibile per costruzione**, e
+la sezione 4 di `Tema/Cifre` resta in piedi apposta — il ragionamento e le
+misure che la sostenevano sono lì, così chi vorrà riaprirla non dovrà rifarle.
+
+**Cosa cade.** La seconda metà della regola del v1 («monospace per codici
+sistema *e dati tabellari*») era già caduta in M2.1, quando si è misurato che
+Inter porta `tnum`. Ora cade anche la prima. Codici articolo, DoP, lotti,
+partite IVA, identificativi: carattere del testo.
+
+**Cosa resta.** Tre cose, e vanno distinte o la regola si legge più larga di
+quello che è.
+
+1. **La distinzione fra ciò che si trascrive e ciò che si legge.** Non è
+   caduta: una stringa che si ricopia resta una cosa diversa da una quantità
+   che si confronta, e prende ancora `text-sm text-muted-foreground`. Quello
+   che è caduto è il **carattere** con cui la si segnalava — il *peso* resta.
+2. **Il `font-mono` sul codice sorgente**: un blocco `<pre>`, una classe
+   Tailwind citata, un valore CSS. Lì il mono fa il suo mestiere.
+3. **Il `font-mono` nelle misure di laboratorio** delle pagine `Tema/`
+   (`Palette`, `Densità`, `Carattere`, `Cifre`): sono strumenti, non
+   interfaccia d'app.
+
+**Il costo, misurato, e non è quello che ci si aspetta.** La ragione del mono
+sui codici era la sicurezza della trascrizione, cioè le coppie di glifi che si
+somigliano. Misurate a 32px nel Chromium del gate, e guardate a video:
+
+| coppia | Inter | mono di sistema |
+|---|---|---|
+| `O` / `0` | 23,97px / 19,63px — **si distinguono** | 19,27 / 19,27 |
+| `I` / `l` | 7,44px / 6,59px — **due barre nude, indistinguibili** | 19,27 / 19,27, con grazie e coda |
+
+Cioè: la coppia pericolosa in Inter **non è `O`/`0`**, che è quella che tutti
+citano, ma `I` maiuscola contro `l` minuscola. **E per questo la sospensione
+costa poco dove ci interessa**: i codici Tassullo sono *maiuscoli e cifre* —
+`TAS-04182-B`, `L240718-03`, `IT01234567890` — e in una stringa senza
+minuscole la `l` non compare mai.
+
+**Dove la caveat resta viva**: le stringhe tecniche a **cassa mista** — hash,
+token, percorsi. Chi ne metterà una in pagina riapra §4 di `Tema/Cifre`.
+
+**E `slashed-zero` non è una via d'uscita**: la utility di Tailwind chiede al
+font lo zero barrato, e **Inter quella feature non ce l'ha** — misurate le
+cinque coppie con e senza, i numeri sono identici al centesimo di pixel.
+Replica sì, ma Replica non è più il carattere dello schermo (§14).
+
+**Il token `--font-mono` resta nel tema**, e non è una svista: serve ai due
+usi che restano, e toglierlo renderebbe la decisione non più reversibile con
+una riga.
+
+**Punti d'uso ripuliti**: la colonna «Codice» di `data-table.stories.tsx` (×5),
+le celle di `table.stories.tsx` (×5), il codice-collegamento di
+`pagina-lista.stories.tsx`, la matricola di `ListaDueFacce` (tabella ed
+elenco), i due codici di `PaginaProdotti`, l'esempio di `Tema/Carattere`, la
+riga di `Tema/Cifre`. Più uno che era **già** contro la regola vecchia: il
+conteggio del filtro sfaccettato (`data-table-filtro-sfaccettato.tsx`) portava
+`font-mono` su un **numero**, e il numero in mono la regola non lo prevedeva
+già prima.
+
+**E `ui/chart.tsx` sì, invece.** Il valore del tooltip aveva `font-mono`, ed
+era anche lì un **numero** in mono. A differenza del `toLocaleString()` senza
+locale della stessa riga (§47, non chiuso), togliere una classe è una
+divergenza di **stringa di classi**, cioè il gradino 2 di 4bis: fatto, e
+`check:registry` resta a **0 errori / 19 ri-stilati** — il file era già nel
+conto. La distinzione fra le due cose nello stesso file è la regola 4bis in
+miniatura: le classi si cambiano, la forma no.

@@ -9317,3 +9317,73 @@ Conto dopo la coda: `check` verde sui **sei**, `test:a11y` **1472**/0,
 ri-stilati (un `lib` non è un componente nostro, come `toni`),
 `registry.json` **92 → 93 item**, `public/r/` 94 file, `lint` **26 avvisi
 prima e dopo**, `build` verde.
+
+### Coda di M4ter.8 — il `font-mono` sui codici, sospeso
+
+**Chiesto da Roberto, riferito da Francesco**, e con la parola **«per ora»**:
+via il monospaziato da codici, lotti e simili, carattere del testo
+dappertutto. Chiusa come **`docs/DECISIONI.md` §48**, con la riga di
+`CLAUDE.md` riscritta e la sezione 4 di `Tema/Cifre` rifatta.
+
+**Cade la prima metà della regola del v1.** La seconda («monospace anche per i
+*dati tabellari*») era già caduta in M2.1, quando si è misurato che Inter
+porta `tnum`. Ora cade anche la prima. Restano tre cose e vanno distinte, o la
+regola si legge più larga di quello che è: la **distinzione** fra ciò che si
+trascrive e ciò che si legge (che non è caduta — il codice tiene
+`text-sm text-muted-foreground`, cioè il *peso*, non il carattere); il mono
+sui blocchi di **codice sorgente**; il mono nelle **misure di laboratorio**
+delle pagine `Tema/`, che sono strumenti e non interfaccia.
+
+**Il costo, misurato a 32px in Chromium e guardato a video — e non è quello
+che ci si aspetta.** La ragione del mono sui codici era la sicurezza della
+trascrizione, cioè le coppie di glifi che si somigliano:
+
+| coppia | Inter | mono di sistema |
+|---|---|---|
+| `O` / `0` | 23,97px / 19,63px — **si distinguono** | 19,27 / 19,27 |
+| `I` / `l` | 7,44px / 6,59px — **due barre nude, indistinguibili** | 19,27 / 19,27, con grazie e coda |
+
+La coppia pericolosa in Inter **non è `O`/`0`**, che è quella che citano
+tutti: è `I` maiuscola contro `l` minuscola. **E per questo la sospensione
+costa poco dove ci interessa** — i codici Tassullo sono *maiuscoli e cifre*
+(`TAS-04182-B`, `L240718-03`, `IT01234567890`), e in una stringa senza
+minuscole la `l` non compare mai. La caveat resta viva sulle stringhe
+**tecniche a cassa mista**: hash, token, percorsi. Scritta in §48 e in scena
+nella sezione 4, perché chi la incontrerà non debba rimisurarla.
+
+**E `slashed-zero` non è una via d'uscita**: Inter quella feature non ce l'ha
+— le cinque coppie misurate con e senza danno numeri identici al centesimo di
+pixel. Era già scritto nella pagina, ora è misurato.
+
+**Ripuliti quattordici punti d'uso**: la colonna «Codice» di
+`data-table.stories.tsx` (×5), le celle di `table.stories.tsx` (×5), il
+codice-collegamento di `pagina-lista.stories.tsx`, la matricola di
+`ListaDueFacce` (tabella **ed** elenco), i due codici di `PaginaProdotti`,
+l'esempio di `Tema/Carattere`, la riga della tabella modello di `Tema/Cifre`.
+Più **due che erano già contro la regola vecchia**, e che infatti nessuno
+aveva notato: il conteggio del filtro sfaccettato e il valore del tooltip di
+`chart.tsx` portavano `font-mono` su un **numero**, e il numero in mono la
+regola non lo prevedeva nemmeno prima.
+
+**`chart.tsx` sì, e la distinzione dentro lo stesso file è 4bis in
+miniatura.** Quel file ha due cose in sospeso sulla stessa riga: il
+`font-mono` (tolto) e il `toLocaleString()` **senza locale** di §47 (non
+toccato). La prima è una **stringa di classi**, gradino 2, e il gate la
+accetta — `check:registry` resta **0 errori / 19 ri-stilati**, il file era già
+nel conto. La seconda è una **firma di chiamata**, cioè forma, e il gate
+uscirebbe 1. Le classi si cambiano, la forma no.
+
+**Il token `--font-mono` resta nel tema**, e non è una svista: serve ai due
+usi che restano, e toglierlo renderebbe la decisione non più reversibile con
+una riga — che è il contrario di «per ora».
+
+**Verifica**: su `Blocchi/Data Table → Prodotti`, contati dal DOM gli elementi
+che risolvono a un `font-family` monospaziato: **2**, ed entrambi sono nodi
+nascosti di Storybook (`sb-errordisplay_code` e un `<code>` vuoto). Zero
+nell'interfaccia.
+
+Conto dopo la coda: `check` verde sui **sei** (uscita 0), `test:a11y`
+**1472**/0, `check:registry` 0 errori / 62 avvisi / 1 componente nostro / 19
+ri-stilati, `misura:bersagli` **3228** su 368 story con **0** piccoli —
+invariato, il cambio di carattere non ha ristretto nessun bersaglio —
+`build` e `lint` verdi, **26 avvisi prima e dopo**.

@@ -44,8 +44,8 @@
  * stringhe che si scrivono con delle cifre. `2026` è un anno, e passato di
  * qui diventa `2.026`. La regola è più netta di quanto sembri: se sommarne
  * due non ha senso, non è un numero e non passa da qui. `data-table` lo fa
- * già dalla parte giusta — il codice prodotto è una `string` in `font-mono`,
- * non un numero.
+ * già dalla parte giusta — il codice prodotto è una `string` con la sua
+ * `sortFn: "alphanumeric"`, non un numero.
  *
  * ── Uso ─────────────────────────────────────────────────────────────────
  *

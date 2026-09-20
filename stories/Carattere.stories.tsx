@@ -267,10 +267,16 @@ function Pagina() {
                 <code>font-mono</code> — monospaziato di sistema
               </div>
               <p className="mt-1 text-base text-muted-foreground">
-                Solo i codici di sistema, cioè le stringhe che si <em>trascrivono</em> invece di
-                leggersi: identificativi, DoP, lotti, percorsi, hash.
+                <strong>Sospeso sui codici dal 2026-09-20</strong> (Roberto,{' '}
+                <code>docs/DECISIONI.md</code> §48): identificativi, DoP e lotti si scrivono nel
+                carattere del testo, come qui sotto. Il mono resta ai blocchi di codice sorgente.
               </p>
-              <p className="mt-2 font-mono text-sm">TAS-04182-B · TAS-0342-CPR-2024</p>
+              <p className="mt-2 text-sm">TAS-04182-B · TAS-0342-CPR-2024</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Il costo, misurato in <code>Tema/Cifre</code> §4: in Inter <code>O</code> e{' '}
+                <code>0</code> si distinguono, <code>I</code> e <code>l</code> no — ma i codici
+                Tassullo sono maiuscoli, e la <code>l</code> non ci compare.
+              </p>
             </div>
           </div>
         </section>

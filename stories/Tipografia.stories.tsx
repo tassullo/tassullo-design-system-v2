@@ -55,9 +55,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  *   seconda scala. Da M1.6 non è più solo una raccomandazione:
  *   `check:registry` segnala ogni `text-*` che il tema non tara.
  * · **I numeri da confrontare in colonna vogliono `tabular-nums`**, non un
- *   altro carattere. Il `font-mono` è dei codici di sistema, dove si *vuole*
- *   che stonino. La misura è in `Tema/Cifre`: scarto dei decimali 2,69px
- *   senza e 0,04px con.
+ *   altro carattere. La misura è in `Tema/Cifre`: scarto dei decimali 2,69px
+ *   senza e 0,04px con. Il `font-mono` **non si usa nemmeno sui codici**:
+ *   sospeso il 2026-09-20 su richiesta di Roberto (`docs/DECISIONI.md` §48),
+ *   resta ai blocchi di codice sorgente.
  *
  * La scala scatta con la densità — è la seconda leva di M1.4, ×1.08
  * arrotondato al pixel — e le misure qui sotto sono lette dal DOM, non

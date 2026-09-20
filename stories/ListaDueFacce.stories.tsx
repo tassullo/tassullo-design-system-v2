@@ -417,7 +417,7 @@ const COLONNE = col.columns([
     // `alphanumeric` e non `text`: con `text` `MX-9` verrebbe dopo `MX-10`.
     sortFn: 'alphanumeric',
     cell: ({ getValue }) => (
-      <span className="font-mono text-sm">{getValue<string>()}</span>
+      <span className="text-sm">{getValue<string>()}</span>
     ),
   }),
   col.accessor('nome', {
@@ -711,7 +711,7 @@ function FacciaStretta({ dati }: { dati: Macchina[] }) {
           <Card className="gap-0 overflow-hidden py-0">
             <CollapsibleTrigger className="group/riga flex w-full items-center gap-3 p-3 text-left hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {m.matricola}
                 </span>
                 <span className="font-medium">{m.nome}</span>
