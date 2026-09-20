@@ -47,6 +47,33 @@
  * accorgersene da un gate. La griglia sola è quindi un export a sé, e la
  * dashboard ci monta dentro i `PageSkeleton`.
  *
+ * ── Perché il pavimento è una colonna e non due ─────────────────────────
+ *
+ * Due colonne sono il pavimento giusto quasi ovunque: a una colonna la fila
+ * si allunga da **303 a 553px** a 375px di finestra (425 → 718 in touch), e
+ * quattro numeri che non stanno in uno schermo non sono più un colpo
+ * d'occhio. Sotto i 384px di contenitore però cede un'altra cosa, e cede in
+ * silenzio: la carta scende sotto i 200px e **un valore lungo sborda dalla
+ * `Card`**, che ha `overflow-hidden` — quindi non sbava, si taglia.
+ *
+ * Misurato in Chromium sui rettangoli di riga del testo (`Range.getClientRects`,
+ * perché `scrollWidth` su un titolo che va a capo **non vede niente**: il
+ * testo si impila invece di sbordare, e la sonda ingenua dice che va tutto
+ * bene):
+ *
+ * | | 320px | 375px | 400px | 430px |
+ * |---|---|---|---|---|
+ * | **1 colonna** | carta 288 | 343 | 368 | 398 |
+ * | | nessuno sborda | nessuno | nessuno | nessuno |
+ * | **2 colonne** | carta 136 | 164 | 176 | 191 |
+ * | | `12.847.503` sborda | `€ 1.284.500,00` | idem | `€ 12.847.503,40` |
+ *
+ * Da cui `@sm` (384px di contenitore) come primo gradino. **Quello che non
+ * copre**, e va detto: fra 384 e ~448px di contenitore le due colonne danno
+ * carte da 190–210px, dove una valuta a otto cifre sborda ancora. Lì il
+ * rimedio non è la griglia — è `valore`, che il chiamante formatta come
+ * vuole: «€ 1,28 Mln» sta ovunque.
+ *
  * ── Il numero non sta dentro una `Card size="sm"` ────────────────────────
  *
  * Difetto muto già pagato in M4.4: `CardTitle` porta
@@ -96,8 +123,9 @@ const ICONA_TENDENZA: Record<NonNullable<Indicatore["tendenza"]>["direzione"], I
 }
 
 /**
- * La sola griglia, senza sapere cosa ci sta dentro — due colonne, quattro
- * sopra `@4xl` (896px) **del proprio contenitore**, che dichiara da sé.
+ * La sola griglia, senza sapere cosa ci sta dentro — **una** colonna, due
+ * sopra `@sm` (384px), quattro sopra `@4xl` (896px), e sempre sul **proprio**
+ * contenitore, che dichiara da sé.
  *
  * Esiste come export perché la dashboard la riusa per gli scheletri del
  * caricamento: con le classi ripetute a mano lì, la disposizione dello
@@ -112,7 +140,9 @@ export function GrigliaIndicatori({
 }) {
   return (
     <div data-slot="indicatori" className={cn("@container/indicatori", className)}>
-      <div className="grid grid-cols-2 gap-4 @4xl/indicatori:grid-cols-4">{children}</div>
+      <div className="grid grid-cols-1 gap-4 @sm/indicatori:grid-cols-2 @4xl/indicatori:grid-cols-4">
+        {children}
+      </div>
     </div>
   )
 }

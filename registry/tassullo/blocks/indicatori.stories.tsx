@@ -130,6 +130,43 @@ export const Tendenze: Story = {
  * (`xl:grid-cols-4`) qui resterebbero quattro riquadri da 156px, perché la
  * finestra è larga uguale alla scena sopra.
  */
+/**
+ * **Sotto i 384px di contenitore, uno per riga.** Non è la griglia che si
+ * arrende: sotto quella larghezza la carta scende sotto i 200px e un valore
+ * lungo **sborda dalla `Card`**, che ha `overflow-hidden` — quindi non sbava,
+ * si taglia, e nessun gate lo vede.
+ *
+ * Misurato sui rettangoli di riga del testo, perché `scrollWidth` su un
+ * titolo che va a capo non vede niente (il testo si impila invece di
+ * sbordare, e la sonda ingenua dice che va tutto bene): a 375px di finestra,
+ * a due colonne la carta è 164px e `€ 1.284.500,00` sborda; a una è 343px e
+ * ci stanno tutti su una riga, valuta a otto cifre compresa.
+ *
+ * Il prezzo è l'altezza: la fila passa da 303 a 553px a 375px di finestra
+ * (425 → 718 in touch). È il motivo per cui una colonna resta il pavimento
+ * **solo** quaggiù, e non il comportamento normale.
+ */
+export const UnoPerRiga: Story = {
+  args: {
+    indicatori: [
+      { etichetta: 'Fatturato a budget', valore: '€ 12.847.503,40', tendenza: { direzione: 'su', valore: '+6,1%' } },
+      { etichetta: 'Ordinato', valore: '€ 1.284.500,00', tendenza: { direzione: 'giù', valore: '−3,4%' } },
+      { etichetta: 'Tonnellate spedite', valore: '12.847.503' },
+      { etichetta: 'Commesse aperte', valore: '37' },
+    ],
+  },
+  render: (args) => (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-muted-foreground">
+        Contenitore largo 320px — sotto i 384px la griglia va a una colonna.
+      </p>
+      <div className="w-80">
+        <Indicatori {...args} />
+      </div>
+    </div>
+  ),
+}
+
 export const InUnPannelloStretto: Story = {
   args: { indicatori: QUATTRO },
   render: (args) => (

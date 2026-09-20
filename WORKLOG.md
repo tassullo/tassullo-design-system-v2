@@ -8871,3 +8871,49 @@ caratteri il numero viene **tagliato** (la `Card` ha `overflow-hidden`) già a
 375px in due colonne — `1.284.500` e `€ 1.284.500,00` escono, e la valuta
 esce anche a 480. Se un'app mette valuta o milioni in un indicatore il rimedio
 è quello, non la colonna. **Resta aperta**, non l'ho toccata.
+
+### E su un indicatore per riga aveva ragione lui — la sonda diceva di no
+
+Avevo risposto «no» alla domanda sul telefono, e sul **numero di colonne**
+la risposta regge: a una colonna la fila passa da 303 a 553px a 375px di
+finestra (425 → 718 in touch), e quattro numeri che non stanno in uno schermo
+non sono più un colpo d'occhio.
+
+Ma avevo aggiunto che il taglio dei valori lunghi «non si risolve con le
+colonne», e **Francesco ha fatto notare che a 370–400px si risolve eccome**.
+Rimisurato, e sì:
+
+| | 320px | 375px | 400px | 430px |
+|---|---|---|---|---|
+| **1 colonna** | carta 288 | 343 | 368 | 398 |
+| | nessuno sborda | nessuno | nessuno | nessuno |
+| **2 colonne** | carta 136 | 164 | 176 | 191 |
+| | `12.847.503` sborda | `€ 1.284.500,00` | idem | `€ 12.847.503,40` |
+
+**E la prima sonda mentiva — trappola 2 del mandato, presa in pieno.** Avevo
+controllato con `scrollWidth > clientWidth`, che su un titolo **senza
+`truncate`** non vede niente: il testo va a capo invece di sbordare
+orizzontalmente, e la sonda dichiarava sedici casi su sedici a posto. La
+misura giusta sono i rettangoli di riga del testo
+(`Range.getClientRects()`) confrontati con la larghezza utile della carta:
+lì il difetto compare. È la stessa forma della cella con `text-overflow:
+ellipsis` di M4ter.6 — «prima di credere a una misura, chiediti cosa non può
+vedere» — e l'ho rifatta nella sessione che la cita.
+
+**Fatto**: la griglia ha ora **tre** gradini, `grid-cols-1`
+`@sm/indicatori:grid-cols-2` `@4xl/indicatori:grid-cols-4`. Verificato sul
+rendering vero, senza forzare le classi: 1 colonna fino a 400px di finestra,
+2 da 430, e fino a 400 **non sborda più niente** in nessuna delle due
+densità. Scena nuova `Blocchi/Indicatori → UnoPerRiga`, con valuta a otto
+cifre in un contenitore da 320px.
+
+**Quello che non copre, ed è scritto nel blocco**: fra 384 e ~448px di
+contenitore le due colonne danno carte da 190–210px, dove `€ 12.847.503,40`
+sborda ancora (misurato a 430px di finestra). Lì il rimedio non è la griglia
+— è `valore`, che il chiamante formatta come vuole: «€ 1,28 Mln» sta ovunque.
+Alzare il primo gradino a `@md` (448px) coprirebbe anche quello, al prezzo di
+una colonna sola fino a ~480px di finestra: è una parola sola, se si decide
+che vale.
+
+Conto aggiornato: a11y **1452**/0 su 363 story, bersagli **3199** con 0
+piccoli, sei gate verdi.
