@@ -363,7 +363,13 @@ const col = creaColonne<Macchina>()
  * Nove colonne, e nel DOM saranno **dieci**: `pannelloRiga` antepone da sé la
  * colonna del chevron, che la pagina non scrive.
  *
- * La miniatura è `entity-image`, ed è larga **`w-16`**. I 256px misurati in
+ * La miniatura è `entity-image`, ed è larga **`w-12`** dentro una colonna
+ * `w-16`: la cella porta `p-2`, quindi di 64px dichiarati ne restano **48** —
+ * e una miniatura da 64 veniva **tagliata a destra** dall'`overflow: hidden`
+ * del `td`, con tre angoli tondi e un bordo dritto. La miniatura si dimensiona
+ * sullo spazio **utile**, non sulla larghezza dichiarata della colonna.
+ *
+ * I 256px misurati in
  * M4ter.3 sono la larghezza di una **cella di griglia di card**, non di una
  * cella di tabella: la differenza non è una contraddizione, è esattamente la
  * ragione per cui quel componente esiste invece di `ItemMedia variant="image"`
@@ -375,7 +381,7 @@ const COLONNE = col.columns([
     meta: { titolo: 'Foto', larghezza: 'w-16' },
     header: () => <span className="sr-only">Foto</span>,
     cell: ({ row }) => (
-      <div className="w-16">
+      <div className="w-12">
         <EntityImage
           src={row.original.foto}
           alt=""
@@ -401,7 +407,7 @@ const COLONNE = col.columns([
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Macchina" />
     ),
-    meta: { titolo: 'Macchina' },
+    meta: { titolo: 'Macchina', larghezza: 'w-52' },
     sortFn: 'text',
     cell: ({ getValue }) => (
       <span className="font-medium">{getValue<string>()}</span>
@@ -652,7 +658,6 @@ function FacciaLarga({ dati }: { dati: Macchina[] }) {
       idRiga={(m) => m.id}
       cerca={false}
       perPagina={25}
-      bloccaPrimaColonna
       colonneNascondibili
       vuoto={{ titolo: 'Nessuna macchina con questi filtri' }}
       pannelloRiga={(m) => <DettaglioMacchina macchina={m} />}
@@ -853,12 +858,20 @@ export const FacciaStrettaScena: Story = {
  *
  * ## E la tabella che non ci sta? Scorre
  *
- * È la risposta che c'era già, e non costa nessuna soglia. `data-table` sta
- * dentro un `overflow-x-auto`, e **`bloccaPrimaColonna`** tiene ferme a
- * sinistra le colonne che dicono *di che cosa* è la riga — così a due terzi
- * di tabella fuori dallo schermo non si legge una data senza sapere di quale
- * macchina sia. È quello che fa `dashboard-01` di shadcn, ed è già la scena
- * `Blocchi/Data Table → Stretta`.
+ * È la risposta che c'era già, e non costa nessuna soglia: `data-table` sta
+ * dentro un `overflow-x-auto`. È quello che fa `dashboard-01` di shadcn —
+ * che sotto una soglia non nasconde nessuna colonna, lascia scorrere.
+ *
+ * **`bloccaPrimaColonna` qui non si usa, ed è una scelta.** Era stata messa e
+ * poi tolta: il suo prop dice di bloccare «la colonna che **identifica la
+ * riga**», ma con `pannelloRiga` la prima colonna è quella del chevron, che
+ * `data-table` antepone da sé — quindi blocca un chevron, e ci disegna
+ * accanto il bordo e il fondo opaco dello sticky, cioè **un separatore
+ * verticale fra il chevron e la miniatura** che non significa niente.
+ * Misurato: `position: sticky`, `left: 0`, `border-right: 1px` sulla sola
+ * colonna del chevron. Dove serve davvero — `Blocchi/Data Table → Stretta`,
+ * a 320px, senza pannello di riga — la prima colonna **è** il codice, e lì
+ * fa il suo mestiere.
  *
  * Le misure della tabella restano utili, ma come **fatto sulla tabella**, non
  * come soglia — lette dal DOM a pagina ferma, con ogni colonna stretta alla
@@ -866,21 +879,32 @@ export const FacciaStrettaScena: Story = {
  *
  * | riquadro per la lista | cosa succede |
  * |---|---|
- * | **≥ 1146px** | tutte e nove intere, niente troncato |
- * | 966–1145px | la colonna elastica (`Macchina`) **tronca con l'ellissi** |
- * | **< 966px** | la tabella **scorre**, con le prime colonne ferme |
+ * | **≥ 1160px** | tutte e nove intere, niente troncato |
+ * | **< 1160px** | la tabella **scorre**, con le prime colonne ferme |
  *
- * Tradotto in finestra, col guscio aperto (256px di colonna + 34 di padding e
- * bordi): **1436px** per averla intera, **1256px** prima che scorra. Cioè su
- * un portatile da **1440 la tabella è intera**. Col guscio collassato
- * bastano 1228 e 1048 — ed è la leva che ha in mano chi guarda: su un 1366 la
- * colonna `Macchina` tronca, e collassando la sidebar torna intera.
+ * Due fasce e non tre, ed è la conseguenza di una regola che vale per
+ * chiunque scriva una lista: **ogni colonna dichiara la sua larghezza, nessuna
+ * resta elastica.** Con `table-layout: fixed` una colonna senza larghezza
+ * **non allarga mai la tabella** — assorbe l'avanzo, e quando l'avanzo è
+ * negativo va a **zero**: la colonna sparisce e la sua intestazione finisce
+ * sopra quella accanto. Misurato qui a 917px di riquadro: `Macchina` a 0px,
+ * «Macchina» e «Tipo» sovrapposti nella testata. Lo scorrimento funziona
+ * **solo** se la somma delle larghezze dichiarate è un minimo vero.
  *
- * **Una sonda sbagliata, corretta**: il primo conto dei troncamenti confrontava
+ * 1160px di riquadro sono **1450px di finestra** col guscio aperto (256px di
+ * colonna + 34 di padding e bordi) e **1242px** col guscio collassato: su un
+ * portatile da 1440 la tabella scorre di una decina di pixel, e collassando la
+ * sidebar è intera. Nessuna colonna sparisce in nessuno dei due casi, che è
+ * la cosa che conta.
+ *
+ * **Due sonde sbagliate, corrette.** Il primo conto dei troncamenti confrontava
  * `scrollWidth` con `clientWidth`, e su una cella con `text-overflow: ellipsis`
  * quei due valori **coincidono** — dava 0 troncamenti su una tabella in cui si
- * leggeva «Intonacat…» a occhio nudo. Il conto giusto misura il **testo**, con
- * un `Range` sul contenuto della cella.
+ * leggeva «Intonacat…» a occhio nudo; il conto giusto misura il **testo**, con
+ * un `Range` sul contenuto della cella. E la colonna a zero **non l'ha trovata
+ * nessuna misura**: l'ha vista Francesco a video, dalle due intestazioni
+ * sovrapposte. Adesso il conto delle colonne a larghezza zero è fra le
+ * misure.
  *
  * **Cosa rende questa scena nel gate**, misurato: la finestra è a 1440 e la
  * soglia è 900, quindi la media query è vera e si vede la **faccia larga** —
