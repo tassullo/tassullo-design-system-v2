@@ -123,6 +123,7 @@ import {
   creaColonne,
 } from "@/registry/tassullo/blocks/data-table"
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
+import { useSoglia } from "@/registry/tassullo/hooks/use-soglia"
 import { GrigliaIndicatori, Indicatori, type Indicatore } from "@/registry/tassullo/blocks/indicatori"
 import { PageHeader, type AzionePagina, type LivelloPercorso } from "@/registry/tassullo/blocks/page-header"
 import { PageSkeleton } from "@/registry/tassullo/blocks/page-skeleton"
@@ -184,6 +185,17 @@ export type PaginaDashboardProps = {
   avvisi?: AvvisoDashboard[]
   /** Assente, `chiudibile` non mostra il bottone anche se richiesto dall'avviso. */
   onChiudiAvviso?: (id: string) => void
+  /**
+   * Quale faccia rende la tabella delle attività.
+   *
+   * `auto` (default) la sceglie `useSoglia` sulla larghezza della finestra;
+   * `larga` e `stretta` la impongono. Le due forzate non sono comodità: una
+   * media query sulla finestra **non si commuta dal canvas**
+   * (`docs/DECISIONI.md` §46), quindi senza di esse il gate renderebbe sempre
+   * il ramo che tocca a 1440 e «0 violazioni» direbbe meno di quello che
+   * sembra. È la stessa forma di `faccia` in `Pagine/Lista a due facce`.
+   */
+  faccia?: "auto" | "larga" | "stretta"
   /** Uno dei tre stati. `pronto` di default: solo lì il resto delle prop conta. */
   stato?: "pronto" | "caricamento" | "errore"
   /** Il messaggio d'errore, già tradotto — mai un codice, mai uno stack. */
@@ -191,6 +203,24 @@ export type PaginaDashboardProps = {
   onRiprovaErrore?: () => void
   className?: string
 }
+
+/**
+ * Sopra questa larghezza di **finestra** la tabella delle attività sta larga,
+ * sotto diventa un elenco.
+ *
+ * Il numero non è scelto a occhio: le tre colonne dichiarano `w-44` (176px)
+ * per «Utente» e `w-32` (128px) per «Quando», e «Attività» è quella elastica.
+ * Con `table-fixed` una colonna elastica sotto spazio **va a zero**, e le
+ * intestazioni si sovrappongono — è il difetto che M4ter.6 prese su
+ * `lista-due-facce`, e che qui era rimasto. Misurato in Chromium: sotto i 768
+ * di finestra la colonna «Attività» scende sotto i 200px utili e il testo si
+ * taglia a metà parola già alla prima riga.
+ *
+ * Resta un numero **di questa pagina**, come vuole §6.3: tre colonne stanno
+ * larghe dove nove stanno strette, e un'app che monti la dashboard in un
+ * guscio diverso può doverlo cambiare.
+ */
+const SOGLIA_ATTIVITA = "(min-width: 768px)"
 
 const ICONA_TONO: Record<TonoAvviso, Icona> = {
   success: CheckCircle2Icon,
@@ -298,6 +328,74 @@ function TabellaAttivita({
   )
 }
 
+/**
+ * La faccia stretta delle attività: un elenco, non la tabella impaginata
+ * stretta.
+ *
+ * **Perché non basta far scorrere la tabella.** Con `table-fixed` le due
+ * colonne dichiarate tengono la loro larghezza e quella elastica va a zero:
+ * «Attività» si taglia a metà parola e le intestazioni si sovrappongono. Far
+ * scorrere l'intera tabella è l'altra strada, ed è quella giusta per una
+ * lista a nove colonne che si vuole leggere per intero (`lista-due-facce`,
+ * faccia larga sotto i 1160px). Qui le colonne sono **tre** e la riga si
+ * legge benissimo impilata: chi ha fatto cosa, e quando.
+ *
+ * **L'ordine cambia rispetto alla tabella, ed è voluto.** In tabella è
+ * `chi / cosa / quando`, perché una colonna si scorre con l'occhio. Impilata,
+ * quello che si cerca è **cosa è successo**: l'attività va in cima, e
+ * `utente · quando` la segue come riga di contesto — la stessa forma che
+ * `lista-due-facce` dà a `tipo · reparto`.
+ *
+ * Nessun `truncate` sulla descrizione: qui lo spazio in larghezza non c'è, e
+ * ciò che manca in larghezza si prende in altezza. Il troncamento resta alla
+ * riga di contesto, che è quella di cui si può perdere la coda.
+ */
+function ElencoAttivita({
+  attivita,
+  messaggioVuote,
+}: {
+  attivita: AttivitaRecente[]
+  messaggioVuote: string
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Attività recenti</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {attivita.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            {messaggioVuote}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {attivita.map((a) => (
+              <li
+                key={a.id}
+                className="flex flex-col gap-1 border-b pb-3 last:border-b-0 last:pb-0"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  {a.descrizione}
+                  {a.distintivo}
+                </div>
+                <p className="truncate text-sm text-muted-foreground">
+                  {a.utente ? `${a.utente} · ` : ""}
+                  {a.quando.toLocaleString("it-IT", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function AreaAvvisi({
   avvisi,
   onChiudiAvviso,
@@ -349,11 +447,20 @@ export function PaginaDashboard({
   messaggioAttivitaVuote = "Nessuna attività recente.",
   avvisi = [],
   onChiudiAvviso,
+  faccia = "auto",
   stato = "pronto",
   messaggioErrore = "Non è stato possibile caricare la dashboard. Riprova.",
   onRiprovaErrore,
   className,
 }: PaginaDashboardProps) {
+  /*
+   * L'hook si chiama **sempre**, anche quando `faccia` è forzata: chiamarlo
+   * dentro un `if` sarebbe un hook condizionale. Il suo esito si usa solo nel
+   * ramo `auto`.
+   */
+  const largo = useSoglia(SOGLIA_ATTIVITA)
+  const tabellaLarga = faccia === "auto" ? largo : faccia === "larga"
+
   return (
     <div data-slot="pagina-dashboard" className={cn("@container/dashboard flex flex-col gap-4", className)}>
       <PageHeader percorso={percorso} azioni={azioni} />
@@ -384,7 +491,11 @@ export function PaginaDashboard({
           <AreaAvvisi avvisi={avvisi} onChiudiAvviso={onChiudiAvviso} />
           <Indicatori indicatori={indicatori} />
           <DueGrafici grafici={grafici} />
-          <TabellaAttivita attivita={attivita} messaggioVuote={messaggioAttivitaVuote} />
+          {tabellaLarga ? (
+            <TabellaAttivita attivita={attivita} messaggioVuote={messaggioAttivitaVuote} />
+          ) : (
+            <ElencoAttivita attivita={attivita} messaggioVuote={messaggioAttivitaVuote} />
+          )}
         </>
       )}
     </div>
