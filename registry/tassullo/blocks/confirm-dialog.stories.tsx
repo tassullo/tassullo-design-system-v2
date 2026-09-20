@@ -1,6 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { EllipsisVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import {
+  ArchiveIcon,
+  EllipsisVerticalIcon,
+  PencilIcon,
+  Trash2Icon,
+  XIcon,
+} from 'lucide-react'
 
 import { apriCol } from '@/prove/apri'
 import { ConfirmDialog } from '@/registry/tassullo/blocks/confirm-dialog'
@@ -221,6 +227,139 @@ export const DaUnMenuDiRiga: Story = {
           }}
         />
       </>
+    )
+  },
+}
+
+/**
+ * **La parola da ricopiare**, cioè la guardia davanti a una cosa che non si
+ * disfa. `campo.parolaAttesa` tiene la conferma spenta finché il campo non la
+ * contiene esatta — e la parola si legge **prima** di doverla scrivere, nella
+ * riga sotto il campo: se comparisse solo dopo aver sbagliato sarebbe un
+ * indovinello, non una guardia.
+ *
+ * ## Il campo non sta nella descrizione, e non è un formalismo
+ *
+ * `descrizione` finisce in `<AlertDialogDescription>`, cioè nell&apos;elemento
+ * che il dialogo dichiara in `aria-describedby`: è il testo che un lettore di
+ * schermo annuncia **tutto in fila** come descrizione del dialogo, appena si
+ * apre. Un campo lì dentro vuol dire un&apos;etichetta letta come parte della
+ * spiegazione e un controllo in mezzo a una frase. Il campo sta quindi in
+ * `corpo`, che è un terzo posto fra l&apos;intestazione e i bottoni — e si
+ * compone dal punto di chiamata, senza toccare `alert-dialog`: la primitiva è
+ * un `grid`, e il corpo è una riga in più della griglia.
+ *
+ * ## Il valore torna a chi ha chiamato
+ *
+ * `onConferma` riceve il testo digitato. Senza, il dialogo saprebbe cosa si è
+ * scritto e la pagina no, e le toccherebbe tenersi uno stato in parallelo —
+ * cioè la ripetizione che questo blocco esiste per togliere. Chi non usa
+ * `campo` continua a scrivere `onConferma={() =&gt; …}`: una funzione che
+ * ignora il suo argomento resta assegnabile, e nessun punto d&apos;uso
+ * esistente cambia.
+ */
+export const ParolaDaRicopiare: Story = {
+  name: 'Parola da ricopiare',
+  args: {
+    titolo: 'Archiviare la norma?',
+    descrizione:
+      'Esce dal catalogo e dalle ricerche. I riferimenti già usati nelle schede restano, ma puntano a una norma archiviata.',
+    conferma: 'Archivia',
+    tono: 'distruttivo',
+    campo: {
+      etichetta: 'Codice della norma',
+      // Nessun segnaposto: sarebbe la parola attesa scritta una seconda
+      // volta, in grigio dentro il campo — cioè qualcosa che si può
+      // scambiare per un valore già inserito. La parola si legge una volta
+      // sola, nella riga sotto, in evidenza.
+      parolaAttesa: 'UNI EN 998-1',
+    },
+    onConferma: () => {},
+  },
+  render: function Render(args) {
+    const [esito, setEsito] = useState<string | null>(null)
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <ConfirmDialog
+          {...args}
+          onConferma={(valore) => {
+            setEsito(valore)
+          }}
+        >
+          <Button variant="destructive">
+            <ArchiveIcon />
+            Archivia
+          </Button>
+        </ConfirmDialog>
+        {/* La spia: dimostra che il valore esce davvero dal dialogo. */}
+        <p className="text-sm text-muted-foreground" data-prova="esito-parola">
+          {esito === null ? 'Non ancora confermato.' : `Confermato con: ${esito}`}
+        </p>
+      </div>
+    )
+  },
+  play: apriCol(
+    '[data-slot="confirm-dialog-trigger"]',
+    'confirm-dialog-content',
+  ),
+}
+
+/**
+ * **Il motivo da scrivere**, ed è il caso vero: ChangeSets di Anagrafe, che
+ * oggi apre un `window.prompt`. Una finestra del sistema operativo non ha i
+ * colori del tema, non si naviga come il resto della pagina e su ogni macchina
+ * è disegnata diversa — la stessa obiezione con cui si è chiuso D19 sul
+ * `&lt;select&gt;` nativo.
+ *
+ * Qui il campo è `multiriga` — un motivo si scrive in più di una riga — e
+ * `obbligatorio`: la conferma resta spenta finché non c&apos;è scritto
+ * qualcosa. Nessuna `parolaAttesa`, perché non c&apos;è una parola giusta: il
+ * testo **è** il dato, e finisce a `onConferma`.
+ *
+ * `aiuto` è scritto dall&apos;app e non dal blocco: il blocco lo scrive da sé
+ * solo quando c&apos;è una parola da ricopiare, perché lì è l&apos;unica riga
+ * che rende la guardia usabile.
+ */
+export const MotivoDaScrivere: Story = {
+  name: 'Motivo da scrivere',
+  args: {
+    titolo: 'Rifiutare la proposta di modifica?',
+    descrizione:
+      'Le 14 modifiche della proposta «Aggiornamento famiglie 2026» non vengono applicate.',
+    conferma: 'Rifiuta',
+    tono: 'distruttivo',
+    campo: {
+      etichetta: 'Motivo del rifiuto',
+      segnaposto: 'Es. le famiglie non corrispondono al listino di settembre',
+      aiuto: 'Lo legge chi ha proposto le modifiche. Serve a sapere cosa correggere.',
+      multiriga: true,
+      obbligatorio: true,
+    },
+    onConferma: () => {},
+  },
+  render: function Render(args) {
+    const [esito, setEsito] = useState<string | null>(null)
+    return (
+      <div className="flex w-96 flex-col items-start gap-3">
+        <ConfirmDialog
+          {...args}
+          onConferma={async (valore) => {
+            await attendi(400)
+            setEsito(valore)
+          }}
+        >
+          <Button variant="destructive">
+            <XIcon />
+            Rifiuta
+          </Button>
+        </ConfirmDialog>
+        <p
+          className="text-sm text-muted-foreground"
+          data-prova="esito-motivo"
+        >
+          {esito === null ? 'Non ancora rifiutata.' : `Motivo ricevuto: ${esito}`}
+        </p>
+      </div>
     )
   },
 }

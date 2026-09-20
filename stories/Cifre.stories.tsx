@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
+import { decimale } from '@/registry/tassullo/lib/numeri'
+
 /**
  * Tema / Cifre — i numeri nelle tabelle, e perché NON serve un secondo font.
  *
@@ -38,15 +40,20 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
  * 1. **I numeri da confrontare in colonna prendono `tabular-nums`.** Importi,
  *    quantità, prezzi, date, progressivi, percentuali. Il carattere resta
  *    quello del testo. La sezione 3 è il modello da copiare.
- * 2. **Il `font-mono` è per i codici di sistema, e per niente altro.** Il
- *    criterio è una domanda sola: *la stringa si legge, o si trascrive?* Sui
- *    codici il monospace non serve a incolonnare — a quello basterebbe
- *    `tabular-nums` — serve a far vedere che quella stringa non è prosa: è un
- *    segnale, non una misura.
+ * 2. **Il `font-mono` non si usa, nemmeno sui codici.** Sospeso il 2026-09-20
+ *    su richiesta di Roberto (`docs/DECISIONI.md` §48): codici, lotti, DoP e
+ *    identificativi si scrivono nel carattere del testo. Resta la distinzione
+ *    fra la stringa che *si trascrive* e la quantità che *si legge* — la prima
+ *    prende `text-sm` e il grigio attenuato — ma non la si segnala più
+ *    cambiando carattere. Il `font-mono` resta ai blocchi di **codice
+ *    sorgente**, e alle misure di laboratorio di queste pagine.
  *
  * La style guide del v1 diceva «Monospace solo per codici sistema e **dati
- * tabellari**». La seconda metà cade: nasceva da un font senza le tabellari, o
- * dal non averle cercate. La prima resta.
+ * tabellari**». La seconda metà era già caduta — nasceva da un font senza le
+ * tabellari, o dal non averle cercate — e dal 2026-09-20 cade anche la prima.
+ * La **sezione 4 resta in piedi apposta**: «per ora» è la parola con cui la
+ * decisione è arrivata, e il ragionamento con le misure che lo sostenevano è
+ * lì, così chi vorrà riaprirla non dovrà rifarle.
  *
  * ── Perché questa pagina misura invece di affermare ──────────────────────
  *
@@ -309,7 +316,7 @@ function TabellaModello() {
       <tbody>
         {IMPORTI.map((r) => (
           <tr key={r.codice} className="border-b border-border">
-            <td className="py-1 pr-3 font-mono text-sm text-muted-foreground">{r.codice}</td>
+            <td className="py-1 pr-3 text-sm text-muted-foreground">{r.codice}</td>
             <td className="py-1 pr-3">{r.voce}</td>
             <td className="py-1 pr-3 text-right tabular-nums">{r.qta}</td>
             <td className="py-1 pr-3 text-right tabular-nums">{r.prezzo}</td>
@@ -475,74 +482,136 @@ function Pagina() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">3. Il modello da copiare</h2>
           <p className="text-base text-muted-foreground">
-            Le due regole insieme, su una riga di computo vera: il{' '}
-            <strong>codice di sistema</strong> in <code>font-mono</code>, perché deve staccare dalla
-            prosa e si legge carattere per carattere; i <strong>numeri</strong> in{' '}
-            <code>tabular-nums</code>, perché si confrontano in colonna. La designazione resta prosa
-            e non prende niente.
+            Su una riga di computo vera: i <strong>numeri</strong> in <code>tabular-nums</code>,
+            perché si confrontano in colonna; tutto il resto — codice compreso —{' '}
+            <strong>nel carattere del testo</strong>. Il codice porta ancora{' '}
+            <code>text-sm text-muted-foreground</code>, che non è il carattere ma il{' '}
+            <em>peso</em>: un identificativo non deve pesare quanto la voce che identifica.
+          </p>
+          <p className="text-base text-muted-foreground">
+            <strong>
+              Il <code>font-mono</code> sui codici è sospeso dal 2026-09-20
+            </strong>{' '}
+            (chiesto da Roberto, v. la sezione 4 e <code>docs/DECISIONI.md</code> §48). Fino a
+            quella data questa riga diceva «il codice di sistema in <code>font-mono</code>»: se
+            capita di vederlo scritto da qualche parte, è quello il verbale che l&apos;ha tolto.
           </p>
           <div className="rounded-md border border-border p-4">
             <TabellaModello />
           </div>
-          <Sorgente>{`<td className="font-mono text-sm text-muted-foreground">TAS-04182-B</td>
+          <Sorgente>{`<td className="text-sm text-muted-foreground">TAS-04182-B</td>
 <td>Rasatura armata — tradizionale</td>
 <td className="text-right tabular-nums">1.114,00</td>
 <td className="text-right tabular-nums">18,40</td>
 <td className="text-right tabular-nums">20.497,60</td>`}</Sorgente>
           <p className="text-base text-muted-foreground">
-            Il codice porta anche <code>text-sm</code> e <code>text-muted-foreground</code>: il
-            monospace di sistema ha un&apos;altezza-x più alta di Inter e a parità di corpo
-            sembra più grande, e un identificativo non deve pesare quanto la voce che identifica. Da{' '}
-            <strong>M2.4</strong> sarà la primitiva <code>table</code> a portarsi dietro queste
-            classi sulle colonne che le dichiarano numeriche: nelle app non si riscrivono a mano.
+            Da <strong>M2.4</strong> è la primitiva <code>table</code> a portarsi dietro{' '}
+            <code>tabular-nums</code>: nelle app non si riscrive a mano.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">4. I codici di sistema, e quando il mono serve</h2>
+          <h2 className="text-xl font-semibold">
+            4. I codici di sistema — il mono è <span className="text-accent-ink">sospeso</span>
+          </h2>
           <p className="text-base text-muted-foreground">
-            La style guide del v1 dice «monospace per codici sistema <em>e dati tabellari</em>». La
-            seconda metà è caduta con la sezione 2. La <strong>prima resta</strong>, e vale la pena
-            dire perché: sui codici il monospace non serve a incolonnare — a quello basterebbe{' '}
-            <code>tabular-nums</code> — serve a <strong>far vedere che quella stringa non è
-            prosa</strong>. È un segnale, non una misura.
+            La style guide del v1 diceva «monospace per codici sistema <em>e dati tabellari</em>».
+            La seconda metà è caduta con la sezione 2. <strong>Dal 2026-09-20 cade anche la
+            prima</strong>: codici, lotti, DoP e identificativi si scrivono nel carattere del
+            testo, come tutto il resto. Chiesto da Roberto, riferito da Francesco.{' '}
+            <code>docs/DECISIONI.md</code> §48.
+          </p>
+          <p className="text-base text-muted-foreground">
+            <strong>«Per ora»</strong>, ed è la parola con cui è arrivata: la decisione è
+            reversibile e questa sezione resta in piedi apposta — il ragionamento che c&apos;era
+            sotto e le misure che lo sostenevano sono qui, così chi vorrà riaprirla non dovrà
+            rifarle.
           </p>
 
-          <div className="space-y-3 rounded-md border border-border p-4">
-            <div className="text-sm font-semibold">Il criterio, in una domanda</div>
+          <div className="space-y-3 rounded-md border border-border bg-card p-4">
+            <div className="text-sm font-semibold">Cosa si perde, misurato</div>
             <p className="text-base">
-              <em>La stringa si legge, o si trascrive?</em> Se qualcuno dovrà ricopiarla, dettarla
-              al telefono o confrontarla carattere per carattere, è un codice e va in{' '}
-              <code>font-mono</code>. Se si legge come una quantità o una frase, no.
+              Il mono sui codici non serviva a incolonnare — a quello basta{' '}
+              <code>tabular-nums</code> — serviva a <strong>far vedere che quella stringa non è
+              prosa</strong>, e a rendere sicura una trascrizione. Il rischio vero di una
+              trascrizione è una <em>coppia di glifi che si somigliano</em>, e in Inter la coppia
+              pericolosa non è quella che ci si aspetta:
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-md border border-border p-3">
+                <div className="text-sm text-muted-foreground">Inter, il carattere del testo</div>
+                <div className="text-3xl tracking-wider">O0 IlL1 5S8B</div>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <div className="text-sm text-muted-foreground">mono di sistema</div>
+                <div className="font-mono text-3xl tracking-wider">O0 IlL1 5S8B</div>
+              </div>
+            </div>
+            <p className="text-base">
+              <strong>
+                <code>O</code> e <code>0</code> si distinguono benissimo
+              </strong>{' '}
+              anche in Inter — misurati a 32px, <span className="tabular-nums">23,97px</span>{' '}
+              contro <span className="tabular-nums">19,63px</span>, lo zero è più stretto e più
+              chiuso. La coppia che collassa è{' '}
+              <strong>
+                <code>I</code> maiuscola e <code>l</code> minuscola
+              </strong>
+              : due barre verticali nude, <span className="tabular-nums">7,44px</span> contro{' '}
+              <span className="tabular-nums">6,59px</span>, indistinguibili a occhio. Nel mono la
+              prima porta le grazie e la seconda la coda.
+            </p>
+            <p className="text-base">
+              <strong>
+                E proprio per questo la sospensione costa poco sui codici Tassullo
+              </strong>
+              : sono <em>maiuscoli e cifre</em> — <span className="text-sm">TAS-04182-B</span>,{' '}
+              <span className="text-sm">L240718-03</span>,{' '}
+              <span className="text-sm">IT01234567890</span>, scritti qui come li scriverà
+              un&apos;app — e in una stringa senza minuscole la <code>l</code> non compare mai. Dove la caveat resta viva è sulle stringhe{' '}
+              <em>tecniche</em> a cassa mista: hash, token, percorsi. Chi ne metterà una in pagina
+              riapra questa sezione.
+            </p>
+            <p className="text-base text-muted-foreground">
+              Fuori discussione invece <code>slashed-zero</code>: la utility di Tailwind chiede al
+              font lo zero barrato, e <strong>Inter quella feature non ce l&apos;ha</strong> —
+              misurate le cinque coppie con e senza, i numeri sono identici al centesimo di pixel.
+              Non è una leva disponibile.
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-md border border-border p-4">
-              <div className="text-sm font-semibold">✓ Mono — si trascrive</div>
+              <div className="text-sm font-semibold">Si trascrive — nel carattere del testo</div>
               <ul className="mt-2 space-y-2 text-base">
                 <li>
-                  Codice articolo <span className="font-mono text-sm">TAS-04182-B</span>
+                  Codice articolo <span className="text-sm">TAS-04182-B</span>
                 </li>
                 <li>
-                  Numero DoP <span className="font-mono text-sm">TAS-0342-CPR-2024</span>
+                  Numero DoP <span className="text-sm">TAS-0342-CPR-2024</span>
                 </li>
                 <li>
-                  Lotto di produzione <span className="font-mono text-sm">L240718-03</span>
+                  Lotto di produzione <span className="text-sm">L240718-03</span>
                 </li>
                 <li>
-                  Partita IVA <span className="font-mono text-sm">IT01234567890</span>
+                  Partita IVA <span className="text-sm">IT01234567890</span>
                 </li>
                 <li>
-                  Percorso <span className="font-mono text-sm">/allegati/dop/2024/</span>
+                  Percorso <span className="text-sm">/allegati/dop/2024/</span>
                 </li>
                 <li>
-                  Token, hash, id tecnici <span className="font-mono text-sm">a3f9c1e0</span>
+                  Token, hash, id tecnici <span className="text-sm">a3f9c1e0</span>
                 </li>
               </ul>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Erano la colonna «✓ mono». La distinzione fra le due colonne{' '}
+                <strong>non è caduta</strong> — una stringa che si trascrive resta una cosa diversa
+                da una quantità che si legge, e vuole comunque <code>text-sm</code> e il grigio
+                attenuato. Quello che è caduto è il <em>carattere</em> con cui la si segnala.
+              </p>
             </div>
             <div className="rounded-md border border-border p-4">
-              <div className="text-sm font-semibold">✗ Non mono — si legge</div>
+              <div className="text-sm font-semibold">Si legge — e prende tabular-nums</div>
               <ul className="mt-2 space-y-2 text-base">
                 <li>
                   Importi e prezzi <span className="tabular-nums">20.497,60 €</span>
@@ -566,7 +635,7 @@ function Pagina() {
 
           <div className="space-y-3 rounded-md border border-border p-4">
             <div className="text-sm font-semibold">
-              Perché un numero NON va in mono: guarda la riga, non il numero
+              Perché un numero non andava in mono — e questa metà della regola resta
             </div>
             <p className="text-base">
               Importo della voce: <span className="tabular-nums">20.497,60</span> € — con{' '}
@@ -581,20 +650,20 @@ function Pagina() {
 
           <div className="space-y-2 rounded-md border border-border p-4">
             <div className="text-sm font-semibold">
-              Lo zero: il mono di sistema lo distingue già
+              Lo zero barrato non è una leva, e conviene saperlo prima di cercarla
             </div>
             <p className="text-base">
-              Su un codice, <strong>0</strong> e <strong>O</strong> si confondono, ed è il difetto
-              che fa sbagliare una trascrizione. Il monospace di sistema li distingue di suo:{' '}
-              <span className="font-mono text-xl">O0 IlL1</span>
+              <code>slashed-zero</code> in Tailwind chiede al font lo zero barrato — dove il font
+              ce l&apos;ha: <span className="text-xl">O0</span> normale contro{' '}
+              <span className="slashed-zero text-xl">O0</span>. <strong>Inter non la porta</strong>,
+              e i due sono identici al centesimo di pixel. Replica sì, ma Replica non è più il
+              carattere dello schermo (<code>docs/DECISIONI.md</code> §14).
             </p>
             <p className="text-base">
-              Se un giorno servisse un codice nel carattere del testo, <code>slashed-zero</code> in
-              Tailwind chiede al font lo zero barrato — dove il font ce l&apos;ha:{' '}
-              <span className="text-xl">O0</span> normale contro{' '}
-              <span className="text-xl slashed-zero">O0</span>. Inter non porta quella feature, e
-              infatti i due sono identici; Replica sì, ma Replica non è più il carattere dello
-              schermo. Per i codici la scelta resta il mono.
+              Non è comunque quella la coppia che fa sbagliare una trascrizione in Inter: v. la
+              misura sopra — <code>O</code> e <code>0</code> si distinguono, <code>I</code> e{' '}
+              <code>l</code> no. E i codici Tassullo sono maiuscoli, quindi la <code>l</code> non
+              ci compare.
             </p>
           </div>
         </section>
@@ -672,6 +741,62 @@ function Pagina() {
           </p>
         </section>
 
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">
+            7. Il separatore delle migliaia, che <code>tabular-nums</code> non può dare
+          </h2>
+          <p className="text-base text-muted-foreground">
+            Le cifre allineate non bastano se il <strong>punto delle migliaia</strong> compare a
+            intermittenza — ed è quello che fa{' '}
+            <code>Intl.NumberFormat(&apos;it-IT&apos;)</code> lasciato a sé: il CLDR italiano
+            dichiara <code>minimumGroupingDigits: 2</code>, cioè raggruppa solo da{' '}
+            <strong>cinque</strong> cifre in su. Un importo di quattro cifre esce senza punto e uno
+            di cinque col punto, nella stessa colonna.
+          </p>
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full text-base tabular-nums">
+              <thead className="bg-accent">
+                <tr>
+                  <th className="p-2 text-left font-medium">valore</th>
+                  <th className="p-2 text-right font-medium">
+                    <code>it-IT</code> così com&apos;è
+                  </th>
+                  <th className="p-2 text-right font-medium">
+                    con <code>useGrouping</code>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[812.4, 4128, 9874.5, 15402, 556835].map((v) => (
+                  <tr key={v} className="border-t border-border">
+                    <td className="p-2 font-mono text-sm text-muted-foreground">{v}</td>
+                    <td className="p-2 text-right">
+                      {v.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-2 text-right font-medium">{decimale(v)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-base text-muted-foreground">
+            Nella colonna di mezzo <strong>due valori su cinque</strong> perdono il punto, ed è
+            esattamente la fascia fra mille e diecimila — in un computo o in un listino, la maggior
+            parte delle righe. <code>812,40</code> non lo perde perché di cifre ne ha tre e non
+            c&apos;è niente da raggruppare. Due numeri incolonnati, uno col punto e uno senza, si leggono di ordini di
+            grandezza diversi: <code>tabular-nums</code> allinea le cifre, ma non può inventare un
+            separatore che non c&apos;è.
+          </p>
+          <p className="text-base text-muted-foreground">
+            La convenzione Tassullo è <strong>sempre il punto delle migliaia</strong>, e non si
+            riscrive a mano: sta nell&apos;item <code>numeri</code> —{' '}
+            <code>intero()</code>, <code>decimale()</code>, <code>valuta()</code> — che le app
+            installano insieme al tema. Una formattatrice scritta nel punto d&apos;uso è la riga in
+            cui <code>useGrouping</code> si dimentica, e dimenticarla non dà nessun errore.{' '}
+            <code>docs/DECISIONI.md</code> §47.
+          </p>
+        </section>
+
         <section className="space-y-2 rounded-md border border-border bg-card p-4">
           <h2 className="text-xl font-semibold">La regola</h2>
           <p className="text-base">
@@ -684,11 +809,15 @@ function Pagina() {
           </p>
           <p className="text-base">
             <strong>
-              Il <code>font-mono</code> è per i codici di sistema, e per niente altro.
+              Il <code>font-mono</code> non si usa — nemmeno sui codici, nemmeno sui lotti.
             </strong>{' '}
-            Il criterio è una domanda sola: <em>la stringa si legge, o si trascrive?</em> Chi la
-            deve ricopiare, dettare o confrontare carattere per carattere ha bisogno che stoni —
-            identificativi, DoP, lotti, partite IVA, path, hash. Chi la legge come una quantità no.
+            Sospeso il 2026-09-20 su richiesta di Roberto (<code>docs/DECISIONI.md</code> §48):
+            codici, DoP, lotti, partite IVA e identificativi si scrivono nel carattere del testo.
+            Resta la distinzione fra la stringa che <em>si trascrive</em> e la quantità che{' '}
+            <em>si legge</em> — la prima prende <code>text-sm</code> e il grigio attenuato, la
+            seconda <code>tabular-nums</code> — ma non la si segnala più cambiando carattere. Il{' '}
+            <code>font-mono</code> resta ai blocchi di <strong>codice sorgente</strong>, che codice
+            sono.
           </p>
           <p className="text-base">
             <strong>La designazione, i titoli e le note non prendono niente.</strong> Sono prosa: il

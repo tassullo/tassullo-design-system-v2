@@ -28,11 +28,13 @@ import {
   useDataTableRow,
   type CaratteristicheTabella,
   type IstanzaTabella,
+  type MetaColonna,
 } from '@/registry/tassullo/blocks/data-table'
 import { FiltroData } from '@/registry/tassullo/blocks/data-table-filtro-data'
 import { FiltroIntervallo } from '@/registry/tassullo/blocks/data-table-filtro-intervallo'
 import { FiltroResetTutti } from '@/registry/tassullo/blocks/data-table-filtro-reset'
 import { FiltroSfaccettato } from '@/registry/tassullo/blocks/data-table-filtro-sfaccettato'
+import { decimale, valuta } from '@/registry/tassullo/lib/numeri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -171,7 +173,7 @@ const COLONNE = col.columns([
     // `IN-10`, perché confronterebbe i caratteri e non i numeri.
     sortFn: 'alphanumeric',
     cell: ({ getValue }) => (
-      <span className="font-mono text-sm">{getValue<string>()}</span>
+      <span className="text-sm">{getValue<string>()}</span>
     ),
   }),
   col.accessor('nome', {
@@ -277,7 +279,7 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
-    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+    cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
   }),
   colRidimensionabile.accessor('nome', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
@@ -761,7 +763,7 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
-    cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+    cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
   }),
   colMenuAzioni.accessor('nome', {
     header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Nome" />,
@@ -979,11 +981,14 @@ function generaComputo(): Voce[] {
 
 const COMPUTO = generaComputo()
 
-const NUMERO = new Intl.NumberFormat('it-IT', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-const VALUTA = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+/*
+ * I numeri di queste story passano da **`lib/numeri`** (`decimale`, `valuta`)
+ * e non da una `Intl.NumberFormat` dichiarata qui. Il motivo sta per esteso
+ * in quel file: `Intl.NumberFormat('it-IT')` da solo rende `2086,93` e non
+ * `2.086,93`, perché il CLDR italiano raggruppa solo da cinque cifre in su —
+ * un separatore *intermittente*, che in colonna è il caso peggiore.
+ * `docs/DECISIONI.md` §47.
+ */
 
 const colAlbero = creaColonne<RigaComputo>()
 
@@ -1013,14 +1018,14 @@ const COLONNE_ALBERO = colAlbero.columns([
       // numero, e quella è la stessa formattazione della cella normale sotto.
       sottototale: (figli: RigaComputo[]) => (
         <div className="text-right font-medium">
-          {NUMERO.format(figli.reduce((tot, f) => tot + (f.quantita ?? 0), 0))}
+          {decimale(figli.reduce((tot, f) => tot + (f.quantita ?? 0), 0))}
         </div>
       ),
     },
     sortFn: 'basic',
     cell: ({ getValue }) => {
       const v = getValue<number | undefined>()
-      return <div className="text-right">{v === undefined ? null : NUMERO.format(v)}</div>
+      return <div className="text-right">{v === undefined ? null : decimale(v)}</div>
     },
     enableGlobalFilter: false,
   }),
@@ -1033,14 +1038,14 @@ const COLONNE_ALBERO = colAlbero.columns([
       larghezza: 'w-32',
       sottototale: (figli: RigaComputo[]) => (
         <div className="text-right font-semibold">
-          {VALUTA.format(figli.reduce((tot, f) => tot + (f.importo ?? 0), 0))}
+          {valuta(figli.reduce((tot, f) => tot + (f.importo ?? 0), 0))}
         </div>
       ),
     },
     sortFn: 'basic',
     cell: ({ getValue }) => {
       const v = getValue<number | undefined>()
-      return <div className="text-right">{v === undefined ? null : VALUTA.format(v)}</div>
+      return <div className="text-right">{v === undefined ? null : valuta(v)}</div>
     },
     enableGlobalFilter: false,
   }),
@@ -1710,7 +1715,7 @@ function costruisciColonneEditing(
       header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
       meta: { titolo: 'Codice', larghezza: 'w-28' },
       sortFn: 'alphanumeric',
-      cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+      cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
     }),
     colEditing.accessor('nome', {
       header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
@@ -1842,4 +1847,225 @@ function EditingInRigaConControlli() {
 export const EditingInRiga: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Editing In Riga',
   render: () => <EditingInRigaConControlli />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il piede (M4ter.8) — `piede` più `meta.piede` su ogni colonna
+ *
+ * Dati a parte, e per una ragione che non è simmetria con le altre sezioni:
+ * un totale vuole numeri che abbiano un senso sommati. Sui prodotti finti
+ * l'unico campo numerico è `revisione`, e «somma delle revisioni» è un
+ * numero che non vuol dire niente — un piede che mostra un numero senza
+ * senso non dimostra che il piede funziona, dimostra che si può scrivere.
+ * Qui le righe sono le **misurazioni** del computo, cioè le foglie
+ * dell'albero di `Albero` appiattite: quantità e importo si sommano davvero,
+ * ed è il caso vero del Computo di Studio.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type MisurazioneComputo = {
+  id: string
+  voce: string
+  ambiente: string
+  udm: string
+  quantita: number
+  importo: number
+}
+
+/** Le foglie di `COMPUTO`, con la voce di capitolato riportata su ogni riga. */
+const MISURAZIONI: MisurazioneComputo[] = COMPUTO.flatMap((voce) =>
+  voce.figli.map((figlio) => ({
+    id: figlio.id,
+    voce: voce.voce.split(' — ')[0],
+    ambiente: figlio.voce,
+    udm: figlio.udm,
+    quantita: figlio.quantita,
+    importo: figlio.importo,
+  }))
+)
+
+const somma = (righe: MisurazioneComputo[], campo: 'quantita' | 'importo') =>
+  righe.reduce((totale, riga) => totale + riga[campo], 0)
+
+const colPiede = creaColonne<MisurazioneComputo>()
+
+const COLONNE_PIEDE = colPiede.columns([
+  colPiede.accessor('voce', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Voce" />,
+    meta: {
+      titolo: 'Voce',
+      larghezza: 'w-24',
+      // La cella che dice **cos'è** il piede. Senza, la riga in fondo è una
+      // fila di numeri e chi la guarda deve indovinare di cosa siano il
+      // totale: `piede` somma le righe che il filtro lascia passare, e
+      // l'unico posto dove dirlo è qui.
+      piede: (righe) => `Totale — ${righe.length} misurazioni filtrate`,
+    } satisfies MetaColonna<MisurazioneComputo>,
+    sortFn: 'alphanumeric',
+    cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
+  }),
+  colPiede.accessor('ambiente', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Ambiente" />,
+    meta: { titolo: 'Ambiente' },
+    sortFn: 'text',
+  }),
+  colPiede.accessor('udm', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="U.M." />,
+    meta: { titolo: 'U.M.', larghezza: 'w-16' },
+    enableGlobalFilter: false,
+  }),
+  colPiede.accessor('quantita', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Quantità" allinea="fine" />
+    ),
+    meta: {
+      titolo: 'Quantità',
+      larghezza: 'w-28',
+      // `text-right` come la cella normale: una colonna di numeri allineata
+      // a destra con il totale allineato a sinistra è il modo più semplice
+      // di rendere illeggibile un incolonnamento che il tema dà già fatto
+      // (`tabular-nums` su `<table>`, v. `ui/table.tsx`).
+      piede: (righe) => (
+        <div className="text-right font-semibold" data-prova="piede-quantita">
+          {decimale(somma(righe, 'quantita'))}
+        </div>
+      ),
+    } satisfies MetaColonna<MisurazioneComputo>,
+    sortFn: 'basic',
+    cell: ({ getValue }) => (
+      <div className="text-right">{decimale(getValue<number>())}</div>
+    ),
+    enableGlobalFilter: false,
+  }),
+  colPiede.accessor('importo', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Importo" allinea="fine" />
+    ),
+    meta: {
+      titolo: 'Importo',
+      larghezza: 'w-32',
+      piede: (righe) => (
+        <div className="text-right font-semibold" data-prova="piede-importo">
+          {valuta(somma(righe, 'importo'))}
+        </div>
+      ),
+    } satisfies MetaColonna<MisurazioneComputo>,
+    sortFn: 'basic',
+    cell: ({ getValue }) => (
+      <div className="text-right">{valuta(getValue<number>())}</div>
+    ),
+    enableGlobalFilter: false,
+  }),
+])
+
+/**
+ * **Il totale in coda, e segue il filtro.** `piede` accende un `<tfoot>`
+ * dentro la tabella; ogni colonna dichiara la sua cella in `meta.piede`, come
+ * dichiara il suo titolo in `meta.titolo`. Le colonne che non la dichiarano
+ * restano vuote.
+ *
+ * Da provare col dito: si scriva `03.05` nella ricerca — le righe si
+ * riducono, e **i due totali in fondo scendono con loro**. Un totale che
+ * restasse fermo mentre la tabella si accorcia sarebbe il numero di
+ * qualcos&apos;altro.
+ *
+ * ## Somma le righe filtrate, non la pagina
+ *
+ * E la differenza va scelta sapendo perché. Un totale che cambia voltando
+ * pagina non è un totale che qualcuno possa usare: si leggerebbe un numero in
+ * fondo alla pagina 1 e un altro in fondo alla 2, e nessuno dei due sarebbe
+ * quello che si cercava. Con `perPagina="virtuale"` o `"infinito"`, poi, una
+ * pagina non esiste proprio. Quindi: **tutte le righe filtrate**, che è anche
+ * l&apos;unica lettura che risponde alla domanda vera — quanto fa quello che
+ * sto guardando. Cambia col filtro e con la ricerca, non con
+ * l&apos;ordinamento né con la pagina.
+ *
+ * ## L&apos;etichetta si stende, e non è un vezzo
+ *
+ * «Totale — 15 misurazioni filtrate» sta nella colonna **Voce**, che è larga
+ * 96px: con `table-fixed` e `truncate` si leggerebbe «Totale — 1…», e nessun
+ * gate lo vedrebbe — il conto delle celle torna, axe tace, la stringa nel DOM
+ * è intera. Preso guardando la pagina. Perciò **una cella del piede si prende
+ * lo spazio delle colonne che seguono e che una cella non ce l&apos;hanno**,
+ * fino alla prossima che ce l&apos;ha: qui l&apos;etichetta copre Voce,
+ * Ambiente e U.M. (520px), e i due numeri restano sotto la loro colonna. Se
+ * ogni colonna dichiara la sua, non si fonde niente.
+ *
+ * L&apos;eccezione è una colonna **bloccata**, che non assorbe le vicine — lo
+ * scarto dal bordo di una cella sticky è calcolato sulla sua larghezza, e
+ * fusa descriverebbe una cella che non esiste più. Con `bloccaPrimaColonna`
+ * l&apos;etichetta va quindi messa su una colonna che bloccata non è.
+ *
+ * ## `piede` non è `piePagina`
+ *
+ * I due nomi si somigliano e non hanno altro in comune. `piePagina` è la
+ * **fascia di paginazione** sotto il riquadro — conteggio, avanti/indietro,
+ * righe per pagina — e non si allinea a niente. `piede` è una **riga della
+ * tabella**: dentro `<table>`, sulle stesse colonne, con le stesse larghezze
+ * e lo stesso ordine, compreso quello che `colonneBloccabili` rimescola.
+ *
+ * ## Perché un `<tfoot>` e non una fascia sotto il riquadro
+ *
+ * Perché fuori dalla `<table>` le colonne non ci sono più, e un totale che
+ * non sta sotto la colonna che somma è testo libero. Il `<tfoot>` sta però
+ * **dentro** ciò che scorre (`table-container`), quindi porta `sticky
+ * bottom-0`: su `altezza="ferma"` o `perPagina="virtuale"` il totale resta in
+ * vista mentre le righe gli passano sotto — lo stesso che la testata fa in
+ * cima, dal verso opposto. Su `altezza="naturale"` lo sticky è inerte per
+ * definizione, perché non c&apos;è scarto da compensare.
+ */
+export const ConPiede: StoryObj<typeof DataTable<MisurazioneComputo>> = {
+  name: 'Con Piede',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_PIEDE}
+      dati={MISURAZIONI}
+      cerca="Cerca per voce o ambiente…"
+      piede
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'misurazione', plurale: 'misurazioni' }}
+    />
+  ),
+}
+
+/**
+ * **Lo stesso piede sull&apos;altro corpo.** `perPagina="virtuale"` scambia
+ * `DataTableBody` con `DataTableVirtualizedBody`, ma il `<Table>` è **uno
+ * solo** e il `<tfoot>` è scritto dopo il corpo, una volta: vale per tutti e
+ * due senza sapere quale dei due si è montato.
+ *
+ * Qui si vede anche a cosa serve lo `sticky`: il riquadro è fermo, le righe
+ * scorrono dentro, e il totale resta in fondo alla vista invece di andarsene
+ * sotto la millesima riga. Il fondo è **opaco** (`bg-accent`, lo stesso della
+ * testata) e non il `bg-muted/50` translucido della primitiva: appoggiato
+ * sopra righe che gli scorrono sotto, un fondo semitrasparente lascerebbe
+ * leggere il totale sovrapposto a un numero qualsiasi.
+ *
+ * Le misurazioni sono ripetute fino a 4.000 righe: a poche decine non ci
+ * sarebbe niente da scorrere, e lo sticky non si vedrebbe lavorare.
+ */
+const MISURAZIONI_TANTE: MisurazioneComputo[] = Array.from(
+  { length: 4000 },
+  (_, i) => {
+    const base = MISURAZIONI[i % MISURAZIONI.length]
+    return { ...base, id: `${base.id}-${i}`, ambiente: `${base.ambiente} (${i + 1})` }
+  }
+)
+
+export const PiedeVirtualizzato: StoryObj<typeof DataTable<MisurazioneComputo>> = {
+  name: 'Piede Virtualizzato',
+  render: () => (
+    <div className="flex h-140 flex-col">
+      <DataTable
+        colonne={COLONNE_PIEDE}
+        dati={MISURAZIONI_TANTE}
+        cerca="Cerca per voce o ambiente…"
+        piede
+        perPagina="virtuale"
+        altezza="ferma"
+        colonneNascondibili={false}
+        nomeRighe={{ singolare: 'misurazione', plurale: 'misurazioni' }}
+        className="min-h-0 flex-1"
+      />
+    </div>
+  ),
 }

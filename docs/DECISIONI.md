@@ -2790,3 +2790,161 @@ prima di misurare, guarda quale dei due è in gioco.
 query sulla finestra, quindi la scena «faccia stretta» della lista a due facce
 non può contare sul global. La scelta fra le due strade del punto 2 va presa
 all'inizio e scritta, non improvvisata a metà.
+
+## 47. Il separatore delle migliaia si scrive **sempre** (M4ter.8, coda, 2026-09-20)
+
+**Decisa da Francesco**, guardando il piede della story `Blocchi/Data Table →
+Con Piede`: il totale rendeva `2086,93 €`. La convenzione Tassullo è
+`2.086,93 €` — **il punto delle migliaia c'è sempre**, qualunque sia la
+grandezza del numero.
+
+**Perché non c'era, e non era un difetto nostro.** In italiano il CLDR
+dichiara `minimumGroupingDigits: 2`, cioè «raggruppa solo da cinque cifre in
+su»: `Intl.NumberFormat('it-IT')` lascia quindi `2086,93` e scrive
+`12.345,00`. Misurato nel Chromium del gate:
+
+| chiamata | risultato |
+|---|---|
+| `(2086.93).toLocaleString('it-IT')` | `2086,93` |
+| `(2086.93).toLocaleString('it-IT', { useGrouping: 'always' })` | **`2.086,93`** |
+| `(12345.67).toLocaleString('it-IT')` | `12.345,67` |
+
+**È il caso peggiore possibile in colonna**, ed è la ragione della
+convenzione: il separatore non è *assente*, è **intermittente** — compare o
+sparisce a seconda del valore, e proprio nella fascia fra mille e diecimila,
+che in un computo o in un listino è la maggior parte delle righe. Due numeri
+incolonnati con e senza punto si leggono di ordini di grandezza diversi. Il
+`tabular-nums` del tema allinea le cifre ma non può inventare un separatore
+che non c'è.
+
+**La leva è `useGrouping: 'always'`**, opzione ES2023 (Chrome 106+, Node 18+),
+da mettere su **ogni** `Intl.NumberFormat` e `toLocaleString` italiano.
+
+### La convenzione sta in un item, non in una regola da ricordare
+
+Applicata dapprima a mano ai sei punti d'uso del repo, e **subito dopo tolta
+di lì**: sei formattatrici scritte a mano in sei file sono la forma che si
+perde in qualche settimana, e in un'app consumer si perde **subito**, perché
+una convenzione che non viaggia col registry non è una convenzione, è un
+ricordo. Su indirizzo di Francesco (stessa sessione) è nato quindi l'item
+**`numeri`** (`registry/tassullo/lib/numeri.ts`, item **93**), sul modello di
+`lib/toni.ts`: la stessa forma — un file di libreria che mette in un posto
+solo ciò che altrimenti si riscrive in ogni punto d'uso.
+
+```tsx
+import { decimale, intero, valuta } from "@/lib/numeri"
+intero(15402)     // "15.402"
+decimale(106.376) // "106,38"
+valuta(2086.93)   // "2.086,93 €"
+```
+
+**Tre funzioni e non quattro.** `percentuale` non c'è, perché oggi non la usa
+nessuno e `formattatore({ style: "percent" })` la rende una riga: è la stessa
+regola con cui è entrato `1:1` in `entity-image` — ogni valore vuole un
+consumatore. `formattatore(opzioni)` è l'uscita di sicurezza, ed è ciò che
+evita che il caso non previsto riparta da `new Intl.NumberFormat('it-IT')`.
+
+**Una seconda ragione, indipendente dalla convenzione**: `new
+Intl.NumberFormat(...)` è caro, e costruirlo dentro la cella di una tabella
+vuol dire costruirlo una volta per riga a ogni render. Le istanze sono
+memorizzate in una cache di modulo.
+
+**E una regola che il file scrive perché è il rovescio della convenzione**: un
+anno, un codice, un identificativo, un CAP **non si formattano**. Sono
+stringhe scritte con delle cifre, e `2026` passato di lì diventa `2.026`. Il
+criterio è netto: se sommarne due non ha senso, non è un numero.
+
+I punti d'uso ricablati sull'item sono: `data-table.stories.tsx` (`decimale`,
+`valuta` — il piede e i subtotali dell'albero), `data-table-filtro-intervallo.tsx`
+(`intero`, ed è **codice del registry** e non una story: i due estremi di un
+intervallo si leggono affiancati — l'item è nelle sue `registryDependencies`,
+verificato con `add --dry-run`, che tira dietro `src/lib/numeri.ts`),
+`chart.stories.tsx` e `pagina-dashboard.stories.tsx` (il totale al centro
+della ciambella), `stories/ListaDueFacce.stories.tsx` (`ORE`). La convenzione
+è anche **in scena**, nella sezione 7 di `Tema/Cifre`, accanto a
+`tabular-nums`: sono le due metà della stessa cosa, e l'una senza l'altra non
+incolonna.
+
+**Un posto resta scoperto, e non si può chiudere ri-stilando**:
+`ui/chart.tsx:257`, il valore nel tooltip, fa `item.value.toLocaleString()`
+**senza locale** — è il codice di shadcn, identico all'originale. Senza locale
+prende quella del browser: nel Chromium del gate, `navigator.language` è
+`en-US` e il numero esce **`2,086.93`**, cioè con la virgola alle migliaia e
+il punto ai decimali. Non è un problema di raggruppamento, è la formattazione
+di un'altra lingua. Aggiungere argomenti a quella chiamata è una divergenza di
+**forma** e `check:registry` esce 1 (regola 4bis): la via è `formatter` sul
+`chartConfig`, che shadcn già prevede e che la pagina passa da sé. **Non
+chiuso in M4ter.8** — con i dati delle story attuali (valori a due cifre) non
+morde, ma morde alla prima app che mette in un grafico un numero sopra il
+migliaio.
+
+
+## 48. Il `font-mono` sui codici è sospeso (M4ter.8, coda, 2026-09-20)
+
+**Chiesto da Roberto, riferito da Francesco**, e con la parola «per ora»: la
+scelta del monospaziato per codici, lotti e simili si toglie, e si tiene il
+carattere del testo dappertutto. È quindi **reversibile per costruzione**, e
+la sezione 4 di `Tema/Cifre` resta in piedi apposta — il ragionamento e le
+misure che la sostenevano sono lì, così chi vorrà riaprirla non dovrà rifarle.
+
+**Cosa cade.** La seconda metà della regola del v1 («monospace per codici
+sistema *e dati tabellari*») era già caduta in M2.1, quando si è misurato che
+Inter porta `tnum`. Ora cade anche la prima. Codici articolo, DoP, lotti,
+partite IVA, identificativi: carattere del testo.
+
+**Cosa resta.** Tre cose, e vanno distinte o la regola si legge più larga di
+quello che è.
+
+1. **La distinzione fra ciò che si trascrive e ciò che si legge.** Non è
+   caduta: una stringa che si ricopia resta una cosa diversa da una quantità
+   che si confronta, e prende ancora `text-sm text-muted-foreground`. Quello
+   che è caduto è il **carattere** con cui la si segnalava — il *peso* resta.
+2. **Il `font-mono` sul codice sorgente**: un blocco `<pre>`, una classe
+   Tailwind citata, un valore CSS. Lì il mono fa il suo mestiere.
+3. **Il `font-mono` nelle misure di laboratorio** delle pagine `Tema/`
+   (`Palette`, `Densità`, `Carattere`, `Cifre`): sono strumenti, non
+   interfaccia d'app.
+
+**Il costo, misurato, e non è quello che ci si aspetta.** La ragione del mono
+sui codici era la sicurezza della trascrizione, cioè le coppie di glifi che si
+somigliano. Misurate a 32px nel Chromium del gate, e guardate a video:
+
+| coppia | Inter | mono di sistema |
+|---|---|---|
+| `O` / `0` | 23,97px / 19,63px — **si distinguono** | 19,27 / 19,27 |
+| `I` / `l` | 7,44px / 6,59px — **due barre nude, indistinguibili** | 19,27 / 19,27, con grazie e coda |
+
+Cioè: la coppia pericolosa in Inter **non è `O`/`0`**, che è quella che tutti
+citano, ma `I` maiuscola contro `l` minuscola. **E per questo la sospensione
+costa poco dove ci interessa**: i codici Tassullo sono *maiuscoli e cifre* —
+`TAS-04182-B`, `L240718-03`, `IT01234567890` — e in una stringa senza
+minuscole la `l` non compare mai.
+
+**Dove la caveat resta viva**: le stringhe tecniche a **cassa mista** — hash,
+token, percorsi. Chi ne metterà una in pagina riapra §4 di `Tema/Cifre`.
+
+**E `slashed-zero` non è una via d'uscita**: la utility di Tailwind chiede al
+font lo zero barrato, e **Inter quella feature non ce l'ha** — misurate le
+cinque coppie con e senza, i numeri sono identici al centesimo di pixel.
+Replica sì, ma Replica non è più il carattere dello schermo (§14).
+
+**Il token `--font-mono` resta nel tema**, e non è una svista: serve ai due
+usi che restano, e toglierlo renderebbe la decisione non più reversibile con
+una riga.
+
+**Punti d'uso ripuliti**: la colonna «Codice» di `data-table.stories.tsx` (×5),
+le celle di `table.stories.tsx` (×5), il codice-collegamento di
+`pagina-lista.stories.tsx`, la matricola di `ListaDueFacce` (tabella ed
+elenco), i due codici di `PaginaProdotti`, l'esempio di `Tema/Carattere`, la
+riga di `Tema/Cifre`. Più uno che era **già** contro la regola vecchia: il
+conteggio del filtro sfaccettato (`data-table-filtro-sfaccettato.tsx`) portava
+`font-mono` su un **numero**, e il numero in mono la regola non lo prevedeva
+già prima.
+
+**E `ui/chart.tsx` sì, invece.** Il valore del tooltip aveva `font-mono`, ed
+era anche lì un **numero** in mono. A differenza del `toLocaleString()` senza
+locale della stessa riga (§47, non chiuso), togliere una classe è una
+divergenza di **stringa di classi**, cioè il gradino 2 di 4bis: fatto, e
+`check:registry` resta a **0 errori / 19 ri-stilati** — il file era già nel
+conto. La distinzione fra le due cose nello stesso file è la regola 4bis in
+miniatura: le classi si cambiano, la forma no.

@@ -8917,3 +8917,473 @@ che vale.
 
 Conto aggiornato: a11y **1452**/0 su 363 story, bersagli **3199** con 0
 piccoli, sei gate verdi.
+
+## M4ter.8 — Il piede della tabella, la conferma digitata, il chip col conteggio (2026-09-20)
+
+**Verdetto: chiuso.** `registry.json` fermo a **92 item** (sono prop e scene,
+nessun item nuovo), `npm run check` verde sui **sei** (uscita 0), `test:a11y`
+**1472 scansioni su 368 story, 0 violazioni** in tutte e quattro le passate.
+`check:registry` invariato dove deve esserlo: **0 errori, 62 avvisi, 1
+componente nostro, 19 ri-stilati**. `check:registry-build` allineato (93 file).
+`misura:bersagli` **3228** bersagli su 368 story, 60 popup aperti, **0 piccoli
+in entrambe le direzioni**. `build` e `lint` verdi, **26 avvisi prima e 26
+dopo**: zero nuovi dai file miei.
+
+**Lo scostamento, subito: le scene nuove sono cinque e non quattro**, quindi
+1472 e non le 1468 che la regola darebbe per quattro. La quinta è
+`Piede Virtualizzato`: il piede va provato su **tutti e due i corpi**, e una
+prova che non sta sotto il gate è una prova che nessuno rifarà.
+
+### (1) Il piede — e il piano sbagliava un fatto
+
+Il piano dice che `piede` «va messa in due rami di render, la tabella normale
+(`:2137`) e quella virtualizzata (`:2560`)». **Guardato, ed è falso.** Quei due
+numeri sono i due punti in cui `meta.sottototale` vive dentro i due corpi, e il
+subtotale sta lì perché è la **cella di una riga di gruppo**. Il `<Table>` è
+**uno solo** (`data-table.tsx:3653`): i due corpi si scambiano dentro di lui, e
+un `<tfoot>` scritto dopo il corpo vale per tutti e due. Scritto due volte
+sarebbero stati due `<tfoot>` in una tabella sola al primo momento in cui uno
+dei rami fosse cambiato.
+
+**Il bivio vero era un altro, e il mandato lo aveva visto**: il `<Table>` sta
+dentro `table-container`, cioè dentro ciò che scorre. Le due strade:
+
+| | piede dentro la tabella | fascia fuori dal contenitore |
+|---|---|---|
+| allineato alle colonne | **sì** | no: fuori dalla `<table>` le colonne non esistono |
+| resta in vista scorrendo | solo con `sticky` | sì per costruzione |
+| segue pin, ordine, larghezze | gratis | da riscrivere a mano |
+
+**Presa la prima, con `sticky bottom-0 z-20`**, che è la testata ferma vista dal
+verso opposto. La seconda non regge per una ragione sola ma dirimente: un
+totale che non sta sotto la colonna che somma non è un totale, è testo libero
+sotto una tabella — e il totale della colonna «Importo» va sotto «Importo», o
+chi legge deve contare le colonne.
+
+Misurato su `Piede Virtualizzato` (4000 righe, `altezza="ferma"`), in Chromium
+vero:
+
+| scorrimento | `scrollTop` | posizione del `<tfoot>` | scarto dal fondo |
+|---|---|---|---|
+| in cima | 0 | `tfootTop 471` | 0 |
+| a metà | 20.000 | `tfootTop 471` | 0 |
+| in fondo | 175.403 | `tfootTop 471` | 0 |
+
+Non si muove di un pixel. E su `altezza="naturale"` (`Con Piede`) lo sticky è
+**inerte per definizione** — il contenitore non scorre, quindi non c'è scarto
+da compensare: misurato `contScrollable: false` e il `<tfoot>` aderente al
+fondo del corpo a 0px di distanza.
+
+`z-20` e non `z-10`, per la ragione esatta della testata (M3bis.11b): una cella
+bloccata del corpo porta `z-10`, e a z-index pari vince l'ordine nel DOM.
+Verificato come allora, con `document.elementFromPoint` sul piede a tabella
+scorsa: torna la `<td>` del totale, non la riga che ci passa sotto.
+
+`bg-accent` e non il `bg-muted/50` della primitiva, che è **translucido**:
+appoggiato sopra righe che gli scorrono sotto lascerebbe leggere il totale
+sovrapposto a un numero qualsiasi. Letto dal DOM: `oklch(0.9644 0.0029 84.56)`,
+senza canale alfa.
+
+**Il totale segue il filtro — due numeri, non un'impressione.** Letti dal DOM
+su `Blocchi/Data Table → Con Piede`, prima e dopo aver scritto «03.05» nella
+ricerca:
+
+| | righe | quantità | importo |
+|---|---|---|---|
+| tabella intera | 15 | **106,38** | **2086,93 €** |
+| filtro «03.05» | 4 | **24,66** | **855,70 €** |
+
+E il secondo non è solo *diverso*: è **uguale alla somma delle celle visibili**,
+ricalcolata leggendo `textContent` di ogni riga montata — 24,66 e 855,70 al
+centesimo. Sul corpo virtualizzato lo stesso filtro porta 4000 → **1068** righe
+e 28.369,69 → **6.584,22**.
+
+**Somma le righe filtrate, non la pagina**, ed è la sola scelta che tiene. Un
+totale che cambia voltando pagina non è un totale che qualcuno possa usare; e
+con `perPagina="virtuale"`/`"infinito"` una pagina non esiste proprio, quindi
+`piede` deve voler dire la stessa cosa nei tre casi o non vuol dire niente. Le
+righe sono **le stesse che `totaleFiltrate` conta** — non un secondo calcolo
+che potrebbe divergerne: il numero nel piede e quello nella fascia devono
+coincidere, o uno dei due mente.
+
+**`piede` non è `piePagina`**, e i due nomi si somigliano abbastanza da
+costare un pomeriggio a chi li incontra per la prima volta. La differenza è
+scritta nei `docs` della prop e nella story, non in un commento: `piePagina` è
+la fascia di paginazione sotto il riquadro, `piede` è una riga *della tabella*.
+
+**Niente primitiva toccata**: `TableFooter` esisteva già in `ui/table.tsx:41` e
+non lo usava nessuno. La regola 4bis qui non ha mai dovuto mordere.
+
+### Il difetto che nessun gate ha visto, e che si vedeva guardando
+
+Prima schermata della story: **«Totale — 1…»**. L'etichetta stava nella colonna
+`Voce`, larga `w-24` (96px), e `table-fixed` più `truncate` se l'erano mangiata.
+Nessun gate poteva accorgersene — il conto delle celle torna, axe tace, la
+stringa nel DOM è **intera**: è esattamente la forma della trappola 2, dove la
+sonda non può vedere il difetto perché il difetto sta nella resa.
+
+Rimedio, e non ha richiesto una prop: **una cella del piede si prende lo spazio
+delle colonne che seguono e che una cella non ce l'hanno**, fino alla prossima
+che ce l'ha. Se ogni colonna dichiara la sua non si fonde niente; nel caso
+normale — un'etichetta e due numeri in fondo — l'etichetta si stende e i numeri
+restano sotto la loro colonna. Misurato: da **96px a 520px**, `colSpan 3`.
+
+**L'eccezione, e l'ho misurata in tutte e tre le configurazioni** invece di
+dedurla, montando due story temporanee e togliendole dopo:
+
+| configurazione | `colSpan` dell'etichetta | larghezza | testata e piede allineati |
+|---|---|---|---|
+| nessun blocco | 3 | 520px | sì (x 17 / 537 / 710 su entrambi) |
+| `colonneBloccabili`, «Importo» bloccata a destra | 3 | 520px | sì, e la cella dell'importo resta `sticky` |
+| `bloccaPrimaColonna` + `selezione` | **1** | 96px | sì |
+
+Nel terzo caso la fusione **non** scatta, ed è voluto: lo scarto dal bordo di
+una cella bloccata è calcolato sulla sua larghezza, e fusa descriverebbe una
+cella che non esiste più — il piede scivolerebbe rispetto alla testata. Il
+prezzo è che lì l'etichetta si tronca di nuovo, e il rimedio (scriverla su una
+colonna non bloccata) è documentato nella prop, misura compresa.
+
+**`cellePiede` non è memoizzato, ed è una scelta scritta nel codice.** Due delle
+sue dipendenze non sono valori: quali colonne dichiarano `meta.piede` e
+soprattutto **quali sono bloccate in questo momento** (`column.getIsPinned()`,
+che cambia cliccando una voce di menu e non compare in nessuna prop). Una lista
+di dipendenze che non la contenesse darebbe un piede fuso con l'ordine di prima
+— non un errore, una riga *sbagliata*. Il giro è su una decina di colonne.
+`datiPiede` invece è memoizzato, e lì la dipendenza è sana: `getFilteredRowModel()`
+è memoizzato da TanStack e restituisce lo stesso array finché dati, ricerca e
+filtri non cambiano, quindi il `.map()` non ricomincia a ogni fotogramma di
+scorrimento su 4000 righe.
+
+### (2) La conferma digitata
+
+Due aggiunte, e la prima non è un formalismo. `descrizione` finisce in
+`<AlertDialogDescription>`, cioè nell'elemento che il dialogo dichiara in
+`aria-describedby`: è il testo che un lettore di schermo annuncia **tutto in
+fila** come descrizione del dialogo. Un campo lì dentro vuol dire l'etichetta
+letta come parte della spiegazione e un controllo in mezzo a una frase. C'è
+quindi **`corpo`**, un terzo posto fra intestazione e bottoni, e **`campo`**,
+che ci si rende dentro.
+
+Letto dal DOM a dialogo aperto, che è la verifica chiesta:
+
+```
+ariaDescribedby        base-ui-_r_5_
+testoDescritto         «Esce dal catalogo e dalle ricerche. I riferimenti…»
+campoDentroIlDescritto false
+corpoDentroIlDescritto false
+campoDentroIlCorpo     true
+etichettaFor / campoId _r_0_-campo  /  _r_0_-campo
+campoDescribedby       _r_0_-aiuto
+```
+
+L'elemento puntato da `aria-describedby` contiene la sola descrizione; il campo
+sta nel corpo, ha l'etichetta appaiata e l'aiuto collegato per conto suo.
+**Nessuna riga di `alert-dialog` toccata**: la primitiva è un `grid`, e il corpo
+è la riga in mezzo — gradino 2 di 4bis, composizione dal punto di chiamata. È
+la trappola 8 del mandato, che qui non è scattata perché non le si è dato modo.
+
+**Il valore torna a chi chiama.** `onConferma` riceve ora il testo digitato;
+chi non usa `campo` continua a scrivere `onConferma={() => …}`, perché una
+funzione che ignora il suo argomento resta assegnabile — e infatti nessuna
+delle quattro story esistenti è cambiata. Provato con una spia in pagina:
+digitato `UNI EN 998-1` e confermato, la spia scrive **«Confermato con: UNI EN
+998-1»**; sul motivo multiriga, **«Motivo ricevuto: Le famiglie non
+corrispondono al listino di settembre.»**
+
+Le altre cose misurate sulle due scene nuove: la conferma resta **disabilitata**
+con la parola sbagliata (`UNI EN 998` → `disabled true`) e si accende con
+quella giusta; il fuoco all'apertura va **nel campo** (`document.activeElement`
+= `confirm-dialog-campo`), che è dove si deve agire; e riaprendo il dialogo il
+campo è **tornato vuoto** — verificato dopo un giro completo, ed è la ragione
+per cui il reset esiste: un dialogo riaperto con dentro quello che si scriveva
+per un'altra riga è il modo in cui si conferma la cosa sbagliata.
+
+Il reset è **aggiustato in fase di render, non in un `useEffect`** — lo stesso
+pattern di `chiaveFiltroVista` in `data-table`. Non è pignoleria: con
+`useEffect` `oxlint` dà `react(set-state-in-effect)`, e il mandato chiede zero
+avvisi nuovi; ma la ragione vera è che con l'effetto il campo si vedrebbe per
+un fotogramma col valore vecchio. Le dipendenze sono due primitivi e non
+`campo`, che è un letterale, cioè un riferimento nuovo a ogni render: quello
+non darebbe un ciclo, darebbe **un campo che si cancella mentre ci si scrive
+dentro**.
+
+**Su una cosa la prima stesura era peggiore della seconda**: avevo messo
+`segnaposto: 'UNI EN 998-1'` accanto a `parolaAttesa: 'UNI EN 998-1'`, e nello
+screenshot la parola compariva due volte — una in grigio dentro il campo, dove
+si scambia per un valore già inserito. Tolto: la parola si legge una volta
+sola, nella riga sotto, in evidenza. È la risposta alla domanda di Francesco
+(«la parola da scrivere è chiara prima di scriverla?»), e la scrive il blocco
+da sé se l'app non scrive un `aiuto` suo.
+
+`registryDependencies` di `tassullo-confirm-dialog` aggiornate con
+`@tassullo/field`, `@tassullo/input`, `@tassullo/textarea` — la classe di
+difetto che il gate di M4.6 trovò 26 volte su 12 item, e che non rompe niente
+in casa.
+
+### (3) Il chip col conteggio
+
+Una scena, **accanto** a `Filtri contro badge` e non al suo posto: quella dice
+*quale componente*, questa *come ci si scrive dentro un numero*. Nessun
+componente nuovo — il conteggio è uno `<span className="tabular-nums
+text-muted-foreground">` dentro `ToggleGroupItem`, e le tre cose che lo rendono
+leggibile sono tre classi, spiegate nella story: il colore che lo subordina
+all'etichetta, `tabular-nums`, e niente parentesi.
+
+La terza fila della scena è **la forma di Officina** — badge col numero fra
+parentesi e un gestore di clic sopra — messa lì perché la differenza si guardi
+invece di raccontarla: è la domanda che Francesco deve chiudere.
+
+**Una rivendicazione che avevo scritto e che è falsa**, corretta dopo aver
+guardato lo screenshot: avevo scritto che senza `tabular-nums` «tutta la fila
+slitta» passando da 9 a 12. Non è quello il punto — un carattere in più un po'
+di spazio lo prende comunque, e la fila si allarga lo stesso. Quello che
+`tnum` toglie è lo slittamento **a parità di cifre** (da 9 a 8, da 128 a 147),
+che è il caso frequente di un conteggio che si aggiorna. Riscritte la prosa e
+la didascalia della seconda fila.
+
+### La non-regressione
+
+Metodo di M4ter.4/.5/.7: `build-storybook`, Chromium headless contro un server
+statico minimo, `innerHTML` di `#storybook-root`, **2500ms di quiete** prima di
+catturare. **58 alberi** — le 29 story esistenti di `Blocchi/Data Table`,
+`Blocchi/Dialogo di conferma` e `Primitive/ToggleGroup`, in chiaro e in scuro —
+e per la baseline `git stash`, ricostruzione, cattura, ritorno.
+
+**0 differenze non dichiarate.** Le sei differenze grezze sono tutte
+`base-ui-_r_1_` → `base-ui-_r_2_` sulle tre story del dialogo: `ConfirmDialog`
+chiama ora `useId()`, che consuma un identificatore prima di quello di Base UI,
+e il grilletto slitta di uno. È un identificatore generato, coerente al suo
+interno; normalizzando `_r_N_` il conto va a zero.
+
+**Una settima differenza c'era, e non era mia.** Su
+`Blocchi/Data Table → Virtualizzata` in scuro compariva
+`style="max-height: 448px"` nella cattura nuova e non nella vecchia. Prima di
+attribuirmela l'ho ripetuta: su **quattro** aperture della *stessa* build ne
+usciva con due volte e senza due volte, e la stessa cosa sulla **baseline**
+ricostruita apposta. È una non-determinatezza preesistente di `altezzaMax`, che
+un osservatore misura dopo il primo commit — e 2500ms non bastano a stabilizzarla.
+Annotata qui, **non corretta**: è materia di chi rimetterà mano ad `altezza="ferma"`.
+Chi rifà una non-regressione su quella story la ignori, o la misuri due volte.
+
+### Cosa non è stato fatto, e perché
+
+- **Nessuna variante o taglia nuova su una primitiva adottata.** Il corpo della
+  conferma si ottiene componendo dal punto di chiamata; `TableFooter` esisteva
+  già. `check:registry` resta a 0 errori e 19 ri-stilati.
+- **Niente riga in `componenti-propri.json`**: né il piede né la conferma sono
+  un componente nostro al posto di una primitiva. Il conto resta **1**
+  (`entity-image`).
+- **Nessun colore nuovo**: la riga «tavolozza estesa» sospesa in `CHECKLIST.md`
+  non si è innescata qui.
+- **Nessuna sezione nuova in `docs/DECISIONI.md`.** Le due cose che
+  meriterebbero di starci — «il `<Table>` è uno solo, il piede si scrive una
+  volta» e «una cella del piede si fonde, ma non attraverso una colonna
+  bloccata» — sono dettagli di un blocco, non decisioni di stack, e stanno nei
+  `docs` della prop dove le legge chi la usa.
+
+### Quello che resta da guardare a Francesco
+
+- **Il totale si legge come un totale?** `Blocchi/Data Table → Con Piede`. Ha
+  fondo di cornice (`bg-accent`, lo stesso della testata), bordo superiore,
+  numeri in `font-semibold` ed etichetta che dice *di cosa* è il totale. Quello
+  che la misura non dice è se a colpo d'occhio si stacchi abbastanza dalle
+  righe: se no, la leva è il peso dell'etichetta o un secondo filo.
+- **La conferma digitata chiede la cosa giusta nel posto giusto?** Le due scene
+  sono `Parola da ricopiare` (la guardia) e `Motivo da scrivere` (ChangeSets).
+  Sulla seconda vale la pena guardare se «Motivo del rifiuto» come etichetta
+  basti, o se il caso vero voglia anche un elenco delle 14 modifiche nel corpo.
+- **Il chip col conteggio si distingue dal badge cliccabile?** Terza fila di
+  `Primitive/ToggleGroup → Chip col conteggio`, da guardare accanto a
+  `Filtri contro badge`.
+
+### Prossimi passi
+
+M4ter.9 — `tassullo-barra-contesto`. Il conto da cui parte è **1472**, non le
+1456 scritte nel piano: quattro scene nuove lì fanno **1488**.
+
+### Coda di M4ter.8 — il separatore delle migliaia, deciso da Francesco
+
+Rilievo sul piede di `Con Piede`: il totale rendeva **`2086,93 €`**. La
+convenzione Tassullo è `2.086,93 €` — **il punto delle migliaia c'è sempre**.
+Chiusa come **`docs/DECISIONI.md` §47**, con una riga in `CLAUDE.md` fra le
+trappole, perché è un difetto **muto**: nessun errore, nessun avviso, solo un
+numero che si legge male.
+
+**Non era un difetto nostro, ed è per questo che nessuno lo aveva visto.** In
+italiano il CLDR dichiara `minimumGroupingDigits: 2`: `Intl.NumberFormat('it-IT')`
+raggruppa da **cinque** cifre in su e lascia in pace le quattro. Misurato nel
+Chromium del gate:
+
+| chiamata | risultato |
+|---|---|
+| `(2086.93).toLocaleString('it-IT')` | `2086,93` |
+| `(2086.93).toLocaleString('it-IT', { useGrouping: 'always' })` | **`2.086,93`** |
+| `(12345.67).toLocaleString('it-IT')` | `12.345,67` |
+
+**È il caso peggiore possibile in colonna, e questa è la motivazione della
+convenzione**: il separatore non è *assente*, è **intermittente** — c'è o non
+c'è a seconda del valore, e proprio nella fascia fra mille e diecimila, che in
+un computo o in un listino è la maggior parte delle righe. Due numeri
+incolonnati, uno col punto e uno senza, si leggono di ordini di grandezza
+diversi. Il `tabular-nums` del tema allinea le cifre ma non può inventare un
+separatore che non c'è.
+
+Applicato `useGrouping` a cinque posti: `data-table.stories.tsx` (`NUMERO` e
+`VALUTA` — il piede **e** i subtotali dell'albero), `data-table-filtro-intervallo.tsx`
+(`formattaNumero`, che è **codice del registry** e non una story: i due estremi
+di un intervallo si leggono affiancati), `chart.stories.tsx` e
+`pagina-dashboard.stories.tsx` (il totale al centro della ciambella),
+`stories/ListaDueFacce.stories.tsx` (`ORE`).
+
+**E il difetto era già spedito, non solo nella story nuova.** Riletto dal DOM
+dopo la correzione, `Pagine/Lista a due facce → Faccia larga` mostra ora
+`4.128`, `2.210`, `9.874`, `1.560`, `15.402`: i primi quattro erano `4128`,
+`2210`, `9874`, `1560`, e `15.402` aveva il punto — cinque celle sulla stessa
+colonna, quattro senza separatore e una con. Verificato anche il piede
+(`106,38` / **`2.086,93 €`**, virtualizzato `28.369,69` / `556.835,00 €`) e i
+subtotali dell'albero (`397,99 €`, `359,34 €`, `855,70 €`).
+
+**Un posto resta scoperto e non si chiude ri-stilando**: `ui/chart.tsx:257`, il
+valore nel tooltip, fa `item.value.toLocaleString()` **senza locale** — codice
+di shadcn, identico all'originale. Senza locale prende quella del browser: nel
+Chromium del gate `navigator.language` è `en-US` e il numero esce
+**`2,086.93`**, cioè virgola alle migliaia e punto ai decimali. Non è un
+problema di raggruppamento, è un'altra lingua. Aggiungere argomenti a quella
+chiamata è una divergenza di **forma** e `check:registry` uscirebbe 1 (regola
+4bis, trappola 8 del mandato): la via è `formatter` sul `chartConfig`, che
+shadcn già prevede e che la pagina passa da sé. **Non chiuso qui** — coi dati
+delle story attuali (valori a due cifre) non morde, ma morde alla prima app
+che mette in un grafico un numero sopra il migliaio. Scritto in §47 con quel
+nome accanto, perché una lacuna senza un nome si riscopre da zero.
+
+### L'item `numeri`, approvato nella stessa sessione
+
+Avevo **proposto** e non fatto: la convenzione viveva in sei formattatrici
+scritte a mano in sei file, cioè la forma che si perde in qualche settimana —
+e in un'app consumer si perde **subito**, perché una convenzione che non
+viaggia col registry non è una convenzione, è un ricordo. Francesco ha detto
+di farlo, ed è fatto: **`registry/tassullo/lib/numeri.ts`, item 93**, sul
+modello di `lib/toni.ts` (stessa forma: un file di libreria che mette in un
+posto solo ciò che altrimenti si riscrive in ogni punto d'uso).
+
+```tsx
+import { decimale, intero, valuta } from "@/lib/numeri"
+intero(15402)        // "15.402"
+decimale(106.376)    // "106,38"
+decimale(3.14159, 3) // "3,142"
+valuta(2086.93)      // "2.086,93 €"
+```
+
+**Tre funzioni e non quattro.** `percentuale` **non c'è**: oggi non la usa
+nessuno, e `formattatore({ style: "percent" })` la rende una riga. È la
+stessa regola con cui è entrato `1:1` in `entity-image` — ogni valore vuole
+un consumatore. `formattatore(opzioni)` è l'uscita di sicurezza, ed è ciò che
+evita che il caso non previsto riparta da `new Intl.NumberFormat('it-IT')`,
+cioè dal difetto.
+
+**Una seconda ragione, indipendente dalla convenzione.** `new
+Intl.NumberFormat(...)` è caro: costruirlo nella cella di una tabella vuol
+dire costruirlo una volta per riga a ogni render. Le istanze stanno in una
+cache di modulo, e le funzioni sono involucri sottili.
+
+**Il rovescio della regola, scritto nel file perché è la parte che si
+sbaglia.** Un anno, un codice, un identificativo, un CAP **non si
+formattano**: sono stringhe scritte con delle cifre, e `2026` passato di lì
+diventa `2.026`. Il criterio è netto — se sommarne due non ha senso, non è un
+numero.
+
+Ricablati tutti e sei i punti d'uso; `grep` su `Intl.NumberFormat` e
+`toLocaleString('it-IT')` nel registry e nelle story restituisce ora solo le
+due date di `pagina-dashboard.tsx`, che date sono. `LINGUA` è una costante
+sola nel file: il giorno in cui un'app non fosse italiana si cambia lì.
+
+**La dipendenza dichiarata e provata.** `tassullo-data-table-filtro-intervallo`
+importa `intero`, quindi ha guadagnato `@tassullo/numeri` fra le
+`registryDependencies` — la classe di difetto che il gate di M4.6 trovò 26
+volte. Verificata con la CLI vera, non a occhio: `shadcn add
+@tassullo/tassullo-data-table-filtro-intervallo --dry-run` in un'app di prova
+elenca **`src/lib/numeri.ts`** fra i 25 file creati.
+
+**E la convenzione è in scena**, non solo nei commenti: sezione **7** di
+`Tema/Cifre`, accanto a `tabular-nums`. Una tabella di cinque valori con e
+senza convenzione, dove **due su cinque** perdono il punto — e sono quelli
+fra mille e diecimila. Sta lì perché sono le due metà della stessa cosa:
+`tabular-nums` allinea le cifre, il raggruppamento dà il righello, e l'una
+senza l'altra non incolonna. Nessuna scansione nuova: è una sezione dentro la
+story che c'era già.
+
+Conto dopo la coda: `check` verde sui **sei**, `test:a11y` **1472**/0,
+`check:registry` 0 errori / 62 avvisi / **1** componente nostro / 19
+ri-stilati (un `lib` non è un componente nostro, come `toni`),
+`registry.json` **92 → 93 item**, `public/r/` 94 file, `lint` **26 avvisi
+prima e dopo**, `build` verde.
+
+### Coda di M4ter.8 — il `font-mono` sui codici, sospeso
+
+**Chiesto da Roberto, riferito da Francesco**, e con la parola **«per ora»**:
+via il monospaziato da codici, lotti e simili, carattere del testo
+dappertutto. Chiusa come **`docs/DECISIONI.md` §48**, con la riga di
+`CLAUDE.md` riscritta e la sezione 4 di `Tema/Cifre` rifatta.
+
+**Cade la prima metà della regola del v1.** La seconda («monospace anche per i
+*dati tabellari*») era già caduta in M2.1, quando si è misurato che Inter
+porta `tnum`. Ora cade anche la prima. Restano tre cose e vanno distinte, o la
+regola si legge più larga di quello che è: la **distinzione** fra ciò che si
+trascrive e ciò che si legge (che non è caduta — il codice tiene
+`text-sm text-muted-foreground`, cioè il *peso*, non il carattere); il mono
+sui blocchi di **codice sorgente**; il mono nelle **misure di laboratorio**
+delle pagine `Tema/`, che sono strumenti e non interfaccia.
+
+**Il costo, misurato a 32px in Chromium e guardato a video — e non è quello
+che ci si aspetta.** La ragione del mono sui codici era la sicurezza della
+trascrizione, cioè le coppie di glifi che si somigliano:
+
+| coppia | Inter | mono di sistema |
+|---|---|---|
+| `O` / `0` | 23,97px / 19,63px — **si distinguono** | 19,27 / 19,27 |
+| `I` / `l` | 7,44px / 6,59px — **due barre nude, indistinguibili** | 19,27 / 19,27, con grazie e coda |
+
+La coppia pericolosa in Inter **non è `O`/`0`**, che è quella che citano
+tutti: è `I` maiuscola contro `l` minuscola. **E per questo la sospensione
+costa poco dove ci interessa** — i codici Tassullo sono *maiuscoli e cifre*
+(`TAS-04182-B`, `L240718-03`, `IT01234567890`), e in una stringa senza
+minuscole la `l` non compare mai. La caveat resta viva sulle stringhe
+**tecniche a cassa mista**: hash, token, percorsi. Scritta in §48 e in scena
+nella sezione 4, perché chi la incontrerà non debba rimisurarla.
+
+**E `slashed-zero` non è una via d'uscita**: Inter quella feature non ce l'ha
+— le cinque coppie misurate con e senza danno numeri identici al centesimo di
+pixel. Era già scritto nella pagina, ora è misurato.
+
+**Ripuliti quattordici punti d'uso**: la colonna «Codice» di
+`data-table.stories.tsx` (×5), le celle di `table.stories.tsx` (×5), il
+codice-collegamento di `pagina-lista.stories.tsx`, la matricola di
+`ListaDueFacce` (tabella **ed** elenco), i due codici di `PaginaProdotti`,
+l'esempio di `Tema/Carattere`, la riga della tabella modello di `Tema/Cifre`.
+Più **due che erano già contro la regola vecchia**, e che infatti nessuno
+aveva notato: il conteggio del filtro sfaccettato e il valore del tooltip di
+`chart.tsx` portavano `font-mono` su un **numero**, e il numero in mono la
+regola non lo prevedeva nemmeno prima.
+
+**`chart.tsx` sì, e la distinzione dentro lo stesso file è 4bis in
+miniatura.** Quel file ha due cose in sospeso sulla stessa riga: il
+`font-mono` (tolto) e il `toLocaleString()` **senza locale** di §47 (non
+toccato). La prima è una **stringa di classi**, gradino 2, e il gate la
+accetta — `check:registry` resta **0 errori / 19 ri-stilati**, il file era già
+nel conto. La seconda è una **firma di chiamata**, cioè forma, e il gate
+uscirebbe 1. Le classi si cambiano, la forma no.
+
+**Il token `--font-mono` resta nel tema**, e non è una svista: serve ai due
+usi che restano, e toglierlo renderebbe la decisione non più reversibile con
+una riga — che è il contrario di «per ora».
+
+**Verifica**: su `Blocchi/Data Table → Prodotti`, contati dal DOM gli elementi
+che risolvono a un `font-family` monospaziato: **2**, ed entrambi sono nodi
+nascosti di Storybook (`sb-errordisplay_code` e un `<code>` vuoto). Zero
+nell'interfaccia.
+
+Conto dopo la coda: `check` verde sui **sei** (uscita 0), `test:a11y`
+**1472**/0, `check:registry` 0 errori / 62 avvisi / 1 componente nostro / 19
+ri-stilati, `misura:bersagli` **3228** su 368 story con **0** piccoli —
+invariato, il cambio di carattere non ha ristretto nessun bersaglio —
+`build` e `lint` verdi, **26 avvisi prima e dopo**.

@@ -506,7 +506,7 @@ const COLONNE = col.columns([
     size: 150,
     minSize: 110,
     cell: ({ getValue }) => (
-      <span className="font-mono text-sm">{getValue<string | null>() ?? '—'}</span>
+      <span className="text-sm">{getValue<string | null>() ?? '—'}</span>
     ),
   }),
   col.accessor('bcSystemCode', {
@@ -516,7 +516,7 @@ const COLONNE = col.columns([
     size: 120,
     minSize: 90,
     cell: ({ getValue }) => (
-      <span className="font-mono text-sm">{getValue<string | null>() ?? '—'}</span>
+      <span className="text-sm">{getValue<string | null>() ?? '—'}</span>
     ),
   }),
   col.accessor('attivo', {

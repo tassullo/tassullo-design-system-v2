@@ -30,6 +30,7 @@ import * as React from "react"
 import type { Column, RowData } from "@tanstack/react-table"
 import { PlusCircleIcon, XCircleIcon } from "lucide-react"
 
+import { intero } from "@/registry/tassullo/lib/numeri"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Input } from "@/registry/tassullo/ui/input"
 import { Label } from "@/registry/tassullo/ui/label"
@@ -53,9 +54,15 @@ function numeroDiRiga(
   return Number.isFinite(numero) ? numero : undefined
 }
 
-function formattaNumero(valore: number): string {
-  return valore.toLocaleString("it-IT", { maximumFractionDigits: 0 })
-}
+/*
+ * `intero` di `lib/numeri`, non un `toLocaleString` scritto qui: in italiano
+ * il CLDR raggruppa da cinque cifre in su, quindi una parte intera di
+ * **quattro** non prenderebbe il punto (`2086` invece di `2.086`) mentre una
+ * di cinque sì. Su un filtro a intervallo i due estremi si leggono
+ * affiancati, e un separatore che c'è su uno e non sull'altro fa sembrare i
+ * due numeri di ordini di grandezza diversi. `docs/DECISIONI.md` §47.
+ */
+const formattaNumero = intero
 
 export type FiltroIntervalloProps<TDato extends RowData> = {
   /** L'istanza viva della tabella — da `<DataTable onTabellaPronta>`. */

@@ -214,6 +214,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -376,11 +377,21 @@ export function creaColonne<TDato extends RowData>() {
  * `rowAggregationFeature` di TanStack non è fra le `caratteristiche` sopra:
  * qui l'albero è dato vero (`CLAUDE.md`), non un raggruppamento con una
  * funzione di aggregazione registrata a parte.
+ *
+ * `piede` è la quarta, ed è la **coda della tabella** — da non confondere con
+ * `sottototale`, che è la coda di un *gruppo*. Le due si somigliano nella
+ * firma e stanno in posti opposti: `sottototale` prende il posto della cella
+ * su una riga che ha figli, `piede` disegna una riga in più dentro un
+ * `<tfoot>`, sotto tutte. Il blocco la chiama **solo se la tabella dichiara
+ * `piede`** (la prop di `DataTable`), passandole i dati delle righe che il
+ * filtro lascia passare — v. lì per quali righe sono, che è la sola cosa
+ * davvero da sapere prima di scrivere un totale.
  */
 export type MetaColonna<TDato = unknown> = {
   titolo?: string
   larghezza?: string
   sottototale?: (righeFiglie: TDato[], riga: TDato) => React.ReactNode
+  piede?: (righeFiltrate: TDato[]) => React.ReactNode
   /**
    * La colonna porta già, nel proprio `header`, un modo di bloccarsi (un
    * menu che compone ordinamento e pin insieme — v. la story "in
@@ -2745,6 +2756,73 @@ export type DataTableProps<TDato extends RowData> = {
    * di default.
    */
   piePagina?: boolean
+  /**
+   * La **riga di totali in coda alla tabella** — un `<tfoot>`, dentro la
+   * tabella e allineato alle colonne. Spento di default.
+   *
+   * ── `piede` non è `piePagina`, e la somiglianza dei due nomi è l'unica
+   * cosa che hanno in comune ─────────────────────────────────────────────
+   *
+   * `piePagina` è la **fascia di paginazione** sotto il riquadro: conteggio
+   * righe, avanti/indietro, righe per pagina. Non è una riga della tabella e
+   * non si allinea a niente. `piede` è una **riga della tabella**: sta dentro
+   * `<table>`, prende le stesse colonne, le stesse larghezze e lo stesso
+   * ordine — compreso quello che `colonneBloccabili` rimescola. Si accendono
+   * e si spengono a vicenda senza sapere l'una dell'altra.
+   *
+   * ── Cosa somma: le righe che il **filtro** lascia passare ──────────────
+   *
+   * Non la pagina corrente, e la differenza va scelta sapendo perché. Un
+   * totale che cambia voltando pagina non è un totale che qualcuno possa
+   * usare: si legge «1.284» in fondo alla pagina 1 e «903» in fondo alla 2,
+   * e nessuno dei due è il numero che si stava cercando. E con
+   * `perPagina="virtuale"` o `"infinito"` una pagina non esiste proprio —
+   * `piede` deve voler dire la stessa cosa in tutti e tre i casi, o non vuol
+   * dire niente. Quindi: **tutte le righe filtrate**, che è anche l'unica
+   * lettura che risponde alla domanda vera, «quanto fa quello che sto
+   * guardando».
+   *
+   * Conseguenza da scrivere nell'etichetta del piede, non da lasciare
+   * indovinare: il numero **cambia col filtro e con la ricerca**, e non
+   * cambia con l'ordinamento né con la pagina.
+   *
+   * Su una tabella ad albero (`getSottoRighe`) le righe passate sono quelle
+   * di **primo livello**: sommare anche i figli conterebbe due volte lo
+   * stesso importo. Il conto dei figli, se serve, è `sottototale`.
+   *
+   * ── Come si scrive ─────────────────────────────────────────────────────
+   *
+   * Il piede non ha un contenuto proprio: ogni colonna dichiara la sua cella
+   * in `meta.piede`, e quelle che non la dichiarano restano vuote. È la
+   * stessa forma dell'intestazione (`meta.titolo`), e per la stessa ragione:
+   * così la cella segue la sua colonna quando la si nasconde, la si sposta,
+   * la si ridimensiona o la si blocca a un bordo.
+   *
+   * Con una differenza rispetto all'intestazione: **una cella del piede si
+   * prende lo spazio delle colonne che seguono e che una cella non ce
+   * l'hanno** (v. `cellePiede` nel codice). Serve perché l'etichetta che dice
+   * di cosa è il totale finisce nella prima colonna, e la prima colonna è
+   * quasi sempre la più stretta — senza la fusione si legge «Totale — 1…»,
+   * e non c'è gate che lo veda: il conto delle celle torna, axe tace, e la
+   * stringa nel DOM è intera.
+   *
+   * **Una colonna bloccata non assorbe le vicine** (lo scarto dal bordo di
+   * una cella bloccata è calcolato sulla sua larghezza, e fusa descriverebbe
+   * una cella che non esiste): con `bloccaPrimaColonna` la prima colonna
+   * torna quindi stretta, e se ci sta l'etichetta si tronca. Il rimedio è
+   * scrivere `meta.piede` su una colonna **non** bloccata — misurato, non
+   * dedotto: con `bloccaPrimaColonna` + `selezione` la cella
+   * dell'etichetta resta a 96px, e con `colonneBloccabili` senza niente
+   * bloccato la stessa etichetta si stende su 520.
+   *
+   * ```tsx
+   * col.accessor("codice", { meta: { piede: (righe) => `${righe.length} prodotti` } })
+   * col.accessor("revisione", {
+   *   meta: { piede: (righe) => righe.reduce((n, r) => n + r.revisione, 0) },
+   * })
+   * ```
+   */
+  piede?: boolean
   /** Aggiunge la colonna delle caselle. */
   selezione?: boolean
   /** Il menu «Colonne». Acceso di default. */
@@ -3072,6 +3150,7 @@ export function DataTable<TDato extends RowData>({
   perPagina = 25,
   altezza = "naturale",
   piePagina = true,
+  piede = false,
   selezione = false,
   colonneNascondibili = true,
   bloccaPrimaColonna = false,
@@ -3280,6 +3359,65 @@ export function DataTable<TDato extends RowData>({
       ]
     : (tabella.getHeaderGroups()[0]?.headers ?? [])
 
+  /**
+   * Le celle del piede, con le **fusioni**. Preso guardando la pagina e non
+   * una misura: l'etichetta che dice *di cosa* è il totale finisce quasi
+   * sempre nella prima colonna, e la prima colonna è quasi sempre la più
+   * stretta — un codice, una casella. Con `table-fixed` e `truncate` il
+   * risultato è «Totale — 1…», cioè la sola cella del piede che non è un
+   * numero resa illeggibile. Nessun gate lo vede: il conto delle celle torna,
+   * axe non ha niente da dire, e la stringa nel DOM è intera.
+   *
+   * La regola, e non ha bisogno di una prop: **una cella del piede si prende
+   * lo spazio delle colonne che seguono e che una cella non ce l'hanno**,
+   * fino alla prossima che ce l'ha. Se ogni colonna dichiara la sua, non si
+   * fonde niente e il piede è colonna per colonna come l'intestazione; se il
+   * piede è «un'etichetta e due numeri in fondo» — che è il caso normale —
+   * l'etichetta si stende e i numeri restano sotto la loro colonna.
+   *
+   * **Le colonne bloccate non si assorbono.** Una cella bloccata porta uno
+   * scarto dal bordo calcolato sulla propria larghezza (`ancoraggioColonna`,
+   * `classiBloccate`): fusa con la vicina, quello scarto descriverebbe una
+   * cella che non esiste più e il piede scivolerebbe rispetto alla testata.
+   * Si fonde solo fra colonne con lo **stesso** stato di blocco, e mai dentro
+   * le prime due di `bloccaPrimaColonna`.
+   */
+  const cellePiede = (() => {
+    const dichiara = (h: (typeof intestazioni)[number]) =>
+      (h.column.columnDef.meta as MetaColonna<TDato> | undefined)?.piede != null
+    const bloccoDi = (h: (typeof intestazioni)[number], i: number) =>
+      bloccoLegacy
+        ? classiBloccate(i, selezione) ?? "libera"
+        : String(h.column.getIsPinned() ?? "")
+    const fuori: { intestazione: (typeof intestazioni)[number]; indice: number; colSpan: number }[] = []
+    let i = 0
+    while (i < intestazioni.length) {
+      let colSpan = 1
+      if (dichiara(intestazioni[i])) {
+        while (
+          i + colSpan < intestazioni.length &&
+          !dichiara(intestazioni[i + colSpan]) &&
+          bloccoDi(intestazioni[i + colSpan], i + colSpan) === bloccoDi(intestazioni[i], i)
+        ) {
+          colSpan++
+        }
+      }
+      fuori.push({ intestazione: intestazioni[i], indice: i, colSpan })
+      i += colSpan
+    }
+    return fuori
+    /*
+     * **Calcolato a ogni render, non memoizzato**, ed è una scelta. Le
+     * dipendenze vere sono quattro e due non sono valori: l'ordine delle
+     * colonne, quali dichiarano `meta.piede`, e soprattutto **quali sono
+     * bloccate in questo momento** — `column.getIsPinned()`, che cambia
+     * cliccando una voce di menu e non compare in nessuna prop. Una lista di
+     * dipendenze che non la contenga produrrebbe un piede fuso con l'ordine
+     * di prima: non un errore, una riga *sbagliata*. Il giro è su una decina
+     * di colonne e non tocca le righe, quindi non c'è niente da risparmiare.
+     */
+  })()
+
   const pulisci = () => {
     setRicerca("")
     setFiltri([])
@@ -3347,10 +3485,30 @@ export function DataTable<TDato extends RowData>({
    * `StrictMode` rende visibile nel modo sbagliato.
    */
   const totaleRef = React.useRef(0)
-  const totaleFiltrate = tabella.getFilteredRowModel().rows.length
+  const righeFiltrate = tabella.getFilteredRowModel().rows
+  const totaleFiltrate = righeFiltrate.length
   React.useEffect(() => {
     totaleRef.current = totaleFiltrate
   })
+
+  /**
+   * I dati che il piede somma (`piede`, v. la prop). Sono **le stesse righe
+   * che `totaleFiltrate` conta** — non un secondo calcolo che potrebbe
+   * divergerne: il numero in fondo alla tabella e il numero nella fascia di
+   * paginazione devono dire la stessa cosa, o uno dei due mente.
+   *
+   * `getFilteredRowModel()` è memoizzato da TanStack e restituisce lo stesso
+   * array finché dati, ricerca e filtri non cambiano, quindi il `.map()` non
+   * ricomincia a ogni render: su una tabella virtualizzata da 5000 righe
+   * sarebbe un giro completo dell'elenco per ogni fotogramma di
+   * scorrimento. La dipendenza è il riferimento all'array, non un `.map()`
+   * scritto inline — v. la trappola dell'effetto che si avvita in
+   * `CLAUDE.md`.
+   */
+  const datiPiede = React.useMemo(
+    () => (piede ? righeFiltrate.map((riga) => riga.original) : []),
+    [piede, righeFiltrate]
+  )
 
   /**
    * **Lo scorrimento infinito di `anagrafe.tassullo.it`, con la testata
@@ -3775,6 +3933,87 @@ export function DataTable<TDato extends RowData>({
               chiaveMemoRiga={chiaveMemoRiga}
             />
           )}
+          {/*
+            Il piede (`piede`, v. la prop). **Una volta sola, e qui.**
+
+            Il piano lo dava «in due rami di render», per simmetria con i due
+            posti in cui `meta.sottototale` compare — ma quei due posti sono i
+            due *corpi* (`DataTableBody` e `DataTableVirtualizedBody`), e il
+            subtotale sta lì perché è la cella di una riga. Il `<Table>` è
+            **uno**: i due corpi si scambiano dentro di lui, e un `<tfoot>`
+            scritto dopo il corpo vale per tutti e due. Scritto due volte
+            sarebbe stato due `<tfoot>` in una tabella sola nel momento in cui
+            uno dei due rami fosse cambiato.
+
+            ── `sticky bottom-0`, ed è la scelta ──────────────────────────
+
+            Il `<Table>` sta **dentro** `table-container`, cioè dentro ciò che
+            scorre: senza sticky, su `altezza="ferma"` o
+            `perPagina="virtuale"` il totale se ne va in fondo alle righe e non
+            si vede più — che è il difetto che la testata ferma corregge in
+            cima, preso qui dal verso opposto. L'alternativa era una fascia
+            **fuori** dal contenitore scorrevole, e non regge: fuori dalla
+            `<table>` non ci sono più le colonne, quindi un totale non si può
+            allineare alla colonna che somma — diventa una riga di testo
+            libero sotto la tabella, cioè un'altra cosa.
+
+            Non è un `sticky` acceso a condizione: fuori da un contenitore che
+            scorre davvero è **inerte per definizione** (non c'è scarto da
+            compensare), quindi su `altezza="naturale"` non fa e non costa
+            niente.
+
+            `z-20`, e per la ragione esatta della testata (v. sopra): una cella
+            bloccata del corpo porta `z-10`, e a z-index pari vincerebbe
+            l'ordine nel DOM — il `<tfoot>` viene dopo `<tbody>`, quindi qui
+            vincerebbe il piede, ma con `<thead>` in mezzo il confronto va
+            fissato a monte una volta per tutte.
+
+            `bg-accent` — opaco, e lo stesso della testata. Il default della
+            primitiva è `bg-muted/50`, cioè **translucido**: appoggiato sopra
+            le righe che gli scorrono sotto le lascerebbe trasparire, e il
+            totale si leggerebbe sovrapposto a un numero qualsiasi. Ed è anche
+            la risposta alla domanda «si legge come un totale o come un'altra
+            riga di dati»: il piede prende il fondo della **cornice**, non
+            quello delle righe.
+          */}
+          {piede ? (
+            <TableFooter className="sticky bottom-0 z-20 bg-accent">
+              <TableRow className="hover:bg-transparent">
+                {cellePiede.map(({ intestazione, indice, colSpan }) => {
+                  const cellaPiede = (
+                    intestazione.column.columnDef.meta as MetaColonna<TDato> | undefined
+                  )?.piede
+                  // Lo stesso ancoraggio della testata, e non quello delle
+                  // celle: `contesto: "cella"` porterebbe `bg-card` e le
+                  // classi del sorvolo di riga, che qui non c'è.
+                  const ancoraPiede = colonneBloccabili
+                    ? ancoraggioColonna(tabella, intestazione.column, "intestazione")
+                    : undefined
+                  const bloccataLegacy = bloccoLegacy
+                    ? classiBloccate(indice, selezione)
+                    : undefined
+                  return (
+                    <TableCell
+                      key={intestazione.id}
+                      colSpan={colSpan > 1 ? colSpan : undefined}
+                      className={cn(
+                        "truncate",
+                        bloccataLegacy,
+                        ancoraPiede?.className,
+                        // `classiBloccate` cabla `bg-card`, che sul piede
+                        // sarebbe una cella di colore diverso dalle altre:
+                        // il fondo si rimette dopo, e solo dove serve.
+                        bloccataLegacy && "bg-accent"
+                      )}
+                      style={ancoraPiede?.style}
+                    >
+                      {cellaPiede ? cellaPiede(datiPiede) : null}
+                    </TableCell>
+                  )
+                })}
+              </TableRow>
+            </TableFooter>
+          ) : null}
         </Table>
       </div>
 

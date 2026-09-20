@@ -24,8 +24,9 @@ import { Badge } from '@/registry/tassullo/ui/badge'
  * codici di sistema *e dati tabellari*», e la seconda metà è caduta in M2.1:
  * Inter porta la feature OpenType `tnum` e le sue cifre tabellari sono stabili
  * fra i pesi, quindi **il totale in grassetto si incolonna col corpo in
- * tondo**. Il `font-mono` resta ai soli codici di sistema, dove si *vuole* che
- * stonino.
+ * tondo**. Il `font-mono` **non si usa nemmeno sui codici**: sospeso il
+ * 2026-09-20 su richiesta di Roberto (`docs/DECISIONI.md` §48) — il codice
+ * resta `text-xs text-muted-foreground`, che è il peso e non il carattere.
  *
  * `MisuraDelleCifre` lo verifica dal DOM, con lo stesso righello di
  * `Tema/Cifre` — il **bordo sinistro dei decimali**, non la virgola, che resta
@@ -70,7 +71,7 @@ export const Predefinito: Story = {
       <TableBody>
         {righe.map((r) => (
           <TableRow key={r.cod}>
-            <TableCell className="font-mono text-xs">{r.cod}</TableCell>
+            <TableCell className="text-xs">{r.cod}</TableCell>
             <TableCell className="whitespace-normal">{r.voce}</TableCell>
             <TableCell>{r.um}</TableCell>
             <TableCell className="text-right">{r.qta}</TableCell>
@@ -90,8 +91,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Il codice di sistema in `font-mono`, lo stato come badge, i numeri in
- * colonna. È la forma che il `data-table` di M3.3 erediterà.
+ * Il codice attenuato, lo stato come badge, i numeri in colonna. È la forma
+ * che il `data-table` di M3.3 erediterà.
  */
 export const ConStati: Story = {
   render: () => (
@@ -106,19 +107,19 @@ export const ConStati: Story = {
       </TableHeader>
       <TableBody>
         <TableRow>
-          <TableCell className="font-mono text-xs">SCH-4021-A</TableCell>
+          <TableCell className="text-xs">SCH-4021-A</TableCell>
           <TableCell>Guaina bituminosa TS-40</TableCell>
           <TableCell><Badge variant="default">Pubblicata</Badge></TableCell>
           <TableCell className="text-right">4</TableCell>
         </TableRow>
         <TableRow data-state="selected">
-          <TableCell className="font-mono text-xs">SCH-1107-C</TableCell>
+          <TableCell className="text-xs">SCH-1107-C</TableCell>
           <TableCell>Primer bituminoso</TableCell>
           <TableCell><Badge variant="secondary">Bozza</Badge></TableCell>
           <TableCell className="text-right">11</TableCell>
         </TableRow>
         <TableRow>
-          <TableCell className="font-mono text-xs">SCH-0088-A</TableCell>
+          <TableCell className="text-xs">SCH-0088-A</TableCell>
           <TableCell>Fissaggi meccanici</TableCell>
           <TableCell><Badge variant="destructive">Revocata</Badge></TableCell>
           <TableCell className="text-right">2</TableCell>
@@ -179,7 +180,7 @@ function Colonna({ titolo, classe }: { titolo: string; classe: string }) {
         <TableBody>
           {righe.map((r) => (
             <TableRow key={r.cod}>
-              <TableCell className="font-mono text-xs">{r.cod}</TableCell>
+              <TableCell className="text-xs">{r.cod}</TableCell>
               <TableCell className="text-right">{r.qta}</TableCell>
             </TableRow>
           ))}

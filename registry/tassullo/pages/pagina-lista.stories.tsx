@@ -156,7 +156,7 @@ const COLONNE = col.columns([
       <Button
         variant="link"
         size="sm"
-        className="h-auto p-0 font-mono text-sm"
+        className="h-auto p-0 text-sm"
         render={<a href="#" />}
       >
         {getValue<string>()}
