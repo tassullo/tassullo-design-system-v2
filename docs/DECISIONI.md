@@ -2726,3 +2726,67 @@ nessuno si ricorderà perché c'è.
 `cantiere.jpg` resta com'era, con il suo sfondo: una fotografia non si
 scontorna, ed è giusto che nella style guide ci sia anche il caso di
 un'immagine che il fondo ce l'ha.
+
+## 46. Il global `viewport` non cambia la larghezza della finestra nel canvas (M4ter.5, coda, 2026-09-20)
+
+**Il fatto, misurato in Chromium sullo Storybook costruito.** L'interruttore
+**Viewport** di Storybook — e il `globals: { viewport: … }` che una story può
+dichiarare — ridimensiona l'iframe **nella cornice del manager**, cioè quando
+si guarda Storybook con gli occhi. Nel canvas aperto per URL, che è come lo
+aprono `test:a11y` e `misura:bersagli`, **non fa niente, e non dà errore**:
+
+| come si apre la story | `window.innerWidth` | `matchMedia('(min-width: 1024px)')` |
+|---|---|---|
+| `iframe.html?id=…` | 1440 | `true` |
+| `iframe.html?id=…&globals=viewport:telefono` | **1440** | **`true`** |
+| una story che dichiara `globals: { viewport: { value: 'telefono' } }` | **1440** | **`true`** |
+
+I tre valori sono quelli della finestra del browser di prova: la larghezza del
+canvas **è** la larghezza della finestra, e il global non la tocca.
+
+**Perché è un difetto muto e non una scomodità.** Una story che dipende da una
+media query sulla finestra rende, nel gate, **il ramo sbagliato** — e il conto
+delle scansioni torna lo stesso. «1416 scansioni, 0 violazioni» su tre scene di
+cui una doveva essere stretta non dice che la faccia stretta è pulita: dice che
+non è mai stata renderizzata. È la stessa forma del rilievo di M2.6 («un popup
+non aperto non è un popup senza violazioni», §22), trasposta dalla apertura di
+un overlay alla larghezza della finestra.
+
+**C'è già un caso in casa, ed è la prova che morde.** `Blocchi/App Shell →
+Telefono` dichiara quel global, e il suo commento afferma «a 375px la colonna
+non c'è più». Misurato sulla stessa story:
+
+| finestra vera | `innerWidth` | colonna sidebar nel DOM |
+|---|---|---|
+| 1440 | 1440 | **c'è** — ramo scrivania |
+| 375 | 375 | non c'è — ramo mobile |
+
+Cioè: quella story mostra il ramo mobile **solo se la finestra del browser è
+davvero stretta**. Nel gate rende il ramo scrivania, e il commento descrive una
+cosa che lì non succede. Non è stato corretto in M4ter.5 — è fuori mandato — ma
+va saputo prima di prenderlo a modello.
+
+**La regola che ne esce.** *La larghezza della finestra non si commuta dal
+canvas.* Una story il cui comportamento dipende da `matchMedia` sulla finestra:
+
+1. **si misura in una finestra vera** — Chromium con `viewport: {width: …}` —
+   e non col global, che è un comando per gli occhi, non per il DOM;
+2. se il ramo stretto deve stare **nel gate**, la story lo rende in modo
+   **deterministico**, senza passare dalla media query, oppure si accetta a
+   verbale che il gate guardi solo il ramo largo. Le due cose sono diverse e
+   vanno distinte per iscritto: «misurato e pulito» non è «mai guardato».
+
+**Da non confondere con le container query**, che sono l'altra metà di questo
+sbaglio e si sono presentate nella stessa sessione (§sulla larghezza di
+`pagina-login`, M4ter.5): `@md/field-group` guarda il **contenitore**, quindi
+un riquadro stretto la sposta davvero e si misura benissimo a qualunque
+viewport — è la strada che usa `data-table.stories.tsx` per la scena a 320px,
+col suo commento che dice apertamente che «l'imbracatura del gate non ha un
+modo affidabile di cambiare viewport». Una media query sulla **finestra** non
+si sposta stringendo un contenitore. Sono due meccanismi con la stessa faccia:
+prima di misurare, guarda quale dei due è in gioco.
+
+**Ricaduta su M4ter.6**, che è il task che ne dipende: `useSoglia` è una media
+query sulla finestra, quindi la scena «faccia stretta» della lista a due facce
+non può contare sul global. La scelta fra le due strade del punto 2 va presa
+all'inizio e scritta, non improvvisata a metà.
