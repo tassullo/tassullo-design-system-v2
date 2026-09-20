@@ -7802,6 +7802,11 @@ la stessa imbracatura vitest del gate:
 | **Faccia stretta** | 1440 | **0** | **12** |
 | Soglia della pagina | 1440 | 1 | 0 |
 
+**E va rimisurata ogni volta che la soglia cambia.** Provato in questa
+sessione: portando la soglia a 1536 la terza scena è passata alla faccia
+stretta, e il gate ha continuato a dire «1416 scansioni, 0 violazioni» senza
+segnalare niente. È §46 applicata alla story che la cita.
+
 La riga che conta è la seconda: la faccia stretta **è misurata davvero**, a
 finestra larga, perché non dipende dalla finestra. La terza è la scena che
 passa dall'hook e nel gate rende la faccia larga — **dichiarato nella story**,
@@ -7857,28 +7862,92 @@ esattamente il difetto di `useIsMobile` rimesso in piedi da un'altra parte.
 **`use-mobile.ts` non è stato toccato**, e il piano dava le due ragioni; la
 seconda è quella che ha deciso la forma dell'hook nuovo.
 
-### La soglia di questa lista è 1280, e il numero è misurato
+### La soglia: derivarla dalla tabella era sbagliato, e Francesco l'ha fermata
 
-Era la domanda di Francesco — «nove colonne a 1024px sono ancora leggibili?» —
-e andava portata con una misura. Chromium vero, larghezze delle dieci colonne
-lette dal DOM a pagina ferma:
+Questa è la parte che ha cambiato conclusione tre volte, e il percorso vale più
+del numero finale.
 
-| finestra | tabella | riquadro | colonna elastica `Tipo` |
+**Prima stesura: 1280**, derivata misurando quanto spazio vogliono nove
+colonne. Rilievo di Francesco: «**la soglia 1280 mi sembra troppo bassa**».
+Misurando meglio, aveva ragione sul fatto: 1280 era preso su questa story, dove
+la lista ha **tutta la finestra**, mentre nelle app sta dentro `app-shell`, la
+cui colonna si prende **256px** (`SIDEBAR_WIDTH = 16rem`).
+
+**Seconda stesura: 1536.** Sommando il guscio, e con le colonne larghe com'erano
+allora, veniva esattamente il gradino `2xl` di Tailwind. Secondo rilievo di
+Francesco, immediato: «**1536px è più della risoluzione di un portatile 13"**».
+Vero, e fatale: una soglia così alta è una tabella che sui portatili **non
+compare mai**. Stavo alzando la soglia finché la faccia larga non spariva.
+
+**Terzo rilievo, ed è quello che chiude**: «**la soglia mobile non deve
+dipendere da questa specifica tabella**». È la correzione giusta, e la
+decisione **c'era già scritta nel repo**: `docs/ANALISI-COPERTURA-APP.md` §6.3,
+*«La soglia: non si forza»* — l'orchestratore proponeva di spostare
+`useIsMobile` da 768 a 1024 per tutti, e l'indirizzo di Francesco è stato «la
+soglia si decide **app per app**, non si forza ora». E §11: «la guida deve dire
+**come si sceglie**, non quale numero usare». Non l'avevo riletta prima di
+mettermi a derivare numeri.
+
+**Verdetto: la soglia è una scelta ergonomica dell'app, e i numeri esistono
+già.** Officina usa **1024** (`useDesktop()`, cinque pagine), Studio
+RadarOpere **900** (`@media 900px`). La story adotta 1024 come default e la
+scena `Soglia della pagina` usa 900, così si vede che il numero si cambia.
+
+**E il fabbisogno della tabella ha la sua risposta, che non è la soglia: la
+tabella scorre.** `data-table` sta in un `overflow-x-auto` e
+**`bloccaPrimaColonna`** tiene ferme le colonne d'identità — è quello che fa
+`dashboard-01` di shadcn ed è già la scena `Blocchi/Data Table → Stretta`.
+Aggiunta alla faccia larga.
+
+**Domanda di Francesco a cui non posso rispondere**: «cosa avevamo deciso con
+Roberto per le altre app?». Nel repo, **su soglie e responsive, niente**.
+Roberto compare in tre punti soli — la scelta del carattere (2026-09-08), la
+segnalazione dell'asset del marchio (D13) e D18, l'annullo differito «da
+rivedere con Roberto a design system finito». Se una decisione con lui esiste,
+sta fuori da qui.
+
+### Le colonne erano larghe 145px più del necessario, ed era un difetto vero
+
+Emerso inseguendo la soglia, e resta anche adesso che la soglia non dipende più
+da questo. Larghezze lette a `table-layout: auto`, **senza** le dichiarazioni e
+senza andare a capo — cioè cosa vuole il contenuto:
+
+| colonna | dichiarata prima | il contenuto vuole | adesso |
 |---|---|---|---|
-| 1024 | 1112px | 990px — **scorre** | **0px** |
-| 1152 | 1118px | 1118px | 6px |
-| **1280** | 1246px | 1246px | **134px** |
-| 1440 | 1406px | 1406px | 294px |
+| Foto | 80 | 80 | **64** (miniatura `w-12`) |
+| Matricola | 112 | 107 | 112 |
+| Macchina | 224 | 194 | **elastica** |
+| Tipo | elastica | 99 | **112** |
+| Stato | 160 | 137 | **144** |
+| Reparto | 144 | 107 | **112** |
+| Ore | 96 | 71 | **80** |
+| Ultimo interv. | 128 | **131** ⚠ | **144** |
+| Prossima rev. | 128 | **132** ⚠ | **144** |
 
-**Risposta: no, a 1024 non ci stanno** — e il modo in cui non ci stanno è la
-parte che conta. `data-table` è `table-fixed`, quindi la colonna senza
-larghezza dichiarata assorbe *ciò che avanza*, e quando non avanza niente va a
-**zero**: una colonna che sparisce senza un errore. **1280 è la prima larghezza
-in cui tutte e nove si leggono**, e la story ci mette la sua soglia.
+Le due righe col ⚠ erano **sotto-dichiarate**: l'intestazione con la freccia
+d'ordinamento non ci stava, a nessuna larghezza. E `Macchina` è diventata la
+colonna elastica al posto di `Tipo`, perché dallo spazio in più ci guadagna
+qualcosa: `Tipo` ha un insieme chiuso di valori corti.
 
-Il registry non poteva prendere questa decisione al posto della pagina: una
-lista a tre colonne starebbe benissimo a 1024. È il motivo per cui la query la
-dichiara la pagina, adesso con un numero dietro invece di un'intenzione.
+**Le tre fasce della faccia larga, misurate dopo la stretta:**
+
+| riquadro | cosa succede |
+|---|---|
+| **≥ 1146px** | tutte e nove intere |
+| 966–1145px | `Macchina` **tronca con l'ellissi** |
+| **< 966px** | la tabella **scorre**, prime colonne ferme |
+
+Col guscio aperto sono **1436px** di finestra per averla intera: cioè su un
+**1440 la tabella è intera**, che era il caso che il rilievo di Francesco
+metteva in discussione. Su un 1366 la colonna `Macchina` tronca, e collassando
+la sidebar torna intera (bastano 1228).
+
+**E una sonda sbagliata, corretta.** Il primo conto dei troncamenti confrontava
+`scrollWidth` con `clientWidth`: su una cella con `text-overflow: ellipsis`
+quei due valori **coincidono**, quindi dava **0 troncamenti** su una tabella in
+cui si leggeva «Intonacat…» a occhio nudo. Trovata guardando uno scatto, non
+misurando. Il conto giusto misura il **testo**, con un `Range` sul contenuto
+della cella.
 
 ### `check:registry` impara `hooks/`, e come la tratta
 
@@ -8015,10 +8084,12 @@ qui sopra.
 
 ### Quello che resta da guardare a Francesco
 
-- A **1024px** si vede la faccia **stretta a tutta larghezza**, perché la
-  soglia di questa lista è 1280. È la conseguenza diretta di una soglia alta,
-  non un difetto: se non la si vuole, il rimedio è un `max-w` sull'elenco ed è
-  della pagina. Scritto nella testata della story.
+- **La soglia da usare in Officina e in Studio**: la story adotta 1024 (il
+  numero che Officina ha già) e mostra 900 su una scena, ma il verdetto di
+  §6.3 è che la decide l'app. Se 1024 non è il numero giusto per il Triage, si
+  cambia lì.
+- **Sotto la soglia le schede prendono tutta la riga.** Se non la si vuole, il
+  rimedio è un `max-w` sull'elenco ed è della pagina, non del registry.
 - Le **foto sono la libreria d'esempio del repo** (i render dei sistemi), non
   foto di macchine: servono a far vedere `entity-image` con e senza sorgente —
   due righe su dodici portano il segnaposto.

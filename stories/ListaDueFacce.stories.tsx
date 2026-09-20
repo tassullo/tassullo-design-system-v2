@@ -44,7 +44,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * adesso è `useSoglia`, e la **ricetta**, che è questa pagina.
  *
  * ```tsx
- * const largo = useSoglia('(min-width: 1280px)')
+ * const largo = useSoglia('(min-width: 1024px)')
  * return largo ? <FacciaLarga … /> : <FacciaStretta … />
  * ```
  *
@@ -85,9 +85,22 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * possa contestare: **le due facce si rendono in modo deterministico**, con
  * una prop `faccia` della pagina, e **non** passando dall'hook. Il gate vede
  * markup largo vero *e* markup stretto vero, e «0 violazioni» vuol dire
- * quello che dice. La scena `Soglia Della Pagina` è l'unica che passa
- * dall'hook, e nel gate rende **la faccia larga**, perché la finestra di
- * misura è a 1440: è dichiarato, non nascosto.
+ * quello che dice.
+ *
+ * **Quale faccia rende ogni scena nel gate, misurato dentro l'imbracatura
+ * vitest** (finestra **1440**, letta e non presunta):
+ *
+ * | scena | `table.table-fixed` | schede | faccia |
+ * |---|---|---|---|
+ * | Faccia larga | **1** | 0 | larga, per la prop |
+ * | Faccia stretta | 0 | **12** | stretta, per la prop |
+ * | Soglia della pagina | 1 | 0 | **larga, per l'hook** — 1440 ≥ 900 |
+ *
+ * La terza riga è l'unica che dipende dalla finestra, e **va rimisurata ogni
+ * volta che la soglia cambia**. Provato in questa stessa sessione: portando
+ * la soglia a 1536 quella scena è passata alla faccia stretta, e il gate ha
+ * continuato a dire «1416 scansioni, 0 violazioni» senza segnalare niente.
+ * È §46 applicata alla story che la cita.
  *
  * L'alternativa era dare a `useSoglia` un valore iniziale iniettabile e
  * forzarlo dalla story. È stata scartata: sarebbe API pubblica aggiunta per
@@ -102,11 +115,13 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  *
  * ## Due cose da sapere guardandola
  *
- * **Fra la soglia e la larghezza piena c'è una fascia**, e qui è 1024–1280:
- * lì la faccia stretta si vede su una finestra larga, e le schede prendono
- * tutta la riga. È la conseguenza diretta di una soglia alta, non un difetto
- * dell'hook — e se una pagina non la vuole, il rimedio è suo (un `max-w`
- * sull'elenco), non del registry.
+ * **La soglia la sceglie l'app, e non si deriva da quante colonne ha la
+ * tabella.** Qui il default è **1024**, che è la soglia di Officina
+ * (`useDesktop()`); Studio RadarOpere usa **900**. Se la tabella non ci sta
+ * nello spazio che ha, la risposta non è alzare la soglia — è **scorrere**,
+ * con `bloccaPrimaColonna` che tiene ferme le colonne d'identità. Il
+ * ragionamento per esteso, e l'errore in cui si cade derivando la soglia
+ * dalla tabella, stanno sulla scena `Soglia della pagina`.
  *
  * **Le foto sono la libreria d'esempio del repo**, cioè i render dei sistemi
  * Tassullo: non sono foto di macchine. Servono a far vedere `entity-image`
@@ -357,7 +372,7 @@ const col = creaColonne<Macchina>()
 const COLONNE = col.columns([
   col.display({
     id: 'foto',
-    meta: { titolo: 'Foto', larghezza: 'w-20' },
+    meta: { titolo: 'Foto', larghezza: 'w-16' },
     header: () => <span className="sr-only">Foto</span>,
     cell: ({ row }) => (
       <div className="w-16">
@@ -386,7 +401,7 @@ const COLONNE = col.columns([
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Macchina" />
     ),
-    meta: { titolo: 'Macchina', larghezza: 'w-56' },
+    meta: { titolo: 'Macchina' },
     sortFn: 'text',
     cell: ({ getValue }) => (
       <span className="font-medium">{getValue<string>()}</span>
@@ -394,12 +409,12 @@ const COLONNE = col.columns([
   }),
   col.accessor('tipo', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Tipo" />,
-    meta: { titolo: 'Tipo' },
+    meta: { titolo: 'Tipo', larghezza: 'w-28' },
     sortFn: 'text',
   }),
   col.accessor('stato', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
-    meta: { titolo: 'Stato', larghezza: 'w-40' },
+    meta: { titolo: 'Stato', larghezza: 'w-36' },
     sortFn: 'text',
     cell: ({ getValue }) => {
       const stato = getValue<Stato>()
@@ -410,14 +425,14 @@ const COLONNE = col.columns([
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Reparto" />
     ),
-    meta: { titolo: 'Reparto', larghezza: 'w-36' },
+    meta: { titolo: 'Reparto', larghezza: 'w-28' },
     sortFn: 'text',
   }),
   col.accessor('ore', {
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Ore" allinea="fine" />
     ),
-    meta: { titolo: 'Ore', larghezza: 'w-24' },
+    meta: { titolo: 'Ore', larghezza: 'w-20' },
     sortFn: 'basic',
     // I numeri in colonna si incolonnano coi decimali: `tabular-nums` ce l'ha
     // già `Table`, per tutta la tabella.
@@ -430,7 +445,7 @@ const COLONNE = col.columns([
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Ultimo interv." allinea="fine" />
     ),
-    meta: { titolo: 'Ultimo intervento', larghezza: 'w-32' },
+    meta: { titolo: 'Ultimo intervento', larghezza: 'w-36' },
     sortFn: 'datetime',
     cell: ({ getValue }) => (
       <div className="text-right">{DATA.format(getValue<Date>())}</div>
@@ -441,7 +456,7 @@ const COLONNE = col.columns([
     header: ({ column }) => (
       <IntestazioneColonna colonna={column} titolo="Prossima rev." allinea="fine" />
     ),
-    meta: { titolo: 'Prossima revisione', larghezza: 'w-32' },
+    meta: { titolo: 'Prossima revisione', larghezza: 'w-36' },
     sortFn: 'datetime',
     cell: ({ getValue }) => (
       <div className="text-right">{DATA.format(getValue<Date>())}</div>
@@ -637,6 +652,7 @@ function FacciaLarga({ dati }: { dati: Macchina[] }) {
       idRiga={(m) => m.id}
       cerca={false}
       perPagina={25}
+      bloccaPrimaColonna
       colonneNascondibili
       vuoto={{ titolo: 'Nessuna macchina con questi filtri' }}
       pannelloRiga={(m) => <DettaglioMacchina macchina={m} />}
@@ -727,7 +743,7 @@ function filtra(dati: Macchina[], { cerca, stato }: Pick<Filtri, 'cerca' | 'stat
  */
 function ListaMacchine({
   faccia = 'auto',
-  soglia = '(min-width: 1280px)',
+  soglia = '(min-width: 1024px)',
 }: {
   faccia?: 'auto' | 'tabella' | 'schede'
   soglia?: string
@@ -814,36 +830,66 @@ export const FacciaStrettaScena: Story = {
  * **La soglia la dichiara la pagina**, ed è l'unica delle tre scene che passa
  * davvero da `useSoglia`.
  *
- * Qui la soglia è **`(min-width: 1280px)`** e non 1024, **e il numero è
- * misurato, non scelto**. Misura in Chromium vero, larghezze delle dieci
- * colonne lette dal DOM a pagina ferma:
+ * Qui la soglia è **`(min-width: 900px)`**, e la scena esiste per far vedere
+ * che è **un numero diverso** da quello che usano le due scene di sopra: il
+ * default della pagina è 1024, questa lo cambia.
  *
- * | finestra | tabella | riquadro | colonna elastica `Tipo` |
- * |---|---|---|---|
- * | 1024 | 1112px | 990px — **scorre** | **0px** |
- * | 1152 | 1118px | 1118px | 6px |
- * | **1280** | 1246px | 1246px | **134px** |
- * | 1440 | 1406px | 1406px | 294px |
+ * ## Da dove vengono i numeri: dalle app, non dalla tabella
  *
- * A 1024 la tabella non ci sta, e il modo in cui non ci sta è la parte che
- * conta: `data-table` è `table-fixed`, quindi la colonna senza larghezza
- * dichiarata assorbe *ciò che avanza* — e quando non avanza niente va a
- * **zero**. Una colonna che sparisce senza un errore, che è la stessa
- * famiglia di difetti mutii di `text-md`. **1280 è la prima larghezza in cui
- * tutte e nove si leggono**, ed è per questo che la soglia di *questa* lista
- * sta lì.
+ * **1024 è la soglia di Officina** (`useDesktop()`, cinque pagine — Triage,
+ * Piani, Procedure, Ricambi, Admin); **900 è quella di Studio RadarOpere**
+ * (`@media 900px`). Sono i due numeri che esistono già in produzione, e
+ * `useSoglia` serve a smettere di riscriverli a mano, non a sostituirli.
  *
- * Il registry non poteva prendere questa decisione: una lista a tre colonne
- * starebbe benissimo a 1024. Cambiarla è cambiare una stringa al punto di
- * chiamata.
+ * **La soglia non si deriva dal fabbisogno della tabella.** Misurando quanto
+ * spazio vogliono nove colonne si arriva a 1280; contando anche i 256px della
+ * colonna del guscio si arriva a 1536, cioè **più della risoluzione di un
+ * portatile da 13"** — una tabella che su quelle macchine non comparirebbe
+ * mai. Il ragionamento è sbagliato alla radice: la soglia dice **quando
+ * l'interfaccia cambia grammatica**, ed è una scelta ergonomica dell'app.
+ * `docs/ANALISI-COPERTURA-APP.md` §6.3 la chiude così — «la soglia si decide
+ * app per app, non si forza» — e §11 aggiunge che la guida deve dire **come
+ * si sceglie**, non quale numero usare.
  *
- * **Cosa rende questa scena nel gate**: la finestra di misura è a 1440, quindi
- * la media query è vera e si vede la **faccia larga**. Dichiarato, non
- * nascosto — `test:a11y` e `misura:bersagli` aprono il canvas per URL, dove
- * il global `viewport` non cambia `window.innerWidth` (§46). La faccia stretta
- * la misura la scena qui sopra, che non dipende dalla finestra.
+ * ## E la tabella che non ci sta? Scorre
+ *
+ * È la risposta che c'era già, e non costa nessuna soglia. `data-table` sta
+ * dentro un `overflow-x-auto`, e **`bloccaPrimaColonna`** tiene ferme a
+ * sinistra le colonne che dicono *di che cosa* è la riga — così a due terzi
+ * di tabella fuori dallo schermo non si legge una data senza sapere di quale
+ * macchina sia. È quello che fa `dashboard-01` di shadcn, ed è già la scena
+ * `Blocchi/Data Table → Stretta`.
+ *
+ * Le misure della tabella restano utili, ma come **fatto sulla tabella**, non
+ * come soglia — lette dal DOM a pagina ferma, con ogni colonna stretta alla
+ * misura che il contenuto chiede:
+ *
+ * | riquadro per la lista | cosa succede |
+ * |---|---|
+ * | **≥ 1146px** | tutte e nove intere, niente troncato |
+ * | 966–1145px | la colonna elastica (`Macchina`) **tronca con l'ellissi** |
+ * | **< 966px** | la tabella **scorre**, con le prime colonne ferme |
+ *
+ * Tradotto in finestra, col guscio aperto (256px di colonna + 34 di padding e
+ * bordi): **1436px** per averla intera, **1256px** prima che scorra. Cioè su
+ * un portatile da **1440 la tabella è intera**. Col guscio collassato
+ * bastano 1228 e 1048 — ed è la leva che ha in mano chi guarda: su un 1366 la
+ * colonna `Macchina` tronca, e collassando la sidebar torna intera.
+ *
+ * **Una sonda sbagliata, corretta**: il primo conto dei troncamenti confrontava
+ * `scrollWidth` con `clientWidth`, e su una cella con `text-overflow: ellipsis`
+ * quei due valori **coincidono** — dava 0 troncamenti su una tabella in cui si
+ * leggeva «Intonacat…» a occhio nudo. Il conto giusto misura il **testo**, con
+ * un `Range` sul contenuto della cella.
+ *
+ * **Cosa rende questa scena nel gate**, misurato: la finestra è a 1440 e la
+ * soglia è 900, quindi la media query è vera e si vede la **faccia larga** —
+ * 1 tabella, 0 schede. Dichiarato, non nascosto: `test:a11y` e
+ * `misura:bersagli` aprono il canvas per URL, dove il global `viewport` non
+ * cambia `window.innerWidth` (§46). La faccia stretta la misura la scena qui
+ * sopra, che non dipende dalla finestra.
  */
 export const SogliaDellaPagina: Story = {
   name: 'Soglia della pagina',
-  render: () => <ListaMacchine soglia="(min-width: 1280px)" />,
+  render: () => <ListaMacchine soglia="(min-width: 900px)" />,
 }
