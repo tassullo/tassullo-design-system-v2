@@ -290,7 +290,17 @@ export function PaginaLogin({
     >
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center gap-2 text-center">
-          <span aria-hidden className="marchio-t size-10" />
+          {/*
+           * `justify-self-center`, e non `items-center` sul `CardHeader`:
+           * quello è una **griglia**, e `items-center` allinea sull'asse
+           * verticale. Senza, il marchio resta incollato a sinistra sotto un
+           * titolo centrato — si vedeva su tutte e dieci le scene, e non è un
+           * difetto di M4ter.4: c'era dal primo giorno della pagina. Toccarlo
+           * lì avrebbe rotto la non-regressione di quella sessione, quindi è
+           * stato rimandato qui (M4ter.5), che è la sessione che rifà il
+           * guscio su altre cinque schermate e non poteva copiarlo storto.
+           */}
+          <span aria-hidden className="marchio-t size-10 justify-self-center" />
           <CardTitle className="text-2xl">{applicazione}</CardTitle>
           {descrizione ? <CardDescription>{descrizione}</CardDescription> : null}
         </CardHeader>

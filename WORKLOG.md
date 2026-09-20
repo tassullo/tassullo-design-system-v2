@@ -7363,3 +7363,398 @@ si distinguono dal titolo, senza leggere il corpo.
 
 M4ter.5 — le cinque schermate d'accesso di Studio composte, `@reui/stepper`
 per i passi, **zero componenti nuovi** (item fermi a 90), a11y 1376 → 1404.
+
+## M4ter.5 — Le cinque schermate d'accesso di Studio, composte (2026-09-20)
+
+**Verdetto: chiuso.** Sette scene, **zero componenti nuovi** — `registry.json`
+fermo a 90 item, `check:registry` a 1 componente nostro e 19 ri-stilati,
+esattamente com'era in apertura. `npm run check` verde sui **sei**, `test:a11y`
+**1404 scansioni su 351 story, 0 violazioni** in tutte e quattro le passate.
+
+### Due affermazioni della spec sono cadute, e andavano risolte prima di comporre
+
+**(a) `Field orientation="responsive"` non affianca mai dentro il guscio del
+login.** Misurato in Chromium: il `FieldGroup` dentro `Card max-w-sm` è largo
+**352px** (384 di card meno 32 di riempimento del `CardContent`), e
+`@md/field-group` — la container query di `field.tsx:60` — scatta a **28rem =
+448px**. Non ci arriva, e non ci arriverà mai: sono due misure in `rem`, quindi
+non cambia nemmeno con la densità.
+
+`docs/SPEC-AUTH.md` §2.2 dava l'affiancamento di Nome+Cognome e di
+Città/Prov./CAP per **verificato sulle pagine vere di Studio**, e §1.3 dava il
+guscio per **identico su tutte e cinque le schermate**. Le due non stanno
+insieme, e non era una cosa da indovinare: portate a Francesco con le due
+versioni affiancate a video — stesso codice dei campi, sola differenza la
+larghezza della card. **Scelta: `max-w-lg` per le tre schermate di
+registrazione** (card 512 → contenuto 480, la soglia scatta); le altre restano
+`max-w-sm`. §1.3 rettificata di conseguenza: «identico» vale per la forma, non
+per la larghezza. `max-w-md` non sarebbe bastato — 448 di card fanno 416 di
+contenuto, sotto soglia di 32px.
+
+**Il costo che il mandato temeva non c'era**, e vale saperlo: la prop per la
+larghezza su `pagina-login` non serve, perché **`PaginaLogin` non accetta
+`children` e non esporta il guscio**. Una schermata che non sia il login lo
+riscrive comunque — dieci righe, `GuscioAccesso` nella story, codice di pagina
+come lo sarebbe in Studio. Quindi §1.3 aveva un secondo punto falso, più
+interessante del primo: «il guscio resta di `pagina-login`» è vero come
+**forma** e falso come **codice**. Non si è aggiunto `children` al componente:
+è un cambio d'API in un task che dichiara zero componenti nuovi, e resta una
+decisione da prendere apposta.
+
+**(b) §2.1 diceva di scrivere un `<div className="auth-passi">`.** Era superata
+da M4ter.1 e nessuno l'aveva riscritta. **Riscritta**: si adotta
+`@reui/stepper`, e la barra a segmenti **non è una variante** — è lo stesso
+componente con props diverse, già in scena in `Primitive/Stepper`. Le tre scene
+usano la forma `BarraConTitoli`. Lasciata com'era, avrebbe mandato chi la legge
+fra sei mesi a scrivere un componente che esiste.
+
+E dentro §2.1 è rimasta scritta la distinzione che il `CLAUDE.md` chiama la
+trappola del nome: **il misuratore di robustezza della password non è lo
+stepper**. Somiglia — N segmenti, M accesi — e non lo è: lo stepper è un
+`tablist` di schede che si cliccano e si navigano con le frecce, il misuratore
+non si naviga e non si seleziona. Resta dell'app (deciso il 2026-09-19), e non
+è in scena apposta.
+
+### Dove sono finite le sette scene, e perché non accanto a `pagina-login`
+
+`stories/SchermateAccesso.stories.tsx`, titolo `Pagine/Schermate d'accesso`.
+
+Il criterio non è la lunghezza del file: è **se un lettore che apre
+`Pagine/Login` si aspetta di trovarci la registrazione**. Non se l'aspetta, e
+soprattutto quelle scene **non sono scene di `PaginaLogin`** — non ne usano una
+prop, non ne esercitano un ramo, e il guscio se lo ricompongono. Metterle sotto
+il titolo del componente avrebbe detto il falso su cosa quel componente fa.
+`stories/` in root è, per `CLAUDE.md` §6, il posto delle pagine trasversali
+della style guide, ed è esattamente questo: una composizione che attraversa
+`card`, `field`, `input`, `input-group`, `radio-group`, `checkbox`, `empty`,
+`alert` e `stepper`.
+
+### Il gating è codice di pagina, e nella story **funziona**
+
+Non è una scena finta con l'aria di un wizard: `Registrazione` tiene il passo,
+il massimo passo raggiunto, gli errori e la categoria scelta; «Avanti» valida
+con `FormData` e **non avanza** se manca qualcosa; i passi oltre quello
+raggiunto sono schede `disabled`. Misurato:
+
+| prova | esito |
+|---|---|
+| «Avanti» a vuoto dal passo 1 | scheda selezionata resta `Passo 1 di 3`; errori «Scrivi un indirizzo email valido.» e «La password deve essere di almeno 10 caratteri.» |
+| le tre schede della barra | passo 1 abilitato e selezionato, passi 2 e 3 **disabilitati** |
+| «Crea l'accesso» senza consensi | due `FieldError`, non procede |
+
+### L'honeypot **non è in scena**, ed è una scelta scritta
+
+§3.4 lo lascia alla pagina, e una story *è* codice di pagina, quindi mostrarlo
+sarebbe stato legittimo. Non è stato fatto: **un honeypot vale finché il suo
+nome non è prevedibile**, e questo repo è pubblico (D4). Un campo nascosto che
+il design system mostrasse a tutti sarebbe un campo che tutti riconoscono.
+Dirlo serve — e sta scritto nella testata della story e in `docs/SPEC-AUTH.md`
+§2.1bis — mostrarlo lo indebolisce.
+
+### Il marchio centrato: la differenza voluta, elencata
+
+Era la cosa lasciata in sospeso da M4ter.4 («da decidere in M4ter.5»), e questa
+è la sessione che rifà il guscio su altre cinque schermate: copiarlo storto
+sarebbe stato il modo di renderlo permanente. **Corretto**: `CardHeader` è una
+**griglia**, e `items-center` allinea sull'asse verticale — il marchio serviva
+`justify-self-center`.
+
+Linea di base del DOM presa col metodo di M4ter.4 — `build-storybook`, Chromium
+di Playwright headless contro un server statico minimo, `innerHTML` di
+`#storybook-root` — ma su **tutte e dieci** le scene di `Pagine/Login`, non
+cinque, in chiaro e in scuro: **20 file**. Presa da `pagina-login.tsx` non
+toccato (`git checkout` del solo file, build, cattura, ripristino, build,
+cattura), quindi è un «prima» vero e non ricostruito.
+
+| file | righe diverse | cosa cambia |
+|---|---|---|
+| tutti e 20 | 2 (la 4) | `class="marchio-t size-10"` → `class="marchio-t size-10 justify-self-center"` |
+
+**Zero differenze che non siano quella**: contate per esteso, 0 righe di diff
+fuori dal nodo del marchio. Una classe su un elemento, la stessa su tutti e
+venti.
+
+**Un errore di strumento, e vale più della correzione.** La prima passata
+dichiarava «chiaro e scuro» e passava `globals=modalita:light|dark`: i valori
+veri sono `chiaro|scuro` (`.storybook/preview.tsx:123`), e un global con un
+valore che non esiste **non dà errore** — Storybook ricade sul predefinito.
+Quindi metà della linea di base era chiara etichettata «scura», e le prime
+catture di controllo pure. Rifatta per intero. È lo stesso genere di difetto
+muto di §30: non rompe niente, dice solo il falso.
+
+### Tre cose viste a video, che nessun gate avrebbe preso
+
+1. **Due titoli che dicono la stessa cosa.** Nelle due scene d'esito il guscio
+   dava `CardTitle` «Controlla la posta» e l'`Empty` dentro dava `EmptyTitle`
+   «Ti abbiamo mandato un link»: due intestazioni, un messaggio. Tolto
+   l'`EmptyTitle` — il titolo lo dà il guscio, l'`Empty` porta icona,
+   descrizione e azione.
+2. **`responsive` centra sull'asse verticale**, e la riga Partita IVA +
+   Iscrizione all'ordine ha una `FieldDescription` in più su un campo solo:
+   centrati, l'etichetta «Partita IVA» scendeva sotto quella accanto.
+   `@md/field-group:items-start` al punto di chiamata. **Si vede solo quando la
+   soglia scatta**, cioè era invisibile prima della scelta della larghezza.
+3. **Il campo lungo di una riga non si allarga da sé**: a soglia scattata tutti
+   i figli passano a `w-auto`, e «Città» restava della misura di «Prov.».
+   `@md/field-group:flex-1`.
+
+Sulle **parole**, applicata la lezione di M4ter.4 §3.2 — un messaggio deve
+descrivere un'azione che esiste. Da «Controlla la posta» si rispedisce il link
+o si cambia indirizzo, e **non c'è nessun «torna indietro»**, perché da lì un
+indietro non c'è; da «Verifica email» si va all'accesso, perché ci si arriva da
+una mail e non da una pagina; su «Password dimenticata» il testo dice «se
+l'indirizzo è registrato», che non è cautela retorica — la risposta dev'essere
+la stessa per un indirizzo che esiste e per uno che no, o la pagina direbbe a
+chiunque chi è iscritto.
+
+### Una violazione a11y presa dal gate, e la sua causa
+
+Prima passata: **12 violazioni**, `aria-required-children` ×3 per passata. Non
+era lo stepper: era l'annuncio `aria-live` che avevo messo **dentro** il
+`role="tablist"`, e un figlio diretto di `tablist` che non sia un `tab` è una
+violazione. Spostato fuori, in un frammento accanto. Da 12 a **0**.
+
+### Le misure, con i numeri
+
+| misura | esito |
+|---|---|
+| `test:a11y` | **1404** scansioni (351 story × 4), **0** violazioni — previsione del piano centrata (1376 + 7×4) |
+| `check:registry` | **0 errori**, 62 avvisi, **1 componente nostro**, **19 ri-stilati** — invariati |
+| `check:registry-build` | `public/r/` allineato, 91 file |
+| `check:contrast` | 48/48, 0 sopra soglia |
+| `registry.json` | **90 item**, `registry validate` verde |
+| `misura:bersagli` | **3092 bersagli su 351 story**, 59 popup aperti, 35 tipi, **0 piccoli in entrambe le direzioni** |
+| `build`, `lint` | verdi, zero avvisi dal file nuovo |
+
+**I bersagli nuovi, misurati in densità touch** (il bottone di default a 48px,
+cioè densità applicata davvero): le tre schede di scelta **76 × 464px**, i tre
+passi della barra **38 × 143px**. Il `!` che `misura:bersagli` segna su
+`stepper-trigger` è il **minimo** fra le occorrenze, e viene da
+`Primitive/Stepper → Barra A Segmenti` (12px, il trattino senza titolo), che è
+di M4ter.1: piccolo in una direzione sola, largo nell'altra.
+
+**Lo stato «scelta» letto dal DOM, non dedotto dall'aspetto**, com'è il criterio
+del mandato:
+
+| voce | `data-checked` | `aria-checked` |
+|---|---|---|
+| Impresa (iniziale) | **true** | `true` |
+| Studio di progettazione | false | `false` |
+| Libero professionista | false | `false` |
+| *dopo il clic su «Libero professionista»* | si sposta, e solo quello | idem |
+
+Il fondo e il bordo della scheda accesa sono `primary/5` e `primary/30` letti
+dal motore di resa — cioè la primitiva `FieldLabel` che si accende da sé
+(`has-data-checked:`), senza una riga di JavaScript che li metta.
+
+**La tastiera, dichiarata e misurata in Chromium vero** (non nel pannello del
+browser dell'app, §32): dal campo **Email** al bottone **Avanti** ci sono
+**4 colpi di `Tab`** — Password → Mostra → Ripeti la password → Avanti.
+
+### Assunzioni dichiarate
+
+Studio non è su questa macchina e `docs/SPEC-AUTH.md` è la sola fonte: i valori
+che la spec non dà sono **assunzioni della story**, non rilievi. Sono tre, tutte
+in testi visibili: i requisiti della password (vedi la coda qui sotto), il link
+di reimposta che **vale un'ora**, e il codice invito di **otto o più
+caratteri**. Sono politiche del backend, e la pagina le passerebbe dall'app.
+
+### Cosa resta aperto
+
+- **`children` (o un guscio esportato) su `pagina-login`.** Oggi ogni schermata
+  che non sia il login riscrive dieci righe. Diventa una decisione vera quando
+  un'app le scriverà davvero — in M5.5, o quando Studio migra.
+- **Tavolozza estesa**: in M4ter.5 non è emerso nessun colore mancante. Le sette
+  scene stanno dentro i token del tema.
+
+### Coda 1 di M4ter.5: i requisiti della password diventano un controllo dinamico (2026-09-20)
+
+**Tre rilievi di Francesco a video, sulla scena `Registrati — 1. Accesso`.**
+Nessuno dei tre l'avrebbe preso un gate: sono tutti fatti di ciò che si legge.
+
+**(1) «Non è precompilato».** Il codice invito aveva `defaultValue="TAS-2026-0418"`
+ed era l'unico campo pieno fra quattro vuoti, quindi si leggeva come un dato già
+acquisito invece che come il formato da rispettare. Passato a `placeholder`,
+come l'Email.
+
+**(2) «Si può trasformare in un controllo dinamico», al posto della riga fissa
+«Almeno 10 caratteri.»** — con la richiesta esplicita di guardare cosa si usa
+davvero come requisito di password nei login web.
+
+**E quello che si usa non è quello che si dovrebbe usare.** Le regole di
+composizione — una maiuscola, un numero, un carattere speciale — sono ancora
+diffusissime, e **NIST SP 800-63B e OWASP ASVS le sconsigliano
+esplicitamente**: producono `Password1!`, che le soddisfa tutte ed è fra le
+password violate più comuni al mondo, e spostano lo sforzo dall'entropia alla
+contabilità dei simboli. La raccomandazione corrente è **lunghezza** (8 minimo,
+12–15 raccomandati, fino a 64 ammessi, tutti i caratteri accettati spazi
+compresi), **niente regole di composizione**, **niente scadenza periodica**, e
+**screening contro le password più usate e violate**. Implementato così, con la
+ragione scritta in `docs/SPEC-AUTH.md` §2.1ter e le regole in **una costante
+sola** — cambiarle è una riga, se un domani si decide altrimenti.
+
+Le tre regole, e la prova che sono quelle giuste sul caso che conta:
+
+| password | 12 caratteri | non fra le più usate | non contiene l'email |
+|---|---|---|---|
+| `mario` | · | ✓ | · |
+| `password` | · | · | ✓ |
+| **`Rossi2026!!!`** | ✓ | ✓ | **·** |
+| `tegola-ponte-neve` | ✓ | ✓ | ✓ |
+
+La terza riga è il punto: `Rossi2026!!!` **soddisfa ogni regola di composizione**
+— maiuscola, cifre, simboli, dodici caratteri — e con email `mario.rossi@studio.it`
+è la peggiore password possibile. La prende la regola sull'email, non quelle sui
+simboli.
+
+**Un difetto della prima stesura, trovato provandola**: la regola confrontava la
+parte locale **intera**, quindi password `mario` con email `mario.rossi@…`
+**passava** — «mario» non contiene «mario.rossi». Corretta spezzando su ciò che
+non è lettera o cifra e confrontando ogni pezzo da quattro caratteri in su.
+
+**(3) «Controllo per verificare che le password coincidano».** Aggiunto sotto il
+secondo campo, e si vede **mentre si scrive**, che è il momento in cui costa
+correggere. Compare solo a campo non vuoto — una crocetta rossa su un campo
+vuoto è un rimprovero per non aver ancora cominciato — ma il contenitore
+`aria-live` resta montato sempre, o la comparsa non verrebbe annunciata.
+
+E ha scoperto **un difetto vero della validazione**: la coincidenza stava in un
+`else if` dopo il controllo di lunghezza, quindi una password corta **nascondeva
+anche** la ripetizione sbagliata — due difetti al prezzo di un messaggio. Ora è
+indipendente.
+
+**Come sono fatte, e cosa non sono.** La stessa costante `REGOLE_PASSWORD`
+alimenta il riscontro a video **e** il rifiuto all'invio: non possono divergere,
+e il rifiuto nomina ciò che manca («Manca: almeno 12 caratteri; non contiene il
+tuo indirizzo email.») invece della regola generica. Un requisito non ancora
+soddisfatto è **muto, non rosso**: finché non si preme «Avanti» non è un errore,
+è una cosa da fare; il rosso arriva col `FieldError`. Il verde è
+**`success-subtle-foreground`** e non `success` — quello è il colore dei fondi,
+la stessa trappola di `destructive`. L'annuncio per i lettori di schermo è **un
+conto solo** («2 requisiti su 3 soddisfatti»), non la lista riletta a ogni
+battuta.
+
+**Non è il misuratore di robustezza, e la decisione del 2026-09-19 regge.**
+Quello è una barra che dà un punteggio; questo è il riscontro di una
+validazione. Ed è comunque **codice di pagina**, come il gating — `registry.json`
+resta a 90 item e `check:registry` a 1 componente nostro.
+
+Lo stesso modulo (`ModuloNuovaPassword`) sta anche su **«Reimposta la
+password»**: sono i due punti in cui una password si sceglie, e se dicessero
+cose diverse uno dei due mentirebbe.
+
+**Una conseguenza dichiarata**: Email, Password e Ripetizione diventano
+**controllate**, mentre il resto del modulo resta non controllato. Non è
+incoerenza — il riscontro va aggiornato a ogni battuta e per farlo serve il
+valore a ogni render; sugli altri campi non c'è niente da mostrare mentre si
+scrive, e `FormData` basta.
+
+**I gate dopo la coda**: `npm run check` verde sui sei (uscita 0), `test:a11y`
+**1404 scansioni, 0 violazioni** — invariate, perché non nascono story nuove —
+`misura:bersagli` **3094** bersagli (erano 3092: il «Mostra» aggiunto alla
+scena di reimposta), **0 piccoli in entrambe le direzioni**. `build` e `lint`
+verdi.
+
+### Coda 2 di M4ter.5: composizione, misuratore, k-anonimato, due colonne (2026-09-20)
+
+Quattro rilievi in fila di Francesco, tutti a video, sulla stessa schermata.
+
+**(1) «Meglio chiedere anche maiuscole, numeri e caratteri speciali».** È una
+**divergenza dalla coda 1, riconfermata dopo il rilievo**: lì avevo argomentato
+di non metterle, perché NIST SP 800-63B e OWASP ASVS le sconsigliano
+esplicitamente — `Password1!` le soddisfa tutte ed è fra le password violate più
+comuni al mondo. Riconfermate, quindi ci sono: la scelta è sua, il motivo per
+cui erano state escluse resta scritto in `docs/SPEC-AUTH.md` §2.1ter, e tornare
+indietro è una riga in `REGOLE_PASSWORD`. Da 3 regole a **sei**.
+
+**(2) «Sarebbe bello avere uno score della robustezza».** Fatto, e **non
+ribalta la decisione del 2026-09-19**: «il misuratore resta dell'app» significa
+«non è un componente del registry», e la story *è* codice di pagina —
+`registry.json` resta a **90 item**, `componenti-propri.json` vuoto. Quello che
+cambia è che le app hanno un esemplare da copiare invece di inventarselo ognuna.
+
+Il punteggio è l'entropia stimata, `lunghezza × log2(alfabeto)` con l'alfabeto
+dedotto dalle famiglie di caratteri presenti, più le penalità che l'entropia non
+vede (password nelle liste → minimo; contiene l'email → non oltre «debole»). È
+`zxcvbn` in piccolo, senza aggiungere una dipendenza a un file che ogni app
+copierà. **Non è lo stepper**: i segmenti sono `span`, senza `tablist`, senza
+`tab`, senza fuoco.
+
+**E una contraddizione trovata misurando, non ragionando.** `tegola-ponte-neve`
+ha entropia da **«forte»** e fallisce **due requisiti su sei**: la barra avrebbe
+detto «forte» sopra un modulo che rifiuta. I due controlli misurano cose diverse
+— entropia contro composizione — e vanno bene tutti e due, ma **quello che si
+vede dev'essere d'accordo con quello che succede**: il livello è limitato a
+«media» finché un requisito manca. Ora «forte» esce solo a 6 su 6.
+
+| password | livello | requisiti |
+|---|---|---|
+| `mario` | troppo debole | 1/6 |
+| `password` | troppo debole | 1/6 |
+| `Password1!` | media | 5/6 |
+| `Rossi2026!!!` | **debole** | 5/6 |
+| `tegola-ponte-neve` | media | 4/6 |
+| `Tegola-Ponte-Neve-2026!` | **forte** | 6/6 |
+
+Le due righe che valgono: `Password1!` passa **cinque regole su sei** e il
+misuratore la ferma a «media»; `Rossi2026!!!` passa tutte le regole di
+composizione e scende a «debole» per la regola sull'email. Sono esattamente i
+casi per cui le regole di composizione da sole non bastano.
+
+**Un colore che manca, segnalato e non inventato.** Le bande sono
+`destructive`, `primary` e `success`: il quarto gradino non c'è, perché
+`--warning` è il crema pallido del badge (#FBE8C4) e come riempimento di una
+barra sparisce sul fondo della card. Aggiunto all'innesco della **tavolozza
+estesa** in `CHECKLIST.md`, che adesso è innescata due volte.
+
+**(3) «"Non è fra le password più usate" come lo verifichi?»** — e la risposta
+onesta era: **non lo verificava.** Era un `Set` di dieci voci nel sorgente, reso
+con una spunta che diventava verde subito: a chi scriveva `aaaa` l'interfaccia
+affermava una verifica mai avvenuta. Il difetto non era l'elenco corto — era il
+**modo di renderlo**.
+
+Rifatta **asincrona a quattro stati** — da fare, in corso (con lo `Spinner`),
+fatta, fallita — col segnaposto dietro una funzione la cui firma è già quella
+vera: `(password) => Promise<boolean>`. L'app la sostituisce e il resto della
+pagina non cambia. Il modo vero, scritto in §2.1ter perché è il pezzo che
+servirà davvero: **API Pwned Passwords di HIBP con k-anonimato** — `SHA-1` della
+password, si mandano **i primi 5 caratteri** dell'hash, tornano ~800 suffissi
+coi conteggi, il confronto si fa in locale. Il servizio non vede né la password
+né quale password si sta controllando, e il corpus è di oltre ottocento milioni
+di password da violazioni reali. **L'autorità resta il backend**: un controllo
+solo nel browser si aggira con una richiesta diretta. Il riscontro nel browser è
+**ritardato di 400 ms**, o si farebbe una chiamata per tasto.
+
+**Un avviso di oxlint che era un difetto vero**: la prima stesura teneva in
+stato anche «vuota» e «in corso» e li impostava dentro l'effetto —
+`react(set-state-in-effect)`. Un `setState` sincrono in un effetto avvia un
+secondo render per dire una cosa che si sapeva già. Rifatto: in stato c'è **solo
+la risposta**, insieme alla password a cui si riferisce, e gli altri due stati
+si **derivano durante il render**. Il confronto `risposta.password === password`
+fa anche da guardia contro le risposte che tornano fuori ordine, che è il
+difetto classico di questo schema.
+
+**(4) «Possiamo metterlo su due colonne?»** Sì: `@md/field-group:grid-cols-2`,
+la stessa soglia dei campi affiancati. Sei righe in colonna sola spingevano
+«Avanti» fuori dallo schermo. Tre righe per due colonne, e nella card stretta
+resta una colonna da sé — il controllo è del contenitore, non della finestra.
+
+**Due rifiniture nate da qui.** Il messaggio d'errore all'invio, con sei regole,
+elencava tutto e faceva un muro sotto un elenco che le mostra già una per riga:
+adesso **rimanda lì** («Mancano 5 requisiti: li trovi segnati qui sopra») e
+nomina la regola solo quando ne manca **una**. E «Reimposta la password» è
+passata a `max-w-lg`: porta lo stesso blocco da sei requisiti, quindi **non è
+più una schermata minima** — il criterio è cosa c'è dentro, non il nome. Con
+essa l'etichetta «Ripetila» è diventata **«Ripeti la password»**, la stessa del
+passo 1, su rilievo di Francesco: due schermate che fanno la stessa cosa non
+possono chiamarla in due modi.
+
+**I gate dopo la coda 2**: `npm run check` verde sui sei (uscita 0), `test:a11y`
+**1404 scansioni, 0 violazioni** — invariate, e non era scontato, perché lo
+stato «in corso» aggiunge uno `Spinner` dentro una lista — `misura:bersagli`
+**3093** bersagli su 351 story, **0 piccoli in entrambe le direzioni**. `build`
+e `lint` verdi, zero avvisi dal file.
+
+### Prossimi passi
+
+M4ter.6 — `useSoglia` e la lista a due facce.
