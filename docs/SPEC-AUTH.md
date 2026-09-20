@@ -1,4 +1,4 @@
-# `pagina-login` — decisioni prese e cosa va implementato
+# `pagina-login` — decisioni prese, e le schermate d'accesso composte
 
 > Deciso con Francesco in sessione il **2026-09-19**, guardando le pagine vere di
 > Studio (`/registrati` e `/login`, pubbliche) e il sorgente di `Registrazione.tsx`.
@@ -63,30 +63,99 @@ messaggio.
 Quindi: **il guscio resta di `pagina-login` e non cambia**; cambia cosa ci va dentro.
 Non si scrive una famiglia di pagine modello nuove.
 
+> **Rettifica del 2026-09-20 (M4ter.5), su due punti.**
+>
+> **(a) «Identico» vale per la forma, non per la larghezza.** Le tre schermate
+> di registrazione hanno la card a **`max-w-lg`** (512px); login, password
+> dimenticata, reimposta, verifica email e l'esito restano a **`max-w-sm`**
+> (384px). La ragione è misurata e sta in §2.2: `Field orientation="responsive"`
+> scatta a 448px di `FieldGroup`, e dentro `max-w-sm` il `FieldGroup` ne misura
+> **352** — l'affiancamento di Nome+Cognome e di Città/Prov./CAP, che §2.2 dà
+> per fatto, dentro una card stretta non sarebbe **mai** avvenuto. Scelta di
+> Francesco il 2026-09-20, guardando le due versioni affiancate.
+>
+> **(b) Il guscio si ricompone, non si riusa.** `PaginaLogin` non accetta
+> `children` e non esporta il guscio: una schermata che non sia il login lo
+> **riscrive**, ed è dieci righe di codice di pagina (`GuscioAccesso` nella
+> story). Non si è aggiunto `children` al componente perché è un cambio d'API,
+> e M4ter.5 dichiarava zero componenti nuovi: resta una decisione da prendere
+> apposta, se e quando un'app ne avrà bisogno davvero.
+
 ### 1.4 Il «wizard» non esiste come componente
 
 Era il candidato C.1 da sospendere. **Cade**: guardando i tre passi della registrazione,
 di un componente wizard non c'è niente da scrivere.
 
-- I **segmenti di avanzamento** sono l'unico pezzo mancante (§2).
+- I **segmenti di avanzamento** erano l'unico pezzo mancante. **Non lo sono più**:
+  si adotta `@reui/stepper` (M4ter.1) e la barra a segmenti non è nemmeno una sua
+  variante — vedi §2.1, riscritta.
 - Il **gating** — «non passare al passo 2 finché non valida» — dipende da quali campi ha
   quel passo, e nessun blocco può saperlo. **Resta codice della pagina**, come oggi.
 
 Dei tre sospesi ne restano **due**: calendario a eventi e barra di contesto globale.
 
-## 2. Cosa va implementato
+## 2. Le cinque schermate — **fatte** in M4ter.5 (2026-09-20)
 
-### 2.1 Il solo pezzo nuovo: la barra a segmenti
+Erano «cosa va implementato» fino al 2026-09-19. Da M4ter.5 sono **sette scene
+in Storybook**, sotto `Pagine/Schermate d'accesso`
+(`stories/SchermateAccesso.stories.tsx`) — composte con le primitive che il
+registry ha già, **zero componenti nuovi**, `registry.json` fermo a 90 item.
 
-`<div className="auth-passi" aria-hidden="true">` con N trattini, M accesi.
+| schermata | scena |
+|---|---|
+| `/registrati` passo 1 | `Registrati — 1. Accesso` |
+| `/registrati` passo 2 | `Registrati — 2. Profilo` |
+| `/registrati` passo 3 | `Registrati — 3. Consensi` |
+| l'esito della registrazione | `Registrati — esito` |
+| password dimenticata | `Password dimenticata` |
+| reimposta password | `Reimposta la password` |
+| verifica email | `Verifica email` |
 
-**Serve tre volte in due pagine**, ed è la ragione per cui vale la pena farlo una volta:
-1. i passi in cima a `/registrati` («Passo 1 di 3 · Accesso»);
-2. il **misuratore di robustezza della password**, sotto il campo, nella stessa schermata
-   — stesso oggetto, N segmenti M accesi;
-3. i passi di `TaskCalcoloStrutturale` (i cinque moduli di calcolo).
+Stanno in `stories/` e non accanto a `pagina-login` perché **non sono scene di
+`PaginaLogin`**: non ne esercitano una prop né un ramo. Sono composizione, e
+metterle sotto il titolo del componente direbbe il falso.
 
-Dimensione: una decina di righe. **Non è `progress`**, che è una barra continua.
+### 2.1 La barra a segmenti — **non si scrive: esiste** (riscritta il 2026-09-20)
+
+> La stesura del 2026-09-19 diceva: «`<div className="auth-passi">` con N
+> trattini, M accesi, una decina di righe». **È caduta in M4ter.1**, e lasciarla
+> in piedi manderebbe chi legge fra sei mesi a scrivere un componente che c'è
+> già.
+
+Si adotta **`@reui/stepper`** (M4ter.1, `registry/tassullo/ui/stepper.tsx`).
+`Primitive/Stepper` ne mostra cinque forme, e **la barra a segmenti non è una
+variante**: è lo stesso componente con l'indicatore ridotto a un trattino e il
+titolo sopra o sotto. Le tre scene di registrazione usano la forma
+`BarraConTitoli` — pallino tolto, trattino pieno, il titolo del passo sotto —
+perché è quella che dice «sono al secondo di tre» senza doverlo leggere.
+
+**Due cose che la barra dei passi *non* è**, e sono la trappola del nome del
+`CLAUDE.md` («il nome dice la funzione, non l'aspetto»):
+
+1. **Non è il misuratore di robustezza della password.** Somiglia — N segmenti,
+   M accesi — e non lo è: lo stepper è un `tablist` di schede che si cliccano e
+   si navigano con le frecce; il misuratore non si naviga e non si seleziona.
+   **Deciso da Francesco il 2026-09-19: resta dell'app**, occorrenza singola,
+   codice di pagina. Non è in scena, apposta.
+2. **Non è `progress`**, che è una barra continua.
+
+I passi di `TaskCalcoloStrutturale` (i cinque moduli di calcolo) restano il caso
+della forma `BarraASegmenti`, quella senza titoli — già in scena in
+`Primitive/Stepper`.
+
+**Il gating resta codice della pagina** (§1.4), e nella story è scritto come
+tale e **funziona**: «Avanti» valida e non avanza, gli errori escono nei
+`FieldError`, i passi non ancora raggiunti sono schede `disabled`. Misurato il
+2026-09-20: premendo «Avanti» a vuoto sul passo 1 la scheda selezionata resta
+`Passo 1 di 3`, e i passi 2 e 3 sono disabilitati.
+
+### 2.1bis Il campo nascosto anti-bot **non è in scena**, ed è una scelta
+
+§3.4 lo lascia alla pagina, e una story *è* codice di pagina: mostrarlo sarebbe
+stato legittimo. Non è stato fatto perché **un honeypot vale finché il suo nome
+non è prevedibile**, e questo repo è pubblico (D4): un campo che il registry
+mostrasse a tutti sarebbe un campo che tutti riconoscono. Dirlo serve, mostrarlo
+lo indebolisce — sta scritto nella testata della story.
 
 ### 2.2 Tutto il resto compone con quello che c'è — verificato
 
@@ -111,10 +180,26 @@ Dimensione: una decina di righe. **Non è `progress`**, che è una barra continu
 | elemento | item |
 |---|---|
 | le tre card selezionabili (impresa / studio / libero professionista) | **`FieldLabel` che avvolge un `radio-group`**. `field.tsx:107` porta già `has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border` e `has-data-checked:border-primary/30 has-data-checked:bg-primary/5`: **la scelta a card è dentro la primitiva** e si accende da sé |
-| Nome+Cognome affiancati, Città/Provincia/CAP in riga | **`Field orientation="responsive"`** dentro `FieldGroup` (`field.tsx:60`): impila su stretto, affianca su largo, da solo |
+| Nome+Cognome affiancati, Città/Provincia/CAP in riga | **`Field orientation="responsive"`** dentro `FieldGroup` (`field.tsx:60`): impila su stretto, affianca su largo, da solo — **ma la soglia è del contenitore, vedi sotto** |
 | ragione sociale, P.IVA, albo | `Field` + `Input` |
 | «Partita IVA non valida», «CAP non valido» | `FieldError` |
 | Indietro / Avanti | `Button` |
+
+> **La soglia di `responsive`, misurata il 2026-09-20 (M4ter.5).** «Affianca su
+> largo» guarda il **contenitore**, non la finestra: è `@md/field-group`, cioè
+> **448px di `FieldGroup`**. Dentro `Card max-w-sm` il `FieldGroup` misura
+> **352px** (384 di card meno 32 di riempimento) e **non ci arriva mai** — con
+> quella larghezza la riga di questa tabella descriveva un'intenzione, non un
+> rilievo. La prima larghezza che la fa scattare è **`max-w-lg`** (card 512 →
+> contenuto 480); `max-w-md` non basta (448 → 416). Da cui la scelta di §1.3(a):
+> le schermate di registrazione vanno a `max-w-lg`, e la tabella torna vera.
+>
+> Due ricadute viste solo **dopo** che la soglia scatta, e corrette al punto di
+> chiamata: `responsive` centra i figli sull'asse verticale, quindi una riga in
+> cui un campo ha una `FieldDescription` in più va rimessa a
+> `@md/field-group:items-start` (senza, l'etichetta «Partita IVA» scende sotto
+> quella accanto); e il campo lungo di una riga vuole `@md/field-group:flex-1`,
+> o Città resta della misura di Prov. e la riga non riempie.
 
 **passo 3 — «Privacy e consensi»** — `Field orientation="horizontal"` + `Checkbox` +
 `FieldContent` + `FieldDescription` per i tre consensi con la nota
@@ -126,7 +211,19 @@ testo va a capo.
 
 **Le tre schermate minime** (password dimenticata, reimposta, verifica email) sono il
 guscio + un campo + un esito: `Field`+`Input`+`Button`, e `Empty`/`Alert` per l'esito.
-Non serve codice nuovo: serve **una story** che lo mostri.
+Non serve codice nuovo: serve **una story** che lo mostri — ed **è scritta**
+(M4ter.5, la tabella di §2).
+
+Una cosa vista a video e non misurabile: dentro il guscio, `CardTitle` **e**
+`EmptyTitle` insieme danno due intestazioni che dicono la stessa cosa
+(«Controlla la posta» sopra «Ti abbiamo mandato un link»). Nelle due scene
+d'esito il titolo lo dà il guscio e l'`Empty` porta icona, descrizione e azione.
+
+E le parole sono state controllate contro la lezione di M4ter.4 §3.2 —
+**un messaggio deve descrivere un'azione che esiste**: da «Controlla la posta»
+si rispedisce il link o si cambia indirizzo, e non c'è nessun «torna indietro»,
+perché da lì un indietro non c'è; da «Verifica email» si va all'accesso, perché
+ci si arriva da una mail e non da una pagina.
 
 ## 3. I quattro punti — **risolti** in M4ter.4 (2026-09-20)
 

@@ -7363,3 +7363,210 @@ si distinguono dal titolo, senza leggere il corpo.
 
 M4ter.5 — le cinque schermate d'accesso di Studio composte, `@reui/stepper`
 per i passi, **zero componenti nuovi** (item fermi a 90), a11y 1376 → 1404.
+
+## M4ter.5 — Le cinque schermate d'accesso di Studio, composte (2026-09-20)
+
+**Verdetto: chiuso.** Sette scene, **zero componenti nuovi** — `registry.json`
+fermo a 90 item, `check:registry` a 1 componente nostro e 19 ri-stilati,
+esattamente com'era in apertura. `npm run check` verde sui **sei**, `test:a11y`
+**1404 scansioni su 351 story, 0 violazioni** in tutte e quattro le passate.
+
+### Due affermazioni della spec sono cadute, e andavano risolte prima di comporre
+
+**(a) `Field orientation="responsive"` non affianca mai dentro il guscio del
+login.** Misurato in Chromium: il `FieldGroup` dentro `Card max-w-sm` è largo
+**352px** (384 di card meno 32 di riempimento del `CardContent`), e
+`@md/field-group` — la container query di `field.tsx:60` — scatta a **28rem =
+448px**. Non ci arriva, e non ci arriverà mai: sono due misure in `rem`, quindi
+non cambia nemmeno con la densità.
+
+`docs/SPEC-AUTH.md` §2.2 dava l'affiancamento di Nome+Cognome e di
+Città/Prov./CAP per **verificato sulle pagine vere di Studio**, e §1.3 dava il
+guscio per **identico su tutte e cinque le schermate**. Le due non stanno
+insieme, e non era una cosa da indovinare: portate a Francesco con le due
+versioni affiancate a video — stesso codice dei campi, sola differenza la
+larghezza della card. **Scelta: `max-w-lg` per le tre schermate di
+registrazione** (card 512 → contenuto 480, la soglia scatta); le altre restano
+`max-w-sm`. §1.3 rettificata di conseguenza: «identico» vale per la forma, non
+per la larghezza. `max-w-md` non sarebbe bastato — 448 di card fanno 416 di
+contenuto, sotto soglia di 32px.
+
+**Il costo che il mandato temeva non c'era**, e vale saperlo: la prop per la
+larghezza su `pagina-login` non serve, perché **`PaginaLogin` non accetta
+`children` e non esporta il guscio**. Una schermata che non sia il login lo
+riscrive comunque — dieci righe, `GuscioAccesso` nella story, codice di pagina
+come lo sarebbe in Studio. Quindi §1.3 aveva un secondo punto falso, più
+interessante del primo: «il guscio resta di `pagina-login`» è vero come
+**forma** e falso come **codice**. Non si è aggiunto `children` al componente:
+è un cambio d'API in un task che dichiara zero componenti nuovi, e resta una
+decisione da prendere apposta.
+
+**(b) §2.1 diceva di scrivere un `<div className="auth-passi">`.** Era superata
+da M4ter.1 e nessuno l'aveva riscritta. **Riscritta**: si adotta
+`@reui/stepper`, e la barra a segmenti **non è una variante** — è lo stesso
+componente con props diverse, già in scena in `Primitive/Stepper`. Le tre scene
+usano la forma `BarraConTitoli`. Lasciata com'era, avrebbe mandato chi la legge
+fra sei mesi a scrivere un componente che esiste.
+
+E dentro §2.1 è rimasta scritta la distinzione che il `CLAUDE.md` chiama la
+trappola del nome: **il misuratore di robustezza della password non è lo
+stepper**. Somiglia — N segmenti, M accesi — e non lo è: lo stepper è un
+`tablist` di schede che si cliccano e si navigano con le frecce, il misuratore
+non si naviga e non si seleziona. Resta dell'app (deciso il 2026-09-19), e non
+è in scena apposta.
+
+### Dove sono finite le sette scene, e perché non accanto a `pagina-login`
+
+`stories/SchermateAccesso.stories.tsx`, titolo `Pagine/Schermate d'accesso`.
+
+Il criterio non è la lunghezza del file: è **se un lettore che apre
+`Pagine/Login` si aspetta di trovarci la registrazione**. Non se l'aspetta, e
+soprattutto quelle scene **non sono scene di `PaginaLogin`** — non ne usano una
+prop, non ne esercitano un ramo, e il guscio se lo ricompongono. Metterle sotto
+il titolo del componente avrebbe detto il falso su cosa quel componente fa.
+`stories/` in root è, per `CLAUDE.md` §6, il posto delle pagine trasversali
+della style guide, ed è esattamente questo: una composizione che attraversa
+`card`, `field`, `input`, `input-group`, `radio-group`, `checkbox`, `empty`,
+`alert` e `stepper`.
+
+### Il gating è codice di pagina, e nella story **funziona**
+
+Non è una scena finta con l'aria di un wizard: `Registrazione` tiene il passo,
+il massimo passo raggiunto, gli errori e la categoria scelta; «Avanti» valida
+con `FormData` e **non avanza** se manca qualcosa; i passi oltre quello
+raggiunto sono schede `disabled`. Misurato:
+
+| prova | esito |
+|---|---|
+| «Avanti» a vuoto dal passo 1 | scheda selezionata resta `Passo 1 di 3`; errori «Scrivi un indirizzo email valido.» e «La password deve essere di almeno 10 caratteri.» |
+| le tre schede della barra | passo 1 abilitato e selezionato, passi 2 e 3 **disabilitati** |
+| «Crea l'accesso» senza consensi | due `FieldError`, non procede |
+
+### L'honeypot **non è in scena**, ed è una scelta scritta
+
+§3.4 lo lascia alla pagina, e una story *è* codice di pagina, quindi mostrarlo
+sarebbe stato legittimo. Non è stato fatto: **un honeypot vale finché il suo
+nome non è prevedibile**, e questo repo è pubblico (D4). Un campo nascosto che
+il design system mostrasse a tutti sarebbe un campo che tutti riconoscono.
+Dirlo serve — e sta scritto nella testata della story e in `docs/SPEC-AUTH.md`
+§2.1bis — mostrarlo lo indebolisce.
+
+### Il marchio centrato: la differenza voluta, elencata
+
+Era la cosa lasciata in sospeso da M4ter.4 («da decidere in M4ter.5»), e questa
+è la sessione che rifà il guscio su altre cinque schermate: copiarlo storto
+sarebbe stato il modo di renderlo permanente. **Corretto**: `CardHeader` è una
+**griglia**, e `items-center` allinea sull'asse verticale — il marchio serviva
+`justify-self-center`.
+
+Linea di base del DOM presa col metodo di M4ter.4 — `build-storybook`, Chromium
+di Playwright headless contro un server statico minimo, `innerHTML` di
+`#storybook-root` — ma su **tutte e dieci** le scene di `Pagine/Login`, non
+cinque, in chiaro e in scuro: **20 file**. Presa da `pagina-login.tsx` non
+toccato (`git checkout` del solo file, build, cattura, ripristino, build,
+cattura), quindi è un «prima» vero e non ricostruito.
+
+| file | righe diverse | cosa cambia |
+|---|---|---|
+| tutti e 20 | 2 (la 4) | `class="marchio-t size-10"` → `class="marchio-t size-10 justify-self-center"` |
+
+**Zero differenze che non siano quella**: contate per esteso, 0 righe di diff
+fuori dal nodo del marchio. Una classe su un elemento, la stessa su tutti e
+venti.
+
+**Un errore di strumento, e vale più della correzione.** La prima passata
+dichiarava «chiaro e scuro» e passava `globals=modalita:light|dark`: i valori
+veri sono `chiaro|scuro` (`.storybook/preview.tsx:123`), e un global con un
+valore che non esiste **non dà errore** — Storybook ricade sul predefinito.
+Quindi metà della linea di base era chiara etichettata «scura», e le prime
+catture di controllo pure. Rifatta per intero. È lo stesso genere di difetto
+muto di §30: non rompe niente, dice solo il falso.
+
+### Tre cose viste a video, che nessun gate avrebbe preso
+
+1. **Due titoli che dicono la stessa cosa.** Nelle due scene d'esito il guscio
+   dava `CardTitle` «Controlla la posta» e l'`Empty` dentro dava `EmptyTitle`
+   «Ti abbiamo mandato un link»: due intestazioni, un messaggio. Tolto
+   l'`EmptyTitle` — il titolo lo dà il guscio, l'`Empty` porta icona,
+   descrizione e azione.
+2. **`responsive` centra sull'asse verticale**, e la riga Partita IVA +
+   Iscrizione all'ordine ha una `FieldDescription` in più su un campo solo:
+   centrati, l'etichetta «Partita IVA» scendeva sotto quella accanto.
+   `@md/field-group:items-start` al punto di chiamata. **Si vede solo quando la
+   soglia scatta**, cioè era invisibile prima della scelta della larghezza.
+3. **Il campo lungo di una riga non si allarga da sé**: a soglia scattata tutti
+   i figli passano a `w-auto`, e «Città» restava della misura di «Prov.».
+   `@md/field-group:flex-1`.
+
+Sulle **parole**, applicata la lezione di M4ter.4 §3.2 — un messaggio deve
+descrivere un'azione che esiste. Da «Controlla la posta» si rispedisce il link
+o si cambia indirizzo, e **non c'è nessun «torna indietro»**, perché da lì un
+indietro non c'è; da «Verifica email» si va all'accesso, perché ci si arriva da
+una mail e non da una pagina; su «Password dimenticata» il testo dice «se
+l'indirizzo è registrato», che non è cautela retorica — la risposta dev'essere
+la stessa per un indirizzo che esiste e per uno che no, o la pagina direbbe a
+chiunque chi è iscritto.
+
+### Una violazione a11y presa dal gate, e la sua causa
+
+Prima passata: **12 violazioni**, `aria-required-children` ×3 per passata. Non
+era lo stepper: era l'annuncio `aria-live` che avevo messo **dentro** il
+`role="tablist"`, e un figlio diretto di `tablist` che non sia un `tab` è una
+violazione. Spostato fuori, in un frammento accanto. Da 12 a **0**.
+
+### Le misure, con i numeri
+
+| misura | esito |
+|---|---|
+| `test:a11y` | **1404** scansioni (351 story × 4), **0** violazioni — previsione del piano centrata (1376 + 7×4) |
+| `check:registry` | **0 errori**, 62 avvisi, **1 componente nostro**, **19 ri-stilati** — invariati |
+| `check:registry-build` | `public/r/` allineato, 91 file |
+| `check:contrast` | 48/48, 0 sopra soglia |
+| `registry.json` | **90 item**, `registry validate` verde |
+| `misura:bersagli` | **3092 bersagli su 351 story**, 59 popup aperti, 35 tipi, **0 piccoli in entrambe le direzioni** |
+| `build`, `lint` | verdi, zero avvisi dal file nuovo |
+
+**I bersagli nuovi, misurati in densità touch** (il bottone di default a 48px,
+cioè densità applicata davvero): le tre schede di scelta **76 × 464px**, i tre
+passi della barra **38 × 143px**. Il `!` che `misura:bersagli` segna su
+`stepper-trigger` è il **minimo** fra le occorrenze, e viene da
+`Primitive/Stepper → Barra A Segmenti` (12px, il trattino senza titolo), che è
+di M4ter.1: piccolo in una direzione sola, largo nell'altra.
+
+**Lo stato «scelta» letto dal DOM, non dedotto dall'aspetto**, com'è il criterio
+del mandato:
+
+| voce | `data-checked` | `aria-checked` |
+|---|---|---|
+| Impresa (iniziale) | **true** | `true` |
+| Studio di progettazione | false | `false` |
+| Libero professionista | false | `false` |
+| *dopo il clic su «Libero professionista»* | si sposta, e solo quello | idem |
+
+Il fondo e il bordo della scheda accesa sono `primary/5` e `primary/30` letti
+dal motore di resa — cioè la primitiva `FieldLabel` che si accende da sé
+(`has-data-checked:`), senza una riga di JavaScript che li metta.
+
+**La tastiera, dichiarata e misurata in Chromium vero** (non nel pannello del
+browser dell'app, §32): dal campo **Email** al bottone **Avanti** ci sono
+**4 colpi di `Tab`** — Password → Mostra → Ripeti la password → Avanti.
+
+### Assunzioni dichiarate
+
+Studio non è su questa macchina e `docs/SPEC-AUTH.md` è la sola fonte: i valori
+che la spec non dà sono **assunzioni della story**, non rilievi. Sono tre, tutte
+in testi visibili: la password di **almeno 10 caratteri**, il link di reimposta
+che **vale un'ora**, e il codice invito di **otto o più caratteri**. Sono
+politiche del backend, e la pagina le passerebbe dall'app.
+
+### Cosa resta aperto
+
+- **`children` (o un guscio esportato) su `pagina-login`.** Oggi ogni schermata
+  che non sia il login riscrive dieci righe. Diventa una decisione vera quando
+  un'app le scriverà davvero — in M5.5, o quando Studio migra.
+- **Tavolozza estesa**: in M4ter.5 non è emerso nessun colore mancante. Le sette
+  scene stanno dentro i token del tema.
+
+### Prossimi passi
+
+M4ter.6 — `useSoglia` e la lista a due facce.
