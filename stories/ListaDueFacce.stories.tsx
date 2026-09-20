@@ -364,7 +364,20 @@ const col = creaColonne<Macchina>()
  * colonna del chevron, che la pagina non scrive.
  *
  * La miniatura è `entity-image`, ed è larga **`w-12`** dentro una colonna
- * `w-16`: la cella porta `p-2`, quindi di 64px dichiarati ne restano **48** —
+ * `w-16`, tirata a sinistra di `-ml-2`. Due cose diverse, che si spiegano
+ * insieme perché nascono dallo stesso `p-2` delle celle.
+ *
+ * **`-ml-2` annulla il riempimento sinistro della cella**, e serve perché fra
+ * il chevron e la miniatura c'erano **32px** di vuoto: 8 di riempimento del
+ * bottone, 8 della cella del chevron, 8 di questa, più 8 di scarto. Il
+ * chevron non è una colonna che la pagina scrive — la antepone `pannelloRiga`
+ * — quindi l'unica leva dal punto di chiamata è questa, e porta il vuoto da
+ * 32 a **16px**, misurato dal glifo al bordo della miniatura. Oltre non si va
+ * senza uscire dalla cella, che ritaglia: verificato che **0 miniature su 12**
+ * escono dalla propria cella.
+ *
+ * **`w-12` e non `w-16`**: la cella porta `p-2`, quindi di 64px dichiarati ne
+ * restano **48** —
  * e una miniatura da 64 veniva **tagliata a destra** dall'`overflow: hidden`
  * del `td`, con tre angoli tondi e un bordo dritto. La miniatura si dimensiona
  * sullo spazio **utile**, non sulla larghezza dichiarata della colonna.
@@ -381,7 +394,7 @@ const COLONNE = col.columns([
     meta: { titolo: 'Foto', larghezza: 'w-16' },
     header: () => <span className="sr-only">Foto</span>,
     cell: ({ row }) => (
-      <div className="w-12">
+      <div className="-ml-2 w-12">
         <EntityImage
           src={row.original.foto}
           alt=""

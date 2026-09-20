@@ -7961,6 +7961,16 @@ restano **48**: una miniatura da 64 veniva tagliata dall'`overflow: hidden` del
 utile, non sulla larghezza dichiarata della colonna.** Verificato dopo: 48×48,
 raggio 10px su tutti e quattro gli angoli, **0 miniature tagliate su 12**.
 
+**(2bis) E poi il vuoto fra il chevron e la miniatura era troppo**, rilievo
+successivo di Francesco. Misurato dal glifo al bordo della miniatura: **32px**,
+e scomposto sono 8 di riempimento del bottone, 8 della cella del chevron, 8 di
+quella della foto, più 8 di scarto. La colonna del chevron non la scrive la
+pagina — la antepone `pannelloRiga` — quindi l'unica leva dal punto di chiamata
+è **annullare il riempimento sinistro della cella della foto**: `-ml-2` sul
+contenitore della miniatura. Da 32 a **16px**, con **0 miniature su 12** che
+escono dalla propria cella (oltre, il `td` le ritaglierebbe di nuovo). Nessuna
+prop aggiunta al blocco: è tutto al punto di chiamata.
+
 **(3) `bloccaPrimaColonna` bloccava il chevron.** L'avevo aggiunta io in questa
 sessione per rendere onesto lo scorrimento, e il suo prop dice di bloccare «la
 colonna che **identifica la riga**» — ma con `pannelloRiga` la prima colonna è
