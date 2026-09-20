@@ -1062,6 +1062,28 @@
       "docs": "La pagina dichiara la propria intestazione; la fascia in alto del guscio la rende:\n\n  <PageHeader\n    percorso={[{ titolo: \"Prodotti\", href: \"/prodotti\" }, { titolo: \"Famiglie\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n  />\n\n<PageHeader> non occupa spazio dove sta scritta: rende dentro la fascia attraverso\nun portale. Serve perche <AppShell> si monta una volta sola attorno all'<Outlet />,\nquindi la pagina non ha modo di passargli delle prop.\n\nNon c'e un titolo che si vede: il nome della pagina e gia la voce attiva in colonna\ne l'ultimo livello del percorso. Resta come <h1> in sr-only, per chi non vede lo\nschermo, ricavato dall'ultimo livello del percorso.\n\nLe azioni si dichiarano e non si disegnano — { titolo, icona, ruolo } — perche\nl'intestazione le rende in due forme: bottoni interi quando la fascia e larga, un\nsolo bottone «...» quando e stretta. Una sola azione `primaria` per pagina.\n\nLe soglie sono container query sulla fascia (@md per il percorso, @2xl per le\nazioni), non media query sulla viewport: sotto i 768px la colonna esce dal DOM,\nquindi lo schermo si allarga di 1px e la fascia si restringe di 255.\n\nFuori dal guscio serve <IntestazioneProvider> attorno e <FasciaIntestazione /> dove\nva la barra: e quello che AppShell monta da se."
     },
     {
+      "name": "tassullo-indicatori",
+      "type": "registry:block",
+      "title": "Fila di indicatori",
+      "description": "La fila di indicatori di un cruscotto — etichetta, valore, tendenza — a due o quattro colonne secondo la larghezza del proprio contenitore. Scorporata da 'tassullo-pagina-dashboard' in M4ter.7: tre app la riscrivevano identica.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/indicatori.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/indicatori.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/card",
+        "@tassullo/tema"
+      ],
+      "docs": "La fila, in qualunque pagina — non serve la dashboard:\n\n  <Indicatori\n    indicatori={[\n      { etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } },\n      { etichetta: \"Schede in revisione\", valore: \"37\", descrizione: \"da chiudere entro venerdi\" },\n    ]}\n  />\n\nUna colonna, due sopra i 384px (`@sm`), quattro sopra gli 896px (`@4xl`) del\n**proprio** contenitore: il blocco\ndichiara da se `@container/indicatori` e le soglie guardano quello. Il primo\ngradino esiste per un difetto muto: sotto i 384px la carta scende sotto i\n200px e un valore lungo sborda dalla `Card`, che ha `overflow-hidden` —\nquindi si taglia invece di sbavare, e nessun gate lo vede. Nasceva con\n`@4xl/dashboard`, cioe con il nome di un contenitore che dichiara la pagina\ndashboard: installata altrove avrebbe reso due colonne per sempre, senza\nerrore e senza avviso. Il nome del contenitore non e una prop, e non deve\ndiventarlo: e una cosa che il blocco sa gia.\n\n`valore` e gia formattato dal chiamante — separatori delle migliaia, unita,\nvaluta: sa tutto questo solo chi conosce il dominio. `tendenza.direzione`\nsceglie la sola freccia e **mai un colore**: un aumento non e un successo e un\ncalo non e un errore, dipende dall indicatore, e il blocco non lo sa (stessa\nregola misurata su `Primitive/Chart`, story `Scostamenti`).\n\nLa `Card` resta di taglia normale: `size=\"sm\"` porta\n`group-data-[size=sm]/card:text-sm`, che vince su `text-2xl` e rende il numero\na 13px invece di 27 — misurato, ed e il difetto muto di M4.4.\n\n`GrigliaIndicatori` e esportata a parte: e la sola griglia, e serve a chi\ndeve disegnare gli scheletri del caricamento nella stessa disposizione del\ncontenuto vero. `tassullo-pagina-dashboard` la usa esattamente per quello."
+    },
+    {
       "name": "tassullo-data-table",
       "type": "registry:block",
       "title": "Tabella di dati",
@@ -1638,12 +1660,14 @@
         "@tassullo/card",
         "@tassullo/tassullo-data-table",
         "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-indicatori",
         "@tassullo/tassullo-page-header",
         "@tassullo/tassullo-page-skeleton",
         "@tassullo/tema",
-        "@tassullo/toni"
+        "@tassullo/toni",
+        "@tassullo/use-soglia"
       ],
-      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaDashboard\n    percorso={[{ titolo: \"Dashboard\" }]}\n    indicatori={[{ etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } }]}\n    grafici={[<GraficoSchedeAperte />, <GraficoRipartizione />]}\n    attivita={attivitaRecenti}\n    avvisi={avvisi}\n    onChiudiAvviso={(id) => setAvvisi((v) => v.filter((a) => a.id !== id))}\n    stato={statoCaricamento}\n  />\n\nCompone ciò che il registry ha già — `page-header`, `page-skeleton`,\n`error-state`, `card`, `table`, `alert`, `toni` — zero primitive nuove:\nnessuna app Tassullo ha ancora una dashboard fatta bene, quindi non c'era\nun file da cui ricavare la forma come per le altre tre pagine modello.\n\n`grafici` è una tupla di **esattamente due** nodi già completi (`Card` +\n`ChartContainer` di `Primitive/Chart`, Recharts): un grafico non ha una\nforma sola — barre, linee, torta, ciascuno con la propria composizione — e\nil blocco fissa che siano due, non cosa siano, stessa libertà di\n`documenti` in `tassullo-pagina-scheda`. La tabella delle attività recenti\nusa la primitiva `table`, non `tassullo-data-table`: è una lista corta e\ngià ordinata, senza ricerca né paginazione, e la regola 4bis (gradino 1)\nchiede prima il default shadcn così com'è.\n\nLe frecce di tendenza (`indicatori[].tendenza.direzione`) non si colorano\nmai di verde o rosso: un aumento non è un successo e un calo non è un\nerrore — dipende dall'indicatore, e il blocco non lo sa (stessa regola\nmisurata su `Primitive/Chart`, story `Scostamenti`). Ogni avviso porta il\nproprio `tono` (`TONO_ALERT` di `lib/toni`); `chiudibile` mostra il bottone\ndi chiusura solo se anche `onChiudiAvviso` è passato — il blocco non tiene\nuno stato proprio degli avvisi, perché l'app può dover segnare un avviso\nchiuso come letto sul server. `stato` sceglie fra `pronto` (default),\n`caricamento` (uno scheletro per sezione, nella stessa disposizione del\ncontenuto vero) ed `errore`."
+      "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaDashboard\n    percorso={[{ titolo: \"Dashboard\" }]}\n    indicatori={[{ etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } }]}\n    grafici={[<GraficoSchedeAperte />, <GraficoRipartizione />]}\n    attivita={attivitaRecenti}\n    avvisi={avvisi}\n    onChiudiAvviso={(id) => setAvvisi((v) => v.filter((a) => a.id !== id))}\n    stato={statoCaricamento}\n  />\n\nCompone ciò che il registry ha già — `page-header`, `page-skeleton`,\n`error-state`, `card`, `table`, `alert`, `toni` — zero primitive nuove:\nnessuna app Tassullo ha ancora una dashboard fatta bene, quindi non c'era\nun file da cui ricavare la forma come per le altre tre pagine modello.\n\n`grafici` è una tupla di **esattamente due** nodi già completi (`Card` +\n`ChartContainer` di `Primitive/Chart`, Recharts): un grafico non ha una\nforma sola — barre, linee, torta, ciascuno con la propria composizione — e\nil blocco fissa che siano due, non cosa siano, stessa libertà di\n`documenti` in `tassullo-pagina-scheda`. La tabella delle attività recenti\nusa la primitiva `table`, non `tassullo-data-table`: è una lista corta e\ngià ordinata, senza ricerca né paginazione, e la regola 4bis (gradino 1)\nchiede prima il default shadcn così com'è.\n\nLe frecce di tendenza (`indicatori[].tendenza.direzione`) non si colorano\nmai di verde o rosso: un aumento non è un successo e un calo non è un\nerrore — dipende dall'indicatore, e il blocco non lo sa (stessa regola\nmisurata su `Primitive/Chart`, story `Scostamenti`). Ogni avviso porta il\nproprio `tono` (`TONO_ALERT` di `lib/toni`); `chiudibile` mostra il bottone\ndi chiusura solo se anche `onChiudiAvviso` è passato — il blocco non tiene\nuno stato proprio degli avvisi, perché l'app può dover segnare un avviso\nchiuso come letto sul server. `stato` sceglie fra `pronto` (default),\n`caricamento` (uno scheletro per sezione, nella stessa disposizione del\ncontenuto vero) ed `errore`.\n\n`faccia` sceglie come rende la tabella delle attività: `auto` (default) la\ndecide `useSoglia` sulla larghezza della finestra, `larga` e `stretta` la\nimpongono. Sotto i 768px la tabella diventa un elenco impilato — con\n`table-fixed` la colonna elastica «Attività» andrebbe a zero e le\nintestazioni si sovrapporrebbero. Le due forzate servono al gate: una media\nquery sulla finestra non si commuta dal canvas, quindi senza di esse si\nmisurerebbe sempre e solo il ramo largo."
     },
     {
       "name": "tassullo-pagina-admin",

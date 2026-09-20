@@ -288,7 +288,13 @@ function ChartLegendContent({
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-4",
+        // `flex-wrap` non è nell'originale shadcn, ed è l'unica cosa che
+        // cambia qui (regola 4bis, gradino 2: sole stringhe di classi). Senza,
+        // una legenda a cinque voci dentro una card stretta resta su una riga
+        // sola e viene **tagliata** dall'`overflow-hidden` della `Card`: preso
+        // a video da Francesco sulla ciambella di `Pagine/Dashboard` a
+        // finestra stretta, dove si leggeva «alcestruzzi … Add».
+        "flex flex-wrap items-center justify-center gap-4",
         verticalAlign === "top" ? "pb-3" : "pt-3",
         className
       )}

@@ -8605,3 +8605,315 @@ qui sopra.
 ### Prossimi passi
 
 M4ter.7 — `tassullo-indicatori`, e le due prop di sola forma.
+
+## M4ter.7 — `tassullo-indicatori`, e le due prop di sola forma (2026-09-20)
+
+**Verdetto: chiuso.** `registry.json` **91 → 92 item**, `npm run check` verde
+sui **sei** (uscita 0), `test:a11y` **1444 scansioni su 361 story, 0
+violazioni** in tutte e quattro le passate. `check:registry` invariato dove
+deve esserlo: **0 errori, 62 avvisi, 1 componente nostro** — un blocco non
+prende una riga in `componenti-propri.json` — **19 ri-stilati**.
+`check:registry-build` allineato (93 file). `misura:bersagli` **3191** bersagli
+su 361 story, **0 piccoli in entrambe le direzioni**. `build` e `lint` verdi,
+**zero avvisi dai file nuovi**.
+
+**Lo scostamento, subito: le scene nuove sono sette e non sei**, quindi 1444
+scansioni e non 1440. La ragione è misurata e sta più sotto — il confronto fra
+le due forme del contatore, che avevo messo in una scena sola, montava due
+fascie insieme, cioè due `<header>`, e il gate lo ha preso.
+
+### (1) Lo scorporo, e la trappola che il piano non nominava
+
+`RigaIndicatori` era una funzione non esportata a `pagina-dashboard.tsx:210`.
+Adesso è `registry/tassullo/blocks/indicatori.tsx`, item
+`tassullo-indicatori`, e la dashboard la **ricompone**: `grep -rn
+RigaIndicatori registry/ stories/ src/` restituisce una sola riga, la parola
+dentro la prosa del blocco nuovo che racconta da dove viene.
+
+**La griglia viveva dentro un contenitore che il blocco non si portava
+dietro.** La riga usava `@4xl/dashboard:grid-cols-4`, e `@container/dashboard`
+lo dichiara la pagina a `:396`. Non l'ho dedotto: l'ho **misurato sullo
+Storybook costruito prima della correzione**, prendendo la fila vera di
+`Pagine/Dashboard` e spostandola fuori da `[data-slot=pagina-dashboard]` con
+un `appendChild` in un banco largo 1272px — che è esattamente ciò che fa
+un'app che se la installa.
+
+| dove sta la fila | larghezza | `grid-template-columns` |
+|---|---|---|
+| dentro `@container/dashboard` | 1152px | `276px 276px 276px 276px` |
+| **fuori**, banco da 1272px | 1272px | **`628px 628px`** |
+
+Due colonne su una riga dove ne stavano quattro con larghezza da vendere, e
+**nessun errore, nessun avviso, `test:a11y` a zero**. È il difetto muto più
+caro possibile in questo task, e si vede solo contando le colonne nel DOM.
+
+**La strada presa: il blocco dichiara il proprio contenitore.** `@container/
+indicatori` sulla radice, `@4xl/indicatori:grid-cols-4` sulla griglia. Passare
+il nome del contenitore come prop era la strada da non prendere — API aggiunta
+per aggirare un problema di composizione — e non è stata presa.
+
+**Contenitore e griglia sono due nodi, e non è un dettaglio di stile.** Una
+container query si applica ai *discendenti* del contenitore, mai all'elemento
+che lo dichiara: `@container/indicatori` e `@4xl/indicatori:grid-cols-4` sullo
+stesso `div` non scatterebbero mai. Il nodo in più è quindi obbligato, ed è
+l'unica differenza che la dashboard vede (vedi la non-regressione).
+
+Verificato dopo, con le colonne **contate** e non guardate:
+
+| scena | larghezza fila | colonne |
+|---|---|---|
+| `Blocchi/Indicatori → Quattro` @1440 | 1408 | `340px ×4` |
+| `Blocchi/Indicatori → Quattro` @1100 | 1068 | `255px ×4` |
+| `Blocchi/Indicatori → Quattro` @820 | 788 | `386px ×2` |
+| `Blocchi/Indicatori → InUnPannelloStretto` | 672 | `328px ×2` |
+| `Pagine/Dashboard → ConDati` | 1152 | `276px ×4` (come prima) |
+| `Pagine/Dashboard → Caricamento` | 1152 | `276px ×4` |
+
+La soglia scatta a 896px (`@4xl`) sul contenitore, in tutti e due i sensi: la
+finestra non c'entra, e l'ultima riga della tabella è la prova che dentro la
+dashboard non è cambiato niente.
+
+**Lo scheletro del caricamento è stato ricomposto, non lasciato.** Il ramo
+`stato === "caricamento"` ripeteva `grid-cols-2 gap-4 @4xl/dashboard:
+grid-cols-4` a mano: due sorgenti della stessa griglia, che divergono in
+silenzio alla prima volta che si cambia soglia o numero di colonne, e lo
+scheletro disegnerebbe una fila diversa da quella che arriva un istante dopo.
+Il blocco esporta quindi **`GrigliaIndicatori`** — la sola griglia, senza
+sapere cosa ci sta dentro — e la dashboard ci monta i `PageSkeleton`. L'ultima
+riga della tabella qui sopra è la verifica che le due disposizioni coincidono.
+
+**Il difetto muto di M4.4 resta chiuso**, riletto dal DOM dopo lo scorporo:
+
+| larghezza della carta | `card-title` | `card-description` |
+|---|---|---|
+| 230px (sotto `@[250px]`) | **27px** | 13px |
+| 276px / 340px | 31px | 13px |
+
+Mai 13px, che è il valore che `Card size="sm"` produrrebbe facendo coincidere
+il numero con la sua etichetta.
+
+### La non-regressione, e la prima misura che mentiva
+
+Metodo di M4ter.4/M4ter.5: `build-storybook`, Chromium headless contro un
+server statico minimo, `innerHTML` di `#storybook-root` sulle **4 scene** di
+`Pagine/Dashboard` in **chiaro e scuro** — 8 alberi. Il confronto non è
+byte-per-byte ingenuo: applico all'albero *prima* il solo cambiamento
+dichiarato (il nodo contenitore attorno alla griglia e la rinomina della
+soglia, con le parentesi contate per trovare il `</div>` giusto) e chiedo
+l'uguaglianza esatta con l'albero *dopo*. **8 su 8, 0 differenze non
+dichiarate.**
+
+**Ma la prima passata diceva 2 su 8, e aveva ragione lei.** Il residuo erano
+**36 coordinate su 161** dentro l'SVG di Recharts, sfasate di **al massimo
+0.0851px** — `202.1146` contro `202.1732`. Ho perso tempo a cercarlo nel
+layout, e il layout era innocente: fila e grafico misurano **126.3125px** e
+**256px** identici con e senza il nodo contenitore. Era l'**animazione di
+crescita delle barre**, colta a un fotogramma diverso: catturavo a 200ms dal
+`load`, e l'animazione di Recharts dura 1500. Due catture della *stessa* build
+coincidevano (stesso timing), due build diverse no — che è il modo più
+credibile di mentire.
+
+**La lezione, ed è §32 applicata a un posto in cui non l'avevo letta**: una
+cattura di `innerHTML` è una misura su qualcosa che transisce tanto quanto un
+`getComputedStyle`. Rifatte le due catture con 2500ms di quiete — e per la
+baseline questo ha voluto dire `git stash`, ricostruire lo Storybook vecchio,
+catturare, e tornare indietro — il conto è **0**.
+
+### (2) `descrizione` su `pagina-scheda`
+
+Prop facoltativa, `ReactNode`, **sotto** il titolo e non accanto: accanto ci
+sono già `distintivo` e le azioni, e una riga in più lì spinge «Elimina» e
+«Modifica» a capo. La colonna di sinistra diventa una `flex-col gap-1`; la
+riga `titolo + distintivo` resta identica dentro.
+
+La scena `Pagine/Scheda → ConDescrizione` usa la denominazione estesa della
+norma, che è il caso vero di Anagrafe (il titolo è un codice, e il codice non
+si legge). **Da sapere guardandola**: quel testo è lo stesso del campo
+«Titolo» del form sotto. È il caso onesto e non l'ho addolcito, ma se lì
+Francesco legge rumore, il rumore può essere la duplicazione e non la prop.
+
+### (3) `LivelloPercorso.titolo` → `ReactNode`
+
+Fatto. Due code da non dimenticare: le chiavi di React erano
+`` `${l.titolo}-${i}` ``, che con un nodo diventa `[object Object]-0` — passate
+a `` `livello-${i}` ``, e l'indice c'era già; e `PageHeaderProps.titolo` (l'`h1`
+in `sr-only`) **resta una `string`**, perché lì serve un nome e un nome è
+testo.
+
+**Il rilievo che ho misurato, e che è la domanda di Francesco.** Nella forma
+che Officina scrive oggi il contatore prende `--muted-foreground`, cioè
+**esattamente** il colore del collegamento «Officina» *e* del separatore `›`:
+`oklch(0.5222 0.0072 75.36)` su tutti e tre, contro `oklch(0.1913 0 0)` del
+nome della pagina. Si stacca dal nome, ma prende il tono dei livelli che lo
+precedono — e può quindi leggersi come **un altro livello del percorso**
+invece che come «quanti ce ne sono».
+
+Per non fargli rispondere in astratto ho messo in scena tutte e due le forme,
+testo attenuato e `<Badge variant="secondary">`. **Prima in una scena sola, e
+il gate l'ha presa**: due `Banco` sono due `FasciaIntestazione`, cioè due
+`<header>` nella stessa pagina — `landmark-no-duplicate-banner` ×1 e
+`landmark-unique` ×1, in tutte e quattro le passate. Non è un artificio del
+banco: due banner in una pagina sono un difetto vero, e non era il caso di
+spegnere la regola per una comodità di messa in scena. Divise in
+`ContatoreNelTitolo` e `ContatoreComeBadge`, da cui la settima scena e le 1444
+scansioni.
+
+### Le dipendenze del registry
+
+`tassullo-pagina-dashboard` ha guadagnato `@tassullo/tassullo-indicatori` —
+la classe di difetto che il gate di M4.6 trovò **26 volte**, e che non rompe
+niente in casa. `tassullo-indicatori` dichiara `@tassullo/card` e
+`@tassullo/tema` fra le `registryDependencies`, `cn` e `lucide-react` fra le
+`dependencies` npm. `npx shadcn@latest registry validate` verde su 92 item,
+`registry:build` rilanciato e `check:registry-build` allineato.
+
+### Cosa non è stato fatto, e perché
+
+- **Nessuna variante nuova su `card`.** Serviva solo che la `Card` *non* fosse
+  `size="sm"`, e questo si ottiene dal punto di chiamata: è il gradino 2 di
+  4bis, e non c'è stato bisogno di salire.
+- **Niente riga in `componenti-propri.json`**: un blocco non è un componente
+  nostro al posto di una primitiva. Il conto resta **1** (`entity-image`).
+- **Nessun colore nuovo.** Su/giù/stabile restano sul neutro, che è la regola
+  già scritta: la riga «tavolozza estesa» sospesa in `CHECKLIST.md` **non** si
+  è innescata una terza volta qui.
+- **Nessuna sezione nuova in `docs/DECISIONI.md`.** La cosa che meriterebbe di
+  starci — «una cattura di `innerHTML` è una misura su ciò che transisce» — è
+  un'applicazione di §32, non una decisione nuova, ed è scritta qui sopra con
+  la misura.
+
+### Quello che resta da guardare a Francesco
+
+- **La fila installata da sola sta in piedi?** `Blocchi/Indicatori → Quattro`
+  è la scena che risponde, e `InUnPannelloStretto` dice cosa fa quando lo
+  spazio non c'è. Le colonne sono misurate; quello che le misure non dicono è
+  se quattro riquadri da 340px siano la fila che vuole vedere in cima ad
+  AdminBC.
+- **`descrizione`: aggiunge o rumoreggia?** Su `Pagine/Scheda →
+  ConDescrizione`, tenendo conto che il testo coincide col campo «Titolo» del
+  form.
+- **Il contatore: nome o conteggio?** Le due scene affiancate nell'indice,
+  `ContatoreNelTitolo` e `ContatoreComeBadge`, con il rilievo misurato sopra.
+  Se vince il badge, la story da tenere come forma consigliata è la seconda.
+
+### Prossimi passi
+
+M4ter.8 — il piede della tabella, la conferma digitata, il chip col conteggio.
+
+### Coda di M4ter.7 — tre difetti presi da Francesco a video, zero da un gate
+
+Arrivati mentre chiudevo la sessione, guardando la dashboard a finestra
+stretta. Conto finale: a11y **1448**/0 su 362 story, bersagli **3199** con 0
+piccoli, sei gate verdi.
+
+**(1) La legenda del grafico veniva tagliata.** `ChartLegendContent` è
+`flex items-center justify-center gap-4` **senza** `flex-wrap` — così
+nell'originale shadcn. Cinque voci in una card stretta non ci stanno su una
+riga, e la `Card` ha `overflow-hidden`: si leggeva «alcestruzzi … Add».
+Aggiunto `flex-wrap`, che è una riga di classi e basta (4bis gradino 2):
+`check:registry` continua a dire «forma identica all'originale».
+
+**(2) La tabella delle attività non degradava**, ed è il **difetto numero 1
+di M4ter.6 riapparso su un'altra tabella**: `w-44` su «Utente», `w-32` su
+«Quando», «Attività» elastica, e con `table-fixed` sotto spazio l'elastica va
+a zero — testo tagliato a metà parola, intestazioni sovrapposte. Che sia lo
+stesso difetto due sessioni di fila dice che la regola «*ogni* colonna
+dichiara la sua larghezza» non è ancora un riflesso.
+
+Rimedio, la ricetta di `Pagine/Lista a due facce`: prop `faccia`
+(`auto` | `larga` | `stretta`), `useSoglia('(min-width: 768px)')` sul ramo
+`auto`, faccia stretta a **elenco**. Perché elenco e non tabella che scorre:
+le colonne sono tre e la riga si legge benissimo impilata; lo scorrimento è
+la risposta giusta per una lista a nove colonne che si vuole leggere intera.
+Impilata l'ordine si ribalta — in tabella `chi / cosa / quando`, in elenco
+l'**attività** in cima e `utente · quando` come contesto: scorrendo si cerca
+cosa è successo. Commutazione misurata: a 430px **0 tabelle / 1 elenco**, a
+1440 **1 tabella / 0 elenchi**.
+
+**(3) La legenda, poi, si è messa sopra la ciambella.** Tre stati, e i primi
+due sbagliati:
+
+| `height` di `<ChartLegend>` | cosa succede |
+|---|---|
+| `32` (com'era) | riserva una riga; la seconda finisce sotto il bordo e sparisce |
+| assente | Recharts riserva l'altezza vera (wrapper 60px, misurato) ma **non rimpicciolisce la torta**, che si dispone prima: la legenda le finisce sopra |
+| `60` | il riquadro è giusto in partenza |
+
+Poi `h-72` sul contenitore, per restituire alla ciambella i 30px di diametro
+che la riserva le toglie — e **Francesco ha cerchiato la fascia bianca** che
+ne usciva: la griglia stira le due card dei grafici alla stessa altezza,
+quindi allungare questa lasciava sotto le barre uno spazio che non usa
+nessuno. Rimesso `h-64`, le due card tornano a **347px uguali**, la ciambella
+sta a 177 invece di 207, e la fascia morta non c'è. Misurato a 390px:
+ciambella che finisce a 460, legenda 465→525, card a 546 — niente
+sovrapposto, niente tagliato.
+
+**E per la terza volta in una sessione mi ha ingannato l'animazione di
+Recharts.** La ciambella «sparita» dagli screenshot c'era eccome — la
+geometria diceva 177px al posto giusto — ma la foto la coglieva a raggio
+ancora zero. Dopo il diff degli alberi e la fascia della legenda, è il terzo
+caso: **su una pagina con un grafico, non si guarda e non si misura niente
+prima di 2,5 secondi.**
+
+### La domanda di Francesco: un indicatore per riga sotto una certa larghezza?
+
+**No**, e la misura è netta. A 375px la fila a due colonne è alta **303px** in
+densità normale e **425** in touch; a una colonna diventa **553** e **718**.
+718px sono più di uno schermo di telefono occupato dai soli indicatori, prima
+degli avvisi, dei grafici e della tabella — e la fila esiste per il colpo
+d'occhio: a una colonna il quarto numero sta sotto la piega.
+
+Lo stretto il numero lo regge: a 320px di finestra la carta è **132px** e
+`1.284` sta a **27px** su una riga sola.
+
+**L'eccezione, misurata, e non si risolve con le colonne**: oltre i ~7
+caratteri il numero viene **tagliato** (la `Card` ha `overflow-hidden`) già a
+375px in due colonne — `1.284.500` e `€ 1.284.500,00` escono, e la valuta
+esce anche a 480. Se un'app mette valuta o milioni in un indicatore il rimedio
+è quello, non la colonna. **Resta aperta**, non l'ho toccata.
+
+### E su un indicatore per riga aveva ragione lui — la sonda diceva di no
+
+Avevo risposto «no» alla domanda sul telefono, e sul **numero di colonne**
+la risposta regge: a una colonna la fila passa da 303 a 553px a 375px di
+finestra (425 → 718 in touch), e quattro numeri che non stanno in uno schermo
+non sono più un colpo d'occhio.
+
+Ma avevo aggiunto che il taglio dei valori lunghi «non si risolve con le
+colonne», e **Francesco ha fatto notare che a 370–400px si risolve eccome**.
+Rimisurato, e sì:
+
+| | 320px | 375px | 400px | 430px |
+|---|---|---|---|---|
+| **1 colonna** | carta 288 | 343 | 368 | 398 |
+| | nessuno sborda | nessuno | nessuno | nessuno |
+| **2 colonne** | carta 136 | 164 | 176 | 191 |
+| | `12.847.503` sborda | `€ 1.284.500,00` | idem | `€ 12.847.503,40` |
+
+**E la prima sonda mentiva — trappola 2 del mandato, presa in pieno.** Avevo
+controllato con `scrollWidth > clientWidth`, che su un titolo **senza
+`truncate`** non vede niente: il testo va a capo invece di sbordare
+orizzontalmente, e la sonda dichiarava sedici casi su sedici a posto. La
+misura giusta sono i rettangoli di riga del testo
+(`Range.getClientRects()`) confrontati con la larghezza utile della carta:
+lì il difetto compare. È la stessa forma della cella con `text-overflow:
+ellipsis` di M4ter.6 — «prima di credere a una misura, chiediti cosa non può
+vedere» — e l'ho rifatta nella sessione che la cita.
+
+**Fatto**: la griglia ha ora **tre** gradini, `grid-cols-1`
+`@sm/indicatori:grid-cols-2` `@4xl/indicatori:grid-cols-4`. Verificato sul
+rendering vero, senza forzare le classi: 1 colonna fino a 400px di finestra,
+2 da 430, e fino a 400 **non sborda più niente** in nessuna delle due
+densità. Scena nuova `Blocchi/Indicatori → UnoPerRiga`, con valuta a otto
+cifre in un contenitore da 320px.
+
+**Quello che non copre, ed è scritto nel blocco**: fra 384 e ~448px di
+contenitore le due colonne danno carte da 190–210px, dove `€ 12.847.503,40`
+sborda ancora (misurato a 430px di finestra). Lì il rimedio non è la griglia
+— è `valore`, che il chiamante formatta come vuole: «€ 1,28 Mln» sta ovunque.
+Alzare il primo gradino a `@md` (448px) coprirebbe anche quello, al prezzo di
+una colonna sola fino a ~480px di finestra: è una parola sola, se si decide
+che vale.
+
+Conto aggiornato: a11y **1452**/0 su 363 story, bersagli **3199** con 0
+piccoli, sei gate verdi.

@@ -285,6 +285,36 @@ export const ConDati: Story = {
   render: () => <Guscio />,
 }
 
+/**
+ * **`descrizione` (M4ter.7)**: la riga sotto il titolo, qui la denominazione
+ * estesa della norma — ciò che «UNI EN 1090» da solo non dice. Nove pagine di
+ * Studio la vogliono, e il caso è sempre questo: il titolo è un codice, e il
+ * codice non si legge.
+ *
+ * Da guardare sulla scena, non sulle prop: la descrizione sta **sotto**, e
+ * `distintivo` e le azioni restano dove erano. Accanto al titolo avrebbe
+ * spinto «Elimina» e «Modifica» a capo — che è l'opposto di ciò che serve su
+ * una scheda.
+ */
+export const ConDescrizione: Story = {
+  render: () => (
+    <AppShell applicazione="Anagrafe" collassa="icona" utente={UTENTE} sezioni={SEZIONI}>
+      <PaginaScheda
+        percorso={[{ titolo: 'Norme', href: '#' }, { titolo: NORMA.codice }]}
+        titolo={NORMA.codice}
+        descrizione={NORMA.titolo}
+        distintivo={<Badge className={TONO.success}>Vigente</Badge>}
+        azioni={[{ titolo: 'Elimina', icona: TrashIcon, ruolo: 'distruttiva' }]}
+        anagrafica={(modifica) => (
+          <AnagraficaForm dati={NORMA} modifica={modifica} onSalva={() => {}} onAnnulla={() => {}} />
+        )}
+        documenti={<Documenti />}
+        storico={{ revisioni: REVISIONI }}
+      />
+    </AppShell>
+  ),
+}
+
 /** `stato="caricamento"`: `PageSkeleton` (`variante="scheda"`) al posto del contenuto. */
 export const Caricamento: Story = {
   render: () => <Guscio stato="caricamento" />,

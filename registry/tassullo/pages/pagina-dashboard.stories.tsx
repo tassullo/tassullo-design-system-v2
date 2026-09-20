@@ -246,12 +246,51 @@ function GraficoRipartizione() {
         <CardDescription>Ripartizione corrente</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className="mx-auto h-64 w-full">
+        {/*
+            `h-64`, **la stessa del grafico a barre**, ed è la ragione per cui
+            i due riquadri restano alti uguali: la griglia li stira alla stessa
+            altezza, quindi se questo cresce l'altro si ritrova una fascia
+            bianca sotto le etichette che non usa nessuno — provato con `h-72`,
+            e la fascia si vede.
+
+            Il prezzo è che i 60px riservati alla legenda li paga la torta: 177
+            invece di 207px di diametro. È il modo meno peggio: a finestra larga
+            resta un po' d'aria fra ciambella e legenda, a finestra stretta
+            quell'aria è la seconda riga.
+          */}
+          <ChartContainer config={config} className="mx-auto h-64 w-full">
           <PieChart>
             <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel />} />
+            {/*
+              `height` va **dichiarato**, e va dichiarato per il caso peggiore.
+              Due misure, prese in quest'ordine e tutt'e due sbagliate prima di
+              arrivare qui:
+
+              - `height={32}` riservava **una riga sola**: in una card stretta
+                la legenda a cinque voci va a capo e la seconda riga finisce
+                sotto il bordo della `Card`, che ha `overflow-hidden` — quindi
+                sparisce invece di sbordare. «Additivi» tagliato a metà.
+              - **senza** `height`, Recharts riserva l'altezza vera (misurata:
+                wrapper `top: 191px`, `height: 60px` dentro 256 di grafico) ma
+                **non rimpicciolisce la torta**: il `Pie` si dispone prima,
+                sull'altezza piena, e la legenda gli finisce sopra. Il riquadro
+                è giusto, il disegno no.
+
+              60px sono due righe da 30, e sono riservati **sempre**: `height`
+              è una prop JS di Recharts, non una classe, quindi non c'è una
+              container query che possa deciderlo per larghezza. A finestra
+              larga la legenda ne usa 28 e i 32 che avanzano diventano aria fra
+              la ciambella e la legenda.
+
+              Il limite da conoscere: a **tre** righe — etichette più lunghe, o
+              una card ancora più stretta — si torna a sovrapporre, e allora il
+              numero va rialzato. È un numero scritto a mano perché `height` è
+              una prop JS di Recharts: non c'è una container query che possa
+              deciderlo.
+            */}
             <ChartLegend
               itemSorter={null}
-              height={32}
+              height={60}
               content={<ChartLegendContent nameKey="famiglia" />}
             />
             <Pie data={IN_CATALOGO} dataKey="schede" nameKey="famiglia" outerRadius="95%" innerRadius="58%">
@@ -319,7 +358,13 @@ const AVVISI_INIZIALI: AvvisoDashboard[] = [
  * uno stato locale — nell'app vera è anche il posto in cui segnare l'avviso
  * come letto sul server, che il blocco non può sapere da sé.
  */
-function Dashboard({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
+function Dashboard({
+  stato,
+  faccia,
+}: {
+  stato?: 'pronto' | 'caricamento' | 'errore'
+  faccia?: 'auto' | 'larga' | 'stretta'
+}) {
   const [avvisi, setAvvisi] = useState(AVVISI_INIZIALI)
   return (
     <PaginaDashboard
@@ -331,14 +376,21 @@ function Dashboard({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
       avvisi={avvisi}
       onChiudiAvviso={(id) => setAvvisi((v) => v.filter((a) => a.id !== id))}
       stato={stato}
+      faccia={faccia}
     />
   )
 }
 
-function Guscio({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
+function Guscio({
+  stato,
+  faccia,
+}: {
+  stato?: 'pronto' | 'caricamento' | 'errore'
+  faccia?: 'auto' | 'larga' | 'stretta'
+}) {
   return (
     <AppShell applicazione="Anagrafe" collassa="icona" utente={UTENTE} sezioni={SEZIONI}>
-      <Dashboard stato={stato} />
+      <Dashboard stato={stato} faccia={faccia} />
     </AppShell>
   )
 }
@@ -351,6 +403,31 @@ export const ConDati: Story = {
 /** `stato="caricamento"`: uno scheletro per sezione, nella stessa disposizione del contenuto vero. */
 export const Caricamento: Story = {
   render: () => <Guscio stato="caricamento" />,
+}
+
+/**
+ * **La faccia stretta delle attività, resa in modo deterministico.**
+ *
+ * `faccia="stretta"` e non una finestra stretta: `useSoglia` è una media
+ * query sulla **finestra**, e la larghezza della finestra non si commuta dal
+ * canvas (`docs/DECISIONI.md` §46). Senza questa prop il gate renderebbe
+ * sempre il ramo largo — a 1440 — e «0 violazioni» non direbbe niente sulla
+ * forma che si vede sul telefono. È la stessa scelta di `Pagine/Lista a due
+ * facce`, e per la stessa ragione.
+ *
+ * Il difetto che chiude, preso a video da Francesco il 2026-09-20: con
+ * `table-fixed` le colonne «Utente» (`w-44`) e «Quando» (`w-32`) tengono la
+ * loro larghezza e «Attività», che è l'elastica, **va a zero** — il testo si
+ * taglia a metà parola e le due intestazioni si sovrappongono. È il difetto
+ * numero 1 di M4ter.6, riapparso su un'altra tabella.
+ *
+ * Impilata, l'ordine si ribalta: in tabella è `chi / cosa / quando`, qui è
+ * l'**attività** in cima e `utente · quando` come riga di contesto — quello
+ * che si cerca scorrendo un elenco è cosa è successo.
+ */
+export const AttivitaStrette: Story = {
+  name: 'Attività, faccia stretta',
+  render: () => <Guscio faccia="stretta" />,
 }
 
 /** `stato="errore"`: la chiamata che carica la dashboard è fallita. */

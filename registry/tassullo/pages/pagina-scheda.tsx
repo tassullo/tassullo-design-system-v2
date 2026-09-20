@@ -21,6 +21,13 @@
  * il contenuto**, dove c'è spazio per restare leggibili a ogni larghezza
  * senza doversi comprimere in un menu.
  *
+ * **E sotto il titolo c'è posto per una riga in più** (`descrizione`, da
+ * M4ter.7): la denominazione estesa di una norma, il committente di una
+ * commessa, il modello di una macchina — ciò che il solo codice non dice, e
+ * che nove pagine di Studio vogliono. Sta sotto e non accanto perché accanto
+ * ci sono già `distintivo` e le azioni: una riga in più lì spingerebbe i
+ * bottoni a capo, cioè il contrario di ciò che serve.
+ *
  * ── `distintivo` è un nodo, non un `variant` chiuso ───────────────────────
  *
  * Un prodotto è «attivo» o «superato», una norma è «vigente» o «abrogata», un
@@ -102,6 +109,16 @@ export type PaginaSchedaProps = {
   percorso: LivelloPercorso[]
   /** Il nome dell'entità. A differenza della fascia, qui **si vede**. */
   titolo: ReactNode
+  /**
+   * Una riga sotto il titolo: ciò che il nome da solo non dice — la
+   * denominazione estesa di una norma, il committente di una commessa, il
+   * modello di una macchina. Nove pagine di Studio la vogliono.
+   *
+   * Sta **sotto** e non accanto: accanto ci sono già `distintivo` e le azioni,
+   * e una riga in più lì dentro spinge i bottoni a capo. Resta un `ReactNode`
+   * come `titolo` — chi vuole scriverci dentro un collegamento può.
+   */
+  descrizione?: ReactNode
   /** Lo stato dell'entità, già composto — es. `<Badge>Vigente</Badge>`. Il vocabolario cambia per entità: il blocco non lo indovina. */
   distintivo?: ReactNode
   /** Le azioni della scheda (non distruttive dal solo bottone: usa `ruolo="distruttiva"` per quelle, che restano un `<Button variant="destructive">` sotto conferma dell'app). */
@@ -157,6 +174,7 @@ function AzioniScheda({ azioni }: { azioni: AzionePagina[] }) {
 export function PaginaScheda({
   percorso,
   titolo,
+  descrizione,
   distintivo,
   azioni = [],
   modifica: modificaControllata,
@@ -204,9 +222,14 @@ export function PaginaScheda({
       <PageHeader percorso={percorso} />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h1 className="text-lg font-semibold text-balance">{titolo}</h1>
-          {distintivo}
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h1 className="text-lg font-semibold text-balance">{titolo}</h1>
+            {distintivo}
+          </div>
+          {descrizione ? (
+            <p className="text-sm text-pretty text-muted-foreground">{descrizione}</p>
+          ) : null}
         </div>
         <AzioniScheda azioni={[...azioni, toggleModifica]} />
       </div>

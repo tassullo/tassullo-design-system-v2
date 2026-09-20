@@ -12,18 +12,25 @@
  * primitive nuove, zero CSS di pagina, e i grafici veri restano quelli di
  * `Primitive/Chart` (Recharts, M1.7).
  *
- * ── Perché `indicatori` è una forma fissa e `grafici` no ─────────────────
+ * ── `indicatori` è un item a sé; `grafici` no ───────────────────────────
  *
  * Un indicatore — etichetta, valore, tendenza — è la stessa forma ovunque:
- * fissarla vuol dire non riscriverla mai in nessuna app. Un grafico invece
- * non ha una forma sola: `Primitive/Chart` da solo mostra barre, linee,
- * aree, torta e ciambella, ciascuno con `Card`/`ChartContainer`/`config`
- * propri — nessun denominatore comune sotto cui incapsularli senza perdere
- * ciò che li rende diversi. `grafici` è quindi una **tupla di due nodi**,
- * stessa libertà di `documenti` in `tassullo-pagina-scheda` e di `barra` in
- * `tassullo-data-table`: il blocco fissa che siano **due**, non cosa siano.
- * Il chiamante porta già la propria `Card` con dentro `ChartContainer` — qui
- * non si annida una card dentro un'altra.
+ * fissarla vuol dire non riscriverla mai in nessuna app. Da M4ter.7 quella
+ * forma **non sta più qui**: è `tassullo-indicatori`, che si installa da solo
+ * — tre app la riscrivevano identica (Anagrafe AdminBC, Studio Admin,
+ * RadarOpere) e nessuna poteva prendersela senza la dashboard intera. Questa
+ * pagina la **ricompone**, e non ne tiene una copia: né nel contenuto né
+ * nello scheletro del caricamento, che monta la stessa `GrigliaIndicatori`.
+ *
+ * Un grafico invece non ha una forma sola: `Primitive/Chart` da solo mostra
+ * barre, linee, aree, torta e ciambella, ciascuno con
+ * `Card`/`ChartContainer`/`config` propri — nessun denominatore comune sotto
+ * cui incapsularli senza perdere ciò che li rende diversi. `grafici` è quindi
+ * una **tupla di due nodi**, stessa libertà di `documenti` in
+ * `tassullo-pagina-scheda` e di `barra` in `tassullo-data-table`: il blocco
+ * fissa che siano **due**, non cosa siano. Il chiamante porta già la propria
+ * `Card` con dentro `ChartContainer` — qui non si annida una card dentro
+ * un'altra.
  *
  * ── La tabella delle attività è `tassullo-data-table`, spogliata ─────────
  *
@@ -54,9 +61,13 @@
  * colonna per sempre — e le griglie misurano quello. È la stessa ragione già
  * scritta in `tassullo-page-header`, che usa `@container/fascia` e non `md:`.
  *
- * Il numero dell'indicatore cresce con la stessa logica
- * (`@[250px]/card:text-3xl`, la forma di `dashboard-01` di shadcn): riquadro
- * largo, cifra grande; riquadro stretto, cifra che non va a capo.
+ * `@container/dashboard` resta, e lo misura `DueGrafici` (`@3xl/dashboard`).
+ * La fila di indicatori invece misura **il proprio**: da quando è un item a
+ * sé dichiara `@container/indicatori` e la soglia guarda quello, o installata
+ * fuori di qui non troverebbe mai il contenitore che nomina — due colonne per
+ * sempre, senza errore. Dentro la dashboard non cambia niente: la fila è un
+ * figlio a piena larghezza di questa colonna, quindi misura la stessa
+ * larghezza di prima.
  *
  * ── Le larghezze si dichiarano, o le prende la data ──────────────────────
  *
@@ -68,16 +79,11 @@
  * preso in M3bis.11b, e la causa è la stessa — in una tabella a colonne
  * fisse, una colonna senza larghezza è elastica.
  *
- * ── Perché l'icona di tendenza non si colora mai di verde o rosso ────────
+ * ── L'icona di tendenza non si colora mai, e la regola sta nel blocco ────
  *
- * È la stessa regola misurata su `Primitive/Chart`, story `Scostamenti`:
- * un aumento non è un successo e un calo non è un errore — dipende
- * dall'indicatore («schede aperte» che sale è un problema, «pratiche
- * chiuse» che sale è una buona notizia), e questo blocco non lo sa. Colorare
- * la freccia userebbe `--success`/`--destructive` per un giudizio che non è
- * il suo da dare: resta sul neutro (`text-muted-foreground`), come le due
- * serie di `Scostamenti` restano i primi due pioli della scala categorica e
- * non verde/rosso.
+ * È la stessa regola misurata su `Primitive/Chart`, story `Scostamenti`: un
+ * aumento non è un successo e un calo non è un errore. Il ragionamento per
+ * esteso sta adesso in `tassullo-indicatori`, che è dove sta il codice.
  *
  * ── `avvisi`: un tono dichiarato, `chiudibile` per riga ───────────────────
  *
@@ -106,9 +112,6 @@ import {
   CheckCircle2Icon,
   CircleAlertIcon,
   InfoIcon,
-  MinusIcon,
-  TrendingDownIcon,
-  TrendingUpIcon,
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react"
@@ -120,28 +123,24 @@ import {
   creaColonne,
 } from "@/registry/tassullo/blocks/data-table"
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
+import { useSoglia } from "@/registry/tassullo/hooks/use-soglia"
+import { GrigliaIndicatori, Indicatori, type Indicatore } from "@/registry/tassullo/blocks/indicatori"
 import { PageHeader, type AzionePagina, type LivelloPercorso } from "@/registry/tassullo/blocks/page-header"
 import { PageSkeleton } from "@/registry/tassullo/blocks/page-skeleton"
 import { TONO_ALERT, TONO_CHIUSURA } from "@/registry/tassullo/lib/toni"
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/registry/tassullo/ui/alert"
 import { Button } from "@/registry/tassullo/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/registry/tassullo/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/registry/tassullo/ui/card"
 
 /** Un'icona Lucide, o qualunque componente che accetti una `className`. */
 type Icona = ComponentType<{ className?: string }>
 
-export type Indicatore = {
-  etichetta: string
-  /** Già formattato dal chiamante — separatori delle migliaia, unità di misura, valuta: sa tutto questo solo chi conosce il dominio. */
-  valore: ReactNode
-  /** Sotto il valore, quando non basta la sola tendenza. */
-  descrizione?: ReactNode
-  /**
-   * `direzione` sceglie solo la freccia, mai un colore: un aumento non è un
-   * successo e un calo non è un errore, dipende dall'indicatore.
-   */
-  tendenza?: { direzione: "su" | "giù" | "stabile"; valore: string }
-}
+/**
+ * Ri-esportato da `tassullo-indicatori`, dove la forma adesso vive: la riga
+ * è un item a sé (M4ter.7) e la dashboard la ricompone. Resta esportato di
+ * qui perché è il tipo di `PaginaDashboardProps.indicatori`.
+ */
+export type { Indicatore }
 
 export type AttivitaRecente = {
   /** Identificatore stabile della riga, non l'indice. */
@@ -186,6 +185,17 @@ export type PaginaDashboardProps = {
   avvisi?: AvvisoDashboard[]
   /** Assente, `chiudibile` non mostra il bottone anche se richiesto dall'avviso. */
   onChiudiAvviso?: (id: string) => void
+  /**
+   * Quale faccia rende la tabella delle attività.
+   *
+   * `auto` (default) la sceglie `useSoglia` sulla larghezza della finestra;
+   * `larga` e `stretta` la impongono. Le due forzate non sono comodità: una
+   * media query sulla finestra **non si commuta dal canvas**
+   * (`docs/DECISIONI.md` §46), quindi senza di esse il gate renderebbe sempre
+   * il ramo che tocca a 1440 e «0 violazioni» direbbe meno di quello che
+   * sembra. È la stessa forma di `faccia` in `Pagine/Lista a due facce`.
+   */
+  faccia?: "auto" | "larga" | "stretta"
   /** Uno dei tre stati. `pronto` di default: solo lì il resto delle prop conta. */
   stato?: "pronto" | "caricamento" | "errore"
   /** Il messaggio d'errore, già tradotto — mai un codice, mai uno stack. */
@@ -194,6 +204,24 @@ export type PaginaDashboardProps = {
   className?: string
 }
 
+/**
+ * Sopra questa larghezza di **finestra** la tabella delle attività sta larga,
+ * sotto diventa un elenco.
+ *
+ * Il numero non è scelto a occhio: le tre colonne dichiarano `w-44` (176px)
+ * per «Utente» e `w-32` (128px) per «Quando», e «Attività» è quella elastica.
+ * Con `table-fixed` una colonna elastica sotto spazio **va a zero**, e le
+ * intestazioni si sovrappongono — è il difetto che M4ter.6 prese su
+ * `lista-due-facce`, e che qui era rimasto. Misurato in Chromium: sotto i 768
+ * di finestra la colonna «Attività» scende sotto i 200px utili e il testo si
+ * taglia a metà parola già alla prima riga.
+ *
+ * Resta un numero **di questa pagina**, come vuole §6.3: tre colonne stanno
+ * larghe dove nove stanno strette, e un'app che monti la dashboard in un
+ * guscio diverso può doverlo cambiare.
+ */
+const SOGLIA_ATTIVITA = "(min-width: 768px)"
+
 const ICONA_TONO: Record<TonoAvviso, Icona> = {
   success: CheckCircle2Icon,
   info: InfoIcon,
@@ -201,42 +229,6 @@ const ICONA_TONO: Record<TonoAvviso, Icona> = {
   destructive: CircleAlertIcon,
 }
 
-const ICONA_TENDENZA: Record<NonNullable<Indicatore["tendenza"]>["direzione"], Icona> = {
-  su: TrendingUpIcon,
-  giù: TrendingDownIcon,
-  stabile: MinusIcon,
-}
-
-function RigaIndicatori({ indicatori }: { indicatori: Indicatore[] }) {
-  return (
-    <div className="grid grid-cols-2 gap-4 @4xl/dashboard:grid-cols-4">
-      {indicatori.map((ind) => {
-        const IconaTendenza = ind.tendenza ? ICONA_TENDENZA[ind.tendenza.direzione] : null
-        return (
-          // `size="sm"` qui sarebbe un difetto muto: `CardTitle` porta
-          // `group-data-[size=sm]/card:text-sm`, che vince su `text-2xl` e
-          // rende il numero dell'indicatore a 13px — la stessa misura della
-          // sua etichetta. Misurato in Chromium: 13px con `sm`, 27px senza.
-          <Card key={ind.etichetta} className="@container/card">
-            <CardHeader>
-              <CardDescription>{ind.etichetta}</CardDescription>
-              <CardTitle className="text-2xl tabular-nums @[250px]/card:text-3xl">
-                {ind.valore}
-              </CardTitle>
-            </CardHeader>
-            {ind.tendenza || ind.descrizione ? (
-              <CardContent className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
-                {IconaTendenza ? <IconaTendenza className="size-4 shrink-0" /> : null}
-                {ind.tendenza ? <span className="tabular-nums">{ind.tendenza.valore}</span> : null}
-                {ind.descrizione}
-              </CardContent>
-            ) : null}
-          </Card>
-        )
-      })}
-    </div>
-  )
-}
 
 function DueGrafici({ grafici }: { grafici: [ReactNode, ReactNode] }) {
   return (
@@ -336,6 +328,74 @@ function TabellaAttivita({
   )
 }
 
+/**
+ * La faccia stretta delle attività: un elenco, non la tabella impaginata
+ * stretta.
+ *
+ * **Perché non basta far scorrere la tabella.** Con `table-fixed` le due
+ * colonne dichiarate tengono la loro larghezza e quella elastica va a zero:
+ * «Attività» si taglia a metà parola e le intestazioni si sovrappongono. Far
+ * scorrere l'intera tabella è l'altra strada, ed è quella giusta per una
+ * lista a nove colonne che si vuole leggere per intero (`lista-due-facce`,
+ * faccia larga sotto i 1160px). Qui le colonne sono **tre** e la riga si
+ * legge benissimo impilata: chi ha fatto cosa, e quando.
+ *
+ * **L'ordine cambia rispetto alla tabella, ed è voluto.** In tabella è
+ * `chi / cosa / quando`, perché una colonna si scorre con l'occhio. Impilata,
+ * quello che si cerca è **cosa è successo**: l'attività va in cima, e
+ * `utente · quando` la segue come riga di contesto — la stessa forma che
+ * `lista-due-facce` dà a `tipo · reparto`.
+ *
+ * Nessun `truncate` sulla descrizione: qui lo spazio in larghezza non c'è, e
+ * ciò che manca in larghezza si prende in altezza. Il troncamento resta alla
+ * riga di contesto, che è quella di cui si può perdere la coda.
+ */
+function ElencoAttivita({
+  attivita,
+  messaggioVuote,
+}: {
+  attivita: AttivitaRecente[]
+  messaggioVuote: string
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Attività recenti</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {attivita.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            {messaggioVuote}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {attivita.map((a) => (
+              <li
+                key={a.id}
+                className="flex flex-col gap-1 border-b pb-3 last:border-b-0 last:pb-0"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  {a.descrizione}
+                  {a.distintivo}
+                </div>
+                <p className="truncate text-sm text-muted-foreground">
+                  {a.utente ? `${a.utente} · ` : ""}
+                  {a.quando.toLocaleString("it-IT", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function AreaAvvisi({
   avvisi,
   onChiudiAvviso,
@@ -387,22 +447,37 @@ export function PaginaDashboard({
   messaggioAttivitaVuote = "Nessuna attività recente.",
   avvisi = [],
   onChiudiAvviso,
+  faccia = "auto",
   stato = "pronto",
   messaggioErrore = "Non è stato possibile caricare la dashboard. Riprova.",
   onRiprovaErrore,
   className,
 }: PaginaDashboardProps) {
+  /*
+   * L'hook si chiama **sempre**, anche quando `faccia` è forzata: chiamarlo
+   * dentro un `if` sarebbe un hook condizionale. Il suo esito si usa solo nel
+   * ramo `auto`.
+   */
+  const largo = useSoglia(SOGLIA_ATTIVITA)
+  const tabellaLarga = faccia === "auto" ? largo : faccia === "larga"
+
   return (
     <div data-slot="pagina-dashboard" className={cn("@container/dashboard flex flex-col gap-4", className)}>
       <PageHeader percorso={percorso} azioni={azioni} />
 
       {stato === "caricamento" ? (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4 @4xl/dashboard:grid-cols-4">
+          {/*
+            La stessa griglia del contenuto vero, non le stesse classi
+            riscritte: due sorgenti della stessa disposizione divergono in
+            silenzio, e lo scheletro disegnerebbe una fila diversa da quella
+            che arriva un istante dopo.
+          */}
+          <GrigliaIndicatori>
             {Array.from({ length: 4 }).map((_, i) => (
               <PageSkeleton key={i} variante="scheda" righe={1} />
             ))}
-          </div>
+          </GrigliaIndicatori>
           <div className="grid grid-cols-1 gap-4 @3xl/dashboard:grid-cols-2">
             <PageSkeleton variante="scheda" righe={4} />
             <PageSkeleton variante="scheda" righe={4} />
@@ -414,9 +489,13 @@ export function PaginaDashboard({
       ) : (
         <>
           <AreaAvvisi avvisi={avvisi} onChiudiAvviso={onChiudiAvviso} />
-          <RigaIndicatori indicatori={indicatori} />
+          <Indicatori indicatori={indicatori} />
           <DueGrafici grafici={grafici} />
-          <TabellaAttivita attivita={attivita} messaggioVuote={messaggioAttivitaVuote} />
+          {tabellaLarga ? (
+            <TabellaAttivita attivita={attivita} messaggioVuote={messaggioAttivitaVuote} />
+          ) : (
+            <ElencoAttivita attivita={attivita} messaggioVuote={messaggioAttivitaVuote} />
+          )}
         </>
       )}
     </div>
