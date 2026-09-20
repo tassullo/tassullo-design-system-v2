@@ -7655,6 +7655,106 @@ scrive, e `FormData` basta.
 scena di reimposta), **0 piccoli in entrambe le direzioni**. `build` e `lint`
 verdi.
 
+### Coda 2 di M4ter.5: composizione, misuratore, k-anonimato, due colonne (2026-09-20)
+
+Quattro rilievi in fila di Francesco, tutti a video, sulla stessa schermata.
+
+**(1) «Meglio chiedere anche maiuscole, numeri e caratteri speciali».** È una
+**divergenza dalla coda 1, riconfermata dopo il rilievo**: lì avevo argomentato
+di non metterle, perché NIST SP 800-63B e OWASP ASVS le sconsigliano
+esplicitamente — `Password1!` le soddisfa tutte ed è fra le password violate più
+comuni al mondo. Riconfermate, quindi ci sono: la scelta è sua, il motivo per
+cui erano state escluse resta scritto in `docs/SPEC-AUTH.md` §2.1ter, e tornare
+indietro è una riga in `REGOLE_PASSWORD`. Da 3 regole a **sei**.
+
+**(2) «Sarebbe bello avere uno score della robustezza».** Fatto, e **non
+ribalta la decisione del 2026-09-19**: «il misuratore resta dell'app» significa
+«non è un componente del registry», e la story *è* codice di pagina —
+`registry.json` resta a **90 item**, `componenti-propri.json` vuoto. Quello che
+cambia è che le app hanno un esemplare da copiare invece di inventarselo ognuna.
+
+Il punteggio è l'entropia stimata, `lunghezza × log2(alfabeto)` con l'alfabeto
+dedotto dalle famiglie di caratteri presenti, più le penalità che l'entropia non
+vede (password nelle liste → minimo; contiene l'email → non oltre «debole»). È
+`zxcvbn` in piccolo, senza aggiungere una dipendenza a un file che ogni app
+copierà. **Non è lo stepper**: i segmenti sono `span`, senza `tablist`, senza
+`tab`, senza fuoco.
+
+**E una contraddizione trovata misurando, non ragionando.** `tegola-ponte-neve`
+ha entropia da **«forte»** e fallisce **due requisiti su sei**: la barra avrebbe
+detto «forte» sopra un modulo che rifiuta. I due controlli misurano cose diverse
+— entropia contro composizione — e vanno bene tutti e due, ma **quello che si
+vede dev'essere d'accordo con quello che succede**: il livello è limitato a
+«media» finché un requisito manca. Ora «forte» esce solo a 6 su 6.
+
+| password | livello | requisiti |
+|---|---|---|
+| `mario` | troppo debole | 1/6 |
+| `password` | troppo debole | 1/6 |
+| `Password1!` | media | 5/6 |
+| `Rossi2026!!!` | **debole** | 5/6 |
+| `tegola-ponte-neve` | media | 4/6 |
+| `Tegola-Ponte-Neve-2026!` | **forte** | 6/6 |
+
+Le due righe che valgono: `Password1!` passa **cinque regole su sei** e il
+misuratore la ferma a «media»; `Rossi2026!!!` passa tutte le regole di
+composizione e scende a «debole» per la regola sull'email. Sono esattamente i
+casi per cui le regole di composizione da sole non bastano.
+
+**Un colore che manca, segnalato e non inventato.** Le bande sono
+`destructive`, `primary` e `success`: il quarto gradino non c'è, perché
+`--warning` è il crema pallido del badge (#FBE8C4) e come riempimento di una
+barra sparisce sul fondo della card. Aggiunto all'innesco della **tavolozza
+estesa** in `CHECKLIST.md`, che adesso è innescata due volte.
+
+**(3) «"Non è fra le password più usate" come lo verifichi?»** — e la risposta
+onesta era: **non lo verificava.** Era un `Set` di dieci voci nel sorgente, reso
+con una spunta che diventava verde subito: a chi scriveva `aaaa` l'interfaccia
+affermava una verifica mai avvenuta. Il difetto non era l'elenco corto — era il
+**modo di renderlo**.
+
+Rifatta **asincrona a quattro stati** — da fare, in corso (con lo `Spinner`),
+fatta, fallita — col segnaposto dietro una funzione la cui firma è già quella
+vera: `(password) => Promise<boolean>`. L'app la sostituisce e il resto della
+pagina non cambia. Il modo vero, scritto in §2.1ter perché è il pezzo che
+servirà davvero: **API Pwned Passwords di HIBP con k-anonimato** — `SHA-1` della
+password, si mandano **i primi 5 caratteri** dell'hash, tornano ~800 suffissi
+coi conteggi, il confronto si fa in locale. Il servizio non vede né la password
+né quale password si sta controllando, e il corpus è di oltre ottocento milioni
+di password da violazioni reali. **L'autorità resta il backend**: un controllo
+solo nel browser si aggira con una richiesta diretta. Il riscontro nel browser è
+**ritardato di 400 ms**, o si farebbe una chiamata per tasto.
+
+**Un avviso di oxlint che era un difetto vero**: la prima stesura teneva in
+stato anche «vuota» e «in corso» e li impostava dentro l'effetto —
+`react(set-state-in-effect)`. Un `setState` sincrono in un effetto avvia un
+secondo render per dire una cosa che si sapeva già. Rifatto: in stato c'è **solo
+la risposta**, insieme alla password a cui si riferisce, e gli altri due stati
+si **derivano durante il render**. Il confronto `risposta.password === password`
+fa anche da guardia contro le risposte che tornano fuori ordine, che è il
+difetto classico di questo schema.
+
+**(4) «Possiamo metterlo su due colonne?»** Sì: `@md/field-group:grid-cols-2`,
+la stessa soglia dei campi affiancati. Sei righe in colonna sola spingevano
+«Avanti» fuori dallo schermo. Tre righe per due colonne, e nella card stretta
+resta una colonna da sé — il controllo è del contenitore, non della finestra.
+
+**Due rifiniture nate da qui.** Il messaggio d'errore all'invio, con sei regole,
+elencava tutto e faceva un muro sotto un elenco che le mostra già una per riga:
+adesso **rimanda lì** («Mancano 5 requisiti: li trovi segnati qui sopra») e
+nomina la regola solo quando ne manca **una**. E «Reimposta la password» è
+passata a `max-w-lg`: porta lo stesso blocco da sei requisiti, quindi **non è
+più una schermata minima** — il criterio è cosa c'è dentro, non il nome. Con
+essa l'etichetta «Ripetila» è diventata **«Ripeti la password»**, la stessa del
+passo 1, su rilievo di Francesco: due schermate che fanno la stessa cosa non
+possono chiamarla in due modi.
+
+**I gate dopo la coda 2**: `npm run check` verde sui sei (uscita 0), `test:a11y`
+**1404 scansioni, 0 violazioni** — invariate, e non era scontato, perché lo
+stato «in corso» aggiunge uno `Spinner` dentro una lista — `misura:bersagli`
+**3093** bersagli su 351 story, **0 piccoli in entrambe le direzioni**. `build`
+e `lint` verdi, zero avvisi dal file.
+
 ### Prossimi passi
 
 M4ter.6 — `useSoglia` e la lista a due facce.

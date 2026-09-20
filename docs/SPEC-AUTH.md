@@ -66,9 +66,11 @@ Non si scrive una famiglia di pagine modello nuove.
 > **Rettifica del 2026-09-20 (M4ter.5), su due punti.**
 >
 > **(a) «Identico» vale per la forma, non per la larghezza.** Le tre schermate
-> di registrazione hanno la card a **`max-w-lg`** (512px); login, password
-> dimenticata, reimposta, verifica email e l'esito restano a **`max-w-sm`**
-> (384px). La ragione è misurata e sta in §2.2: `Field orientation="responsive"`
+> di registrazione **e «Reimposta la password»** hanno la card a **`max-w-lg`**
+> (512px); login, password dimenticata, verifica email e l'esito restano a
+> **`max-w-sm`** (384px). Il criterio non è il nome della schermata ma **cosa ci
+> sta dentro**: le due che portano il blocco password da sei requisiti vogliono
+> le due colonne, le altre no. La ragione è misurata e sta in §2.2: `Field orientation="responsive"`
 > scatta a 448px di `FieldGroup`, e dentro `max-w-sm` il `FieldGroup` ne misura
 > **352** — l'affiancamento di Nome+Cognome e di Città/Prov./CAP, che §2.2 dà
 > per fatto, dentro una card stretta non sarebbe **mai** avvenuto. Scelta di
@@ -163,42 +165,82 @@ Aggiunto il 2026-09-20 su rilievo di Francesco, che ha guardato la riga fissa
 «Almeno 10 caratteri.» sotto il campo e ha chiesto un controllo che si aggiorni
 mentre si scrive — più un riscontro che le due password **coincidano**.
 
-**Quello che si usa di solito e quello che si dovrebbe usare non coincidono**,
-ed è la ragione per cui l'elenco non ha «una maiuscola, un numero, un carattere
-speciale». Le regole di composizione sono ancora diffusissime, ma **NIST SP
-800-63B e OWASP ASVS le sconsigliano esplicitamente**: producono `Password1!`,
-che le soddisfa tutte ed è fra le password violate più comuni al mondo. La
-raccomandazione corrente è **lunghezza** (8 minimo, 12–15 raccomandati, fino a
-64 ammessi, tutti i caratteri accettati), **niente scadenza periodica**, e
-**screening contro le password più usate e violate**.
+**Sei regole**, in una costante sola (`REGOLE_PASSWORD`):
 
-Le tre regole in scena, in una costante sola:
-
-| regola | perché |
+| regola | come si verifica |
 |---|---|
-| Almeno 12 caratteri | è la sola leva che aumenta davvero l'entropia |
-| Non è fra le password più usate | in scena un elenco illustrativo; il vero screening è del backend, contro una lista di password violate |
-| Non contiene il tuo indirizzo email | si confrontano i **pezzi** della parte locale (`mario`, `rossi`), non la stringa intera — o `mario` con email `mario.rossi@…` passerebbe |
+| Almeno 12 caratteri | in locale |
+| Maiuscole e minuscole | in locale |
+| Almeno un numero | in locale |
+| Almeno un carattere speciale | in locale |
+| Non contiene il tuo indirizzo email | in locale, sui **pezzi** della parte locale (`mario`, `rossi`), non sulla stringa intera — o `mario` con email `mario.rossi@…` passerebbe |
+| Non è fra le password più usate | **asincrona**, vedi sotto |
+
+**Sulle regole di composizione, una divergenza a verbale.** La prima stesura non
+le aveva, e la ragione era che **NIST SP 800-63B e OWASP ASVS le sconsigliano
+esplicitamente**: producono `Password1!`, che le soddisfa tutte ed è fra le
+password violate più comuni al mondo, e spostano lo sforzo dall'entropia alla
+contabilità dei simboli. La raccomandazione corrente è lunghezza (8 minimo,
+12–15 raccomandati, fino a 64 ammessi, tutti i caratteri accettati), niente
+scadenza periodica, e screening contro le password violate. **Francesco le ha
+riconfermate il 2026-09-20 dopo il rilievo**, e ci sono: la scelta è sua, il
+motivo per cui era stata sconsigliata è scritto qui, e cambiarla è una riga in
+quella costante.
+
+**«Non è fra le password più usate» non si verifica in locale**, e nella story è
+tenuta **asincrona a quattro stati** — da fare, in corso, fatta, fallita —
+perché una spunta che diventasse verde prima della risposta affermerebbe una
+verifica mai avvenuta. Il `Set` di dieci voci nel file è un **segnaposto**, non
+un controllo.
+
+Il modo vero è l'**API Pwned Passwords di HIBP con k-anonimato**: `SHA-1` della
+password, si mandano **i primi 5 caratteri** dell'hash a
+`api.pwnedpasswords.com/range/XXXXX`, tornano ~800 suffissi con i rispettivi
+conteggi, e il confronto si fa **in locale**. Il servizio non vede né la
+password né quale password si sta controllando, e il corpus è di oltre
+ottocento milioni di password prese da violazioni reali. **L'autorità è il
+backend**, alla creazione e al cambio: un controllo solo nel browser si aggira
+con una richiesta diretta. Il riscontro nel browser serve a chi scrive, ed è
+**ritardato di 400 ms** dall'ultima battuta, o si farebbe una chiamata per
+tasto. Senza rete, l'alternativa è una copia locale della lista dietro un
+filtro di Bloom. La firma della funzione segnaposto è già quella giusta:
+l'app la sostituisce e il resto della pagina non cambia.
 
 La stessa costante alimenta il **riscontro a video** e il **rifiuto all'invio**,
-quindi non possono divergere; e il rifiuto nomina quello che manca, non la
-regola generica. La coincidenza si controlla **sempre**, non solo a password
-valida: con un `else if` una password corta nascondeva anche la ripetizione
-sbagliata, cioè due difetti al prezzo di un messaggio.
+quindi non possono divergere; e con sei regole il rifiuto **rimanda
+all'elenco** invece di ripeterlo peggio («Mancano 5 requisiti: li trovi segnati
+qui sopra»). La coincidenza delle due password si controlla **sempre**, non solo
+a password valida: con un `else if` una password corta nascondeva anche la
+ripetizione sbagliata, cioè due difetti al prezzo di un messaggio.
 
-**Non è il misuratore di robustezza, e la decisione del 2026-09-19 regge.** Il
-misuratore è una barra che dà un punteggio (debole/media/forte) e resta
-dell'app; questo è il riscontro di una validazione — ed è comunque **codice di
-pagina**, come il gating, non un componente del registry. Un requisito non
-ancora soddisfatto è **muto, non rosso**: finché non si preme «Avanti» non è un
-errore, è una cosa da fare.
+**Il misuratore di robustezza c'è**, chiesto da Francesco il 2026-09-20, e **non
+ribalta la decisione del 2026-09-19**: «resta dell'app» significa «non è un
+componente del registry», e la story *è* codice di pagina — `registry.json`
+resta a 90 item. Quello che cambia è che le app hanno un esemplare da copiare
+invece di inventarselo ognuna. **Non è lo stepper**: i segmenti sono `span`,
+senza `tablist`, senza `tab`, senza fuoco — un misuratore non si naviga e non si
+seleziona. Il punteggio è l'entropia stimata (`lunghezza × log2(alfabeto)`) con
+le penalità che l'entropia non vede, ed **è limitato a «media» finché un
+requisito manca**: misurato, `tegola-ponte-neve` ha entropia da «forte» e
+fallisce due regole, quindi la barra avrebbe promesso una cosa e «Avanti» ne
+avrebbe fatta un'altra.
 
-Il verde è **`success-subtle-foreground`** e non `success`: quello è il colore
-dei fondi, ed è la stessa trappola di `destructive` (`CLAUDE.md`).
+Un requisito non ancora soddisfatto è **muto, non rosso**: finché non si preme
+«Avanti» non è un errore, è una cosa da fare. Il verde è
+**`success-subtle-foreground`** e non `success` — quello è il colore dei fondi,
+la stessa trappola di `destructive`. Le bande della barra sono `destructive`,
+`primary` e `success`: **il quarto token manca**, perché `--warning` è il crema
+pallido del badge e come riempimento sparisce sul fondo della card. Segnalato
+alla riga della tavolozza estesa in `CHECKLIST.md`, non inventato.
+
+L'elenco sta su **due colonne** quando il contenitore le regge
+(`@md/field-group`, la stessa soglia dei campi affiancati): sei righe in colonna
+sola spingevano il bottone fuori dallo schermo.
 
 Lo stesso modulo sta anche su **«Reimposta la password»**, che è l'altro punto
 in cui una password si sceglie: se i due dicessero cose diverse, uno dei due
-mentirebbe.
+mentirebbe. Da lì la conseguenza su §1.3(a): **anche quella schermata è
+`max-w-lg`** — non è più minima, porta lo stesso blocco da sei requisiti.
 
 ### 2.2 Tutto il resto compone con quello che c'è — verificato
 

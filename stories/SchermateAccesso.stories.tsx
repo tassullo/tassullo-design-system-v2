@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { CheckIcon, CircleIcon, MailIcon, ShieldCheckIcon, XIcon } from 'lucide-react'
 
@@ -40,6 +40,7 @@ import {
   InputGroupInput,
 } from '@/registry/tassullo/ui/input-group'
 import { RadioGroup, RadioGroupItem } from '@/registry/tassullo/ui/radio-group'
+import { Spinner } from '@/registry/tassullo/ui/spinner'
 import {
   Stepper,
   StepperContent,
@@ -252,6 +253,89 @@ const PASSWORD_PIU_USATE = new Set([
   'qwertyuiop', 'qwerty123', 'iloveyou', 'benvenuto', 'juventus1',
 ])
 
+/**
+ * ## «Non è fra le password più usate» — **come si verifica davvero**
+ *
+ * Il `Set` qui sopra è un segnaposto da dieci voci, e **non è un controllo**:
+ * una lista scritta nel sorgente copre lo 0,001% del problema, e resa come una
+ * spunta che diventa verde subito direbbe a chi scrive `aaaa` che ha superato
+ * una verifica mai avvenuta. Qui è tenuto **asincrono e a tre stati** proprio
+ * per non mentire: «da verificare» finché la risposta non c'è.
+ *
+ * **Il modo vero è l'API Pwned Passwords di Have I Been Pwned, con
+ * k-anonimato**, ed è quello che l'app deve mettere al posto di questa
+ * funzione:
+ *
+ * 1. si calcola `SHA-1` della password, in maiuscolo — 40 caratteri esadecimali;
+ * 2. si mandano **i primi 5**, e solo quelli: `GET https://api.pwnedpasswords.com/range/21BD1`;
+ * 3. torna un elenco di ~800 **suffissi** (i restanti 35 caratteri) con quante
+ *    volte ciascuno compare nelle violazioni note;
+ * 4. il confronto col proprio suffisso si fa **in locale**.
+ *
+ * Il servizio non vede mai la password, e nemmeno **quale** password si sta
+ * controllando: il prefisso da 5 caratteri è condiviso da centinaia di hash. Il
+ * corpus è di oltre ottocento milioni di password vere, prese da violazioni
+ * reali — un ordine di grandezza che nessuna lista scritta a mano raggiunge.
+ *
+ * **Dove va messa.** L'autorità è il **backend**, alla creazione e al cambio
+ * password: un controllo solo nel browser si aggira con una richiesta diretta.
+ * Il riscontro nel browser serve a chi scrive, non a chi difende, e va
+ * **ritardato** — qui 400 ms dall'ultima battuta — o si fa una richiesta per
+ * ogni tasto premuto.
+ *
+ * L'alternativa senza rete è una copia locale della lista (HIBP la pubblica
+ * per intero, o si prendono i primi N di SecLists) dietro un filtro di Bloom:
+ * vale la pena quando le chiamate in uscita non si possono fare.
+ */
+type EsitoViolata = 'vuota' | 'in-corso' | 'non-trovata' | 'trovata'
+
+/**
+ * Il segnaposto. **L'app sostituisce questa funzione** con la chiamata di cui
+ * sopra: la firma è già quella giusta — prende la password, torna una promessa
+ * che dice se è fra quelle note — quindi il resto della pagina non cambia.
+ */
+async function passwordFraLePiuUsate(password: string): Promise<boolean> {
+  await new Promise((r) => setTimeout(r, 250))
+  return PASSWORD_PIU_USATE.has(password.toLowerCase())
+}
+
+/**
+ * Il ritardo prima di chiedere: 400 ms dall'ultima battuta.
+ *
+ * **In stato c'è solo la risposta**, insieme alla password a cui si riferisce;
+ * «vuota» e «in corso» si **derivano durante il render**. Scritto prima
+ * mettendo anche quei due in stato, e oxlint l'ha preso
+ * (`react(set-state-in-effect)`): un `setState` sincrono dentro un effetto
+ * avvia un secondo render per dire una cosa che si sapeva già. Il confronto
+ * `risposta.password === password` fa anche da guardia contro le risposte che
+ * tornano fuori ordine, che è il difetto classico di questo schema.
+ */
+function useVerificaViolata(password: string): EsitoViolata {
+  const [risposta, setRisposta] = useState<{ password: string; trovata: boolean } | null>(
+    null
+  )
+
+  useEffect(() => {
+    if (password.length === 0) return
+    let valida = true
+    const attesa = setTimeout(() => {
+      passwordFraLePiuUsate(password).then((trovata) => {
+        if (valida) setRisposta({ password, trovata })
+      })
+    }, 400)
+    return () => {
+      valida = false
+      clearTimeout(attesa)
+    }
+    // `password` è una stringa, cioè un valore primitivo: la dipendenza è
+    // stabile (`CLAUDE.md`, la trappola del `.map()` inline).
+  }, [password])
+
+  if (password.length === 0) return 'vuota'
+  if (risposta?.password !== password) return 'in-corso'
+  return risposta.trovata ? 'trovata' : 'non-trovata'
+}
+
 type RegolaPassword = {
   id: string
   testo: string
@@ -265,12 +349,19 @@ const REGOLE_PASSWORD: RegolaPassword[] = [
     prova: (pw) => pw.length >= 12,
   },
   {
-    id: 'non-usata',
-    // L'elenco qui sopra è **illustrativo**: il vero screening è del backend,
-    // contro una lista di password violate (in genere l'API di HIBP, che si
-    // interroga per prefisso di hash e non vede mai la password).
-    testo: 'Non è fra le password più usate',
-    prova: (pw) => pw.length > 0 && !PASSWORD_PIU_USATE.has(pw.toLowerCase()),
+    id: 'maiuscole',
+    testo: 'Maiuscole e minuscole',
+    prova: (pw) => /[a-zà-öø-ÿ]/.test(pw) && /[A-ZÀ-ÖØ-Þ]/.test(pw),
+  },
+  {
+    id: 'cifre',
+    testo: 'Almeno un numero',
+    prova: (pw) => /\d/.test(pw),
+  },
+  {
+    id: 'simboli',
+    testo: 'Almeno un carattere speciale',
+    prova: (pw) => /[^\p{L}\p{N}]/u.test(pw),
   },
   {
     id: 'non-email',
@@ -296,42 +387,98 @@ const REGOLE_PASSWORD: RegolaPassword[] = [
 ]
 
 /**
- * La lista che si accende mentre si scrive. Il verde è
- * `success-subtle-foreground` e non `success`: quello è il colore dei **fondi**,
- * ed è la stessa trappola di `destructive` (`CLAUDE.md`, §Le due trappole).
+ * ## Lo stato della password, in un posto solo
  *
- * Un requisito non ancora soddisfatto è **muto, non rosso**: finché non si preme
- * «Avanti» non è un errore, è una cosa da fare. Il rosso arriva col `FieldError`.
+ * Le cinque regole locali più quella **asincrona** («non è fra le password più
+ * usate»), il livello di robustezza e il verdetto complessivo escono da qui:
+ * il riscontro a video e il rifiuto di «Avanti» leggono la stessa cosa, quindi
+ * non possono divergere.
+ */
+type StatoRegola = 'da-fare' | 'in-corso' | 'fatta' | 'fallita'
+
+function useStatoPassword(password: string, email = '') {
+  const esitoViolata = useVerificaViolata(password)
+
+  const esiti: { id: string; testo: string; stato: StatoRegola }[] = [
+    ...REGOLE_PASSWORD.map((r) => ({
+      id: r.id,
+      testo: r.testo,
+      stato: (password.length === 0
+        ? 'da-fare'
+        : r.prova(password, email)
+          ? 'fatta'
+          : 'da-fare') as StatoRegola,
+    })),
+    {
+      id: 'non-usata',
+      testo: 'Non è fra le password più usate',
+      stato: (
+        {
+          vuota: 'da-fare',
+          'in-corso': 'in-corso',
+          'non-trovata': 'fatta',
+          trovata: 'fallita',
+        } as const
+      )[esitoViolata],
+    },
+  ]
+
+  const fatte = esiti.filter((e) => e.stato === 'fatta').length
+  const tutte = esiti.every((e) => e.stato === 'fatta')
+  const mancanti = esiti.filter((e) => e.stato !== 'fatta')
+
+  return { esiti, fatte, tutte, mancanti, esitoViolata }
+}
+
+/**
+ * La lista che si accende mentre si scrive, **su due colonne** quando il
+ * contenitore le regge — sei righe in colonna sola spingevano il bottone
+ * «Avanti» fuori dallo schermo (rilievo di Francesco a video, 2026-09-20). La
+ * soglia è la stessa dei campi affiancati, `@md/field-group`: nella card
+ * stretta di «Reimposta la password» resta una colonna, e va bene, perché lì
+ * sotto non c'è quasi niente.
  *
- * L'annuncio per i lettori di schermo è **un conto solo** e non la lista intera:
- * rileggere tre righe a ogni battuta sarebbe rumore, e il contenitore resta
- * montato sempre, o `aria-live` non annuncerebbe niente.
+ * Il verde è `success-subtle-foreground` e non `success`: quello è il colore
+ * dei **fondi**, ed è la stessa trappola di `destructive` (`CLAUDE.md`).
+ *
+ * **Quattro stati, non due.** Un requisito non ancora soddisfatto è **muto,
+ * non rosso**: finché non si preme «Avanti» non è un errore, è una cosa da
+ * fare. Ma il controllo contro le password violate ha anche un «sto
+ * chiedendo» e un «trovata», e sono distinti apposta: una spunta che diventa
+ * verde prima della risposta affermerebbe una verifica mai avvenuta.
+ *
+ * L'annuncio per i lettori di schermo è **un conto solo** e non la lista
+ * intera: rileggere sei righe a ogni battuta sarebbe rumore, e il contenitore
+ * resta montato sempre, o `aria-live` non annuncerebbe niente.
  */
 function RequisitiPassword({
   id,
-  password,
-  email = '',
+  esiti,
+  fatte,
 }: {
   id: string
-  password: string
-  email?: string
+  esiti: { id: string; testo: string; stato: StatoRegola }[]
+  fatte: number
 }) {
-  const esiti = REGOLE_PASSWORD.map((r) => ({ ...r, fatto: r.prova(password, email) }))
-  const fatti = esiti.filter((e) => e.fatto).length
-
   return (
     <div id={id} className="flex flex-col gap-1">
-      <ul className="flex flex-col gap-1">
+      <ul className="grid gap-x-4 gap-y-1 @md/field-group:grid-cols-2">
         {esiti.map((e) => (
           <li
             key={e.id}
             className={cn(
               'flex items-center gap-2 text-sm leading-normal',
-              e.fatto ? 'text-success-subtle-foreground' : 'text-muted-foreground'
+              e.stato === 'fatta' && 'text-success-subtle-foreground',
+              e.stato === 'fallita' && 'text-destructive-subtle-foreground',
+              (e.stato === 'da-fare' || e.stato === 'in-corso') && 'text-muted-foreground'
             )}
           >
-            {e.fatto ? (
+            {e.stato === 'fatta' ? (
               <CheckIcon aria-hidden className="size-3.5 shrink-0" />
+            ) : e.stato === 'fallita' ? (
+              <XIcon aria-hidden className="size-3.5 shrink-0" />
+            ) : e.stato === 'in-corso' ? (
+              <Spinner aria-hidden className="size-3.5 shrink-0" />
             ) : (
               <CircleIcon aria-hidden className="size-3.5 shrink-0" />
             )}
@@ -340,8 +487,109 @@ function RequisitiPassword({
         ))}
       </ul>
       <span className="sr-only" aria-live="polite">
-        {`${fatti} requisiti su ${REGOLE_PASSWORD.length} soddisfatti.`}
+        {`${fatte} requisiti su ${esiti.length} soddisfatti.`}
       </span>
+    </div>
+  )
+}
+
+/**
+ * ## Il misuratore di robustezza
+ *
+ * Chiesto da Francesco il 2026-09-20. **Non ribalta la decisione del
+ * 2026-09-19** — «il misuratore resta dell'app» — perché questa story *è*
+ * codice di pagina: nel registry non entra niente, `registry.json` resta a 90
+ * item e `componenti-propri.json` vuoto. Quello che cambia è che adesso le app
+ * hanno un esemplare da copiare invece di inventarselo ognuna.
+ *
+ * **E non è lo stepper**, che gli somiglia: qui i segmenti sono `span` e basta
+ * — niente `tablist`, niente `tab`, niente fuoco. Un misuratore non si naviga e
+ * non si seleziona (`CLAUDE.md`, «il nome dice la funzione, non l'aspetto»).
+ *
+ * **Come si calcola.** Entropia stimata — `lunghezza × log2(alfabeto)`, con
+ * l'alfabeto dedotto dalle famiglie di caratteri usate — e poi le penalità che
+ * l'entropia da sola non vede. È la stessa idea di `zxcvbn` in piccolo, e senza
+ * aggiungere una dipendenza a un file che ogni app copierà.
+ *
+ * **I colori sono tre token di fondo**: `destructive`, `primary`, `success`.
+ * Manca il quarto — `--warning` è il crema pallido del badge (#FBE8C4) e come
+ * riempimento di una barra sparisce sul fondo della card. Non è stato inventato
+ * niente: il buco è segnalato alla riga della **tavolozza estesa** in
+ * `CHECKLIST.md`.
+ */
+const LIVELLI = [
+  { parola: 'Troppo debole', minimo: 0, barra: 'bg-destructive', testo: 'text-destructive-subtle-foreground' },
+  { parola: 'Debole', minimo: 36, barra: 'bg-destructive', testo: 'text-destructive-subtle-foreground' },
+  { parola: 'Media', minimo: 60, barra: 'bg-primary', testo: 'text-accent-ink' },
+  { parola: 'Forte', minimo: 80, barra: 'bg-success', testo: 'text-success-subtle-foreground' },
+]
+
+function robustezza(password: string, email: string, tutteLeRegole: boolean) {
+  if (password.length === 0) return -1
+
+  const alfabeto =
+    (/[a-zà-öø-ÿ]/.test(password) ? 26 : 0) +
+    (/[A-ZÀ-ÖØ-Þ]/.test(password) ? 26 : 0) +
+    (/\d/.test(password) ? 10 : 0) +
+    (/[^\p{L}\p{N}]/u.test(password) ? 33 : 0)
+  const entropia = password.length * Math.log2(Math.max(alfabeto, 2))
+
+  let livello = LIVELLI.reduce((acc, l, i) => (entropia >= l.minimo ? i : acc), 0)
+
+  // Le penalità che l'entropia non vede.
+  if (PASSWORD_PIU_USATE.has(password.toLowerCase())) livello = 0
+  const regolaEmail = REGOLE_PASSWORD.find((r) => r.id === 'non-email')!
+  if (!regolaEmail.prova(password, email)) livello = Math.min(livello, 1)
+
+  /*
+   * **La barra non dice «forte» su una password che il modulo rifiuta.**
+   * Misurato il 2026-09-20: `tegola-ponte-neve` ha entropia da «forte» e
+   * fallisce due requisiti — la barra avrebbe promesso una cosa e «Avanti» ne
+   * avrebbe fatta un'altra. I due controlli misurano cose diverse (entropia
+   * contro composizione) e vanno bene tutti e due, ma quello che si **vede**
+   * dev'essere d'accordo con quello che **succede**.
+   */
+  if (!tutteLeRegole) livello = Math.min(livello, 2)
+
+  return livello
+}
+
+function RobustezzaPassword({
+  password,
+  email = '',
+  tutteLeRegole,
+}: {
+  password: string
+  email?: string
+  tutteLeRegole: boolean
+}) {
+  const livello = robustezza(password, email, tutteLeRegole)
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div aria-hidden className="flex gap-1">
+        {LIVELLI.map((l, i) => (
+          <span
+            key={l.parola}
+            className={cn(
+              'h-1 flex-1 rounded-full',
+              livello >= 0 && livello >= i ? LIVELLI[livello].barra : 'bg-border'
+            )}
+          />
+        ))}
+      </div>
+      <p aria-live="polite" className="text-sm leading-normal text-muted-foreground">
+        {livello >= 0 ? (
+          <>
+            Robustezza:{' '}
+            <span className={cn('font-medium', LIVELLI[livello].testo)}>
+              {LIVELLI[livello].parola.toLowerCase()}
+            </span>
+          </>
+        ) : (
+          'Robustezza: scrivi una password'
+        )}
+      </p>
     </div>
   )
 }
@@ -359,7 +607,7 @@ function RequisitiPassword({
 function CoincidonoPassword({ password, ripeti }: { password: string; ripeti: string }) {
   const coincidono = password === ripeti
   return (
-    <div aria-live="polite" className="empty:hidden">
+    <div aria-live="polite">
       {ripeti.length > 0 ? (
         <p
           className={cn(
@@ -380,6 +628,7 @@ function CoincidonoPassword({ password, ripeti }: { password: string; ripeti: st
     </div>
   )
 }
+
 
 type Errori = Record<string, string>
 
@@ -413,6 +662,7 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [ripeti, setRipeti] = useState('')
+  const statoPassword = useStatoPassword(password, email)
   const [consensi, setConsensi] = useState({ uso: false, privacy: false, novita: false })
 
   function vaiA(n: number) {
@@ -437,10 +687,19 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
        * divergere. Il rifiuto nomina **quello che manca**, non la regola
        * generica.
        */
-      const mancanti = REGOLE_PASSWORD.filter((r) => !r.prova(password, email))
+      const { mancanti, esitoViolata } = statoPassword
       if (password.length === 0) nuovi.password = 'Scegli una password.'
-      else if (mancanti.length > 0)
-        nuovi.password = `Manca: ${mancanti.map((m) => m.testo.toLowerCase()).join('; ')}.`
+      else if (esitoViolata === 'in-corso')
+        nuovi.password = 'Aspetta il controllo sulle password più usate.'
+      else if (mancanti.length === 1)
+        nuovi.password = `Manca una cosa: ${mancanti[0].testo.toLowerCase()}.`
+      else if (mancanti.length > 1)
+        /*
+         * Con sei regole, elencarle tutte faceva un muro di testo sotto un
+         * elenco che le mostra già, una per riga e col segno di spunta: il
+         * messaggio rimanda lì invece di ripeterlo peggio.
+         */
+        nuovi.password = `Mancano ${mancanti.length} requisiti: li trovi segnati qui sopra.`
 
       /*
        * La coincidenza si controlla **sempre**, non solo se la password passa
@@ -562,10 +821,15 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
                         </InputGroupButton>
                       </InputGroupAddon>
                     </InputGroup>
-                    <RequisitiPassword
-                      id="reg-requisiti"
+                    <RobustezzaPassword
                       password={password}
                       email={email}
+                      tutteLeRegole={statoPassword.tutte}
+                    />
+                    <RequisitiPassword
+                      id="reg-requisiti"
+                      esiti={statoPassword.esiti}
+                      fatte={statoPassword.fatte}
                     />
                     <FieldError>{errori.password}</FieldError>
                   </Field>
@@ -977,6 +1241,7 @@ function ModuloNuovaPassword() {
   const [password, setPassword] = useState('')
   const [ripeti, setRipeti] = useState('')
   const [mostra, setMostra] = useState(false)
+  const statoPassword = useStatoPassword(password)
 
   return (
     <form
@@ -1004,10 +1269,15 @@ function ModuloNuovaPassword() {
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
-          <RequisitiPassword id="rp-requisiti" password={password} />
+          <RobustezzaPassword password={password} tutteLeRegole={statoPassword.tutte} />
+          <RequisitiPassword
+            id="rp-requisiti"
+            esiti={statoPassword.esiti}
+            fatte={statoPassword.fatte}
+          />
         </Field>
         <Field>
-          <FieldLabel htmlFor="rp-ripeti">Ripetila</FieldLabel>
+          <FieldLabel htmlFor="rp-ripeti">Ripeti la password</FieldLabel>
           <Input
             id="rp-ripeti"
             name="ripeti"
@@ -1032,6 +1302,14 @@ export const ReimpostaPassword: Story = {
     <GuscioAccesso
       titolo="Scegli una password nuova"
       descrizione="Vale da subito: al prossimo accesso userai questa."
+      /*
+       * `max-w-lg` come le schermate di registrazione, e per la stessa ragione:
+       * questa **non è più** una schermata minima — porta lo stesso blocco
+       * password, sei requisiti, e a `max-w-sm` restavano in colonna sola con
+       * «Salva la password» spinto giù. La soglia è la stessa dei campi
+       * affiancati.
+       */
+      larghezza={LARGHEZZA_REGISTRAZIONE}
     >
       <Alert>
         <ShieldCheckIcon />
