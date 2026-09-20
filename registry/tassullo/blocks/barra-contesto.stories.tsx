@@ -271,9 +271,27 @@ export const NomeLungo: Story = {
  * monta con la testata vera e il contenuto vero attorno, perché su una fascia
  * guardata da sola la domanda non si può nemmeno porre.
  *
- * Le tre leve, se rubasse la scena: `className` (`bg-transparent`, cioè senza
- * fondo), la `descrizione` (toglierla riduce la fascia a una riga), e il
- * grilletto, che con una voce sola non si monta affatto.
+ * **Due passaggi a video, e in due direzioni opposte.**
+ *
+ * La prima stesura era `variant="muted"` (`bg-muted/50`, `border-transparent`)
+ * e non si vedeva. Misurato col colore risolto su canvas: in chiaro il fondo
+ * translucido sta a **1.053:1** dalla pagina, il fondo pieno a **1.109**, il
+ * bordo a **1.274**. È il **bordo** a portare il salto, non il fondo — e lo
+ * conferma la barra vera di Studio, letta nel suo CSS
+ * (`CantiereContextBar.css`): fondo `--color-surface-3`, un grigio quasi
+ * indistinguibile dalla pagina come qui, **più**
+ * `border: 1px solid var(--color-border)`.
+ *
+ * Poi, col fondo pieno, a spiccare troppo era il **bottone**: `variant="outline"`
+ * porta `bg-background`, cioè il bianco della carta, e su una fascia grigia
+ * quel bianco si legge prima del nome della commessa. Ora il grilletto ha
+ * `bg-transparent dark:bg-transparent`, cioè **solo il filo** — letto dal DOM,
+ * `backgroundColor: rgba(0, 0, 0, 0)` e il bordo acceso.
+ *
+ * Le tre leve, se adesso rubasse ancora la scena: `className="bg-transparent"`
+ * sulla fascia (resta il solo filo), la `descrizione` (toglierla riduce la
+ * fascia a una riga), e il grilletto, che con una voce sola non si monta
+ * affatto.
  */
 export const NelGuscio: Story = {
   args: { titolo: '' },

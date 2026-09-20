@@ -9587,6 +9587,60 @@ rotte su 12 item con `registry validate` verde su tutti.
   dell'analisi, che fissa composizione, pagine e misura. Da sapere per
   M4ter.10, che una ricognizione su Studio la prevede.
 
+### Coda della sessione: due passaggi a video, in direzioni opposte
+
+Due rilievi di Francesco sullo Storybook, misurati invece di aggiustati a
+occhio. **Nel mezzo si è sciolto anche un limite di ricognizione**: su suo
+indirizzo il repo di Studio è stato **clonato in locale usa-e-getta**
+(`git clone --depth 1` via SSH, 500 file, 20 MB, fuori dal repo e
+cancellabile), e la barra vera si è finalmente potuta **leggere** invece di
+dedurla dall'analisi — `frontend/src/components/cantiere/CantiereContextBar.tsx`
+e il suo CSS.
+
+**(1) «C'è poco contrasto fra la barra e lo sfondo, si fa fatica a vedere».**
+Vero, e la causa era `variant="muted"`: `bg-muted/50` **senza bordo**.
+Misurato col colore risolto su canvas — il browser restituisce `oklch`, e
+leggerlo come tre numeri RGB dà misure senza senso:
+
+| | chiaro | scuro |
+|---|---:|---:|
+| fondo translucido (`bg-muted/50`) vs pagina | **1.053:1** | 1.093:1 |
+| fondo pieno (`bg-muted`) vs pagina | **1.109:1** | 1.217:1 |
+| **bordo** (`border-border`) vs pagina | **1.274:1** | — |
+
+**È il bordo a portare il salto, non il fondo**, e il sorgente di Studio dice
+la stessa cosa: `.ccb` ha `background: var(--color-surface-3)` — un grigio che
+dalla pagina non si distingue quasi — **più**
+`border: 1px solid var(--color-border)`. Anche lì il fondo da solo non separa
+niente. Passata a `variant="outline"` con `bg-muted`: fondo pieno **e** filo.
+
+**(2) «Troppo in risalto, proviamo la versione del bottone con solo bordo?»**
+Col fondo pieno, a spiccare era diventato il **grilletto**: `Button
+variant="outline"` porta `bg-background`, cioè il bianco della carta, e su una
+fascia grigia quel bianco si legge **prima del nome della commessa**, che è la
+cosa che la fascia esiste per dire. Ora il grilletto ha
+`bg-transparent dark:bg-transparent` — il `dark:` non è ridondante, perché in
+scuro la variante porta `dark:bg-input/30`. Letto dal DOM a pagina ferma:
+`backgroundColor: rgba(0, 0, 0, 0)` e `borderTopColor: oklch(0.3012 0 0)`,
+cioè solo il filo, in entrambe le modalità.
+
+**Un errore di misura che vale più del risultato**: la prima lettura diceva
+«bordo trasparente, altezza 0». `document.querySelector('[data-slot="dropdown-menu-trigger"]')`
+in `Nel guscio` pesca il **primo dei tre** che ci sono nella pagina — il menù
+utente del guscio — non quello della barra. La misura giusta enumera e filtra
+per `barra.contains(b)`. È la forma della trappola di sempre: la sonda non
+sbaglia il numero, sbaglia l'elemento.
+
+Dopo le due correzioni i gate sono rimasti dove erano: `check` verde sui
+**sei** (uscita 0), `test:a11y` **1496**/0, `misura:bersagli` **3246** su 374
+story con **0** piccoli, `lint` **26** avvisi. Nessuna primitiva toccata:
+sono due stringhe di classi al punto di chiamata, cioè gradino 2.
+
+**Il clone di Studio va cancellato a fine sessione** — è usa-e-getta per
+scelta. Ma la lezione resta per **M4ter.10**: `gh api` non arriva più al
+codice delle app (404 su `contents` e `trees`), mentre `git clone` via SSH
+funziona. Se quella sessione deve rileggere Studio, quella è la strada.
+
 ### Quello che resta da guardare a Francesco
 
 - **La barra dice su cosa stai lavorando senza rubare la scena?**

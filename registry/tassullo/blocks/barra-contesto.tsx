@@ -169,12 +169,31 @@ export function BarraContesto({
 }: BarraContestoProps) {
   const siCambia = voci.length > 1
 
+  /*
+   * `outline` più `bg-muted`, e il bordo non è ornamento: è ciò che fa
+   * leggere la fascia. La prima stesura usava `variant="muted"`, cioè
+   * `bg-muted/50` e `border-transparent`, ed è stata bocciata a video — «si
+   * fa fatica a vedere». Misurato col colore risolto su canvas (il browser
+   * restituisce `oklch`: leggerlo come tre numeri RGB dà misure senza senso),
+   * in modalità chiara: il fondo translucido sta a **1.053:1** dalla pagina,
+   * il fondo pieno a **1.109**, e il bordo a **1.274**. È il bordo a portare
+   * il salto, non il fondo. In scuro: 1.093 → 1.217.
+   *
+   * Lo conferma la barra vera di Studio, letta nel suo CSS
+   * (`CantiereContextBar.css`): `background: var(--color-surface-3)` — un
+   * grigio quasi indistinguibile dalla pagina, come qui — **più**
+   * `border: 1px solid var(--color-border)`. Anche lì il fondo da solo non
+   * separa niente, e il bordo fa tutto il lavoro.
+   *
+   * Per una fascia ancora più discreta la leva è `className="bg-transparent"`,
+   * che lascia il solo filo.
+   */
   return (
     <Item
       data-slot="barra-contesto"
-      variant="muted"
+      variant="outline"
       size="sm"
-      className={cn("rounded-lg", className)}
+      className={cn("rounded-lg bg-muted", className)}
     >
       <ItemMedia variant="icon" className="text-muted-foreground">
         <Icona />
@@ -215,8 +234,23 @@ export function BarraContesto({
                * densità touch — sotto i 44 che `misura:bersagli` chiede.
                * `default` è `h-8`, che in touch fa 48.
                */}
+              {/*
+               * **Solo il bordo, niente fondo.** `variant="outline"` porta
+               * `bg-background` — cioè il bianco della carta — e su una
+               * fascia grigia quel bianco spicca più del nome della
+               * commessa, che è la cosa che si deve leggere per prima.
+               * `bg-transparent` lascia il solo filo; il `dark:` serve
+               * perché in scuro la variante porta `dark:bg-input/30`, che
+               * altrimenti resterebbe acceso.
+               */}
               <DropdownMenuTrigger
-                render={<Button variant="outline" aria-label={`${cambia}: ${titolo}`} />}
+                render={
+                  <Button
+                    variant="outline"
+                    className="bg-transparent dark:bg-transparent"
+                    aria-label={`${cambia}: ${titolo}`}
+                  />
+                }
               >
                 {cambia}
                 <ChevronsUpDownIcon />
