@@ -1524,6 +1524,8 @@ Il posto è quello previsto — M3.5, non `confirm-dialog` — e la regola del p
 
 ## 37. Righe delle pagine sola-lista: scorrimento infinito, non pagine calcolate (D19, aperta e chiusa in M3.10, coda, 2026-09-15)
 
+> **La lettera D19 è usata due volte in questo file** — qui e in §42 (`native-select`) — ed è una svista di numerazione, non due facce della stessa decisione. Non si rinumera, perché i due numeri sono già citati altrove: **si cita per sezione**, non per lettera.
+
 **La domanda**: come rendere righe-per-pagina alte quanto lo schermo, senza un numero fisso che lascia un vuoto su uno schermo alto o costringe a scorrere su uno basso — per le pagine **sola lista** (Prodotti, Norme, Certificazioni: sidebar → lista → scheda).
 
 ### Prima risposta, scartata: `perPagina="auto"`
@@ -1608,6 +1610,8 @@ Dettaglio completo delle 10 sessioni (M3bis.0-9), con file toccati e criteri di 
 Verificato in Chromium reale (Playwright, non il pannello del browser di questa sessione — vedi il monito già a verbale su quello strumento): `Enter`/`Spazio` su `CellaAlbero` espandono e collassano, `Spazio` sulla casella della voce seleziona a cascata le misurazioni e il conto in fondo («1 di 5 voci selezionate») resta sulle voci, non sulle righe piatte. `npm run test:a11y`: 288 scansioni (passata unica)/0 violazioni sulla nuova story `Albero`; `npm run check` completo: 1152 scansioni (4 passate)/0 violazioni.
 
 ## 42. D19: `native-select` **non entra** nel registry — la parità fra sistemi vale più del peso del popup (2026-09-19)
+
+> **Anche §37 porta la lettera D19** (scorrimento infinito): la collisione è una svista di numerazione, e le due decisioni non hanno niente in comune. Chi rimanda a «l'obiezione dell'emoji / del `<select>` nativo» intende **questa**, §42 — è il caso di M4ter.9, `tassullo-barra-contesto`. Si cita per sezione, non per lettera.
 
 **La domanda.** L'analisi delle tre app (M4.6, coda) ha contato **81 `<select>` scritti a mano**: Officina 46, Studio 23, Anagrafe 12. È il numero più alto emerso dal confronto fra il catalogo shadcn e ciò che il registry copre, e la primitiva `native-select` di shadcn sembrava la risposta ovvia: un `<select>` vero con `appearance-none` e un chevron disegnato sopra, `cn` come unica dipendenza, nessun portale, nessun fuoco da riportare indietro, e sul telefono la ruota del sistema.
 

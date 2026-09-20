@@ -65,6 +65,7 @@ const STORIE_DIR = ["registry/tassullo/ui", "registry/tassullo/blocks"];
 const CON_POPUP = [
   "alert-dialog",
   "app-shell",
+  "barra-contesto",
   "calendario",
   "combobox",
   "confirm-dialog",

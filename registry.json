@@ -1097,6 +1097,30 @@
       "docs": "La fila, in qualunque pagina — non serve la dashboard:\n\n  <Indicatori\n    indicatori={[\n      { etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } },\n      { etichetta: \"Schede in revisione\", valore: \"37\", descrizione: \"da chiudere entro venerdi\" },\n    ]}\n  />\n\nUna colonna, due sopra i 384px (`@sm`), quattro sopra gli 896px (`@4xl`) del\n**proprio** contenitore: il blocco\ndichiara da se `@container/indicatori` e le soglie guardano quello. Il primo\ngradino esiste per un difetto muto: sotto i 384px la carta scende sotto i\n200px e un valore lungo sborda dalla `Card`, che ha `overflow-hidden` —\nquindi si taglia invece di sbavare, e nessun gate lo vede. Nasceva con\n`@4xl/dashboard`, cioe con il nome di un contenitore che dichiara la pagina\ndashboard: installata altrove avrebbe reso due colonne per sempre, senza\nerrore e senza avviso. Il nome del contenitore non e una prop, e non deve\ndiventarlo: e una cosa che il blocco sa gia.\n\n`valore` e gia formattato dal chiamante — separatori delle migliaia, unita,\nvaluta: sa tutto questo solo chi conosce il dominio. `tendenza.direzione`\nsceglie la sola freccia e **mai un colore**: un aumento non e un successo e un\ncalo non e un errore, dipende dall indicatore, e il blocco non lo sa (stessa\nregola misurata su `Primitive/Chart`, story `Scostamenti`).\n\nLa `Card` resta di taglia normale: `size=\"sm\"` porta\n`group-data-[size=sm]/card:text-sm`, che vince su `text-2xl` e rende il numero\na 13px invece di 27 — misurato, ed e il difetto muto di M4.4.\n\n`GrigliaIndicatori` e esportata a parte: e la sola griglia, e serve a chi\ndeve disegnare gli scheletri del caricamento nella stessa disposizione del\ncontenuto vero. `tassullo-pagina-dashboard` la usa esattamente per quello."
     },
     {
+      "name": "tassullo-barra-contesto",
+      "type": "registry:block",
+      "title": "Barra di contesto",
+      "description": "La fascia che dice su cosa si sta lavorando — l'entita attiva che attraversa le pagine — e lascia cambiarla da un menu. Composizione di 'item' e 'dropdown-menu': quello che ci guadagna una pagina che oggi la scrive a mano e Esc, il fuoco da tastiera e il clic fuori.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/barra-contesto.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/barra-contesto.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/button",
+        "@tassullo/dropdown-menu",
+        "@tassullo/item",
+        "@tassullo/tema"
+      ],
+      "docs": "La fascia in cima alla pagina, sotto l'intestazione:\n\n  <BarraContesto\n    etichetta=\"Commessa\"\n    titolo=\"2026-114 - Palazzo Roccabruna\"\n    descrizione=\"Trento, via Santa Trinita - 212 voci di computo\"\n    voci={commesse}\n    attiva={commessa.id}\n    onCambia={setCommessa}\n  />\n\nNessun componente nuovo: e `item` (ItemMedia variant=\"icon\" + ItemContent +\nItemActions) piu `dropdown-menu`, e nessuna delle due primitive e stata\ntoccata. Quello che il blocco porta rispetto a una div con un menu scritto a\nmano non e l'aspetto: e Esc, il fuoco da tastiera e il clic fuori.\n\n**La pagina se la monta.** Non c'e uno slot in `tassullo-app-shell` per una\nfascia persistente fra la testata e l'Outlet: resta un candidato sospeso,\nperche oggi una sola applicazione ha un contesto che attraversa le pagine.\n\nSenza `voci`, o con una sola, il grilletto non si monta affatto: un bottone\n«Cambia» che apre un menu con dentro quello che c'e gia scritto sopra promette\nuna scelta che non esiste.\n\nLe voci si passano come **dati** e non come figli, al contrario del menu\nutente del guscio, perche questo menu ha uno stato: una voce e quella attiva e\nva spuntata. Coi dati il blocco monta un DropdownMenuRadioGroup, che porta\nrole=\"menuitemradio\", aria-checked e il segno di spunta.\n\n`icona` prende qualunque componente Lucide e il default e MapPinIcon. **Mai\nun'emoji**: la disegna il sistema operativo, cioe in modo diverso su ogni\nmacchina.\n\nDue misure dentro il blocco, che spiegano due righe altrimenti arbitrarie. Il\ngrilletto e un Button di taglia `default` e non `sm`: `sm` e h-7, cioe 42px in\ndensita touch, sotto i 44 di soglia. E il pannello dichiara `w-64`, perche\nDropdownMenuContent porta w-(--anchor-width) e senza prenderebbe la larghezza\ndel bottone."
+    },
+    {
       "name": "tassullo-data-table",
       "type": "registry:block",
       "title": "Tabella di dati",
