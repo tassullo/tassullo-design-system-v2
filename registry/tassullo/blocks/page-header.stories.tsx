@@ -11,6 +11,7 @@ import {
   type LivelloPercorso,
   type PageHeaderProps,
 } from '@/registry/tassullo/blocks/page-header'
+import { Badge } from '@/registry/tassullo/ui/badge'
 
 /**
  * L&apos;**intestazione di pagina**: percorso a sinistra, azioni a destra, una
@@ -290,6 +291,92 @@ export const LivelloUnico: Story = {
   args: { percorso: [{ titolo: 'Cruscotto' }], azioni: [AZIONI[1]!] },
   render: (args) => (
     <Banco didascalia="Fascia larga — un livello solo, che è la pagina.">
+      <PageHeader {...args} />
+    </Banco>
+  ),
+}
+
+/**
+ * **Il contatore accanto al nome della pagina (M4ter.7).** Officina lo scrive
+ * in Triage, Ricambi e Piani — «Segnalazioni da smistare · 4» — e fino a ieri
+ * non ci stava: `LivelloPercorso.titolo` era una `string`. Adesso è un
+ * `ReactNode`, e a chi passa una stringa non toglie niente.
+ *
+ * Le due strade erano «il numero va fra le azioni» e questa. Vince questa
+ * perché il numero **appartiene al nome della pagina**: un'azione è qualcosa
+ * che si clicca, e un conteggio non si clicca.
+ *
+ * **Come scriverlo dentro è del chiamante, e le forme sono due** — questa e
+ * `ContatoreComeBadge` qui sotto. Stanno in due scene e non affiancate nella
+ * stessa perché due fascie montate insieme sono due `<header>`: misurato, il
+ * gate dà `landmark-no-duplicate-banner` e `landmark-unique`, ed è un difetto
+ * vero, non un artificio del banco.
+ *
+ * Il rilievo che motiva il confronto è **misurato**: qui il contatore prende
+ * `--muted-foreground`, cioè *esattamente* il colore del collegamento
+ * «Officina» e del separatore `›` — `oklch(0.5222 0.0072 75.36)` su tutti e
+ * tre. Si stacca dal nome della pagina (che è a `oklch(0.1913 0 0)`), ma
+ * prende il tono dei livelli che lo precedono, e può quindi leggersi come un
+ * altro livello invece che come «quanti ce ne sono».
+ *
+ * `tabular-nums` perché il numero cambia sotto gli occhi mentre si smista, e
+ * una cifra che si allarga fa ballare la riga.
+ *
+ * **Vale solo sull'ultimo livello.** Un contatore su un livello intermedio
+ * finirebbe dentro un `<a>`, cioè dentro il nome accessibile del
+ * collegamento: «Prodotti · 4» come destinazione non vuol dire niente.
+ */
+export const ContatoreNelTitolo: Story = {
+  args: {
+    percorso: [
+      { titolo: 'Officina', href: '#' },
+      {
+        titolo: (
+          <>
+            Segnalazioni da smistare{' '}
+            <span className="text-muted-foreground tabular-nums">· 4</span>
+          </>
+        ),
+      },
+    ],
+    azioni: [AZIONI[1]!],
+  },
+  render: (args) => (
+    <Banco didascalia="Il conteggio come testo in tono attenuato — la forma che Officina scrive oggi.">
+      <PageHeader {...args} />
+    </Banco>
+  ),
+}
+
+/**
+ * La seconda forma: lo stesso numero dentro un `<Badge variant="secondary">`.
+ * Si stacca dal nome e non si confonde con i livelli del percorso — il dubbio
+ * misurato su `ContatoreNelTitolo` qui non c'è — e in cambio pesa di più su
+ * una fascia che è già densa.
+ *
+ * Nessuna delle due è «quella giusta» finché non si guardano: è la forma che
+ * il chiamante compone, e il blocco accetta l'una e l'altra senza sapere
+ * quale.
+ */
+export const ContatoreComeBadge: Story = {
+  args: {
+    percorso: [
+      { titolo: 'Officina', href: '#' },
+      {
+        titolo: (
+          <>
+            Segnalazioni da smistare{' '}
+            <Badge variant="secondary" className="tabular-nums">
+              4
+            </Badge>
+          </>
+        ),
+      },
+    ],
+    azioni: [AZIONI[1]!],
+  },
+  render: (args) => (
+    <Banco didascalia="Il conteggio dentro un <Badge> — si stacca dal nome, ma pesa di più.">
       <PageHeader {...args} />
     </Banco>
   ),

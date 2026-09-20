@@ -114,7 +114,18 @@ type Icona = ComponentType<{ className?: string }>
  * collegamento: non lo si dichiara, lo si deduce dalla posizione.
  */
 export type LivelloPercorso = {
-  titolo: string
+  /**
+   * `ReactNode` e non `string`: sull'**ultimo** livello — il nome della pagina
+   * — ci sta accanto il contatore che Officina scrive in Triage, Ricambi e
+   * Piani, «Segnalazioni da smistare · 4». Le due strade erano «il numero va
+   * fra le azioni» e questa: vince questa, perché il numero appartiene al
+   * nome della pagina e non ai comandi — un'azione è qualcosa che si clicca.
+   * A chi passa una stringa non toglie niente.
+   *
+   * Il contatore si scrive **in un tono diverso dal nome** (`text-muted-foreground`),
+   * o si legge come una parte del nome invece che come «quanti ce ne sono».
+   */
+  titolo: ReactNode
   href?: string
   /** L'elemento che rende il collegamento — tipicamente il `<Link>` del router. */
   render?: ReactElement
@@ -321,7 +332,7 @@ function Percorso({ livelli }: { livelli: LivelloPercorso[] }) {
                 <DropdownMenuContent align="start" sideOffset={4}>
                   {intermedi.map((l, i) => (
                     <DropdownMenuItem
-                      key={`${l.titolo}-${i}`}
+                      key={`livello-${i}`}
                       render={l.render ?? (l.href ? <a href={l.href} /> : undefined)}
                     >
                       {l.titolo}
@@ -332,7 +343,7 @@ function Percorso({ livelli }: { livelli: LivelloPercorso[] }) {
             </BreadcrumbItem>
             <BreadcrumbSeparator className="shrink-0 @md/fascia:hidden" />
             {intermedi.map((l, i) => (
-              <Fragment key={`${l.titolo}-${i}`}>
+              <Fragment key={`livello-${i}`}>
                 <BreadcrumbItem className="hidden shrink-0 @md/fascia:inline-flex">
                   <Collegamento l={l} />
                 </BreadcrumbItem>
@@ -442,7 +453,9 @@ export type PageHeaderProps = {
   /**
    * Il titolo per chi non vede lo schermo. **Non si vede**: è un `h1` in
    * `sr-only`. Se non si passa, è l'ultimo livello del percorso — che è la
-   * stessa cosa scritta una volta invece che due.
+   * stessa cosa scritta una volta invece che due. Resta una `string` anche da
+   * quando `LivelloPercorso.titolo` è un `ReactNode`: qui serve un nome, e un
+   * nome è testo.
    */
   titolo?: string
 }
