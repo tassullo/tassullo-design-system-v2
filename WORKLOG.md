@@ -7758,3 +7758,850 @@ e `lint` verdi, zero avvisi dal file.
 ### Prossimi passi
 
 M4ter.6 — `useSoglia` e la lista a due facce.
+
+## M4ter.6 — `useSoglia` e la lista a due facce (2026-09-20)
+
+**Verdetto: chiuso.** `registry.json` **90 → 91 item**, `npm run check` verde
+sui **sei** (uscita 0), `test:a11y` **1416 scansioni su 354 story, 0
+violazioni** in tutte e quattro le passate — la previsione del piano centrata
+(1404 + 3×4). `check:registry` invariato dove deve esserlo: **0 errori, 62
+avvisi, 1 componente nostro, 19 ri-stilati**. `misura:bersagli` **3170**
+bersagli su 354 story, **0 piccoli in entrambe le direzioni**. `build` e `lint`
+verdi, **zero avvisi dai file nuovi** — in particolare nessun
+`react(set-state-in-effect)`, che era il difetto da non riscrivere con un nome
+nuovo.
+
+### La scelta presa prima di scrivere una riga, come chiedeva §46
+
+`useSoglia` è una media query **sulla finestra**, e la larghezza della finestra
+**non si commuta dal canvas**. Le due strade del punto 2 di §46 erano:
+
+- **(a)** la scena stretta rende la faccia stretta in modo **deterministico**,
+  senza passare dall'hook;
+- **(b)** `useSoglia` accetta un valore iniziale iniettabile e la scena lo
+  forza.
+
+**Presa la (a).** La ragione, in una riga: (b) è **API pubblica aggiunta per
+comodità di prova**, cioè il genere di cosa che poi resta — e questo hook lo
+copieranno sei pagine in due app. Una prop in più in una story costa meno di
+una prop in più in un hook, e la prop della story dice una cosa vera di sé
+stessa («questa scena mostra la faccia stretta»), mentre un valore iniziale
+iniettabile direbbe una cosa falsa dell'hook («la soglia si può decidere da
+fuori»).
+
+**Il costo dichiarato**: la prop `faccia` di `ListaMacchine`, che ha tre valori
+— `'auto' | 'tabella' | 'schede'`. È della **pagina**, non del registry.
+
+**E la faccia che ogni scena rende nel gate è misurata, non dedotta.** Sonda
+temporanea con una `play` che lancia con la larghezza e i conti del DOM, dentro
+la stessa imbracatura vitest del gate:
+
+| scena | larghezza del gate | `table.table-fixed` | schede |
+|---|---|---|---|
+| Faccia larga | 1440 | **1** | 0 |
+| **Faccia stretta** | 1440 | **0** | **12** |
+| Soglia della pagina | 1440 | 1 | 0 |
+
+**E va rimisurata ogni volta che la soglia cambia.** Provato in questa
+sessione: portando la soglia a 1536 la terza scena è passata alla faccia
+stretta, e il gate ha continuato a dire «1416 scansioni, 0 violazioni» senza
+segnalare niente. È §46 applicata alla story che la cita.
+
+La riga che conta è la seconda: la faccia stretta **è misurata davvero**, a
+finestra larga, perché non dipende dalla finestra. La terza è la scena che
+passa dall'hook e nel gate rende la faccia larga — **dichiarato nella story**,
+non nascosto: `(min-width: 1280px)` è vera a 1440.
+
+Non è stata presa la terza strada per sbaglio. `data-table.stories.tsx` ottiene
+il suo caso stretto stringendo il riquadro a 320px, e lì è giusto perché quel
+caso stretto è una conseguenza del CSS. Il riquadro da 360px della scena
+stretta qui serve a **guardarla**, non a renderla: a renderla è la prop.
+
+### Il primo render parte da mobile — la verifica che distingue i due hook
+
+Il criterio non è «alla fine c'è l'elenco di schede»: è che **una `<table>` non
+sia mai comparsa**. `MutationObserver` sull'intero documento, installato con
+`page.addInitScript`, cioè prima che la pagina carichi.
+
+| finestra | mutazioni osservate | primo nodo | `<table>` comparse | schede |
+|---|---|---|---|---|
+| **375** | 280 | **schede** | **0** | 1 |
+| 1440 | 296 | tabella | 1 | 0 |
+
+**E il controllo dello strumento, che è la metà che vale.** La stessa sonda
+puntata su `Blocchi/App Shell → Telefono`, che usa `useIsMobile`, a 375px:
+`[data-slot=sidebar]` **entra nel DOM e viene tolta** — 1 rimozione, 0 alla
+fine. Cioè la sonda sa vedere un primo render sbagliato, e su `useSoglia` non
+lo vede. Senza questo controllo «0 tabelle» sarebbe stato un numero senza
+significato.
+
+**Un falso allarme, e come si è chiuso.** La prima passata contava **3
+`<table>`** a 375px. Erano di Storybook: `sb-argstableBlock`, la tabella degli
+argomenti che il canvas monta da sé. La sonda è stata stretta a
+`table.table-fixed`, che è la nostra. È la forma di §46 applicata a sé stessa:
+prima di credere a una misura, si guarda **cosa** si sta misurando.
+
+### Come è fatto l'hook, e perché non in un altro modo
+
+```ts
+const getSnapshot = React.useCallback(() => window.matchMedia(query).matches, [query])
+return React.useSyncExternalStore(subscribe, getSnapshot, () => false)
+```
+
+`getSnapshot` legge `matchMedia` **durante il render**: il primo fotogramma è
+già quello giusto e non c'è niente da correggere dopo. `subscribe` e
+`getSnapshot` dipendono dalla sola `query`, che è una **stringa** — un valore
+primitivo, non un array costruito inline, che è la trappola del `CLAUDE.md`.
+
+Il terzo argomento vale `false`, ed è la risposta mobile-first su una query in
+forma `min-width`. Da cui una convenzione scritta nel sorgente e nel `docs`
+dell'item: **la query si scrive in forma `min-width`**. Al contrario
+(`max-width`) il valore di partenza diventerebbe «schermo grande», cioè
+esattamente il difetto di `useIsMobile` rimesso in piedi da un'altra parte.
+
+**`use-mobile.ts` non è stato toccato**, e il piano dava le due ragioni; la
+seconda è quella che ha deciso la forma dell'hook nuovo.
+
+### La soglia: derivarla dalla tabella era sbagliato, e Francesco l'ha fermata
+
+Questa è la parte che ha cambiato conclusione tre volte, e il percorso vale più
+del numero finale.
+
+**Prima stesura: 1280**, derivata misurando quanto spazio vogliono nove
+colonne. Rilievo di Francesco: «**la soglia 1280 mi sembra troppo bassa**».
+Misurando meglio, aveva ragione sul fatto: 1280 era preso su questa story, dove
+la lista ha **tutta la finestra**, mentre nelle app sta dentro `app-shell`, la
+cui colonna si prende **256px** (`SIDEBAR_WIDTH = 16rem`).
+
+**Seconda stesura: 1536.** Sommando il guscio, e con le colonne larghe com'erano
+allora, veniva esattamente il gradino `2xl` di Tailwind. Secondo rilievo di
+Francesco, immediato: «**1536px è più della risoluzione di un portatile 13"**».
+Vero, e fatale: una soglia così alta è una tabella che sui portatili **non
+compare mai**. Stavo alzando la soglia finché la faccia larga non spariva.
+
+**Terzo rilievo, ed è quello che chiude**: «**la soglia mobile non deve
+dipendere da questa specifica tabella**». È la correzione giusta, e la
+decisione **c'era già scritta nel repo**: `docs/ANALISI-COPERTURA-APP.md` §6.3,
+*«La soglia: non si forza»* — l'orchestratore proponeva di spostare
+`useIsMobile` da 768 a 1024 per tutti, e l'indirizzo di Francesco è stato «la
+soglia si decide **app per app**, non si forza ora». E §11: «la guida deve dire
+**come si sceglie**, non quale numero usare». Non l'avevo riletta prima di
+mettermi a derivare numeri.
+
+**Verdetto: la soglia è una scelta ergonomica dell'app, e i numeri esistono
+già.** Officina usa **1024** (`useDesktop()`, cinque pagine), Studio
+RadarOpere **900** (`@media 900px`). La story adotta 1024 come default e la
+scena `Soglia della pagina` usa 900, così si vede che il numero si cambia.
+
+**E il fabbisogno della tabella ha la sua risposta, che non è la soglia: la
+tabella scorre.** `data-table` sta in un `overflow-x-auto` e
+**`bloccaPrimaColonna`** tiene ferme le colonne d'identità — è quello che fa
+`dashboard-01` di shadcn ed è già la scena `Blocchi/Data Table → Stretta`.
+Aggiunta alla faccia larga.
+
+**Domanda di Francesco a cui non posso rispondere**: «cosa avevamo deciso con
+Roberto per le altre app?». Nel repo, **su soglie e responsive, niente**.
+Roberto compare in tre punti soli — la scelta del carattere (2026-09-08), la
+segnalazione dell'asset del marchio (D13) e D18, l'annullo differito «da
+rivedere con Roberto a design system finito». Se una decisione con lui esiste,
+sta fuori da qui.
+
+### Le colonne erano larghe 145px più del necessario, ed era un difetto vero
+
+Emerso inseguendo la soglia, e resta anche adesso che la soglia non dipende più
+da questo. Larghezze lette a `table-layout: auto`, **senza** le dichiarazioni e
+senza andare a capo — cioè cosa vuole il contenuto:
+
+| colonna | dichiarata prima | il contenuto vuole | adesso |
+|---|---|---|---|
+| Foto | 80 | 80 | **64** (miniatura `w-12`) |
+| Matricola | 112 | 107 | 112 |
+| Macchina | 224 | 194 | **208** |
+| Tipo | elastica | 99 | **112** |
+| Stato | 160 | 137 | **144** |
+| Reparto | 144 | 107 | **112** |
+| Ore | 96 | 71 | **80** |
+| Ultimo interv. | 128 | **131** ⚠ | **144** |
+| Prossima rev. | 128 | **132** ⚠ | **144** |
+
+Le due righe col ⚠ erano **sotto-dichiarate**: l'intestazione con la freccia
+d'ordinamento non ci stava, a nessuna larghezza.
+
+### Tre difetti visti da Francesco a video, che nessuna misura aveva preso
+
+Vanno insieme perché sono la stessa lezione: **avevo misurato le cose
+sbagliate**, e tre volte di fila la misura diceva «a posto» su qualcosa che a
+occhio è sbagliato al primo sguardo.
+
+**(1) La colonna elastica andava a ZERO, e le intestazioni si sovrapponevano.**
+Con `table-layout: fixed` una colonna **senza larghezza dichiarata** non
+allarga mai la tabella: assorbe l'avanzo, e quando l'avanzo è negativo diventa
+**0px**. Misurato a 917px di riquadro: `Macchina` a **0**, «Macchina» e «Tipo»
+stampate una sopra l'altra nella testata, e nel corpo si leggevano i valori di
+`Tipo` sotto l'intestazione `Macchina`.
+
+Conseguenza che riguarda chiunque scriva una lista, e adesso è scritta nella
+story: **ogni colonna dichiara la sua larghezza, nessuna resta elastica**, o lo
+scorrimento non funziona — la somma delle dichiarate *è* il minimo della
+tabella, e una colonna elastica a quella somma non contribuisce. Dopo la
+correzione: **0 colonne a zero a qualunque larghezza**, da 366px di riquadro in
+su, tabella minima **1160px**, e sotto scorre con tutte e nove leggibili.
+
+Le fasce diventano due invece di tre:
+
+| riquadro | cosa succede |
+|---|---|
+| **≥ 1160px** | tutte e nove intere |
+| **< 1160px** | la tabella **scorre**, niente sparisce |
+
+**(2) La miniatura era tagliata a destra**, tre angoli tondi e un bordo dritto.
+La cella `Foto` dichiara `w-16` (64px) ma porta `p-2`, quindi di utile ne
+restano **48**: una miniatura da 64 veniva tagliata dall'`overflow: hidden` del
+`td`. Passata a `w-12`. La regola: **la miniatura si dimensiona sullo spazio
+utile, non sulla larghezza dichiarata della colonna.** Verificato dopo: 48×48,
+raggio 10px su tutti e quattro gli angoli, **0 miniature tagliate su 12**.
+
+**(2bis) E poi il vuoto fra il chevron e la miniatura era troppo**, rilievo
+successivo di Francesco. Misurato dal glifo al bordo della miniatura: **32px**,
+e scomposto sono 8 di riempimento del bottone, 8 della cella del chevron, 8 di
+quella della foto, più 8 di scarto. La colonna del chevron non la scrive la
+pagina — la antepone `pannelloRiga` — quindi l'unica leva dal punto di chiamata
+è **annullare il riempimento sinistro della cella della foto**: `-ml-2` sul
+contenitore della miniatura. Da 32 a **16px**, con **0 miniature su 12** che
+escono dalla propria cella (oltre, il `td` le ritaglierebbe di nuovo). Nessuna
+prop aggiunta al blocco: è tutto al punto di chiamata.
+
+**(3) `bloccaPrimaColonna` bloccava il chevron.** L'avevo aggiunta io in questa
+sessione per rendere onesto lo scorrimento, e il suo prop dice di bloccare «la
+colonna che **identifica la riga**» — ma con `pannelloRiga` la prima colonna è
+quella del chevron, che `data-table` antepone da sé (`:3157`). Risultato
+misurato: `position: sticky`, `left: 0`, `border-right: 1px` e fondo opaco
+sulla **sola** colonna del chevron, cioè un separatore verticale fra il chevron
+e la miniatura che non significa niente — ed è quello che Francesco ha
+cerchiato. **Tolta**: 0 celle sticky. Lo scorrimento non ne aveva bisogno, una
+volta che tutte le colonne dichiarano una larghezza. Dove serve davvero —
+`Blocchi/Data Table → Stretta`, a 320px, **senza** pannello di riga — la prima
+colonna *è* il codice, e lì fa il suo mestiere.
+
+**E due sonde che mentivano, entrambe corrette.** Il conto dei troncamenti
+confrontava `scrollWidth` con `clientWidth`, che su una cella con
+`text-overflow: ellipsis` **coincidono**: dava 0 troncamenti su una tabella in
+cui si leggeva «Intonacat…» a occhio nudo — il conto giusto misura il **testo**
+con un `Range` sul contenuto. E la colonna a zero **nessuna misura l'ha
+trovata**, perché non contavo le larghezze nulle: adesso è fra le misure.
+
+### Tre cose viste a video, che nessun gate avrebbe preso
+
+1. **Due titoli che dicono la stessa cosa.** Nelle due scene d'esito il guscio
+   dava `CardTitle` «Controlla la posta» e l'`Empty` dentro dava `EmptyTitle`
+   «Ti abbiamo mandato un link»: due intestazioni, un messaggio. Tolto
+   l'`EmptyTitle` — il titolo lo dà il guscio, l'`Empty` porta icona,
+   descrizione e azione.
+2. **`responsive` centra sull'asse verticale**, e la riga Partita IVA +
+   Iscrizione all'ordine ha una `FieldDescription` in più su un campo solo:
+   centrati, l'etichetta «Partita IVA» scendeva sotto quella accanto.
+   `@md/field-group:items-start` al punto di chiamata. **Si vede solo quando la
+   soglia scatta**, cioè era invisibile prima della scelta della larghezza.
+3. **Il campo lungo di una riga non si allarga da sé**: a soglia scattata tutti
+   i figli passano a `w-auto`, e «Città» restava della misura di «Prov.».
+   `@md/field-group:flex-1`.
+
+Sulle **parole**, applicata la lezione di M4ter.4 §3.2 — un messaggio deve
+descrivere un'azione che esiste. Da «Controlla la posta» si rispedisce il link
+o si cambia indirizzo, e **non c'è nessun «torna indietro»**, perché da lì un
+indietro non c'è; da «Verifica email» si va all'accesso, perché ci si arriva da
+una mail e non da una pagina; su «Password dimenticata» il testo dice «se
+l'indirizzo è registrato», che non è cautela retorica — la risposta dev'essere
+la stessa per un indirizzo che esiste e per uno che no, o la pagina direbbe a
+chiunque chi è iscritto.
+
+### Una violazione a11y presa dal gate, e la sua causa
+
+Prima passata: **12 violazioni**, `aria-required-children` ×3 per passata. Non
+era lo stepper: era l'annuncio `aria-live` che avevo messo **dentro** il
+`role="tablist"`, e un figlio diretto di `tablist` che non sia un `tab` è una
+violazione. Spostato fuori, in un frammento accanto. Da 12 a **0**.
+
+### Le misure, con i numeri
+
+| misura | esito |
+|---|---|
+| `test:a11y` | **1404** scansioni (351 story × 4), **0** violazioni — previsione del piano centrata (1376 + 7×4) |
+| `check:registry` | **0 errori**, 62 avvisi, **1 componente nostro**, **19 ri-stilati** — invariati |
+| `check:registry-build` | `public/r/` allineato, 91 file |
+| `check:contrast` | 48/48, 0 sopra soglia |
+| `registry.json` | **90 item**, `registry validate` verde |
+| `misura:bersagli` | **3092 bersagli su 351 story**, 59 popup aperti, 35 tipi, **0 piccoli in entrambe le direzioni** |
+| `build`, `lint` | verdi, zero avvisi dal file nuovo |
+
+**I bersagli nuovi, misurati in densità touch** (il bottone di default a 48px,
+cioè densità applicata davvero): le tre schede di scelta **76 × 464px**, i tre
+passi della barra **38 × 143px**. Il `!` che `misura:bersagli` segna su
+`stepper-trigger` è il **minimo** fra le occorrenze, e viene da
+`Primitive/Stepper → Barra A Segmenti` (12px, il trattino senza titolo), che è
+di M4ter.1: piccolo in una direzione sola, largo nell'altra.
+
+**Lo stato «scelta» letto dal DOM, non dedotto dall'aspetto**, com'è il criterio
+del mandato:
+
+| voce | `data-checked` | `aria-checked` |
+|---|---|---|
+| Impresa (iniziale) | **true** | `true` |
+| Studio di progettazione | false | `false` |
+| Libero professionista | false | `false` |
+| *dopo il clic su «Libero professionista»* | si sposta, e solo quello | idem |
+
+Il fondo e il bordo della scheda accesa sono `primary/5` e `primary/30` letti
+dal motore di resa — cioè la primitiva `FieldLabel` che si accende da sé
+(`has-data-checked:`), senza una riga di JavaScript che li metta.
+
+**La tastiera, dichiarata e misurata in Chromium vero** (non nel pannello del
+browser dell'app, §32): dal campo **Email** al bottone **Avanti** ci sono
+**4 colpi di `Tab`** — Password → Mostra → Ripeti la password → Avanti.
+
+### Assunzioni dichiarate
+
+Studio non è su questa macchina e `docs/SPEC-AUTH.md` è la sola fonte: i valori
+che la spec non dà sono **assunzioni della story**, non rilievi. Sono tre, tutte
+in testi visibili: i requisiti della password (vedi la coda qui sotto), il link
+di reimposta che **vale un'ora**, e il codice invito di **otto o più
+caratteri**. Sono politiche del backend, e la pagina le passerebbe dall'app.
+
+### Cosa resta aperto
+
+- **`children` (o un guscio esportato) su `pagina-login`.** Oggi ogni schermata
+  che non sia il login riscrive dieci righe. Diventa una decisione vera quando
+  un'app le scriverà davvero — in M5.5, o quando Studio migra.
+- **Tavolozza estesa**: in M4ter.5 non è emerso nessun colore mancante. Le sette
+  scene stanno dentro i token del tema.
+
+### Coda 1 di M4ter.5: i requisiti della password diventano un controllo dinamico (2026-09-20)
+
+**Tre rilievi di Francesco a video, sulla scena `Registrati — 1. Accesso`.**
+Nessuno dei tre l'avrebbe preso un gate: sono tutti fatti di ciò che si legge.
+
+**(1) «Non è precompilato».** Il codice invito aveva `defaultValue="TAS-2026-0418"`
+ed era l'unico campo pieno fra quattro vuoti, quindi si leggeva come un dato già
+acquisito invece che come il formato da rispettare. Passato a `placeholder`,
+come l'Email.
+
+**(2) «Si può trasformare in un controllo dinamico», al posto della riga fissa
+«Almeno 10 caratteri.»** — con la richiesta esplicita di guardare cosa si usa
+davvero come requisito di password nei login web.
+
+**E quello che si usa non è quello che si dovrebbe usare.** Le regole di
+composizione — una maiuscola, un numero, un carattere speciale — sono ancora
+diffusissime, e **NIST SP 800-63B e OWASP ASVS le sconsigliano
+esplicitamente**: producono `Password1!`, che le soddisfa tutte ed è fra le
+password violate più comuni al mondo, e spostano lo sforzo dall'entropia alla
+contabilità dei simboli. La raccomandazione corrente è **lunghezza** (8 minimo,
+12–15 raccomandati, fino a 64 ammessi, tutti i caratteri accettati spazi
+compresi), **niente regole di composizione**, **niente scadenza periodica**, e
+**screening contro le password più usate e violate**. Implementato così, con la
+ragione scritta in `docs/SPEC-AUTH.md` §2.1ter e le regole in **una costante
+sola** — cambiarle è una riga, se un domani si decide altrimenti.
+
+Le tre regole, e la prova che sono quelle giuste sul caso che conta:
+
+| password | 12 caratteri | non fra le più usate | non contiene l'email |
+|---|---|---|---|
+| `mario` | · | ✓ | · |
+| `password` | · | · | ✓ |
+| **`Rossi2026!!!`** | ✓ | ✓ | **·** |
+| `tegola-ponte-neve` | ✓ | ✓ | ✓ |
+
+La terza riga è il punto: `Rossi2026!!!` **soddisfa ogni regola di composizione**
+— maiuscola, cifre, simboli, dodici caratteri — e con email `mario.rossi@studio.it`
+è la peggiore password possibile. La prende la regola sull'email, non quelle sui
+simboli.
+
+**Un difetto della prima stesura, trovato provandola**: la regola confrontava la
+parte locale **intera**, quindi password `mario` con email `mario.rossi@…`
+**passava** — «mario» non contiene «mario.rossi». Corretta spezzando su ciò che
+non è lettera o cifra e confrontando ogni pezzo da quattro caratteri in su.
+
+**(3) «Controllo per verificare che le password coincidano».** Aggiunto sotto il
+secondo campo, e si vede **mentre si scrive**, che è il momento in cui costa
+correggere. Compare solo a campo non vuoto — una crocetta rossa su un campo
+vuoto è un rimprovero per non aver ancora cominciato — ma il contenitore
+`aria-live` resta montato sempre, o la comparsa non verrebbe annunciata.
+
+E ha scoperto **un difetto vero della validazione**: la coincidenza stava in un
+`else if` dopo il controllo di lunghezza, quindi una password corta **nascondeva
+anche** la ripetizione sbagliata — due difetti al prezzo di un messaggio. Ora è
+indipendente.
+
+**Come sono fatte, e cosa non sono.** La stessa costante `REGOLE_PASSWORD`
+alimenta il riscontro a video **e** il rifiuto all'invio: non possono divergere,
+e il rifiuto nomina ciò che manca («Manca: almeno 12 caratteri; non contiene il
+tuo indirizzo email.») invece della regola generica. Un requisito non ancora
+soddisfatto è **muto, non rosso**: finché non si preme «Avanti» non è un errore,
+è una cosa da fare; il rosso arriva col `FieldError`. Il verde è
+**`success-subtle-foreground`** e non `success` — quello è il colore dei fondi,
+la stessa trappola di `destructive`. L'annuncio per i lettori di schermo è **un
+conto solo** («2 requisiti su 3 soddisfatti»), non la lista riletta a ogni
+battuta.
+
+**Non è il misuratore di robustezza, e la decisione del 2026-09-19 regge.**
+Quello è una barra che dà un punteggio; questo è il riscontro di una
+validazione. Ed è comunque **codice di pagina**, come il gating — `registry.json`
+resta a 90 item e `check:registry` a 1 componente nostro.
+
+Lo stesso modulo (`ModuloNuovaPassword`) sta anche su **«Reimposta la
+password»**: sono i due punti in cui una password si sceglie, e se dicessero
+cose diverse uno dei due mentirebbe.
+
+**Una conseguenza dichiarata**: Email, Password e Ripetizione diventano
+**controllate**, mentre il resto del modulo resta non controllato. Non è
+incoerenza — il riscontro va aggiornato a ogni battuta e per farlo serve il
+valore a ogni render; sugli altri campi non c'è niente da mostrare mentre si
+scrive, e `FormData` basta.
+
+**I gate dopo la coda**: `npm run check` verde sui sei (uscita 0), `test:a11y`
+**1404 scansioni, 0 violazioni** — invariate, perché non nascono story nuove —
+`misura:bersagli` **3094** bersagli (erano 3092: il «Mostra» aggiunto alla
+scena di reimposta), **0 piccoli in entrambe le direzioni**. `build` e `lint`
+verdi.
+
+### Coda 2 di M4ter.5: composizione, misuratore, k-anonimato, due colonne (2026-09-20)
+
+Quattro rilievi in fila di Francesco, tutti a video, sulla stessa schermata.
+
+**(1) «Meglio chiedere anche maiuscole, numeri e caratteri speciali».** È una
+**divergenza dalla coda 1, riconfermata dopo il rilievo**: lì avevo argomentato
+di non metterle, perché NIST SP 800-63B e OWASP ASVS le sconsigliano
+esplicitamente — `Password1!` le soddisfa tutte ed è fra le password violate più
+comuni al mondo. Riconfermate, quindi ci sono: la scelta è sua, il motivo per
+cui erano state escluse resta scritto in `docs/SPEC-AUTH.md` §2.1ter, e tornare
+indietro è una riga in `REGOLE_PASSWORD`. Da 3 regole a **sei**.
+
+**(2) «Sarebbe bello avere uno score della robustezza».** Fatto, e **non
+ribalta la decisione del 2026-09-19**: «il misuratore resta dell'app» significa
+«non è un componente del registry», e la story *è* codice di pagina —
+`registry.json` resta a **90 item**, `componenti-propri.json` vuoto. Quello che
+cambia è che le app hanno un esemplare da copiare invece di inventarselo ognuna.
+
+Il punteggio è l'entropia stimata, `lunghezza × log2(alfabeto)` con l'alfabeto
+dedotto dalle famiglie di caratteri presenti, più le penalità che l'entropia non
+vede (password nelle liste → minimo; contiene l'email → non oltre «debole»). È
+`zxcvbn` in piccolo, senza aggiungere una dipendenza a un file che ogni app
+copierà. **Non è lo stepper**: i segmenti sono `span`, senza `tablist`, senza
+`tab`, senza fuoco.
+
+**E una contraddizione trovata misurando, non ragionando.** `tegola-ponte-neve`
+ha entropia da **«forte»** e fallisce **due requisiti su sei**: la barra avrebbe
+detto «forte» sopra un modulo che rifiuta. I due controlli misurano cose diverse
+— entropia contro composizione — e vanno bene tutti e due, ma **quello che si
+vede dev'essere d'accordo con quello che succede**: il livello è limitato a
+«media» finché un requisito manca. Ora «forte» esce solo a 6 su 6.
+
+| password | livello | requisiti |
+|---|---|---|
+| `mario` | troppo debole | 1/6 |
+| `password` | troppo debole | 1/6 |
+| `Password1!` | media | 5/6 |
+| `Rossi2026!!!` | **debole** | 5/6 |
+| `tegola-ponte-neve` | media | 4/6 |
+| `Tegola-Ponte-Neve-2026!` | **forte** | 6/6 |
+
+Le due righe che valgono: `Password1!` passa **cinque regole su sei** e il
+misuratore la ferma a «media»; `Rossi2026!!!` passa tutte le regole di
+composizione e scende a «debole» per la regola sull'email. Sono esattamente i
+casi per cui le regole di composizione da sole non bastano.
+
+**Un colore che manca, segnalato e non inventato.** Le bande sono
+`destructive`, `primary` e `success`: il quarto gradino non c'è, perché
+`--warning` è il crema pallido del badge (#FBE8C4) e come riempimento di una
+barra sparisce sul fondo della card. Aggiunto all'innesco della **tavolozza
+estesa** in `CHECKLIST.md`, che adesso è innescata due volte.
+
+**(3) «"Non è fra le password più usate" come lo verifichi?»** — e la risposta
+onesta era: **non lo verificava.** Era un `Set` di dieci voci nel sorgente, reso
+con una spunta che diventava verde subito: a chi scriveva `aaaa` l'interfaccia
+affermava una verifica mai avvenuta. Il difetto non era l'elenco corto — era il
+**modo di renderlo**.
+
+Rifatta **asincrona a quattro stati** — da fare, in corso (con lo `Spinner`),
+fatta, fallita — col segnaposto dietro una funzione la cui firma è già quella
+vera: `(password) => Promise<boolean>`. L'app la sostituisce e il resto della
+pagina non cambia. Il modo vero, scritto in §2.1ter perché è il pezzo che
+servirà davvero: **API Pwned Passwords di HIBP con k-anonimato** — `SHA-1` della
+password, si mandano **i primi 5 caratteri** dell'hash, tornano ~800 suffissi
+coi conteggi, il confronto si fa in locale. Il servizio non vede né la password
+né quale password si sta controllando, e il corpus è di oltre ottocento milioni
+di password da violazioni reali. **L'autorità resta il backend**: un controllo
+solo nel browser si aggira con una richiesta diretta. Il riscontro nel browser è
+**ritardato di 400 ms**, o si farebbe una chiamata per tasto.
+
+**Un avviso di oxlint che era un difetto vero**: la prima stesura teneva in
+stato anche «vuota» e «in corso» e li impostava dentro l'effetto —
+`react(set-state-in-effect)`. Un `setState` sincrono in un effetto avvia un
+secondo render per dire una cosa che si sapeva già. Rifatto: in stato c'è **solo
+la risposta**, insieme alla password a cui si riferisce, e gli altri due stati
+si **derivano durante il render**. Il confronto `risposta.password === password`
+fa anche da guardia contro le risposte che tornano fuori ordine, che è il
+difetto classico di questo schema.
+
+**(4) «Possiamo metterlo su due colonne?»** Sì: `@md/field-group:grid-cols-2`,
+la stessa soglia dei campi affiancati. Sei righe in colonna sola spingevano
+«Avanti» fuori dallo schermo. Tre righe per due colonne, e nella card stretta
+resta una colonna da sé — il controllo è del contenitore, non della finestra.
+
+**Due rifiniture nate da qui.** Il messaggio d'errore all'invio, con sei regole,
+elencava tutto e faceva un muro sotto un elenco che le mostra già una per riga:
+adesso **rimanda lì** («Mancano 5 requisiti: li trovi segnati qui sopra») e
+nomina la regola solo quando ne manca **una**. E «Reimposta la password» è
+passata a `max-w-lg`: porta lo stesso blocco da sei requisiti, quindi **non è
+più una schermata minima** — il criterio è cosa c'è dentro, non il nome. Con
+essa l'etichetta «Ripetila» è diventata **«Ripeti la password»**, la stessa del
+passo 1, su rilievo di Francesco: due schermate che fanno la stessa cosa non
+possono chiamarla in due modi.
+
+**I gate dopo la coda 2**: `npm run check` verde sui sei (uscita 0), `test:a11y`
+**1404 scansioni, 0 violazioni** — invariate, e non era scontato, perché lo
+stato «in corso» aggiunge uno `Spinner` dentro una lista — `misura:bersagli`
+**3093** bersagli su 351 story, **0 piccoli in entrambe le direzioni**. `build`
+e `lint` verdi, zero avvisi dal file.
+
+### Prossimi passi
+
+M4ter.6 — `useSoglia` e la lista a due facce.
+
+## M4ter.6 — `useSoglia` e la lista a due facce (2026-09-20)
+
+**Verdetto: chiuso.** `registry.json` **90 → 91 item**, `npm run check` verde
+sui **sei** (uscita 0), `test:a11y` **1416 scansioni su 354 story, 0
+violazioni** in tutte e quattro le passate — la previsione del piano centrata
+(1404 + 3×4). `check:registry` invariato dove deve esserlo: **0 errori, 62
+avvisi, 1 componente nostro, 19 ri-stilati**. `misura:bersagli` **3170**
+bersagli su 354 story, **0 piccoli in entrambe le direzioni**. `build` e `lint`
+verdi, **zero avvisi dai file nuovi** — in particolare nessun
+`react(set-state-in-effect)`, che era il difetto da non riscrivere con un nome
+nuovo.
+
+### La scelta presa prima di scrivere una riga, come chiedeva §46
+
+`useSoglia` è una media query **sulla finestra**, e la larghezza della finestra
+**non si commuta dal canvas**. Le due strade del punto 2 di §46 erano:
+
+- **(a)** la scena stretta rende la faccia stretta in modo **deterministico**,
+  senza passare dall'hook;
+- **(b)** `useSoglia` accetta un valore iniziale iniettabile e la scena lo
+  forza.
+
+**Presa la (a).** La ragione, in una riga: (b) è **API pubblica aggiunta per
+comodità di prova**, cioè il genere di cosa che poi resta — e questo hook lo
+copieranno sei pagine in due app. Una prop in più in una story costa meno di
+una prop in più in un hook, e la prop della story dice una cosa vera di sé
+stessa («questa scena mostra la faccia stretta»), mentre un valore iniziale
+iniettabile direbbe una cosa falsa dell'hook («la soglia si può decidere da
+fuori»).
+
+**Il costo dichiarato**: la prop `faccia` di `ListaMacchine`, che ha tre valori
+— `'auto' | 'tabella' | 'schede'`. È della **pagina**, non del registry.
+
+**E la faccia che ogni scena rende nel gate è misurata, non dedotta.** Sonda
+temporanea con una `play` che lancia con la larghezza e i conti del DOM, dentro
+la stessa imbracatura vitest del gate:
+
+| scena | larghezza del gate | `table.table-fixed` | schede |
+|---|---|---|---|
+| Faccia larga | 1440 | **1** | 0 |
+| **Faccia stretta** | 1440 | **0** | **12** |
+| Soglia della pagina | 1440 | 1 | 0 |
+
+**E va rimisurata ogni volta che la soglia cambia.** Provato in questa
+sessione: portando la soglia a 1536 la terza scena è passata alla faccia
+stretta, e il gate ha continuato a dire «1416 scansioni, 0 violazioni» senza
+segnalare niente. È §46 applicata alla story che la cita.
+
+La riga che conta è la seconda: la faccia stretta **è misurata davvero**, a
+finestra larga, perché non dipende dalla finestra. La terza è la scena che
+passa dall'hook e nel gate rende la faccia larga — **dichiarato nella story**,
+non nascosto: `(min-width: 1280px)` è vera a 1440.
+
+Non è stata presa la terza strada per sbaglio. `data-table.stories.tsx` ottiene
+il suo caso stretto stringendo il riquadro a 320px, e lì è giusto perché quel
+caso stretto è una conseguenza del CSS. Il riquadro da 360px della scena
+stretta qui serve a **guardarla**, non a renderla: a renderla è la prop.
+
+### Il primo render parte da mobile — la verifica che distingue i due hook
+
+Il criterio non è «alla fine c'è l'elenco di schede»: è che **una `<table>` non
+sia mai comparsa**. `MutationObserver` sull'intero documento, installato con
+`page.addInitScript`, cioè prima che la pagina carichi.
+
+| finestra | mutazioni osservate | primo nodo | `<table>` comparse | schede |
+|---|---|---|---|---|
+| **375** | 280 | **schede** | **0** | 1 |
+| 1440 | 296 | tabella | 1 | 0 |
+
+**E il controllo dello strumento, che è la metà che vale.** La stessa sonda
+puntata su `Blocchi/App Shell → Telefono`, che usa `useIsMobile`, a 375px:
+`[data-slot=sidebar]` **entra nel DOM e viene tolta** — 1 rimozione, 0 alla
+fine. Cioè la sonda sa vedere un primo render sbagliato, e su `useSoglia` non
+lo vede. Senza questo controllo «0 tabelle» sarebbe stato un numero senza
+significato.
+
+**Un falso allarme, e come si è chiuso.** La prima passata contava **3
+`<table>`** a 375px. Erano di Storybook: `sb-argstableBlock`, la tabella degli
+argomenti che il canvas monta da sé. La sonda è stata stretta a
+`table.table-fixed`, che è la nostra. È la forma di §46 applicata a sé stessa:
+prima di credere a una misura, si guarda **cosa** si sta misurando.
+
+### Come è fatto l'hook, e perché non in un altro modo
+
+```ts
+const getSnapshot = React.useCallback(() => window.matchMedia(query).matches, [query])
+return React.useSyncExternalStore(subscribe, getSnapshot, () => false)
+```
+
+`getSnapshot` legge `matchMedia` **durante il render**: il primo fotogramma è
+già quello giusto e non c'è niente da correggere dopo. `subscribe` e
+`getSnapshot` dipendono dalla sola `query`, che è una **stringa** — un valore
+primitivo, non un array costruito inline, che è la trappola del `CLAUDE.md`.
+
+Il terzo argomento vale `false`, ed è la risposta mobile-first su una query in
+forma `min-width`. Da cui una convenzione scritta nel sorgente e nel `docs`
+dell'item: **la query si scrive in forma `min-width`**. Al contrario
+(`max-width`) il valore di partenza diventerebbe «schermo grande», cioè
+esattamente il difetto di `useIsMobile` rimesso in piedi da un'altra parte.
+
+**`use-mobile.ts` non è stato toccato**, e il piano dava le due ragioni; la
+seconda è quella che ha deciso la forma dell'hook nuovo.
+
+### La soglia: derivarla dalla tabella era sbagliato, e Francesco l'ha fermata
+
+Questa è la parte che ha cambiato conclusione tre volte, e il percorso vale più
+del numero finale.
+
+**Prima stesura: 1280**, derivata misurando quanto spazio vogliono nove
+colonne. Rilievo di Francesco: «**la soglia 1280 mi sembra troppo bassa**».
+Misurando meglio, aveva ragione sul fatto: 1280 era preso su questa story, dove
+la lista ha **tutta la finestra**, mentre nelle app sta dentro `app-shell`, la
+cui colonna si prende **256px** (`SIDEBAR_WIDTH = 16rem`).
+
+**Seconda stesura: 1536.** Sommando il guscio, e con le colonne larghe com'erano
+allora, veniva esattamente il gradino `2xl` di Tailwind. Secondo rilievo di
+Francesco, immediato: «**1536px è più della risoluzione di un portatile 13"**».
+Vero, e fatale: una soglia così alta è una tabella che sui portatili **non
+compare mai**. Stavo alzando la soglia finché la faccia larga non spariva.
+
+**Terzo rilievo, ed è quello che chiude**: «**la soglia mobile non deve
+dipendere da questa specifica tabella**». È la correzione giusta, e la
+decisione **c'era già scritta nel repo**: `docs/ANALISI-COPERTURA-APP.md` §6.3,
+*«La soglia: non si forza»* — l'orchestratore proponeva di spostare
+`useIsMobile` da 768 a 1024 per tutti, e l'indirizzo di Francesco è stato «la
+soglia si decide **app per app**, non si forza ora». E §11: «la guida deve dire
+**come si sceglie**, non quale numero usare». Non l'avevo riletta prima di
+mettermi a derivare numeri.
+
+**Verdetto: la soglia è una scelta ergonomica dell'app, e i numeri esistono
+già.** Officina usa **1024** (`useDesktop()`, cinque pagine), Studio
+RadarOpere **900** (`@media 900px`). La story adotta 1024 come default e la
+scena `Soglia della pagina` usa 900, così si vede che il numero si cambia.
+
+**E il fabbisogno della tabella ha la sua risposta, che non è la soglia: la
+tabella scorre.** `data-table` sta in un `overflow-x-auto` e
+**`bloccaPrimaColonna`** tiene ferme le colonne d'identità — è quello che fa
+`dashboard-01` di shadcn ed è già la scena `Blocchi/Data Table → Stretta`.
+Aggiunta alla faccia larga.
+
+**Domanda di Francesco a cui non posso rispondere**: «cosa avevamo deciso con
+Roberto per le altre app?». Nel repo, **su soglie e responsive, niente**.
+Roberto compare in tre punti soli — la scelta del carattere (2026-09-08), la
+segnalazione dell'asset del marchio (D13) e D18, l'annullo differito «da
+rivedere con Roberto a design system finito». Se una decisione con lui esiste,
+sta fuori da qui.
+
+### Le colonne erano larghe 145px più del necessario, ed era un difetto vero
+
+Emerso inseguendo la soglia, e resta anche adesso che la soglia non dipende più
+da questo. Larghezze lette a `table-layout: auto`, **senza** le dichiarazioni e
+senza andare a capo — cioè cosa vuole il contenuto:
+
+| colonna | dichiarata prima | il contenuto vuole | adesso |
+|---|---|---|---|
+| Foto | 80 | 80 | **64** (miniatura `w-12`) |
+| Matricola | 112 | 107 | 112 |
+| Macchina | 224 | 194 | **elastica** |
+| Tipo | elastica | 99 | **112** |
+| Stato | 160 | 137 | **144** |
+| Reparto | 144 | 107 | **112** |
+| Ore | 96 | 71 | **80** |
+| Ultimo interv. | 128 | **131** ⚠ | **144** |
+| Prossima rev. | 128 | **132** ⚠ | **144** |
+
+Le due righe col ⚠ erano **sotto-dichiarate**: l'intestazione con la freccia
+d'ordinamento non ci stava, a nessuna larghezza. E `Macchina` è diventata la
+colonna elastica al posto di `Tipo`, perché dallo spazio in più ci guadagna
+qualcosa: `Tipo` ha un insieme chiuso di valori corti.
+
+**Le tre fasce della faccia larga, misurate dopo la stretta:**
+
+| riquadro | cosa succede |
+|---|---|
+| **≥ 1146px** | tutte e nove intere |
+| 966–1145px | `Macchina` **tronca con l'ellissi** |
+| **< 966px** | la tabella **scorre**, prime colonne ferme |
+
+Col guscio aperto sono **1436px** di finestra per averla intera: cioè su un
+**1440 la tabella è intera**, che era il caso che il rilievo di Francesco
+metteva in discussione. Su un 1366 la colonna `Macchina` tronca, e collassando
+la sidebar torna intera (bastano 1228).
+
+**E una sonda sbagliata, corretta.** Il primo conto dei troncamenti confrontava
+`scrollWidth` con `clientWidth`: su una cella con `text-overflow: ellipsis`
+quei due valori **coincidono**, quindi dava **0 troncamenti** su una tabella in
+cui si leggeva «Intonacat…» a occhio nudo. Trovata guardando uno scatto, non
+misurando. Il conto giusto misura il **testo**, con un `Range` sul contenuto
+della cella.
+
+### `check:registry` impara `hooks/`, e come la tratta
+
+`hooks/` era l'**ultima cartella cieca** del registry, e non era vuota:
+`use-mobile.ts` ci stava dentro da M2.5 senza che nessun gate la guardasse.
+Adesso entra in `fileBlocchi()` accanto a `blocks/`, `pages/` e `lib/`, quindi
+la vedono sia `controllaBlocchi` (regola 3) sia `controllaCorpi` (i corpi
+fuori scala).
+
+**Come la tratta, e perché** — la decisione, a verbale: **regola 3 sola, e
+nessuna riga in `componenti-propri.json`**. Un hook **non sta al posto di una
+primitiva shadcn**: quel registro conta i *componenti* nostri, ed è un numero
+che si difende tenendolo a 1. Farlo salire per un hook lo renderebbe
+illeggibile proprio mentre serve. Quello che gli si chiede è la regola 3,
+perché un hook può benissimo portare una stringa di classi.
+
+`use-mobile.ts` passa — **verificato, non dedotto**: non ha stringhe di classi.
+Il conto dei componenti nostri resta **1**.
+
+**L'autotest, nelle quattro direzioni che il gate dichiara** (valore messo a
+mano in `use-soglia.ts`, poi ripristinato):
+
+| spia | esito |
+|---|---|
+| `h-[37px]` | `✖ valore arbitrario (regola 3 del CLAUDE.md)` — uscita **1** |
+| `bg-[#F4AC3D]` | `✖ colore esadecimale` + `✖ valore arbitrario` — uscita **1** |
+| `text-md` | `✖ non è un'utility Tailwind e il tema non la definisce` — uscita **1** |
+| `text-4xl` | `✖ gradino che il tema NON tara: non scala con la densità` — uscita **1** |
+| file ripristinato | uscita **0** |
+
+Il rapporto del gate le chiama **`hook Tassullo`**, e l'intestazione della
+sezione è diventata «Blocchi, pagine, helper e hook»: un gate che dice
+«Blocchi» mentre guarda quattro cartelle è un gate che si legge male.
+
+### La story: le due facce non sono la stessa lista impaginata due volte
+
+`stories/ListaDueFacce.stories.tsx`, titolo `Pagine/Lista a due facce`,
+`layout: 'fullscreen'`.
+
+**Dove sta, e col criterio di M4ter.5**: una story sta accanto al componente se
+ne esercita le prop, in `stories/` se è composizione che attraversa più
+primitive. Questa attraversa `data-table`, `entity-image`, `card`,
+`collapsible`, `toggle-group`, `select`, `input-group`, `badge`, `button` — e
+non esercita una prop di nessuno di loro. Criterio applicato, non ridiscusso.
+
+Cosa cambia fra le due facce, cioè la parte che **nessun blocco può indovinare
+dalle `colonne`**:
+
+| | faccia larga | faccia stretta |
+|---|---|---|
+| filtro di stato | `Select` (tendina) | `ToggleGroup` a scelta singola (chip) |
+| miniatura | `entity-image` `w-16` | **non c'è** |
+| azione principale | `Button size="sm"`, in barra | `Button` di default, `w-full` |
+| dettaglio | colonna col chevron di `pannelloRiga` | **la scheda intera** |
+
+**I comandi stanno sulla pagina, non dentro la tabella**, e `cerca={false}`
+sulla tabella. Se il filtro vivesse nell'istanza TanStack, la faccia stretta —
+che una tabella non ce l'ha — dovrebbe scriversene uno suo, e due filtri
+scritti due volte si disallineano. Stato uno, funzione che filtra una, forma
+del comando due. Lo stesso vale per `DettaglioMacchina`, scritto una volta e
+montato da tutte e due.
+
+**L'attrito, detto prima**: in Officina il dettaglio si apre cliccando la foto;
+`data-table` con `pannelloRiga` antepone da sé la colonna col chevron
+(`data-table.tsx:3157`, riga verificata) e non si sostituisce. Sulla faccia
+stretta la miniatura non c'è affatto e il grilletto è la **scheda intera**, che
+è anche il bersaglio più grande possibile. Adattamento accettabile, scritto
+nella story.
+
+**I bersagli nuovi, misurati in densità touch** — col controllo della densità
+(bottone di default 32 → **48px**, cioè densità applicata davvero):
+
+| bersaglio | normale | touch |
+|---|---|---|
+| scheda (la più bassa delle 12) | 81.13 × 326px | **99.33 × 490px** |
+| chip del filtro (il più basso dei 5) | 32 × 49.44px | **48 × 61.55px** |
+
+### Tre cose viste a video, che nessun gate avrebbe preso
+
+1. **La griglia del dettaglio guardava la finestra invece della scheda.** Era
+   `sm:grid-cols-4`, e `sm:` è una media query sulla **finestra**: dentro una
+   scheda da 302px apriva quattro colonne in uno spazio che ne regge due.
+   Passata a `@container/dettaglio` + `@md/dettaglio:grid-cols-4`, e misurata:
+   `139px 139px` nella scheda, quattro colonne nel pannello di riga. È la
+   distinzione di §46 presa dal lato giusto — e l'ho sbagliata io, nella
+   sessione che la cita.
+2. **Il nome della macchina si troncava per far posto al badge.** Su una lista
+   di macchine il modello è ciò che si cerca: `truncate` tolto, il nome va a
+   capo. La riga `tipo · reparto` resta troncata, ed è giusto che sia quella.
+3. **Backtick letterali nella prosa di una scena.** In JSX `` `useSoglia` ``
+   non è codice, è testo con due apostrofi inversi. Passato a `<code>`.
+
+### Due difetti muti di misura, pagati in questa sessione
+
+**(1) Una classe nuova può non emettere niente, e il DOM non lo dice.**
+`w-36` e `w-90`, scritti in un file **appena creato**, erano nell'attributo
+`class` e non producevano nessuna regola: `getComputedStyle` dava `1440px` su
+un `div` di prova, cioè il fallback a blocco. La causa non è Tailwind: è che il
+dev server non aveva riscansionato il file nuovo. Dopo un riavvio, `w-36` =
+144px e `w-90` = 360px. Le classi che «funzionavano» erano quelle già usate
+altrove nel repo — che è il modo peggiore di sbagliarsi, perché sembra che sia
+la classe a essere sbagliata. **Regola pratica: una classe nuova che non rende
+si prova con un riavvio prima di crederla inesistente.**
+
+**(2) In Tailwind v4 `rotate-180` non tocca `transform`.** Legge la proprietà
+CSS **`rotate`**, e `getComputedStyle(el).transform` resta `none` anche quando
+la rotazione c'è: misurato `rotate: "180deg"`, `transform: "none"`. Avevo letto
+`transform` e concluso che la variante non emettesse — e stavo per «correggere»
+una cosa che funzionava. `transition-transform` in v4 copre comunque il caso:
+`transition-property` risolve a `transform, translate, scale, rotate`.
+
+### Coda: chiuso il commento falso di `App Shell → Telefono`
+
+Era il primo dei due punti aperti del mandato, ed è venuto a costo quasi nullo
+perché la misura serviva comunque come **controllo** della sonda. Il commento
+affermava «a 375px la colonna non c'è più» senza dire che **nel gate quella
+story rende il ramo scrivania** (§46). Aggiunto il paragrafo che lo dice, con
+la misura del `MutationObserver` dentro. **Non è stata toccata la story né il
+componente**: renderla deterministica vorrebbe dire aggiungere una prop a
+`app-shell` per comodità di prova, cioè esattamente la strada (b) scartata
+qui sopra.
+
+### Cosa non è stato fatto, e perché
+
+- **Nessuna sezione nuova in `docs/DECISIONI.md`.** §46 è già scritta con le
+  due tabelle misurate, e il mandato dice di richiamarla, non di riscriverla.
+  Le decisioni di questa sessione — la strada (a), il trattamento di `hooks/`,
+  la soglia a 1280 — stanno qui, che è il verbale.
+- **Tavolozza estesa**: in M4ter.6 non è emerso nessun colore mancante. I
+  quattro stati del parco macchine stanno dentro `TONO` (`success`, `warning`,
+  `destructive`, `neutro`), e il rosso di «Guasto» è quello di `destructive`,
+  che come **fondo tenue di badge** c'è — la riga sospesa in `CHECKLIST.md`
+  resta innescata dai due casi di prima, non da un terzo.
+
+### Quello che resta da guardare a Francesco
+
+- **La soglia da usare in Officina e in Studio**: la story adotta 1024 (il
+  numero che Officina ha già) e mostra 900 su una scena, ma il verdetto di
+  §6.3 è che la decide l'app. Se 1024 non è il numero giusto per il Triage, si
+  cambia lì.
+- **Sotto la soglia le schede prendono tutta la riga.** Se non la si vuole, il
+  rimedio è un `max-w` sull'elenco ed è della pagina, non del registry.
+- Le **foto sono la libreria d'esempio del repo** (i render dei sistemi), non
+  foto di macchine: servono a far vedere `entity-image` con e senza sorgente —
+  due righe su dodici portano il segnaposto.
+
+### Prossimi passi
+
+M4ter.7 — `tassullo-indicatori`, e le due prop di sola forma.

@@ -343,6 +343,23 @@ export const SenzaIcone: Story = {
  * È qui che si guarda **D10**: a 375px la colonna non c&apos;è più, quindi
  * l&apos;unica cosa che mangia larghezza è il padding di pagina — 16px per lato
  * in normale, 24 in touch. La misura è in `WORKLOG.md`, M3.1.
+ *
+ * ## Ma «a 375px» vale solo in una finestra davvero stretta
+ *
+ * Il global `viewport` qui sotto ridimensiona l&apos;iframe **nella cornice del
+ * manager**, cioè per gli occhi. Nel canvas aperto per URL — che è come lo
+ * aprono `test:a11y` e `misura:bersagli` — `window.innerWidth` resta quello
+ * della finestra vera e **non c&apos;è errore**: nel gate questa story rende il
+ * ramo **scrivania**, con la colonna nel DOM (`docs/DECISIONI.md` §46, con le
+ * due tabelle misurate). Quindi il paragrafo qui sopra descrive ciò che si
+ * vede aprendo Storybook, non ciò che il gate misura.
+ *
+ * Misurato in Chromium vero a 375px, con un `MutationObserver` installato
+ * prima del caricamento (M4ter.6): la colonna **entra nel DOM e poi viene
+ * tolta** — 1 rimozione di `[data-slot=sidebar]`, 0 alla fine. È il primo
+ * render di `useIsMobile`, che legge `matchMedia` dentro un effetto e quindi
+ * parte sempre da scrivania. Su un guscio non morde; su una lista sì, ed è la
+ * ragione per cui `useSoglia` esiste accanto e non al posto suo.
  */
 export const Telefono: Story = {
   globals: { viewport: { value: 'telefono', isRotated: false } },

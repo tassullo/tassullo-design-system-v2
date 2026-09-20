@@ -843,6 +843,19 @@
       ]
     },
     {
+      "name": "use-soglia",
+      "type": "registry:hook",
+      "title": "useSoglia",
+      "description": "La finestra supera la soglia che la pagina ha dichiarato? Su useSyncExternalStore, quindi il primo render e gia quello giusto: una lista che sul telefono e un elenco di schede non disegna prima la tabella. La query la dichiara la pagina, perche quante colonne ha quella lista lo sa solo lei.",
+      "files": [
+        {
+          "path": "registry/tassullo/hooks/use-soglia.ts",
+          "type": "registry:hook"
+        }
+      ],
+      "docs": "Il bivio fra due facce di una lista — tabella su schermo largo, schede su schermo stretto — in una riga:\n\n  const largo = useSoglia('(min-width: 1024px)')\n  return largo ? <Tabella … /> : <Schede … />\n\nLa query si scrive in forma `min-width`, e non e un vincolo di tipo: `true` vuol dire «c'e spazio», `false` vuol dire «non c'e», e il valore di partenza e quello prudente. Scritta al contrario il default diventerebbe «schermo grande», che e il difetto da cui questo hook esiste per stare lontano.\n\nNON sostituisce `use-mobile`, e le due soglie non vanno unificate: i 768px di `useIsMobile` governano l'ARREDAMENTO (la sidebar passa a Sheet e il dialogo a Drawer allo stesso pixel, ed e una cosa sola), mentre questo governa il CONTENUTO — quante colonne stanno in quella lista lo sa solo la pagina.\n\nLa faccia stretta la scrive la pagina. Non e pigrizia: le due facce non sono la stessa lista impaginata due volte — la tendina diventa chip, la miniatura sparisce, il bottone cambia taglia. Nessun blocco puo indovinarlo dall'elenco delle colonne. Un esemplare completo sta in «Pagine/Lista a due facce» della style guide."
+    },
+    {
       "name": "use-mobile",
       "type": "registry:hook",
       "title": "useIsMobile",

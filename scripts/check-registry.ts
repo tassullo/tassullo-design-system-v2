@@ -36,6 +36,7 @@ const UI_DIR = "registry/tassullo/ui";
 const BLOCCHI_DIR = "registry/tassullo/blocks";
 const PAGINE_DIR = "registry/tassullo/pages";
 const LIB_DIR = "registry/tassullo/lib";
+const HOOKS_DIR = "registry/tassullo/hooks";
 const UPSTREAM_DIR = "registry/.upstream";
 const PROVENIENZE_FILE = join(UPSTREAM_DIR, "provenienze.json");
 const THEME_FILE = "registry/tassullo/theme/tassullo-theme.css";
@@ -423,10 +424,20 @@ function fileUi(): string[] {
  * composizioni di blocchi, non hanno un originale shadcn per la stessa
  * ragione dei blocchi, e senza questa riga sarebbero state la prima cartella
  * del registry a restare invisibile al gate fin dal primo file che ci finiva.
+ *
+ * **Da M4ter.6 guarda anche `hooks/`**, che era l'ultima cartella cieca del
+ * registry — e non era vuota: `use-mobile.ts` ci stava già dentro da M2.5.
+ * Stessa regola dei blocchi, e per la stessa ragione: un hook **non sta al
+ * posto di una primitiva shadcn**, quindi non gli si chiede né un originale in
+ * `registry/.upstream/` né una riga in `componenti-propri.json` — quel registro
+ * conta i *componenti* nostri, e farlo salire per un hook renderebbe il numero
+ * che difende illeggibile. Quello che gli si chiede è la regola 3, perché un
+ * hook può benissimo portare una stringa di classi (e i corpi, via
+ * `controllaCorpi`, che legge la stessa lista di file).
  */
 function fileBlocchi(): string[] {
   const fuori: string[] = [];
-  for (const dir of [BLOCCHI_DIR, PAGINE_DIR, LIB_DIR]) {
+  for (const dir of [BLOCCHI_DIR, PAGINE_DIR, LIB_DIR, HOOKS_DIR]) {
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
       if (!/\.tsx?$/.test(f) || f.endsWith(".stories.tsx")) continue;
@@ -434,6 +445,14 @@ function fileBlocchi(): string[] {
     }
   }
   return fuori.sort();
+}
+
+/** Come si chiama, nel rapporto, cio che sta in una cartella senza originale. */
+function etichettaCartella(path: string): string {
+  if (path.startsWith(LIB_DIR)) return "helper Tassullo";
+  if (path.startsWith(PAGINE_DIR)) return "pagina Tassullo";
+  if (path.startsWith(HOOKS_DIR)) return "hook Tassullo";
+  return "blocco Tassullo";
 }
 
 /** Sui blocchi si controlla la sola regola 3: niente hex, niente arbitrari. */
@@ -453,11 +472,11 @@ function controllaBlocchi(): Set<string> {
       for (const m of s.matchAll(ARBITRARIO_RE)) {
         if (ELENCO_PROPRIETA_RE.test(m[0])) continue;
         arbitrari++;
-        err(nome, `valore arbitrario in un blocco (regola 3 del CLAUDE.md): ${m[0]}`);
+        err(nome, `valore arbitrario (regola 3 del CLAUDE.md): ${m[0]}`);
       }
     }
     console.log(
-      `  ▪ ${nome.padEnd(24)} ${path.startsWith(LIB_DIR) ? "helper Tassullo" : path.startsWith(PAGINE_DIR) ? "pagina Tassullo" : "blocco Tassullo"} — nessun originale shadcn per costruzione` +
+      `  ▪ ${nome.padEnd(24)} ${etichettaCartella(path)} — nessun originale shadcn per costruzione` +
         (arbitrari > 0 ? `, ${arbitrari} valore/i arbitrario/i` : ""),
     );
   }
@@ -849,7 +868,9 @@ function main(): void {
   if (fileUi().length === 0) console.log("  (nessun componente: la FASE 2 non è iniziata)");
 
   if (fileBlocchi().length > 0) {
-    console.log("\nBlocchi — solo regola 3 (niente hex, niente valori arbitrari)\n");
+    console.log(
+      "\nBlocchi, pagine, helper e hook — solo regola 3 (niente hex, niente valori arbitrari)\n",
+    );
     for (const t of controllaBlocchi()) token.add(t);
   }
 
