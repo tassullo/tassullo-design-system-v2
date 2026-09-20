@@ -9663,3 +9663,295 @@ tabella §1 dell'analisi ripercorsa riga per riga con l'item che la copre. La
 riga 12 è chiusa da qui. Numeri di partenza per quella sessione: **94 item**,
 `test:a11y` **1496**/0, `misura:bersagli` **3246** su 374 story con **0**
 piccoli.
+
+---
+
+## M4ter.10 — Gate di fase: l'installazione cronometrata e la mappa richiusa (2026-09-20)
+
+**FASE 4ter chiusa, 10/10.** Nessun componente scritto: questa sessione
+certifica. Le sole scritture sul registry sono le **due correzioni** che la
+prova d'installazione ha dimostrato rotte, più i **due passi di documentazione**
+senza cui la ricetta del `README` non arriva in fondo.
+
+Il conto degli item nuovi, rifatto invece di ereditato: `PIANO.md` scrive «gli
+otto item nuovi» e sono **dodici**. Diffando `registry.json` contro `424c7de`
+(82 item): `calendario-agenda`, `calendario-mese`, `calendario-motore`,
+`calendario-settimana`, `entity-image`, `item`, `numeri`, `stepper`,
+`tassullo-barra-contesto`, `tassullo-calendario`, `tassullo-indicatori`,
+`use-soglia`. **82 → 94, dodici aggiunti, zero rimossi.** `item` è di M4.7, cioè
+della coda della FASE 4, ma entra lo stesso nel giro: è arrivato dopo l'ultima
+installazione vera ed è dipendenza di `tassullo-barra-contesto`.
+
+### Dove si è misurato, e cosa questo certifica
+
+**Dal registry locale in HTTP** (`npm run dev` acceso, `http://localhost:5180/r/{name}.json`),
+la stessa scelta di M4.6 e per la stessa ragione: le correzioni di oggi vivono su
+questo branch e non su `main`, quindi la scorciatoia pubblica servirebbe ancora
+il registry rotto. Va detto perché cambia l'oggetto della certificazione: **il
+registry locale prova i sorgenti**, la scorciatoia
+`tassullo/tassullo-design-system-v2/<item>` prova ciò che è **pubblicato**, e
+quella è la prova di **M5.6**. La seconda forma qui non è stata provata.
+
+### I quattro difetti, tutti trovati installando e nessuno da un gate
+
+**(1) Un riferimento fra item rotto — è la famiglia di M4.6, rientrata.**
+`tassullo-calendario` dichiarava `@tassullo/empty-state`, cioè il **nome nudo**,
+mentre l'item pubblicato si chiama `tassullo-empty-state`. La CLI risponde
+`item not found` e l'intero calendario diventa ininstallabile. Entrato in
+M4ter.2, e `registry validate` era **verde su tutti i 94 item**: nessuno dei sei
+gate risolve i riferimenti fra item — `check:registry` confronta la *forma* dei
+componenti, `check:registry-build` confronta l'*artefatto* col sorgente, e un
+riferimento a un nome inesistente è JSON valido per entrambi. **206 riferimenti
+fra item, 1 rotto, ora 0.** È esattamente la lezione centrale di M4.6, ripetuta
+sedici mesi-uomo dopo sullo stesso identico gesto.
+
+**(2) `process.env.NODE_ENV`, di nuovo, e stavolta dentro un file `@reui`.**
+`registry/tassullo/ui/event-calendar.tsx:372`, in `warnOnce` — un avviso di
+sviluppo scritto alla maniera di Next. **Non dedotto: misurato sul compilatore
+del consumatore**, che si ferma con
+`error TS2591: Cannot find name 'process'. Do you need to install type
+definitions for node?`. Qui dentro compila, perché il workbench ha i tipi di
+Node in albero: è il difetto **muto** che M4.6 aveva già chiuso in quattro
+nostri blocchi, rientrato dalla porta di servizio con l'adozione di reui.
+Passato a `import.meta.env.DEV`, semantica invariata.
+
+  La correzione tocca un file che sta sotto il **controllo di provenienza**, e
+  una sostituzione non è una rimozione: `MORTE_A_MONTE` non la copre. È stata
+  aggiunta una tabella sorella, **`SOSTITUZIONI_DI_STACK`**, con lo stesso patto
+  — si normalizza **da entrambi i lati**, quindi il giorno in cui reui passasse a
+  Vite la tabella resterebbe corretta senza toccarla. `check:registry` resta a
+  **0 errori / 62 avvisi / 1 componente nostro / 19 ri-stilati**, cioè identico
+  alla base: la sostituzione non conta come nostro ri-stile, che è il risultato
+  giusto.
+
+  **E la normalizzazione non acceca il gate: provato in due direzioni.**
+  Cambiando `DEV` in `PROD` sulla riga accanto → 1 errore; cambiando `new
+  Set<string>()` in `new Map<string, number>()` cinque righe sopra → 1 errore.
+  Ripristinato: 0. Un'esenzione che non si prova che è stretta è un'esenzione
+  che non si sa quanto sia larga.
+
+**(3) `shadcn init` non parte più senza `--preset`, e la nostra ricetta non lo
+passava.** Il comando del `README` si pianta su un menu a tendina, e **`--yes`
+non lo salta**. Il nome giusto è **`nova`**, non `base-nova`: è `--base base` a
+farne `base-nova`. Passare `base-nova` dà *Invalid preset*. È un prerequisito
+mai scritto della stessa famiglia dei due di M4.6, con la differenza che questo
+non era sbagliato quando è stato scritto — **la CLI è cambiata sotto**. Primo
+giro non arrivato in fondo, ricetta corretta, rimisurato da zero: la stessa
+disciplina di M4.6.
+
+**(4) Il difetto che costa di più, e non dà nessun errore: la palette del
+preset sovrascrive il tema Tassullo.** `init` scrive in coda a `src/index.css`
+i propri blocchi `@theme inline`, `:root` e `.dark` con la palette **neutra di
+shadcn**, e stanno **dopo** l'`@import "./tassullo-theme.css"` che la CLI
+aggiunge in testa attraverso il campo `css` dell'item. A parità di specificità
+vince l'ultimo. **Misurato sull'app appena installata**, col colore fatto
+risolvere al motore di resa (canvas 1×1, si legge il pixel — leggere `oklch`
+come tre numeri RGB dà misure senza senso):
+
+| token | appena installata | dopo la pulizia |
+|---|---|---|
+| `--primary` | `rgb(23, 23, 23)` — il grigio di shadcn | **`rgb(244, 172, 61)`** — l'arancio del brand |
+| `--background` | `rgb(255, 255, 255)` | `rgb(246, 246, 244)` |
+| `--sidebar` | `rgb(250, 250, 250)` | `rgb(20, 20, 20)` |
+| carattere | **Geist Variable** | **Inter** |
+
+Il risultato è **peggio di un guasto, perché è verosimile**: i token custom
+Tassullo sopravvivono — `--accent-ink` misurava `rgb(178, 81, 5)` anche prima,
+perché il preset non lo dichiara — quindi l'app sembra vestita a metà invece che
+spogliata, e chi non conosce la palette non ha modo di accorgersene. E il
+carattere giusto viene **scaricato e non usato**: `document.fonts` portava Inter
+e Geist insieme, con `font-family` su Geist.
+
+La cura sta nella documentazione e non in un'API nuova: si tolgono da
+`src/index.css` i tre blocchi scritti da `init` più l'`@import` di Geist. Non
+manca niente, perché `tassullo-theme.css` porta i **propri** `@theme inline` e
+`@theme` — 76 dichiarazioni fra colori, raggi e famiglie di carattere.
+`README.md` §Prerequisiti passa da **due** passi a **quattro**.
+
+### Il cronometro, e cosa ci sta dentro
+
+Giro completo da script, registry locale, cache npm calda:
+
+| passo | cumulato |
+|---|---:|
+| 1. `npm create vite` + `npm install` | 8s |
+| 2. Tailwind v4 + alias `@/*` | 10s |
+| 3. `shadcn init --base base --preset nova` | 22s |
+| 4. registry `@tassullo` dichiarato (**senza `@reui`**) | 22s |
+| 5. **`add` dei dodici item** | 27s *(i soli `add`: **5s**)* |
+| 6. tema + guscio + `react-router-dom` | 30s |
+| 6bis. `index.css` ripulito dalla palette del preset | 30s |
+| 7. `App.tsx` (guscio + due rotte che montano tutti e dodici) | 30s |
+| 8. `tsc -b` | 33s |
+| 9. build di produzione | 36s |
+
+**36 secondi**, contro i **6m30s** di M4.6 — ma i due numeri **non sono
+confrontabili così**, e dirlo è parte della misura. Questi 36 secondi sono i
+comandi e le scritture di file, eseguiti da uno script: non comprendono la
+lettura della documentazione né la stesura dell'`App.tsx`, che in M4.6 erano
+dentro il cronometro. Il confronto onesto è un altro: **i dodici `add` da soli
+fanno 5 secondi**, contro i **9** che in M4.6 facevano tre `add` — cioè quattro
+volte gli item in metà tempo. E il tetto dei dieci minuti resta rispettato con
+un margine che non si discute, anche mettendoci dentro le due correzioni di
+ricetta che sono servite per arrivarci.
+
+### La classe nuova: gli item che ridistribuiscono file di `@reui`
+
+Il punto della prova era che un'app **che non dichiara `@reui`** li installi e
+compili. `components.json` dell'app di prova dichiara **solo** `@tassullo`
+(verificato: zero occorrenze di `@reui`). Risultato: **10 file `event-calendar-*`
+più `icon-stack.tsx` e `stepper.tsx`** atterrati, `tassullo-reui-MIT.txt`
+compreso, `tsc -b` pulito e build di produzione pulita. Le dipendenze npm che
+quei file si portano — `date-fns` e `@date-fns/tz`, che nessun altro item chiede
+— erano già dichiarate: controllati **tutti e dodici** gli item confrontando gli
+`import` dei loro file con le `dependencies` dichiarate, **zero pacchetti
+mancanti**. Nessuno dei sei chiede `@reui`, che era l'ipotesi da verificare.
+
+### L'app di prova, guardata e non solo compilata
+
+`tsc -b` uscita 0, build di produzione uscita 0, 63 file in `src/`. Servita in
+HTTP e aperta in Chromium vero:
+
+- **Console pulita**, zero errori.
+- **Tre richieste di rete in tutto** — documento, JS, CSS — e **nessuna per la
+  tipografia**. Il font viaggia nel CSS, come dichiarato.
+- Tutti e dodici gli item montati e resi: barra di contesto, quattro indicatori,
+  stepper a tre passi, tre `entity-image` coi tre rapporti, `ItemGroup`, il
+  calendario nelle sue viste, `useSoglia` che sceglie la faccia, e i numeri
+  formattati da `lib/numeri` — **`2.086`** e **`1.284.750,40 €`**, col separatore
+  delle migliaia che c'è sempre (§47).
+- Navigazione fra le due rotte, marchio nella testata, modalità scura corretta.
+
+**Due sbagli miei, tenuti a verbale perché sono istruttivi.** Il primo: avevo
+composto `StepperNav` **attorno** a `Stepper` invece che dentro, e l'app non
+rendeva affatto (`useStepper must be used within a Stepper`) — un errore di
+composizione, non del registry, ma dice che un blocco con un contesto obbligato
+si compone leggendo la story, non a memoria.
+
+Il secondo è più interessante perché **sembrava un difetto del calendario**.
+Montato con `className="h-[42rem]"` addosso al blocco — che fra l'altro è un
+valore arbitrario, cioè già contro la regola 3 — il mese **schiacciava le
+righe**: passo di riga 92px contro celle da 127, cioè **35px di sovrapposizione**
+per cella, con i chip degli eventi disegnati sopra i numeri della riga di sopra.
+Sembrava uno sfasamento di una settimana. Il contratto è scritto nella story
+(`min-h-0 flex-1`, vuole un genitore `flex flex-col` con altezza nota, e quando
+le sei righe non ci stanno il mese **scorre**); rimontato come documentato:
+**sovrapposizione −1px**, «Sopralluogo» nella cella del 20 e «Fermo gru» in
+quella del 21, misurati per `aria-label` della cella. **Resta però un rilievo
+vero per Francesco**: fuori dal contratto il blocco schiaccia **in silenzio**,
+e nessun gate lo vede.
+
+E una conferma della regola sulla sonda: la prima misura aveva pescato i
+**contenitori di riga** (734px di larghezza) invece dei chip, e dichiarava
+sovrapposizioni ovunque. La sonda non sbagliava il numero, sbagliava
+l'elemento — identico a M4ter.9. La seconda ha cercato le celle per
+`aria-label`, cioè per la **data**, e il quadro si è raddrizzato.
+
+**E §32 di nuovo**: il primo fotogramma in modalità scura mostrava il
+`toggle-group` mese/settimana/agenda con due voci bianche e illeggibili. A
+pagina ferma, due secondi dopo, era corretto: era `transition-colors` colta a
+metà.
+
+### I gate, a fine sessione
+
+| misura | valore | base |
+|---|---|---|
+| `registry.json` | **94 item** | 94, invariato |
+| `registry validate` | verde su **94 item** | — |
+| riferimenti fra item | **206, 0 rotti** | era 1 rotto |
+| `npm run check` | **uscita 0**, sei gate | — |
+| `check:contrast` | 48 coppie, 0 sopra soglia | 48 |
+| `check:registry` | **0 errori / 62 avvisi / 1 componente nostro / 19 ri-stilati** | identico |
+| `check:registry-build` | `public/r/` allineato, **95 file** | 95 |
+| `test:a11y` | **1496 scansioni (4 passate) su 374 story, 0 violazioni** | 1496/0 |
+| `misura:bersagli` | **3246 bersagli su 374 story**, 61 popup aperti, 2126 sotto i 44px, 35 tipi, **0 piccoli in entrambe le direzioni** | 3246/374/0 |
+| controllo dello strumento | bottone di default in touch = **48px** (atteso 48) ✔ | — |
+| `npm run build` | uscita 0 | — |
+| `npm run lint` | uscita 0, **26 avvisi**, tutti preesistenti | 26 |
+
+Nessun numero si è mosso, ed è il risultato che una sessione di certificazione
+deve dare: le due correzioni erano **sotto** la soglia di ciò che i gate
+guardano, e infatti nessuno dei sei le aveva viste.
+
+### Lavoro 2 — la mappa richiusa
+
+`docs/ANALISI-COPERTURA-APP.md` §1 ha ora una colonna **«chiuso da»**, e le
+**dodici righe «da fare» sono dodici su dodici**. Ogni riga è stata verificata
+**nel codice**, non nei verbali: che l'item dichiarato esista e porti quello che
+la riga chiedeva.
+
+| # | pattern | chiuso da | verificato |
+|---|---|---|---|
+| 1 | Immagine d'entità con segnaposto | `entity-image` (M4ter.3) | l'unica riga di `componenti-propri.json` |
+| 2 | Lista a doppio volto | `use-soglia` + `stories/ListaDueFacce.stories.tsx` (M4ter.6) | hook e story presenti |
+| 3 | Fila di indicatori KPI | `tassullo-indicatori` (M4ter.7) | `export function Indicatori`, `blocks/indicatori.tsx:170` |
+| 4 | Pagine auth oltre il login | `pagina-login` con `modo` (M4ter.4) + le sette scene (M4ter.5) | `pages/pagina-login.tsx`, `stories/SchermateAccesso.stories.tsx` |
+| 5 | Barra a segmenti | `stepper`, adottato da `@reui` (M4ter.1) | `ui/stepper.tsx` — **non** è un componente nostro |
+| 6 | Piè di tabella libero | prop `piede` di `data-table` (M4ter.8) | `blocks/data-table.tsx:394` |
+| 7 | Conferma con campo di testo | prop `campo`/`corpo` di `confirm-dialog` (M4ter.8) | `blocks/confirm-dialog.tsx`, e il campo è **fuori** da `aria-describedby` |
+| 8 | Chip-filtro con conteggio | scena «Chip col conteggio» di `toggle-group` (M4ter.8) | `ui/toggle-group.stories.tsx` |
+| 9 | Contatore accanto all'intestazione | `LivelloPercorso.titolo` → `ReactNode` (M4ter.7) | `blocks/page-header.tsx:128` |
+| 10 | Descrizione sotto il titolo di una scheda | prop `descrizione` di `pagina-scheda` (M4ter.7) | `pages/pagina-scheda.tsx:121` |
+| 11 | Calendario a eventi | `tassullo-calendario` + i quattro item del motore (M4ter.1/.2) | `blocks/calendario.tsx`, installato e reso nell'app di prova |
+| 12 | Barra di contesto | `tassullo-barra-contesto` (M4ter.9) | `blocks/barra-contesto.tsx` |
+
+**Le otto righe «coperte», ricontrollate a campione — e sono state guardate
+tutte e otto**, perché costavano un `ls` l'una: `dialog`, `tabs`, `select`,
+`collapsible`, `diff-view` esistono; `file-upload` **sta in `blocks/`, non in
+`ui/`** (item `tassullo-file-upload`); `data-table` ha `pannelloRiga` (25
+occorrenze, cioè §6.4 regge); `item` ha `variant: muted` — la prima sonda diceva
+di no perché cercavo `"muted"` fra virgolette e nel `cva` la chiave è nuda.
+Nessuna delle otto si è mossa.
+
+**Il differito resta differito, e la sua riga è stata corretta.** Lo slot in
+`app-shell` per una fascia persistente fra la testata e `<Outlet/>`: l'innesco —
+«quando una seconda app ha un contesto attivo che attraversa le pagine» —
+**non è scattato**, oggi ce l'ha il solo Studio. La riga dei differiti però
+**non nominava `tassullo-barra-contesto`**, perché l'analisi è del 2026-09-19 e
+il blocco è del giorno dopo: la riga diceva «la pagina monta la barra da sé e
+funziona» senza dire con cosa. Corretta. Lo slot **non è stato aggiunto e non è
+stato proposto**.
+
+### Cosa non è stato fatto, e perché
+
+- **Nessun componente, variante o taglia.** La sessione certifica.
+- **Nessun settimo gate.** Il difetto (1) — i riferimenti fra item che nessuno
+  risolve — è **la seconda volta** che si manifesta e sarebbe uno script di
+  venti righe: si leggono i `registryDependencies`, si controlla che ogni
+  `@tassullo/<x>` corrisponda a un `name` di `registry.json`, si esce 1
+  altrimenti. **Proposto, non scritto**: un settimo gate è un'API in più nel
+  repo e la regola dice di chiedere. Se Francesco dà il via libera è mezza
+  sessione, e chiude per sempre una famiglia di difetti che finora si è vista
+  solo installando da fuori.
+- **La scorciatoia pubblica non è stata provata**: è M5.6.
+- **Nessun repo d'app toccato, e nessuno clonato**: la mappa si è chiusa sul
+  codice del registry, che è dove stanno gli item da certificare. Non è servito
+  rileggere Studio o Officina.
+- **`h-[42rem]` nell'app di prova** è stato tolto: era un valore arbitrario, e
+  anche fuori dal registry non è il modo di mostrare come si monta un blocco.
+
+### Quello che resta da guardare a Francesco
+
+- **Dieci minuti sono stati abbastanza, sì o no?** — 36 secondi di comandi, 5 i
+  dodici `add`; ma due correzioni di ricetta sono servite per arrivarci, e senza
+  quelle il giro **non finiva**.
+- **Delle dodici righe «da fare», quante consideri davvero chiuse guardando
+  l'item che le copre?** — dodici su dodici è il mio conto, verificato nel
+  codice; il giudizio su «copre davvero» è tuo.
+- **C'è una pagina delle tue tre app che, dopo questa fase, ancora non sapresti
+  ricomporre?** — la domanda del gate, e non la può chiudere chi ha scritto gli
+  item.
+- **Il settimo gate sui riferimenti fra item**: lo scrivo o no?
+- **Il calendario montato fuori contratto schiaccia in silenzio**: vale un
+  avviso in sviluppo (`import.meta.env.DEV`, come gli altri quattro), o si
+  lascia alla documentazione?
+
+### Prossimi passi
+
+**FASE 4ter chiusa, 10/10, 94 item.** La **FASE 5 è sbloccata per intero**:
+M5.1 (`dependencies` npm di ogni item — e oggi sono risultate complete su tutti
+e dodici gli item nuovi), M5.3 e M5.4 (i documenti di adozione, che ereditano da
+qui i **quattro** prerequisiti invece dei due), M5.5 (la guida di migrazione,
+che ora può nominare blocchi che esistono tutti) e M5.6 (tag `v2.0.0` e prova
+d'installazione **dalla scorciatoia pubblica**, che è la metà di prova che questa
+sessione non ha fatto).

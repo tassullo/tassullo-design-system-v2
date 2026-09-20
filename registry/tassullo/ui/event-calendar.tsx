@@ -369,7 +369,19 @@ function resolveSettings<TData>(
 
 const warned = new Set<string>()
 function warnOnce(key: string, message: string) {
-  if (process.env.NODE_ENV !== "production" && !warned.has(key)) {
+  /*
+   * `import.meta.env.DEV` e non `process.env.NODE_ENV`, che è la forma di
+   * monte: `process` non esiste in un'app Vite appena creata, e il typecheck
+   * del **consumatore** si ferma su `Cannot find name 'process'` finché non
+   * installa `@types/node` — un pacchetto che nessun documento gli dice di
+   * installare, per un errore che non c'entra con quello che stava facendo.
+   * Qui dentro compila lo stesso, perché il workbench ha i tipi di Node in
+   * albero: è il difetto **muto** che M4.6 aveva già corretto in quattro
+   * nostri blocchi, e che con `@reui` è rientrato dalla porta di servizio.
+   * Misurato in M4ter.10 sull'app di prova, non dedotto. La semantica non
+   * cambia: vero in sviluppo, falso nella build.
+   */
+  if (import.meta.env.DEV && !warned.has(key)) {
     warned.add(key)
     console.warn(`[event-calendar] ${message}`)
   }

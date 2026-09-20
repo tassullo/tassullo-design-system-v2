@@ -18,7 +18,7 @@
     "@tassullo/calendar",
     "@tassullo/combobox",
     "@tassullo/popover",
-    "@tassullo/empty-state",
+    "@tassullo/tassullo-empty-state",
     "@tassullo/dialog",
     "@tassullo/field",
     "@tassullo/input",
