@@ -7315,13 +7315,28 @@ messaggio che descrive un'azione inesistente è peggio di uno generico, perché
 manda a cercare qualcosa che non c'è. Sostituito con «Riprova o contatta
 l'amministratore.» — senza virgola, su indicazione di Francesco.
 
-**Resta una virgola non allineata**, ed è dichiarata invece che corretta di
-nascosto: la story `Errore` (quella di `modo="microsoft"`, che precede questo
-task) dice ancora «Riprova**,** o contatta l'amministratore». Toglierla è una
-battitura, ma quella frase è **dentro la linea di base del DOM**: la
-correzione produrrebbe una differenza voluta proprio nel confronto che serve
-a dimostrare che Anagrafe e Officina non sono cambiate. Non vale la pena
-spendere il criterio per una virgola senza che Francesco lo decida.
+**La stessa virgola c'era anche nella story `Errore`** — quella di
+`modo="microsoft"`, che precede questo task. Allinearla è una battitura, ma
+quella frase sta **dentro la linea di base del DOM**, quindi la correzione
+spende il criterio della sessione: il confronto non torna più «0 differenze».
+Non è una decisione da prendere di iniziativa, ed è stata portata a Francesco
+con il costo scritto; **allineata su sua conferma**.
+
+**La differenza voluta, elencata** — come il mandato chiede, una per una e
+non «sono differenze innocue»:
+
+| file | righe | cosa cambia |
+|---|---|---|
+| `chiaro--errore.html` | 1 (la 12) | «Riprova**,** o contatta» → «Riprova o contatta» |
+| `scuro--errore.html` | 1 (la 12) | idem |
+
+**Otto file su dieci restano a 0 differenze**, e quei due cambiano dentro un
+**nodo di testo**: stesso elemento, stesso `data-slot`, stesse classi, stesso
+albero. È il `messaggioErrore` che la *story* passa come argomento — cioè
+esattamente ciò che l'app decide — non qualcosa che il componente rende da
+sé. La prova che serve a Anagrafe e Officina — «il componente, a parametri
+invariati, rende lo stesso albero» — regge intatta: nessuno dei due passa
+quella stringa.
 
 **Quarto, e misurato**: la penultima stesura prendeva **due righe** e lasciava
 «contatta l'amministratore» orfano sulla seconda, che dentro un avviso di tre

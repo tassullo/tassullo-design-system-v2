@@ -61,7 +61,7 @@ export const Errore: Story = {
   args: {
     ...Predefinito.args,
     stato: 'errore',
-    messaggioErrore: 'Microsoft ha rifiutato l’accesso. Riprova, o contatta l’amministratore.',
+    messaggioErrore: 'Microsoft ha rifiutato l’accesso. Riprova o contatta l’amministratore.',
   },
 }
 
