@@ -1,16 +1,16 @@
 # Il gate del registry, in CI.
 #
-# ── Perché questo file è qui prima di poter girare ──────────────────────
+# ── Perché questo file è stato scritto prima di poter girare ────────────
 #
-# Il repo **non ha un `git remote`**, ed è una decisione (D4, aperta), non
-# una dimenticanza: finché non si sceglie dove pubblicare, resta locale.
-# Quindi oggi questo workflow non parte mai — non c'è nessun GitHub che lo
-# legga. È scritto lo stesso perché il criterio di M2.9 è che l'audit
-# diventi **automatico e continuo**, e la differenza fra «lo faremo» e
-# «è fatto» è un file committato che parte da sé il giorno in cui il remote
-# esiste. Chi chiude D4 non deve anche ricordarsi di scrivere la CI.
+# **Da D4 chiusa (2026-09-10) gira davvero**, su ogni push a `main` e su ogni
+# pull request. Ma è stato committato mesi prima, quando il repo non aveva
+# ancora un `git remote` e quindi nessun GitHub lo leggeva: il criterio di
+# M2.9 era che l'audit diventasse **automatico e continuo**, e la differenza
+# fra «lo faremo» e «è fatto» è un file che parte da sé il giorno in cui il
+# remote esiste. Chi ha chiuso D4 non ha dovuto anche ricordarsi di scrivere
+# la CI, ed è il motivo per cui la nota resta qui.
 #
-# Fino ad allora il gate si esegue in locale, con lo stesso comando:
+# In locale il gate si esegue con lo stesso comando:
 #   npm run check
 name: Gate
 
@@ -38,7 +38,8 @@ jobs:
       # si aspetta.
       - run: npx playwright install --with-deps chromium
 
-      # I tre controlli statici — palette, aggiornabilità, font — e poi le
+      # I cinque controlli statici — palette, aggiornabilità dei componenti,
+      # allineamento di `public/r/` ai sorgenti, font, marchio — e poi le
       # quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto}.
       - run: npm run check
 

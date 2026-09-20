@@ -128,27 +128,132 @@ testo va a capo.
 guscio + un campo + un esito: `Field`+`Input`+`Button`, e `Empty`/`Alert` per l'esito.
 Non serve codice nuovo: serve **una story** che lo mostri.
 
-## 3. Punti aperti — da risolvere nella sessione che scrive
+## 3. I quattro punti — **risolti** in M4ter.4 (2026-09-20)
 
-Sono il genere di cosa che, scoperta a metà lavoro, fa rifare l'API.
+Erano aperti fino al 2026-09-19, ed erano il genere di cosa che, scoperta a
+metà lavoro, fa rifare l'API. Risolti **prima** di scrivere la firma, che è
+l'unico momento in cui costano poco. La firma che ne esce sta in
+`registry/tassullo/pages/pagina-login.tsx`; qui c'è il **perché**.
 
-1. **La disponibilità è per via, non per pagina.** Oggi `configurato` è un booleano solo
-   e vuol dire «l'app registration Entra ID c'è». Studio ne ha due: quella, e
-   `accessoLocale = stato?.abilitata !== false` (`Login.tsx:44`) — l'accesso locale è
-   spento finché il backend non ha il segreto. Con tre modi servono **due interruttori
-   distinti**, ciascuno legato alla sua via. `configurato` va mantenuto col significato
-   di oggi, o Anagrafe e Officina cambiano.
-2. **L'errore deve sapere da quale via viene.** Oggi `stato: "errore"` è uno solo. In
-   Studio l'errore del ritorno da Microsoft è catturato in `main.tsx` e mostrato in cima,
-   mentre l'errore di credenziali sbagliate sta sul form. Indistinti, un accesso
-   dipendente fallito colorerebbe di rosso il campo password — la cosa sbagliata da dire
-   a chi ha sbagliato tutt'altro.
-3. **Il logo Microsoft.** Studio usa un bottone **nero col logo a quattro quadrati**;
-   `pagina-login` oggi usa il bottone primario con `LogInIcon` di Lucide. Sono due
-   trattamenti dello stesso comando, e vanno pareggiati. Attenzione: il logo Microsoft è
-   un marchio di terzi e ha quattro colori fissi — come SVG nel registry violerebbe la
-   regola 3 sui valori arbitrari. Probabilmente entra come **nodo passato dall'app**, non
-   come file del registry.
-4. **Il campo nascosto** (`textbox type="hidden"` nell'albero di `/registrati`) è quasi
-   certamente un honeypot anti-bot. Non è materia del design system: la pagina se lo
-   scrive. Da non assorbire per distrazione.
+### 3.1 La disponibilità è per via → **due interruttori, e il vecchio non cambia**
+
+Il problema: `configurato` era un booleano solo e voleva dire «l'app
+registration Entra ID c'è». Studio ne ha due — quella, e
+`accessoLocale = stato?.abilitata !== false` (`Login.tsx:44`), spento finché
+il backend non ha il segreto.
+
+**Risolto così.** `configurato` **mantiene esattamente il significato di
+oggi** e governa la **sola via Microsoft**: Anagrafe e Officina non cambiano
+di un carattere. La via locale ha il suo, nuovo: `credenzialiAbilitate`,
+`true` di default.
+
+E una decisione che il punto non poneva ma che si scopre scrivendolo: **una
+via spenta si mostra disabilitata con un avviso, non nascosta**. È lo stesso
+trattamento che `configurato={false}` dà da sempre all'altra via, e una via
+che sparisce senza dire perché si legge come un guasto — l'utente non sa se
+manca la funzione o se è rotta la pagina.
+
+### 3.2 L'errore deve sapere da quale via viene → **`statoDi`, e vale anche per `in-corso`**
+
+**Risolto così.** `statoDi?: "microsoft" | "credenziali"` dice a quale via si
+riferisce `stato`. Non un secondo `stato`: **uno stato e la sua via**, o si
+potrebbero dichiarare due stati che si contraddicono, che è la ragione per cui
+`stato` era già un prop solo invece di tre booleani.
+
+Scrivendolo si è visto che **il punto valeva più di quanto diceva**: non è
+solo l'errore, è anche `in-corso`. L'indicatore va sul bottone che è stato
+premuto, o in «entrambi» un accesso Microsoft in corso girerebbe la rotella
+sopra «Accedi».
+
+- `statoDi: "credenziali"` → l'`Alert` sta **dentro il form**, e i campi
+  prendono `aria-invalid`.
+- `statoDi: "microsoft"` → l'`Alert` sta **accanto al bottone Microsoft**,
+  sotto l'etichetta del team, e i campi non si tingono. Con una via sola
+  resta invece **in cima alla card**: lì non c'è niente da cui distinguerlo,
+  è la pagina intera ad aver fallito — ed è anche ciò che tiene Anagrafe e
+  Officina a DOM invariato.
+
+**Sulla posizione, e perché si diverge da Studio.** La prima stesura lo
+metteva sempre in cima, com'è in Studio. Rilievo di Francesco a video il
+2026-09-20: in cima quell'avviso finisce **sopra il campo Email**, e chi lo
+vede lì capisce «email sbagliata». **La posizione si legge prima delle
+parole**, quindi un titolo esplicito non basta a recuperarla. Studio lo mostra
+in cima perché lo cattura in `main.tsx` a pagina che si carica: era una
+conseguenza di *dove lo si intercetta*, non una scelta di composizione — e su
+questo il design system ha ragione contro l'app.
+
+Un caso limite che vale la pena dire, perché il difetto sarebbe **muto**:
+`modo="credenziali"` con `statoDi="microsoft"` è dichiarabile, e senza una
+ricaduta esplicita l'avviso non avrebbe dove andare e **sparirebbe in
+silenzio**. Ricade in cima.
+
+Il default è **la via principale del modo**: `microsoft` per `"microsoft"`,
+`credenziali` per `"credenziali"` e per `"entrambi"` — dove le credenziali
+sono la via principale, che è l'ordine stesso della pagina. Col default,
+`modo="microsoft"` rende la pagina di prima, identica.
+
+**Le parole, e il titolo nomina la via solo quando ce n'è più d'una.** Con
+una via sola «Accesso non riuscito» non è ambiguo, ed è il testo che Anagrafe
+e Officina hanno sempre avuto: resta identico. In `"entrambi"` diventa
+**«Accesso con Microsoft non riuscito»**, e il motivo è un rilievo di
+Francesco a video il 2026-09-20 — l'avviso sta **sopra il campo Email**, e col
+titolo generico chi lo legge capisce «email sbagliata», cioè proprio la
+confusione che `statoDi` doveva togliere. La distinzione era corretta nel
+codice e invisibile sullo schermo: `statoDi` funzionava, i campi non erano
+tinti, a11y a zero — era una parola, e nessuna misura poteva prenderla.
+
+La divisione dei compiti è la stessa nelle due vie: **il titolo dice cos'è
+andato storto, il corpo cosa fare.**
+
+| via | titolo | corpo (default) |
+|---|---|---|
+| credenziali | «Email o password non corretti» | «Controlla l'indirizzo e la password, poi riprova.» |
+| Microsoft, una via sola | «Accesso non riuscito» | «Accesso non riuscito. Riprova.» *(testo di oggi, invariato)* |
+| Microsoft, in `"entrambi"` | «Accesso con Microsoft non riuscito» | passato dall'app — la story usa «Torna indietro e riprova. Se succede ancora, contatta l'amministratore.» |
+
+### 3.3 Il logo Microsoft → **nodo passato dall'app, e un trattamento solo**
+
+**Risolto così.** `logoMicrosoft?: ReactNode`. Nel registry non entra nessun
+SVG: il marchio è di terzi e i suoi quattro colori sono **fissi per
+specifica**, quindi in un file del registry sarebbero quattro esadecimali in
+un `fill`, cioè la regola 3 violata in modo non sanabile — non esiste un
+token del tema che possa diventare il rosso Microsoft senza smettere di
+essere il rosso Microsoft. Senza il nodo resta il `LogInIcon` di Lucide che la
+pagina ha sempre avuto, e la non-regressione è salva.
+
+Per le story il logo sta in **`.storybook/prove/logo-microsoft.tsx`**, la
+cartella che nessun item spedisce: le story lo passano come lo passerebbe
+Studio, dal proprio codice di pagina.
+
+**I due trattamenti pareggiati, e il criterio non è la via — è il ruolo.**
+Studio usa un bottone nero, questa pagina il bottone primario. Il nero cade:
+non è un token del tema, e sarebbe stato un terzo trattamento invece di uno.
+Regola: **la via principale prende il `Button` primario, la secondaria
+l'`outline`**. In `"microsoft"` e `"credenziali"` c'è una via sola ed è
+primaria; in `"entrambi"` il primario è «Accedi» e Microsoft è `outline` —
+che è anche il modo in cui l'ordine della pagina si vede invece di doverlo
+leggere.
+
+### 3.4 Il campo nascosto → **resta alla pagina, e non per pigrizia**
+
+**Risolto così: non si assorbe.** L'honeypot è una contromisura che vive col
+backend che la legge — il design system non sa, e non deve sapere, come quel
+backend decide che un invio è di un bot. E c'è un argomento più forte della
+separazione delle competenze: **un campo che il registry spedisse a tutte le
+app sarebbe un campo riconoscibile a tutti**, cioè un honeypot inutile. Sta
+scritto nel commento di testa del componente, sotto «quello che questa pagina
+non fa», insieme alla validazione dei campi.
+
+### 3.5 Una quinta cosa, che i quattro punti non ponevano
+
+**La firma è un'unione discriminata su `modo`**, non tre gestori facoltativi:
+`modo="entrambi"` senza `onAccediConCredenziali` **non compila**
+(`TS2741`/`TS2322`, provato in entrambe le direzioni). È la lezione di
+M4ter.3: quando una prop deve esserci, il solo controllo che la vede è il
+**tipo** (`docs/DECISIONI.md` §45c) — axe non vede un gestore mancante, e
+`build-storybook` passa da esbuild, che i tipi non li guarda. Da ieri
+`npm run build` gira in CI apposta.
+
+Il costo c'è ed è piccolo: uno spread di `args` di un'unione TypeScript non
+si sa restringere, quindi la story `Interattiva` passa le props una per una.
+Si paga in una story, non nelle app.

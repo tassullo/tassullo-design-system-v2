@@ -7027,3 +7027,339 @@ story**, 35 tipi, **0 piccoli in entrambe le direzioni**.
 
 Verificato a video in **entrambe** le modalità: in scuro le stratigrafie
 galleggiano sul fondo della card, senza blocco bianco e senza alone.
+
+---
+
+## M4ter.4 — `pagina-login` prende `modo`: le tre vie (2026-09-20)
+
+**Verdetto: chiuso.** `modo?: "microsoft" | "credenziali" | "entrambi"`,
+`microsoft` di default, ed è il default a tenere Anagrafe e Officina
+immutate — **misurato, non dichiarato**: 0 differenze di DOM su 10 file.
+
+### La linea di base, che è l'unico passo non recuperabile
+
+Il criterio che conta in questo task è «a parametri invariati le scene di
+oggi rendono 0 differenze», e **dopo la prima modifica il "di oggi" non
+esiste più**. Quindi prima di toccare qualunque cosa, su `main` pulito:
+`build-storybook`, poi Chromium vero (Playwright, headless, da un server
+statico minimo) a serializzare l'`innerHTML` di `#storybook-root` delle
+cinque scene, in chiaro e in scuro — dieci file, salvati **fuori dal repo**.
+
+A fine lavoro, `diff -rq`: **0 differenze**. Rifatto tre volte, dopo ogni
+ritocco al componente, perché una non-regressione verificata una volta sola
+vale fino alla modifica dopo.
+
+### I quattro punti di `docs/SPEC-AUTH.md` §3, e il perché delle risposte
+
+Risolti **prima** di scrivere la firma. Per esteso stanno ora in §3 della
+spec, che è passata da «punti aperti» a «risolti così»; qui il sunto e ciò
+che è emerso scrivendo.
+
+**(1) Disponibilità per via.** `configurato` mantiene il significato di oggi
+e governa la **sola** via Microsoft; la via locale ha il suo,
+`credenzialiAbilitate` (in Studio è `accessoLocale`). Scrivendolo è emersa una
+decisione che il punto non poneva: **una via spenta si mostra disabilitata
+con un avviso, non nascosta**. È il trattamento che `configurato={false}` dà
+da sempre all'altra via, e una via che sparisce senza dire perché si legge
+come un guasto.
+
+**(2) L'errore sa da quale via viene** — `statoDi`, un prop solo accanto a
+`stato` e non un secondo stato, o si potrebbero dichiarare due stati che si
+contraddicono. **Il punto valeva più di quanto dicesse**: non è solo
+l'errore, è anche `in-corso` — l'indicatore va sul bottone premuto, o in
+«entrambi» un accesso Microsoft in corso girerebbe la rotella sopra «Accedi».
+Il default è **la via principale del modo**, che per `"entrambi"` è
+`credenziali`: è l'ordine stesso della pagina.
+
+**(3) Il logo Microsoft.** `logoMicrosoft?: ReactNode`, e nel registry non
+entra nessun SVG. Per le story sta in **`.storybook/prove/`** — la cartella
+che nessun item spedisce — e non nel file `.stories.tsx`: il gate salta i
+file `*.stories.tsx` (`check-registry.ts:401`), quindi i quattro esadecimali
+del marchio lì dentro **non avrebbero fatto fallire niente**, e sarebbero
+rimasti dentro `registry/` come un precedente. Un gate che non guarda non è
+un permesso.
+
+I due trattamenti del bottone sono pareggiati, e **il criterio non è la via:
+è il ruolo**. La via principale prende il `Button` primario, la secondaria
+l'`outline`. Il nero di Studio cade — non è un token, e sarebbe stato un
+terzo trattamento. In «entrambi» questo fa anche vedere l'ordine invece di
+doverlo leggere.
+
+**(4) L'honeypot resta alla pagina.** Non per separazione delle competenze,
+che sarebbe l'argomento debole: **un campo nascosto che il registry
+spedisse a tutte le app sarebbe riconoscibile a tutti**, cioè un honeypot
+inutile. Scritto nel commento di testa, sotto «quello che questa pagina non
+fa».
+
+### La firma è un'unione discriminata, ed è la lezione di M4ter.3
+
+`modo="entrambi"` senza `onAccediConCredenziali` **non compila**. Provato
+nelle due direzioni, che è il punto:
+
+| prova | esito |
+|---|---|
+| `<PaginaLogin applicazione="X" modo="entrambi" onAccedi={…} />` | `TS2322` — «Property 'onAccediConCredenziali' is missing … but required in type 'ViaEntrambi'» |
+| le nove story vere | `tsc -b` verde |
+
+Tre gestori facoltativi sarebbero stati più comodi e non avrebbero visto
+niente: axe non vede un gestore mancante, e `build-storybook` passa da
+esbuild, che i tipi non li guarda (`docs/DECISIONI.md` §45c). Da ieri
+`npm run build` gira in CI apposta, ed è lì che questo si controlla.
+
+**Il costo c'è, e si è pagato subito**: uno spread di `args` di un'unione
+TypeScript non si sa restringere — la story `Interattiva` faceva
+`{...args}` e ha dato `TS2322` alla prima build. Corretta passando le props
+una per una. Si paga in una story, non nelle app.
+
+### Tre difetti visti a video, che nessun gate avrebbe preso
+
+Tutti e tre passavano `check`, `test:a11y` e `check:registry`. Sono la
+ragione per cui il pannello a mano non è diventato inutile.
+
+1. **Il separatore «oppure» ha il fondo sbagliato dentro una card.**
+   `FieldSeparator` dipinge la pastiglia del testo con `bg-background`
+   (`field.tsx:157`), ma qui sta dentro una `Card`, e nel tema `--background`
+   e `--card` **non coincidono** (`#F6F6F4` contro `#FDFDFD` in chiaro,
+   `#141414` contro `#1C1C1C` in scuro — in scuro è una pastiglia
+   visibilmente più scura del fondo). Corretto **dal punto di chiamata**,
+   con una classe: `[&>[data-slot=field-separator-content]]:bg-card`. La
+   primitiva non si tocca (regola 4bis).
+
+2. **L'errore di credenziali diceva due volte la stessa frase**: la story
+   passava `messaggioErrore` uguale al titolo dell'`Alert`. Tolto: il
+   messaggio di default della via **completa** il titolo invece di ripeterlo,
+   ed è proprio ciò che la verifica di Francesco chiede di poter distinguere.
+
+3. **`Password dimenticata?` restava centrato e largo 336px**, nonostante
+   `w-fit self-end`. La causa è di specificità: `Field` verticale impone
+   `*:w-full` ai figli, e `.*\:w-full > *` (0,1,1) batte `.w-fit` (0,1,0).
+   Letto dal DOM, non dedotto. Risolto con un involucro `flex justify-end`
+   che prende lui il `w-full` — e non con `justify-end` sul bottone, che
+   avrebbe lasciato un bersaglio largo quanto la card **sopra** «Accedi»,
+   cioè un rischio di clic sbagliato.
+
+E un quarto, trovato da `misura:bersagli`: il collegamento con `h-auto p-0`
+misurava **21.95px** in densità touch. Sta su una riga sua, quindi è un
+**bersaglio**, non un link in prosa: tolto `h-auto`, l'altezza propria del
+bottone lo porta a **48px × 157px** senza cambiarne l'aspetto, perché il
+riempimento orizzontale resta a zero. Il «Registrati» resta a 21.88 × 65px, e
+va bene: quello è dentro una frase.
+
+### La tastiera, misurata in Chromium vero
+
+Non supposta — e nemmeno misurata nel pannello del browser dell'app, dove
+`requestAnimationFrame` non scatta (§32).
+
+| prova | esito |
+|---|---|
+| `Invio` dal campo password | **invia il form**, 1 submit, dati `{email, password}` corretti |
+| clic su «Mostra» | **0 submit** (`type="button"`), il campo passa a `text`, l'etichetta a «Nascondi» |
+| `Tab` dal campo email | email → password → Mostra → Password dimenticata? → Accedi → Accedi con Microsoft → Registrati |
+
+Il form è **non controllato**: i valori li legge `FormData` all'invio, quindi
+`Invio` funziona perché è un form vero, non perché qualcuno l'ha
+intercettato. Niente stato duplicato nel componente.
+
+### Numeri
+
+`npm run check` verde sui **cinque**. `test:a11y` **1376 scansioni** (344
+story × 4 passate), **0 violazioni** — esattamente la previsione del piano
+(1356 + 5 scene × 4). `check:contrast` **48/48** (24 coppie per modalità), 0
+violazioni: l'errore sul form non introduce coppie nuove, usa
+`Alert variant="destructive"` che c'era già. `check:registry` 0 errori / 62
+avvisi / **1 componente nostro** / 19 ri-stilati — invariati, perché qui non
+nasce nessun componente. `registry.json` fermo a **90 item**,
+`registry validate` verde. `build` e `lint` verdi, zero avvisi dalla pagina.
+`misura:bersagli` **3047 bersagli su 344 story**, 59 popup aperti, 35 tipi,
+**0 piccoli in entrambe le direzioni**.
+
+### Cosa resta da guardare
+
+- **Il marchio `.marchio-t` è allineato a sinistra mentre titolo e
+  descrizione sono centrati.** Si vede su tutte e cinque le scene di oggi,
+  quindi **non è un difetto introdotto qui** e toccarlo avrebbe rotto la
+  non-regressione: `CardHeader` è una griglia, e `items-center` non centra
+  sull'asse orizzontale. Da decidere in M4ter.5, che rifà il guscio su altre
+  cinque schermate.
+- **`"credenziali"` non ha consumatori oggi**, ed è voluto (§1.2 della spec):
+  è il valore di una prop, non un componente, e senza il caso puro «entrambi»
+  sembrerebbe un caso speciale invece che la somma di due vie.
+
+### Un rilievo fuori mandato: `public/r/` era disallineato su `main`
+
+`npm run registry:build` ha rigenerato anche **`public/r/entity-image.json`**,
+che non c'entra con questo task. La causa: la coda 2 di M4ter.3 ha tolto
+`bg-muted` dalla radice di `entity-image.tsx` — la regola «un componente non
+dipinge un fondo che non gli è stato chiesto» — ma `registry:build` non è
+stato rilanciato dopo quella modifica. Il registry **pubblicato** serviva
+quindi ancora la versione col fondo: un'app che avesse installato
+`entity-image` oggi avrebbe ricevuto esattamente ciò che quella coda aveva
+deciso di togliere.
+
+Allineato qui, perché il file rigenerato è corretto ed è peggio lasciarlo
+sfasato. Ma il fatto che resta è che **nessuno dei cinque gate guarda se
+`public/r/` corrisponde ai sorgenti**: `check:registry` confronta i
+componenti con `registry/.upstream/`, non l'artefatto pubblicato con il
+componente. È lo stesso genere di difetto muto di `check:font` e
+`check:logo`, che invece un controllo ce l'hanno. Segnalato, non risolto di
+iniziativa: è un gate nuovo, non una riga.
+
+### Coda 1 di M4ter.4: `check:registry-build`, il sesto gate (2026-09-20)
+
+Su indicazione di Francesco, subito dopo il rilievo qui sopra invece che in
+una sessione a parte: un gate che manca è un gate che si rimanda.
+
+**Cosa chiude.** `public/r/` non si compila, non si esegue e non si guarda
+mai — quindi un JSON vecchio lì dentro non rompe niente in casa. Rompe nelle
+app, settimane dopo, e nel modo peggiore: installano un componente che nel
+repo non esiste più, e il `git log` dice il contrario di quello che hanno in
+mano. `check:registry` non poteva vederlo, e non per svista: confronta i
+**componenti** con `registry/.upstream/`, cioè il nostro codice con
+l'originale shadcn. Nessuno confrontava l'**artefatto** col sorgente.
+
+**Perché si rilancia il costruttore vero.** La strada ovvia era leggere
+`registry.json`, rileggere i file e comporre i JSON attesi. Sarebbe stata una
+**seconda implementazione del formato di shadcn**: alla prima versione in cui
+loro cambiano una chiave, 90 falsi positivi, e un gate che dà falsi positivi
+si smette di leggere. Quindi si esegue `shadcn build` — quello vero, dal
+lockfile (`node_modules/.bin/shadcn`, **0,8 s**) — dentro una cartella
+temporanea **fuori dal repo**, e si confronta byte per byte. Il costruttore
+resta uno solo e il gate non sa niente del formato. Non scrive niente nel
+repo, e la temporanea si cancella anche quando il confronto fallisce.
+
+**Il gate ha trovato una deriva vera alla prima esecuzione, e non quella per
+cui era stato scritto: la mia.** Gli ultimi tre ritocchi a `pagina-login.tsx`
+— l'involucro del collegamento, `h-auto`, il link disabilitato con la via —
+erano finiti nel commit **senza** un `registry:build` dopo. Cioè: il difetto
+che il gate doveva impedire si era già ripetuto dentro la sessione che lo
+stava scrivendo, a poche ore dall'averlo descritto. È l'argomento migliore
+che avesse, e non l'ha fornito una prova costruita ad arte.
+
+**L'autotest, nelle due direzioni** (`-- --self-test`), sul modello di
+`check:contrast -- --self-test`. Lavora su due copie temporanee e non tocca
+`public/r/`:
+
+| direzione | esito |
+|---|---|
+| due copie identiche | **0** divergenze |
+| copia guastata in tre modi — contenuto cambiato, item tolto, item di troppo | **3** divergenze, una per genere |
+
+Le tre non sono zelo: sono i tre casi che il gate *dichiara* di saper
+distinguere, e un confronto che vede solo i contenuti cambiati passerebbe un
+item rinominato. Il self-test prova la **stessa** funzione che il gate usa
+davvero (`confronta`), non una scorciatoia: un controllo verificato per
+un'altra strada da quella che percorre non prova niente.
+
+Il messaggio d'errore dice **quale file dentro l'item** è cambiato, non solo
+che l'item diverge: `entity-image.json: diverge dal sorgente —
+registry/tassullo/ui/entity-image.tsx`. Quando i due JSON non sono
+confrontabili in quella forma non si inventa una spiegazione e resta il solo
+verdetto.
+
+**Cablato**: `package.json` (`check:registry-build`, e dentro `npm run
+check`), `CLAUDE.md` §Comandi — «i **cinque** gate» → «i **sei**», più la
+voce del comando e la nota su `registry:build`, che non è più una cosa da
+ricordare — e `.github/workflows/gate.yml`, dove il commento diceva ancora
+«i tre controlli statici». Nello stesso file corretta una testata che era
+diventata falsa: diceva «il repo non ha un `git remote`, quindi questo
+workflow non parte mai», ma D4 è chiusa dal 2026-09-10 e da allora gira su
+ogni push e ogni PR.
+
+`npm run check` verde sui **sei**, uscita 0.
+
+### Coda 2 di M4ter.4: il titolo dell'errore non diceva quale via (2026-09-20)
+
+**Rilievo di Francesco, a video, sulla scena `ErroreMicrosoft`**: «non si
+capisce che significa l'errore».
+
+Aveva ragione, e il difetto era proprio quello che `statoDi` doveva togliere,
+rientrato da una porta che non stavo guardando. L'avviso era giusto di
+posto — in cima, com'è in Studio — ma il **titolo** era rimasto generico:
+«Accesso non riuscito», sopra un campo Email. Chi lo legge capisce «email
+sbagliata», che è esattamente la cosa sbagliata da dire a chi ha sbagliato
+tutt'altro. Il corpo nominava Microsoft, ma il titolo è ciò che si legge per
+primo e spesso l'unica cosa che si legge.
+
+Il fatto istruttivo: **la distinzione era corretta nel codice e invisibile
+sullo schermo**. `statoDi` funzionava, l'`Alert` era nel posto giusto, i
+campi non erano tinti, a11y a zero e la non-regressione a zero. Nessuna
+misura poteva prenderlo, perché non era un difetto di struttura né di
+contrasto: era una parola.
+
+Primo rimedio: **il titolo nomina la via solo quando ce n'è più d'una.** Con
+una via sola «Accesso non riuscito» non è ambiguo — ed è il testo che
+Anagrafe e Officina hanno sempre avuto, quindi resta identico e la
+non-regressione con esso. In «entrambi» diventa «Accesso con Microsoft non
+riuscito».
+
+**Secondo rilievo, e questo è quello che risolve davvero**: «l'errore è
+posizionato sopra la mail, sarebbe meglio nella zona Team Tassullo, così si
+capisce che è un errore di accesso con Microsoft». Giusto, e il titolo era un
+rimedio a metà: **la posizione si legge prima delle parole**. In «entrambi»
+l'avviso è passato sotto l'etichetta del team, **sopra il bottone Microsoft**:
+adesso è il posto a dire quale via ha fallito, e il titolo non deve più
+reggere il peso da solo.
+
+Si diverge da Studio, che lo mostra in cima, e la divergenza è voluta: Studio
+lo cattura in `main.tsx` a pagina che si carica, quindi quella posizione era
+una conseguenza di **dove lo si intercetta**, non una scelta di composizione.
+
+Con una via sola resta in cima — lì non c'è niente da cui distinguerlo, è la
+pagina intera ad aver fallito — ed è anche ciò che tiene il DOM di Anagrafe e
+Officina invariato (riverificato dopo lo spostamento: **0 differenze**).
+
+**Terzo rilievo, sulle parole: «Torna indietro e riprova» era falso.** L'SSO
+è un redirect — chi legge quell'avviso **è già tornato**, non c'è nessuna
+schermata precedente, e il bottone per riprovare è quello subito sotto. Un
+messaggio che descrive un'azione inesistente è peggio di uno generico, perché
+manda a cercare qualcosa che non c'è. Sostituito con «Riprova o contatta
+l'amministratore.» — senza virgola, su indicazione di Francesco.
+
+**La stessa virgola c'era anche nella story `Errore`** — quella di
+`modo="microsoft"`, che precede questo task. Allinearla è una battitura, ma
+quella frase sta **dentro la linea di base del DOM**, quindi la correzione
+spende il criterio della sessione: il confronto non torna più «0 differenze».
+Non è una decisione da prendere di iniziativa, ed è stata portata a Francesco
+con il costo scritto; **allineata su sua conferma**.
+
+**La differenza voluta, elencata** — come il mandato chiede, una per una e
+non «sono differenze innocue»:
+
+| file | righe | cosa cambia |
+|---|---|---|
+| `chiaro--errore.html` | 1 (la 12) | «Riprova**,** o contatta» → «Riprova o contatta» |
+| `scuro--errore.html` | 1 (la 12) | idem |
+
+**Otto file su dieci restano a 0 differenze**, e quei due cambiano dentro un
+**nodo di testo**: stesso elemento, stesso `data-slot`, stesse classi, stesso
+albero. È il `messaggioErrore` che la *story* passa come argomento — cioè
+esattamente ciò che l'app decide — non qualcosa che il componente rende da
+sé. La prova che serve a Anagrafe e Officina — «il componente, a parametri
+invariati, rende lo stesso albero» — regge intatta: nessuno dei due passa
+quella stringa.
+
+**Quarto, e misurato**: la penultima stesura prendeva **due righe** e lasciava
+«contatta l'amministratore» orfano sulla seconda, che dentro un avviso di tre
+righe si legge come un secondo messaggio. Misurata la larghezza utile della
+descrizione — **330px** — e provati quattro candidati in pagina: quello scelto
+sta su **una riga sola**, verificato in densità normale **e** touch.
+
+E un caso limite chiuso mentre si spostava, perché sarebbe stato **muto**:
+`modo="credenziali"` con `statoDi="microsoft"` è dichiarabile, e senza una
+ricaduta esplicita l'avviso non avrebbe avuto dove andare e **sarebbe sparito
+in silenzio**. Ricade in cima.
+
+E rifatto il corpo del messaggio nella story, che era in una lingua strana
+(«il rientro da Microsoft non è andato a buon fine»): ora il titolo dice
+**cos'è andato storto** e il corpo **cosa fare** — «Torna indietro e riprova.
+Se succede ancora, contatta l'amministratore.» È la stessa divisione dei
+compiti dell'errore di credenziali («Email o password non corretti» /
+«Controlla l'indirizzo e la password, poi riprova»), e adesso le due coppie
+si distinguono dal titolo, senza leggere il corpo.
+
+`docs/SPEC-AUTH.md` §3.2 aggiornata di conseguenza.
+
+### Prossimi passi
+
+M4ter.5 — le cinque schermate d'accesso di Studio composte, `@reui/stepper`
+per i passi, **zero componenti nuovi** (item fermi a 90), a11y 1376 → 1404.
