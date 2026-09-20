@@ -8605,3 +8605,197 @@ qui sopra.
 ### Prossimi passi
 
 M4ter.7 — `tassullo-indicatori`, e le due prop di sola forma.
+
+## M4ter.7 — `tassullo-indicatori`, e le due prop di sola forma (2026-09-20)
+
+**Verdetto: chiuso.** `registry.json` **91 → 92 item**, `npm run check` verde
+sui **sei** (uscita 0), `test:a11y` **1444 scansioni su 361 story, 0
+violazioni** in tutte e quattro le passate. `check:registry` invariato dove
+deve esserlo: **0 errori, 62 avvisi, 1 componente nostro** — un blocco non
+prende una riga in `componenti-propri.json` — **19 ri-stilati**.
+`check:registry-build` allineato (93 file). `misura:bersagli` **3191** bersagli
+su 361 story, **0 piccoli in entrambe le direzioni**. `build` e `lint` verdi,
+**zero avvisi dai file nuovi**.
+
+**Lo scostamento, subito: le scene nuove sono sette e non sei**, quindi 1444
+scansioni e non 1440. La ragione è misurata e sta più sotto — il confronto fra
+le due forme del contatore, che avevo messo in una scena sola, montava due
+fascie insieme, cioè due `<header>`, e il gate lo ha preso.
+
+### (1) Lo scorporo, e la trappola che il piano non nominava
+
+`RigaIndicatori` era una funzione non esportata a `pagina-dashboard.tsx:210`.
+Adesso è `registry/tassullo/blocks/indicatori.tsx`, item
+`tassullo-indicatori`, e la dashboard la **ricompone**: `grep -rn
+RigaIndicatori registry/ stories/ src/` restituisce una sola riga, la parola
+dentro la prosa del blocco nuovo che racconta da dove viene.
+
+**La griglia viveva dentro un contenitore che il blocco non si portava
+dietro.** La riga usava `@4xl/dashboard:grid-cols-4`, e `@container/dashboard`
+lo dichiara la pagina a `:396`. Non l'ho dedotto: l'ho **misurato sullo
+Storybook costruito prima della correzione**, prendendo la fila vera di
+`Pagine/Dashboard` e spostandola fuori da `[data-slot=pagina-dashboard]` con
+un `appendChild` in un banco largo 1272px — che è esattamente ciò che fa
+un'app che se la installa.
+
+| dove sta la fila | larghezza | `grid-template-columns` |
+|---|---|---|
+| dentro `@container/dashboard` | 1152px | `276px 276px 276px 276px` |
+| **fuori**, banco da 1272px | 1272px | **`628px 628px`** |
+
+Due colonne su una riga dove ne stavano quattro con larghezza da vendere, e
+**nessun errore, nessun avviso, `test:a11y` a zero**. È il difetto muto più
+caro possibile in questo task, e si vede solo contando le colonne nel DOM.
+
+**La strada presa: il blocco dichiara il proprio contenitore.** `@container/
+indicatori` sulla radice, `@4xl/indicatori:grid-cols-4` sulla griglia. Passare
+il nome del contenitore come prop era la strada da non prendere — API aggiunta
+per aggirare un problema di composizione — e non è stata presa.
+
+**Contenitore e griglia sono due nodi, e non è un dettaglio di stile.** Una
+container query si applica ai *discendenti* del contenitore, mai all'elemento
+che lo dichiara: `@container/indicatori` e `@4xl/indicatori:grid-cols-4` sullo
+stesso `div` non scatterebbero mai. Il nodo in più è quindi obbligato, ed è
+l'unica differenza che la dashboard vede (vedi la non-regressione).
+
+Verificato dopo, con le colonne **contate** e non guardate:
+
+| scena | larghezza fila | colonne |
+|---|---|---|
+| `Blocchi/Indicatori → Quattro` @1440 | 1408 | `340px ×4` |
+| `Blocchi/Indicatori → Quattro` @1100 | 1068 | `255px ×4` |
+| `Blocchi/Indicatori → Quattro` @820 | 788 | `386px ×2` |
+| `Blocchi/Indicatori → InUnPannelloStretto` | 672 | `328px ×2` |
+| `Pagine/Dashboard → ConDati` | 1152 | `276px ×4` (come prima) |
+| `Pagine/Dashboard → Caricamento` | 1152 | `276px ×4` |
+
+La soglia scatta a 896px (`@4xl`) sul contenitore, in tutti e due i sensi: la
+finestra non c'entra, e l'ultima riga della tabella è la prova che dentro la
+dashboard non è cambiato niente.
+
+**Lo scheletro del caricamento è stato ricomposto, non lasciato.** Il ramo
+`stato === "caricamento"` ripeteva `grid-cols-2 gap-4 @4xl/dashboard:
+grid-cols-4` a mano: due sorgenti della stessa griglia, che divergono in
+silenzio alla prima volta che si cambia soglia o numero di colonne, e lo
+scheletro disegnerebbe una fila diversa da quella che arriva un istante dopo.
+Il blocco esporta quindi **`GrigliaIndicatori`** — la sola griglia, senza
+sapere cosa ci sta dentro — e la dashboard ci monta i `PageSkeleton`. L'ultima
+riga della tabella qui sopra è la verifica che le due disposizioni coincidono.
+
+**Il difetto muto di M4.4 resta chiuso**, riletto dal DOM dopo lo scorporo:
+
+| larghezza della carta | `card-title` | `card-description` |
+|---|---|---|
+| 230px (sotto `@[250px]`) | **27px** | 13px |
+| 276px / 340px | 31px | 13px |
+
+Mai 13px, che è il valore che `Card size="sm"` produrrebbe facendo coincidere
+il numero con la sua etichetta.
+
+### La non-regressione, e la prima misura che mentiva
+
+Metodo di M4ter.4/M4ter.5: `build-storybook`, Chromium headless contro un
+server statico minimo, `innerHTML` di `#storybook-root` sulle **4 scene** di
+`Pagine/Dashboard` in **chiaro e scuro** — 8 alberi. Il confronto non è
+byte-per-byte ingenuo: applico all'albero *prima* il solo cambiamento
+dichiarato (il nodo contenitore attorno alla griglia e la rinomina della
+soglia, con le parentesi contate per trovare il `</div>` giusto) e chiedo
+l'uguaglianza esatta con l'albero *dopo*. **8 su 8, 0 differenze non
+dichiarate.**
+
+**Ma la prima passata diceva 2 su 8, e aveva ragione lei.** Il residuo erano
+**36 coordinate su 161** dentro l'SVG di Recharts, sfasate di **al massimo
+0.0851px** — `202.1146` contro `202.1732`. Ho perso tempo a cercarlo nel
+layout, e il layout era innocente: fila e grafico misurano **126.3125px** e
+**256px** identici con e senza il nodo contenitore. Era l'**animazione di
+crescita delle barre**, colta a un fotogramma diverso: catturavo a 200ms dal
+`load`, e l'animazione di Recharts dura 1500. Due catture della *stessa* build
+coincidevano (stesso timing), due build diverse no — che è il modo più
+credibile di mentire.
+
+**La lezione, ed è §32 applicata a un posto in cui non l'avevo letta**: una
+cattura di `innerHTML` è una misura su qualcosa che transisce tanto quanto un
+`getComputedStyle`. Rifatte le due catture con 2500ms di quiete — e per la
+baseline questo ha voluto dire `git stash`, ricostruire lo Storybook vecchio,
+catturare, e tornare indietro — il conto è **0**.
+
+### (2) `descrizione` su `pagina-scheda`
+
+Prop facoltativa, `ReactNode`, **sotto** il titolo e non accanto: accanto ci
+sono già `distintivo` e le azioni, e una riga in più lì spinge «Elimina» e
+«Modifica» a capo. La colonna di sinistra diventa una `flex-col gap-1`; la
+riga `titolo + distintivo` resta identica dentro.
+
+La scena `Pagine/Scheda → ConDescrizione` usa la denominazione estesa della
+norma, che è il caso vero di Anagrafe (il titolo è un codice, e il codice non
+si legge). **Da sapere guardandola**: quel testo è lo stesso del campo
+«Titolo» del form sotto. È il caso onesto e non l'ho addolcito, ma se lì
+Francesco legge rumore, il rumore può essere la duplicazione e non la prop.
+
+### (3) `LivelloPercorso.titolo` → `ReactNode`
+
+Fatto. Due code da non dimenticare: le chiavi di React erano
+`` `${l.titolo}-${i}` ``, che con un nodo diventa `[object Object]-0` — passate
+a `` `livello-${i}` ``, e l'indice c'era già; e `PageHeaderProps.titolo` (l'`h1`
+in `sr-only`) **resta una `string`**, perché lì serve un nome e un nome è
+testo.
+
+**Il rilievo che ho misurato, e che è la domanda di Francesco.** Nella forma
+che Officina scrive oggi il contatore prende `--muted-foreground`, cioè
+**esattamente** il colore del collegamento «Officina» *e* del separatore `›`:
+`oklch(0.5222 0.0072 75.36)` su tutti e tre, contro `oklch(0.1913 0 0)` del
+nome della pagina. Si stacca dal nome, ma prende il tono dei livelli che lo
+precedono — e può quindi leggersi come **un altro livello del percorso**
+invece che come «quanti ce ne sono».
+
+Per non fargli rispondere in astratto ho messo in scena tutte e due le forme,
+testo attenuato e `<Badge variant="secondary">`. **Prima in una scena sola, e
+il gate l'ha presa**: due `Banco` sono due `FasciaIntestazione`, cioè due
+`<header>` nella stessa pagina — `landmark-no-duplicate-banner` ×1 e
+`landmark-unique` ×1, in tutte e quattro le passate. Non è un artificio del
+banco: due banner in una pagina sono un difetto vero, e non era il caso di
+spegnere la regola per una comodità di messa in scena. Divise in
+`ContatoreNelTitolo` e `ContatoreComeBadge`, da cui la settima scena e le 1444
+scansioni.
+
+### Le dipendenze del registry
+
+`tassullo-pagina-dashboard` ha guadagnato `@tassullo/tassullo-indicatori` —
+la classe di difetto che il gate di M4.6 trovò **26 volte**, e che non rompe
+niente in casa. `tassullo-indicatori` dichiara `@tassullo/card` e
+`@tassullo/tema` fra le `registryDependencies`, `cn` e `lucide-react` fra le
+`dependencies` npm. `npx shadcn@latest registry validate` verde su 92 item,
+`registry:build` rilanciato e `check:registry-build` allineato.
+
+### Cosa non è stato fatto, e perché
+
+- **Nessuna variante nuova su `card`.** Serviva solo che la `Card` *non* fosse
+  `size="sm"`, e questo si ottiene dal punto di chiamata: è il gradino 2 di
+  4bis, e non c'è stato bisogno di salire.
+- **Niente riga in `componenti-propri.json`**: un blocco non è un componente
+  nostro al posto di una primitiva. Il conto resta **1** (`entity-image`).
+- **Nessun colore nuovo.** Su/giù/stabile restano sul neutro, che è la regola
+  già scritta: la riga «tavolozza estesa» sospesa in `CHECKLIST.md` **non** si
+  è innescata una terza volta qui.
+- **Nessuna sezione nuova in `docs/DECISIONI.md`.** La cosa che meriterebbe di
+  starci — «una cattura di `innerHTML` è una misura su ciò che transisce» — è
+  un'applicazione di §32, non una decisione nuova, ed è scritta qui sopra con
+  la misura.
+
+### Quello che resta da guardare a Francesco
+
+- **La fila installata da sola sta in piedi?** `Blocchi/Indicatori → Quattro`
+  è la scena che risponde, e `InUnPannelloStretto` dice cosa fa quando lo
+  spazio non c'è. Le colonne sono misurate; quello che le misure non dicono è
+  se quattro riquadri da 340px siano la fila che vuole vedere in cima ad
+  AdminBC.
+- **`descrizione`: aggiunge o rumoreggia?** Su `Pagine/Scheda →
+  ConDescrizione`, tenendo conto che il testo coincide col campo «Titolo» del
+  form.
+- **Il contatore: nome o conteggio?** Le due scene affiancate nell'indice,
+  `ContatoreNelTitolo` e `ContatoreComeBadge`, con il rilievo misurato sopra.
+  Se vince il badge, la story da tenere come forma consigliata è la seconda.
+
+### Prossimi passi
+
+M4ter.8 — il piede della tabella, la conferma digitata, il chip col conteggio.
