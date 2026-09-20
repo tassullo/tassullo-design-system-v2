@@ -1062,6 +1062,28 @@
       "docs": "La pagina dichiara la propria intestazione; la fascia in alto del guscio la rende:\n\n  <PageHeader\n    percorso={[{ titolo: \"Prodotti\", href: \"/prodotti\" }, { titolo: \"Famiglie\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n  />\n\n<PageHeader> non occupa spazio dove sta scritta: rende dentro la fascia attraverso\nun portale. Serve perche <AppShell> si monta una volta sola attorno all'<Outlet />,\nquindi la pagina non ha modo di passargli delle prop.\n\nNon c'e un titolo che si vede: il nome della pagina e gia la voce attiva in colonna\ne l'ultimo livello del percorso. Resta come <h1> in sr-only, per chi non vede lo\nschermo, ricavato dall'ultimo livello del percorso.\n\nLe azioni si dichiarano e non si disegnano — { titolo, icona, ruolo } — perche\nl'intestazione le rende in due forme: bottoni interi quando la fascia e larga, un\nsolo bottone «...» quando e stretta. Una sola azione `primaria` per pagina.\n\nLe soglie sono container query sulla fascia (@md per il percorso, @2xl per le\nazioni), non media query sulla viewport: sotto i 768px la colonna esce dal DOM,\nquindi lo schermo si allarga di 1px e la fascia si restringe di 255.\n\nFuori dal guscio serve <IntestazioneProvider> attorno e <FasciaIntestazione /> dove\nva la barra: e quello che AppShell monta da se."
     },
     {
+      "name": "tassullo-indicatori",
+      "type": "registry:block",
+      "title": "Fila di indicatori",
+      "description": "La fila di indicatori di un cruscotto — etichetta, valore, tendenza — a due o quattro colonne secondo la larghezza del proprio contenitore. Scorporata da 'tassullo-pagina-dashboard' in M4ter.7: tre app la riscrivevano identica.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/indicatori.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/indicatori.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/card",
+        "@tassullo/tema"
+      ],
+      "docs": "La fila, in qualunque pagina — non serve la dashboard:\n\n  <Indicatori\n    indicatori={[\n      { etichetta: \"Prodotti attivi\", valore: \"1.284\", tendenza: { direzione: \"su\", valore: \"+4,2%\" } },\n      { etichetta: \"Schede in revisione\", valore: \"37\", descrizione: \"da chiudere entro venerdi\" },\n    ]}\n  />\n\nDue colonne, quattro sopra gli 896px del **proprio** contenitore: il blocco\ndichiara da se `@container/indicatori` e la soglia guarda quello. Nasceva con\n`@4xl/dashboard`, cioe con il nome di un contenitore che dichiara la pagina\ndashboard: installata altrove avrebbe reso due colonne per sempre, senza\nerrore e senza avviso. Il nome del contenitore non e una prop, e non deve\ndiventarlo: e una cosa che il blocco sa gia.\n\n`valore` e gia formattato dal chiamante — separatori delle migliaia, unita,\nvaluta: sa tutto questo solo chi conosce il dominio. `tendenza.direzione`\nsceglie la sola freccia e **mai un colore**: un aumento non e un successo e un\ncalo non e un errore, dipende dall indicatore, e il blocco non lo sa (stessa\nregola misurata su `Primitive/Chart`, story `Scostamenti`).\n\nLa `Card` resta di taglia normale: `size=\"sm\"` porta\n`group-data-[size=sm]/card:text-sm`, che vince su `text-2xl` e rende il numero\na 13px invece di 27 — misurato, ed e il difetto muto di M4.4.\n\n`GrigliaIndicatori` e esportata a parte: e la sola griglia, e serve a chi\ndeve disegnare gli scheletri del caricamento nella stessa disposizione del\ncontenuto vero. `tassullo-pagina-dashboard` la usa esattamente per quello."
+    },
+    {
       "name": "tassullo-data-table",
       "type": "registry:block",
       "title": "Tabella di dati",
@@ -1638,6 +1660,7 @@
         "@tassullo/card",
         "@tassullo/tassullo-data-table",
         "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-indicatori",
         "@tassullo/tassullo-page-header",
         "@tassullo/tassullo-page-skeleton",
         "@tassullo/tema",
