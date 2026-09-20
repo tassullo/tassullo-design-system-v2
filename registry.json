@@ -1291,7 +1291,10 @@
       ],
       "registryDependencies": [
         "@tassullo/alert-dialog",
+        "@tassullo/field",
+        "@tassullo/input",
         "@tassullo/spinner",
+        "@tassullo/textarea",
         "@tassullo/tema"
       ],
       "docs": "Una conferma non e una composizione, e una domanda:\n\n  <ConfirmDialog titolo=\"Eliminare il prodotto?\"\n                 descrizione=\"La scheda e i suoi allegati non si possono recuperare.\"\n                 conferma=\"Elimina\" tono=\"distruttivo\"\n                 onConferma={() => api.elimina(id)}>\n    <Button variant=\"destructive\"><Trash2Icon />Elimina</Button>\n  </ConfirmDialog>\n\nLa primitiva alert-dialog resta intatta: questo blocco la compone. Scritta a\nmano la stessa conferma e quattordici righe di JSX in cui cambiano due\nstringhe, e con la ripetizione arrivano tre difetti.\n\nIl colore: l'azione distruttiva e variant=\"destructive\", non\nclassName=\"text-destructive\" — --destructive e il colore dei fondi, e come\ntesto su fondo scuro da 3.52:1.\n\nL'ordine: annulla a sinistra, conferma a destra; in colonna, conferma sopra.\n\nL'attesa: onConferma puo restituire una promessa. Finche non si risolve il\ndialogo resta aperto, la conferma mostra l'indicatore e si disabilita, Esc e il\nclic fuori non chiudono. Se la promessa e rifiutata il dialogo resta aperto e\nriprovabile — l'errore lo racconta l'app.\n\nForma controllata (aperto / onApertoChange, senza figli) per il caso piu\nfrequente: la voce di un menu di riga, dove il grilletto non puo stare dentro\nperche cliccandolo il menu si chiude e si smonta."

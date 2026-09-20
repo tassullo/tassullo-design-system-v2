@@ -205,6 +205,125 @@ export const FiltriControBadge: Story = {
 }
 
 /**
+ * **Come si scrive un numero dentro un chip.** `Filtri contro badge`, qui
+ * sopra, dice *quale componente*; questa dice *come ci si mette dentro il
+ * conteggio* — e sono due cose diverse, perché il conteggio è il punto in cui
+ * un chip di filtro si confonde con un badge cliccabile.
+ *
+ * Non serve un componente. Il conteggio è uno `<span>` dentro
+ * `ToggleGroupItem`, e le tre cose che lo rendono leggibile sono tre classi:
+ *
+ * - **`text-muted-foreground`** — il numero è subordinato all&apos;etichetta.
+ *   Allo stesso peso si legge «Deumidificanti 12» come se 12 facesse parte del
+ *   nome, che è esattamente il difetto misurato in M4ter.7 sul contatore del
+ *   percorso.
+ * - **`tabular-nums`** — il tema porta `tnum` su Inter (v. `Tema/Cifre`), e
+ *   senza, `9` e `8` non sono larghi uguali: un conteggio che si aggiorna
+ *   senza cambiare numero di cifre sposta lo stesso il chip, e con lui tutti
+ *   quelli alla sua destra. Una fila di filtri che si muove mentre si filtra
+ *   fa perdere il chip che si stava per cliccare. Le cifre in più un po&apos; di
+ *   spazio lo prendono comunque — quello non si può togliere, e non è il
+ *   difetto: il difetto è muoversi **senza** che il numero sia cambiato di
+ *   lunghezza.
+ * - **niente parentesi** — «Deumidificanti (12)» aggiunge due caratteri che
+ *   non dicono niente in più. Il colore separa già il numero dal nome.
+ *
+ * Il numero **non va in un `aria-label`**: il testo del bottone è già
+ * «Deumidificanti 12», e un `aria-label` lo sostituirebbe con una versione
+ * scritta a mano che il giorno dopo non corrisponde più.
+ *
+ * ## Il conteggio a zero
+ *
+ * Un&apos;opzione a zero **resta in elenco, spenta**: toglierla farebbe
+ * saltare la fila mentre si filtra, e se fosse già scelta non ci sarebbe più
+ * modo di deselezionarla. È la stessa regola di `useOpzioniSfaccettate`
+ * (`data-table-filtro-sfaccettato.tsx`), che il conteggio lo calcola davvero
+ * — ma vuole un&apos;istanza TanStack, quindi sopra una lista che non è una
+ * tabella il numero lo conta la pagina e lo scrive qui.
+ *
+ * ## E il badge cliccabile di Officina non è questo
+ *
+ * Officina scrive oggi queste fila come **badge con il numero nel testo, e un
+ * `onClick` sopra** (Triage, Ricambi, Piani). La differenza si vede senza
+ * leggere e si sente da tastiera: il chip è un `<button>` con `aria-pressed`,
+ * ha il bordo e la taglia dei controlli, e `Tab` entra nel gruppo una volta
+ * sola lasciando le frecce a spostarsi dentro; il badge è uno `<span>` — non
+ * prende il fuoco, non dichiara di essere premuto, e un lettore di schermo non
+ * lo annuncia come comando. La terza fila qui sotto è quella forma, messa
+ * accanto perché la differenza si guardi invece di raccontarla.
+ */
+export const ChipColConteggio: Story = {
+  name: 'Chip col conteggio',
+  render: () => {
+    const conteggi: [string, number][] = [
+      ['Deumidificanti', 12],
+      ['Risanamento', 9],
+      ['Strutturali', 147],
+      ['Finiture', 0],
+    ]
+    return (
+      <div className="flex w-128 flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-muted-foreground">
+            Il chip col conteggio — si clicca, e il numero dice quante righe
+            restano
+          </span>
+          <ToggleGroup
+            multiple
+            variant="outline"
+            defaultValue={['Deumidificanti']}
+            aria-label="Filtra per famiglia"
+          >
+            {conteggi.map(([voce, quante]) => (
+              <ToggleGroupItem key={voce} value={voce} disabled={quante === 0}>
+                {voce}
+                <span className="tabular-nums text-muted-foreground">{quante}</span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-muted-foreground">
+            A una, tre e quattro cifre: il chip cresce solo di quello che le
+            cifre occupano — e finché il numero di cifre non cambia (da 9 a 8,
+            da 128 a 147) non si muove niente
+          </span>
+          <ToggleGroup
+            multiple
+            variant="outline"
+            defaultValue={['Strutturali']}
+            aria-label="Filtra per famiglia, conteggi diversi"
+          >
+            {conteggi.slice(0, 3).map(([voce], i) => (
+              <ToggleGroupItem key={voce} value={voce}>
+                {voce}
+                <span className="tabular-nums text-muted-foreground">
+                  {[3, 128, 1204][i]}
+                </span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-muted-foreground">
+            Quello che Officina scrive oggi — badge col numero fra parentesi e
+            un gestore di clic sopra: non prende il fuoco e non dice di essere
+            premuto
+          </span>
+          <div className="flex flex-wrap items-center gap-1">
+            {conteggi.slice(0, 3).map(([voce, quante]) => (
+              <Badge key={voce} variant="secondary">
+                {voce} ({quante})
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  },
+}
+
+/**
  * **Verbale di una decisione presa: lo stato «acceso» resta quello di shadcn**
  * (2026-09-09, Francesco). Questa pagina non propone niente — registra un
  * confronto già fatto, perché fra sei mesi il difetto qui sotto si «riscopre»
