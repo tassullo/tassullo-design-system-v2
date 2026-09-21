@@ -24,7 +24,7 @@
  * **Quello che delle demo NON si prende è la tavolozza.** Loro usano
  * `var(--color-blue-500)`, `bg-violet-500`, `text-[9px]`: colori grezzi di
  * Tailwind e valori arbitrari, che la **regola 3** non ammette. I colori qui
- * sono i cinque `--chart-*` del tema, e si scelgono per nome.
+ * sono i dieci `--chart-*` del tema, e si scelgono per nome.
  *
  * ── I QUATTRO DEFAULT DI CASA ───────────────────────────────────────────
  *
@@ -62,8 +62,13 @@
  * calendario che sembra rispondere e non salva niente.
  *
  * **Il contenitore deve avere un'altezza.** Il blocco è `min-h-0 flex-1`:
- * dentro un genitore `flex flex-col` con altezza nota riempie lo spazio e le
- * viste scorrono al proprio interno.
+ * dentro un genitore `flex flex-col` con altezza nota riempie lo spazio.
+ *
+ * **La vista mese ha un pavimento di tre eventi per cella**: sotto quella
+ * misura non si comprime e il contenitore scorre; sopra cresce, e su uno
+ * schermo grande la giornata carica ci sta per intero. Il ragionamento e le
+ * misure stanno su `monthRow`, più sotto. Le altre due viste scorrono al
+ * proprio interno.
  */
 import * as React from "react"
 import {
@@ -166,7 +171,7 @@ import type {
 /* ─────────────────────────── I colori ─────────────────────────── */
 
 /**
- * **I cinque colori del calendario sono i `--chart-*` del tema**, scelti per
+ * **I dieci colori del calendario sono i `--chart-*` del tema**, scelti per
  * nome e mai per valore. Un evento non porta un colore: porta il *nome* di un
  * colore, e la traduzione in token la fa questo file. È il modo in cui la
  * regola 3 si fa rispettare per costruzione invece che a memoria — `color` del
@@ -174,16 +179,29 @@ import type {
  * se ne accorga (i valori nelle prop non sono classi di Tailwind).
  *
  * Perché proprio i `--chart-*`: sono l'unica famiglia del tema pensata per
- * **distinguere serie fra loro**, ed è lo stesso mestiere. `chart-4` e
- * `chart-5` sono due grigi vicini, ed è voluto: servono a dire «questo non è
- * una categoria», per esempio un fermo chiuso o annullato.
+ * **distinguere categorie fra loro**, ed è lo stesso mestiere.
+ *
+ * **Da cinque a dieci il 2026-09-21** (M4ter.11): con cinque, un'app con più
+ * di cinque tipi di intervento doveva riusarne uno — e Officina ne aveva già
+ * bisogno, perché il «Guasto» vuole il **rosso** e nella scala vecchia il
+ * rosso non c'era (M4ter.2 dovette dargli l'arancio). Ora c'è: `rosso`, ed è
+ * `--chart-10`, **non `--destructive`** — quello resta il colore dell'allarme,
+ * e una categoria «Guasto» non è un'azione distruttiva.
+ *
+ * `grigio` è la sola tinta neutra e resta quella di prima: serve a dire
+ * «questo non è una categoria», per esempio un fermo chiuso o annullato.
  */
 export const COLORI_EVENTO = {
   arancio: "var(--chart-1)",
   verde: "var(--chart-2)",
   blu: "var(--chart-3)",
   grigio: "var(--chart-4)",
-  ardesia: "var(--chart-5)",
+  ocra: "var(--chart-5)",
+  prugna: "var(--chart-6)",
+  indaco: "var(--chart-7)",
+  oliva: "var(--chart-8)",
+  malva: "var(--chart-9)",
+  rosso: "var(--chart-10)",
 } as const
 
 export type ColoreEvento = keyof typeof COLORI_EVENTO
@@ -193,7 +211,12 @@ const ETICHETTE_COLORE: Record<ColoreEvento, string> = {
   verde: "Verde",
   blu: "Blu",
   grigio: "Grigio",
-  ardesia: "Ardesia",
+  ocra: "Ocra",
+  prugna: "Prugna",
+  indaco: "Indaco",
+  oliva: "Oliva",
+  malva: "Malva",
+  rosso: "Rosso",
 }
 
 /* ─────────────────────────── I tipi ─────────────────────────── */
@@ -1502,7 +1525,23 @@ export function Calendario<TData = unknown>({
         // 900px — che è quello del capannone.
         // Non è un valore arbitrario e non è un ri-stile: è una variabile
         // che il motore espone apposta, e il valore è un calcolo sul token.
-        style={{ "--ec-month-bar-h": "calc(var(--spacing) * 8)" } as React.CSSProperties}
+        //
+        // **E `--ec-chip-h` è la stessa altezza per il chip con orario**
+        // (M4ter.11). La barra di tutto il giorno vale
+        // `--ec-month-bar-h − 0.125rem` — la corsia meno i 2px di stacco fra
+        // corsie — mentre il chip con orario non dichiara nessuna altezza e si
+        // dimensiona sul contenuto: **30 contro 28 in normale, 46 contro 42 in
+        // touch**, e lo scarto non lo aveva deciso nessuno, era solo che in
+        // M4ter.2 uno dei due è stato alzato per gli avatar e l'altro no. Si
+        // alza il chip, non si abbassa la barra: la **corsia** che il motore
+        // riserva vale già `--ec-month-bar-h`, e `monthRow` conta in corsie di
+        // quella misura — quindi a non riempire il proprio posto era
+        // il chip. Abbassare la barra rimetterebbe invece il difetto degli
+        // avatar che M4ter.2 aveva chiuso.
+        style={{
+          "--ec-month-bar-h": "calc(var(--spacing) * 8)",
+          "--ec-chip-h": "calc(var(--ec-month-bar-h) - 0.125rem)",
+        } as React.CSSProperties}
         className={cn("min-h-0 flex-1", className)}
         apiRef={apiRef}
         events={eventiMotore}
@@ -1617,38 +1656,111 @@ export function Calendario<TData = unknown>({
           // senza l'important vincerebbe lui, e infatti la misura dava
           // ancora 24px.
           event: "py-1!",
-          // **Tre eventi per cella, non uno.** La riga del mese è `min-h-0`,
-          // quindi in un contenitore corto le celle si schiacciano e
-          // `maxEventsPerCell: "auto"` ne mostra una sola. Il conto che dà
-          // il 32: tre corsie da `--ec-month-bar-h` — che qui vale
-          // `--spacing × 8`, cioè 32px — fanno 96, più 6 di `pt-1.5` in
-          // cima e 26 di numero del giorno in fondo = **128px**, cioè
-          // esattamente 32 unità di spaziatura. Siccome deriva da `--spacing` cresce da sé in touch (120px
-          // in normale, 180 in touch). Meno di così non si può: sotto i 28px
-          // la corsia non è più un bersaglio.
-          monthRow: "min-h-32",
-          // **E il mese scorre quando non ci sta**, invece di tagliare.
-          // Sei righe da 120px sono 720px, che su uno schermo con un guscio
-          // sopra non ci stanno quasi mai; `month-view` ha `overflow-hidden`,
-          // quindi senza queste due righe l'ultima settimana **spariva senza
-          // scrollbar** — il modo peggiore di non starci.
+          // **Il pavimento è tre eventi, e da lì in su il mese cresce**
+          // (scelto da Francesco il 2026-09-21, M4ter.11, dopo tre giri a
+          // video). Queste due righe — il pavimento della cella e quello del
+          // corpo — sono l'unica leva: sotto c'è il meccanismo del motore, che
+          // fa il resto da sé.
           //
-          // Lo scorrimento però **non** sta qui: sta sul nostro contenitore,
-          // che è un `div` nostro e può prendere `tabIndex`. Una regione
-          // scorrevole senza contenuto focalizzabile dentro è
-          // `scrollable-region-focusable`, *critical* — e con un mese vuoto è
+          // ── Cosa fa il motore ──────────────────────────────────────────
+          //
+          // `maxEventsPerCell` vale `"auto"` (il nostro default): reui misura
+          // l'area utile della cella e mostra **quanti eventi ci stanno**,
+          // arrotolando il resto in «+N altri». Sopra il pavimento questo
+          // lavora a favore — più spazio, più corsie intere.
+          //
+          // ── Il conto che dà il 32 ──────────────────────────────────────
+          //
+          // Tre corsie da `--ec-month-bar-h` (qui `--spacing × 8`, cioè 32px)
+          // fanno 96, più 6 di `pt-1.5` in cima e 26 del numero del giorno in
+          // fondo: **128px**, cioè esattamente 32 unità di spaziatura. Deriva
+          // da `--spacing`, quindi cresce da sé in densità touch. Tre e non
+          // due perché una giornata con due interventi e un «+1 altro» dice
+          // meno di una con tre interventi scritti.
+          //
+          // ── Perché non si scende sotto, ed è la parte misurata ─────────
+          //
+          // Si è provata la via opposta — pavimento a **una** corsia
+          // (`min-h-16`), lasciando che l'adattamento riducesse gli eventi
+          // sugli schermi bassi. Funzionava sui numeri e **non a vedersi**:
+          // l'adattamento ragiona in corsie intere ma l'area della cella no,
+          // quindi a metà strada fra due corsie l'ultimo elemento resta
+          // **tagliato a metà** — preso a video da Francesco su un «+4 altri»
+          // tranciato in orizzontale, con la cella a 85px (59 di area utile,
+          // cioè 1,8 corsie).
+          //
+          // Col pavimento a tre corsie quel caso non esiste: sotto soglia la
+          // cella **non si comprime affatto** e il contenitore scorre; sopra,
+          // cresce di corsie intere. È la ragione di fondo della scelta:
+          // **ingrandire è sicuro, rimpicciolire no**, perché verso l'alto si
+          // aggiunge spazio e verso il basso si taglia contenuto.
+          //
+          // ── Rimisurato, dieci altezze di contenitore ───────────────────
+          //
+          // | contenitore | cella | «+N altri» | scorre | sovrapp. | tagliati |
+          // |---:|---:|---:|---|---:|---:|
+          // | 313 | 128 | 1 | sì | 0 | 0 |
+          // | 576 | 128 | 1 | sì | 0 | 0 |
+          // | 797 | 128 | 1 | sì | 0 | 0 |
+          // | 900 | 131 | 1 | no | 0 | 0 |
+          // | 1000 | 147 | 1 | no | 0 | 0 |
+          // | 1200 | 181 | 1 | no | 0 | 0 |
+          // | 1400 | 214 | **0** | no | 0 | 0 |
+          //
+          // A 1400px di contenitore il «+N altri» sparisce del tutto: la
+          // giornata più carica ci sta per intero. È il caso che la scelta
+          // vuole premiare — schermi grandi, più eventi scritti.
+          //
+          // ── Il difetto che queste due righe hanno chiuso ───────────────
+          //
+          // Prima di M4ter.11 il pavimento c'era (128px) ma il **binario**
+          // della griglia è `minmax(0, 1fr)` e si accorciava col contenitore:
+          // la riga sbordava dal proprio binario e i chip finivano disegnati
+          // nella banda della settimana di sopra, sopra i numeri dei giorni.
+          // Misurato a 576px: passo di riga 77 contro celle da 128, **51px di
+          // invasione**, chip 20×12 sopra il numero — e il contenitore offriva
+          // 51px di scorrimento contro i ~270 che servivano, cioè schiacciava
+          // **e** scorreva.
+          monthRow: "min-h-32",
+          // `overflow-visible` perche' lo scorrimento sta sul **contenitore** —
+          // un `div` nostro, che puo' prendere `tabIndex`. Una regione
+          // scorrevole senza contenuto focalizzabile dentro e'
+          // `scrollable-region-focusable`, *critical*, e con un mese vuoto e'
           // esattamente il caso: nessun chip, niente da mettere a fuoco.
           // Provato prima su `monthBody` via `classNames`, e il gate l'ha
           // preso sulla scena `Vuoto`.
-          // `overflow-visible` perche' lo scorrimento sta sul contenitore.
+          //
           // `border-t-0` perche' il bordo in cima ce l'ha gia' il
           // contenitore: due tratti a 1px di distanza si leggono come un
           // **doppio bordo**, ed e' il primo rilievo che si vede a video.
           monthView: "overflow-visible border-t-0",
-          // L'intestazione dei giorni resta ferma mentre le settimane
-          // scorrono sotto. `bg-card` perché una riga trasparente lascerebbe
-          // vedere le celle passarci dietro.
+          // **Il pavimento del corpo: `6 × 128`.** È questa riga a fare
+          // scorrere il mese invece di lasciarlo schiacciare, e serve perché
+          // il pavimento della *riga* da solo non basta — il binario resta
+          // `minmax(0, 1fr)` e continua ad accorciarsi, quindi sotto
+          // `N × pavimento` la riga sborda comunque. Con `min-h-192` il corpo
+          // smette di comprimersi e il contenitore scorre; sopra, `flex-1`
+          // cresce e l'adattamento lavora.
+          //
+          // **Non è `min-h-min`**, provata e scartata: min-content include i
+          // chip già resi, quindi la cella non si accorcia, quindi «auto» non
+          // riduce niente, quindi min-content resta grande — un cerchio che
+          // non si chiude. Qui il pavimento è un **numero**.
+          //
+          // Il prezzo, dichiarato: un mese da **cinque** settimane tiene lo
+          // stesso pavimento da sei, quindi sotto soglia offre 128px di
+          // scorrimento che non gli servirebbero. Leggere il numero di
+          // settimane dal motore sarebbe una dipendenza in più per un caso che
+          // a quelle altezze è comunque al limite.
+          monthBody: "min-h-192",
           monthHeader: "bg-card sticky top-0 z-20",
+          // **I due tipi di chip alla stessa altezza** (M4ter.11). La colonna
+          // dei chip con orario contiene, in ordine: il distanziatore delle
+          // corsie riservate alle barre (altezza **in linea**, quindi `*:` non
+          // lo tocca), i chip con orario e il «+N altri». Dando a tutti
+          // `--ec-chip-h` la colonna prende lo stesso ritmo della corsia delle
+          // barre: 30 + 2 di `gap-0.5` = 32, cioè `--ec-month-bar-h`.
+          monthCellContent: "*:h-(--ec-chip-h)",
           // Stessa ragione del mese: **ogni vista del motore apre con un
           // `border-t` proprio**, perché ReUI la disegna per stare sotto la
           // sua `nav` senza un contenitore attorno. Chi la monta dentro un

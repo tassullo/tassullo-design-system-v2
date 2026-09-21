@@ -12,7 +12,7 @@ import {
 
 import { apriCol } from '@/prove/apri'
 import { AppShell } from '@/registry/tassullo/blocks/app-shell'
-import { BarraContesto, type VoceContesto } from '@/registry/tassullo/blocks/barra-contesto'
+import { BarraContesto, SelettoreContesto, type VoceContesto } from '@/registry/tassullo/blocks/barra-contesto'
 import { PageHeader } from '@/registry/tassullo/blocks/page-header'
 import { Button } from '@/registry/tassullo/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
@@ -86,6 +86,13 @@ const meta = {
 
 export default meta
 type Story = StoryObj<typeof meta>
+
+/**
+ * Il **nome** della commessa, senza il codice: è quello che sta in colonna.
+ * Nelle app vere codice e nome sono già due campi — qui si separano a mano
+ * perché la story parte da una stringa sola.
+ */
+const nomeDi = (titolo: string) => titolo.split(' — ')[1] ?? titolo
 
 const COMMESSE: VoceContesto[] = [
   {
@@ -261,74 +268,106 @@ export const NomeLungo: Story = {
 }
 
 /**
- * **Nel guscio**, che è la sola condizione in cui si può rispondere alla
- * domanda per cui questo blocco esiste: *dice su cosa stai lavorando senza
- * rubare la scena alla pagina?*
+ * **Nel guscio, nella forma scelta il 2026-09-21: due posti, due ruoli.**
  *
- * La fascia sta **sotto** l'intestazione e **sopra** il contenuto — il posto
- * in cui la monterebbe lo slot di `app-shell`, che resta sospeso e che la
- * pagina sostituisce montandosela da sé, come oggi in Studio. La scena la
- * monta con la testata vera e il contenuto vero attorno, perché su una fascia
- * guardata da sola la domanda non si può nemmeno porre.
+ * È la sola condizione in cui si può rispondere alla domanda per cui questo
+ * blocco esiste — *dice su cosa stai lavorando senza rubare la scena alla
+ * pagina?* — e la risposta, guardata a video con Francesco, non era «sì» né
+ * «no»: era che **le cose da dire sono due e vanno divise**.
  *
- * **Due passaggi a video, e in due direzioni opposte.**
+ * - **Nella colonna, `SelettoreContesto`**: dice *quale*, e lo cambia. È
+ *   persistente, si vede da ogni pagina, e collassando la colonna si riduce
+ *   alla sua icona. È il `TeamSwitcher` di `@shadcn/sidebar-07`, ricomposto.
+ * - **In pagina, `BarraContesto` senza `voci`**: dice *cosa comporta* —
+ *   indirizzo, consegna, stato — e **non porta il «Cambia»**. Senza `voci` è
+ *   già di sola lettura da sé: nessuna prop nuova.
  *
- * La prima stesura era `variant="muted"` (`bg-muted/50`, `border-transparent`)
- * e non si vedeva. Misurato col colore risolto su canvas: in chiaro il fondo
- * translucido sta a **1.053:1** dalla pagina, il fondo pieno a **1.109**, il
- * bordo a **1.274**. È il **bordo** a portare il salto, non il fondo — e lo
- * conferma la barra vera di Studio, letta nel suo CSS
- * (`CantiereContextBar.css`): fondo `--color-surface-3`, un grigio quasi
- * indistinguibile dalla pagina come qui, **più**
- * `border: 1px solid var(--color-border)`.
+ * Il difetto che questa divisione toglie si vedeva nell'app vera di Studio,
+ * portata da Francesco: «PROGETTO ATTIVO / Prova» nella colonna e «Progetto
+ * attivo: Prova» in pagina, a 60px di distanza, **con due grilletti che fanno
+ * la stessa cosa**. Fino a quel momento il registry ne conosceva una sola, e
+ * lo slot del guscio era differito con l'innesco sbagliato.
  *
- * Poi, col fondo pieno, a spiccare troppo era il **bottone**: `variant="outline"`
- * porta `bg-background`, cioè il bianco della carta, e su una fascia grigia
- * quel bianco si legge prima del nome della commessa. Ora il grilletto ha
- * `bg-transparent dark:bg-transparent`, cioè **solo il filo** — letto dal DOM,
- * `backgroundColor: rgba(0, 0, 0, 0)` e il bordo acceso.
+ * **Lo slot è una variante, non il nuovo normale**: `AppShell.contesto` è
+ * facoltativo, e le app che non hanno un'entità attiva che attraversa le
+ * pagine non passano niente. Oggi ce l'ha **solo Studio**.
  *
- * Le tre leve, se adesso rubasse ancora la scena: `className="bg-transparent"`
- * sulla fascia (resta il solo filo), la `descrizione` (toglierla riduce la
- * fascia a una riga), e il grilletto, che con una voce sola non si monta
- * affatto.
+ * **Due passaggi a video sulla fascia, e in due direzioni opposte** (M4ter.9,
+ * restano validi). La prima stesura era `variant="muted"` (`bg-muted/50`,
+ * `border-transparent`) e non si vedeva: misurato col colore risolto su
+ * canvas, in chiaro il fondo translucido sta a **1.053:1** dalla pagina, il
+ * fondo pieno a **1.109**, il bordo a **1.274** — è il **bordo** a portare il
+ * salto. Lo conferma il CSS vero di Studio (`CantiereContextBar.css`): fondo
+ * `--color-surface-3`, quasi indistinguibile dalla pagina, **più** un bordo.
+ * Poi, col fondo pieno, a spiccare troppo era il grilletto — e qui non c'è
+ * più, il che è il modo più semplice di chiudere quel rilievo.
  */
 export const NelGuscio: Story = {
   args: { titolo: '' },
   parameters: { layout: 'fullscreen' },
-  render: () => (
-    <AppShell
-      applicazione="Studio"
-      sezioni={[
-        {
-          titolo: 'Lavoro',
-          voci: [
-            { titolo: 'Cruscotto', icona: LayoutDashboardIcon, href: '#' },
-            { titolo: 'Computo', icona: CalculatorIcon, href: '#', attiva: true },
-            { titolo: 'Capitolati', icona: FileTextIcon, href: '#' },
-          ],
-        },
-      ]}
-      utente={{ nome: 'Francesco', cognome: 'Sartori', ruolo: 'Progettista' }}
-    >
-      <div className="flex flex-col gap-4">
-        <PageHeader
-          percorso={[{ titolo: 'Commesse', href: '#' }, { titolo: 'Computo' }]}
-          azioni={[{ titolo: 'Nuova voce', icona: PlusIcon, ruolo: 'primaria' }]}
-        />
-        <ConStato />
-        <Card>
-          <CardHeader>
-            <CardTitle>Computo metrico estimativo</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            212 voci su 14 sistemi. È questo che deve tenere lo sguardo: la fascia sopra
-            dice <em>di che cosa</em> è il computo, e poi si fa da parte.
-          </CardContent>
-        </Card>
-      </div>
-    </AppShell>
-  ),
+  render: function Render() {
+    const [attiva, setAttiva] = useState(COMMESSE[0]!.id)
+    const voce = COMMESSE.find((c) => c.id === attiva) ?? COMMESSE[0]!
+    return (
+      <AppShell
+        applicazione="Studio"
+        collassa="icona"
+        contesto={
+          <SelettoreContesto
+            etichetta="Commessa attiva"
+            // **Solo il nome**, senza il codice (scelta di Francesco il
+            // 2026-09-21): sta su una riga sola e resta quello che si
+            // riconosce a colpo d'occhio. Il codice non sparisce — è nella
+            // fascia della pagina, quaranta pixel più a destra, e nel menu.
+            titolo={nomeDi(voce.titolo)}
+            icona={HardHatIcon}
+            voci={COMMESSE}
+            attiva={attiva}
+            onCambia={setAttiva}
+            etichettaMenu="Commesse aperte"
+          />
+        }
+        sezioni={[
+          {
+            titolo: 'Lavoro',
+            voci: [
+              { titolo: 'Cruscotto', icona: LayoutDashboardIcon, href: '#' },
+              { titolo: 'Computo', icona: CalculatorIcon, href: '#', attiva: true },
+              { titolo: 'Capitolati', icona: FileTextIcon, href: '#' },
+            ],
+          },
+        ]}
+        utente={{ nome: 'Francesco', cognome: 'Sartori', ruolo: 'Progettista' }}
+      >
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            percorso={[{ titolo: 'Commesse', href: '#' }, { titolo: 'Computo' }]}
+            azioni={[{ titolo: 'Nuova voce', icona: PlusIcon, ruolo: 'primaria' }]}
+          />
+          {/*
+            Niente `voci`: in pagina la fascia **non** si cambia. Il nome resta
+            perché la riga dei dettagli da sola non direbbe di chi sono.
+          */}
+          <BarraContesto
+            etichetta="Commessa"
+            titolo={voce.titolo}
+            descrizione={voce.descrizione}
+            icona={HardHatIcon}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Computo metrico estimativo</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              212 voci su 14 sistemi. È questo che deve tenere lo sguardo: la colonna dice
+              <em> quale</em> commessa, la fascia <em>cosa comporta</em>, e poi si fanno
+              tutte e due da parte.
+            </CardContent>
+          </Card>
+        </div>
+      </AppShell>
+    )
+  },
 }
 
 /**

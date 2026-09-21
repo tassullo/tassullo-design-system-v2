@@ -18,6 +18,7 @@ import {
 } from 'recharts'
 
 import { intero } from '@/registry/tassullo/lib/numeri'
+import { valoreIt } from '@/prove/numeri-tooltip'
 import {
   Card,
   CardContent,
@@ -38,12 +39,22 @@ import {
 // La ROADMAP di Anagrafe prevede una tab Metriche e un quadro sinottico di
 // prodotto: le serie sono le famiglie di prodotto, il tempo è in mesi.
 
+// **Dieci famiglie e non cinque, dal 2026-09-21.** La tavolozza è passata a
+// dieci tinte (`--chart-1..10`, `docs/DECISIONI.md` §49) e una scena che ne
+// mostra cinque non la prova: il controllo `serie` arriva a dieci apposta, ed
+// è tirandolo fino in fondo che si vede se le tinte reggono davvero — il
+// numero lo dà `check:contrast`, l'occhio lo dà qui.
 const FAMIGLIE = [
   'calcestruzzi',
   'prefabbricati',
   'inerti',
   'malte',
   'additivi',
+  'premiscelati',
+  'isolanti',
+  'impermeabilizzanti',
+  'fissaggi',
+  'finiture',
 ] as const
 
 const config = {
@@ -52,6 +63,11 @@ const config = {
   inerti: { label: 'Inerti', color: 'var(--chart-3)' },
   malte: { label: 'Malte', color: 'var(--chart-4)' },
   additivi: { label: 'Additivi', color: 'var(--chart-5)' },
+  premiscelati: { label: 'Premiscelati', color: 'var(--chart-6)' },
+  isolanti: { label: 'Isolanti', color: 'var(--chart-7)' },
+  impermeabilizzanti: { label: 'Impermeabilizzanti', color: 'var(--chart-8)' },
+  fissaggi: { label: 'Fissaggi', color: 'var(--chart-9)' },
+  finiture: { label: 'Finiture', color: 'var(--chart-10)' },
   // La serie degli scostamenti: sta qui perché il `config` è **l'unico posto**
   // dove i nomi in italiano stanno scritti, e senza la sua voce la legenda di
   // `Scostamenti` renderebbe una pastiglia senza testo.
@@ -59,17 +75,17 @@ const config = {
 } satisfies ChartConfig
 
 const perMese = [
-  { mese: 'apr', calcestruzzi: 42, prefabbricati: 28, inerti: 19, malte: 12, additivi: 7 },
-  { mese: 'mag', calcestruzzi: 48, prefabbricati: 31, inerti: 17, malte: 15, additivi: 9 },
-  { mese: 'giu', calcestruzzi: 55, prefabbricati: 26, inerti: 22, malte: 14, additivi: 8 },
-  { mese: 'lug', calcestruzzi: 61, prefabbricati: 34, inerti: 25, malte: 18, additivi: 11 },
-  { mese: 'ago', calcestruzzi: 39, prefabbricati: 21, inerti: 14, malte: 9, additivi: 6 },
-  { mese: 'set', calcestruzzi: 57, prefabbricati: 37, inerti: 24, malte: 16, additivi: 12 },
+  { mese: 'apr', calcestruzzi: 42, prefabbricati: 28, inerti: 19, malte: 12, additivi: 7, premiscelati: 24, isolanti: 16, impermeabilizzanti: 11, fissaggi: 8, finiture: 5 },
+  { mese: 'mag', calcestruzzi: 48, prefabbricati: 31, inerti: 17, malte: 15, additivi: 9, premiscelati: 27, isolanti: 13, impermeabilizzanti: 14, fissaggi: 6, finiture: 8 },
+  { mese: 'giu', calcestruzzi: 55, prefabbricati: 26, inerti: 22, malte: 14, additivi: 8, premiscelati: 21, isolanti: 18, impermeabilizzanti: 9, fissaggi: 11, finiture: 4 },
+  { mese: 'lug', calcestruzzi: 61, prefabbricati: 34, inerti: 25, malte: 18, additivi: 11, premiscelati: 30, isolanti: 20, impermeabilizzanti: 15, fissaggi: 9, finiture: 7 },
+  { mese: 'ago', calcestruzzi: 39, prefabbricati: 21, inerti: 14, malte: 9, additivi: 6, premiscelati: 17, isolanti: 11, impermeabilizzanti: 7, fissaggi: 5, finiture: 3 },
+  { mese: 'set', calcestruzzi: 57, prefabbricati: 37, inerti: 24, malte: 16, additivi: 12, premiscelati: 26, isolanti: 19, impermeabilizzanti: 13, fissaggi: 10, finiture: 6 },
 ]
 
 const inCatalogo = FAMIGLIE.map((famiglia, i) => ({
   famiglia,
-  schede: [214, 138, 96, 61, 34][i]!,
+  schede: [2140, 1380, 960, 610, 340, 880, 520, 410, 260, 150][i]!,
   fill: `var(--color-${famiglia})`,
 }))
 
@@ -91,8 +107,24 @@ const scostamenti = perMese.map((r, i, tutti) => ({
  */
 const ORDINE_DICHIARATO = () => 0
 
-/** I cinque tratteggi: la distinzione che sopravvive al bianco e nero. */
-const TRATTEGGI = ['0', '8 4', '2 4', '12 4 2 4', '1 5'] as const
+/**
+ * I dieci tratteggi: la distinzione che sopravvive al bianco e nero — e che
+ * **da M4ter.11 conta di più**, perché la tavolozza categorica a dieci tinte
+ * in grigio si appiattisce (ΔE 0,4). Su un grafico a linee il tratteggio è
+ * ciò che resta quando il colore non c'è.
+ */
+const TRATTEGGI = [
+  '0',
+  '8 4',
+  '2 4',
+  '12 4 2 4',
+  '1 5',
+  '6 2 2 2',
+  '10 3',
+  '3 3 8 3',
+  '14 4',
+  '2 2 6 2 2 6',
+] as const
 
 /** Il `label` di Recharts scrive la chiave: qui si traduce leggendo il config. */
 const etichettaFetta = ({ name }: { name?: string | number }) =>
@@ -177,7 +209,6 @@ type ArgsGrafico = {
    * Quale palette: le cinque tinte categoriche, la rampa monocroma del brand,
    * o le categoriche viste **senza colore** — che è la prova di leggibilità.
    */
-  colori: 'categorici' | 'arancio' | 'grigio'
   legenda: boolean
   griglia: boolean
   /** Il valore (barre, linee, aree) o il nome della fetta (torta) sul dato. */
@@ -240,49 +271,56 @@ const solo = (...usati: Array<(typeof ARGOMENTI)[number]>) =>
  * al resto dell'interfaccia, e un `config` in cui ogni serie ha un'etichetta
  * **in italiano** e un colore.
  *
- * ## Le cinque serie non sono cinque colori scelti
+ * ## Dieci tinte categoriche, e nessuna scala
  *
- * `--chart-1..5` sono i **pioli di una scala**, e il passo della scala non è
- * stato deciso: è quello che l'arancio del brand e il verde istituzionale
- * hanno già fra loro — **1.4935:1** di contrasto WCAG, misurato. Da lì
- * scendono gli altri tre, ciascuno con la tinta di un token Tassullo
- * (`--info` per il blu, `--muted-foreground` per i due neutri caldi) e la
- * chiarezza che il piolo impone.
+ * `--chart-1..10` è una tavolozza **categorica**: dieci tinte scelte perché
+ * restino distinguibili **fra loro**, misurate a coppie sotto visione piena e
+ * sotto i tre deficit di percezione del colore. La coppia più vicina sta a
+ * **ΔE 11,0** in chiaro e **8,5** in scuro, contro una soglia di 5 —
+ * `npm run check:contrast` non lascia passare una tavolozza che scenda sotto.
  *
- * Il motivo è il requisito del piano, e non è estetico: **cinque serie che si
- * distinguano anche in scala di grigi**. Distinguerle in grigio vuol dire una
- * cosa sola — luminanze diverse e regolarmente spaziate. La prova a occhio si
- * fa **dentro ogni grafico**, col controllo `colori` su `grigio`: è il filtro
- * CSS sulla palette categorica, quindi si vede sul grafico che si sta
- * guardando invece che su una story a parte. La prova col numero è
- * `npm run check:contrast`, che non lascia passare una scala il cui passo
- * scenda sotto 1.45:1 — e che a differenza del filtro CSS misura la luminanza
- * vera, non i pesi applicati ai valori sRGB non linearizzati.
+ * **Fino al 2026-09-21 erano cinque, ed erano un'altra cosa**: cinque *pioli
+ * di una scala di chiarezza*, il cui passo — 1,4935, quello che l'arancio del
+ * brand e il verde istituzionale hanno già fra loro — garantiva che restassero
+ * distinguibili **anche in bianco e nero**. Quella garanzia non si estende a
+ * dieci, ed è aritmetica: dieci pioli a quel passo vorrebbero `1,4935⁹ ≈ 37:1`
+ * contro i **21:1** che l'intera gamma sRGB permette. Sopra gli otto non c'è
+ * spazio fra il bianco e il nero.
  *
- * Sul fondo scuro la scala **sale di un piolo esatto** — dello stesso passo,
- * non di un fattore inventato — perché all'altezza chiara la serie più bassa
- * starebbe a 1.78:1 dalla card e non si vedrebbe. Più su non si può: a un
- * piolo e mezzo la serie più chiara supererebbe in contrasto il *testo* di
- * pagina, e un dato più marcato del testo non è più un dato.
+ * Il cambio è stato fatto perché cinque non bastavano: un grafico a sei serie,
+ * o un calendario a sei tipi di intervento, doveva riusare un colore. Il
+ * prezzo, dichiarato: **la tavolozza categorica non si legge in bianco e
+ * nero**, e non c'è più una famiglia che ci riesca: la rampa monocroma
+ * `--chart-mono-1..5` è stata tolta insieme alla garanzia (2026-09-21). Il
+ * ragionamento completo, con le tavolozze pubblicate provate e scartate, è in
+ * `docs/DECISIONI.md` §49.
+ *
+ * **Il controllo `colori` non c'è più** (2026-09-21): offriva «categorici /
+ * arancio / grigio», cioè la tavolozza, la rampa monocroma del brand e il
+ * filtro in scala di grigi. Le ultime due erano l'apparato della *vecchia*
+ * garanzia — la scala a cinque pioli leggibile in B/N — e con la tavolozza a
+ * dieci quella garanzia non c'è più: un interruttore che mostra una proprietà
+ * che il tema non promette più è peggio che assente. Le story mostrano la
+ * tavolozza, e basta.
  *
  * ## Il colore non è mai l'unica distinzione
  *
  * È la regola che il piano scrive esplicitamente, e vale a maggior ragione
- * qui: la serie più chiara sta a **1.91:1** dalla card, sotto i 3:1 che la
- * WCAG chiede a un oggetto grafico *quando il colore è l'unico mezzo*. Non
- * deve mai esserlo. Le story qui sotto lo mostrano in modi diversi: le
- * barre hanno la **legenda** e il valore nel tooltip, le linee hanno un
- * **tratteggio diverso per ciascuna**, le aree si **impilano** invece di
- * sovrapporsi, torta e ciambella hanno il **nome della fetta scritto accanto**.
- * Nessuna resta muta in bianco e nero.
+ * qui. Otto tinte su dieci stanno sopra i **3:1** che la WCAG 1.4.11 chiede a
+ * un oggetto grafico *quando il colore è l'unico mezzo*; le due che non ci
+ * arrivano sono `--chart-1` e `--chart-2`, cioè **l'arancio e il verde del
+ * brand** — 1,91:1 e 2,85:1 sulla card chiara — e sono esentate per decisione,
+ * perché cambiarle vorrebbe dire cambiare il marchio.
+ *
+ * Il colore non deve mai essere l'unico mezzo. Le story qui sotto lo mostrano
+ * in modi diversi: le barre hanno la **legenda** e il valore nel tooltip, le
+ * linee hanno un **tratteggio diverso per ciascuna**, le aree si **impilano**
+ * invece di sovrapporsi, torta e ciambella hanno il **nome della fetta scritto
+ * accanto**. Nessuna resta muta in bianco e nero.
  *
  * Ogni story porta i propri **controlli**, nel pannello `Controls`: servono a
  * provare la regola invece di leggerla — si spegne la legenda su cinque linee e
  * si guarda cosa resta da capire.
- *
- * Cinque pioli da 3:1 l'uno dall'altro non stanno fra il fondo e il testo, ed
- * è aritmetica e non una rinuncia: 3⁴ fa 81:1 contro i 21:1 che l'intera gamma
- * sRGB permette. La scala arriva fin dove può, e il resto lo fa l'etichetta.
  *
  * ## Un'altezza dichiarata, non ereditata
  *
@@ -320,7 +358,6 @@ const meta = {
   // contano sono quelli dei grafici, e li dichiara il meta.
   args: {
     serie: 3,
-    colori: 'categorici',
     legenda: true,
     griglia: true,
     etichette: false,
@@ -337,8 +374,7 @@ const meta = {
     orizzontali: false,
   },
   argTypes: {
-    serie: { control: { type: 'range', min: 1, max: 5, step: 1 } },
-    colori: { control: 'inline-radio', options: ['categorici', 'arancio', 'grigio'] },
+    serie: { control: { type: 'range', min: 1, max: 10, step: 1 } },
     legenda: { control: 'boolean' },
     griglia: { control: 'boolean' },
     etichette: { control: 'boolean' },
@@ -359,35 +395,11 @@ const meta = {
 export default meta
 type Story = StoryObj<ArgsGrafico>
 
-/**
- * Il colore di una serie. `arancio` prende la **rampa monocroma del brand**,
- * `--chart-mono-1..5`: gli stessi cinque pioli della scala categorica, tutti
- * alla tinta dell'arancio. Non è una seconda palette da mantenere — è la stessa
- * scala a tinta unita, e per costruzione eredita il passo in grigio.
- *
- * Quando usarla, ed è una scelta di significato: le cinque tinte categoriche
- * dicono «cinque cose diverse», la rampa dice «la stessa cosa, di più». Su
- * categorie **ordinate** — poco, medio, molto — la categorica è sbagliata; e su
- * una serie sola prendere un arancio, un verde e un blu non ha senso.
- */
-const coloreSerie = (
-  colori: ArgsGrafico['colori'],
-  famiglia: string,
-  i: number,
-): string => (colori === 'arancio' ? `var(--chart-mono-${i + 1})` : `var(--color-${famiglia})`)
-
-/**
- * `grigio` non è una terza palette: è la categorica passata per il filtro CSS,
- * cioè la prova di leggibilità fatta sul grafico che si sta guardando invece
- * che su una story a parte. La misura vera resta `npm run check:contrast`.
- */
-const senzaColore = (colori: ArgsGrafico['colori']) => (colori === 'grigio' ? 'grayscale' : '')
-
 /** Le fette della torta, col colore della palette scelta. */
 const fetteColorate = (args: ArgsGrafico) =>
   inCatalogo
     .slice(0, args.serie)
-    .map((r, i) => ({ ...r, fill: coloreSerie(args.colori, r.famiglia, i) }))
+    .map((r) => ({ ...r, fill: `var(--color-${r.famiglia})` }))
 
 /**
  * Il raggio di una barra dentro una pila. **Solo le due estremità della pila si
@@ -479,7 +491,7 @@ export const Barre: Story = {
           <CardDescription>Aprile – settembre 2026</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={config} className={`aspect-auto h-72 w-full ${senzaColore(args.colori)}`}>
+          <ChartContainer config={config} className={`aspect-auto h-72 w-full `}>
             <BarChart
               accessibilityLayer
               data={perMese}
@@ -525,13 +537,13 @@ export const Barre: Story = {
                   <YAxis tickLine={false} axisLine={false} width={32} hide={!args.asseY} />
                 </>
               )}
-              <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent />} />
+              <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent formatter={valoreIt(config)} />} />
               {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
               {famiglie.map((famiglia, i) => (
                 <Bar
                   key={famiglia}
                   dataKey={famiglia}
-                  fill={coloreSerie(args.colori, famiglia, i)}
+                  fill={`var(--color-${famiglia})`}
                   radius={raggioBarra(i, famiglie.length, args.impilato, args.orizzontali)}
                   stackId={args.impilato ? 'una' : undefined}
                 >
@@ -606,7 +618,7 @@ export const Barre: Story = {
  * scende.
  */
 export const Scostamenti: Story = {
-  argTypes: solo('colori', 'legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'arrotondate', 'coloreUnico'),
+  argTypes: solo('legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'arrotondate', 'coloreUnico'),
   args: { etichette: true },
   render: (args) => (
     <Card className="w-2xl">
@@ -617,21 +629,21 @@ export const Scostamenti: Story = {
       <CardContent>
         <ChartContainer
           config={config}
-          className={`aspect-auto h-72 w-full ${senzaColore(args.colori)}`}
+          className={`aspect-auto h-72 w-full `}
         >
           <BarChart accessibilityLayer data={scostamenti} margin={{ top: 24, bottom: 24 }}>
             {args.griglia && <CartesianGrid vertical={false} />}
             <XAxis dataKey="mese" tickLine={false} axisLine={false} tickMargin={8} hide={!args.asseX} />
             <YAxis tickLine={false} axisLine={false} width={36} hide={!args.asseY} />
             <ReferenceLine y={0} />
-            <ChartTooltip content={<ChartTooltipContent hideLabel hideIndicator />} />
+            <ChartTooltip content={<ChartTooltipContent hideLabel hideIndicator formatter={valoreIt(config, { senzaPastiglia: true })} />} />
             {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
             <Bar
               dataKey="delta"
               // Il `fill` non lo usa nessuna barra — le dipinge la `shape` una
               // per una — ma è **da qui** che la legenda prende il colore della
               // pastiglia: senza, mostra il nome e un quadratino vuoto.
-              fill={coloreSerie(args.colori, FAMIGLIE[0]!, 0)}
+              fill={`var(--color-${FAMIGLIE[0]!})`}
               shape={(forma: unknown) => {
                 const f = forma as { x: number; y: number; width: number; height: number; value?: unknown }
                 const su = Number(f.value) >= 0
@@ -640,7 +652,7 @@ export const Scostamenti: Story = {
                   <g>
                     <Rectangle
                       {...(forma as object)}
-                      fill={coloreSerie(args.colori, FAMIGLIE[quale]!, quale)}
+                      fill={`var(--color-${FAMIGLIE[quale]!})`}
                       // L'angolo da arrotondare è **sempre** la coppia «alta» dell'array:
                       // su una barra negativa Recharts dà `y` al fondo e `height`
                       // negativa, e `Rectangle` normalizza il rettangolo prima di
@@ -683,7 +695,7 @@ export const Scostamenti: Story = {
  * più onesta, ed è il default.
  */
 export const Linee: Story = {
-  argTypes: solo('serie', 'colori', 'legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'pallini', 'tratteggi', 'curva'),
+  argTypes: solo('serie', 'legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'pallini', 'tratteggi', 'curva'),
   args: { serie: 5 },
   render: (args) => (
     <Card className="w-2xl">
@@ -692,7 +704,7 @@ export const Linee: Story = {
         <CardDescription>Colore, chiarezza e tratteggio, tutti e tre insieme</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className={`aspect-auto h-72 w-full ${senzaColore(args.colori)}`}>
+        <ChartContainer config={config} className={`aspect-auto h-72 w-full `}>
           <LineChart accessibilityLayer data={perMese} margin={{ top: 20, left: 4, right: 12 }}>
             {args.griglia && <CartesianGrid vertical={false} />}
             <XAxis
@@ -703,17 +715,17 @@ export const Linee: Story = {
               hide={!args.asseX}
             />
             <YAxis tickLine={false} axisLine={false} width={32} hide={!args.asseY} />
-            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent />} />
+            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent formatter={valoreIt(config)} />} />
             {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
             {FAMIGLIE.slice(0, args.serie).map((famiglia, i) => (
               <Line
                 key={famiglia}
                 dataKey={famiglia}
                 type={tipoCurva(args.curva)}
-                stroke={coloreSerie(args.colori, famiglia, i)}
+                stroke={`var(--color-${famiglia})`}
                 strokeWidth={2}
                 strokeDasharray={args.tratteggi ? TRATTEGGI[i] : '0'}
-                dot={args.pallini && { fill: coloreSerie(args.colori, famiglia, i) }}
+                dot={args.pallini && { fill: `var(--color-${famiglia})` }}
               >
                 {args.etichette && <EtichettaSulDato />}
               </Line>
@@ -772,7 +784,7 @@ export const Linee: Story = {
  * serie dentro `<defs>` — perché è una scelta del grafico, non del componente.
  */
 export const Aree: Story = {
-  argTypes: solo('serie', 'colori', 'legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'impilato', 'sfumatura', 'curva'),
+  argTypes: solo('serie', 'legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'impilato', 'sfumatura', 'curva'),
   args: { impilato: true },
   render: (args) => (
     <Card className="w-2xl">
@@ -787,7 +799,7 @@ export const Aree: Story = {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className={`aspect-auto h-72 w-full ${senzaColore(args.colori)}`}>
+        <ChartContainer config={config} className={`aspect-auto h-72 w-full `}>
           <AreaChart accessibilityLayer data={perMese} margin={{ top: 20, left: 4, right: 12 }}>
             {args.griglia && <CartesianGrid vertical={false} />}
             <XAxis
@@ -798,26 +810,26 @@ export const Aree: Story = {
               hide={!args.asseX}
             />
             <YAxis tickLine={false} axisLine={false} width={32} hide={!args.asseY} />
-            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent />} />
+            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent formatter={valoreIt(config)} />} />
             {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
             {args.sfumatura && (
               <defs>
-                {FAMIGLIE.slice(0, args.serie).map((famiglia, i) => (
+                {FAMIGLIE.slice(0, args.serie).map((famiglia) => (
                   <linearGradient key={famiglia} id={`sfumatura-${famiglia}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={coloreSerie(args.colori, famiglia, i)} stopOpacity={0.8} />
-                    <stop offset="95%" stopColor={coloreSerie(args.colori, famiglia, i)} stopOpacity={0.1} />
+                    <stop offset="5%" stopColor={`var(--color-${famiglia})`} stopOpacity={0.8} />
+                    <stop offset="95%" stopColor={`var(--color-${famiglia})`} stopOpacity={0.1} />
                   </linearGradient>
                 ))}
               </defs>
             )}
-            {FAMIGLIE.slice(0, args.serie).map((famiglia, i) => (
+            {FAMIGLIE.slice(0, args.serie).map((famiglia) => (
               <Area
                 key={famiglia}
                 dataKey={famiglia}
                 type={tipoCurva(args.curva)}
                 stackId={args.impilato ? 'una' : undefined}
-                stroke={coloreSerie(args.colori, famiglia, i)}
-                fill={args.sfumatura ? `url(#sfumatura-${famiglia})` : coloreSerie(args.colori, famiglia, i)}
+                stroke={`var(--color-${famiglia})`}
+                fill={args.sfumatura ? `url(#sfumatura-${famiglia})` : `var(--color-${famiglia})`}
                 fillOpacity={args.sfumatura ? 1 : args.impilato ? 1 : 0.4}
               >
                 {args.etichette && <EtichettaSulDato />}
@@ -850,7 +862,7 @@ export const Aree: Story = {
  * l'unico testo del set che Recharts non lascia ereditare.
  */
 export const Torta: Story = {
-  argTypes: solo('serie', 'colori', 'legenda', 'etichette'),
+  argTypes: solo('serie', 'legenda', 'etichette'),
   args: { serie: 5, etichette: true, legenda: false },
   render: (args) => (
     <Card className="w-lg">
@@ -861,10 +873,10 @@ export const Torta: Story = {
       <CardContent>
         <ChartContainer
           config={config}
-          className={`mx-auto h-80 w-full [&_.recharts-pie-label-text]:fill-foreground ${senzaColore(args.colori)}`}
+          className={`mx-auto h-80 w-full [&_.recharts-pie-label-text]:fill-foreground `}
         >
           <PieChart>
-            <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel />} />
+            <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel formatter={valoreIt(config, { chiaveNome: 'famiglia' })} />} />
             {args.legenda && (
               <ChartLegend
                 itemSorter={null}
@@ -897,7 +909,7 @@ export const Torta: Story = {
  * tabellari, come tutti i numeri del design system.
  */
 export const Ciambella: Story = {
-  argTypes: solo('serie', 'colori', 'legenda', 'etichette'),
+  argTypes: solo('serie', 'legenda', 'etichette'),
   args: { serie: 5, etichette: true, legenda: false },
   render: (args) => {
     const fette = fetteColorate(args)
@@ -910,10 +922,10 @@ export const Ciambella: Story = {
         <CardContent>
           <ChartContainer
             config={config}
-            className={`mx-auto h-80 w-full [&_.recharts-pie-label-text]:fill-foreground ${senzaColore(args.colori)}`}
+            className={`mx-auto h-80 w-full [&_.recharts-pie-label-text]:fill-foreground `}
           >
             <PieChart>
-              <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel />} />
+              <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel formatter={valoreIt(config, { chiaveNome: 'famiglia' })} />} />
               {args.legenda && (
                 <ChartLegend
                 itemSorter={null}

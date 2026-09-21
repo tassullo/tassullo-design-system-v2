@@ -251,6 +251,26 @@ export const FiltriControBadge: Story = {
  * prende il fuoco, non dichiara di essere premuto, e un lettore di schermo non
  * lo annuncia come comando. La terza fila qui sotto è quella forma, messa
  * accanto perché la differenza si guardi invece di raccontarla.
+ *
+ * ## Scelto il 2026-09-21: il filtro è il chip, e la ragione è lo **stato**
+ *
+ * **Decisione di Francesco** (M4ter.11), guardando le tre fila: il filtro a
+ * conteggio del Catalogo di Studio si compone come la **prima** fila, cioè
+ * `toggle-group`. La ragione non è che il badge sia brutto — è che **un filtro
+ * ha uno stato acceso e uno spento**, e deve dirlo: `aria-pressed`, il fondo
+ * che cambia, il fuoco che ci arriva. Un badge quello stato non ce l'ha, e non
+ * può averlo senza smettere di essere un badge.
+ *
+ * Da cui la regola, che è quella del `CLAUDE.md` vista da un'altra faccia:
+ * **se l'elemento può essere acceso o spento, è un `toggle-group`**; se dice
+ * soltanto com'è fatta la cosa che sta descrivendo, è un `badge`. Il conteggio
+ * non sposta la scelta né da una parte né dall'altra: un numero si può
+ * scrivere dentro tutti e due.
+ *
+ * La terza fila **resta in scena**, e adesso con un ruolo dichiarato: non è
+ * un'alternativa fra cui scegliere, è il **contro-esempio** — la forma che
+ * somiglia a un filtro e non lo è. Costa zero tenerla, ed è l'unico posto in
+ * cui le due si vedono accanto.
  */
 export const ChipColConteggio: Story = {
   name: 'Chip col conteggio',

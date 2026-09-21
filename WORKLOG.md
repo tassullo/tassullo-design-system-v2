@@ -10207,3 +10207,589 @@ di `native-select`: una lacuna senza un nome accanto si riscopre da zero.
 `PIANO.md` e `CHECKLIST.md` passano a **68 sessioni**; la FASE 4ter resta
 **10 sessioni più una di coda**, e il suo gate resta superato — M4ter.11 non lo
 riapre, raccoglie quello che un gate non poteva chiudere da solo.
+
+## M4ter.11 — Revisione a video: l'arretrato chiuso, e la domanda che il gate non poteva chiudere (2026-09-21)
+
+Coda della FASE 4ter, aggiunta il giorno prima su indicazione di Francesco. Non
+un gate e non una fase nuova: la revisione a video di tutto ciò che era rimasto
+da guardare fra M4ter.7 e M4ter.10, più la domanda di sistema sulla tavolozza e
+quella finale sulle pagine non ricomponibili.
+
+**Punto di partenza confermato prima di toccare niente**: PR #16 su `main`,
+`registry.json` 94 item, `check:riferimenti` 206/0/104 file/nessun ciclo,
+`weekend: false` in `calendario.tsx`, `npm run check` a sette gate.
+
+### Lavoro 1 — i cinque difetti, corretti e rimisurati
+
+Nessuna diagnosi rifatta da zero: la misura sì, con lo stesso strumento che
+aveva trovato il difetto, prima e dopo. Tutto in Chromium vero (Playwright dal
+`node_modules` del repo, nessuna dipendenza aggiunta), contro lo Storybook
+costruito, a pagina ferma — §32.
+
+#### 1. Il mese del calendario: **scorre**, e non passa all'agenda
+
+**La via scelta è la prima delle due, e la ragione è scritta qui perché non si
+riapra.** Tre argomenti, in ordine di peso:
+
+1. **È quello che il blocco già promette.** La story dice «quando le sei righe
+   non ci stanno il mese scorre invece di schiacciarle»: la documentazione non
+   era sbagliata, era il codice a non farlo. Correggere il codice costa una
+   riga; correggere la documentazione costerebbe spiegare un comportamento
+   sorprendente per sempre.
+2. **La scelta della vista è dell'utente e dell'app, non del blocco.** Passare
+   all'agenda sotto soglia vuol dire che il commutatore «Mese» a volte non dà
+   il mese — cioè un interruttore che non fa quello che dice, che è la cosa che
+   `calendario.tsx` evita già in un altro punto («un interruttore che non
+   cambia niente è peggio di un interruttore assente»).
+3. **La seconda via non sarebbe misurabile coi nostri strumenti.** Il bivio
+   vorrebbe una soglia sull'**altezza della finestra**, e `docs/DECISIONI.md`
+   §46 dice che il canvas del gate non commuta la finestra: la scena sotto
+   soglia renderebbe il ramo largo e il conto delle scansioni tornerebbe lo
+   stesso. Si sarebbe scritta una correzione che nessun gate può guardare.
+
+**La causa, trovata leggendo il motore e non indovinando.** In
+`scrollMode: "contained"` (il default) `event-calendar-month-view.tsx` dà alla
+vista e al corpo `min-h-0 flex-1` e ai binari del corpo
+`repeat(N, minmax(0, 1fr))`. La riga porta il nostro `monthRow: "min-h-32"` —
+128px, il minimo che tiene tre corsie — ma il **binario** vale `1fr` e si
+accorcia col contenitore: la riga sborda dal proprio binario e i chip finiscono
+disegnati nella banda della settimana di sopra, sopra i numeri dei giorni. Il
+contenitore che scorre, intanto, misura l'altezza **compressa**, e offre 51px
+invece dei ~270 che servirebbero. `min-h-0` è ciò che spegne la dimensione
+minima automatica dell'elemento flex; `min-h-min` la rimette, e il min-content
+di una griglia con quei binari è N × 128. È una stringa di classi su due chiavi
+di `classNames` — gradino 2 della regola 4bis, niente di strutturale.
+
+Misurato prima e dopo, stessa sonda, sei altezze di contenitore:
+
+| contenitore | 576 | 700 | 800 | 860 | 896 | 1024 |
+|---|---:|---:|---:|---:|---:|---:|
+| sovrapposizione **prima** | 51,3 | 30,7 | 14 | 4 | 0 | 0 |
+| sovrapposizione **dopo** | **0** | **0** | **0** | **0** | 0 | 0 |
+| chip sopra il numero, **prima** | 12 | 18 | 1 | 0 | 0 | 0 |
+| chip sopra il numero, **dopo** | **0** | **0** | **0** | 0 | 0 | 0 |
+| scorrimento offerto, dopo | 797/489 | 797/613 | 797/713 | 797/773 | 809/809 | 937/937 |
+
+Sopra soglia **non cambia un pixel**: 130px di passo a 896 e 151,33 a 1024,
+identici a prima, perché lì `flex-1` cresce e il minimo non morde. Provato
+anche su cinque mesi diversi (settembre 2026 → gennaio 2027): sempre 6 righe da
+128, 797px di contenuto.
+
+Il numero che più colpisce è il chip contro il numero del giorno a **700px**:
+18px, peggio che a 576. Non è un errore di misura — a 576 il chip finisce
+*sopra* la banda del numero e a 700 ci cade in mezzo. La soglia non è monotona
+sul singolo difetto, ed è un'altra ragione per non tararla a occhio.
+
+#### 2. I 4px fra i due chip del mese — **erano 2, e in touch 4**
+
+La misura di M4ter.10 diceva 30 contro 26. Rimisurata qui: **30 contro 28** in
+normale e **46 contro 42** in touch. Il difetto è lo stesso, il numero no, e
+vale la pena dirlo: la prima misura era stata presa prima che `event: "py-1!"`
+entrasse.
+
+**Si alza il chip con orario, non si abbassa la barra**, e la ragione è
+strutturale: la **corsia** che il motore riserva vale già `--ec-month-bar-h`
+(`--spacing × 8`), e `monthRow: min-h-32` conta tre corsie di quella misura —
+quindi a non riempire il proprio posto era il chip. Abbassare la barra
+riaprirebbe il difetto degli avatar che M4ter.2 aveva chiuso alzandola.
+
+La leva: una seconda variabile sullo stesso root, `--ec-chip-h: calc(var(--ec-month-bar-h) - 0.125rem)`,
+cioè la stessa espressione che il motore usa per la barra, e
+`monthCellContent: "*:h-(--ec-chip-h)"`. Il `*:` prende i figli diretti della
+colonna dei chip: il distanziatore delle corsie ha l'altezza **in linea** e non
+viene toccato, il «+N altri» invece sì, ed è giusto — prende lo stesso ritmo.
+Dopo: **30/30** in normale, **46/46** in touch, e la sovrapposizione del punto 1
+resta 0 a tutte le altezze (il chip più alto non fa saltare il conto delle tre
+corsie, perché 30 + 2 di `gap-0.5` = 32 = la corsia).
+
+**L'avvertenza di sonda si è ripresentata e questa volta non è costata niente**,
+perché era scritta: `--ec-month-bar-h` sta in linea sul root del blocco, non su
+`document.documentElement`. Se ne è aggiunta una nuova, però: il global della
+densità in Storybook si chiama **`density`**, non `densita` — con il nome
+sbagliato l'URL non dà errore e si misura due volte la densità normale
+credendo di averne misurate due. Se ne è accorto solo il fatto che
+`--spacing` valeva `.25rem` in tutte e due le passate.
+
+#### 3. `chart.tsx` e il `toLocaleString()` senza locale
+
+Corretti gli **otto punti d'uso**, non il componente: la firma di chiamata è
+forma, e `check:registry` ha ragione a rifiutarla. Il gancio che shadcn lascia
+è `formatter` su `ChartTooltipContent`, che però **sostituisce l'intera riga**
+del tooltip — pastiglia, etichetta e numero — non il solo valore. Perciò un
+posto solo: `.storybook/prove/numeri-tooltip.tsx`, `valoreIt(config, opzioni)`,
+che rifà la riga con le classi di `ChartTooltipContent` e il numero da
+`lib/numeri`. Sta in `@/prove` perché è **codice di story**: nessun item lo
+spedisce.
+
+Ci è finita dentro anche la risoluzione di `getPayloadConfigFromPayload`, che
+shadcn non esporta: con `nameKey` la chiave del `config` non è il nome della
+serie ma il **valore** che il dato porta sotto quella chiave — il caso della
+torta. Rifarla è duplicazione, ma di codice di story; l'alternativa sarebbe
+esportare una funzione interna di shadcn, cioè una divergenza di forma.
+
+**La regola deve arrivare anche a chi installa**, e una story non ci arriva:
+aggiunta al campo `docs` dell'item `chart`, che la CLI stampa all'`add`.
+
+Misurato in Chromium con due locali, sulla ciambella e sulla dashboard:
+
+| | tooltip, dopo | `toLocaleString()` avrebbe dato |
+|---|---|---|
+| it-IT | **2.140** | `2140` |
+| en-US | **2.140** | `2,140` |
+
+Per renderlo visibile i dati delle due torte sono passati da tre a **quattro
+cifre** (`[214, 138, 96, 61, 34]` → `[2140, 1380, 960, 610, 340]`): con valori
+a tre cifre il difetto non si vede, e una correzione che non si può guardare
+non è verificabile. Il totale al centro passa a **5.430**, che esercita anche
+`intero()`.
+
+#### 4. `altezzaMax`: non era non-deterministico, era **sempre spento**
+
+E la prima cosa da scrivere è che **la mia prima sonda mentiva**, nello stesso
+modo in cui è già successo tre volte fra M4ter.9 e M4ter.10: cercava
+`div[style*=max-height]` su **tutto il documento**, e nel canvas di Storybook
+c'è un `sb-argstableBlock` nascosto, con `<table>`, `<tbody>` e righe alte 0.
+Con quella sonda il risultato era «2 volte su 4», cioè esattamente il sintomo
+ereditato. Scoperta guardando la catena dei genitori di `tbody` invece di
+fidarsi del numero.
+
+Con le sonde ancorate a `#storybook-root`:
+
+| story | max-height prima |
+|---|---|
+| `Blocchi/Data Table → Virtualizzata` | **mai**, 0 su 6 aperture |
+| `Blocchi/Data Grid → Editabile` | mai, 0 su 6 |
+| `Blocchi/Data Table → Piede Virtualizzato` | mai, 0 su 6 |
+| `Pagine/Lista → Con Dati` | 657px, 6 su 6 |
+
+Diagnosticato **strumentando** `ricalcola` (log temporaneo, poi tolto e il file
+ripristinato da copia): sulla virtualizzata stampa `['righe', 0]` **due volte** —
+la chiamata diretta e la prima notifica che `ResizeObserver` consegna appena si
+osserva — ed esce sul `righeVere.length === 0`. Dopo non lo richiama più
+nessuno, perché **nessuno dei tre elementi osservati** (radice, piè, testata)
+cambia mai altezza da solo: servono a reagire alla finestra, non al contenuto.
+Il virtualizzatore rende le righe dopo.
+
+La correzione è una riga: si osserva **anche la tabella**, che cresce quando le
+righe arrivano e che non si rimpicciolisce per colpa del tetto — sta dentro un
+contenitore che scorre, quindi la sua altezza naturale non dipende da
+`max-height`. Nessun anello di ritorno.
+
+| story | dopo |
+|---|---|
+| `Virtualizzata` | **448px, 6 su 6** (il numero che il calcolo dava già, e che non arrivava al DOM) |
+| `Data Grid → Editabile` | **374px, 6/6** |
+| `Piede Virtualizzato` | **467,75px, 6/6** |
+| `Pagine/Lista → Con Dati` | 657px, 6/6, invariato |
+| `Blocchi/Data Table → Prodotti` (senza `altezza="ferma"`) | nessun tetto, 6/6 — corretto |
+
+**Quanto mordeva**: senza il tetto il riquadro restava a 477,4px contro i 448
+del confine di riga, cioè mostrava **29px di una riga alta 37** — la striscia
+tagliata in fondo che questo effetto esiste apposta per togliere, e che
+Francesco aveva già fatto correggere una volta.
+
+#### 5. Il valore lungo che sborda dagli indicatori
+
+Misurato sui rettangoli di riga del testo (`Range.getClientRects`), contro il
+riquadro della `Card`, a contenitore variabile — **non** a finestra variabile,
+che è §46:
+
+| contenitore | 320 | 384 | 400 | 416 | 432 | 448 |
+|---|---:|---:|---:|---:|---:|---:|
+| larghezza carta | 320 | 184 | 192 | 200 | 208 | 216 |
+| `12.847.503,40 €` sborda di | — | **28** | 20 | 12 | 4 | — |
+| `1.284.500,00 €` sborda di | — | **10,6** | 2,6 | — | — | — |
+
+La fascia scoperta è quindi **384–432px**, non «fino a ~448» come il blocco
+stimava. Corretto il commento con la tabella.
+
+**Provata e scartata una correzione di componente**: un gradino tipografico più
+basso sotto una container query. A 19px l'importo resta più largo della carta,
+e sotto c'è solo la misura dell'etichetta — cioè il difetto muto di M4.4. Il
+rimedio resta `valore`, che formatta il chiamante.
+
+E il chiamante adesso lo fa: `UnoPerRiga` non scrive più `'€ 12.847.503,40'` a
+mano (che è anche la riga in cui §47 si perde) ma `valuta(FATTURATO)`, e mette
+**le due forme una accanto all'altra** — 320px con la valuta per esteso, 400px
+con `formattatore({ notation: 'compact' })`, cioè `12,8 Mln €`. Misurato dopo:
+**0 sbordi in tutte e due**. Nessuna scena nuova: la story è una, con due
+contenitori.
+
+### Lavoro 2 — le sette scelte di forma, pronte a video
+
+**Cinque avevano già l'alternativa costruita** dove stanno di casa, e si
+guardano lì: il contatore del percorso (`Contatore Nel Titolo` /
+`Contatore Come Badge`), la `descrizione` di `pagina-scheda` (`Con Dati` /
+`Con Descrizione`), il chip col conteggio (`Filtri contro badge` /
+`Chip col conteggio`, che ha già tre file a confronto), la barra di contesto
+nel guscio, e l'icona Lucide.
+
+**Due non ce l'avevano**, e sono state costruite in
+`stories/ScelteDiForma.stories.tsx`, sezione `Prove/` — **temporanea, da
+cancellare quando le scelte si chiudono**, come fece M4.6 con le tre tabelle
+in card:
+
+- **il totale in coda alla tabella**, in tre forme sugli stessi dati: il
+  `<tfoot>` di oggi, una fascia sotto il riquadro, e gli indicatori sopra. La
+  prova che conta è scrivere «03.05» nella ricerca e guardare dove cambia il
+  numero;
+- **la conferma digitata su un caso vero**, ed è ChangeSets di Anagrafe letto
+  dal codice: `window.confirm('Scrivere queste modifiche su Business Central?')`.
+  Tre pesi — conferma semplice, conferma in tono distruttivo, codice del
+  changeset da ricopiare. La domanda che decide non è estetica: **quante volte
+  al giorno si preme quel bottone.**
+
+Costo dichiarato: **+2 scene, +8 scansioni**. a11y passa da 1496 a **1504**, 0
+violazioni; bersagli da 3246 a **3255**, 0 piccoli in entrambe le direzioni.
+`Prove` è in coda a `storySort`, dopo `Pagine`.
+
+Le mie raccomandazioni, che non sono decisioni:
+
+1. **il contatore**: il `Badge`. Il rilievo misurato in M4ter.7 è vero e si
+   vede nello scatto — il «· 4» prende *esattamente* il grigio di «Officina ›»,
+   quindi si legge come un altro livello del percorso;
+2. **`descrizione` di `pagina-scheda`**: si guarda, non ho un argomento
+   misurato da opporre;
+3. **il totale**: resta com'è. (b) perde l'incolonnamento, (c) allontana il
+   numero dalle righe che lo fanno cambiare;
+4. **la conferma digitata**: (a) se il bottone si preme tutti i giorni, (c) se
+   si preme due volte al mese. Non (b): applicare non è distruggere, e il rosso
+   su un'azione normale logora il rosso;
+5. **il chip col conteggio**: già deciso dalla story, il badge non è un comando;
+6. **la barra di contesto**: guardando lo scatto nel guscio **non ruba la
+   scena** — fondo attenuato, filo sottile, e la carta bianca della pagina resta
+   l'elemento principale;
+7. **l'icona**: l'emoji di Studio era **📍**, e il default del blocco è
+   `MapPinIcon`, cioè lo stesso simbolo disegnato da noi. Dice esattamente
+   quello che diceva; `HardHatIcon` della story dice anche di più.
+
+### Lavoro 3 — la tavolozza: **resta sospesa, la domanda di sistema è chiusa**
+
+`docs/DECISIONI.md` **§49**. In breve, perché la motivazione conta più della
+conclusione:
+
+- **4.5:1 è la soglia del testo** (1.4.3). A un oggetto grafico si applica
+  **1.4.11, 3:1**, e solo quando il colore è l'unico mezzo. Il testo *sopra*
+  una tinta è un'altra coppia. Chiedere 4.5:1 alle tinte le spingerebbe tutte
+  in una banda scura dove smetterebbero di distinguersi **fra loro**, che è
+  l'unica cosa per cui esistono.
+- **E il fatto nuovo è aritmetico.** `--chart-1..5` non sono cinque colori: sono
+  cinque pioli di un passo **1.4935**, ed è il passo a garantire la
+  distinguibilità in grigio. Allo stesso passo, **8 pioli vogliono 16,6:1 e 10
+  ne vogliono 37:1**, contro i 21:1 che sRGB permette. Sopra gli otto la
+  garanzia non è ottenibile: una tavolozza estesa **non è l'estensione di
+  questa scala**, è una palette separata per tinta, con un'altra garanzia
+  (ΔE sotto i tre deficit) e un altro nome — `--categoria-*`, mai
+  `--chart-6..15`, o il nome prometterebbe una proprietà che non ha.
+- **I due inneschi si chiudono senza aprirla.** Il rosso del «Guasto»:
+  `--destructive` dà **4.75:1 sulla card chiara e 3.53:1 sulla scura**, e
+  `COLORI_EVENTO` può mapparlo. Caveat misurata: in grigio cade sul piolo di
+  `--chart-3` (0.898), quindi in stampa B/N confonderebbe Guasto e la categoria
+  blu; sotto i tre deficit regge (ΔE minimo 9.3, soglia 5). Il misuratore di
+  password: `--warning` dà **1.18:1** sulla card chiara, ed è corretto — è un
+  fondo di *badge*, non di barra. Quello che manca è **un** token ambrato, non
+  quindici tinte.
+
+`check:contrast` resta quindi a **48 coppie**, e la riga in `CHECKLIST.md`
+resta con l'innesco, adesso con la risposta accanto.
+
+### Lavoro 4 — la riga di documentazione
+
+`CLAUDE.md`, §Le due trappole che costano riscritture: `cn`/tailwind-merge
+tiene **l'ultima** utility della stessa famiglia, quindi `"mx-2 m-0 …"` fa
+sparire `mx-2` prima che il browser veda la stringa. Nessun errore, nessun
+avviso: la classe non c'è più nel DOM, e si finisce a cercare il difetto nel
+CSS. Regola pratica scritta accanto: la classe che deve vincere si scrive per
+ultima, e quando una classe «non fa niente» si guarda il DOM, non il foglio di
+stile.
+
+### Lavoro 5 — la domanda finale: **sì, una c'è, ed è il Computo di Studio**
+
+`docs/ANALISI-COPERTURA-APP.md` **§8**, tre pagine vere percorse elemento per
+elemento col nome dell'item accanto, nel formato di §2. Anagrafe in locale;
+Studio e Officina da **cloni usa-e-getta via SSH**, in sola lettura, fuori dal
+repo, cancellati a fine sessione.
+
+- **`Triage` di Officina — si ricompone, 0 lacune.** Diciotto elementi, tutti
+  con un item. E le due cose che §2 lasciava aperte su **questa stessa pagina**
+  sono chiuse: la miniatura della macchina è `entity-image` (M4ter.3), il bivio
+  tabella/schede è `use-soglia` più la ricetta `Pagine/Lista a due facce`
+  (M4ter.6).
+- **`SistemaEditor` di Anagrafe — si ricompone, 0 lacune.** Il candidato più
+  probabile a essere una lacuna era il **contatore vivo** sotto l'area di testo
+  («N / 2048 ricomposti con [CAM] e [REV]», rosso oltre il limite): non lo è,
+  perché `form-field.descrizione` è un `ReactNode` e il conteggio è
+  **calcolato**, quindi deve restare della pagina.
+- **`Computo` di Studio — NON si ricompone.** Quasi tutto c'è, pezzo per pezzo:
+  `piede` per il TOTALE COMPUTO, `meta.sottototale` per il «Sommano» di voce,
+  `data-grid` per la tastiera di cella, `barra-contesto` per il cantiere
+  attivo, `responsive-dialog` + `combobox` per il picker. **Quello che manca è
+  la loro composizione**: il Computo è una griglia a **due livelli** — voce,
+  misurazioni figlie, sommano — con **tutte** le celle dei due livelli
+  scrivibili da tastiera. `data-table` dà l'albero ma ha la tastiera di *riga*;
+  `data-grid` dà la tastiera di *cella* ma ha `getSottoRighe` **`Omit`-tato**,
+  perché naviga per indice sull'array piatto del motore mentre TanStack
+  appiattisce l'albero in un ordine diverso.
+
+  **Il limite era già accertato e scritto** — `data-grid.tsx` dice testualmente
+  «un computo con voci-madre e voci-figlie editabili resta quindi fuori da
+  questo blocco», e la prova end-to-end di M3bis.5 usa apposta un computo
+  **piatto**. Quello che mancava era **il nome della pagina che ci cade
+  dentro**. Ora c'è, ed è la regola di `native-select`: una lacuna senza un
+  nome accanto si riscopre da zero.
+
+  **Non è lavoro da coda di fase** — è un terzo modo di navigare, con un gate
+  da tastiera suo. Resta aperta con l'innesco dichiarato: **il giorno in cui
+  Studio decide di migrare il Computo**. Fino ad allora la pagina resta sul v1,
+  che è precisamente ciò che la migrazione incrementale permette, e M5.5 deve
+  nominarla fra le pagine che **non** si migrano al primo giro. Le tre strade
+  possibili sono elencate in §8.3 per non ripartire da zero, senza sceglierne
+  una.
+- **E una cosa che le tre hanno in comune**: `window.confirm`/`window.prompt`
+  sono ancora vivi in Anagrafe. `tassullo-confirm-dialog` li copre tutti e due,
+  e va in M5.5 come voce di ricerca-e-sostituzione — è l'unico pattern che si
+  trova a `grep` e si chiude senza ragionare.
+
+### Coda di M4ter.11 — la revisione a video con Francesco, e quattro cose che ne sono uscite
+
+La sessione è proseguita a video. Le sette scelte di forma si sono chiuse una
+per una, e tre di esse hanno tirato fuori lavoro che non era previsto.
+
+#### 1. Il contatore: il badge, e una story in meno
+
+Scelto il badge. La ragione era già misurata e si è vista nello scatto: nel
+testo attenuato il `· 4` prende **esattamente** `oklch(0.5222 0.0072 75.36)`,
+cioè il colore di «Officina» e del `›`. `ContatoreNelTitolo` e
+`ContatoreComeBadge` diventano **una story sola**, `Contatore`, e il perché
+sta sulla prop `LivelloPercorso.titolo` — una scelta chiusa non ha bisogno
+dell'alternativa in scena, ha bisogno che sia scritto perché.
+
+**E il confronto affiancato non si può fare**, provato e misurato: due
+`PageHeader` nella stessa pagina sono due `<nav aria-label="percorso di
+navigazione">`, cioè `landmark-unique`, **4 violazioni su 1508 scansioni**.
+Mettere il `<header>` dentro un `<section>` spegne il banner ma non il nav.
+È la stessa ragione per cui M4ter.7 le aveva separate, su un'altra regola.
+
+#### 2. `pagina-scheda` perde l'intestazione di pagina
+
+La domanda era «`descrizione` aggiunge o rumoreggia», e la risposta di
+Francesco è andata più a fondo: **via tutta l'intestazione**. Il nome è già
+l'ultimo livello del percorso, e la descrizione era la **quarta** volta che la
+stessa norma si nominava nella stessa schermata.
+
+- **Lo stato è un campo, e si modifica**: `FormField` + `Select`, stesso
+  `disabled={!modifica}` degli altri. Come badge appeso al titolo era l'unico
+  dato della pagina senza un'etichetta che dicesse di che cosa fosse il valore
+  — e per giunta in sola lettura in una pagina che ha un «Modifica».
+- **Le azioni salgono nella fascia**, e in più ereditano il ripiegamento a
+  menu che il blocco da solo non aveva.
+- **Campi su tre righe**: codice · ente · stato / titolo / note.
+- **Via la riga «Massimo 2048 caratteri»**: il limite si fa vivo come errore
+  quando serve.
+- `titolo`, `descrizione` e `distintivo` **non esistono più** come prop. Su
+  `titolo` la rettifica è di Francesco: era già ridondante col breadcrumb,
+  quindi toglierlo chiude una cosa decisa, non ne apre una nuova.
+
+**E un difetto vero sul campo Note**, che mi ha corretto il meccanismo: non è
+che il campo torni alle dimensioni originali — l'altezza tirata a mano finisce
+in uno `style` **in linea** che sopravvive all'uscita dalla modifica.
+Allargandolo non fa danni; **stringendolo sotto il contenuto** restano 10px di
+testo tagliati e irrecuperabili, perché in lettura il campo è `disabled` e la
+maniglia non c'è più. Misurato: maniglia a 43px, `min-h-16` la riporta a 64,
+contenuto 72. Rimedio `h-auto!` in lettura, che scavalca lo stile in linea e
+lascia lavorare `field-sizing-content`: **0 tagliati** in tutti e due i casi.
+
+#### 3. La barra di contesto: due posti, due ruoli — e uno slot nel guscio
+
+Francesco ha portato lo screenshot dell'app vera: **Studio ne ha due**, una
+nella colonna e una in pagina, e fino a quel momento il registry ne conosceva
+una sola. `docs/ANALISI-COPERTURA-APP.md` teneva lo slot del guscio differito
+con l'innesco sbagliato — «quando una seconda app avrà un contesto che
+attraversa le pagine» — mentre l'innesco vero era un altro ed era già scattato.
+
+La forma scelta divide i ruoli: **la colonna dice *quale* e lo cambia**, **la
+pagina dice *cosa comporta*** e non porta più il «Cambia» (senza `voci`
+`BarraContesto` è già di sola lettura: nessuna prop nuova). Sparisce così il
+doppione che si vedeva nello screenshot — due grilletti per la stessa cosa a
+60px di distanza.
+
+`SelettoreContesto` è il `TeamSwitcher` di `@shadcn/sidebar-07`, **chiesto
+all'MCP** e ricomposto: `SidebarMenuButton size="lg"` dentro un `SidebarMenu`
+con un `DropdownMenu` sopra. Gradino 1 della regola 4bis, nessuna primitiva
+nuova, `componenti-propri.json` resta a 1. `AppShell.contesto` è lo slot, ed è
+documentato come **variante**: oggi ce l'ha solo Studio.
+
+Tre difetti presi mentre lo scrivevo, tutti e tre misurati:
+
+- `text-sidebar-foreground/70`, copiato da shadcn, dà **4.41:1** sul fondo
+  scuro — sotto i 4.5 per un soffio. È la trappola dell'opacità: cambia il
+  colore *in composizione*, nessun token la dichiara, quindi `check:contrast`
+  non può vederla. La vede solo axe, e solo perché una story la metteva in
+  scena. La gerarchia la fa la misura del carattere, come fa shadcn stesso.
+- **Sul telefono il pannello usciva dallo schermo** (rilievo di Francesco):
+  a 375px la colonna è uno `Sheet` che copre quasi tutto, e `side="right"`
+  apriva il menu fuori. `side={isMobile ? "bottom" : "right"}`, che è la riga
+  che shadcn scrive nel suo `TeamSwitcher`.
+- **Il nome si tagliava**: alla colonna del testo restano **159px** in densità
+  normale e «2026-114 — Palazzo Roccabruna» ne vuole **350**. Provate tre
+  forme; scelta da Francesco la terza — **solo il nome, senza il codice** —
+  che sta su una riga sola (127 su 159, 0 tagliato) e resta quello che si
+  riconosce a colpo d'occhio. Il codice è nella fascia, quaranta pixel più a
+  destra, e in ogni voce del menu. `line-clamp-2` resta come rete.
+
+  **E qui mi sono corretto su un numero mio**: avevo detto che le due righe
+  costavano 32px di testata (88 → 120). Falso — `SidebarMenuButton size="lg"`
+  è **48px fissi**, quindi la testata resta 120 in tutte e tre le forme. Quello
+  che le due righe costavano davvero era 49px di testo in un bottone alto 48.
+
+#### 4. Il calendario, tre giri fino alla forma giusta
+
+Avevo scelto «il mese scorre». Francesco ha proposto l'opposto — **adattarsi
+in altezza mostrando meno eventi** — e aveva ragione sul principio: il motore
+lo sa già fare (`maxEventsPerCell: "auto"`), glielo impediva il **nostro**
+pavimento da 128px.
+
+Abbassato a una corsia, funzionava sui numeri e **non a vedersi**: Francesco ha
+portato lo screenshot di un «+4 altri» **tranciato a metà**. La causa:
+l'adattamento ragiona in corsie intere ma l'area della cella no, quindi a metà
+strada fra due corsie l'ultimo elemento resta tagliato — cella 85px, area utile
+59, cioè 1,8 corsie.
+
+**La forma finale è la sua**: pavimento a **tre eventi** (`min-h-32`) più il
+pavimento del corpo (`min-h-192` = 6 × 128), e semmai si cresce verso l'alto —
+*«penso sia più facile ingrandire che ridurre»*, ed è esatto, perché verso
+l'alto si aggiunge spazio e verso il basso si taglia contenuto. Rimisurato su
+dieci altezze da 313 a 1400px: **0 sovrapposizioni e 0 elementi tagliati
+ovunque**; sotto gli ~880 il contenitore scorre, sopra la cella cresce
+(131 → 147 → 181 → 214) e a 1400 il «+N altri» sparisce del tutto.
+
+**La scena `Altezza variabile`** è il banco che lo sorveglia: riquadro
+trascinabile e un righello che legge dal DOM. Tre difetti sul banco stesso,
+tutti e tre di meccanica e tutti e tre misurati:
+
+1. **«Non sfrutta tutta la schermata»** — un elemento flex che cresce o si
+   stringe **ignora il proprio `height`**: con `flex-1` (base 0) e con
+   `flex-auto` il riquadro tornava a **591px** qualunque altezza gli si desse.
+   Quindi non riempiva la finestra *e* la maniglia non faceva niente. Ora è
+   `flex-none` con l'altezza scritta da un effetto, riscritta a ogni
+   ridimensionamento **finché non si trascina** — e che si sia trascinato lo si
+   scopre confrontando l'altezza con quella scritta da noi, perché la maniglia
+   non emette eventi suoi.
+2. **Il righello restava indietro di un giro**: l'adattamento è a **due tempi**
+   — la griglia cambia altezza (`ResizeObserver` scatta), *poi* il motore
+   ri-rende i chip. Riquadro a 944px, nel DOM 7 chip e un «+N», e il righello
+   scriveva ancora 3 e 5. Un `MutationObserver` sul corpo coglie il secondo
+   tempo senza dipendere dai fotogrammi.
+3. Il righello sorveglia anche gli **elementi tagliati**, che era il difetto
+   che non sapevo prevenire.
+
+### La tavolozza: aperta, e chiusa — D24
+
+Francesco l'ha aperta con una ragione di prospettiva: *«potrebbero in futuro
+esserci più di 5 serie nei grafici o più di 5 calendari»*. Tutto il verbale sta
+in `docs/DECISIONI.md` §49; qui le tre cose che valgono oltre il caso.
+
+**Il nome separato sarebbe stato una trappola**, ed è un suo rilievo che coglie
+il difetto della mia prima proposta: `--categoria-*` accanto a `--chart-*`
+avrebbe lasciato i grafici a cinque per sempre, perché chi scrive un grafico
+usa `--chart-*` e basta. Una famiglia sola, `--chart-1..10`.
+
+**E i due grigi erano il vero collo di bottiglia.** Anche questo suo: erano la
+coppia più vicina di tutte, e c'erano solo per la garanzia in bianco e nero.
+Persa quella — e si perde per aritmetica, dieci pioli a passo 1,4935 vorrebbero
+37:1 contro i 21:1 di sRGB — restava un posto speso male. Ne resta **uno**, che
+è quello che ha chiesto lui, e non costa niente: con o senza, il minimo resta
+11,0 / 8,5.
+
+**Un errore di misura mio, e come è venuto fuori.** La prima ricerca dava
+numeri sbagliati e la conclusione rovesciata: proponeva come migliore la
+tavolozza che sotto protanopia aveva due tinte **identiche** (ΔE 1,1). La
+causa: la memoria dei colori simulati indicizzata con `f.name`, che per una
+funzione freccia anonima è la **stringa vuota**, quindi le quattro visioni
+condividevano lo stesso valore. Il campanello c'era — **i quattro numeri
+uscivano identici**, che è impossibile — e non l'ho raccolto al primo giro. Lo
+ha smascherato la pagina della style guide, che calcola senza memoria: lo
+strumento costruito per farla guardare a un umano ha corretto quello costruito
+per decidere. Regola che ne esce: *quando quattro misure indipendenti danno lo
+stesso numero, il sospetto va allo strumento, non ai dati.*
+
+Le tavolozze pubblicate sono state provate e scartate **misurandole**:
+Okabe-Ito crolla a ΔE **0,1** sotto deuteranopia appena forzata a 3:1 su fondo
+chiaro, Tol *light* a **2,9** in scuro. Sono nate per linee e punti su fondo
+bianco; qui servono riempimenti **in due modalità**, e il vincolo raddoppia.
+
+Conseguenze a valle, tutte chieste da Francesco a video: le story di
+`Primitive/Chart` passano a **dieci famiglie** (60 barre, 10 colori distinti
+verificati nel DOM) col cursore `serie` fino a 10; il controllo `colori`
+sparisce; e con lui esce dal tema la **rampa monocroma** `--chart-mono-1..5`,
+che era l'unica famiglia leggibile in B/N e l'unica cosa che la mostrava. Il
+gate ha ora **una famiglia sola** e tre proprietà, con `SERIE_SU_CARD_MIN` a
+**3** (1.4.11) e le due tinte del brand esentate **per indice**.
+
+### I gate, a fine sessione
+
+| | inizio sessione | fine |
+|---|---|---|
+| `npm run check`, sette gate | uscita 0 | **uscita 0** |
+| `test:a11y` | 1496 su 374 story | **1496 su 374**, 0 violazioni |
+| `misura:bersagli` | 3246 su 374 | **3244 su 374**, 0 piccoli |
+| `registry.json` | 94 item | **94 item** |
+| `componenti-propri.json` | 1 | **1** |
+| `build` / `lint` | verdi, 26 avvisi | verdi, **26**, nessuno nuovo |
+
+Il conto delle story torna a 374 perché `Prove/Scelte di forma` — temporanea
+per costruzione, come il precedente di M4.6 — è stata **cancellata** a scelte
+chiuse, e al suo posto sono entrate `Blocchi/Calendario → Altezza variabile` e
+`Tema/Tavolozza categorica → Le dieci tinte`.
+
+### Cosa non è stato fatto, e perché
+
+- **Nessun componente, nessuna variante, nessuna taglia.** Il solo punto in cui
+  si è valutato di aggiungerne uno è il gradino tipografico degli indicatori:
+  provato, misurato, scartato perché non basta.
+- **Nessun ottavo gate.** I difetti trovati qui non sono di una famiglia che un
+  gate riconosca: due erano di composizione in un motore di terzi, uno è una
+  firma shadcn che il gate giustamente difende.
+- **Lo slot in `app-shell` resta fuori**, come deciso in M4ter.10: innesco non
+  scattato.
+- **La tavolozza non si è aperta.** Non per prudenza: perché l'aritmetica dice
+  che la forma in cui era stata immaginata (dieci-quindici pioli della stessa
+  scala) non esiste, e la forma che esiste è un'altra cosa, che va decisa
+  sapendolo.
+
+### Quello che resta aperto, con un nome accanto
+
+**I tre sono aperti, ma non sono la stessa sessione**: il primo è
+`M4ter.12`, gli altri due hanno un posto loro e sono scritti lì.
+
+1. **Il Computo di Studio non si ricompone** — `docs/ANALISI-COPERTURA-APP.md`
+   §8.3, ed è **`M4ter.12`** (`PIANO.md` §FASE 4ter). È una griglia a **due livelli** (voce, misurazioni figlie, «Sommano»)
+   con tutte le celle scrivibili da tastiera: `data-table` dà l'albero ma la
+   tastiera di *riga*, `data-grid` la tastiera di *cella* ma `getSottoRighe`
+   **`Omit`-tato**, perché naviga per indice sull'array piatto del motore. Il
+   limite era già scritto nel blocco; mancava il nome della pagina che ci cade
+   dentro. **Non è lavoro da coda di fase**: è un terzo modo di navigare, con
+   un gate da tastiera suo. Le tre strade possibili sono elencate in §8.3.
+2. **`window.confirm`/`window.prompt` vivi in Anagrafe** (ChangeSets):
+   `tassullo-confirm-dialog` li copre tutti e due. È lavoro di **migrazione**,
+   non di registry: scritto nel prompt di **M5.5**, dove chi migra lo trova —
+   stare solo qui e in `ANALISI-COPERTURA-APP.md` §8.4 voleva dire stare in
+   nessun posto che M5.5 apra.
+3. **Lo slot in `app-shell` per la fascia fra testata e `<Outlet/>`** resta
+   differito, innesco non scattato. **Ed è la riga che rischiava di sembrare
+   chiusa**: `AppShell.contesto`, aggiunto qui, è uno slot nella **testata
+   della colonna** e ospita il `SelettoreContesto`; quello differito sta
+   **sotto la fascia, sopra il contenuto** e ospiterebbe la `BarraContesto`.
+   Due posti, due inneschi — e Studio li usa tutti e due, che è come si è
+   scoperto il primo. La riga in `CHECKLIST.md` lo dice ora, o fra tre mesi si
+   legge «slot fatto».
+
+### Prossimi passi
+
+**FASE 4ter chiusa, 10 sessioni più la coda.** La FASE 5 è sbloccata per intero
+e senza arretrato di forma addosso: M5.1 (le `dependencies` npm, già risultate
+complete sui dodici item nuovi in M4ter.10), M5.2, M5.3, M5.4 (che ereditano i
+quattro prerequisiti), M5.5 — che ora può nominare blocchi che esistono tutti e
+hanno la forma definitiva, e che ha tre voci in più da §8: il Computo fra le
+pagine da non migrare al primo giro, `window.confirm`/`prompt` come
+ricerca-e-sostituzione, e la soglia del bivio che la decide l'app — e M5.6.

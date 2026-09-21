@@ -3680,6 +3680,30 @@ export function DataTable<TDato extends RowData>({
     ro.observe(radice)
     if (elPiePagina) ro.observe(elPiePagina)
     if (testataRef.current) ro.observe(testataRef.current)
+    /*
+     * **E la tabella, o su `perPagina="virtuale"` il tetto non si mette mai**
+     * (M4ter.11). Gli altri tre osservati non cambiano mai altezza da soli:
+     * servono a reagire alla finestra, non al contenuto. Con la
+     * virtualizzazione le righe però **non ci sono ancora** quando l'effetto
+     * gira — né alla chiamata diretta né alla prima notifica che
+     * `ResizeObserver` consegna appena si osserva — e `ricalcola` esce sul
+     * `righeVere.length === 0` senza che nulla lo richiami più.
+     *
+     * Misurato su `Blocchi/Data Table → Virtualizzata`, **6 aperture su 6**:
+     * `righe 0` due volte e `max-height` mai scritto, mentre il calcolo
+     * avrebbe dato **448px** contro i 477,4 che il riquadro teneva — cioè
+     * l'ultima striscia mostrava 29px di una riga alta 37, che è esattamente
+     * il difetto che questo effetto esiste per togliere. In M4ter.10 lo stesso
+     * difetto era stato visto «2 volte su 4»: è una corsa, e qui la perde
+     * sempre.
+     *
+     * La tabella invece **cresce** quando il virtualizzatore rende le righe, e
+     * non si rimpicciolisce per colpa del tetto — sta dentro un contenitore
+     * che scorre, quindi la sua altezza naturale non dipende da
+     * `max-height`. Nessun anello di ritorno: solo una notifica in più quando
+     * il contenuto arriva.
+     */
+    if (tabellaRef.current) ro.observe(tabellaRef.current)
     return () => ro.disconnect()
     /*
      * `conRighe` (`righe.length > 0`), non `righe.length`: il numero cresce a ogni passo

@@ -297,68 +297,49 @@ export const LivelloUnico: Story = {
 }
 
 /**
- * **Il contatore accanto al nome della pagina (M4ter.7).** Officina lo scrive
- * in Triage, Ricambi e Piani — «Segnalazioni da smistare · 4» — e fino a ieri
- * non ci stava: `LivelloPercorso.titolo` era una `string`. Adesso è un
- * `ReactNode`, e a chi passa una stringa non toglie niente.
+ * **Il contatore accanto al nome della pagina.** Officina lo scrive in Triage,
+ * Ricambi e Piani — «Segnalazioni da smistare 4» — e fino a M4ter.7 non ci
+ * stava: `LivelloPercorso.titolo` era una `string`. Adesso è un `ReactNode`, e
+ * a chi passa una stringa non toglie niente.
  *
  * Le due strade erano «il numero va fra le azioni» e questa. Vince questa
  * perché il numero **appartiene al nome della pagina**: un'azione è qualcosa
  * che si clicca, e un conteggio non si clicca.
  *
- * **Come scriverlo dentro è del chiamante, e le forme sono due** — questa e
- * `ContatoreComeBadge` qui sotto. Stanno in due scene e non affiancate nella
- * stessa perché due fascie montate insieme sono due `<header>`: misurato, il
- * gate dà `landmark-no-duplicate-banner` e `landmark-unique`, ed è un difetto
- * vero, non un artificio del banco.
+ * ## Il numero va in un `Badge`, non in testo attenuato — scelto il 2026-09-21
  *
- * Il rilievo che motiva il confronto è **misurato**: qui il contatore prende
- * `--muted-foreground`, cioè *esattamente* il colore del collegamento
- * «Officina» e del separatore `›` — `oklch(0.5222 0.0072 75.36)` su tutti e
- * tre. Si stacca dal nome della pagina (che è a `oklch(0.1913 0 0)`), ma
- * prende il tono dei livelli che lo precedono, e può quindi leggersi come un
- * altro livello invece che come «quanti ce ne sono».
+ * Le forme in ballo erano due, e fino a M4ter.11 stavano in due scene: il
+ * numero come `<span className="text-muted-foreground">· 4</span>`, che è la
+ * forma che Officina scrive oggi, e questa. **Francesco ha scelto il badge**,
+ * e la ragione era già misurata: nel testo attenuato il `· 4` prende
+ * `oklch(0.5222 0.0072 75.36)`, cioè **esattamente** il colore di «Officina» e
+ * del separatore `›`. Si stacca dal nome della pagina — che è a
+ * `oklch(0.1913 0 0)` — ma prende il tono dei **livelli che lo precedono**, e
+ * si legge quindi come un altro livello del percorso invece che come «quanti
+ * ce ne sono». Il badge esce da quella scala di grigi; il prezzo è che pesa un
+ * po' di più su una fascia già densa, e si è accettato.
+ *
+ * La scena del testo attenuato **è stata tolta**, non tenuta accanto: due
+ * `PageHeader` nella stessa pagina sono due `<nav>` di percorso con lo stesso
+ * nome accessibile, cioè `landmark-unique` — misurato in M4ter.11, 4
+ * violazioni su 1508 scansioni — ed è lo stesso motivo per cui le due forme
+ * non si erano mai potute affiancare (in M4ter.7 la regola che scattava era
+ * `landmark-no-duplicate-banner`). Una scelta chiusa non ha bisogno
+ * dell'alternativa in scena: ha bisogno che sia scritto perché.
+ *
+ * `variant="secondary"`: il badge dice **quanti**, non **quanto è grave**. Un
+ * badge pieno del colore del brand accanto al nome della pagina metterebbe sul
+ * conteggio un accento che compete con l'azione primaria della fascia.
  *
  * `tabular-nums` perché il numero cambia sotto gli occhi mentre si smista, e
  * una cifra che si allarga fa ballare la riga.
  *
  * **Vale solo sull'ultimo livello.** Un contatore su un livello intermedio
- * finirebbe dentro un `<a>`, cioè dentro il nome accessibile del
- * collegamento: «Prodotti · 4» come destinazione non vuol dire niente.
+ * finirebbe dentro un `<a>`, cioè dentro il nome accessibile del collegamento:
+ * «Prodotti 4» come destinazione non vuol dire niente.
  */
-export const ContatoreNelTitolo: Story = {
-  args: {
-    percorso: [
-      { titolo: 'Officina', href: '#' },
-      {
-        titolo: (
-          <>
-            Segnalazioni da smistare{' '}
-            <span className="text-muted-foreground tabular-nums">· 4</span>
-          </>
-        ),
-      },
-    ],
-    azioni: [AZIONI[1]!],
-  },
-  render: (args) => (
-    <Banco didascalia="Il conteggio come testo in tono attenuato — la forma che Officina scrive oggi.">
-      <PageHeader {...args} />
-    </Banco>
-  ),
-}
-
-/**
- * La seconda forma: lo stesso numero dentro un `<Badge variant="secondary">`.
- * Si stacca dal nome e non si confonde con i livelli del percorso — il dubbio
- * misurato su `ContatoreNelTitolo` qui non c'è — e in cambio pesa di più su
- * una fascia che è già densa.
- *
- * Nessuna delle due è «quella giusta» finché non si guardano: è la forma che
- * il chiamante compone, e il blocco accetta l'una e l'altra senza sapere
- * quale.
- */
-export const ContatoreComeBadge: Story = {
+export const Contatore: Story = {
+  name: 'Contatore',
   args: {
     percorso: [
       { titolo: 'Officina', href: '#' },
@@ -376,7 +357,7 @@ export const ContatoreComeBadge: Story = {
     azioni: [AZIONI[1]!],
   },
   render: (args) => (
-    <Banco didascalia="Il conteggio dentro un <Badge> — si stacca dal nome, ma pesa di più.">
+    <Banco didascalia="Il conteggio dentro un <Badge variant=&quot;secondary&quot;> — la forma scelta il 2026-09-21.">
       <PageHeader {...args} />
     </Banco>
   ),

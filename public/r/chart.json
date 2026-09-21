@@ -14,5 +14,6 @@
       "type": "registry:ui"
     }
   ],
+  "docs": "Il tooltip scrive il valore con toLocaleString() senza locale: la misura la\ndecide il browser di chi guarda, e nessuna delle due risposte e la\nconvenzione Tassullo (docs/DECISIONI.md §47). In en-US un importo di quattro\ncifre esce 2,086.93; in it-IT esce 2086,93, perche il CLDR italiano non\nraggruppa le quattro cifre.\n\nNon si corregge nel componente: toLocaleString() e una firma di chiamata di\nshadcn, cioe forma, e cambiarla e una divergenza che al prossimo\naggiornamento non si distinguerebbe piu dal loro codice. Il gancio da usare\ne la prop `formatter` di ChartTooltipContent, che il punto d'uso passa da\nse, con le formattatrici dell'item `numeri`:\n\n  <ChartTooltip content={<ChartTooltipContent formatter={miaRiga} />} />\n\nAttenzione: `formatter` sostituisce l'INTERA riga del tooltip — pastiglia\ndel colore, etichetta e numero — non il solo valore.",
   "type": "registry:ui"
 }

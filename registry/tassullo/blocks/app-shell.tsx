@@ -445,6 +445,25 @@ export type AppShellProps = {
   /** Le voci del menù utente: `<DropdownMenuItem>` e separatori. */
   azioniUtente?: ReactNode
   /**
+   * **Lo slot della testata della colonna, sotto il marchio** — tipicamente
+   * il `<SelettoreContesto>` di `tassullo-barra-contesto` (2026-09-21).
+   *
+   * È uno slot e non delle prop tipizzate, per la stessa ragione per cui la
+   * fascia non riceve il percorso da qui: il guscio non sa che cosa sia una
+   * commessa, e non deve impararlo. Riceve un nodo e gli fa posto.
+   *
+   * **È una variante, non il nuovo normale.** Serve alle app che hanno
+   * un'entità attiva che attraversa tutte le pagine — oggi **solo Studio**, e
+   * il bisogno è stato accertato guardando l'app vera in M4ter.11: ne ha due,
+   * una qui e una in pagina. Le altre non passano niente e la testata resta
+   * quella di prima, marchio e nome dell'applicativo.
+   *
+   * Con `collassa="icona"` la colonna stretta riduce il selettore al suo
+   * quadrato, come fa con le voci di navigazione: è `SidebarMenuButton` a
+   * saperlo fare, non una regola nostra.
+   */
+  contesto?: ReactNode
+  /**
    * **Il contenuto della fascia non si passa da qui**, e non è una dimenticanza.
    *
    * Percorso e azioni sono della **pagina**, non del guscio, e il guscio si
@@ -513,6 +532,7 @@ export function AppShell({
   sezioni,
   utente,
   azioniUtente,
+  contesto,
   collassa = "icona",
   defaultAperta = true,
   larghezza = "piena",
@@ -542,6 +562,7 @@ export function AppShell({
           <Sidebar collapsible={collassa === "icona" ? "icon" : "offcanvas"}>
             <SidebarHeader>
               <Testata applicazione={applicazione} render={testataRender} />
+              {contesto}
             </SidebarHeader>
             <SidebarContent>
               <Navigazione sezioni={sezioni} />

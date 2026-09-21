@@ -575,3 +575,128 @@ disegnare qualcosa, ed è tardi.
   2026-09-19): somiglia alla barra dei passi ma non lo è — lo stepper è un `tablist` di
   `tab` cliccabili, il misuratore non si naviga e non si seleziona. Occorrenza singola,
   codice di pagina.
+
+## 8. Tre pagine vere, elemento per elemento — la domanda che il gate non poteva chiudere (M4ter.11, 2026-09-21)
+
+Il gate di fase (M4ter.10) ha ripercorso la **tabella §1**, cioè i *pattern*. Questa
+sezione ripercorre tre **pagine**, perché sono due domande diverse: un pattern coperto non
+dice che la pagina che lo contiene si ricomponga. Il metodo è quello di §2 — codice e CSS
+veri, elemento per elemento, col nome dell'item accanto.
+
+Anagrafe è in locale; Studio e Officina si sono letti da un **clone usa-e-getta via SSH**
+fuori dal repo, in sola lettura, cancellato a fine sessione (la strada decisa in M4ter.9,
+perché `gh api` non arriva più ai `contents`).
+
+### 8.1 `Triage` di Officina — **si ricompone, 0 lacune**
+
+`frontend/src/pages/Triage.tsx`, 578 righe.
+
+| elemento della pagina | item del registry |
+|---|---|
+| titolo «Segnalazioni da smistare» + contatore | `tassullo-page-header`, `titolo` come `ReactNode` (scelta di forma #1) |
+| avviso «Lavoro #N assegnato a X» con collegamento | `alert` (tono success). Resta a video fino alla prossima assegnazione: non è un toast |
+| avviso «il triage è riservato al responsabile» | `alert` (tono warning) |
+| errore di caricamento | `tassullo-error-state` |
+| scheletro mentre carica | `tassullo-page-skeleton` / `skeleton` |
+| «Nessuna segnalazione in coda» | `tassullo-empty-state` |
+| **il bivio tabella/schede** | `use-soglia` + la ricetta `Pagine/Lista a due facce` (M4ter.6) |
+| faccia larga: la tabella | `tassullo-data-table` |
+| miniatura della macchina, con icona di riserva | `entity-image` (D20, M4ter.3) |
+| badge «Macchina ferma» | `badge` variante `destructive` |
+| «altre N su questa macchina» | testo attenuato — nessun blocco, ed è giusto così |
+| riga espansa con foto e descrizione | `data-table` `pannelloRiga` (story `Espansione`) |
+| le foto nella riga espansa | `entity-image` |
+| select Priorità e Tipo **dentro la riga** | `data-table` story `Editing in riga` + `select` |
+| campo assegnatario: elenco persone **oppure** email | `combobox` quando il roster c'è, `input-group` + `InputGroupButton` («A me») quando no |
+| bottone «Apri e assegna», secondario finché non c'è l'assegnatario | `button`, varianti |
+| faccia stretta: la scheda | `card` |
+| chip Priorità e Tipo | `toggle-group` scelta singola |
+| bottone a tutta larghezza | `button size="lg"` + `w-full` |
+
+Rispetto a §2, che su questa stessa pagina lasciava scoperta la miniatura e mancante il
+bivio, **sono chiusi tutti e due**: `entity-image` e `use-soglia` esistono.
+
+### 8.2 `SistemaEditor` di Anagrafe — **si ricompone, 0 lacune**
+
+`frontend/src/components/SistemaEditor.tsx`, 504 righe.
+
+| elemento | item |
+|---|---|
+| sezioni apribili («Testata», «Proposta di modifica») | `collapsible`, o `accordion` se se ne vuole una sola aperta |
+| campi con etichetta, numerici e testo | `tassullo-form-field` + `input` |
+| area di testo del paragrafo di voce | `form-field` + `textarea` |
+| **contatore vivo «N / 2048 ricomposti con [CAM] e [REV]»**, rosso oltre il limite | `form-field`, prop `descrizione`: è un `ReactNode`, e il conteggio è **calcolato** dalla pagina (non `value.length`), quindi deve restare suo |
+| segmenti calcolati, sola lettura | blocco di codice in `font-mono` — l'unico uso del mono che `docs/DECISIONI.md` §48 lascia in piedi |
+| badge «rimando» | `badge` |
+| bottone «Rimuovi dal sistema» / «Annulla rimozione» | `button size="sm"` |
+| avvisi (errore, successo con collegamento, «solo da scrivania») | `alert` |
+| collegamenti a ChangeSets | `button` `asChild` sul `<Link>` del router |
+| conferma della proposta | `tassullo-confirm-dialog` — e chiude `window.confirm`/`window.prompt` (§8.4) |
+
+Il contatore vivo era il candidato più probabile a essere una lacuna, e non lo è: si compone
+al gradino 2, senza toccare `form-field`.
+
+### 8.3 `Computo` di Studio — **NON si ricompone**, ed è l'unica delle tre
+
+`frontend/src/pages/Computo.tsx` più `components/computo/` (ComputoTable, ComputoToolbar,
+VoceRowGroup, AnalisiPanel, FabbisogniTab, SistemaPickerModal — 1.263 righe in tutto).
+
+Quasi tutto c'è:
+
+| elemento | item |
+|---|---|
+| intestazione e schede Computo / Fabbisogni / Lista d'ordine | `tassullo-page-header` + `tabs` |
+| la fascia del cantiere attivo | `tassullo-barra-contesto` (M4ter.9) |
+| barra comandi: aggiungi voce, esporta ×3, contatori, stato «Salvato ✓» | `button`, `button-group`, testo attenuato, `badge` |
+| scelta del sistema dal catalogo | `tassullo-responsive-dialog` + `combobox` |
+| menu azioni di riga | `dropdown-menu`, o `data-table` `Menu riga condiviso` |
+| riga TOTALE COMPUTO in coda | `data-table` `piede` (M4ter.8) |
+| sotto-totale «Sommano» per voce | `data-table` `meta.sottototale` (M3bis.1) |
+| celle editabili con tastiera, copia/incolla, annulla/ripeti | `tassullo-data-grid` (M3bis.5) |
+
+**Quello che non c'è è la loro composizione.** Il Computo è una griglia **a due livelli**:
+una voce-madre, le sue righe di misurazione come figlie, un «Sommano» per voce e un totale
+generale — e **tutte le celle dei due livelli si scrivono da tastiera**. Oggi:
+
+- `data-table` dà l'albero (`getSottoRighe`) e il sotto-totale, ma la sua tastiera è **di
+  riga**, non di cella;
+- `data-grid` dà la tastiera **di cella**, ma `getSottoRighe` è esplicitamente
+  `Omit`-tato dalle sue props, e il suo file lo dichiara a verbale: la tastiera naviga
+  **per indice sull'array piatto del motore**, mentre con l'albero TanStack appiattisce in
+  un ordine che quell'array non ha. È la stessa classe di scostamento per cui la griglia
+  non ha ricerca né ordinamento, ma **strutturale**, non spegnibile con una prop.
+
+Il commento di `data-grid.tsx` nomina persino il caso: *«Un computo con voci-madre e
+voci-figlie editabili resta quindi fuori da questo blocco»*. Il limite era dunque già
+accertato e scritto — **quello che mancava era il nome della pagina che ci cade dentro**,
+ed è questa. La prova end-to-end di M3bis.5 usa un computo **piatto**, cioè non quello di
+Studio.
+
+**Chi la prende in carico.** Non è lavoro da coda di fase: è un terzo modo di navigare
+(fuoco di cella su un modello ad albero), cioè una sessione a sé con un proprio gate da
+tastiera in Chromium vero. **Resta aperta, con l'innesco dichiarato: il giorno in cui
+Studio decide di migrare il Computo.** Fino ad allora la pagina resta sul v1 — il che è
+esattamente ciò che la migrazione incrementale permette, e `GUIDA-MIGRAZIONE.md` (M5.5)
+deve nominarla fra le pagine che **non** si migrano al primo giro.
+
+Le tre alternative, se e quando si aprirà, in ordine di costo crescente — nessuna scelta
+qui, solo perché non si riparta da zero:
+
+1. **Appiattire il dato**: una riga per misurazione, la voce ripetuta o in una colonna di
+   gruppo, il «Sommano» come riga vera del motore. Costa zero al registry e cambia la forma
+   del computo — va chiesto a chi lo usa, non deciso qui.
+2. **Dare a `data-grid` un indice che segua l'albero** invece dell'array del motore: è la
+   correzione giusta, ed è la più cara — tocca tastiera, `scrollToIndex`, incolla e
+   riempimento, tutti scritti su «riga N = `motore.righe[N]`».
+3. **Un blocco terzo**, che non è né l'uno né l'altro. È il gradino 4 della regola 4bis:
+   si propone, non si scrive.
+
+### 8.4 Una cosa che le tre pagine hanno in comune, e che la guida deve dire
+
+`window.confirm` e `window.prompt` sono ancora vivi in **Anagrafe** (`ChangeSets.tsx`:
+«Scrivere queste modifiche su Business Central?» e «Motivo della respinta:»). Una finestra
+del sistema operativo non ha i colori del tema, non si naviga come la pagina e su ogni
+macchina è disegnata diversa — la stessa obiezione con cui si è chiuso D19 sul `<select>`
+nativo. `tassullo-confirm-dialog` copre tutti e due i casi, col campo obbligatorio e con la
+parola da ricopiare. **Va in `GUIDA-MIGRAZIONE.md` come voce di ricerca-e-sostituzione**,
+perché è l'unico pattern che si trova a `grep` e si chiude senza ragionare.

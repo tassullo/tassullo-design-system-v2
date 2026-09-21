@@ -69,10 +69,23 @@
  * | | `12.847.503` sborda | `€ 1.284.500,00` | idem | `€ 12.847.503,40` |
  *
  * Da cui `@sm` (384px di contenitore) come primo gradino. **Quello che non
- * copre**, e va detto: fra 384 e ~448px di contenitore le due colonne danno
- * carte da 190–210px, dove una valuta a otto cifre sborda ancora. Lì il
- * rimedio non è la griglia — è `valore`, che il chiamante formatta come
- * vuole: «€ 1,28 Mln» sta ovunque.
+ * copre**, e ora è misurato invece che stimato (M4ter.11, Chromium, sugli
+ * stessi rettangoli di riga):
+ *
+ * | contenitore | 320 | 384 | 400 | 416 | 432 | 448 |
+ * |---|---:|---:|---:|---:|---:|---:|
+ * | carta | 320 | 184 | 192 | 200 | 208 | 216 |
+ * | `12.847.503,40 €` sborda di | — | **28** | 20 | 12 | 4 | — |
+ * | `1.284.500,00 €` sborda di | — | **10,6** | 2,6 | — | — | — |
+ *
+ * La fascia scoperta è quindi **384–432px di contenitore**, non «fino a
+ * ~448». Lì il rimedio non è la griglia e non è una classe: si è provato a
+ * scendere di gradino tipografico sotto una container query, e non basta —
+ * a 19px l'importo resta più largo della carta, e sotto c'è solo la misura
+ * dell'etichetta, cioè il difetto muto di M4.4. **Il rimedio è `valore`**,
+ * che il chiamante formatta come vuole, con `lib/numeri`: la forma corta
+ * (`formattatore({ notation: "compact" })`) dà `12,8 Mln €`, che sta ovunque.
+ * La story `UnoPerRiga` mette le due forme una accanto all'altra.
  *
  * ── Il numero non sta dentro una `Card size="sm"` ────────────────────────
  *
