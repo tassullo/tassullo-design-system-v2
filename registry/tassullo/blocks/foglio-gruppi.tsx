@@ -103,8 +103,16 @@ export type GruppoFoglio<TTestata, TRiga> = {
   righe: TRiga[]
 }
 
-/** Le tre zone di un gruppo. Una colonna dichiara una cella per zona, o niente. */
-export type ZonaFoglio = "testata" | "corpo" | "piede"
+/**
+ * Le zone di un gruppo. `azioni` è la riga dei comandi frequenti — nel computo
+ * il «+ misurazione» — ed è una **riga vera del foglio**, non una voce di menu:
+ * rilievo di Francesco il 2026-09-21, «molto più veloce posizionato fuori dal
+ * menù ⋯». Ci si arriva con le frecce come a qualunque altra riga e si attiva
+ * con `Invio`, quindi resta veloce anche da tastiera **senza** entrare
+ * nell'ordine di `Tab` — che è il difetto misurato sul Computo vero, dove per
+ * cambiare riga si tabulava sul bottone che cancella.
+ */
+export type ZonaFoglio = "testata" | "corpo" | "azioni" | "piede"
 
 export type CellaScrivibile<TDato> = {
   tipo: "scrivibile"
@@ -175,6 +183,8 @@ export type OpzioniFoglioGruppi<TTestata, TRiga> = {
   gruppiIniziali: GruppoFoglio<TTestata, TRiga>[]
   colonne: ColonnaFoglio<TTestata, TRiga>[]
   onModifica?: (gruppi: GruppoFoglio<TTestata, TRiga>[]) => void
+  /** Il foglio rende la riga delle azioni fra corpo e piede (v. `ZonaFoglio`). */
+  conRigaAzioni?: boolean
 }
 
 export type MotoreFoglioGruppi<TTestata, TRiga> = {
@@ -210,6 +220,7 @@ export function useFoglioGruppi<TTestata, TRiga>({
   gruppiIniziali,
   colonne,
   onModifica,
+  conRigaAzioni = false,
 }: OpzioniFoglioGruppi<TTestata, TRiga>): MotoreFoglioGruppi<TTestata, TRiga> {
   const [gruppi, setGruppi] = React.useState(gruppiIniziali)
   const [posizione, setPosizione] = React.useState<PosizioneFoglio | null>(null)
@@ -243,10 +254,20 @@ export function useFoglioGruppi<TTestata, TRiga>({
         })
       righe.push(fila("testata", 0))
       gruppo.righe.forEach((_, ri) => righe.push(fila("corpo", ri)))
+      if (conRigaAzioni) {
+        // Una sola casella, nella prima colonna che nel corpo ha una cella:
+        // è lì che l'occhio già scorre, ed è dove sta il «+ misurazione».
+        const dove = colonne.findIndex((c) => c.corpo?.tipo === "scrivibile")
+        righe.push(
+          colonne.map((_, ci) =>
+            ci === dove ? { gruppo: gi, zona: "azioni" as ZonaFoglio, riga: 0, colonna: ci } : null
+          )
+        )
+      }
       righe.push(fila("piede", 0))
     })
     return righe
-  }, [gruppi, colonne])
+  }, [gruppi, colonne, conRigaAzioni])
 
   /** L'indice di riga visiva di una posizione — il contrario della matrice. */
   const indiceVisivo = React.useCallback(
@@ -257,18 +278,20 @@ export function useFoglioGruppi<TTestata, TRiga>({
         if (gi === p.gruppo) {
           if (p.zona === "testata") return y
           if (p.zona === "corpo") return y + 1 + p.riga
-          return y + 1 + corpo
+          if (p.zona === "azioni") return y + 1 + corpo
+          return y + 1 + corpo + (conRigaAzioni ? 1 : 0)
         }
-        y += corpo + 2
+        y += corpo + 2 + (conRigaAzioni ? 1 : 0)
       }
       return -1
     },
-    [gruppi]
+    [gruppi, conRigaAzioni]
   )
 
   const cellaScrivibile = (p: PosizioneFoglio) => {
     const col = colonne[p.colonna]
     if (!col) return undefined
+    if (p.zona === "azioni") return undefined
     const cella = p.zona === "testata" ? col.testata : p.zona === "corpo" ? col.corpo : col.piede
     return cella?.tipo === "scrivibile" ? cella : undefined
   }
@@ -558,8 +581,14 @@ function CellaFoglio<TTestata, TRiga>({
           !valore && "text-muted-foreground"
         )}
         onFocus={() => motore.vaiA(posizione)}
-        onClick={() => motore.vaiA(posizione)}
-        onDoubleClick={() => motore.apriModifica(posizione)}
+        // **Un clic solo apre**, non due: rilievo di Francesco il 2026-09-21,
+        // «in studio basta cliccare sulla cella per entrare nella modalità
+        // modifica, qua serve doppio click, troppo lento». Nel Computo vero le
+        // celle *sono* campi di testo sempre attivi, quindi cliccare **è**
+        // modificare: un foglio che chiede due gesti per la stessa cosa è più
+        // lento di quello che sostituisce, e non c'è niente da guadagnarci —
+        // le frecce restano la via per attraversare senza toccare i valori.
+        onClick={() => motore.apriModifica(posizione)}
         onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
       >
         {cella.mostra
@@ -635,6 +664,21 @@ export type FoglioGruppiProps<TTestata, TRiga> = {
   motore: MotoreFoglioGruppi<TTestata, TRiga>
   /** I comandi di un gruppo: menu con `tabIndex={-1}`, aperto da `Shift+F10`. */
   comandi?: (gruppo: GruppoFoglio<TTestata, TRiga>, indice: number) => ComandoFoglio[]
+  /**
+   * L'azione **frequente** del gruppo, su una riga propria fra corpo e piede —
+   * nel computo il «+ misurazione». Non sta nel menu: un'azione che si ripete
+   * per ogni riga non va nascosta dietro due gesti. Il motore va costruito con
+   * `conRigaAzioni: true`, o la riga si rende e le frecce non la trovano.
+   *
+   * **Una sola, e il tipo lo impone.** La prima stesura ne accettava un
+   * elenco, dentro un contenitore focalizzabile: `role="button"` su un `<div>`
+   * che contiene dei `<button>` è **`nested-interactive`**, e il gate l'ha
+   * preso — 4 violazioni per passata, 16 in tutto. La correzione non è stata
+   * cambiare il ruolo ma il **numero**: il bottone stesso è la cella, così non
+   * c'è niente da annidare. Ed è anche la forma giusta — una riga di azioni
+   * con cinque collegamenti è un menu travestito, e il menu c'è già.
+   */
+  azione?: (gruppo: GruppoFoglio<TTestata, TRiga>, indice: number) => ComandoFoglio
   /** La riga in coda al foglio: il totale generale. */
   piede?: (gruppi: GruppoFoglio<TTestata, TRiga>[]) => React.ReactNode
   /** Descrizione della tabella per chi non vede — obbligatoria come un `alt`. */
@@ -645,6 +689,7 @@ export type FoglioGruppiProps<TTestata, TRiga> = {
 export function FoglioGruppi<TTestata, TRiga>({
   motore,
   comandi,
+  azione,
   piede,
   didascalia,
   className,
@@ -674,7 +719,13 @@ export function FoglioGruppi<TTestata, TRiga>({
         aria-label={didascalia}
         aria-rowcount={gruppi.reduce((n, g) => n + g.righe.length + 2, 0)}
         aria-colcount={colonne.length}
-        className="table-fixed"
+        // Le linee verticali e il bordo esterno: un foglio di computo si legge
+        // **per colonne** — la lunghezza sotto la lunghezza, l'importo sotto
+        // l'importo — e senza i separatori l'occhio perde la colonna a metà
+        // riga. Rilievo di Francesco il 2026-09-21, e la stessa ragione per cui
+        // ogni foglio di calcolo li ha: qui non sono una prop, sono la forma
+        // del blocco.
+        className="table-fixed border border-border [&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
       >
         <colgroup>
           {colonne.map((col) => (
@@ -747,6 +798,54 @@ export function FoglioGruppi<TTestata, TRiga>({
                   ))}
                 </TableRow>
               ))}
+
+              {/* L'azione frequente: una riga vera, raggiunta dalle frecce.
+                  Il bottone **è** la cella — niente contenitore con un ruolo
+                  proprio, o sarebbe `nested-interactive`. */}
+              {azione ? (
+                <TableRow>
+                  {colonne.map((col, ci) => {
+                    const dove = colonne.findIndex((c) => c.corpo?.tipo === "scrivibile")
+                    if (ci !== dove) return <TableCell key={col.id} />
+                    const posizioneAzione: PosizioneFoglio = {
+                      gruppo: gi,
+                      zona: "azioni",
+                      riga: 0,
+                      colonna: ci,
+                    }
+                    const aFuocoAzione = motore.aFuoco(posizioneAzione)
+                    const comando = azione(gruppo, gi)
+                    return (
+                      <TableCell key={col.id} className="p-0">
+                        <button
+                          type="button"
+                          ref={(nodo) => {
+                            if (aFuocoAzione) nodo?.focus()
+                          }}
+                          tabIndex={aFuocoAzione ? 0 : -1}
+                          disabled={comando.disabilitato}
+                          className={cn(
+                            "px-2 py-1 text-sm text-accent-ink underline-offset-4 outline-none",
+                            "hover:underline",
+                            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          )}
+                          onFocus={() => motore.vaiA(posizioneAzione)}
+                          onClick={comando.onSelect}
+                          onKeyDown={(e) => {
+                            // Invio e Spazio li gestisce il bottone da sé: qui
+                            // passano solo le frecce, o si intercetterebbe
+                            // l'attivazione nativa del controllo.
+                            if (e.key === "Enter" || e.key === " ") return
+                            motore.onKeyDownCella(e, posizioneAzione)
+                          }}
+                        >
+                          {comando.etichetta}
+                        </button>
+                      </TableCell>
+                    )
+                  })}
+                </TableRow>
+              ) : null}
 
               {/* Piede del gruppo */}
               <TableRow className="border-t font-medium">

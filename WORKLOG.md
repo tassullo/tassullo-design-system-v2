@@ -11202,3 +11202,83 @@ chiesta.
 - `registry.json` **95 item** (era 94), `componenti-propri.json` **1**,
   `check:riferimenti` **210 riferimenti, 0 rotti, 105 file**.
 - `build` e `lint` verdi, **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.12 — quattro rilievi di Francesco a video (2026-09-21)
+
+Guardata la story accanto all'app vera, quattro rilievi. Tre corretti qui, uno
+resta aperto.
+
+**Dove stavano le story, che era la domanda di partenza.** `Blocchi → Foglio a
+gruppi`, voce di primo livello — non sotto `Data Table`. Il `Computo` che si
+trova sotto **Data Grid** è la griglia **piatta** di M3bis.5, cioè quella
+vecchia: tre cose con lo stesso nome a un livello di distanza, ed è bastato
+questo per cercare nel posto sbagliato. Da tenere presente quando si nomineranno
+le story nella guida di migrazione.
+
+**(a) La `play` apriva il menu sopra la tabella.** Storybook esegue le `play`
+**anche nel canvas**, quindi la story principale arrivava a video col menu dei
+comandi aperto sopra il contenuto — illeggibile proprio mentre la si guarda. La
+dichiarazione del popup è stata spostata su una story sua, `Comandi`, che il
+menu lo mostra apposta. Il gate legge la **prima** `play:` del file, quindi
+basta che una story la dichiari. È una cosa da sapere per ogni blocco con popup
+che si vorrà rivedere a video.
+
+**(b) Un clic solo apre la modifica, non due.** *«In studio basta cliccare sulla
+cella per entrare nella modalità modifica, qua serve doppio click, troppo
+lento.»* Aveva ragione e la ragione è strutturale: nel Computo vero le celle
+**sono** campi di testo sempre attivi, quindi cliccare **è** modificare. Un
+foglio che chiede due gesti per la stessa cosa è più lento di quello che
+sostituisce. Le frecce restano la via per attraversare senza toccare i valori.
+
+**(c) Il «+ misurazione» esce dal menu e diventa una riga vera.** *«Bottone +
+misura molto più veloce posizionato fuori dal menù ⋯»* — anche qui giusto, e
+correggeva una mia scelta sbagliata: avevo tolto **tutti** i comandi
+dall'ordine di `Tab` perché il difetto misurato era tabulare su «Rimuovi», ma ho
+buttato via con quelli anche l'azione **più frequente della pagina**. Ora è una
+**quarta zona** del foglio (`azioni`, fra corpo e piede): ci si arriva con le
+frecce come a qualunque riga, si attiva con `Invio`, e **non** entra
+nell'ordine di `Tab`. Veloce col mouse e veloce da tastiera, senza riaprire il
+difetto di partenza.
+
+**Il gate ha preso un difetto mio, introdotto correggendo (c).** La prima
+stesura della riga azioni accettava un **elenco** di azioni dentro un
+contenitore focalizzabile: `role="button"` su un `<div>` che contiene dei
+`<button>` è **`nested-interactive`** — 4 violazioni per passata, **16 in
+tutto**, su tutte e quattro. La correzione non è stata cambiare il ruolo ma il
+**numero**: la prop è diventata `azione` al singolare e il bottone **è** la
+cella, così non c'è niente da annidare. Ed è anche la forma giusta: una riga di
+azioni con cinque collegamenti è un menu travestito, e il menu c'è già.
+
+**(d) Le linee verticali e il bordo della tabella.** Un foglio di computo si
+legge **per colonne** — la lunghezza sotto la lunghezza, l'importo sotto
+l'importo — e senza separatori l'occhio perde la colonna a metà riga. Due
+risposte diverse, di proposito:
+
+- in **`tassullo-foglio-gruppi`** ci sono **sempre**: lì sono la forma del
+  blocco, non un'opzione;
+- in **`tassullo-data-table`** sono una prop nuova, **`bordiColonna`**, spenta
+  di default — accenderli ovunque cambierebbe l'aspetto di **ogni** tabella già
+  composta, e la tabella di shadcn separa le righe e basta. Story nuova
+  `Bordi Colonna`, sulle stesse misurazioni di `Con Piede`, per il confronto
+  diretto.
+
+**(e) Resta aperto: la schermata di inserimento voci.** Il `SistemaPickerModal`
+di Studio — campo di ricerca, filtri di categoria a chip, risultati raggruppati
+per famiglia con conteggio prodotti e un collegamento «Vedi strati». Francesco
+l'ha segnata «da implementare». **Non è di questo task**: è un blocco suo, con
+una ricerca, un raggruppamento e una scelta, e infilarlo qui annacquerebbe la
+sessione che aveva una domanda sola. Da valutare ai gradini 1–3 prima di
+proporlo: `combobox` con gruppi ci arriva vicino, `command` di shadcn ancora di
+più, e `tassullo-responsive-dialog` dà il contenitore. Va aperto come task a sé.
+
+#### Verifiche, dopo le correzioni
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1516 scansioni su 379 story, 0 violazioni** (+8 sulle 1508:
+  `Comandi` sul foglio e `Bordi Colonna` su data-table).
+- `misura:bersagli` — **3277 bersagli su 379 story, 0 piccoli**.
+- Tastiera rimisurata in Chromium vero: `Tab` **1 fermata** dentro il foglio,
+  `ArrowDown` attraversa testata → misure → **+ misurazione** → SOMMANO →
+  gruppo dopo.
+- `registry.json` **95 item**, `componenti-propri.json` **1**, lint **26
+  avvisi** preesistenti.

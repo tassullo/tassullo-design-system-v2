@@ -2823,6 +2823,19 @@ export type DataTableProps<TDato extends RowData> = {
    * ```
    */
   piede?: boolean
+  /**
+   * Linee verticali fra le colonne e bordo esterno. **Spento di default**, e
+   * non per timidezza: la tabella di shadcn separa le righe e basta, e
+   * accenderli ovunque cambierebbe l'aspetto di ogni tabella già composta.
+   *
+   * Si accende quando la tabella si legge **per colonne** invece che per
+   * righe — un computo, un listino, una tabella di misure incolonnate — che è
+   * il caso in cui l'occhio, a metà riga, perde di quale colonna sia il
+   * numero che sta guardando. Richiesto da Francesco il 2026-09-21 guardando
+   * il Computo di Studio, dove ci sono; `tassullo-foglio-gruppi` li ha
+   * sempre, perché lì sono la forma del blocco e non un'opzione.
+   */
+  bordiColonna?: boolean
   /** Aggiunge la colonna delle caselle. */
   selezione?: boolean
   /** Il menu «Colonne». Acceso di default. */
@@ -3151,6 +3164,7 @@ export function DataTable<TDato extends RowData>({
   altezza = "naturale",
   piePagina = true,
   piede = false,
+  bordiColonna = false,
   selezione = false,
   colonneNascondibili = true,
   bloccaPrimaColonna = false,
@@ -3832,7 +3846,15 @@ export function DataTable<TDato extends RowData>({
           colonne stanno ferme. Chi non dichiara `meta.larghezza` si spartisce
           ciò che avanza, in parti uguali.
         */}
-        <Table ref={tabellaRef} className="table-fixed" {...attributiTabella}>
+        <Table
+          ref={tabellaRef}
+          className={cn(
+            "table-fixed",
+            bordiColonna &&
+              "border border-border [&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
+          )}
+          {...attributiTabella}
+        >
           {/*
             Il `<colgroup>` di `ridimensionabile`/`colonneBloccabili`: qui la
             larghezza non la dichiara più la prima riga di intestazioni

@@ -169,26 +169,31 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
 ]
 
 function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFoglio<Voce, Misurazione>[] }) {
-  const motore = useFoglioGruppi<Voce, Misurazione>({ gruppiIniziali, colonne: COLONNE })
+  const motore = useFoglioGruppi<Voce, Misurazione>({
+    gruppiIniziali,
+    colonne: COLONNE,
+    conRigaAzioni: true,
+  })
+
+  const aggiungiMisura = (i: number) =>
+    motore.scriviGruppi(
+      motore.gruppi.map((g, gi) =>
+        gi === i
+          ? { ...g, righe: [...g.righe, { descrizione: '', parti: '1', lunghezza: '', larghezza: '', altezza: '' }] }
+          : g
+      )
+    )
 
   return (
     <div className="flex flex-col gap-3">
       <FoglioGruppi
         motore={motore}
         didascalia="Computo metrico estimativo"
+        // Il «+ misurazione» sta QUI e non nel menu: è l'azione che si ripete
+        // per ogni riga, e nasconderla dietro due gesti la rende più lenta di
+        // quella che sostituisce (rilievo di Francesco, 2026-09-21).
+        azione={(_gruppo, i) => ({ etichetta: '+ misurazione', onSelect: () => aggiungiMisura(i) })}
         comandi={(_gruppo, i) => [
-          {
-            etichetta: 'Aggiungi misurazione',
-            onSelect: () =>
-              motore.scriviGruppi(
-                motore.gruppi.map((g, gi) =>
-                  gi === i
-                    ? { ...g, righe: [...g.righe, { descrizione: '', parti: '1', lunghezza: '', larghezza: '', altezza: '' }] }
-                    : g
-                )
-              ),
-          },
-          { etichetta: '-', onSelect: () => {} },
           {
             etichetta: 'Sposta su',
             disabilitato: i === 0,
@@ -227,9 +232,11 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
         }}
       />
       <p className="text-sm text-muted-foreground">
-        Frecce per muoversi fra le celle, anche <strong>fra le zone e fra i gruppi</strong>. Invio o
-        un carattere qualsiasi apre la modifica, Esc la annulla. I comandi della voce stanno su{' '}
-        <strong>Shift+F10</strong>: non sono nell'ordine di Tab.
+        Frecce per muoversi fra le celle, anche <strong>fra le zone e fra i gruppi</strong>. Un
+        clic solo — o Invio, o un carattere qualsiasi — apre la modifica; Esc la annulla. Il{' '}
+        <strong>+ misurazione</strong> è una riga vera: ci si arriva con le frecce e si attiva con
+        Invio. I comandi rari della voce stanno su <strong>Shift+F10</strong>, fuori dall'ordine di
+        Tab.
       </p>
     </div>
   )
@@ -270,11 +277,6 @@ type Story = StoryObj<typeof meta>
 
 export const Computo: Story = {
   render: () => <ComputoFoglio />,
-  // Il menu dei comandi è un popup, e un popup non aperto non è un popup senza
-  // violazioni: la passata `aperto` del gate lo apre da qui. Il grilletto tiene
-  // il proprio `data-slot` malgrado il `render={<Button/>}` — guardato nel DOM,
-  // non dedotto: il combobox, composto in modo somigliante, se lo fa riprendere.
-  play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 }
 
 /**
@@ -316,4 +318,28 @@ export const Validazione: Story = {
       ]}
     />
   ),
+}
+
+/**
+ * **I comandi della voce**, aperti. Stanno su **`Shift+F10`** (o tasto Menu) e
+ * il loro grilletto ha `tabIndex={-1}`: `Tab` non ci si ferma mai. È la
+ * correzione di un difetto misurato sul Computo di Studio, dove per passare da
+ * una misurazione alla successiva si tabulava **sul bottone che la cancella** —
+ * 576 volte, su un computo da 144 voci.
+ *
+ * La story ha la `play` che **dichiara il popup al gate** (`scripts/gate-a11y.ts`
+ * tiene l'elenco dei componenti che ne hanno uno, e senza la dichiarazione
+ * questo sarebbe passato per «senza popup»: un popup non aperto non è un popup
+ * senza violazioni). Sta qui e non sulla story `Computo` perché Storybook
+ * esegue le `play` **anche nel canvas**: quella arriverebbe a video col menu
+ * aperto sopra la tabella, cioè illeggibile proprio quando la si guarda.
+ *
+ * Il `data-slot` del grilletto è stato **guardato nel DOM**, non dedotto:
+ * malgrado il `render={<Button/>}` resta `dropdown-menu-trigger`, come il menù
+ * utente del guscio — mentre il combobox, composto in modo somigliante, se lo
+ * fa riprendere da `InputGroupButton`.
+ */
+export const Comandi: Story = {
+  render: () => <ComputoFoglio />,
+  play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 }
