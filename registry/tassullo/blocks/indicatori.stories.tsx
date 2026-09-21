@@ -1,6 +1,29 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import { Indicatori, type Indicatore } from '@/registry/tassullo/blocks/indicatori'
+import { formattatore, intero, valuta } from '@/registry/tassullo/lib/numeri'
+
+/**
+ * **I valori si formattano, non si scrivono.** Un `'€ 12.847.503,40'` scritto
+ * a mano è la riga in cui la convenzione Tassullo si perde (`docs/DECISIONI.md`
+ * §47): il punto delle migliaia in italiano è **intermittente**, e a scriverlo
+ * a mano si perde proprio quando serve.
+ */
+const FATTURATO = 12_847_503.4
+const ORDINATO = 1_284_500
+const TONNELLATE = 12_847_503
+
+/**
+ * La forma corta, per quando la carta è stretta: `notation: "compact"` sopra
+ * la convenzione. È ciò che `formattatore` serve a fare — un caso che
+ * `intero`/`decimale`/`valuta` non coprono, senza aggiungerne una quarta.
+ */
+const COMPATTO = formattatore({
+  style: 'currency',
+  currency: 'EUR',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
 
 /**
  * La fila di indicatori — etichetta, valore, tendenza — nella forma che vale
@@ -149,19 +172,39 @@ export const Tendenze: Story = {
 export const UnoPerRiga: Story = {
   args: {
     indicatori: [
-      { etichetta: 'Fatturato a budget', valore: '€ 12.847.503,40', tendenza: { direzione: 'su', valore: '+6,1%' } },
-      { etichetta: 'Ordinato', valore: '€ 1.284.500,00', tendenza: { direzione: 'giù', valore: '−3,4%' } },
-      { etichetta: 'Tonnellate spedite', valore: '12.847.503' },
-      { etichetta: 'Commesse aperte', valore: '37' },
+      { etichetta: 'Fatturato a budget', valore: valuta(FATTURATO), tendenza: { direzione: 'su', valore: '+6,1%' } },
+      { etichetta: 'Ordinato', valore: valuta(ORDINATO), tendenza: { direzione: 'giù', valore: '−3,4%' } },
+      { etichetta: 'Tonnellate spedite', valore: intero(TONNELLATE) },
+      { etichetta: 'Commesse aperte', valore: intero(37) },
     ],
   },
   render: (args) => (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">
-        Contenitore largo 320px — sotto i 384px la griglia va a una colonna.
-      </p>
-      <div className="w-80">
-        <Indicatori {...args} />
+    <div className="flex flex-wrap items-start gap-6">
+      <div className="flex flex-col gap-2">
+        <p className="text-muted-foreground text-xs">
+          Contenitore largo 320px — sotto i 384px la griglia va a una colonna, e
+          la valuta per esteso ci sta.
+        </p>
+        <div className="w-80">
+          <Indicatori {...args} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-muted-foreground text-xs">
+          Contenitore largo 400px — due colonne, carta 192px. Per esteso,{' '}
+          {valuta(FATTURATO)} sborda di 20px e la Card lo taglia: qui i due
+          importi sono in forma corta, ed è tutto il rimedio che serve.
+        </p>
+        <div className="w-100">
+          <Indicatori
+            indicatori={[
+              { etichetta: 'Fatturato a budget', valore: COMPATTO.format(FATTURATO), tendenza: { direzione: 'su', valore: '+6,1%' } },
+              { etichetta: 'Ordinato', valore: COMPATTO.format(ORDINATO), tendenza: { direzione: 'giù', valore: '−3,4%' } },
+              { etichetta: 'Tonnellate spedite', valore: intero(TONNELLATE) },
+              { etichetta: 'Commesse aperte', valore: intero(37) },
+            ]}
+          />
+        </div>
       </div>
     </div>
   ),

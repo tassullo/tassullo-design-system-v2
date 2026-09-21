@@ -1502,7 +1502,23 @@ export function Calendario<TData = unknown>({
         // 900px — che è quello del capannone.
         // Non è un valore arbitrario e non è un ri-stile: è una variabile
         // che il motore espone apposta, e il valore è un calcolo sul token.
-        style={{ "--ec-month-bar-h": "calc(var(--spacing) * 8)" } as React.CSSProperties}
+        //
+        // **E `--ec-chip-h` è la stessa altezza per il chip con orario**
+        // (M4ter.11). La barra di tutto il giorno vale
+        // `--ec-month-bar-h − 0.125rem` — la corsia meno i 2px di stacco fra
+        // corsie — mentre il chip con orario non dichiara nessuna altezza e si
+        // dimensiona sul contenuto: **30 contro 28 in normale, 46 contro 42 in
+        // touch**, e lo scarto non lo aveva deciso nessuno, era solo che in
+        // M4ter.2 uno dei due è stato alzato per gli avatar e l'altro no. Si
+        // alza il chip, non si abbassa la barra: la **corsia** che il motore
+        // riserva vale già `--ec-month-bar-h`, e `monthRow: min-h-32` conta tre
+        // corsie di quella misura — quindi a non riempire il proprio posto era
+        // il chip. Abbassare la barra rimetterebbe invece il difetto degli
+        // avatar che M4ter.2 aveva chiuso.
+        style={{
+          "--ec-month-bar-h": "calc(var(--spacing) * 8)",
+          "--ec-chip-h": "calc(var(--ec-month-bar-h) - 0.125rem)",
+        } as React.CSSProperties}
         className={cn("min-h-0 flex-1", className)}
         apiRef={apiRef}
         events={eventiMotore}
@@ -1644,11 +1660,41 @@ export function Calendario<TData = unknown>({
           // `border-t-0` perche' il bordo in cima ce l'ha gia' il
           // contenitore: due tratti a 1px di distanza si leggono come un
           // **doppio bordo**, ed e' il primo rilievo che si vede a video.
-          monthView: "overflow-visible border-t-0",
+          //
+          // **`min-h-min` e' cio' che fa scorrere il mese davvero** (M4ter.11).
+          // Il motore, in `scrollMode: "contained"`, da' alla vista e al corpo
+          // `min-h-0 flex-1` e ai binari del corpo
+          // `repeat(N, minmax(0, 1fr))`: la riga ha il nostro `min-h-32`, ma
+          // il **binario** vale `1fr` e si accorcia col contenitore, cosi' la
+          // riga **sborda dal proprio binario** e i chip finiscono disegnati
+          // nella banda della settimana di sopra, sopra i numeri dei giorni.
+          // Misurato prima della correzione: passo di riga 77px contro celle
+          // da 128 a 576px di contenitore, **51px di invasione** e chip 20x12
+          // sopra i numeri; e il contenitore offriva 51px di scorrimento
+          // contro i ~270 che servivano.
+          //
+          // `min-h-min` rimette la **dimensione minima automatica** che
+          // `min-h-0` aveva spento: min-content, cioe' N x 128 per il corpo e
+          // testata + corpo per la vista. Sotto soglia la vista non si
+          // comprime piu' e il contenitore scorre per davvero; sopra soglia
+          // `flex-1` cresce come prima e non cambia un pixel. Non e' una
+          // soglia scritta da noi: e' la stessa altezza a cui le righe
+          // smettevano di starci.
+          monthView: "overflow-visible border-t-0 min-h-min",
+          // Stessa leva sul corpo: e' lui il contenitore di griglia i cui
+          // binari si accorciavano.
+          monthBody: "min-h-min",
           // L'intestazione dei giorni resta ferma mentre le settimane
           // scorrono sotto. `bg-card` perché una riga trasparente lascerebbe
           // vedere le celle passarci dietro.
           monthHeader: "bg-card sticky top-0 z-20",
+          // **I due tipi di chip alla stessa altezza** (M4ter.11). La colonna
+          // dei chip con orario contiene, in ordine: il distanziatore delle
+          // corsie riservate alle barre (altezza **in linea**, quindi `*:` non
+          // lo tocca), i chip con orario e il «+N altri». Dando a tutti
+          // `--ec-chip-h` la colonna prende lo stesso ritmo della corsia delle
+          // barre: 30 + 2 di `gap-0.5` = 32, cioè `--ec-month-bar-h`.
+          monthCellContent: "*:h-(--ec-chip-h)",
           // Stessa ragione del mese: **ogni vista del motore apre con un
           // `border-t` proprio**, perché ReUI la disegna per stare sotto la
           // sua `nav` senza un contenitore attorno. Chi la monta dentro un

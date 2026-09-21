@@ -18,6 +18,7 @@ import {
 } from 'recharts'
 
 import { intero } from '@/registry/tassullo/lib/numeri'
+import { valoreIt } from '@/prove/numeri-tooltip'
 import {
   Card,
   CardContent,
@@ -69,7 +70,7 @@ const perMese = [
 
 const inCatalogo = FAMIGLIE.map((famiglia, i) => ({
   famiglia,
-  schede: [214, 138, 96, 61, 34][i]!,
+  schede: [2140, 1380, 960, 610, 340][i]!,
   fill: `var(--color-${famiglia})`,
 }))
 
@@ -525,7 +526,7 @@ export const Barre: Story = {
                   <YAxis tickLine={false} axisLine={false} width={32} hide={!args.asseY} />
                 </>
               )}
-              <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent />} />
+              <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent formatter={valoreIt(config)} />} />
               {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
               {famiglie.map((famiglia, i) => (
                 <Bar
@@ -624,7 +625,7 @@ export const Scostamenti: Story = {
             <XAxis dataKey="mese" tickLine={false} axisLine={false} tickMargin={8} hide={!args.asseX} />
             <YAxis tickLine={false} axisLine={false} width={36} hide={!args.asseY} />
             <ReferenceLine y={0} />
-            <ChartTooltip content={<ChartTooltipContent hideLabel hideIndicator />} />
+            <ChartTooltip content={<ChartTooltipContent hideLabel hideIndicator formatter={valoreIt(config, { senzaPastiglia: true })} />} />
             {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
             <Bar
               dataKey="delta"
@@ -703,7 +704,7 @@ export const Linee: Story = {
               hide={!args.asseX}
             />
             <YAxis tickLine={false} axisLine={false} width={32} hide={!args.asseY} />
-            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent />} />
+            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent formatter={valoreIt(config)} />} />
             {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
             {FAMIGLIE.slice(0, args.serie).map((famiglia, i) => (
               <Line
@@ -798,7 +799,7 @@ export const Aree: Story = {
               hide={!args.asseX}
             />
             <YAxis tickLine={false} axisLine={false} width={32} hide={!args.asseY} />
-            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent />} />
+            <ChartTooltip itemSorter={ORDINE_DICHIARATO} content={<ChartTooltipContent formatter={valoreIt(config)} />} />
             {args.legenda && <ChartLegend itemSorter={null} content={<ChartLegendContent />} />}
             {args.sfumatura && (
               <defs>
@@ -864,7 +865,7 @@ export const Torta: Story = {
           className={`mx-auto h-80 w-full [&_.recharts-pie-label-text]:fill-foreground ${senzaColore(args.colori)}`}
         >
           <PieChart>
-            <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel />} />
+            <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel formatter={valoreIt(config, { chiaveNome: 'famiglia' })} />} />
             {args.legenda && (
               <ChartLegend
                 itemSorter={null}
@@ -913,7 +914,7 @@ export const Ciambella: Story = {
             className={`mx-auto h-80 w-full [&_.recharts-pie-label-text]:fill-foreground ${senzaColore(args.colori)}`}
           >
             <PieChart>
-              <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel />} />
+              <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel formatter={valoreIt(config, { chiaveNome: 'famiglia' })} />} />
               {args.legenda && (
                 <ChartLegend
                 itemSorter={null}

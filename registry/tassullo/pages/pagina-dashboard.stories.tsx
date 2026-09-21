@@ -39,6 +39,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/registry/tassullo/ui/chart'
+import { valoreIt } from '@/prove/numeri-tooltip'
 
 /**
  * **M4.4 — quarta pagina modello.** Nessuna app Tassullo ha ancora una
@@ -152,7 +153,7 @@ const SCHEDE_PER_MESE = [
 
 const IN_CATALOGO = FAMIGLIE.map((famiglia, i) => ({
   famiglia,
-  schede: [214, 138, 96, 61, 34][i]!,
+  schede: [2140, 1380, 960, 610, 340][i]!,
   fill: `var(--color-${famiglia})`,
 }))
 
@@ -175,7 +176,7 @@ function GraficoSchedeAperte() {
             <CartesianGrid vertical={false} />
             <XAxis dataKey="mese" tickLine={false} axisLine={false} tickMargin={8} />
             <YAxis tickLine={false} axisLine={false} width={32} />
-            <ChartTooltip content={<ChartTooltipContent hideLabel={false} />} />
+            <ChartTooltip content={<ChartTooltipContent hideLabel={false} formatter={valoreIt(config)} />} />
             <Bar dataKey="schede" fill="var(--color-calcestruzzi)" radius={4}>
               {/* Il valore scritto sulla barra: su sei mesi si legge il numero
                   senza stimarlo a occhio sull'asse. Stessa forma di
@@ -261,7 +262,7 @@ function GraficoRipartizione() {
           */}
           <ChartContainer config={config} className="mx-auto h-64 w-full">
           <PieChart>
-            <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel />} />
+            <ChartTooltip content={<ChartTooltipContent nameKey="famiglia" hideLabel formatter={valoreIt(config, { chiaveNome: 'famiglia' })} />} />
             {/*
               `height` va **dichiarato**, e va dichiarato per il caso peggiore.
               Due misure, prese in quest'ordine e tutt'e due sbagliate prima di
