@@ -3218,3 +3218,56 @@ nomina fra le pagine che non si migrano al primo giro.
 difendere**: non «l'albero non compone perché l'indice è piatto», ma «l'albero
 non compone perché il rettangolo non attraversa i livelli». La seconda è una
 ragione che non invita a riprovare.
+
+### Revisione del §50, poche ore dopo, sull'app viva (2026-09-21)
+
+Francesco ha aperto il Computo deployato. **Due conclusioni qui sopra vanno
+corrette, e la seconda ribalta il verdetto.**
+
+**(a) Il rettangolo è un problema molto più piccolo di come è scritto.** La
+misura era su `Data Table → Albero`, dove il subtotale sta sulla riga-madre
+**nelle stesse colonne dei figli**. Il Computo vero no: il SOMMANO è una riga a
+parte e porta i suoi numeri in **colonne diverse** da quelle delle misure —
+`colSpan={4}` copre PAR.UG./LUNG./LARG./H/PESO con **una cella vuota**. Le
+colonne si spartiscono per tipo di riga invece di sovrapporsi, quindi un
+rettangolo sulle quattro colonne di misura incontra **celle vuote, non celle in
+conflitto**. Resta in conflitto la sola DESIGNAZIONE. *La misura era giusta
+sull'oggetto misurato e l'ho portata su un oggetto con geometria diversa* — la
+forma di §22 trasposta sulle colonne.
+
+**(b) «L'app non ce l'ha» non vuol dire «l'app non ne ha bisogno».** Misurata la
+tastiera vera, con la spia su `keydown` (i tasti passati come `"Down"` arrivano
+con `key: ""`: la prima passata dava «il fuoco non si muove mai» su una tastiera
+sana):
+
+| gesto | esito |
+|---|---|
+| `Tab` per entrare nella tabella | **21 fermate** |
+| frecce verticali | solo **fra misure della stessa voce**, stessa colonna |
+| frecce orizzontali | **niente** |
+| `Enter` | scende di una misura; **sull'ultima, niente** |
+| `Tab` fra due misure | **due fermate**, quella in mezzo è **✕ «Rimuovi misura»** |
+| SOMMANO (u.m., **prezzo**) e testata voce | **irraggiungibili con le frecce** |
+
+Costo contato sul DOM: un gruppo con 3 misure sono **24 fermate di `Tab`**, 18
+celle e **6 comandi**. A 144 voci: **~4300 fermate, ~1000 su comandi, 576 su
+«Rimuovi misura»**. Il fondo di ogni gruppo è un vicolo cieco, e il **prezzo** —
+la cella che determina l'importo — si raggiunge solo attraversando tutto il
+resto col `Tab`.
+
+**La navigazione fra i livelli è dunque ciò che manca, non ciò che non serve.**
+
+**Verdetto rivisto: la (3).** Non appiattire (la forma di Primus si tiene) e non
+l'indice ad albero dentro `data-grid` (quel motore è una matrice, e il Computo
+non lo è): un blocco a sé, un **foglio a gruppi** — sequenza di gruppi con
+testata, corpo omogeneo e piede, colonne spartite per zona. Gradino 1 verificato
+a vuoto (niente di simile all'MCP, né `@shadcn` né `@tassullo`). Consumatore
+**uno solo, Studio**: la motivazione non è «due app lo riscriverebbero» ma
+«Studio lo migra e deve trovarlo pronto», e va scritta così.
+
+**In attesa della conferma di Francesco sulla forma.**
+`registry/componenti-propri.json` resta a 1.
+
+Rilievo collaterale, misurato: a **951px** di viewport il foglio taglia **247px**
+e fuori campo finiscono **Quantità, Prezzo e Importo**. Fascia di un portatile
+13" col guscio aperto.

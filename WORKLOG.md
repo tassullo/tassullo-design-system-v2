@@ -10956,10 +10956,10 @@ nomina fra le pagine che non si migrano al primo giro, come già previsto.
 
 ### Due cose viste di passaggio, che **non** sono di questo task
 
-- Nel Computo di Studio la riga di testata voce rende **10 `<td>`** e la riga
-  «+ misurazione» **8**, contro **9** colonne dichiarate nel `<colgroup>`.
-  `table-layout: fixed` lo assorbe e non si vede. È codice dell'app, non del
-  registry: annotato qui perché non si riscopra, non perché si corregga qui.
+- Nel Computo di Studio la riga «+ misurazione» rende **8 `<td>`** contro **9**
+  colonne dichiarate nel `<colgroup>`. `table-layout: fixed` lo assorbe e non si
+  vede. È codice dell'app, non del registry: annotato qui perché non si
+  riscopra, non perché si corregga qui.
 - L'autosave è a debounce 1s su ogni tasto e il salvataggio è un full-replace
   (`DELETE` di tutte le righe e misure, poi un `INSERT` per ciascuna): a 144 voci
   × 4 misure sono ~700 `INSERT` sequenziali per ogni autosave. Se a quella
@@ -10989,3 +10989,116 @@ La domanda per Francesco è una sola e ha tre risposte: **quale strada**. Se la
 — cioè se i campi di voce possano lasciare la matrice. Se la (2), resta da
 decidere se la spesa valga la pena adesso, sapendo che **incolla e riempimento
 fra i livelli non compongono comunque**. La FASE 5 non aspetta questa risposta.
+
+### Coda M4ter.12 — il Computo **vivo**, misurato con la tastiera (2026-09-21)
+
+Francesco ha aperto l'app deployata e ha dato accesso a un progetto di prova:
+*«computo è una schermata molto particolare, avrei provato a ricrearla»*. E ha
+risposto alla prima domanda: **il consumatore è Studio soltanto** — «officina»
+era un lapsus. La motivazione di un eventuale blocco cambia di conseguenza e va
+scritta com'è: non «due app lo riscriverebbero», ma «Studio lo migra e deve
+trovarlo pronto».
+
+**Due correzioni a quanto avevo scritto poche ore prima. Contano entrambe.**
+
+**(1) Avevo generalizzato dalla story sbagliata.** Ho misurato `Data Table →
+Albero`, dove `meta.sottototale` mette i subtotali **sulla riga-madre e nelle
+stesse colonne dei figli**: lì «0 colonne su 4 vogliono dire la stessa cosa» è
+vero. Il Computo vero ha geometria diversa, e ce l'avevo sotto gli occhi nel
+`colSpan={4}` del SOMMANO senza pesarlo. Le colonne **si spartiscono per tipo di
+riga invece di sovrapporsi**:
+
+| colonna | testata voce | misure | SOMMANO |
+|---|---|---|---|
+| PAR.UG. / LUNG. / LARG. / H/PESO | vuote | **le 4 celle scrivibili** | `colSpan=4`, **una cella vuota** |
+| QUANTITÀ | vuota | parziale (calcolato) | lorda (calcolato) |
+| PREZZO / IMPORTO | vuote | vuote | **prezzo scrivibile** + importo |
+| DESIGNAZIONE | descrizione voce | descrizione misura | «SOMMANO» + u.m. |
+
+Un rettangolo sulle quattro colonne di misura **non incontra celle in conflitto:
+incontra celle vuote**. Il rettangolo resta un problema solo su DESIGNAZIONE. È
+molto meno di quanto avevo concluso, e §50 va letto con questa rettifica.
+
+**(2) «L'app non ce l'ha» non vuol dire «l'app non ne ha bisogno».** Avevo letto
+l'assenza di navigazione fra i livelli come prova che non servisse. È il
+contrario, e lo dicono i numeri qui sotto.
+
+**Il conto dei `<td>` era sbagliato**: la testata voce ne rende **9**, non 10 —
+avevo contato male leggendo il JSX. Resta vera la riga «+ misurazione», a **8**
+contro 9. La nota precedente è stata corretta sopra.
+
+#### Controllo dello strumento: fallito, e dichiarato
+
+Il pannello del browser dell'app dà `visibilityState: "hidden"` e
+`requestAnimationFrame` **non scatta** — §22/§32 alla lettera. Conseguenza
+circoscritta: `addMisuraAndFocus` schedula `focusCell` in `rAF`, quindi **«+
+misurazione» e il fuoco sulla nuova riga non sono misurabili qui**. Le frecce sì:
+`misKey` chiama `focusCell` in modo sincrono.
+
+E un secondo difetto di strumento, costato una misura nulla: i tasti passati come
+`"Down"`/`"Return"` arrivano alla pagina con **`key: ""`**. Solo i nomi DOM
+completi (`ArrowDown`, `Enter`) arrivano interi. La prima passata riportava «il
+fuoco non si muove mai» su una tastiera **sana**: è la stessa famiglia di §22 —
+un tasto non arrivato non è un tasto senza effetto. Spia su `keydown` in cattura
+prima di concludere, sempre.
+
+#### La tastiera vera, misurata
+
+| gesto | esito |
+|---|---|
+| `Tab` per entrare nella tabella | **21 fermate** dall'inizio della pagina |
+| `ArrowDown` / `ArrowUp` | funzionano, ma **solo fra misure della stessa voce**, stessa colonna |
+| `ArrowLeft` / `ArrowRight` | **niente** — nessuna navigazione orizzontale |
+| `Enter` | sposta alla misura sotto; **sull'ultima non fa niente** |
+| `Tab` fra una misura e l'altra | **due fermate**, e quella in mezzo è il bottone **✕ «Rimuovi misura»** |
+| SOMMANO (u.m. e **prezzo**) | **non raggiungibile con le frecce** — solo con `Tab` |
+| testata voce (descrizione) | **non raggiungibile con le frecce** |
+
+**Il costo, contato sul DOM.** Un gruppo con 3 misure: **24 fermate di `Tab`**,
+di cui **18 celle e 6 comandi** (⋮, «Voce e analisi», 3× ✕, «+ misurazione»). Con
+4 misure sono 30 fermate, 7 delle quali comandi. **A 144 voci: ~4300 fermate, di
+cui ~1000 su comandi — e 576 su «Rimuovi misura».**
+
+Il fondo di ogni gruppo è un **vicolo cieco**: dall'ultima misura le frecce non
+portano da nessuna parte, e il prezzo — la cella che determina l'importo, quella
+che un computista tocca per ogni voce — si raggiunge solo attraversando col `Tab`
+tutte le celle rimanenti, il «+ misurazione» e il select dell'unità.
+
+**Quindi la navigazione fra i livelli non è un lusso: è esattamente ciò che
+manca, ed è la ragione per cui la pagina è faticosa.** Ribalta la conclusione
+della mattina.
+
+#### Un rilievo di larghezza, non di tastiera
+
+A **951px** di viewport il foglio dichiara `scrollWidth 920` contro
+`clientWidth 673`: **247px tagliati**, e ciò che esce dal campo sono
+**Quantità, Prezzo unitario e Importo** — le tre colonne che portano il
+risultato. Si raggiungono solo scorrendo in orizzontale. È la fascia di un
+portatile 13" col guscio aperto, cioè una condizione ordinaria, ed è la stessa
+famiglia del difetto del calendario chiuso in M4ter.11.
+
+#### Cosa non è stato toccato
+
+Solo navigazione: `Tab`, frecce, `Enter`. **Nessun carattere digitato** — il
+Computo ha autosave a debounce 1s e salvataggio full-replace, quindi un carattere
+di prova finirebbe nel progetto. Valori riletti a fine misura: **identici**.
+
+#### La proposta che ne esce, da confermare
+
+Non è la (1) e non è la (2) di §8.3: è la **(3)**, il gradino 4 della regola
+4bis — e adesso ha una ragione misurata invece che un'intuizione. Gradino 1
+verificato a vuoto: all'MCP non esiste niente di simile né in `@shadcn` né in
+`@tassullo`.
+
+La forma proposta è un **foglio a gruppi**: non un albero navigato
+uniformemente, ma una sequenza di gruppi, ognuno con **testata, corpo omogeneo e
+piede**, dove le colonne si spartiscono per zona — che è la geometria misurata
+sopra, non una generalizzazione. Tre cose che dovrebbe fare e che oggi non ci
+sono: le frecce **attraversano i tre livelli** (testata → misure → SOMMANO →
+testata della voce dopo); i comandi (⋮, ✕, «+ misurazione») **escono
+dall'ordine di `Tab`** e stanno su un tasto dedicato, così non si passa più su
+«Rimuovi» per cambiare riga; e le tre colonne del risultato **restano in campo**
+sotto gli 880px, o si dichiara per iscritto cosa fanno.
+
+**Non scritto**: `registry/componenti-propri.json` resta a **1** finché Francesco
+non conferma la forma.
