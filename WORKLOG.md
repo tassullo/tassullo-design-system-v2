@@ -9955,3 +9955,106 @@ qui i **quattro** prerequisiti invece dei due), M5.5 (la guida di migrazione,
 che ora può nominare blocchi che esistono tutti) e M5.6 (tag `v2.0.0` e prova
 d'installazione **dalla scorciatoia pubblica**, che è la metà di prova che questa
 sessione non ha fatto).
+
+### Coda di M4ter.10 — il settimo gate, e una rettifica sul calendario
+
+Due code nella stessa sessione, tutte e due su indirizzo di Francesco.
+
+#### 1. `check:riferimenti`, il settimo gate — approvato e scritto
+
+`scripts/check-riferimenti.ts`, in `npm run check` fra `check:registry-build` e
+`check:font`. **I gate passano da sei a sette**, e `CLAUDE.md` §Comandi,
+`README.md` e la riga di fase sono aggiornati di conseguenza. In CI non serve
+toccare niente: `gate.yml` lancia `npm run check`.
+
+Controlla **quattro** proprietà, tutte della stessa famiglia — «ciò che
+`registry.json` nomina esiste»:
+
+1. ogni `@tassullo/<x>` fra le `registryDependencies` corrisponde a un `name`
+   dichiarato. **E l'errore suggerisce il nome giusto**, perché tutte e due le
+   volte che il difetto si è visto era un **prefisso** di distanza: rimettendo
+   il difetto di stamattina, il gate stampa *«nessun item si chiama
+   `empty-state` … Forse `@tassullo/tassullo-empty-state`?»*;
+2. i namespace esterni (`@reui`) sono dichiarati in `components.json`, o la CLI
+   risponde `Unknown registry` — che è il **secondo** prerequisito mai scritto
+   trovato da M4.6;
+3. ogni file dichiarato esiste sul disco;
+4. nessun ciclo fra item, che manderebbe la CLI a girare a vuoto invece di dire
+   cosa non va.
+
+**Oggi: 206 riferimenti su 94 item, 0 rotti; 104 file dichiarati, tutti
+presenti; nessun ciclo.** Uscita 0. Col difetto di stamattina rimesso: uscita
+**1**, due riferimenti segnalati (`tassullo-calendario` e
+`tassullo-pagina-lista` puntavano tutti e due a `empty-state`).
+
+`-- --self-test` prova che sa fallire nei **sei** modi che dichiara, rifacendo i
+difetti veri su un registry finto: registry sano → 0; il difetto di M4.6 (nome
+nudo) → 1; quello di M4ter.10 → 1; namespace non dichiarato → 1; file assente →
+1; ciclo → 1. **Una prova l'ho scritta sbagliata io** e il gate aveva ragione:
+mi aspettavo **2** errori sul ciclo, perché si incontra da tutti e due i capi,
+ma al secondo giro i due nodi sono già chiusi — un ciclo, un messaggio, che è
+anche la forma giusta da leggere. Corretto l'atteso, non il gate.
+
+**Le `dependencies` npm restano fuori, ed è una scelta misurata.** Il controllo
+è stato scritto e provato su tutti e 94 gli item: segnalava **un** caso,
+`tassullo-data-table-filtro-sfaccettato`, che usa `@base-ui/react` e `cn` senza
+dichiararli. È un **falso positivo**: tutti e due arrivano dalla chiusura
+transitiva dei suoi `registryDependencies` (`@tassullo/button` li dichiara, e
+`add` installa anche quello). Un gate che dà falsi positivi si smette di
+leggere — la regola del `CLAUDE.md` §Comandi — quindi quel pezzo non entra
+finché non sa distinguere i due casi senza rumore. Il file lo dice a verbale,
+così non lo si riscrive fra sei mesi credendo di aver trovato un buco.
+
+Il gate **non raggiunge la rete**: gli item di `@shadcn` e `@reui` non si
+scaricano per verificarli. Un gate che dipende dalla rete fallisce in aereo, e
+in CI il giorno che reui.io è giù.
+
+#### 2. Rettifica: il calendario schiacciato **non era colpa del montaggio**
+
+Nella voce qui sopra avevo scritto che il mese schiacciato era uno sbaglio mio,
+di montaggio fuori dal contratto documentato. **Misurato a fondo su richiesta di
+Francesco, non regge: il montaggio corretto si comporta identico.** Tre forme a
+confronto nell'app di prova, stessa altezza (`h-144`, 576px), celle da 127px:
+
+| | forma | passo di riga | sovrapposizione | scorre? |
+|---|---|---:|---:|---|
+| A | `<Calendario className="h-144" />` | 77px | **50px** | sì, ma solo 51px |
+| B | `<div className="h-144">` senza `flex` | 128px | −1px | **no** — sborda dal genitore in silenzio |
+| C | `<div className="flex h-144 flex-col">` — **la forma documentata** | 77px | **50px** | sì, ma solo 51px |
+
+**A e C sono identici.** La variabile non è il contratto `flex`, è l'**altezza**.
+Misurata la soglia facendo variare il contenitore da 576 a 1024px:
+
+| contenitore | passo | altezza cella | sovrapposizione |
+|---:|---:|---:|---:|
+| 576 | 77 | 127 | **50** |
+| 700 | 97 | 127 | **30** |
+| 800 | 114 | 127 | **13** |
+| 860 | 124 | 127 | **3** |
+| **896** | 130 | 129 | −1 |
+| 1024 | 151 | 150 | −1 |
+
+Sopra i **~880px** la cella cresce col contenitore e non c'è sovrapposizione.
+Sotto, il **passo** si accorcia mentre l'altezza della cella resta inchiodata a
+127 — il minimo che tiene tre eventi — e le celle si invadono. E il contenitore
+che scorre offre `540 − 489 = 51px`, contro i ~270 che servirebbero.
+
+**Ne segue che la documentazione del blocco dice una cosa che non succede**: la
+story promette «quando le sei righe non ci stanno il mese **scorre** invece di
+schiacciarle», e invece schiaccia **e** scorre di una briciola. Si vede a occhio:
+i chip degli eventi finiscono disegnati nella banda della riga di sopra, così
+che un evento del 21 sembra del 14.
+
+**Quanto morde**: 880px di contenitore sono più dell'altezza utile di un
+portatile da 13" dentro il guscio. La pagina Calendario di Officina ci finisce
+dentro.
+
+**Non corretto in questa sessione**, che è un gate e non costruisce — e la cura
+non è un avviso in sviluppo, come avevo proposto: un avviso non serve a niente
+se anche la forma giusta lo fa scattare. O il mese **scorre davvero** sotto
+soglia (il contenitore deve offrire `6 × 127 + testata`, non l'altezza
+compressa), oppure sotto soglia si passa all'agenda, che è il bivio che la
+pagina già dichiara. **Decisione di Francesco**, e va aperta come task.
+
+La riproduzione vive nell'app usa-e-getta dello scratchpad, rotta
+`/schiacciato`, coi tre casi uno sotto l'altro e l'etichetta di ciascuno.

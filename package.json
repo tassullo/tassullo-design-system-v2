@@ -13,7 +13,7 @@
     "theme:build": "node scripts/hex-to-oklch.ts --write",
     "check:registry": "node scripts/check-registry.ts",
     "check:registry-build": "node scripts/check-registry-build.ts",
-    "check": "npm run check:contrast && npm run check:registry && npm run check:registry-build && npm run check:font && npm run check:logo && npm run test:a11y",
+    "check": "npm run check:contrast && npm run check:registry && npm run check:registry-build && npm run check:riferimenti && npm run check:font && npm run check:logo && npm run test:a11y",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "font:build": "node scripts/build-font-css.ts --write",
@@ -21,7 +21,8 @@
     "logo:build": "node scripts/build-logo-css.ts --write",
     "check:logo": "node scripts/build-logo-css.ts",
     "test:a11y": "node scripts/gate-a11y.ts",
-    "misura:bersagli": "node scripts/misura-bersagli.ts"
+    "misura:bersagli": "node scripts/misura-bersagli.ts",
+    "check:riferimenti": "node scripts/check-riferimenti.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
