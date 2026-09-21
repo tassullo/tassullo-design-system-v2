@@ -1,0 +1,777 @@
+/**
+ * `tassullo-foglio-gruppi` — il foglio editabile **a gruppi** (M4ter.12).
+ *
+ * Componente nostro, gradino 4 della regola 4bis, **approvato da Francesco il
+ * 2026-09-21**. Il verbale con le misure che lo motivano sta in
+ * `docs/DECISIONI.md` §50 e nella sua revisione; `docs/ANALISI-COPERTURA-APP.md`
+ * §8.3bis dice da quale pagina nasce. Sta in `blocks/` e non in `ui/`, quindi
+ * non gli serve una riga in `registry/componenti-propri.json` — quel registro è
+ * per ciò che prende il posto di una **primitiva** shadcn, e `check:registry`
+ * chiede ai blocchi la sola regola 3.
+ *
+ * ── Cos'è, e perché non è nessuno dei due blocchi che già esistono ───────
+ *
+ * Un computo metrico — e ogni foglio fatto come lui — non è una tabella e non
+ * è un albero: è una **sequenza di gruppi**, ognuno con una **testata**, un
+ * **corpo omogeneo** di righe e un **piede** che le somma. La differenza che
+ * conta non è la profondità, è che **le colonne si spartiscono per zona**
+ * invece di volere la stessa cosa su ogni riga:
+ *
+ *   colonna        testata      corpo              piede
+ *   ─────────────  ───────────  ─────────────────  ──────────────────
+ *   designazione   descrizione  descrizione riga   etichetta + unità
+ *   par.ug…h/peso  —            LE CELLE SCRIVIBILI  —  (una cella vuota)
+ *   quantità       —            parziale (calcolo) totale   (calcolo)
+ *   prezzo         —            —                  PREZZO   (scrivibile)
+ *
+ * `tassullo-data-table` dà l'albero (`getSottoRighe`) e il subtotale
+ * (`meta.sottototale`), ma la sua tastiera è **di riga**, e il subtotale sta
+ * **sulla riga-madre**, che si rende *sopra* i figli: il «SOMMANO» di un
+ * computo sta **sotto**. `tassullo-data-grid` dà la tastiera **di cella**, ma
+ * è una **matrice**: naviga per indice su un array piatto e le sue cinque
+ * operazioni di selezione (`serializzaSelezione`, `incolla`, `riempi`,
+ * `riempiInDirezione`, `cancellaSelezione`) sono rettangoli `(r,c)`, che
+ * presuppongono colonne omogenee. Nessuno dei due si piega senza diventare
+ * l'altro.
+ *
+ * ── L'indice segue il foglio, non l'array ───────────────────────────────
+ *
+ * È la correzione che `data-grid` non poteva fare restando sé stesso. La
+ * navigazione non conta indici su un array di dati: costruisce una **matrice
+ * di celle visive** — una riga per ogni riga resa, una colonna per ogni
+ * colonna dichiarata — dove le caselle che non esistono sono `null`. Le
+ * frecce si muovono **saltando i buchi**, e questo dà gratis le due cose che
+ * mancavano al Computo vero, misurate il 2026-09-21:
+ *
+ *   - `ArrowDown` dall'ultima riga di un gruppo **entra nel gruppo dopo**,
+ *     perché cerca la prossima casella non nulla nella stessa colonna;
+ *   - il **piede si raggiunge** dalla colonna che le tre zone condividono
+ *     (nel computo, la designazione), e da lì `ArrowRight` arriva al prezzo.
+ *
+ * Senza la matrice, il fondo di ogni gruppo è un vicolo cieco: è esattamente
+ * ciò che succede oggi in Studio, dove il prezzo — la cella che determina
+ * l'importo — si raggiunge solo attraversando col `Tab` tutto il resto.
+ *
+ * ── I comandi escono dall'ordine di `Tab` ───────────────────────────────
+ *
+ * Misurato sul Computo vero: fra una riga e l'altra, `Tab` si ferma sul
+ * bottone **✕ «Rimuovi»**. Un gruppo da tre righe costa **24 fermate**, sei
+ * delle quali comandi; a 144 voci sono ~4300 fermate e **576 passaggi sul
+ * bottone che cancella**. Qui i comandi hanno `tabIndex={-1}` e si aprono con
+ * **`Shift+F10`** o col tasto **Menu** — la scorciatoia di sistema per il menu
+ * contestuale, non una convenzione inventata qui. `Tab` esce dal foglio in una
+ * fermata sola, come da una griglia vera.
+ *
+ * ── Non controllato, come `data-grid` ───────────────────────────────────
+ *
+ * `useFoglioGruppi` tiene i gruppi in uno stato suo, seminato una volta da
+ * `gruppiIniziali` e mai più risincronizzato: uno stato controllato
+ * ricalcolerebbe il modello a ogni tasto. Si osserva `onModifica`.
+ */
+
+"use client"
+
+import * as React from "react"
+import { cn } from "cn"
+
+import { Button } from "@/registry/tassullo/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/registry/tassullo/ui/dropdown-menu"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/registry/tassullo/ui/table"
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il modello
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export type GruppoFoglio<TTestata, TRiga> = {
+  id: string
+  testata: TTestata
+  righe: TRiga[]
+}
+
+/** Le tre zone di un gruppo. Una colonna dichiara una cella per zona, o niente. */
+export type ZonaFoglio = "testata" | "corpo" | "piede"
+
+export type CellaScrivibile<TDato> = {
+  tipo: "scrivibile"
+  /** Il valore grezzo, come stringa: il foglio non sa cosa sia un numero. */
+  leggi: (dato: TDato) => string
+  scrivi: (dato: TDato, valore: string) => TDato
+  /** Formattazione per la sola vista; assente = si mostra il valore grezzo. */
+  mostra?: (valore: string, dato: TDato) => React.ReactNode
+  segnaposto?: string
+  /** Messaggio d'errore, o `undefined` se il valore va bene. */
+  valida?: (valore: string) => string | undefined
+}
+
+export type CellaCalcolata<TDato, TAltro = never> = {
+  tipo: "calcolata"
+  rendi: (dato: TDato, altro: TAltro) => React.ReactNode
+}
+
+export type CellaFissa = {
+  tipo: "fissa"
+  rendi: () => React.ReactNode
+}
+
+export type ColonnaFoglio<TTestata, TRiga> = {
+  id: string
+  titolo: string
+  /** Classe di larghezza sul `<col>`; senza, la colonna assorbe lo spazio. */
+  larghezza?: string
+  allineamento?: "sinistra" | "destra"
+  /** Resta in campo quando il foglio scorre in orizzontale. */
+  ancorata?: boolean
+  testata?: CellaScrivibile<TTestata> | CellaCalcolata<TTestata> | CellaFissa
+  corpo?: CellaScrivibile<TRiga> | CellaCalcolata<TRiga> | CellaFissa
+  piede?:
+    | CellaScrivibile<TTestata>
+    | CellaCalcolata<TTestata, TRiga[]>
+    | CellaFissa
+}
+
+export type ComandoFoglio = {
+  etichetta: string
+  onSelect: () => void
+  distruttivo?: boolean
+  disabilitato?: boolean
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il motore
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Dove sta il fuoco: gruppo, zona, riga dentro il corpo, colonna. */
+export type PosizioneFoglio = {
+  gruppo: number
+  zona: ZonaFoglio
+  riga: number
+  colonna: number
+}
+
+const stessaPosizione = (a: PosizioneFoglio | null, b: PosizioneFoglio | null) =>
+  a != null &&
+  b != null &&
+  a.gruppo === b.gruppo &&
+  a.zona === b.zona &&
+  a.riga === b.riga &&
+  a.colonna === b.colonna
+
+export type OpzioniFoglioGruppi<TTestata, TRiga> = {
+  gruppiIniziali: GruppoFoglio<TTestata, TRiga>[]
+  colonne: ColonnaFoglio<TTestata, TRiga>[]
+  onModifica?: (gruppi: GruppoFoglio<TTestata, TRiga>[]) => void
+}
+
+export type MotoreFoglioGruppi<TTestata, TRiga> = {
+  gruppi: GruppoFoglio<TTestata, TRiga>[]
+  colonne: ColonnaFoglio<TTestata, TRiga>[]
+  posizione: PosizioneFoglio | null
+  /**
+   * La prima cella scrivibile del foglio. Serve al fuoco mobile: finché
+   * `posizione` è `null` — cioè prima che si sia cliccato o tabulato — è
+   * **questa** a portare `tabIndex={0}`, o `Tab` non avrebbe dove entrare e
+   * il foglio sarebbe irraggiungibile da tastiera pura. Preso misurando in
+   * Chromium vero: `[tabindex="0"]` valeva **0** e `Tab` scavalcava la
+   * tabella intera, con le frecce perfettamente funzionanti dietro. È D15
+   * in casa: axe non vede niente, perché non c'è niente di sbagliato da
+   * vedere — c'è una porta che non si apre.
+   */
+  primaPosizione: PosizioneFoglio | null
+  inModifica: PosizioneFoglio | null
+  bozza: string
+  errore: string | undefined
+  aFuoco: (p: PosizioneFoglio) => boolean
+  vaiA: (p: PosizioneFoglio) => void
+  muovi: (dy: number, dx: number) => void
+  apriModifica: (p?: PosizioneFoglio, valoreIniziale?: string) => void
+  aggiornaBozza: (v: string) => void
+  confermaModifica: () => boolean
+  annullaModifica: () => void
+  onKeyDownCella: (evento: React.KeyboardEvent, p: PosizioneFoglio) => void
+  scriviGruppi: (g: GruppoFoglio<TTestata, TRiga>[]) => void
+}
+
+export function useFoglioGruppi<TTestata, TRiga>({
+  gruppiIniziali,
+  colonne,
+  onModifica,
+}: OpzioniFoglioGruppi<TTestata, TRiga>): MotoreFoglioGruppi<TTestata, TRiga> {
+  const [gruppi, setGruppi] = React.useState(gruppiIniziali)
+  const [posizione, setPosizione] = React.useState<PosizioneFoglio | null>(null)
+  const [inModifica, setInModifica] = React.useState<PosizioneFoglio | null>(null)
+  const [bozza, setBozza] = React.useState("")
+
+  const scriviGruppi = (nuovi: GruppoFoglio<TTestata, TRiga>[]) => {
+    setGruppi(nuovi)
+    onModifica?.(nuovi)
+  }
+
+  /**
+   * **La matrice di celle visive.** È il cuore del blocco: una riga per ogni
+   * riga resa, nell'ordine in cui si vede, e per ogni colonna o una posizione
+   * o `null`. Le frecce si muovono qui dentro saltando i `null`, ed è ciò che
+   * fa attraversare le zone e i gruppi senza che nessuno debba dichiararlo.
+   */
+  const matrice = React.useMemo(() => {
+    const righe: (PosizioneFoglio | null)[][] = []
+    gruppi.forEach((gruppo, gi) => {
+      const fila = (zona: ZonaFoglio, riga: number) =>
+        colonne.map((col, ci) => {
+          const cella =
+            zona === "testata" ? col.testata : zona === "corpo" ? col.corpo : col.piede
+          // Solo le celle scrivibili prendono il fuoco: una cella calcolata o
+          // fissa non ha niente da fare quando ci arrivi, e fermarcisi sopra
+          // allunga il cammino senza dare niente in cambio.
+          return cella?.tipo === "scrivibile"
+            ? { gruppo: gi, zona, riga, colonna: ci }
+            : null
+        })
+      righe.push(fila("testata", 0))
+      gruppo.righe.forEach((_, ri) => righe.push(fila("corpo", ri)))
+      righe.push(fila("piede", 0))
+    })
+    return righe
+  }, [gruppi, colonne])
+
+  /** L'indice di riga visiva di una posizione — il contrario della matrice. */
+  const indiceVisivo = React.useCallback(
+    (p: PosizioneFoglio) => {
+      let y = 0
+      for (let gi = 0; gi < gruppi.length; gi++) {
+        const corpo = gruppi[gi]!.righe.length
+        if (gi === p.gruppo) {
+          if (p.zona === "testata") return y
+          if (p.zona === "corpo") return y + 1 + p.riga
+          return y + 1 + corpo
+        }
+        y += corpo + 2
+      }
+      return -1
+    },
+    [gruppi]
+  )
+
+  const cellaScrivibile = (p: PosizioneFoglio) => {
+    const col = colonne[p.colonna]
+    if (!col) return undefined
+    const cella = p.zona === "testata" ? col.testata : p.zona === "corpo" ? col.corpo : col.piede
+    return cella?.tipo === "scrivibile" ? cella : undefined
+  }
+
+  const datoDi = (p: PosizioneFoglio) => {
+    const gruppo = gruppi[p.gruppo]
+    if (!gruppo) return undefined
+    return p.zona === "corpo" ? gruppo.righe[p.riga] : gruppo.testata
+  }
+
+  const valoreDi = (p: PosizioneFoglio): string => {
+    const cella = cellaScrivibile(p)
+    const dato = datoDi(p)
+    if (!cella || dato === undefined) return ""
+    // `leggi` è tipizzata sul dato della propria zona; qui la posizione è già
+    // stata verificata scrivibile, quindi il dato è quello giusto per costruzione.
+    return (cella.leggi as (d: unknown) => string)(dato)
+  }
+
+  const primaPosizione = React.useMemo(() => {
+    for (const fila of matrice) for (const cella of fila) if (cella) return cella
+    return null
+  }, [matrice])
+
+  const errore = inModifica ? cellaScrivibile(inModifica)?.valida?.(bozza) : undefined
+
+  const vaiA = (p: PosizioneFoglio) => {
+    if (inModifica && !stessaPosizione(inModifica, p)) {
+      // Spostarsi via da una modifica la conferma, come in un foglio vero.
+      // Se non è valida si scarta: un clic altrove non deve poter restare
+      // bloccato sulla cella che si sta lasciando.
+      if (!confermaModifica()) annullaModifica()
+    }
+    setPosizione(p)
+  }
+
+  /**
+   * Il movimento vero: cerca la prossima casella **non nulla** nella direzione
+   * data. Verticale = stessa colonna, riga visiva successiva, attraverso zone e
+   * gruppi. Orizzontale = stessa riga visiva, colonna successiva.
+   */
+  const muovi = (dy: number, dx: number) => {
+    if (!posizione) return
+    const y0 = indiceVisivo(posizione)
+    if (y0 < 0) return
+    if (dy !== 0) {
+      for (let y = y0 + dy; y >= 0 && y < matrice.length; y += dy) {
+        const trovata = matrice[y]![posizione.colonna]
+        if (trovata) return vaiA(trovata)
+      }
+      return
+    }
+    for (let x = posizione.colonna + dx; x >= 0 && x < colonne.length; x += dx) {
+      const trovata = matrice[y0]![x]
+      if (trovata) return vaiA(trovata)
+    }
+  }
+
+  const apriModifica = (p: PosizioneFoglio | undefined = posizione ?? undefined, valoreIniziale?: string) => {
+    if (!p || !cellaScrivibile(p)) return
+    setPosizione(p)
+    setInModifica(p)
+    setBozza(valoreIniziale ?? valoreDi(p))
+  }
+
+  const annullaModifica = () => setInModifica(null)
+
+  const confermaModifica = (): boolean => {
+    if (!inModifica) return true
+    const cella = cellaScrivibile(inModifica)
+    if (!cella) return true
+    if (cella.valida?.(bozza)) return false
+    const p = inModifica
+    const nuovi = gruppi.map((gruppo, gi) => {
+      if (gi !== p.gruppo) return gruppo
+      if (p.zona === "corpo") {
+        return {
+          ...gruppo,
+          righe: gruppo.righe.map((riga, ri) =>
+            ri === p.riga ? (cella.scrivi as (d: unknown, v: string) => TRiga)(riga, bozza) : riga
+          ),
+        }
+      }
+      return {
+        ...gruppo,
+        testata: (cella.scrivi as (d: unknown, v: string) => TTestata)(gruppo.testata, bozza),
+      }
+    })
+    scriviGruppi(nuovi)
+    setInModifica(null)
+    return true
+  }
+
+  const onKeyDownCella = (evento: React.KeyboardEvent, p: PosizioneFoglio) => {
+    if (inModifica && stessaPosizione(inModifica, p)) {
+      // `Escape` esce sempre, valido o no: è la via d'uscita che non deve mai
+      // bloccarsi. `Invio`/`Tab` invece non si spostano su un valore invalido —
+      // l'errore resta a schermo e si corregge senza aver perso il posto.
+      if (evento.key === "Escape") {
+        evento.preventDefault()
+        annullaModifica()
+        return
+      }
+      if (evento.key === "Enter") {
+        evento.preventDefault()
+        if (confermaModifica()) muovi(1, 0)
+        return
+      }
+      if (evento.key === "Tab") {
+        evento.preventDefault()
+        if (confermaModifica()) muovi(0, evento.shiftKey ? -1 : 1)
+        return
+      }
+      return
+    }
+
+    switch (evento.key) {
+      case "ArrowDown":
+        evento.preventDefault()
+        muovi(1, 0)
+        return
+      case "ArrowUp":
+        evento.preventDefault()
+        muovi(-1, 0)
+        return
+      case "ArrowRight":
+        evento.preventDefault()
+        muovi(0, 1)
+        return
+      case "ArrowLeft":
+        evento.preventDefault()
+        muovi(0, -1)
+        return
+      case "Enter":
+      case "F2":
+        evento.preventDefault()
+        apriModifica(p)
+        return
+      case "Escape":
+        return
+    }
+    // Un carattere stampabile apre la modifica scrivendolo, come in un foglio
+    // di calcolo: non serve prima "entrare" nella cella con Invio.
+    if (!evento.metaKey && !evento.ctrlKey && !evento.altKey && evento.key.length === 1) {
+      evento.preventDefault()
+      apriModifica(p, evento.key)
+    }
+  }
+
+  return {
+    gruppi,
+    colonne,
+    posizione,
+    primaPosizione,
+    inModifica,
+    bozza,
+    errore,
+    aFuoco: (p) => stessaPosizione(posizione, p),
+    vaiA,
+    muovi,
+    apriModifica,
+    aggiornaBozza: setBozza,
+    confermaModifica,
+    annullaModifica,
+    onKeyDownCella,
+    scriviGruppi,
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * La resa
+ * ──────────────────────────────────────────────────────────────────────── */
+
+const classiAllineamento = (col: { allineamento?: "sinistra" | "destra" }) =>
+  col.allineamento === "destra" ? "text-right tabular-nums" : "text-left"
+
+/**
+ * Le colonne `ancorata` restano in campo quando il foglio scorre: sono le
+ * colonne del risultato, che a 951px di viewport nel Computo di Studio
+ * finivano **fuori campo** insieme ad altri 247px (misurato il 2026-09-21).
+ * Un totale che si vede solo scorrendo è un totale che non si legge.
+ */
+const classiAncoraggio = (col: { ancorata?: boolean }) =>
+  col.ancorata ? "sticky right-0 bg-background" : undefined
+
+function CellaFoglio<TTestata, TRiga>({
+  motore,
+  posizione,
+  colonna,
+  dato,
+  extra,
+  etichettaColonna,
+}: {
+  motore: MotoreFoglioGruppi<TTestata, TRiga>
+  posizione: PosizioneFoglio
+  colonna: ColonnaFoglio<TTestata, TRiga>
+  dato: TTestata | TRiga
+  extra?: TRiga[]
+  etichettaColonna: string
+}) {
+  const zona = posizione.zona
+  const cella = zona === "testata" ? colonna.testata : zona === "corpo" ? colonna.corpo : colonna.piede
+  const riferimento = React.useRef<HTMLDivElement>(null)
+  const aFuoco = motore.aFuoco(posizione)
+  const inModifica = stessaPosizione(motore.inModifica, posizione)
+  // La porta d'ingresso: prima che il fuoco sia da qualche parte, è la prima
+  // cella a essere tabbabile. Dopo, il fuoco mobile fa il resto.
+  const tabbabile =
+    aFuoco || (motore.posizione === null && stessaPosizione(motore.primaPosizione, posizione))
+
+  React.useEffect(() => {
+    // Solo quando il fuoco è **già** su questa cella per volontà di qualcuno:
+    // non al montaggio sulla prima, o il foglio se lo prenderebbe da sé
+    // appena la pagina apre.
+    if (aFuoco && !inModifica) riferimento.current?.focus()
+  }, [aFuoco, inModifica])
+
+  if (!cella) return <TableCell className={cn(classiAncoraggio(colonna))} />
+
+  if (cella.tipo === "fissa") {
+    return (
+      <TableCell className={cn("truncate", classiAllineamento(colonna), classiAncoraggio(colonna))}>
+        {cella.rendi()}
+      </TableCell>
+    )
+  }
+
+  if (cella.tipo === "calcolata") {
+    return (
+      <TableCell className={cn("truncate", classiAllineamento(colonna), classiAncoraggio(colonna))}>
+        {(cella.rendi as (d: unknown, a: unknown) => React.ReactNode)(dato, extra)}
+      </TableCell>
+    )
+  }
+
+  const valore = (cella.leggi as (d: unknown) => string)(dato)
+
+  if (inModifica) {
+    const errore = motore.errore
+    return (
+      <TableCell className={cn("p-0", classiAncoraggio(colonna))}>
+        <input
+          autoFocus
+          className={cn(
+            "w-full bg-transparent px-2 py-1 outline-none ring-2 ring-ring ring-inset",
+            colonna.allineamento === "destra" && "text-right tabular-nums",
+            errore && "ring-destructive"
+          )}
+          value={motore.bozza}
+          aria-label={etichettaColonna}
+          aria-invalid={errore ? true : undefined}
+          aria-describedby={errore ? `errore-${colonna.id}` : undefined}
+          onChange={(e) => motore.aggiornaBozza(e.target.value)}
+          onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
+          onBlur={() => {
+            if (!motore.confermaModifica()) motore.annullaModifica()
+          }}
+        />
+        {errore ? (
+          <span id={`errore-${colonna.id}`} className="sr-only">
+            {errore}
+          </span>
+        ) : null}
+      </TableCell>
+    )
+  }
+
+  return (
+    <TableCell className={cn("p-0", classiAncoraggio(colonna))}>
+      <div
+        ref={riferimento}
+        // Fuoco mobile (roving tabindex): una sola cella tabbabile per volta,
+        // così `Tab` esce dal foglio in una fermata invece di attraversarlo.
+        tabIndex={tabbabile ? 0 : -1}
+        role="button"
+        aria-label={`${etichettaColonna}: ${valore || "vuoto"}`}
+        className={cn(
+          // `truncate` è il prezzo di `table-fixed`, la stessa scelta già presa
+          // in `data-table`: con le larghezze decise dalle colonne, un testo
+          // più lungo **sborda nella colonna accanto** invece di allargarla.
+          // Misurato qui: a 880px sbordano 8 celle, a 700px dodici — e ciò che
+          // sborda è la designazione, cioè la colonna elastica. Meglio i
+          // puntini: il testo intero resta leggibile aprendo la modifica.
+          "cursor-text truncate px-2 py-1 outline-none",
+          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+          classiAllineamento(colonna),
+          !valore && "text-muted-foreground"
+        )}
+        onFocus={() => motore.vaiA(posizione)}
+        onClick={() => motore.vaiA(posizione)}
+        onDoubleClick={() => motore.apriModifica(posizione)}
+        onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
+      >
+        {cella.mostra
+          ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
+          : valore || cella.segnaposto || " "}
+      </div>
+    </TableCell>
+  )
+}
+
+/**
+ * Il menu dei comandi di un gruppo. `tabIndex={-1}` sul grilletto: non entra
+ * nell'ordine di `Tab`, e si apre con `Shift+F10` o col tasto Menu dalla cella
+ * a fuoco (v. `FoglioGruppi`). È la correzione del difetto misurato sul
+ * Computo vero, dove `Tab` si fermava su «Rimuovi» fra una riga e l'altra.
+ */
+function ComandiGruppo({
+  comandi,
+  etichetta,
+  apertoRef,
+}: {
+  comandi: ComandoFoglio[]
+  etichetta: string
+  apertoRef?: React.RefObject<(() => void) | null>
+}) {
+  const [aperto, setAperto] = React.useState(false)
+  React.useEffect(() => {
+    if (apertoRef) apertoRef.current = () => setAperto(true)
+    return () => {
+      if (apertoRef) apertoRef.current = null
+    }
+  }, [apertoRef])
+
+  return (
+    <DropdownMenu open={aperto} onOpenChange={setAperto}>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            tabIndex={-1}
+            aria-label={etichetta}
+            className="size-6"
+          >
+            <span aria-hidden>⋯</span>
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start">
+        <DropdownMenuGroup>
+          {comandi.map((comando, i) =>
+            comando.etichetta === "-" ? (
+              <DropdownMenuSeparator key={`sep-${i}`} />
+            ) : (
+              <DropdownMenuItem
+                key={comando.etichetta}
+                disabled={comando.disabilitato}
+                variant={comando.distruttivo ? "destructive" : undefined}
+                onClick={comando.onSelect}
+              >
+                {comando.etichetta}
+              </DropdownMenuItem>
+            )
+          )}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+export type FoglioGruppiProps<TTestata, TRiga> = {
+  motore: MotoreFoglioGruppi<TTestata, TRiga>
+  /** I comandi di un gruppo: menu con `tabIndex={-1}`, aperto da `Shift+F10`. */
+  comandi?: (gruppo: GruppoFoglio<TTestata, TRiga>, indice: number) => ComandoFoglio[]
+  /** La riga in coda al foglio: il totale generale. */
+  piede?: (gruppi: GruppoFoglio<TTestata, TRiga>[]) => React.ReactNode
+  /** Descrizione della tabella per chi non vede — obbligatoria come un `alt`. */
+  didascalia: string
+  className?: string
+}
+
+export function FoglioGruppi<TTestata, TRiga>({
+  motore,
+  comandi,
+  piede,
+  didascalia,
+  className,
+}: FoglioGruppiProps<TTestata, TRiga>) {
+  const { gruppi, colonne, posizione } = motore
+  const apreComandi = React.useRef<(() => void) | null>(null)
+
+  // `Shift+F10` e il tasto Menu aprono i comandi del gruppo a fuoco: è la
+  // scorciatoia di sistema per il menu contestuale, la stessa che il browser
+  // usa da sé su un elemento qualsiasi. Sta qui e non sulla cella perché il
+  // bersaglio è il **gruppo**, non la casella.
+  const onKeyDown = (evento: React.KeyboardEvent) => {
+    if (evento.key === "ContextMenu" || (evento.shiftKey && evento.key === "F10")) {
+      if (!posizione) return
+      evento.preventDefault()
+      apreComandi.current?.()
+    }
+  }
+
+  return (
+    <div className={cn("overflow-x-auto", className)} onKeyDown={onKeyDown}>
+      <Table
+        // `role="grid"` è ciò che dice a un lettore di schermo che qui le
+        // frecce navigano: senza, la tabella è un documento e la tastiera che
+        // abbiamo costruito non viene annunciata.
+        role="grid"
+        aria-label={didascalia}
+        aria-rowcount={gruppi.reduce((n, g) => n + g.righe.length + 2, 0)}
+        aria-colcount={colonne.length}
+        className="table-fixed"
+      >
+        <colgroup>
+          {colonne.map((col) => (
+            <col key={col.id} className={col.larghezza} />
+          ))}
+        </colgroup>
+        <TableHeader>
+          <TableRow>
+            {colonne.map((col) => (
+              <TableHead
+                key={col.id}
+                className={cn(classiAllineamento(col), classiAncoraggio(col))}
+              >
+                {col.titolo}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+
+        {gruppi.map((gruppo, gi) => {
+          const comandiGruppo = comandi?.(gruppo, gi) ?? []
+          const aFuocoQui = posizione?.gruppo === gi
+          return (
+            <TableBody key={gruppo.id} className="border-b-2">
+              {/* Testata del gruppo */}
+              <TableRow className="bg-muted/40">
+                {colonne.map((col, ci) => {
+                  const posizioneCella: PosizioneFoglio = {
+                    gruppo: gi,
+                    zona: "testata",
+                    riga: 0,
+                    colonna: ci,
+                  }
+                  if (ci === 0 && comandiGruppo.length > 0) {
+                    return (
+                      <TableCell key={col.id} className={cn(classiAncoraggio(col))}>
+                        <ComandiGruppo
+                          comandi={comandiGruppo}
+                          etichetta={`Azioni del gruppo ${gi + 1}`}
+                          apertoRef={aFuocoQui ? apreComandi : undefined}
+                        />
+                      </TableCell>
+                    )
+                  }
+                  return (
+                    <CellaFoglio
+                      key={col.id}
+                      motore={motore}
+                      posizione={posizioneCella}
+                      colonna={col}
+                      dato={gruppo.testata}
+                      etichettaColonna={col.titolo}
+                    />
+                  )
+                })}
+              </TableRow>
+
+              {/* Corpo: le righe omogenee */}
+              {gruppo.righe.map((riga, ri) => (
+                <TableRow key={`${gruppo.id}-${ri}`}>
+                  {colonne.map((col, ci) => (
+                    <CellaFoglio
+                      key={col.id}
+                      motore={motore}
+                      posizione={{ gruppo: gi, zona: "corpo", riga: ri, colonna: ci }}
+                      colonna={col}
+                      dato={riga}
+                      etichettaColonna={col.titolo}
+                    />
+                  ))}
+                </TableRow>
+              ))}
+
+              {/* Piede del gruppo */}
+              <TableRow className="border-t font-medium">
+                {colonne.map((col, ci) => (
+                  <CellaFoglio
+                    key={col.id}
+                    motore={motore}
+                    posizione={{ gruppo: gi, zona: "piede", riga: 0, colonna: ci }}
+                    colonna={col}
+                    dato={gruppo.testata}
+                    extra={gruppo.righe}
+                    etichettaColonna={col.titolo}
+                  />
+                ))}
+              </TableRow>
+            </TableBody>
+          )
+        })}
+
+        {piede ? (
+          <TableFooter>
+            <TableRow>{piede(gruppi)}</TableRow>
+          </TableFooter>
+        ) : null}
+      </Table>
+    </div>
+  )
+}

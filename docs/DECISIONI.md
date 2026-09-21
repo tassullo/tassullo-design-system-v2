@@ -3271,3 +3271,48 @@ a vuoto (niente di simile all'MCP, né `@shadcn` né `@tassullo`). Consumatore
 Rilievo collaterale, misurato: a **951px** di viewport il foglio taglia **247px**
 e fuori campo finiscono **Quantità, Prezzo e Importo**. Fascia di un portatile
 13" col guscio aperto.
+
+### Esito: `tassullo-foglio-gruppi` (approvato e scritto, 2026-09-21)
+
+Francesco ha confermato la forma. Il blocco esiste, e queste sono le misure che
+lo chiudono — non le promesse della proposta.
+
+| | Computo di Studio, oggi | `tassullo-foglio-gruppi` |
+|---|---|---|
+| `Tab` dentro il foglio | **24 fermate** (gruppo da 3 righe) | **1** in tutto il foglio |
+| comandi nell'ordine di `Tab` | 6 per gruppo, fra cui ✕ «Rimuovi» | **0** — `Shift+F10` |
+| `ArrowDown` a fine gruppo | niente | entra nel gruppo dopo |
+| piede e **prezzo** con le frecce | irraggiungibili | raggiunti |
+| frecce orizzontali | niente | saltano alle colonne con una cella |
+
+**Un difetto che solo la misura poteva trovare, e che ripete la famiglia da cui
+il blocco nasce.** Alla prima stesura `[tabindex="0"]` valeva **0**: il fuoco
+mobile partiva da `null`, nessuna cella era tabbabile, e `Tab` scavalcava la
+tabella intera mentre le frecce funzionavano perfettamente. Da tastiera pura il
+foglio era irraggiungibile, **e axe dava zero violazioni** — perché non c'era
+niente di sbagliato da vedere: c'era una porta che non si apriva. È D15 in casa.
+Chiuso con `primaPosizione`. La lezione è che la misura da tastiera non è un
+collaudo finale: è l'unico modo di sapere se una griglia si usa.
+
+**Il perimetro del difetto di §50 si è ristretto, non è stato smentito.** Il
+blocco non fa copia/incolla, riempimento né annulla/ripeti: sono le operazioni a
+**rettangolo** di `data-grid`, e su colonne che si spartiscono per zona un
+rettangolo non ha significato. Un incolla *dentro un gruppo*, sulle sole colonne
+del corpo — che lì sono omogenee — resta possibile e non è stato scritto perché
+nessuno l'ha chiesto.
+
+**Due cose dichiarate, non nascoste.** La prop `ancorata` (`sticky right-0`)
+**non è esercitata** dalla story: misurato da 1440 a 600px, il foglio non scorre
+mai perché `table-fixed` comprime la designazione, e le tre colonne del risultato
+restano in campo a ogni larghezza. Serve a un consumatore che dichiari colonne
+più larghe della somma disponibile. E il prezzo di quella compressione era lo
+sbordamento: senza `truncate`, a 880px **otto celle sbordavano nella colonna
+accanto** — la stessa lezione già scritta in `data-table`. Con `truncate`: **0
+fino a 880px**, dodici sotto, e sotto sono puntini.
+
+Il registro dei componenti nostri **resta a 1**: il blocco sta in `blocks/`, e
+quel file è per ciò che prende il posto di una primitiva.
+
+Numeri di chiusura: **95 item** (era 94), `test:a11y` **1508 scansioni su 377
+story, 0 violazioni**, `misura:bersagli` **3255 su 377, 0 piccoli**, sette gate a
+**0**, lint **26 avvisi** preesistenti.

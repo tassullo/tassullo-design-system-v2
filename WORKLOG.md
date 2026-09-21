@@ -11102,3 +11102,103 @@ sotto gli 880px, o si dichiara per iscritto cosa fanno.
 
 **Non scritto**: `registry/componenti-propri.json` resta a **1** finché Francesco
 non conferma la forma.
+
+### Coda M4ter.12 — `tassullo-foglio-gruppi`, scritto (2026-09-21)
+
+Francesco ha confermato la forma: *«ok procedi con il foglio a gruppi»*. Gradino
+4 della regola 4bis chiuso con approvazione esplicita; gradino 1 verificato a
+vuoto all'MCP (niente di simile né in `@shadcn` né in `@tassullo`).
+
+**Dove sta il registro.** Il blocco vive in `registry/tassullo/blocks/`, non in
+`ui/`, e `registry/componenti-propri.json` **resta a 1**: quel registro è per ciò
+che prende il posto di una **primitiva** shadcn, e `check:registry` chiede ai
+blocchi la sola regola 3 — è scritto nel `CLAUDE.md` §Comandi. La tracciabilità
+del gradino 4 sta quindi qui, in `docs/DECISIONI.md` §50 e nel commento in testa
+al file, che è dove la cercherà chi lo apre.
+
+#### L'idea, in una riga
+
+**L'indice segue il foglio, non l'array.** La navigazione costruisce una
+**matrice di celle visive** — una riga per ogni riga resa, `null` dove la cella
+non esiste — e le frecce saltano i buchi. Da lì vengono, senza doverle
+programmare una per una, le due cose che mancavano al Computo vero: `ArrowDown`
+dall'ultima riga di un gruppo **entra nel gruppo dopo**, e il piede si raggiunge
+dalla colonna che le tre zone condividono (nel computo, la designazione), da cui
+`ArrowRight` arriva al prezzo.
+
+#### Misure in Chromium vero, strumento verificato
+
+`visibilityState: "visible"`, `requestAnimationFrame` scatta.
+
+| | prima (Computo di Studio) | ora (`foglio-gruppi`) |
+|---|---|---|
+| `Tab` dentro il foglio | **24 fermate** per un gruppo da 3 righe | **1 fermata** in tutto il foglio |
+| comandi nell'ordine di `Tab` | 6 per gruppo, fra cui ✕ «Rimuovi» | **0** (`tabIndex={-1}`, su `Shift+F10`) |
+| `ArrowDown` a fine gruppo | **niente** | entra nel gruppo dopo |
+| piede e prezzo con le frecce | **irraggiungibili** | raggiunti |
+| frecce orizzontali | **niente** | saltano alle colonne che hanno una cella |
+| `Esc` dopo `Invio` | — | torna alla cella |
+
+Struttura: `role="grid"`, `aria-rowcount 12`, `aria-colcount 9`, **1** elemento
+tabbabile, **3** comandi fuori dall'ordine di `Tab`.
+
+#### Un difetto trovato dalla misura, non dal codice
+
+Alla prima passata: **`[tabindex="0"]` valeva 0** e `Tab` scavalcava la tabella
+intera — con le frecce perfettamente funzionanti dietro. Il fuoco mobile partiva
+da `posizione = null`, quindi nessuna cella era tabbabile finché non si
+cliccava: **da tastiera pura il foglio era irraggiungibile.** È D15 in casa —
+axe dà zero violazioni, perché non c'è niente di sbagliato da vedere: c'è una
+porta che non si apre. Chiuso con `primaPosizione`, che porta `tabIndex={0}`
+finché il fuoco non è da nessuna parte.
+
+Vale la pena dirlo: il blocco **nasce** da un difetto di questa famiglia e ne ha
+prodotto un altro identico alla prima stesura. La misura da tastiera non è un
+collaudo finale, è l'unico modo di sapere se una griglia si usa.
+
+#### Il popup dichiarato — e lo slot guardato, non dedotto
+
+Il menu dei comandi è un popup, e `scripts/gate-a11y.ts` tiene l'elenco dei
+componenti che ne hanno uno **scritto a mano**: senza aggiungercelo, il gate lo
+avrebbe fatto passare per «senza popup» e non l'avrebbe mai aperto. Aggiunto a
+`CON_POPUP` e dichiarato con `play: apriCol(...)` nella story. Lo `data-slot` del
+grilletto **guardato nel DOM**: malgrado il `render={<Button/>}` resta
+`dropdown-menu-trigger` — come il menù utente del guscio, **non** come il
+combobox, che se lo fa riprendere. Il gate ora stampa `✔ foglio-gruppi apriCol`.
+
+#### La larghezza, e un compromesso dichiarato
+
+Misurato da 1440 a 600px: **le tre colonne del risultato restano in campo a ogni
+larghezza**, e il foglio **non scorre mai** — `table-fixed` comprime la
+designazione invece di forzare lo scorrimento. L'obiettivo è raggiunto, ma per
+una ragione diversa da quella progettata, **e va detto: la prop `ancorata`
+(`sticky right-0`) non è esercitata in questa story**, perché non c'è
+scorrimento da cui ancorarsi. Serve a un consumatore che dichiari colonne più
+larghe della somma disponibile.
+
+Il prezzo della compressione era lo **sbordamento**: senza `truncate`, a 880px
+otto celle sbordavano **nella colonna accanto** invece di tagliarsi — la stessa
+lezione già scritta in `data-table`. Aggiunto `truncate`: **0 celle sbordate
+fino a 880px**, dodici sotto, e sotto sono puntini, non invasioni.
+
+#### Cosa il blocco **non** fa, di proposito
+
+Niente **copia/incolla**, niente **riempimento**, niente **annulla/ripeti**.
+Sono le operazioni a rettangolo di `data-grid`, e su colonne che si spartiscono
+per zona un rettangolo non ha significato — è l'accertamento di §50, che resta
+in piedi: si è ristretto il *perimetro* del difetto, non lo si è smentito. Un
+consumatore che voglia incollare da un foglio di calcolo lo farà **dentro un
+gruppo**, sulle sole colonne del corpo, che lì sono omogenee: è la prima cosa da
+valutare se e quando serve, e non è stata scritta oggi perché nessuno l'ha
+chiesta.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1508 scansioni su 377 story, 0 violazioni** (base 1496/374, più
+  3 story × 4 passate). `foglio-gruppi` **dichiara il proprio popup**.
+- `misura:bersagli` — **3255 bersagli su 377 story, 0 piccoli** in entrambe le
+  direzioni (base 3244/374).
+- `registry.json` **95 item** (era 94), `componenti-propri.json` **1**,
+  `check:riferimenti` **210 riferimenti, 0 rotti, 105 file**.
+- `build` e `lint` verdi, **26 avvisi**, tutti preesistenti.
