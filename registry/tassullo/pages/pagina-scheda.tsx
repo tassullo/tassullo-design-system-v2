@@ -7,35 +7,40 @@
  * `tabs`, `card`, `tassullo-version-timeline`, `tassullo-page-skeleton`,
  * `tassullo-error-state` — zero primitive nuove, zero CSS di pagina.
  *
- * ── Perché il titolo qui **si vede**, a differenza di `PageHeader` ───────
+ * ── Niente intestazione di pagina: il nome sta nel percorso ─────────────
  *
- * `tassullo-page-header` (M3.2) toglie deliberatamente il titolo visibile
- * dalla fascia in alto — comparirebbe tre volte in 80px insieme a percorso e
- * voce di colonna. Ma quella è la fascia del **guscio**; questa è
- * l'intestazione della **pagina**, e su una scheda il nome dell'entità è
- * l'unica cosa scritta grande da qualche parte: senza, la pagina non direbbe
- * mai «Norma UNI 1090» a chi ci è arrivato scorrendo un elenco. Le due
- * intestazioni non sono la stessa cosa e non si escludono: `PageHeader` porta
- * solo il `percorso` nella fascia (il nome dell'entità è già l'ultimo
- * livello), questo blocco rende `titolo` + `distintivo` + `azioni` **dentro
- * il contenuto**, dove c'è spazio per restare leggibili a ogni larghezza
- * senza doversi comprimere in un menu.
+ * Fino al 2026-09-21 questo blocco rendeva, sopra le tab, un'intestazione
+ * propria: `titolo` grande, `distintivo` (il badge di stato) accanto,
+ * `descrizione` sotto e le azioni a destra. **Tolta su indirizzo di
+ * Francesco**, guardandola a video in M4ter.11, e le tre ragioni sono
+ * separate perché rispondono a tre domande diverse:
  *
- * **E sotto il titolo c'è posto per una riga in più** (`descrizione`, da
- * M4ter.7): la denominazione estesa di una norma, il committente di una
- * commessa, il modello di una macchina — ciò che il solo codice non dice, e
- * che nove pagine di Studio vogliono. Sta sotto e non accanto perché accanto
- * ci sono già `distintivo` e le azioni: una riga in più lì spingerebbe i
- * bottoni a capo, cioè il contrario di ciò che serve.
+ *  1. **Il nome dell'entità è già scritto**, ed è l'ultimo livello del
+ *     `percorso`: «Norme › UNI EN 1090». Scriverlo una seconda volta 40px più
+ *     sotto, in grande, è ripetizione — e la descrizione estesa, terza riga,
+ *     era la **quarta** volta che la stessa norma si nominava nella stessa
+ *     schermata, perché il suo titolo per esteso sta già nel campo «Titolo»
+ *     della scheda Anagrafica.
+ *  2. **Lo stato è un dato dell'entità, non un ornamento del titolo.**
+ *     «Vigente» si legge come gli altri campi, dentro la scheda, dove sta
+ *     tutto il resto di ciò che quella norma è. Come badge appeso al titolo
+ *     era l'unico dato della pagina a non avere un'etichetta che dicesse di
+ *     che cosa fosse il valore.
+ *  3. **Le azioni della pagina vanno nella fascia della pagina.** «Elimina» e
+ *     «Modifica» sono azioni *di questa pagina*, ed è esattamente ciò che
+ *     `PageHeader.azioni` porta — con in più il ripiegamento a menu quando la
+ *     fascia si stringe, che il blocco qui non aveva. Averle in due posti
+ *     diversi a seconda del tipo di pagina era la cosa da togliere.
  *
- * ── `distintivo` è un nodo, non un `variant` chiuso ───────────────────────
+ * Ne segue che `titolo`, `descrizione` e `distintivo` **non esistono più**
+ * come prop: il nome si passa come ultimo livello di `percorso`, lo stato è un
+ * campo di `anagrafica`, e `azioni` sale in `PageHeader`. La prop
+ * `descrizione`, aggiunta in M4ter.7, ha avuto vita breve ed è la scelta di
+ * forma #2 di M4ter.11, chiusa per **rimozione**.
  *
- * Un prodotto è «attivo» o «superato», una norma è «vigente» o «abrogata», un
- * sistema è «in produzione» o «in sviluppo» — quattro entità, quattro
- * vocabolari di stato che non hanno un denominatore comune. Fissare qui un
- * insieme di valori vorrebbe dire indovinarne uno e sbagliare per le altre
- * tre; il blocco chiede un `<Badge>` già composto, con la stessa libertà che
- * `barra` lascia a `tassullo-data-table` per i filtri.
+ * (Resta vero ciò che `tassullo-page-header` dice di sé: la fascia non porta
+ * un titolo visibile, perché il percorso lo contiene già. Qui non si aggiunge
+ * un titolo alla fascia — si smette di aggiungerne uno sotto.)
  *
  * ── Ogni tab rende dentro una `Card`, non a diretto contatto con lo sfondo ─
  *
@@ -93,7 +98,6 @@ import {
   VersionTimeline,
   type VersionTimelineEntry,
 } from "@/registry/tassullo/blocks/version-timeline"
-import { Button } from "@/registry/tassullo/ui/button"
 import { Card, CardContent } from "@/registry/tassullo/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/registry/tassullo/ui/tabs"
 
@@ -106,22 +110,18 @@ export type SezioneStorico = {
 
 export type PaginaSchedaProps = {
   /** Il percorso dell'intestazione — passa a `PageHeader`, che lo porta nella fascia. */
-  percorso: LivelloPercorso[]
-  /** Il nome dell'entità. A differenza della fascia, qui **si vede**. */
-  titolo: ReactNode
   /**
-   * Una riga sotto il titolo: ciò che il nome da solo non dice — la
-   * denominazione estesa di una norma, il committente di una commessa, il
-   * modello di una macchina. Nove pagine di Studio la vogliono.
-   *
-   * Sta **sotto** e non accanto: accanto ci sono già `distintivo` e le azioni,
-   * e una riga in più lì dentro spinge i bottoni a capo. Resta un `ReactNode`
-   * come `titolo` — chi vuole scriverci dentro un collegamento può.
+   * Il percorso della fascia. **L'ultimo livello è il nome dell'entità** — è
+   * lì che «UNI EN 1090» si legge, e per questo il blocco non ha un `titolo`:
+   * v. il blocco in testa al file.
    */
-  descrizione?: ReactNode
-  /** Lo stato dell'entità, già composto — es. `<Badge>Vigente</Badge>`. Il vocabolario cambia per entità: il blocco non lo indovina. */
-  distintivo?: ReactNode
-  /** Le azioni della scheda (non distruttive dal solo bottone: usa `ruolo="distruttiva"` per quelle, che restano un `<Button variant="destructive">` sotto conferma dell'app). */
+  percorso: LivelloPercorso[]
+  /**
+   * Le azioni della pagina. **Rendono nella fascia**, insieme al percorso, e
+   * non sopra le tab: `PageHeader` le ripiega da sé in un menu quando la
+   * fascia si stringe. Il blocco aggiunge in coda il «Modifica»/«Annulla»
+   * della modifica in riga, che è sua e non dell'app.
+   */
   azioni?: AzionePagina[]
   /** Controllata: l'app decide quando uscire dalla modifica (tipicamente al successo del salvataggio). Assente, resta uno stato interno. */
   modifica?: boolean
@@ -145,37 +145,8 @@ export type PaginaSchedaProps = {
   className?: string
 }
 
-const VARIANTE_AZIONE = {
-  primaria: "default",
-  secondaria: "outline",
-  distruttiva: "destructive",
-} as const
-
-function AzioniScheda({ azioni }: { azioni: AzionePagina[] }) {
-  if (azioni.length === 0) return null
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {azioni.map((a) => (
-        <Button
-          key={a.titolo}
-          variant={VARIANTE_AZIONE[a.ruolo ?? "secondaria"]}
-          disabled={a.disabilitata}
-          onClick={a.onClick}
-          {...(a.href ? { render: <a href={a.href} /> } : {})}
-        >
-          <a.icona />
-          {a.titolo}
-        </Button>
-      ))}
-    </div>
-  )
-}
-
 export function PaginaScheda({
   percorso,
-  titolo,
-  descrizione,
-  distintivo,
   azioni = [],
   modifica: modificaControllata,
   onModificaChange,
@@ -219,20 +190,13 @@ export function PaginaScheda({
 
   return (
     <div data-slot="pagina-scheda" className={cn("flex flex-col gap-4", className)}>
-      <PageHeader percorso={percorso} />
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h1 className="text-lg font-semibold text-balance">{titolo}</h1>
-            {distintivo}
-          </div>
-          {descrizione ? (
-            <p className="text-sm text-pretty text-muted-foreground">{descrizione}</p>
-          ) : null}
-        </div>
-        <AzioniScheda azioni={[...azioni, toggleModifica]} />
-      </div>
+      {/*
+        Le azioni salgono nella fascia, col percorso (2026-09-21). Il
+        «Modifica»/«Annulla» va **in coda**, dopo quelle dell'app: è l'azione
+        che il blocco aggiunge di suo, e in un ripiegamento a menu si legge
+        ultima, dove chi cerca un comando di pagina se l'aspetta.
+      */}
+      <PageHeader percorso={percorso} azioni={[...azioni, toggleModifica]} />
 
       <Tabs defaultValue="anagrafica">
         <TabsList>

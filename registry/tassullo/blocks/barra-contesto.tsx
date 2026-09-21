@@ -98,6 +98,12 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/registry/tassullo/ui/item"
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/registry/tassullo/ui/sidebar"
 
 /** Un'icona Lucide, o qualunque componente che accetti una `className`. */
 type Icona = ComponentType<{ className?: string }>
@@ -120,7 +126,21 @@ export type BarraContestoProps = {
   titolo: string
   /** Sotto il nome: indirizzo, committente, stato — quello che serve a non sbagliare entità. */
   descrizione?: ReactNode
-  /** Mai un'emoji: la disegna il sistema operativo. Il default è `MapPinIcon`. */
+  /**
+   * L'icona del contesto. **Mai un'emoji**: la disegna il sistema operativo,
+   * quindi la stessa riga rende un simbolo diverso su Mac, su Windows e su
+   * Android — l'unica cosa che un design system non può tenere ferma. La barra
+   * vera di Studio comincia con 📍, e `MapPinIcon` è quel segnaposto disegnato
+   * da noi.
+   *
+   * **La sceglie l'app, da Lucide** (Francesco, 2026-09-21): il default resta
+   * `MapPinIcon` perché un default deve essere quello che non sbaglia mai —
+   * «ecco dove sei» vale per una commessa, un impianto, una famiglia di
+   * prodotti — mentre l'icona che *dice qualcosa* dipende da cosa sia il
+   * contesto, e lo sa solo l'app. Le story mostrano `HardHatIcon` per il
+   * cantiere di Studio e `CalculatorIcon` per un calcolo strutturale: sono
+   * **esempi**, non un vocabolario che il registry fissa.
+   */
   icona?: Icona
   /** Le entità fra cui scegliere. Se sono meno di due il menu non si monta. */
   voci?: VoceContesto[]
@@ -321,5 +341,239 @@ export function BarraContesto({
         </ItemActions>
       ) : null}
     </Item>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il selettore nella colonna — la seconda metà della stessa cosa
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export type SelettoreContestoProps = Pick<
+  BarraContestoProps,
+  "etichetta" | "titolo" | "descrizione" | "icona" | "voci" | "attiva" | "onCambia" | "etichettaMenu" | "className"
+>
+
+/**
+ * **Il commutatore del contesto, nella testata della colonna.** Si passa ad
+ * `AppShell` con la prop `contesto`, e sta sotto il marchio.
+ *
+ * ```tsx
+ * <AppShell
+ *   applicazione="Studio"
+ *   contesto={
+ *     <SelettoreContesto
+ *       etichetta="Commessa"
+ *       titolo="2026-114 — Palazzo Roccabruna"
+ *       voci={commesse}
+ *       attiva={commessa.id}
+ *       onCambia={setCommessa}
+ *     />
+ *   }
+ *   sezioni={SEZIONI}
+ * />
+ * ```
+ *
+ * ── Perché due forme e non una (2026-09-21) ──────────────────────────────
+ *
+ * Studio ne ha **due**, e la scoperta è di Francesco guardando l'app vera in
+ * M4ter.11: una nella colonna — il riquadro «PROGETTO ATTIVO» — e una in
+ * pagina. Fino a quel momento il registry ne conosceva una sola, e
+ * `docs/ANALISI-COPERTURA-APP.md` teneva lo slot del guscio **differito** con
+ * l'innesco sbagliato («quando una seconda app avrà un contesto che attraversa
+ * le pagine»): l'innesco vero era un altro, e era già scattato.
+ *
+ * Le due non sono un doppione **se hanno ruoli diversi**, ed è la forma
+ * scelta:
+ *
+ * - **la colonna dice *quale*, e lo cambia.** È persistente, si vede da ogni
+ *   pagina, e collassando la colonna si riduce alla sua icona.
+ * - **la pagina dice *cosa comporta*** — indirizzo, consegna, stato — e **non
+ *   porta il «Cambia»**: `BarraContesto` senza `voci` (o con una sola) è già
+ *   di sola lettura da sé, non serve una prop nuova.
+ *
+ * Tenerle tutte e due col «Cambia» era il difetto che si vedeva nello
+ * screenshot: «PROGETTO ATTIVO / Prova» e «Progetto attivo: Prova» a 60px di
+ * distanza, con due grilletti che fanno la stessa cosa.
+ *
+ * ── La forma è quella di shadcn, non una nostra ──────────────────────────
+ *
+ * È il `TeamSwitcher` di `@shadcn/sidebar-07`, chiesto all'MCP e ricomposto
+ * qui: `SidebarMenuButton size="lg"` dentro un `SidebarMenu`, con il riquadro
+ * dell'icona a sinistra, due righe di testo al centro e `ChevronsUpDown` a
+ * destra, e un `DropdownMenu` sopra. Gradino 1 della regola 4bis — la forma
+ * esisteva già — e nessuna primitiva nuova: `componenti-propri.json` resta a 1.
+ *
+ * L'unico scarto dal loro è il **menu a scelta esclusiva**
+ * (`DropdownMenuRadioGroup`) invece di voci semplici: qui una delle entità è
+ * quella attiva e deve portare il segno di spunta, esattamente come nella
+ * `BarraContesto`. Le due forme condividono il vocabolario apposta — stessa
+ * `VoceContesto`, stessa `attiva`, stesso `onCambia` — così l'app le alimenta
+ * da un dato solo.
+ *
+ * `side="right"`: il pannello si apre **accanto** alla colonna e non sopra la
+ * navigazione, che è ciò che fa anche shadcn. Con la colonna collassata a
+ * icona il bottone resta il quadrato dell'icona e il menu si apre lo stesso.
+ *
+ * ── `titolo` qui è il **nome**, senza il codice ──────────────────────────
+ *
+ * E non è un gusto: è misurato. Nella colonna al testo restano **159px** in
+ * densità normale — 255 di colonna, meno il quadrato dell'icona, il chevron e
+ * i margini — mentre «2026-114 — Palazzo Roccabruna» ne vuole **350**: con
+ * `truncate` erano **191px fuori**, cioè più di metà nome. (In touch la
+ * colonna vale 383px e ci sta: il difetto c'è **solo** in densità normale, che
+ * è il modo più facile di non accorgersene provando col guanto.)
+ *
+ * Provate tutte e tre, misurate, e scelta da Francesco il 2026-09-21:
+ *
+ * | forma | righe rese | larghezza del testo | cosa si perde |
+ * |---|---|---|---|
+ * | nome intero, `truncate` | 1 | 350px su 159 | **metà nome**, tagliata |
+ * | nome intero, `line-clamp-2` | 2 | 126 + 75 | niente, ma 49px di testo in un bottone alto 48 |
+ * | **solo il nome, senza codice** | **1** | **127 su 159** | **il codice, che è in pagina** |
+ *
+ * (Il bottone è `size="lg"`, cioè **48px fissi** in densità normale e 72 in
+ * touch: l'altezza della testata non cambia fra le tre forme — a cambiare è
+ * se il testo ci sta dentro.)
+ *
+ * Vince la terza: il codice non è ciò che si riconosce a colpo d'occhio — il
+ * nome sì — e il codice **non sparisce**, sta nella `BarraContesto` della
+ * pagina quaranta pixel più a destra, e in ogni voce del menu. Quindi
+ * `titolo="Palazzo Roccabruna"` in colonna e `titolo="2026-114 — Palazzo
+ * Roccabruna"` in pagina, dallo stesso dato.
+ *
+ * `line-clamp-2` resta come rete: un nome che non ci sta va a capo e si ferma
+ * alla seconda riga, invece di perdere la coda. Non è il caso normale — è
+ * quello che succede quando l'app ha un nome più lungo dei nostri.
+ *
+ * Il menu, invece, mostra codice e nome interi: lì la larghezza la dichiara il
+ * pannello (`w-xs`), non la colonna.
+ */
+export function SelettoreContesto({
+  etichetta,
+  titolo,
+  descrizione,
+  icona: Icona = MapPinIcon,
+  voci = [],
+  attiva,
+  onCambia,
+  etichettaMenu,
+  className,
+}: SelettoreContestoProps) {
+  const siCambia = voci.length > 1
+  /*
+   * **Sul telefono il pannello si apre sotto, non a destra.** È la stessa
+   * riga che shadcn scrive nel `TeamSwitcher` (`side={isMobile ? "bottom" :
+   * "right"}`), e serve per un difetto che si vede solo a 375px: lì la
+   * colonna è uno `Sheet` che copre quasi tutto lo schermo, e un pannello
+   * aperto alla sua destra **esce dallo schermo** — misurato a video da
+   * Francesco. `useSidebar()` è la primitiva a saperlo, non noi.
+   */
+  const { isMobile } = useSidebar()
+  const contenuto = (
+    <>
+      {/*
+       * Il riquadro dell'icona. `bg-sidebar-primary` è il token che shadcn usa
+       * qui: nel tema Tassullo è l'arancio del marchio, ed è il solo punto di
+       * colore della colonna — il che è voluto, perché è anche l'unica cosa
+       * della colonna che non è navigazione.
+       */}
+      <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+        <Icona className="size-4" />
+      </div>
+      {/*
+       * `min-w-0` sulla colonna del testo, o un nome lungo allarga il bottone
+       * invece di troncarsi: è lo stesso difetto misurato su `ItemTitle` in
+       * M4ter.9 (668.6px in un contenitore da 448), un livello più in là.
+       */}
+      <div className="grid min-w-0 flex-1 text-left leading-tight">
+        {/*
+         * **Niente opacità sul testo**, ed è un difetto preso dal gate appena
+         * scritto: `text-sidebar-foreground/70` sul fondo scuro della colonna
+         * dà **4.41:1**, cioè sotto i 4.5 per un soffio. È esattamente la
+         * trappola che `CLAUDE.md` mette in guardia — l'opacità cambia il
+         * colore *in composizione*, e nessun token la dichiara, quindi
+         * `check:contrast` non può vederla: la vede solo axe, e solo se una
+         * story la mette in scena.
+         *
+         * La gerarchia la fa la **misura**, non la trasparenza: `text-xs`
+         * contro `font-medium`, che è anche ciò che fa il `TeamSwitcher` di
+         * shadcn.
+         */}
+        {etichetta ? (
+          <span className="truncate text-xs">{etichetta}</span>
+        ) : null}
+        {/*
+         * **Due righe, non un troncamento.** `line-clamp-2` manda a capo e
+         * taglia alla seconda riga; `truncate` taglierebbe alla prima, e in
+         * colonna la prima riga sono ~159px in densità normale — «2026-114 —
+         * Palazzo Roccabruna» ne vuole 350, cioè più di metà nome fuori.
+         * `break-words` perché un codice lungo senza spazi non ha un punto
+         * dove andare a capo, e senza di lui sborderebbe invece di spezzarsi.
+         */}
+        <span className="line-clamp-2 font-medium break-words">{titolo}</span>
+        {descrizione ? (
+          <span className="truncate text-xs">{descrizione}</span>
+        ) : null}
+      </div>
+      {siCambia ? <ChevronsUpDownIcon className="ml-auto shrink-0" /> : null}
+    </>
+  )
+
+  return (
+    <SidebarMenu data-slot="selettore-contesto" className={className}>
+      <SidebarMenuItem>
+        {siCambia ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <SidebarMenuButton
+                  size="lg"
+                  aria-label={`${etichetta ?? "Contesto"}: ${titolo}`}
+                  className="data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground"
+                />
+              }
+            >
+              {contenuto}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              side={isMobile ? "bottom" : "right"}
+              sideOffset={4}
+              className="w-xs"
+            >
+              <DropdownMenuRadioGroup
+                value={attiva}
+                onValueChange={(v) => onCambia?.(String(v))}
+              >
+                {etichettaMenu ? (
+                  <DropdownMenuLabel>{etichettaMenu}</DropdownMenuLabel>
+                ) : null}
+                {voci.map((v) => (
+                  <DropdownMenuRadioItem key={v.id} value={v.id} closeOnClick>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{v.titolo}</span>
+                      {v.descrizione ? (
+                        <span className="truncate text-xs text-muted-foreground">
+                          {v.descrizione}
+                        </span>
+                      ) : null}
+                    </span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          /*
+           * Una sola entità: resta la targhetta, senza grilletto. Stessa
+           * regola della `BarraContesto` — un menu che contiene solo quello
+           * che c'è già scritto sopra non si monta.
+           */
+          <SidebarMenuButton size="lg" render={<div />}>
+            {contenuto}
+          </SidebarMenuButton>
+        )}
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }

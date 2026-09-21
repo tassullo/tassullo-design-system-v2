@@ -122,8 +122,14 @@ export type LivelloPercorso = {
    * nome della pagina e non ai comandi — un'azione è qualcosa che si clicca.
    * A chi passa una stringa non toglie niente.
    *
-   * Il contatore si scrive **in un tono diverso dal nome** (`text-muted-foreground`),
-   * o si legge come una parte del nome invece che come «quanti ce ne sono».
+   * Il contatore si scrive in un **`Badge variant="secondary"`**, scelto il
+   * 2026-09-21. Non in testo attenuato: misurato, `--muted-foreground` è
+   * *esattamente* il colore di «Officina» e del separatore `›`, quindi il
+   * numero si stacca dal nome della pagina ma prende il tono dei livelli che
+   * lo precedono — e si legge come un altro livello invece che come «quanti ce
+   * ne sono». `secondary` e non il pieno del brand: il badge dice *quanti*,
+   * non *quanto è grave*, e non deve competere con l'azione primaria della
+   * fascia. `tabular-nums`, perché il numero cambia sotto gli occhi.
    */
   titolo: ReactNode
   href?: string

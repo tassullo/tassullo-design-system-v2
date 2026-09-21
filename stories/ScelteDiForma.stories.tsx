@@ -30,7 +30,7 @@ import { decimale, intero, valuta } from '@/registry/tassullo/lib/numeri'
  *
  * | # | cosa | dove | le due forme |
  * |---|---|---|---|
- * | 1 | il contatore accanto al titolo del percorso | `Blocchi/Intestazione di pagina` | `Contatore Nel Titolo` / `Contatore Come Badge` |
+ * | 1 | il contatore accanto al titolo del percorso | `Blocchi/Intestazione di pagina` | **chiusa il 2026-09-21: il `Badge`.** Story `Contatore` |
  * | 2 | la prop `descrizione` di `pagina-scheda` | `Pagine/Scheda` | `Con Dati` / `Con Descrizione` |
  * | 5 | il chip col conteggio accanto a «Filtri» | `Primitive/ToggleGroup` | `Filtri contro badge` / `Chip col conteggio` |
  * | 6 | la barra di contesto ruba la scena? | `Blocchi/Barra di contesto` | `Nel Guscio` |

@@ -1117,7 +1117,8 @@
         "@tassullo/button",
         "@tassullo/dropdown-menu",
         "@tassullo/item",
-        "@tassullo/tema"
+        "@tassullo/tema",
+        "@tassullo/sidebar"
       ],
       "docs": "La fascia in cima alla pagina, sotto l'intestazione:\n\n  <BarraContesto\n    etichetta=\"Commessa\"\n    titolo=\"2026-114 - Palazzo Roccabruna\"\n    descrizione=\"Trento, via Santa Trinita - 212 voci di computo\"\n    voci={commesse}\n    attiva={commessa.id}\n    onCambia={setCommessa}\n  />\n\nNessun componente nuovo: e `item` (ItemMedia variant=\"icon\" + ItemContent +\nItemActions) piu `dropdown-menu`, e nessuna delle due primitive e stata\ntoccata. Quello che il blocco porta rispetto a una div con un menu scritto a\nmano non e l'aspetto: e Esc, il fuoco da tastiera e il clic fuori.\n\n**La pagina se la monta.** Non c'e uno slot in `tassullo-app-shell` per una\nfascia persistente fra la testata e l'Outlet: resta un candidato sospeso,\nperche oggi una sola applicazione ha un contesto che attraversa le pagine.\n\nSenza `voci`, o con una sola, il grilletto non si monta affatto: un bottone\n«Cambia» che apre un menu con dentro quello che c'e gia scritto sopra promette\nuna scelta che non esiste.\n\nLe voci si passano come **dati** e non come figli, al contrario del menu\nutente del guscio, perche questo menu ha uno stato: una voce e quella attiva e\nva spuntata. Coi dati il blocco monta un DropdownMenuRadioGroup, che porta\nrole=\"menuitemradio\", aria-checked e il segno di spunta.\n\n`icona` prende qualunque componente Lucide e il default e MapPinIcon. **Mai\nun'emoji**: la disegna il sistema operativo, cioe in modo diverso su ogni\nmacchina.\n\nDue misure dentro il blocco, che spiegano due righe altrimenti arbitrarie. Il\ngrilletto e un Button di taglia `default` e non `sm`: `sm` e h-7, cioe 42px in\ndensita touch, sotto i 44 di soglia. E il pannello dichiara `w-64`, perche\nDropdownMenuContent porta w-(--anchor-width) e senza prenderebbe la larghezza\ndel bottone."
     },
@@ -1673,7 +1674,6 @@
         "@tassullo/tassullo-page-header",
         "@tassullo/tassullo-page-skeleton",
         "@tassullo/tassullo-version-timeline",
-        "@tassullo/button",
         "@tassullo/tabs",
         "@tassullo/tema"
       ],

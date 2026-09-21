@@ -98,9 +98,17 @@ import {
  * salva niente.
  *
  * **Il contenitore deve avere un'altezza**, e il blocco è `min-h-0 flex-1`:
- * dentro un genitore `flex flex-col` con altezza nota riempie lo spazio. Le
- * celle del mese hanno un'altezza minima che tiene **tre** eventi, e quando
- * le sei righe non ci stanno il mese **scorre** invece di schiacciarle.
+ * dentro un genitore `flex flex-col` con altezza nota riempie lo spazio.
+ *
+ * **E il mese si adatta in altezza** (2026-09-21): le sei settimane ci stanno
+ * sempre tutte — non si scorre mai — e più il contenitore è basso, più eventi
+ * la cella arrotola nel «+N altri». Misurato: a 1024px di contenitore la cella
+ * è 151px e mostra tutti gli eventi; a 576 è 77px e ne arrotola cinque; a 500
+ * è 64, il pavimento, cioè il numero del giorno più una corsia. Fino a M4ter.11
+ * qui c'era scritto che il mese «scorre invece di schiacciarle», e non era
+ * vero: schiacciava **e** scorreva, coi chip disegnati sopra i numeri dei
+ * giorni della settimana precedente. Il perché completo, con le due vie
+ * scartate, sta su `monthRow` in `calendario.tsx`.
  *
  * **Il bivio mese/agenda lo dichiara la pagina**, non il blocco: quale
  * mostrare dipende da quanto spazio ha *quella* pagina, e da M4ter.6 si
