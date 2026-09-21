@@ -10759,8 +10759,11 @@ chiuse, e al suo posto sono entrate `Blocchi/Calendario → Altezza variabile` e
 
 ### Quello che resta aperto, con un nome accanto
 
+**I tre sono aperti, ma non sono la stessa sessione**: il primo è
+`M4ter.12`, gli altri due hanno un posto loro e sono scritti lì.
+
 1. **Il Computo di Studio non si ricompone** — `docs/ANALISI-COPERTURA-APP.md`
-   §8.3. È una griglia a **due livelli** (voce, misurazioni figlie, «Sommano»)
+   §8.3, ed è **`M4ter.12`** (`PIANO.md` §FASE 4ter). È una griglia a **due livelli** (voce, misurazioni figlie, «Sommano»)
    con tutte le celle scrivibili da tastiera: `data-table` dà l'albero ma la
    tastiera di *riga*, `data-grid` la tastiera di *cella* ma `getSottoRighe`
    **`Omit`-tato**, perché naviga per indice sull'array piatto del motore. Il
@@ -10768,11 +10771,18 @@ chiuse, e al suo posto sono entrate `Blocchi/Calendario → Altezza variabile` e
    dentro. **Non è lavoro da coda di fase**: è un terzo modo di navigare, con
    un gate da tastiera suo. Le tre strade possibili sono elencate in §8.3.
 2. **`window.confirm`/`window.prompt` vivi in Anagrafe** (ChangeSets):
-   `tassullo-confirm-dialog` li copre tutti e due, e va in M5.5 come voce di
-   ricerca-e-sostituzione — è l'unico pattern che si trova a `grep`.
+   `tassullo-confirm-dialog` li copre tutti e due. È lavoro di **migrazione**,
+   non di registry: scritto nel prompt di **M5.5**, dove chi migra lo trova —
+   stare solo qui e in `ANALISI-COPERTURA-APP.md` §8.4 voleva dire stare in
+   nessun posto che M5.5 apra.
 3. **Lo slot in `app-shell` per la fascia fra testata e `<Outlet/>`** resta
-   differito: quello aggiunto qui è nella **testata della colonna**, un posto
-   diverso. L'innesco dell'altro non è scattato.
+   differito, innesco non scattato. **Ed è la riga che rischiava di sembrare
+   chiusa**: `AppShell.contesto`, aggiunto qui, è uno slot nella **testata
+   della colonna** e ospita il `SelettoreContesto`; quello differito sta
+   **sotto la fascia, sopra il contenuto** e ospiterebbe la `BarraContesto`.
+   Due posti, due inneschi — e Studio li usa tutti e due, che è come si è
+   scoperto il primo. La riga in `CHECKLIST.md` lo dice ora, o fra tre mesi si
+   legge «slot fatto».
 
 ### Prossimi passi
 
