@@ -9948,7 +9948,15 @@ stato proposto**.
 
 ### Prossimi passi
 
-**FASE 4ter chiusa, 10/10, 94 item.** La **FASE 5 è sbloccata per intero**:
+**Gate di fase superato, 10/10, 94 item.** In coda alla fase è stata aggiunta
+il 2026-09-21, su indicazione di Francesco, **M4ter.11 — Revisione a video**:
+l'arretrato di forma e i cinque difetti misurati non vanno in FASE 5, perché
+quella è **documentazione e chiusura**, e scrivere la guida di migrazione mentre
+i blocchi che nomina cambiano ancora forma è il modo di doverla riscrivere.
+Mandato in `PIANO.md` §FASE 4ter; chiude con la domanda che questo gate non ha
+potuto chiudere — quale pagina delle tre app resta non ricomponibile.
+
+La **FASE 5 è sbloccata per intero**:
 M5.1 (`dependencies` npm di ogni item — e oggi sono risultate complete su tutti
 e dodici gli item nuovi), M5.3 e M5.4 (i documenti di adozione, che ereditano da
 qui i **quattro** prerequisiti invece dei due), M5.5 (la guida di migrazione,
@@ -10161,3 +10169,41 @@ quello che si misura è quello che è stato *costruito*, non quello che è stato
 `build` e `lint` verdi con i soliti 26 avvisi. Il conto delle celle scende da 42
 a 30 e **nessuna misura si muove**, il che dice che le celle del mese non sono
 bersagli — coerente, non ci si clicca sopra per fare qualcosa.
+
+### 2026-09-21 — M4ter.11 aperta in coda alla FASE 4ter
+
+Indirizzo di Francesco, con la ragione scritta: **«la FASE 5 è più di
+documentazione e chiusura; le modifiche alle story le affrontiamo ora»**. Il
+rilievo è giusto e corregge una mia tendenza di questa sessione — avevo parcheggiato
+in FASE 5 sei cose che con la FASE 5 non c'entrano niente. M5.3, M5.4 e M5.5
+**descrivono** il registry: se il registry cambia forma mentre le si scrive,
+vanno riscritte.
+
+Raccolto in un task solo tutto ciò che resta da vedere, diviso per natura invece
+che per sessione d'origine, perché è così che si lavora in una revisione a video:
+
+- **Cinque difetti misurati**: il mese che si schiaccia sotto gli ~880px
+  (M4ter.10), i 4px fra i due chip del mese (M4ter.10), `chart.tsx` con
+  `toLocaleString()` senza locale (M4ter.8, §47), `altezzaMax` non-deterministico
+  su `Data Table → Virtualizzata` (ereditato), il valore lungo che sborda dagli
+  indicatori nella fascia 384–448px di contenitore (M4ter.7).
+- **Sette scelte di forma** da guardare a video: da M4ter.7 il contatore del
+  percorso e la `descrizione` di `pagina-scheda`; da M4ter.8 il totale in coda
+  alla tabella, la conferma digitata e il chip col conteggio; da M4ter.9 se la
+  barra rubi la scena e se l'icona Lucide dica quello che diceva l'emoji.
+- **Una decisione di sistema**: la tavolozza estesa, che il piano dava «da
+  decidere in coda alla FASE 4ter» — cioè lì. Con la domanda che la precede e
+  che va risposta per prima: le tinte di **categoria** hanno bisogno di 4.5:1
+  come i token di testo, o bastano a fondo e si misura il testo sopra?
+- **Una riga di documentazione**: la trappola di `cn`/tailwind-merge trovata qui.
+- **E la domanda finale**, che è il vero motivo del task: quale pagina delle tre
+  app resta non ricomponibile. Il gate di fase non ha potuto chiuderla, perché
+  non la può chiudere chi ha scritto gli item.
+
+I due candidati che erano sospesi in `CHECKLIST.md` — il mese schiacciato e la
+tavolozza — passano da «da decidere» a **«in carico a M4ter.11»**. È la regola
+di `native-select`: una lacuna senza un nome accanto si riscopre da zero.
+
+`PIANO.md` e `CHECKLIST.md` passano a **68 sessioni**; la FASE 4ter resta
+**10 sessioni più una di coda**, e il suo gate resta superato — M4ter.11 non lo
+riapre, raccoglie quello che un gate non poteva chiudere da solo.
