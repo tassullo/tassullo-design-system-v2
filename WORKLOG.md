@@ -10058,3 +10058,106 @@ pagina già dichiara. **Decisione di Francesco**, e va aperta come task.
 
 La riproduzione vive nell'app usa-e-getta dello scratchpad, rotta
 `/schiacciato`, coi tre casi uno sotto l'altro e l'etichetta di ciascuno.
+
+### Coda di M4ter.10 — tre rilievi di Francesco a video, e uno cambia un default
+
+Tutti e tre nati guardando l'app di prova, nessuno preso da un gate.
+
+#### 1. Gli eventi coprono i numeri dei giorni — il taglio giusto del difetto §schiacciato
+
+Francesco l'ha detto meglio di come l'avevo scritto io: non «le celle si
+sovrappongono», ma **«gli eventi si sovrappongono ai testi dei giorni»**, che è
+ciò che si vede e ciò che rende il calendario illeggibile. Misurato chip per
+chip contro il numero di ogni cella, a 576px di contenitore:
+
+| chip | copre | di quanto |
+|---|---|---|
+| Sopralluogo | il **14** | 20×8px |
+| Fermo gru | il **15**, il **16**, il **17** | 20×12px ciascuno |
+
+**Identico in A e in C**, zero in B — cioè la conferma numerica che il contratto
+`flex` non c'entra. Aggiunto alla riga aperta in `CHECKLIST.md`.
+
+#### 2. Gli eventi hanno altezze diverse: 30px contro 26px
+
+Vero, e la causa è nostra, non di reui.
+
+- La **barra di tutto il giorno** porta
+  `h-[calc(var(--ec-month-bar-h,1.75rem)-0.125rem)]`, e `--ec-month-bar-h` la
+  dichiara il **nostro** blocco sul proprio root (`calendario.tsx:1492`,
+  `calc(var(--spacing) * 8)` = 32px): **32 − 2 = 30px**. Fu alzata in M4ter.2
+  perché ci stessero gli avatar.
+- Il **chip con orario** non ha nessuna altezza dichiarata e si dimensiona sul
+  contenuto: `py-1` (4+4) più `line-height` 18 = **26px**.
+
+**4px di differenza, e nessuno li ha decisi**: uno dei due è stato alzato e
+l'altro no. Da decidere se allinearli — `--ec-month-bar-h` è già la leva — ma
+non in una sessione di gate.
+
+**Avvertenza di sonda, la terza in due sessioni**: la prima misura diceva
+`--ec-month-bar-h` **vuota**, perché la leggevo su `document.documentElement`
+mentre è una variabile inline sul root del blocco. Il numero era giusto, era
+l'elemento a essere sbagliato — di nuovo.
+
+#### 3. Lo spazio fra tratti e pallini dello stepper — **era la mia composizione**
+
+Francesco: «gli spazi fra le linee e i punti/testi mi sembrano sbagliati
+rispetto alla primitiva». Aveva ragione sul sintomo, e la causa era nell'app di
+prova, non nel registry. Due errori miei, tutti e due istruttivi:
+
+1. avevo messo `flex-1` sullo **`StepperItem`** invece che sul **tratto**,
+   quindi a stirarsi era la voce e non la linea;
+2. e il tratto era un `<StepperSeparator />` **nudo**, senza il `mx-2` che la
+   story della primitiva gli dà.
+
+**E la seconda correzione non ha funzionato al primo colpo, per un motivo che
+vale la pena scrivere**: avevo scritto `className="mx-2 m-0 h-0.5 flex-1 …"`, e
+il gap restava **0**. Non è la cascata CSS: è **`cn`/tailwind-merge**, che
+risolve il conflitto `m-0` ↔ `mx-2` tenendo **l'ultimo scritto** — e con `m-0`
+dopo, `mx-2` veniva proprio scartato dalla stringa. La story scrive
+`${TRATTO_IN_LINEA} mx-2`, cioè `mx-2` per ultimo. Misure dopo la correzione:
+gap titolo→tratto **8px**, tratto→pallino **8px**, pallino→titolo **6px**,
+spessore 2px — gli stessi della primitiva.
+
+È una trappola muta della stessa famiglia di `text-md`: nessun errore, nessun
+avviso, la classe semplicemente **non c'è più** nel DOM. **Proposta**: una riga
+fra le trappole del `CLAUDE.md`. Non aggiunta di iniziativa.
+
+#### 4. Il calendario diventa lavorativo: `weekend` passa a `false` di default
+
+**Indirizzo di Francesco**: «di default calendario con eventi sempre con
+sabato-domenica disabilitati. È un calendario lavorativo da lunedì al venerdì».
+
+La prop `weekend` esisteva già, quindi **nessuna API nuova**: è cambiato il
+default in `calendario.tsx` (`weekend = true` → `weekend = false`) e il suo
+commento. Misurato a prop accesa e spenta:
+
+| | `weekend` acceso | `weekend` spento |
+|---|---:|---:|
+| celle del mese | 42 | **30** |
+| colonne | 7 (lun→dom) | **5 (lun→ven)** |
+| barra venerdì→lunedì | attraversa | **si spezza in due segmenti** |
+
+**La domanda che contava prima di girare un default: che fine fa un evento del
+solo sabato?** Messi in scena apposta un «SOLO SABATO», un «SOLO DOMENICA» e una
+barra a cavallo. Nella griglia del mese i primi due **spariscono** — ed è la
+cosa giusta per un calendario lavorativo, ma sarebbe stata silenziosa. **Non lo
+è**: il motore non legge `weekends` in **agenda**, e lì restano tutti e tre,
+verificato nel DOM. Quindi il default nasconde, non perde. Chi lavora il sabato
+riaccende `weekend`, e l'interruttore c'è già nel menù Opzioni.
+
+Story `Blocchi/Calendario → Completo` dopo la modifica: **30 celle, lun→ven**.
+
+**Una misura sbagliata per colpa mia, a verbale**: il primo giro diceva che
+`weekend={false}` non faceva niente — 7 colonne e gli eventi del fine settimana
+spariti lo stesso. Stavo guardando una **build vecchia** servita da `dist/`,
+perché avevo ricostruito dopo aver letto. È la versione «da bundler» di §32:
+quello che si misura è quello che è stato *costruito*, non quello che è stato
+*scritto*.
+
+**I gate dopo tutto questo**: `npm run check` **uscita 0 sui sette**;
+`check:riferimenti` 206/0; `test:a11y` **1496 scansioni, 0 violazioni**;
+`misura:bersagli` **3246 su 374 story, 0 piccoli**, strumento a 48px; `tsc -b`,
+`build` e `lint` verdi con i soliti 26 avvisi. Il conto delle celle scende da 42
+a 30 e **nessuna misura si muove**, il che dice che le celle del mese non sono
+bersagli — coerente, non ci si clicca sopra per fare qualcosa.
