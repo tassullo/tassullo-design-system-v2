@@ -2952,3 +2952,90 @@ divergenza di **stringa di classi**, cioè il gradino 2 di 4bis: fatto, e
 `check:registry` resta a **0 errori / 19 ri-stilati** — il file era già nel
 conto. La distinzione fra le due cose nello stesso file è la regola 4bis in
 miniatura: le classi si cambiano, la forma no.
+
+## 49. Le tinte di categoria **non** vogliono 4.5:1 — e la tavolozza estesa non può essere un'estensione della scala (M4ter.11, 2026-09-21)
+
+La tavolozza estesa (10–15 tinte per grafici, calendario e categorie) era
+«da decidere in coda alla FASE 4ter», cioè qui. **La tavolozza resta
+sospesa**, ed è una scelta di Francesco; quello che si chiude è la **domanda
+di sistema che la precede**, e che senza risposta rendeva il lavoro non
+decidibile: *le tinte di categoria hanno bisogno di 4.5:1 come i token di
+testo, o bastano a fondo e si misura il testo sopra?*
+
+### La risposta: no, e 4.5:1 è il metro sbagliato
+
+**4.5:1 è la soglia del testo** (WCAG 1.4.3). A un **oggetto grafico**
+necessario a capire il contenuto — una serie di grafico, una banda di
+calendario, un pallino di stato — si applica **1.4.11, che chiede 3:1**, e lo
+chiede *solo quando il colore è l'unico mezzo* con cui quell'informazione si
+legge. Il testo scritto **sopra** una tinta è un'altra coppia, e quella sì
+vuole i suoi 4.5:1 — ma è una coppia fra il testo e la tinta, non fra la tinta
+e la pagina.
+
+Applicare 4.5:1 alle tinte le spingerebbe tutte in una banda scura e satura
+dove smetterebbero di distinguersi **fra loro**, che è l'unica cosa per cui
+esistono. Sarebbe un requisito che peggiora ciò che dice di proteggere.
+
+### E lo stato di oggi è già sotto i 3:1, a verbale da M2.8
+
+Misurato di nuovo qui, per non fidarsi della memoria:
+
+| | chart-1 | chart-2 | chart-3 | chart-4 | chart-5 |
+|---|---:|---:|---:|---:|---:|
+| contro la card, **chiaro** | **1.91** | 2.85 | 4.26 | 6.34 | 9.40 |
+| contro la card, **scuro** | 13.16 | 8.80 | 5.92 | 3.93 | **2.64** |
+
+Due delle dieci stanno sotto 3:1, ed è accettato **perché il colore non è mai
+l'unico mezzo**: le story portano legenda, etichette diritte sui dati e cinque
+tratteggi diversi. È la condizione che va mantenuta, non il numero.
+
+### Il fatto nuovo, ed è aritmetico: 10–15 pioli non ci stanno
+
+La scala di `--chart-1..5` non è cinque colori scelti: sono cinque **pioli**
+di una progressione geometrica il cui passo — **1.4935** — è il rapporto che
+l'arancio e il verde Tassullo hanno già fra loro. È quel passo a garantire che
+le serie restino distinguibili **in scala di grigi**, cioè in stampa e sotto i
+tre deficit di percezione del colore, che la luminanza non la toccano.
+
+Allo stesso passo:
+
+| pioli | estensione richiesta | ci sta in sRGB (21:1)? |
+|---:|---:|---|
+| 5 | 5,0:1 | sì, con margine |
+| 8 | 16,6:1 | al limite |
+| **10** | **37,0:1** | **no** |
+| 12 | 82,5:1 | no |
+| 15 | 274,7:1 | no |
+
+**Sopra gli otto pioli la garanzia in grigio non è ottenibile**, e non per una
+scelta: non c'è spazio fra il bianco e il nero. Ne segue che una tavolozza
+estesa **non è l'estensione di questa scala**: è una palette di natura
+diversa, separata per **tinta** e non per luminanza, che si garantisce con un
+ΔE2000 minimo sotto i tre deficit e che in bianco e nero **non** si legge.
+
+Conseguenza operativa se un giorno si apre: **non si chiamerà `--chart-6..15`**,
+perché quel nome prometterebbe la proprietà della scala. Un nome a parte
+(`--categoria-*`) e un controllo a parte in `check:contrast` — quello di oggi
+verifica coppie fondo/testo a 4.5:1, che alle tinte di categoria non si applica.
+
+### I due inneschi si chiudono senza aprirla
+
+**Il rosso del «Guasto» (Officina).** `--destructive` #DC2626 esiste già in
+tutte e due le modalità e dà **4.75:1 sulla card chiara e 3.53:1 sulla scura**,
+sopra i 3:1 di 1.4.11 in entrambe. `COLORI_EVENTO` in `calendario.tsx` può
+mapparlo come sesto colore senza una riga di palette nuova. **La caveat, e va
+scritta**: in scala di grigi il rosso cade sul piolo di `--chart-3` (rapporto
+0.898, cioè l'11% di scarto), quindi un calendario stampato in bianco e nero
+confonderebbe «Guasto» e la categoria blu. Sotto i tre deficit invece regge
+(ΔE minimo 9.3, protanopia contro `chart-5`, soglia 5). Il calendario porta
+nome della categoria nella legenda e nel chip, quindi il colore non è l'unico
+mezzo — è la stessa condizione di sopra.
+
+**Il fondo della banda intermedia (misuratore di robustezza, M4ter.5).**
+Misurato: `--warning` #FBE8C4 dà **1.18:1** sulla card chiara — come
+riempimento di una barra è invisibile, ed è corretto che lo sia, perché è un
+**fondo di badge** con sopra il suo testo, non un fondo di barra. `--primary`
+ne dà 1.91. Quello che manca non sono quindici tinte: è **un** token di
+riempimento ambrato che si legga su tutte e due le card. Se e quando servirà,
+è un token, non una palette — e il misuratore, per ora, resta dell'app
+(deciso da Francesco il 2026-09-19).
