@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
+import { cn } from 'cn'
+
 import { apriCol, apriIlBottone } from '@/prove/apri'
+import { intero } from '@/registry/tassullo/lib/numeri'
 import {
   Calendario,
   type CalendarioSorgente,
@@ -384,4 +387,253 @@ export const Vuoto: Story = {
       <Calendario {...args} />
     </div>
   ),
+}
+
+/**
+ * **Il banco per provare l'adattamento in altezza.** Il riquadro si
+ * **trascina dal bordo in basso a destra** (`resize-y`), e la riga sotto
+ * legge dal DOM cosa succede mentre lo si muove: altezza del contenitore,
+ * altezza della cella, quanti eventi restano visibili, quanti finiscono nel
+ * «+N altri», e se la griglia sta scorrendo.
+ *
+ * È il modo di verificare a mano quello che `monthRow` documenta misurato:
+ * **il mese ci sta sempre tutto e non si scorre mai**, e più il riquadro è
+ * basso più eventi la cella arrotola. Il pavimento è una corsia più il numero
+ * del giorno — 64px in densità normale, 96 in touch — e sotto quello nemmeno
+ * un evento ci starebbe: lì la faccia giusta è l'agenda.
+ *
+ * Da provare, in quest'ordine:
+ *
+ * - **tira in su fino in fondo**: le celle scendono al pavimento e quasi ogni
+ *   giornata diventa un «+N altri». Le sei settimane ci sono ancora tutte;
+ * - **clicca un «+N altri»**: il popover mostra la giornata intera — niente si
+ *   è perso, si è solo arrotolato;
+ * - **tira in giù**: le corsie tornano una per volta, e il «+N» si consuma;
+ * - **commuta la densità** in barra: in touch il pavimento è più alto, quindi
+ *   lo stesso riquadro arrotola prima.
+ *
+ * Il righello da guardare è **«sovrapposizione»**: deve restare a `0px` a
+ * ogni altezza. È il difetto che questa scena esiste per sorvegliare — prima
+ * di M4ter.11 a 576px valeva 51px fra le righe, coi chip disegnati sopra i
+ * numeri dei giorni della settimana precedente.
+ */
+export const AltezzaVariabile: Story = {
+  name: 'Altezza variabile',
+  // `fullscreen`: il banco parte **alto quanto il canvas** e il riquadro
+  // riempie ciò che resta. Con `padded` (il default della sezione) partiva da
+  // un'altezza fissa in mezzo a una pagina vuota, cioè si provava
+  // l'adattamento su un caso solo.
+  parameters: { layout: 'fullscreen' },
+  args: {
+    eventi: [],
+    dataIniziale: ANCORA,
+    calendari: INTERVENTI,
+    persone: SQUADRA,
+    tooltip: true,
+    opzioni: true,
+    weekend: false,
+  },
+  render: function Banco(args) {
+    const [eventi, setEventi] = useState<EventoCalendario[]>(FERMI)
+    const riquadro = useRef<HTMLDivElement>(null)
+    const [letture, setLetture] = useState<null | {
+      contenitore: number
+      cella: number
+      passo: number
+      sovrapposizione: number
+      eventi: number
+      piuAltri: number
+      scorre: boolean
+    }>(null)
+
+    /*
+     * Si misura a ogni ridimensionamento del riquadro, non a intervalli: un
+     * `ResizeObserver` sul contenitore è la sola cosa che scatta **quando**
+     * la geometria cambia davvero. La dipendenza è una `ref`, cioè un
+     * riferimento stabile — la regola delle dipendenze non primitive del
+     * `CLAUDE.md`: un `.map()` inline qui manderebbe l'effetto in giostra.
+     */
+    /*
+     * **Il riquadro segue la finestra finché non lo si trascina.**
+     *
+     * Le due cose insieme non vengono da sé, e il motivo è quello scritto sul
+     * `div` più sotto: un elemento flex che cresce o si stringe ignora il
+     * proprio `height`, quindi per far comandare la maniglia il riquadro deve
+     * essere `flex-none` con un'altezza **scritta**. Ma un'altezza scritta una
+     * volta sola smette di seguire la finestra — ed è il difetto che si vede
+     * come «si aggiorna solo se ricarico».
+     *
+     * Quindi: si riscrive a ogni ridimensionamento della finestra, **finché
+     * l'utente non ha trascinato**. Che abbia trascinato lo si scopre senza
+     * ascoltare la maniglia (non emette un evento suo): l'osservatore vede
+     * un'altezza diversa da quella che abbiamo scritto noi, e da quel momento
+     * comanda lui.
+     */
+    const nostraAltezza = useRef<number | null>(null)
+    const trascinato = useRef(false)
+
+    useEffect(() => {
+      const nodo = riquadro.current
+      if (!nodo) return
+
+      const riempi = () => {
+        const padre = nodo.parentElement
+        if (!padre || trascinato.current) return
+        const altre = [...padre.children]
+          .filter((c) => c !== nodo)
+          .reduce((somma, c) => somma + c.getBoundingClientRect().height, 0)
+        const scarto = parseFloat(getComputedStyle(padre).rowGap) || 0
+        const h = Math.max(192, Math.round(padre.clientHeight - altre - scarto * 2))
+        nostraAltezza.current = h
+        nodo.style.height = `${h}px`
+      }
+
+      const leggi = () => {
+        const alta = Math.round(nodo.getBoundingClientRect().height)
+        // Un'altezza che non abbiamo scritto noi = la maniglia. Due pixel di
+        // tolleranza perché `getBoundingClientRect` torna float e il browser
+        // arrotonda lo `style` a modo suo.
+        if (nostraAltezza.current !== null && Math.abs(alta - nostraAltezza.current) > 2) {
+          trascinato.current = true
+        }
+        const righe = [...nodo.querySelectorAll('[data-slot="event-calendar-month-row"]')]
+        if (righe.length < 2) return setLetture(null)
+        const r = righe.map((x) => x.getBoundingClientRect())
+        const cont = nodo.querySelector('[data-slot="calendario-contenuto"]')
+        setLetture({
+          contenitore: alta,
+          cella: Math.round(r[0]!.height),
+          passo: Math.round(r[1]!.top - r[0]!.top),
+          sovrapposizione: Math.max(0, Math.round(r[0]!.height - (r[1]!.top - r[0]!.top))),
+          eventi: nodo.querySelectorAll('[data-slot="event-calendar-event"]').length,
+          piuAltri: nodo.querySelectorAll('[data-slot="event-calendar-more"]').length,
+          scorre: cont ? cont.scrollHeight > cont.clientHeight + 1 : false,
+        })
+      }
+
+      riempi()
+      leggi()
+
+      /*
+       * **Due osservati, non uno.** Il riquadro dice quando cambia l'altezza —
+       * trascinata o riscritta da `riempi` — e la **griglia** dice quando
+       * cambia il contenuto senza che il riquadro si muova: commutando la
+       * densità le corsie diventano più alte e il conto degli eventi cambia,
+       * ma il riquadro resta quello. Con il solo riquadro osservato il
+       * righello mentirebbe fino al ridimensionamento successivo.
+       */
+      const oss = new ResizeObserver(leggi)
+      oss.observe(nodo)
+      const corpo = nodo.querySelector('[data-slot="event-calendar-month-body"]')
+      if (corpo) oss.observe(corpo)
+
+      /*
+       * **E un osservatore delle mutazioni, o il righello resta indietro di un
+       * giro.** L'adattamento è a due tempi: la griglia cambia altezza (e
+       * `ResizeObserver` scatta), *poi* il motore ri-rende i chip decidendo
+       * quanti ce ne stanno. Leggendo solo sul primo tempo il numero di eventi
+       * è quello di **prima** — misurato: riquadro a 944px, nel DOM 7 chip e
+       * un «+N», e il righello scriveva ancora 3 e 5. È la famiglia di §32:
+       * si misura a pagina ferma, e qui «ferma» vuol dire dopo il secondo
+       * tempo. Un `MutationObserver` sul corpo lo coglie senza dipendere dai
+       * fotogrammi — che col pannello nascosto non scattano.
+       */
+      const mut = corpo
+        ? new MutationObserver(() => {
+            leggi()
+          })
+        : null
+      if (corpo && mut) mut.observe(corpo, { childList: true, subtree: true })
+
+      const suFinestra = () => {
+        riempi()
+        leggi()
+      }
+      window.addEventListener('resize', suFinestra)
+      return () => {
+        oss.disconnect()
+        mut?.disconnect()
+        window.removeEventListener('resize', suFinestra)
+      }
+    }, [])
+
+    return (
+      // `h-svh` e non `h-full`: il canvas non dichiara un'altezza, quindi un
+      // `h-full` risolverebbe a `auto` e il riquadro tornerebbe a dimensionarsi
+      // sul contenuto — cioè il contrario di ciò che questa scena misura.
+      <div className="flex h-svh flex-col gap-3 p-4">
+        <p className="text-muted-foreground max-w-prose shrink-0 text-xs">
+          Trascina il bordo in basso a destra del riquadro per cambiarne
+          l&apos;altezza.
+        </p>
+        {/*
+          `resize-y` vuole un `overflow` diverso da `visible` per mostrare la
+          maniglia: `overflow-hidden` basta, e il calendario dentro ha già il
+          proprio scorrimento dove serve.
+        */}
+        {/*
+          **`flex-none`, e l'altezza iniziale la scrive l'effetto qui sopra.**
+          Sembra più complicato di un `flex-1`, e invece è l'unica forma che
+          funziona: un elemento flex che **cresce o si stringe** ha l'altezza
+          decisa dalla distribuzione dello spazio, non dal proprio `height` —
+          quindi il `height` **in linea** che il browser scrive quando si
+          trascina la maniglia viene riassorbito al giro dopo. Misurato su
+          tutte e due le varianti provate: con `flex-1` (base 0) e con
+          `flex-auto` (base `auto`, ma `grow`/`shrink` a 1) il riquadro
+          tornava a **591px** qualunque altezza gli si desse — che è il difetto
+          che si vede come «il calendario non sfrutta tutta la schermata» e,
+          insieme, come «la maniglia non fa niente».
+        */}
+        <div
+          ref={riquadro}
+          className="flex min-h-24 flex-none resize-y flex-col overflow-hidden rounded-lg"
+        >
+          <Calendario {...args} eventi={eventi} onEventiChange={setEventi} />
+        </div>
+        <dl className="flex shrink-0 flex-wrap gap-x-6 gap-y-1 text-xs">
+          {letture ? (
+            <>
+              <Lettura voce="contenitore" valore={`${intero(letture.contenitore)}px`} />
+              <Lettura voce="cella" valore={`${intero(letture.cella)}px`} />
+              <Lettura voce="passo di riga" valore={`${intero(letture.passo)}px`} />
+              <Lettura
+                voce="sovrapposizione"
+                valore={`${intero(letture.sovrapposizione)}px`}
+                allarme={letture.sovrapposizione > 0}
+              />
+              <Lettura voce="eventi visibili" valore={intero(letture.eventi)} />
+              <Lettura voce="«+N altri»" valore={intero(letture.piuAltri)} />
+              <Lettura voce="scorre" valore={letture.scorre ? 'sì' : 'no'} />
+            </>
+          ) : (
+            <span className="text-muted-foreground">Passa alla vista mese per misurare.</span>
+          )}
+        </dl>
+      </div>
+    )
+  },
+}
+
+function Lettura({
+  voce,
+  valore,
+  allarme,
+}: {
+  voce: string
+  valore: string
+  allarme?: boolean
+}) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <dt className="text-muted-foreground">{voce}</dt>
+      <dd
+        className={cn(
+          'font-medium tabular-nums',
+          allarme && 'text-destructive-subtle-foreground',
+        )}
+      >
+        {valore}
+      </dd>
+    </div>
+  )
 }

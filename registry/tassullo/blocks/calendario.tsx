@@ -1679,6 +1679,8 @@ export function Calendario<TData = unknown>({
           //
           // | contenitore | cella | eventi | «+N altri» | scorre | sovrapp. |
           // |---:|---:|---:|---:|---|---:|
+          // | 313 | 64 | 8 | 5 | **sì** | 0 |
+          // | 420 | 64 | 8 | 5 | **sì** | 0 |
           // | 500 | 64 | 8 | 5 | no | 0 |
           // | 576 | 77 | 8 | 5 | no | 0 |
           // | 700 | 97 | 9 | 2 | no | 0 |
@@ -1707,15 +1709,21 @@ export function Calendario<TData = unknown>({
           // non essere commutabile dal canvas del gate — si sarebbe scritta
           // una correzione che nessun gate può guardare.
           //
-          // ── Il limite che resta, misurato ──────────────────────────────
+          // ── Sotto il pavimento si scorre, e non si sovrappone ─────────
           //
-          // Sotto i ~460px di contenitore nemmeno una corsia ci sta, e il
-          // pavimento torna a combattere col binario: a 420px la
-          // sovrapposizione riappare, **13px fra le righe e 1px fra chip e
-          // numero** — contro i 51 e i 12 di prima. Sono finestre sotto i
-          // ~520px di altezza utile, cioè sotto qualunque portatile. Chi
-          // dovesse scendere là sotto usi l'agenda, che per quello spazio è
-          // la faccia giusta.
+          // Sotto i ~500px di contenitore nemmeno una corsia sta in sei righe,
+          // e lì **il corpo smette di comprimersi e il contenitore scorre** —
+          // v. `monthBody` più sotto, che è la riga che lo garantisce.
+          // Misurato da 313 a 1024px di contenitore: **sovrapposizione fra le
+          // righe 0 a ogni altezza**, e sotto i 500 il contenuto vale 413px
+          // dentro finestre da 226 a 373. Resta **1px** di chip sopra il
+          // numero del giorno alle altezze al pavimento: è l'arrotondamento
+          // del conto della cella (6 di `pt-1.5` + 30 di chip + 26 di numero =
+          // 62 in 64, con 2 di `gap-0.5`), non un'invasione.
+          //
+          // A quelle altezze, comunque, la faccia giusta è l'agenda: sei
+          // settimane da una corsia in 300px sono un mese che si legge a
+          // fatica, anche senza difetti.
           //
           // ── Il prezzo, e chi lo paga ───────────────────────────────────
           //
@@ -1737,6 +1745,34 @@ export function Calendario<TData = unknown>({
           // contenitore: due tratti a 1px di distanza si leggono come un
           // **doppio bordo**, ed e' il primo rilievo che si vede a video.
           monthView: "overflow-visible border-t-0",
+          // **Il pavimento del corpo, o sotto soglia le righe si invadono di
+          // nuovo.** `min-h-16` è il pavimento della *riga*, ma il **binario**
+          // della griglia resta `minmax(0, 1fr)` e continua ad accorciarsi:
+          // quando il corpo scende sotto `N × pavimento` la riga sborda dal
+          // proprio binario e si torna al difetto di partenza — misurato a
+          // 313px di contenitore, passo 33px contro celle da 64, **31px di
+          // invasione**, con la barra pluri-giorno che attraversa il confine
+          // fra due settimane.
+          //
+          // `min-h-96` è **6 × 64**, cioè sei righe al pavimento: sotto quella
+          // misura il corpo smette di comprimersi e il contenitore scorre;
+          // sopra, `flex-1` cresce e l'adattamento lavora come prima. Deriva
+          // da `--spacing`, quindi in touch vale 576 = 6 × 96, lo stesso conto
+          // con la corsia più alta.
+          //
+          // **Non è `min-h-min`**, che fu provata e non compone con
+          // l'adattamento per una ragione circolare: min-content include i
+          // chip già resi, quindi la cella non si accorcia, quindi «auto» non
+          // riduce niente, quindi min-content resta grande. Qui il pavimento è
+          // un numero, non una misura del contenuto, e il cerchio non si
+          // chiude.
+          //
+          // Il prezzo, dichiarato: un mese da **cinque** settimane tiene lo
+          // stesso pavimento da sei, quindi sotto soglia offre 64px di
+          // scorrimento che non gli servirebbero. Leggere il numero di
+          // settimane dal motore sarebbe una dipendenza in più per un caso che
+          // a quelle altezze è comunque al limite.
+          monthBody: "min-h-96",
           monthHeader: "bg-card sticky top-0 z-20",
           // **I due tipi di chip alla stessa altezza** (M4ter.11). La colonna
           // dei chip con orario contiene, in ordine: il distanziatore delle

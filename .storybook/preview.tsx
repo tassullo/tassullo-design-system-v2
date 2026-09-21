@@ -193,7 +193,7 @@ const preview: Preview = {
      * prima il tema, poi le primitive, poi i blocchi, poi le pagine.
      */
     options: {
-      storySort: { order: ['Introduzione', 'Tema', 'Primitive', 'Blocchi', 'Pagine', 'Prove'] },
+      storySort: { order: ['Introduzione', 'Tema', 'Primitive', 'Blocchi', 'Pagine'] },
     },
 
     /**
