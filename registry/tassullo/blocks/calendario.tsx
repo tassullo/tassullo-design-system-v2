@@ -64,10 +64,11 @@
  * **Il contenitore deve avere un'altezza.** Il blocco è `min-h-0 flex-1`:
  * dentro un genitore `flex flex-col` con altezza nota riempie lo spazio.
  *
- * **La vista mese si adatta all'altezza che riceve** e non scorre: le sei
- * settimane ci stanno sempre tutte, e più il contenitore è basso più eventi la
- * cella arrotola nel «+N altri». Il ragionamento e le misure stanno su
- * `monthRow`, più sotto. Le altre due viste scorrono al proprio interno.
+ * **La vista mese ha un pavimento di tre eventi per cella**: sotto quella
+ * misura non si comprime e il contenitore scorre; sopra cresce, e su uno
+ * schermo grande la giornata carica ci sta per intero. Il ragionamento e le
+ * misure stanno su `monthRow`, più sotto. Le altre due viste scorrono al
+ * proprio interno.
  */
 import * as React from "react"
 import {
@@ -1637,105 +1638,75 @@ export function Calendario<TData = unknown>({
           // senza l'important vincerebbe lui, e infatti la misura dava
           // ancora 24px.
           event: "py-1!",
-          // **Il mese si adatta in altezza, e non scorre** (scelto da Francesco
-          // il 2026-09-21, M4ter.11). Questa riga è il **pavimento** della
-          // cella, ed è l'unica leva che conta: sotto di lei c'è il
-          // meccanismo del motore, che sa già fare il resto.
+          // **Il pavimento è tre eventi, e da lì in su il mese cresce**
+          // (scelto da Francesco il 2026-09-21, M4ter.11, dopo tre giri a
+          // video). Queste due righe — il pavimento della cella e quello del
+          // corpo — sono l'unica leva: sotto c'è il meccanismo del motore, che
+          // fa il resto da sé.
           //
-          // ── Cosa fa il motore da sé ─────────────────────────────────────
+          // ── Cosa fa il motore ──────────────────────────────────────────
           //
           // `maxEventsPerCell` vale `"auto"` (il nostro default): reui misura
           // l'area utile della cella e mostra **quanti eventi ci stanno**,
-          // arrotolando il resto in «+N altri». È un adattamento continuo, non
-          // una soglia: più la finestra è bassa, più eventi finiscono nel
-          // «+N».
+          // arrotolando il resto in «+N altri». Sopra il pavimento questo
+          // lavora a favore — più spazio, più corsie intere.
           //
-          // ── Perché prima non funzionava, ed era un difetto ──────────────
+          // ── Il conto che dà il 32 ──────────────────────────────────────
           //
-          // Perché glielo impediva questa riga. Fino a M4ter.11 valeva
-          // `min-h-32` — 128px, il pavimento che M4ter.2 aveva messo per
-          // garantire **tre** corsie per cella (3 × `--ec-month-bar-h` = 96,
-          // più 6 di `pt-1.5` e 26 del numero del giorno). Con un pavimento
-          // così alto la cella non si accorciava mai, quindi «auto» non aveva
-          // niente da adattare — e siccome il **binario** della griglia è
-          // `minmax(0, 1fr)` e *si* accorcia col contenitore, la riga sbordava
-          // dal proprio binario: i chip finivano disegnati nella banda della
-          // settimana di sopra, **sopra i numeri dei giorni**. Misurato a
-          // 576px di contenitore: passo di riga 77px contro celle da 128,
-          // **51px di invasione**, chip 20×12 sopra il numero. E il mese
-          // scorreva di 51px contro i ~270 che sarebbero serviti: la story
-          // prometteva che scorresse, e invece schiacciava **e** scorreva.
+          // Tre corsie da `--ec-month-bar-h` (qui `--spacing × 8`, cioè 32px)
+          // fanno 96, più 6 di `pt-1.5` in cima e 26 del numero del giorno in
+          // fondo: **128px**, cioè esattamente 32 unità di spaziatura. Deriva
+          // da `--spacing`, quindi cresce da sé in densità touch. Tre e non
+          // due perché una giornata con due interventi e un «+1 altro» dice
+          // meno di una con tre interventi scritti.
           //
-          // ── Il pavimento nuovo, e perché 16 ────────────────────────────
+          // ── Perché non si scende sotto, ed è la parte misurata ─────────
           //
-          // 64px = **una** corsia (`--ec-month-bar-h`, 32) più 6 di `pt-1.5` e
-          // 26 del numero del giorno. È il minimo sotto cui una cella smette
-          // di essere una cella: senza almeno una corsia non si vede
-          // nemmeno il «+N altri». Deriva da `--spacing`, quindi cresce da sé
-          // in densità touch.
+          // Si è provata la via opposta — pavimento a **una** corsia
+          // (`min-h-16`), lasciando che l'adattamento riducesse gli eventi
+          // sugli schermi bassi. Funzionava sui numeri e **non a vedersi**:
+          // l'adattamento ragiona in corsie intere ma l'area della cella no,
+          // quindi a metà strada fra due corsie l'ultimo elemento resta
+          // **tagliato a metà** — preso a video da Francesco su un «+4 altri»
+          // tranciato in orizzontale, con la cella a 85px (59 di area utile,
+          // cioè 1,8 corsie).
           //
-          // Misurato dopo, sei altezze di contenitore — **il mese ci sta
-          // sempre tutto e non si scorre mai**:
+          // Col pavimento a tre corsie quel caso non esiste: sotto soglia la
+          // cella **non si comprime affatto** e il contenitore scorre; sopra,
+          // cresce di corsie intere. È la ragione di fondo della scelta:
+          // **ingrandire è sicuro, rimpicciolire no**, perché verso l'alto si
+          // aggiunge spazio e verso il basso si taglia contenuto.
           //
-          // | contenitore | cella | eventi | «+N altri» | scorre | sovrapp. |
-          // |---:|---:|---:|---:|---|---:|
-          // | 313 | 64 | 8 | 5 | **sì** | 0 |
-          // | 420 | 64 | 8 | 5 | **sì** | 0 |
-          // | 500 | 64 | 8 | 5 | no | 0 |
-          // | 576 | 77 | 8 | 5 | no | 0 |
-          // | 700 | 97 | 9 | 2 | no | 0 |
-          // | 800 | 114 | 9 | 2 | no | 0 |
-          // | 896 | 130 | 10 | 1 | no | 0 |
-          // | 1024 | 151 | 10 | 1 | no | 0 |
+          // ── Rimisurato, dieci altezze di contenitore ───────────────────
           //
-          // ── Le due vie scartate, perché non si riaprano ────────────────
+          // | contenitore | cella | «+N altri» | scorre | sovrapp. | tagliati |
+          // |---:|---:|---:|---|---:|---:|
+          // | 313 | 128 | 1 | sì | 0 | 0 |
+          // | 576 | 128 | 1 | sì | 0 | 0 |
+          // | 797 | 128 | 1 | sì | 0 | 0 |
+          // | 900 | 131 | 1 | no | 0 | 0 |
+          // | 1000 | 147 | 1 | no | 0 | 0 |
+          // | 1200 | 181 | 1 | no | 0 | 0 |
+          // | 1400 | 214 | **0** | no | 0 | 0 |
           //
-          // **Far scorrere il mese** (tenendo il pavimento a 128 e dando
-          // `min-h-min` alla vista): funzionava — 0 sovrapposizioni a tutte le
-          // altezze, 797px di contenuto in 489 di finestra — ma a 576px si
-          // vedevano **3,8 settimane su 6**, e un mese che si scorre ha perso
-          // la cosa per cui è un mese. Scartata da Francesco a video.
-          // Attenzione: le due leve **non si sommano**, e il motivo è
-          // circolare — `min-h-min` è la dimensione a *min-content*, che
-          // include i chip già resi, quindi impedisce alla cella di
-          // accorciarsi, quindi «auto» non riduce niente, quindi min-content
-          // resta grande. Provato: col pavimento a 16 **e** `min-h-min` la
-          // cella restava a 127px come prima.
+          // A 1400px di contenitore il «+N altri» sparisce del tutto: la
+          // giornata più carica ci sta per intero. È il caso che la scelta
+          // vuole premiare — schermi grandi, più eventi scritti.
           //
-          // **Passare all'agenda sotto soglia**: scartata prima ancora, per
-          // due ragioni. Il commutatore «Mese» darebbe a volte l'agenda, cioè
-          // un interruttore che non fa quel che dice; e la soglia sarebbe
-          // sull'**altezza della finestra**, che `docs/DECISIONI.md` §46 dice
-          // non essere commutabile dal canvas del gate — si sarebbe scritta
-          // una correzione che nessun gate può guardare.
+          // ── Il difetto che queste due righe hanno chiuso ───────────────
           //
-          // ── Sotto il pavimento si scorre, e non si sovrappone ─────────
-          //
-          // Sotto i ~500px di contenitore nemmeno una corsia sta in sei righe,
-          // e lì **il corpo smette di comprimersi e il contenitore scorre** —
-          // v. `monthBody` più sotto, che è la riga che lo garantisce.
-          // Misurato da 313 a 1024px di contenitore: **sovrapposizione fra le
-          // righe 0 a ogni altezza**, e sotto i 500 il contenuto vale 413px
-          // dentro finestre da 226 a 373. Resta **1px** di chip sopra il
-          // numero del giorno alle altezze al pavimento: è l'arrotondamento
-          // del conto della cella (6 di `pt-1.5` + 30 di chip + 26 di numero =
-          // 62 in 64, con 2 di `gap-0.5`), non un'invasione.
-          //
-          // A quelle altezze, comunque, la faccia giusta è l'agenda: sei
-          // settimane da una corsia in 300px sono un mese che si legge a
-          // fatica, anche senza difetti.
-          //
-          // ── Il prezzo, e chi lo paga ───────────────────────────────────
-          //
-          // Su uno schermo basso si vedono **meno eventi per cella**: a 576px
-          // una corsia più il «+N altri», dove prima erano tre. Se a un'app
-          // servisse garantirne tre a qualunque altezza, la leva è
-          // `maxEventiPerCella={3}` dal punto di chiamata — che spegne «auto»
-          // e riporta il difetto di prima, quindi si fa sapendolo.
-          monthRow: "min-h-16",
-          // `overflow-visible` perche' lo scorrimento, quando serve, sta sul
-          // **contenitore** — un `div` nostro, che puo' prendere `tabIndex`.
-          // Una regione scorrevole senza contenuto focalizzabile dentro e'
+          // Prima di M4ter.11 il pavimento c'era (128px) ma il **binario**
+          // della griglia è `minmax(0, 1fr)` e si accorciava col contenitore:
+          // la riga sbordava dal proprio binario e i chip finivano disegnati
+          // nella banda della settimana di sopra, sopra i numeri dei giorni.
+          // Misurato a 576px: passo di riga 77 contro celle da 128, **51px di
+          // invasione**, chip 20×12 sopra il numero — e il contenitore offriva
+          // 51px di scorrimento contro i ~270 che servivano, cioè schiacciava
+          // **e** scorreva.
+          monthRow: "min-h-32",
+          // `overflow-visible` perche' lo scorrimento sta sul **contenitore** —
+          // un `div` nostro, che puo' prendere `tabIndex`. Una regione
+          // scorrevole senza contenuto focalizzabile dentro e'
           // `scrollable-region-focusable`, *critical*, e con un mese vuoto e'
           // esattamente il caso: nessun chip, niente da mettere a fuoco.
           // Provato prima su `monthBody` via `classNames`, e il gate l'ha
@@ -1745,34 +1716,25 @@ export function Calendario<TData = unknown>({
           // contenitore: due tratti a 1px di distanza si leggono come un
           // **doppio bordo**, ed e' il primo rilievo che si vede a video.
           monthView: "overflow-visible border-t-0",
-          // **Il pavimento del corpo, o sotto soglia le righe si invadono di
-          // nuovo.** `min-h-16` è il pavimento della *riga*, ma il **binario**
-          // della griglia resta `minmax(0, 1fr)` e continua ad accorciarsi:
-          // quando il corpo scende sotto `N × pavimento` la riga sborda dal
-          // proprio binario e si torna al difetto di partenza — misurato a
-          // 313px di contenitore, passo 33px contro celle da 64, **31px di
-          // invasione**, con la barra pluri-giorno che attraversa il confine
-          // fra due settimane.
+          // **Il pavimento del corpo: `6 × 128`.** È questa riga a fare
+          // scorrere il mese invece di lasciarlo schiacciare, e serve perché
+          // il pavimento della *riga* da solo non basta — il binario resta
+          // `minmax(0, 1fr)` e continua ad accorciarsi, quindi sotto
+          // `N × pavimento` la riga sborda comunque. Con `min-h-192` il corpo
+          // smette di comprimersi e il contenitore scorre; sopra, `flex-1`
+          // cresce e l'adattamento lavora.
           //
-          // `min-h-96` è **6 × 64**, cioè sei righe al pavimento: sotto quella
-          // misura il corpo smette di comprimersi e il contenitore scorre;
-          // sopra, `flex-1` cresce e l'adattamento lavora come prima. Deriva
-          // da `--spacing`, quindi in touch vale 576 = 6 × 96, lo stesso conto
-          // con la corsia più alta.
-          //
-          // **Non è `min-h-min`**, che fu provata e non compone con
-          // l'adattamento per una ragione circolare: min-content include i
+          // **Non è `min-h-min`**, provata e scartata: min-content include i
           // chip già resi, quindi la cella non si accorcia, quindi «auto» non
-          // riduce niente, quindi min-content resta grande. Qui il pavimento è
-          // un numero, non una misura del contenuto, e il cerchio non si
-          // chiude.
+          // riduce niente, quindi min-content resta grande — un cerchio che
+          // non si chiude. Qui il pavimento è un **numero**.
           //
           // Il prezzo, dichiarato: un mese da **cinque** settimane tiene lo
-          // stesso pavimento da sei, quindi sotto soglia offre 64px di
+          // stesso pavimento da sei, quindi sotto soglia offre 128px di
           // scorrimento che non gli servirebbero. Leggere il numero di
           // settimane dal motore sarebbe una dipendenza in più per un caso che
           // a quelle altezze è comunque al limite.
-          monthBody: "min-h-96",
+          monthBody: "min-h-192",
           monthHeader: "bg-card sticky top-0 z-20",
           // **I due tipi di chip alla stessa altezza** (M4ter.11). La colonna
           // dei chip con orario contiene, in ordine: il distanziatore delle
