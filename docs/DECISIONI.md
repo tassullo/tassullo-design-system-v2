@@ -965,7 +965,7 @@ Ma non vanno archiviate in blocco, e M2.8 ne è la prova: il difetto vero della 
 
 ### 26.6 La rampa monocroma del brand, e perché le aree Tassullo si riempiono piene
 
-**`--chart-mono-1..5`** (M2.8, secondo giro). Sono **gli stessi cinque pioli** della scala categorica, tutti alla tinta dell'arancio del brand: `deriveMono` chiama `serieAlPiolo(primary, piolo)` sulle stesse altezze che usa `deriveSerie`. Non è una seconda palette da mantenere — è la stessa scala guardata a tinta unita — e per costruzione eredita il passo in grigio, quindi passa gli stessi quattro controlli senza che si debba verificare niente di nuovo (misurato comunque: passo 1.490–1.501, ΔE minimo **9.0** sotto tritanopia).
+**`--chart-mono-1..5`** (M2.8, secondo giro) — **tolta il 2026-09-21, M4ter.11.** Erano gli stessi cinque pioli della scala categorica, tutti alla tinta dell'arancio del brand, e per costruzione ereditavano il passo in grigio: erano l'unica famiglia del tema leggibile in bianco e nero. Con la tavolozza categorica passata a dieci tinte quella garanzia non c'è più (§49), le story che mostravano la rampa sono state tolte insieme al controllo `colori` — e un token che nessuno guarda si degrada in silenzio. Chi ha bisogno del bianco e nero porta la distinzione con altro: tratteggi, etichette scritte sui dati, riempimenti a trama.
 
 | | chiaro | scuro |
 |---|---|---|
@@ -3002,7 +3002,10 @@ Sopra gli otto non c'è spazio fra il bianco e il nero. Una tavolozza a dieci è
 quindi **un'altra cosa**: separata per tinta, garantita dalla distanza
 percettiva, e **non leggibile in grigio** — misurato, ΔE 0,4 in chiaro e 0,0 in
 scuro fra le due coppie più vicine. Chi deve stampare in B/N usa la rampa
-monocroma `--chart-mono-1..5`, che quella proprietà ce l'ha per costruzione.
+monocroma `--chart-mono-1..5` — tolta anch'essa il 2026-09-21, perché era
+l'unica cosa che mostrava quella proprietà e con la tavolozza a dieci non
+serviva più a niente. La distinzione in B/N va portata con altro: tratteggi,
+etichette sui dati, riempimenti a trama.
 
 ### Le tavolozze pubblicate, provate e scartate
 

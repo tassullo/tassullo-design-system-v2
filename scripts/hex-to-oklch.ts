@@ -25,10 +25,8 @@ import { dirname } from "node:path";
 import {
   oklch,
   wcagContrast,
-  wcagLuminance,
   formatHex,
   converter,
-  clampChroma,
   differenceCiede2000,
   filterDeficiencyDeuter,
   filterDeficiencyProt,
@@ -146,9 +144,10 @@ const light: Palette = {
   // passo vorrebbero 37:1 contro i 21:1 che sRGB permette — è aritmetica —
   // quindi una tavolozza a dieci è per forza un'altra cosa: separata per
   // **tinta**, garantita dalla distanza percettiva sotto i tre deficit, e
-  // **non leggibile in scala di grigi**. Chi deve stampare in B/N usa la
-  // rampa monocroma `--chart-mono-1..5`, che quella proprietà ce l'ha per
-  // costruzione. Il ragionamento completo è in `docs/DECISIONI.md` §49.
+  // **non leggibile in scala di grigi**. La rampa monocroma che quella
+  // proprietà aveva (`--chart-mono-1..5`) è stata tolta insieme alla
+  // garanzia: un token che nessuno mostra si degrada in silenzio. Il
+  // ragionamento completo è in `docs/DECISIONI.md` §49.
   "chart-1": "#F4AC3D", // arancio del brand — `--primary`, tale e quale
   "chart-2": "#1CAC7C", // verde istituzionale — `--success`, tale e quale
   "chart-3": "#0180BF", // blu Tassullo
@@ -159,16 +158,6 @@ const light: Palette = {
   "chart-8": "#333D00", // oliva scura
   "chart-9": "#83627F", // malva
   "chart-10": "#D46758", // rosso caldo — NON `--destructive`, che resta l'allarme
-
-  // ── La rampa monocroma del brand (M2.8) ──────────────────────────────────
-  // DERIVATI — gli stessi cinque pioli, tutti alla tinta dell'arancio. Servono
-  // quando le categorie sono **ordinate** (poco → molto) o quando la serie è
-  // una sola e il grafico deve restare del colore dell'app.
-  "chart-mono-1": "",
-  "chart-mono-2": "",
-  "chart-mono-3": "",
-  "chart-mono-4": "",
-  "chart-mono-5": "",
 };
 
 /**
@@ -295,16 +284,6 @@ const dark: Palette = {
   "chart-8": "#AAC62F",
   "chart-9": "#9B7998",
   "chart-10": "#F68676",
-
-  // ── La rampa monocroma del brand (M2.8) ──────────────────────────────────
-  // DERIVATI — gli stessi cinque pioli, tutti alla tinta dell'arancio. Servono
-  // quando le categorie sono **ordinate** (poco → molto) o quando la serie è
-  // una sola e il grafico deve restare del colore dell'app.
-  "chart-mono-1": "",
-  "chart-mono-2": "",
-  "chart-mono-3": "",
-  "chart-mono-4": "",
-  "chart-mono-5": "",
 };
 
 const THEMES: Array<{ name: string; selector: string; palette: Palette }> = [
@@ -332,96 +311,6 @@ function deriveInfoBorder(p: Palette): string {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// M2.8 — la scala delle serie dei grafici (`--chart-1..5`).
-//
-// Il v1 non ha una palette categorica: questa è costruita, non tradotta. Il
-// requisito che la determina non è estetico ed è quello del piano: **cinque
-// serie che restino distinguibili anche in scala di grigi**, cioè per chi
-// stampa in bianco e nero e per chi ha un deficit di percezione del colore.
-// Distinguerle in grigio significa una cosa sola: che abbiano **luminanze
-// diverse e regolarmente spaziate**. La tinta viene dopo.
-//
-//  1. **Il passo non è scelto: è quello che l'arancio e il verde Tassullo
-//     hanno già fra loro.** `--primary` #F4AC3D e `--success` #1CAC7C stanno
-//     a 1.4935:1 di contrasto WCAG l'uno dall'altro — misurato, non deciso.
-//     Quel rapporto diventa il passo di tutta la scala: cinque pioli in
-//     progressione geometrica, e i primi due sono i due colori Tassullo veri,
-//     usati tali e quali. Se un giorno cambia il brand, cambia il passo e la
-//     scala si riallinea da sola, come `deriveInfoBorder`.
-//  2. **La tinta viene da un token Tassullo, la luminanza dal piolo.** Ogni
-//     serie prende tinta e croma da un token esistente (`SERIE`) e conserva
-//     solo quelli: la sua chiarezza è quella che il piolo impone, risolta per
-//     bisezione e con la croma riportata dentro sRGB dove il piolo non la
-//     regge. Le serie 4 e 5 sono lo stesso neutro caldo a due pioli diversi —
-//     è voluto: due grigi separati dalla sola chiarezza sono, per costruzione,
-//     la coppia più sicura di tutte in scala di grigi e per il daltonismo.
-//  3. **Sullo scuro la scala sale di un piolo esatto.** Non di un fattore
-//     inventato: dello stesso passo. All'altezza chiara il piolo più basso
-//     starebbe a **1.78:1** dalla card scura, cioè una barra che non si vede;
-//     salito di uno sta a 2.64:1. Più su non si può, ed è misurato: a un
-//     piolo e mezzo la serie più chiara supererebbe in contrasto il **testo**
-//     di pagina (16.13:1 contro 15.71:1), e un dato più marcato del testo non
-//     è più un dato. È il controllo `serie mai oltre il testo` qui sotto.
-//
-// Quello che la scala **non** garantisce, e che va detto: la serie più chiara
-// sta a 1.91:1 dalla card in chiaro e la più scura a 2.64:1 in scuro, cioè
-// sotto i 3:1 che la WCAG 1.4.11 chiede a un oggetto grafico *quando il
-// colore è l'unico mezzo*. Qui non lo è mai, e non deve diventarlo: le story
-// mostrano legenda, etichette diritte sui dati e tratteggi diversi per linea.
-// Cinque pioli da 3:1 non stanno fra il fondo e il testo — è aritmetica, non
-// una rinuncia: 3^4 = 81:1 contro i 21:1 che l'intera gamma sRGB permette.
-// ───────────────────────────────────────────────────────────────────────────
-
-/** Il contrasto WCAG di un colore contro il nero assoluto: Y + 0.05. */
-const alt = (hex: string) => wcagLuminance(hex) + 0.05;
-
-/** Il colore alla tinta e croma di `sorgente`, portato all'altezza `piolo`. */
-function serieAlPiolo(sorgente: string, piolo: number): string {
-  // Un colore che sta già sul piolo non si ricalcola: è così che `--chart-1` e
-  // `--chart-2` restano esattamente #F4AC3D e #1CAC7C e non un arrotondamento.
-  if (Math.abs(alt(sorgente) - piolo) < 0.002) return sorgente.toUpperCase();
-
-  const { c, h } = oklch(sorgente)!;
-  const aLuminanza = (l: number) =>
-    formatHex(clampChroma({ mode: "oklch", l, c, h: h ?? 0 }, "oklch", "rgb"))!;
-
-  let lo = 0;
-  let hi = 1;
-  for (let i = 0; i < 60; i++) {
-    const mid = (lo + hi) / 2;
-    if (alt(aLuminanza(mid)) < piolo) lo = mid;
-    else hi = mid;
-  }
-  return aLuminanza((lo + hi) / 2).toUpperCase();
-}
-
-/** I cinque pioli di una palette. `salita`: 0 sul chiaro, 1 sullo scuro. */
-function pioli(p: Palette, salita: number): number[] {
-  const passo = alt(p.primary) / alt(p.success);
-  const cima = alt(p.primary) * passo ** salita;
-  return [0, 1, 2, 3, 4].map((i) => cima / passo ** i);
-}
-
-/**
- * Le cinque serie categoriche: un piolo ciascuna, ognuna alla tinta di un token
- * Tassullo diverso.
- */
-/**
- * La rampa monocroma: **gli stessi pioli**, tutti alla tinta dell'arancio del
- * brand. Non è una seconda palette da mantenere — è la stessa scala guardata a
- * tinta unita, quindi eredita per costruzione il passo in grigio, e con esso la
- * leggibilità in bianco e nero e sotto i tre deficit di percezione del colore.
- *
- * Serve dove la palette categorica è la scelta sbagliata: quando le categorie
- * sono **ordinate** — poco, medio, molto — perché cinque tinte diverse su una
- * scala ordinata dicono «cinque cose diverse» invece di «la stessa cosa, di
- * più»; e quando la serie è **una sola** e il grafico deve restare del colore
- * dell'app invece di prendere un arancio, un verde e un blu senza motivo.
- */
-function deriveMono(p: Palette, salita: number): string[] {
-  return pioli(p, salita).map((piolo) => serieAlPiolo(p.primary, piolo));
-}
-
 /** Le tre simulazioni di deficit di percezione del colore che si misurano. */
 const DEFICIT: ReadonlyArray<readonly [string, (hex: string) => string]> = [
   ["visione piena", (hex) => hex],
@@ -430,14 +319,14 @@ const DEFICIT: ReadonlyArray<readonly [string, (hex: string) => string]> = [
   ["tritanopia", (hex) => formatHex(filterDeficiencyTrit(1)(oklch(hex)!))!],
 ];
 
-// Soglie della scala. Il passo costruito è 1.4935: la soglia sta appena sotto
-// perché l'arrotondamento a 8 bit per canale sposta i pioli di qualche
-// millesimo (misurato: fra 1.483 e 1.506). Non è una soglia scelta per
-// passare — se qualcuno cambia l'arancio o il verde, il passo cambia davvero e
-// il gate lo dice.
-const PASSO_MIN = 1.45;
-/** Ogni serie contro la superficie su cui sta (la card). */
-const SERIE_SU_CARD_MIN = 1.5;
+/**
+ * Ogni tinta contro la superficie su cui sta (la card). **3:1** è la soglia
+ * che la WCAG 1.4.11 chiede a un *oggetto grafico*; 4.5 è quella del **testo**
+ * (1.4.3), e applicarla qui spingerebbe le tinte in una banda scura dove
+ * smetterebbero di distinguersi fra loro — cioè peggiorerebbe ciò che dice di
+ * proteggere. Due tinte sono esentate per indice, v. `checkSerie`.
+ */
+const SERIE_SU_CARD_MIN = 3;
 /**
  * Distanza percettiva minima fra due serie, ΔE2000, sotto ogni deficit.
  *
@@ -854,28 +743,26 @@ function checkParity(): number {
 /**
  * Il gate della scala delle serie. Verifica quattro cose, e ognuna corrisponde
  * a una riga del blocco «la scala delle serie»:
- *   1. il passo fra pioli adiacenti in scala di grigi;
- *   2. che nessuna serie sparisca nella card su cui sta;
- *   3. che nessuna serie superi in contrasto il testo di pagina;
- *   4. che nessuna coppia di serie collassi sotto uno dei tre deficit di
- *      percezione del colore.
+ * v. `checkSerie` qui sotto.
  */
 /**
- * Le due famiglie non si controllano allo stesso modo, e la differenza è il
- * senso stesso della scelta di M4ter.11.
+ * Il controllo della **tavolozza categorica** `--chart-1..10`.
  *
- * - **`chart-1..10`** è una tavolozza **categorica**: separata per tinta,
- *   garantita dalla distanza percettiva sotto le quattro visioni, e — per
- *   costruzione — **non leggibile in scala di grigi**. Il passo in grigio non
- *   si controlla, perché non c'è e non deve esserci.
- * - **`chart-mono-1..5`** è una **rampa**: stessa tinta, cinque chiarezze a
- *   passo costante. Lì il passo in grigio è tutto, ed è quello che si misura.
+ * Quattro proprietà, e nessuna di esse è il passo in scala di grigi: fino a
+ * M4ter.11 le tinte erano cinque **pioli di una scala di chiarezza** e quel
+ * passo era la garanzia principale; dal 2026-09-21 sono dieci tinte separate
+ * per **tinta**, e in bianco e nero si appiattiscono — per costruzione, non
+ * per difetto (`docs/DECISIONI.md` §49). La rampa monocroma, che quella
+ * proprietà ce l'aveva, è stata **tolta** insieme alla garanzia.
  *
- * `scalaDiGrigi` è la leva che le distingue. `minSuCard` pure: a un oggetto
- * grafico la WCAG 1.4.11 chiede **3:1**, e la tavolozza categorica li
- * rispetta; la rampa no, e non può — cinque pioli da 3:1 non stanno fra il
- * fondo e il testo (3⁴ = 81:1 contro i 21:1 di sRGB), e lì il colore non è
- * mai l'unico mezzo.
+ *   1. ogni tinta stacca dalla card su cui sta — `minSuCard`, che è i **3:1**
+ *      della WCAG 1.4.11 per un oggetto grafico, non i 4.5 del testo;
+ *   2. nessuna tinta supera in contrasto il testo di pagina, o un dato
+ *      sarebbe più marcato di ciò che lo spiega;
+ *   3. nessuna coppia collassa sotto uno dei tre deficit di percezione del
+ *      colore — `SERIE_DELTA_E_MIN`;
+ *   4. le esenzioni sono **per indice**, con la ragione accanto: una soglia
+ *      abbassata varrebbe per tutte, un'esenzione vale per quella tinta lì.
  */
 function checkSerie(
   palette: Palette,
@@ -883,13 +770,12 @@ function checkSerie(
   prefisso: string,
   opzioni: {
     quante: number;
-    scalaDiGrigi: boolean;
     minSuCard: number;
     /** Indici (da 1) esentati dal minimo sulla card, con la ragione. */
     esenti?: Record<number, string>;
   },
 ): number {
-  const { quante, scalaDiGrigi, minSuCard, esenti = {} } = opzioni;
+  const { quante, minSuCard, esenti = {} } = opzioni;
   const serie = Array.from({ length: quante }, (_, i) => palette[`${prefisso}${i + 1}`]);
   const rows: string[] = [];
   let failures = 0;
@@ -898,13 +784,6 @@ function checkSerie(
     if (!ok) failures++;
     rows.push(`  ${ok ? "✔" : "✖"} ${misura.padStart(8)}  ${cosa}`);
   };
-
-  if (scalaDiGrigi) {
-    for (let i = 1; i < serie.length; i++) {
-      const r = wcagContrast(serie[i - 1], serie[i]);
-      riga(r >= PASSO_MIN, `${r.toFixed(3)}:1`, `passo in grigio ${prefisso}${i}/${prefisso}${i + 1} (min ${PASSO_MIN})`);
-    }
-  }
 
   serie.forEach((hex, i) => {
     const r = wcagContrast(hex, palette.card);
@@ -940,9 +819,7 @@ function checkSerie(
   }
 
   console.log(
-    `\n${theme} — ${prefisso}1..${quante}` +
-      (scalaDiGrigi ? `, passo ${(alt(palette.primary) / alt(palette.success)).toFixed(4)}` : ", tavolozza categorica (nessun passo in grigio)") +
-      "\n",
+    `\n${theme} — ${prefisso}1..${quante}, tavolozza categorica\n`,
   );
   console.log(rows.join("\n"));
   return failures;
@@ -980,8 +857,6 @@ function main(): void {
   const args = process.argv.slice(2);
   light["info-border"] = deriveInfoBorder(light);
   dark["info-border"] = deriveInfoBorder(dark);
-  deriveMono(light, 0).forEach((hex, i) => (light[`chart-mono-${i + 1}`] = hex));
-  deriveMono(dark, 1).forEach((hex, i) => (dark[`chart-mono-${i + 1}`] = hex));
 
   if (args.includes("--self-test")) {
     // Prova del gate stesso (criterio di accettazione di M1.1): forzando
@@ -1026,8 +901,7 @@ function main(): void {
     failures += check(palette, name);
     failures += checkSerie(palette, name, "chart-", {
       quante: 10,
-      scalaDiGrigi: false,
-      minSuCard: 3,
+      minSuCard: SERIE_SU_CARD_MIN,
       esenti: {
         // **I due colori del brand, esentati per decisione, non per comodità.**
         // `chart-1` è `--primary` e `chart-2` è `--success`: sono i colori
@@ -1040,11 +914,6 @@ function main(): void {
         1: "è --primary, il colore del brand",
         2: "è --success, il verde istituzionale",
       },
-    });
-    failures += checkSerie(palette, name, "chart-mono-", {
-      quante: 5,
-      scalaDiGrigi: true,
-      minSuCard: SERIE_SU_CARD_MIN,
     });
   }
 
@@ -1069,7 +938,7 @@ function main(): void {
       (esenti ? `, ${esenti} coppia/e esente/i con motivazione.` : "."),
   );
   console.log(`  --info-border derivato: ${light["info-border"]} (chiaro), ${dark["info-border"]} (scuro)`);
-  for (const pre of ["chart-", "chart-mono-"]) {
+  for (const pre of ["chart-"]) {
     console.log(`  ${pre}1..5: ${[1, 2, 3, 4, 5].map((i) => light[`${pre}${i}`]).join(" ")} (chiaro)`);
     console.log(`  ${" ".repeat(pre.length + 5)} ${[1, 2, 3, 4, 5].map((i) => dark[`${pre}${i}`]).join(" ")} (scuro)`);
   }

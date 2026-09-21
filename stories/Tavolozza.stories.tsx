@@ -38,8 +38,11 @@ import { decimale } from '@/registry/tassullo/lib/numeri'
  * contro i **21:1** che l'intera gamma sRGB permette. Sopra gli otto non c'è
  * spazio fra il bianco e il nero.
  *
- * Chi deve stampare in B/N usa la **rampa monocroma** `--chart-mono-1..5`, che
- * è una scala di chiarezza e quella proprietà ce l'ha per costruzione.
+ * E **non c'è più una famiglia che ci riesca**: la rampa monocroma
+ * `--chart-mono-1..5` è stata tolta insieme alla garanzia, perché era l'unica
+ * cosa che la mostrava e un token che nessuno guarda si degrada in silenzio.
+ * Chi avesse bisogno del bianco e nero distingue con altro — tratteggi,
+ * etichette sui dati, riempimenti a trama.
  *
  * ## La soglia di contrasto è 3:1, non 4,5
  *
@@ -280,9 +283,8 @@ function Tavola({ modalita }: { modalita: 'chiaro' | 'scuro' }) {
  * **Cosa guardare.** Le prime quattro righe devono restare dieci riquadri
  * distinti: è la garanzia, e il numero accanto la misura. **L'ultima riga
  * no** — in scala di grigi la tavolozza si appiattisce, ed è il prezzo scritto
- * a verbale. Se serve il bianco e nero, la famiglia giusta è
- * `--chart-mono-1..5`, che si prova dal controllo `colori` di ogni story di
- * `Primitive/Chart`.
+ * a verbale. Se serve il bianco e nero, la distinzione va portata da
+ * altro: tratteggi, etichette scritte sui dati, riempimenti a trama.
  *
  * La riga del contrasto dice **quante** tinte stanno sopra i 3:1 di 1.4.11:
  * otto su dieci in chiaro, dieci su dieci in scuro. Le due che mancano sono

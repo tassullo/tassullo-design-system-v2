@@ -101,11 +101,6 @@
   --chart-8:                        oklch(0.3388 0.08 119.51); /* #333D00 */
   --chart-9:                        oklch(0.5397 0.0598 330.52); /* #83627F */
   --chart-10:                       oklch(0.6408 0.1405 29.52); /* #D46758 */
-  --chart-mono-1:                   oklch(0.795 0.1473 73.78); /* #F4AC3D */
-  --chart-mono-2:                   oklch(0.6853 0.1451 74.23); /* #CE8A00 */
-  --chart-mono-3:                   oklch(0.583 0.1236 73.95); /* #A66E00 */
-  --chart-mono-4:                   oklch(0.486 0.1028 74.43); /* #815500 */
-  --chart-mono-5:                   oklch(0.3915 0.0834 72.97); /* #603D00 */
 }
 
 :root {
@@ -190,11 +185,6 @@
   --chart-8:                        oklch(0.7794 0.17 119.96); /* #AAC62F */
   --chart-9:                        oklch(0.6192 0.0608 329.21); /* #9B7998 */
   --chart-10:                       oklch(0.7396 0.1396 29.33); /* #F68676 */
-  --chart-mono-1:                   oklch(0.9151 0.0695 74.51); /* #FFDDB0 */
-  --chart-mono-2:                   oklch(0.795 0.1473 73.78); /* #F4AC3D */
-  --chart-mono-3:                   oklch(0.6853 0.1451 74.23); /* #CE8A00 */
-  --chart-mono-4:                   oklch(0.583 0.1236 73.95); /* #A66E00 */
-  --chart-mono-5:                   oklch(0.486 0.1028 74.43); /* #815500 */
 }
 
 @theme inline {
@@ -262,11 +252,6 @@
   --color-chart-8: var(--chart-8);
   --color-chart-9: var(--chart-9);
   --color-chart-10: var(--chart-10);
-  --color-chart-mono-1: var(--chart-mono-1);
-  --color-chart-mono-2: var(--chart-mono-2);
-  --color-chart-mono-3: var(--chart-mono-3);
-  --color-chart-mono-4: var(--chart-mono-4);
-  --color-chart-mono-5: var(--chart-mono-5);
 
   /* ── Raggi ───────────────────────────────────────────────────────────
      sm e md sono i valori del v1, NON la derivazione shadcn: con i fattori
