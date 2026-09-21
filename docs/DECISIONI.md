@@ -3082,3 +3082,139 @@ numero, il sospetto va allo strumento, non ai dati.*
 - `Tema/Tavolozza categorica` nella style guide: la pagina legge i token dal
   tema a runtime e rifà le misure, quindi non può divergere dalla palette.
 
+
+---
+
+## 50. Il Computo di Studio: non è l'indice che non compone, è il rettangolo (M4ter.12, 2026-09-21)
+
+**Il difetto era già a verbale** — `data-table` ha l'albero e il sotto-totale ma
+la tastiera di riga; `data-grid` ha la tastiera di cella e `getSottoRighe`
+`Omit`-tato, perché naviga per indice sull'array piatto del motore. Quello che
+questa sessione ha misurato è **quanto** di quel difetto sia l'indice, e la
+risposta è: **poco.** L'indice è la metà facile. La metà che non si ripara è il
+**rettangolo**.
+
+### La misura che lo dice
+
+`Blocchi/Data Table → Albero`, espanso, in Chromium vero (§32 — strumento
+verificato prima: `visibilityState: "visible"`, `requestAnimationFrame` scatta).
+
+| | misura |
+|---|---|
+| righe nel DOM | **20** (5 madri + 15 figlie) |
+| righe nell'array dei dati | **5** |
+| celle con `tabindex` | **0** su 20 righe |
+| righe con `tabindex` | **0** |
+| `role` della tabella | **nessuno** (l'albero non è una `grid`) |
+
+Venti contro cinque: è l'indice, ed è la parte riparabile — una mappa
+`idRiga → posizione nel modello reso` al posto di `indiceRiga`, e le frecce
+tornerebbero a muoversi dove si guarda.
+
+Poi però c'è questo, sulle stesse righe:
+
+| col | intestazione | sulla riga-MADRE | sulla riga-FIGLIA |
+|---:|---|---|---|
+| 0 | *(senza nome)* | vuota | vuota |
+| 1 | Voce / misurazione | `01.01 — Scavo di sbancamento` | `Piano terra — ambiente 1` |
+| 2 | U.M. | **vuota** | `m³` |
+| 3 | Quantità | `21,63` — **subtotale, derivato** | `8,81` — valore |
+| 4 | Importo | `397,99 €` — **subtotale, derivato** | `162,10 €` — valore |
+
+**Zero colonne su quattro vogliono dire la stessa cosa ai due livelli.** Due
+sono derivate sulla madre e scritte sulla figlia (scriverci dentro non vuol dire
+niente), una è vuota sulla madre, una porta due testi di natura diversa.
+
+### Perché questo decide, e l'indice no
+
+Cinque operazioni del motore sono **rettangoli `(r,c)`**, non spostamenti:
+`serializzaSelezione`, `incolla`, `riempi`, `riempiInDirezione`,
+`cancellaSelezione` (`registry/tassullo/blocks/data-grid.tsx`, il blocco fra
+`cancellaSelezione` e `riempiInDirezione`). Un rettangolo presuppone una
+**matrice omogenea**: che la colonna *c* voglia dire la stessa cosa su ogni riga
+che attraversa. Su un albero a livelli eterogenei quella premessa è falsa, e
+resta falsa qualunque indice si scelga.
+
+Quindi, alla domanda che `PIANO.md` pone a questa sessione — *«incolla e
+riempimento su una selezione che attraversa due livelli: o funzionano, o è
+scritto a verbale che non compongono»* — la risposta è: **non compongono**, e
+non è un limite di implementazione. Riordinare gli indici darebbe le frecce fra
+i livelli e lascerebbe incolla e riempimento semanticamente vuoti sulle stesse
+celle.
+
+C'è un secondo scarto di forma, minore ma da sapere: `meta.sottototale` mette il
+subtotale **sulla riga-madre**, che TanStack rende **sopra** i suoi figli
+(`data-table.tsx`, `RigaTabellaCorpo`: la cella del subtotale prende il posto di
+quella normale quando `riga.subRows.length > 0`). Il «SOMMANO» di Primus sta
+**sotto** le misurazioni. Anche con l'indice ad albero, la forma del Computo non
+si riprodurrebbe senza un secondo meccanismo — una coda di gruppo, che oggi non
+c'è.
+
+### Il Computo vero: cosa chiede davvero
+
+Letto da un clone usa-e-getta via SSH, in sola lettura, cancellato a fine
+sessione (la strada di M4ter.9).
+
+| | misura | dove |
+|---|---|---|
+| voci di un computo reale | **144** (18 capitoli), computo PriMus di gara, 78 pagine | `tests/fixtures/capitolato_golden.json`, asserito in `tests/test_estrazione_computo.py` |
+| tetto d'import | **600** voci (`MAX_VOCI`), **300** righe sull'ingest prezzi | `tasks/estrazione_computo.py`, `tasks/ingest_documento_prezzi.py` |
+| tetto del computo nativo | **nessuno** — né `LIMIT` in lettura, né paginazione, né virtualizzazione | `db.py` (`list_computo_righe`), `ComputoTable.tsx` (`righe.map`) |
+| misurazioni per voce | **non documentate**; fixture 1–3, minimo reso 1 (riga «ghost») | `VoceRowGroup.tsx` |
+| livelli | **esattamente due** — nessun `parent_id`, nessun capitolo persistito | `scripts/ddl_f3_computo_estimativo.sql` |
+| le **voci** si riordinano | sì, `moveRiga(i, ±1)` da menu | `useComputoState.ts` |
+| le **misure** si riordinano | **no** — nessun `moveMisura`, nessun drag&drop in tutto il computo | `useComputoState.ts` |
+| incolla da foglio di calcolo | **no** — nessun `onPaste`, nessuna lettura di `clipboardData` in tutto `frontend/src` | — |
+| annulla/ripeti | **no** — un `useState` solo, nessuna pila di versioni | `useComputoState.ts` |
+
+Righe rese: 144 voci × (1 testata + 1÷4 misure + «+ misurazione» + SOMMANO)
+≈ **900–1150 `<tr>`**, tutte montate insieme.
+
+E la tastiera che il Computo ha **oggi**, che è la sorpresa della sessione:
+
+| celle scrivibili | quante | frecce |
+|---|---:|---|
+| testata voce — descrizione | 1 | **no** (`data-cell`, nessun `onKeyDown`) |
+| misurazione — descrizione, par.ug., lung., larg., h/peso | 5 | sì: `Invio`/`↑`/`↓`, **stessa colonna, stessa voce** |
+| SOMMANO — u.m. (`<select>`), prezzo unitario | 2 | **no** |
+
+**Otto celle scrivibili, cinque con le frecce, e tutte e cinque sullo stesso
+livello.** Niente `←`/`→`, niente passaggio da una voce all'altra, niente
+copia/incolla, niente riempimento, niente annulla. La navigazione fra i livelli
+che si stava per costruire in `data-grid` **non esiste nell'app che la
+chiederebbe**.
+
+### Le tre strade, pesate coi numeri
+
+1. **Appiattire il dato** — una riga per misurazione, la voce in colonna, il
+   totale in `piede`. La matrice delle misurazioni è **omogenea**: 5 colonne che
+   vogliono dire la stessa cosa su ogni riga, ~576 righe a 144×4 — e
+   `Blocchi/Data Grid → Computo` già regge **500 righe virtualizzate, 20
+   montate**. Tastiera, incolla, riempimento, annulla/ripeti funzionano tutti,
+   ed è **più** di quel che l'app ha oggi. Costo al registry: **zero** — la
+   forma piatta esiste già come story, `Blocchi/Data Table → Con Piede`
+   (`MISURAZIONI`, la voce riportata su ogni riga). Ciò che si perde: i campi di
+   **voce** (descrizione, u.m., prezzo) non sono celle della matrice, e il
+   «SOMMANO» per voce non è una riga del motore — vanno da un'altra parte
+   (testata di gruppo, o scheda accanto). **È un cambio di forma del computo, e
+   lo decide chi lo usa.**
+2. **Indice ad albero in `data-grid`** — sedici punti del motore contano su
+   «riga N = `motore.righe[N]`», di cui **cinque sono i rettangoli**. Riscrivere
+   gli undici dà le frecce; i cinque restano senza significato, come sopra. Cara
+   *e* incompleta.
+3. **Un blocco terzo** — gradino 4 della regola 4bis: si propone, non si scrive.
+   Questa sessione **non lo propone**, perché la (1) copre il bisogno misurato
+   con zero item nuovi.
+
+### Verdetto proposto (in attesa di Francesco)
+
+**La (1), e non adesso.** Il Computo resta sul v1 e si riapre quando Studio
+decide di migrarlo: la scelta è una scelta di **forma del computo** — se le
+misurazioni possano stare in una matrice piatta con la voce in colonna — e
+quella la fa chi lo usa, non il design system. `GUIDA-MIGRAZIONE.md` (M5.5) lo
+nomina fra le pagine che non si migrano al primo giro.
+
+**Il commento in testa a `data-grid.tsx` resta giusto e diventa più corto da
+difendere**: non «l'albero non compone perché l'indice è piatto», ma «l'albero
+non compone perché il rettangolo non attraversa i livelli». La seconda è una
+ragione che non invita a riprovare.

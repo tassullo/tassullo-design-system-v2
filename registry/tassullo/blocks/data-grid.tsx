@@ -81,6 +81,23 @@
  * la forma che la maggior parte dei computi ha comunque, e quella su cui
  * l'edificio di navigazione per indice regge senza sotterfugi.
  *
+ * **M4ter.12 ha misurato quanto di quello scarto sia l'indice, e la risposta
+ * è: poco.** L'indice è la metà riparabile. La metà che non si ripara è il
+ * **rettangolo**: `serializzaSelezione`, `incolla`, `riempi`,
+ * `riempiInDirezione` e `cancellaSelezione` sono cinque rettangoli `(r,c)`,
+ * e un rettangolo presuppone che la colonna *c* voglia dire la stessa cosa
+ * su ogni riga che attraversa. Su un albero a livelli eterogenei quella
+ * premessa è falsa — misurato su `Blocchi/Data Table → Albero`, espanso:
+ * **zero colonne su quattro** vogliono dire la stessa cosa sulla riga-madre
+ * e sulla figlia (due sono subtotali *derivati* sopra e valori *scritti*
+ * sotto, una è vuota sulla madre, una porta due testi di natura diversa).
+ * Dare a questo motore un indice ad albero darebbe le frecce fra i livelli e
+ * lascerebbe incolla e riempimento **senza significato** sulle stesse celle.
+ * La ragione per cui l'albero non compone non è quindi «l'indice è piatto» —
+ * che invita a riprovare — ma «il rettangolo non attraversa i livelli», che
+ * non invita. Misure, numeri del Computo vero e verdetto proposto:
+ * `docs/DECISIONI.md` §50 e `docs/ANALISI-COPERTURA-APP.md` §8.3bis.
+ *
  * ── Sessione 2: celle tipizzate + validazione Zod ───────────────────────
  *
  * `colonnaTestoGriglia`/`colonnaNumeroGriglia`/`colonnaValutaGriglia`/

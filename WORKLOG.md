@@ -10793,3 +10793,199 @@ quattro prerequisiti), M5.5 — che ora può nominare blocchi che esistono tutti
 hanno la forma definitiva, e che ha tre voci in più da §8: il Computo fra le
 pagine da non migrare al primo giro, `window.confirm`/`prompt` come
 ricerca-e-sostituzione, e la soglia del bivio che la decide l'app — e M5.6.
+
+---
+
+## M4ter.12 — Il Computo di Studio: non è l'indice che non compone, è il rettangolo (2026-09-21)
+
+**Ramo**: `claude/m4ter-12-computo`. **Esito**: nessun componente aggiunto, nessuna
+story aggiunta, una decisione misurata e in attesa di Francesco.
+
+### Il punto di partenza, riverificato e non ricordato
+
+`npm install` fatto per primo (l'hook di sessione fa `pull`, non installa; senza,
+il gate di accessibilità mente in modo credibile — decine di
+`scrollable-region-focusable` sull'overlay d'errore di Vite, che è «build rotta»
+e non «CSS sbagliato»). Poi: `main` a `04427be` (PR #17), `registry.json` **94
+item**, `componenti-propri.json` **1** (`entity-image.tsx`), tema con
+`--chart-1..10` e **zero** `chart-mono`, `npm run check` **uscita 0** sui sette,
+`test:a11y` **1496 scansioni su 374 story, 0 violazioni**.
+
+### La prima mezza giornata, senza scrivere codice
+
+Il Computo vero letto da un clone usa-e-getta via SSH
+(`git clone --depth 1 git@github.com:tassullo/studio.git`), fuori dal repo, in
+sola lettura, cancellato a fine sessione — la strada di M4ter.9, perché `gh api`
+non arriva più ai `contents`. Un sub-agente in sola lettura per i numeri di
+dimensione (l'unico ammesso dal prompt).
+
+**Quanto albero serve davvero** (i `file:riga` stanno in `docs/DECISIONI.md` §50):
+
+| domanda | risposta |
+|---|---|
+| voci di un computo reale | **144**, 18 capitoli — computo PriMus di gara, 78 pagine, fixture golden |
+| tetti | **600** voci sull'import, **300** sull'ingest prezzi; **nessun tetto** sul computo nativo, nessun `LIMIT`, nessuna paginazione, nessuna virtualizzazione |
+| misurazioni per voce | **non documentate**; fixture 1–3, minimo reso 1 (riga «ghost») |
+| livelli | **esattamente due**. I capitoli esistono **solo nel parser d'import** e non si persistono: oggi non sono un terzo livello |
+| riordino | le **voci** sì (`moveRiga ±1` da menu); le **misure no** — nessun `moveMisura`, nessun drag&drop in tutto il computo |
+| incolla da foglio | **no** — nessun `onPaste`, nessuna lettura di `clipboardData` in tutto `frontend/src`. L'import da xlsx è un percorso asincrono separato che **appende in coda** |
+| annulla/ripeti | **no** — un `useState` solo, nessuna pila |
+
+Righe rese: 144 × (1 testata + 1÷4 misure + «+ misurazione» + SOMMANO)
+≈ **900–1150 `<tr>`**, tutte montate insieme.
+
+**E la sorpresa della sessione, che nessuno aveva guardato: la tastiera che il
+Computo ha *oggi*.**
+
+| celle scrivibili | quante | frecce |
+|---|---:|---|
+| testata voce — descrizione | 1 | **no** (ha `data-cell`, non ha `onKeyDown`) |
+| misurazione — descrizione, par.ug., lung., larg., h/peso | 5 | sì: `Invio`/`↑`/`↓`, stessa colonna, **stessa voce** |
+| SOMMANO — u.m. (`<select>`), prezzo unitario | 2 | **no** |
+
+**Otto celle scrivibili, cinque con le frecce, tutte e cinque sullo stesso
+livello.** Niente `←`/`→`, niente passaggio fra voci, niente copia/incolla,
+niente riempimento, niente annulla. *La navigazione fra i livelli che si stava
+per costruire non esiste nell'app che la chiederebbe.*
+
+### La misura in Chromium vero (D15 di nuovo, §32)
+
+Imbracatura nella cartella temporanea contro `storybook-static`, Chromium di
+Playwright headless, **niente aggiunto al repo**. Controllo dello strumento fatto
+**prima** della misura: `document.visibilityState === "visible"` e
+`requestAnimationFrame` **scatta** — cioè «non è successo niente» vuol dire
+davvero niente.
+
+**A) `Blocchi/Data Grid → Computo` (piatta, 500 righe).** La tastiera di cella
+che il criterio chiede, tutta verificata:
+
+| | misura |
+|---|---|
+| struttura | `role="grid"`, `aria-rowcount` **500**, `aria-colcount` **5**, **20 righe montate** |
+| `Tab` entra una volta sola | sì — 8 pressioni attraverso la barra, poi il fuoco è **sulla cella** (riga 0, col 0) |
+| frecce, per cella | `→ → ↓ ↓ ← ↑` = (0,1) (0,2) (1,2) (2,2) (2,1) **(1,1)** — torna esattamente dov'è partita |
+| `Invio` apre la modifica | sì — l'elemento a fuoco diventa un `<input>` |
+| `Esc` annulla e **riporta il fuoco alla cella** | sì — torna al `<div>` della cella (1,1), non al documento |
+| `Tab` su una cella | si sposta **dentro** la griglia (1,1) → (1,2), non esce |
+
+**B) `Blocchi/Data Table → Albero`, espanso.** Qui sta la misura che decide.
+
+| | misura |
+|---|---|
+| righe nel DOM | **20** (5 madri + 15 figlie) |
+| righe nell'array dei dati | **5** |
+| celle con `tabindex` | **0** su 20 righe |
+| righe con `tabindex` | **0** |
+| `role` della tabella | **nessuno** — l'albero non è una `grid` |
+
+Venti contro cinque **è** l'indice, ed è la metà riparabile. Poi però, sulle
+stesse righe:
+
+| col | intestazione | riga-MADRE | riga-FIGLIA |
+|---:|---|---|---|
+| 0 | *(senza nome)* | vuota | vuota |
+| 1 | Voce / misurazione | `01.01 — Scavo di sbancamento` | `Piano terra — ambiente 1` |
+| 2 | U.M. | **vuota** | `m³` |
+| 3 | Quantità | `21,63` — **subtotale, derivato** | `8,81` — valore |
+| 4 | Importo | `397,99 €` — **subtotale, derivato** | `162,10 €` — valore |
+
+**Zero colonne su quattro vogliono dire la stessa cosa ai due livelli.**
+
+### La decisione tecnica: il rettangolo, non l'indice
+
+Cinque operazioni del motore sono **rettangoli `(r,c)`** e non spostamenti:
+`serializzaSelezione`, `incolla`, `riempi`, `riempiInDirezione`,
+`cancellaSelezione`. Un rettangolo presuppone una **matrice omogenea** — che la
+colonna *c* voglia dire la stessa cosa su ogni riga che attraversa. Su un albero
+a livelli eterogenei quella premessa è falsa, e **resta falsa qualunque indice si
+scelga**.
+
+Quindi, alla domanda che il piano pone a questa sessione — *«incolla e
+riempimento su una selezione che attraversa due livelli: o funzionano, o è
+scritto a verbale che non compongono»* — **è scritto a verbale che non
+compongono**, e non è un limite di implementazione: riordinare gli indici darebbe
+le frecce fra i livelli e lascerebbe quelle due operazioni semanticamente vuote
+sulle stesse celle.
+
+Secondo scarto di forma, minore ma da sapere: `meta.sottototale` mette il
+subtotale **sulla riga-madre**, che TanStack rende **sopra** i figli. Il
+«SOMMANO» di Primus sta **sotto**. Anche con l'indice ad albero la forma non si
+riprodurrebbe senza una coda di gruppo, che non esiste.
+
+**Rettifica a `docs/ANALISI-COPERTURA-APP.md` §8.3**, dove la (2) era «la
+correzione giusta, ed è la più cara»: è cara **e incompleta**. L'ordine di costo
+crescente elencato lì resta, il giudizio di merito no.
+
+### Le tre strade, pesate coi numeri
+
+1. **Appiattire il dato.** La matrice delle misurazioni è **omogenea**: 5 colonne
+   che vogliono dire la stessa cosa su ogni riga, ~576 righe a 144×4 — e
+   `Blocchi/Data Grid → Computo` regge già **500 righe virtualizzate, 20
+   montate**. Tastiera, incolla, riempimento, annulla/ripeti funzionano tutti, ed
+   è **più** di quel che l'app ha oggi. Costo al registry **zero**, e la forma
+   piatta **esiste già come story**: `Blocchi/Data Table → Con Piede`
+   (`MISURAZIONI`, la voce riportata su ogni riga, il totale nel `piede`) —
+   nessuna story nuova da scrivere. Ciò che resta fuori dalla matrice: i campi di
+   **voce** (descrizione, u.m., prezzo) e il «SOMMANO» per voce, che vanno in una
+   testata di gruppo o in una scheda accanto.
+2. **Indice ad albero in `data-grid`.** Sedici punti del motore contano su «riga
+   N = `motore.righe[N]`», di cui **cinque sono i rettangoli**. Riscrivere gli
+   undici dà le frecce; i cinque restano senza significato. Cara *e* incompleta.
+3. **Un blocco terzo.** Gradino 4 della regola 4bis: si propone, non si scrive.
+   **Questa sessione non lo propone**, perché la (1) copre il bisogno misurato
+   con zero item nuovi. `registry/componenti-propri.json` **non si tocca**.
+
+### Verdetto proposto, in attesa di Francesco
+
+**La (1), e non adesso.** Il Computo resta sul v1 e si riapre quando Studio
+decide di migrarlo, perché la scelta è una scelta di **forma del computo** — se
+le misurazioni possano stare in una matrice piatta con la voce in colonna — e
+quella la fa **chi lo usa**, non il design system. `GUIDA-MIGRAZIONE.md` (M5.5) lo
+nomina fra le pagine che non si migrano al primo giro, come già previsto.
+
+### Modifiche
+
+- `docs/DECISIONI.md` **§50** — il verbale intero, con le misure e i `file:riga`.
+- `docs/ANALISI-COPERTURA-APP.md` **§8.3bis** — l'esito, con la rettifica alla (2).
+- `registry/tassullo/blocks/data-grid.tsx` — **solo commento**, nel blocco «Cosa
+  NON c'è, di proposito». La ragione per cui l'albero non compone passa da
+  «l'indice è piatto», che invita a riprovare, a «il rettangolo non attraversa i
+  livelli», che non invita. Nessuna riga di codice toccata, nessuna stringa di
+  classi: `check:registry` guarda `blocks/` per la sola regola 3.
+- `CHECKLIST.md`, `WORKLOG.md`.
+
+### Due cose viste di passaggio, che **non** sono di questo task
+
+- Nel Computo di Studio la riga di testata voce rende **10 `<td>`** e la riga
+  «+ misurazione» **8**, contro **9** colonne dichiarate nel `<colgroup>`.
+  `table-layout: fixed` lo assorbe e non si vede. È codice dell'app, non del
+  registry: annotato qui perché non si riscopra, non perché si corregga qui.
+- L'autosave è a debounce 1s su ogni tasto e il salvataggio è un full-replace
+  (`DELETE` di tutte le righe e misure, poi un `INSERT` per ciascuna): a 144 voci
+  × 4 misure sono ~700 `INSERT` sequenziali per ogni autosave. Se a quella
+  dimensione qualcosa rallenta, è più probabile lì che nel rendering.
+
+E le due cose che `WORKLOG.md` elenca accanto al Computo **restano dove stanno**:
+i `window.confirm`/`window.prompt` di Anagrafe sono lavoro di migrazione (M5.5), e
+lo slot della fascia in `app-shell` — quello fra testata e `<Outlet/>`, da non
+confondere con `AppShell.contesto`, che sta nella testata della colonna — resta
+differito con l'innesco non scattato. Questo task aveva **una domanda sola**.
+
+### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1496 scansioni su 374 story, 0 violazioni**. Nessuna scena
+  aggiunta, quindi il conto è quello di partenza.
+- `misura:bersagli` — **3244 bersagli su 374 story, 0 piccoli in entrambe le
+  direzioni**, controllo dello strumento a 48px.
+- `registry.json` **94 item**, `componenti-propri.json` **1**.
+- `build` e `lint` verdi, **26 avvisi** tutti preesistenti.
+- Clone di Studio **cancellato**.
+
+### Prossimi passi
+
+La domanda per Francesco è una sola e ha tre risposte: **quale strada**. Se la
+(1), resta da sapere se il computo piatto sia accettabile per chi lo usa davvero
+— cioè se i campi di voce possano lasciare la matrice. Se la (2), resta da
+decidere se la spesa valga la pena adesso, sapendo che **incolla e riempimento
+fra i livelli non compongono comunque**. La FASE 5 non aspetta questa risposta.

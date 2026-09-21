@@ -691,6 +691,51 @@ qui, solo perché non si riparta da zero:
 3. **Un blocco terzo**, che non è né l'uno né l'altro. È il gradino 4 della regola 4bis:
    si propone, non si scrive.
 
+### 8.3bis L'esito di M4ter.12 (2026-09-21) — misurato, non più elencato
+
+M4ter.12 ha letto il Computo vero e misurato l'albero in Chromium vero. Il verbale intero
+sta in `docs/DECISIONI.md` §50; qui l'essenziale, perché **rettifica l'ordine di costo
+scritto qui sopra**.
+
+**La (2) non è «la correzione giusta e la più cara»: è cara *e* incompleta.** Il difetto
+non è solo l'indice. Cinque operazioni del motore — `serializzaSelezione`, `incolla`,
+`riempi`, `riempiInDirezione`, `cancellaSelezione` — sono **rettangoli `(r,c)`**, e un
+rettangolo presuppone che la colonna *c* voglia dire la stessa cosa su ogni riga che
+attraversa. Misurato su `Blocchi/Data Table → Albero`, espanso: **zero colonne su quattro**
+vogliono dire la stessa cosa sulla riga-madre e sulla figlia — due sono subtotali *derivati*
+sulla madre e valori *scritti* sulla figlia, una è vuota sulla madre, una porta due testi di
+natura diversa. Riordinare gli indici darebbe le frecce fra i livelli e lascerebbe incolla e
+riempimento senza significato sulle stesse celle. **Alla domanda «incolla e riempimento
+attraverso due livelli: funzionano o no?» la risposta è: non compongono**, e non per come è
+scritto il blocco.
+
+Il resto delle misure, in breve (i numeri e i `file:riga` in §50):
+
+- L'albero rende **20 righe nel DOM per 5 righe di dati**, con **0 celle** e **0 righe**
+  con `tabindex`: l'albero di oggi non ha nemmeno la tastiera *di riga*, in questa story.
+- `meta.sottototale` sta **sulla riga-madre**, che si rende **sopra** i figli. Il «SOMMANO»
+  di Primus sta **sotto**: anche con l'indice ad albero, la forma non si riprodurrebbe
+  senza una coda di gruppo che non esiste.
+- Il Computo vero: **144 voci** in un computo reale (PriMus di gara, 78 pagine), due livelli
+  esatti, nessun tetto e nessuna virtualizzazione, **~900–1150 `<tr>`** tutte montate.
+- Le **voci** si riordinano (`moveRiga ±1`), le **misure no** (nessun `moveMisura`, nessun
+  drag&drop). **Nessun incolla** da foglio di calcolo in tutto `frontend/src`. **Nessun
+  annulla/ripeti.**
+- E la tastiera che il Computo ha **oggi**: **8 celle scrivibili, 5 con le frecce, tutte e
+  cinque sullo stesso livello** (`Invio`/`↑`/`↓`, stessa colonna, stessa voce). Niente
+  `←`/`→`, niente passaggio fra voci. La navigazione fra i livelli che si stava per
+  costruire **non esiste nell'app che la chiederebbe**.
+
+**Verdetto proposto, in attesa di Francesco: la (1), e non adesso.** La matrice delle
+misurazioni è omogenea — 5 colonne, ~576 righe a 144×4 — e `Blocchi/Data Grid → Computo`
+già regge 500 righe virtualizzate con 20 montate: tastiera, incolla, riempimento e
+annulla/ripeti funzionerebbero tutti, cioè **più** di quel che l'app ha oggi. La forma
+piatta esiste già come story, `Blocchi/Data Table → Con Piede` — **nessuna story nuova da
+scrivere**. Ciò che resta fuori dalla matrice sono i campi di *voce* (descrizione, u.m.,
+prezzo) e il «SOMMANO» per voce, che vanno in una testata di gruppo o in una scheda
+accanto: **è un cambio di forma del computo, e lo decide chi lo usa.** Per questo il
+Computo resta sul v1 e si riapre quando Studio decide di migrarlo.
+
 ### 8.4 Una cosa che le tre pagine hanno in comune, e che la guida deve dire
 
 `window.confirm` e `window.prompt` sono ancora vivi in **Anagrafe** (`ChangeSets.tsx`:
