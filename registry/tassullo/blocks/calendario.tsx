@@ -1192,9 +1192,22 @@ export interface CalendarioProps<TData = unknown> {
   /** La legenda dei calendari sotto la testata. @default true con `calendari` */
   legenda?: boolean
   /**
-   * Mostrare sabato e domenica. Spegnendolo la griglia passa a cinque
-   * colonne — utile su un calendario di reparto, dove il fine settimana è
-   * rumore. @default true
+   * Mostrare sabato e domenica nelle viste **mese** e **settimana**.
+   *
+   * **`false` di default, su indirizzo di Francesco (2026-09-21)**: quello
+   * delle app Tassullo è un calendario **lavorativo**, da lunedì a venerdì, e
+   * il fine settimana è rumore in cinque colonne su sette. Il motore non lo
+   * legge in **agenda**, che continua a elencare tutto — verificato: con
+   * `weekend={false}` un evento del solo sabato sparisce dalla griglia del
+   * mese ma resta in agenda, quindi **non si perde niente**, si nasconde.
+   *
+   * Misurato a prop accesa e spenta: 42 celle e 7 colonne contro **30 celle e
+   * 5 colonne**, e una barra a cavallo del fine settimana (venerdì→lunedì) si
+   * **spezza in due segmenti** invece di attraversare.
+   *
+   * Chi ha bisogno del sabato — un cantiere che lavora, un turno di
+   * reperibilità — lo riaccende con `weekend`, e l'interruttore c'è anche nel
+   * menù Opzioni. @default false
    */
   weekend?: boolean
   /** Il numero della settimana in una colonna a sinistra. @default false */
@@ -1245,7 +1258,7 @@ export function Calendario<TData = unknown>({
   testata = true,
   azioni,
   statoVuoto,
-  weekend = true,
+  weekend = false,
   numeroSettimana = false,
   tooltip = false,
   opzioni = false,

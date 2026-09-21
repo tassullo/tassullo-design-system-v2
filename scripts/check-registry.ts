@@ -381,9 +381,38 @@ const USE_CLIENT_RE =
  */
 const REACT_NAMESPACE_IMPORT_RE = /^\s*import \* as React from (["'])react\1\s*;?\s*$/m;
 
+/**
+ * **Sostituzioni di stack**, cioè le righe in cui il sorgente di monte
+ * presuppone un bundler che noi non abbiamo. Sorella di `MORTE_A_MONTE`, e
+ * con lo stesso patto: si normalizzano **da entrambi i lati** prima di
+ * confrontare, quindi il giorno in cui reui passasse a Vite questa tabella
+ * resterebbe corretta senza toccarla.
+ *
+ * Oggi ce n'è una sola, ed è la **terza volta** che lo stesso gesto entra nel
+ * repo: un avviso di sviluppo scritto alla maniera di Next. `process` non
+ * esiste in un'app Vite appena creata, e il typecheck del **consumatore** si
+ * ferma su `Cannot find name 'process'` — misurato in M4ter.10 sull'app di
+ * prova, stesso messaggio delle quattro occorrenze che M4.6 aveva corretto
+ * in casa nostra. Qui dentro non si vede, perché il workbench ha i tipi di
+ * Node in albero: è un difetto **muto**, e per questo sta in un gate.
+ *
+ * `import.meta.env.DEV` è vero in sviluppo e falso nella build, cioè
+ * esattamente il controllo di prima: la semantica dell'avviso non cambia.
+ */
+const SOSTITUZIONI_DI_STACK: { file: string; re: RegExp; con: string; cosa: string }[] = [
+  {
+    file: "event-calendar.tsx",
+    re: /import\.meta\.env\.DEV|process\.env\.NODE_ENV\s*!==\s*["']production["']/g,
+    con: "__IN_SVILUPPO__",
+    cosa: "l'avviso di sviluppo: `process.env.NODE_ENV` non compila in un'app Vite",
+  },
+];
+
 function forma(src: string, nome?: string): string {
   let pulito = src.replace(USE_CLIENT_RE, "").replace(REACT_NAMESPACE_IMPORT_RE, "");
   for (const m of MORTE_A_MONTE) if (m.file === nome) pulito = pulito.replace(m.re, "");
+  for (const m of SOSTITUZIONI_DI_STACK)
+    if (m.file === nome) pulito = pulito.replace(m.re, m.con);
   // Commenti e stringhe li separa lo scanner (v. `scansiona`): con le due
   // regex in fila, un apostrofo in un commento italiano falsava anche questo
   // confronto, non solo il conto del ri-stile.
