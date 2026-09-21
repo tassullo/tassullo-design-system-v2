@@ -2953,89 +2953,129 @@ divergenza di **stringa di classi**, cioè il gradino 2 di 4bis: fatto, e
 conto. La distinzione fra le due cose nello stesso file è la regola 4bis in
 miniatura: le classi si cambiano, la forma no.
 
-## 49. Le tinte di categoria **non** vogliono 4.5:1 — e la tavolozza estesa non può essere un'estensione della scala (M4ter.11, 2026-09-21)
+## 49. La tavolozza categorica passa a dieci tinte, e perde il bianco e nero (D24, M4ter.11, 2026-09-21)
 
-La tavolozza estesa (10–15 tinte per grafici, calendario e categorie) era
-«da decidere in coda alla FASE 4ter», cioè qui. **La tavolozza resta
-sospesa**, ed è una scelta di Francesco; quello che si chiude è la **domanda
-di sistema che la precede**, e che senza risposta rendeva il lavoro non
-decidibile: *le tinte di categoria hanno bisogno di 4.5:1 come i token di
-testo, o bastano a fondo e si misura il testo sopra?*
+**Decisa da Francesco a video**, guardando `Tema/Tavolozza categorica` nella
+style guide. `--chart-1..5` diventa **`--chart-1..10`**: una famiglia sola,
+non due.
 
-### La risposta: no, e 4.5:1 è il metro sbagliato
+### Perché una famiglia sola e non `--categoria-*` accanto
 
-**4.5:1 è la soglia del testo** (WCAG 1.4.3). A un **oggetto grafico**
-necessario a capire il contenuto — una serie di grafico, una banda di
-calendario, un pallino di stato — si applica **1.4.11, che chiede 3:1**, e lo
-chiede *solo quando il colore è l'unico mezzo* con cui quell'informazione si
-legge. Il testo scritto **sopra** una tinta è un'altra coppia, e quella sì
-vuole i suoi 4.5:1 — ma è una coppia fra il testo e la tinta, non fra la tinta
-e la pagina.
+Rilievo di Francesco, e coglie il difetto della mia prima proposta: **un nome
+nuovo accanto al vecchio lascia i grafici dov'erano**. Chi scrive un grafico
+usa `--chart-*` perché si chiama così, e resterebbe a cinque per sempre. I
+posti 1–3 tengono i valori di oggi (arancio del brand, verde istituzionale,
+blu), quindi chi ne usa tre non se ne accorge; chi ne ha otto va avanti.
+
+### La domanda di sistema, risposta prima di scegliere le tinte
+
+*Le tinte di categoria hanno bisogno di 4.5:1 come i token di testo?* **No, ed
+è il metro sbagliato.** 4.5:1 è la soglia del **testo** (WCAG 1.4.3). A un
+**oggetto grafico** necessario a capire il contenuto si applica **1.4.11, che
+chiede 3:1**, e lo chiede *solo quando il colore è l'unico mezzo*. Il testo
+scritto **sopra** una tinta è un'altra coppia, e quella sì vuole i suoi 4.5:1.
 
 Applicare 4.5:1 alle tinte le spingerebbe tutte in una banda scura e satura
 dove smetterebbero di distinguersi **fra loro**, che è l'unica cosa per cui
-esistono. Sarebbe un requisito che peggiora ciò che dice di proteggere.
+esistono: un requisito che peggiora ciò che dice di proteggere.
 
-### E lo stato di oggi è già sotto i 3:1, a verbale da M2.8
+Otto tinte su dieci stanno sopra 3:1. Le due che non ci arrivano sono
+`--chart-1` (1.91:1) e `--chart-2` (2.85:1), cioè **l'arancio e il verde del
+brand**: esentate **per indice** nel gate, con la ragione scritta lì, perché
+cambiarle vorrebbe dire cambiare il marchio. L'esenzione non abbassa la soglia
+— la regola resta armata su tutte le altre e su qualunque tinta si aggiunga.
 
-Misurato di nuovo qui, per non fidarsi della memoria:
+### Quello che si perde, ed è aritmetica
 
-| | chart-1 | chart-2 | chart-3 | chart-4 | chart-5 |
-|---|---:|---:|---:|---:|---:|
-| contro la card, **chiaro** | **1.91** | 2.85 | 4.26 | 6.34 | 9.40 |
-| contro la card, **scuro** | 13.16 | 8.80 | 5.92 | 3.93 | **2.64** |
-
-Due delle dieci stanno sotto 3:1, ed è accettato **perché il colore non è mai
-l'unico mezzo**: le story portano legenda, etichette diritte sui dati e cinque
-tratteggi diversi. È la condizione che va mantenuta, non il numero.
-
-### Il fatto nuovo, ed è aritmetico: 10–15 pioli non ci stanno
-
-La scala di `--chart-1..5` non è cinque colori scelti: sono cinque **pioli**
-di una progressione geometrica il cui passo — **1.4935** — è il rapporto che
-l'arancio e il verde Tassullo hanno già fra loro. È quel passo a garantire che
-le serie restino distinguibili **in scala di grigi**, cioè in stampa e sotto i
-tre deficit di percezione del colore, che la luminanza non la toccano.
-
-Allo stesso passo:
+Le cinque di prima non erano cinque colori scelti: erano **pioli di una scala
+di chiarezza**, a passo 1.4935 — il rapporto che l'arancio e il verde Tassullo
+hanno già fra loro — e quel passo garantiva che restassero distinguibili **in
+bianco e nero**.
 
 | pioli | estensione richiesta | ci sta in sRGB (21:1)? |
 |---:|---:|---|
 | 5 | 5,0:1 | sì, con margine |
 | 8 | 16,6:1 | al limite |
 | **10** | **37,0:1** | **no** |
-| 12 | 82,5:1 | no |
-| 15 | 274,7:1 | no |
 
-**Sopra gli otto pioli la garanzia in grigio non è ottenibile**, e non per una
-scelta: non c'è spazio fra il bianco e il nero. Ne segue che una tavolozza
-estesa **non è l'estensione di questa scala**: è una palette di natura
-diversa, separata per **tinta** e non per luminanza, che si garantisce con un
-ΔE2000 minimo sotto i tre deficit e che in bianco e nero **non** si legge.
+Sopra gli otto non c'è spazio fra il bianco e il nero. Una tavolozza a dieci è
+quindi **un'altra cosa**: separata per tinta, garantita dalla distanza
+percettiva, e **non leggibile in grigio** — misurato, ΔE 0,4 in chiaro e 0,0 in
+scuro fra le due coppie più vicine. Chi deve stampare in B/N usa la rampa
+monocroma `--chart-mono-1..5`, che quella proprietà ce l'ha per costruzione.
 
-Conseguenza operativa se un giorno si apre: **non si chiamerà `--chart-6..15`**,
-perché quel nome prometterebbe la proprietà della scala. Un nome a parte
-(`--categoria-*`) e un controllo a parte in `check:contrast` — quello di oggi
-verifica coppie fondo/testo a 4.5:1, che alle tinte di categoria non si applica.
+### Le tavolozze pubblicate, provate e scartate
 
-### I due inneschi si chiudono senza aprirla
+Prima di cercarne di nuove si sono misurate quelle collaudate per il
+daltonismo. Nessuna regge il **nostro** caso, e la ragione è sempre la stessa:
+sono nate per **linee e punti su fondo bianco**, mentre qui servono
+**riempimenti in due modalità**, e il vincolo raddoppia.
 
-**Il rosso del «Guasto» (Officina).** `--destructive` #DC2626 esiste già in
-tutte e due le modalità e dà **4.75:1 sulla card chiara e 3.53:1 sulla scura**,
-sopra i 3:1 di 1.4.11 in entrambe. `COLORI_EVENTO` in `calendario.tsx` può
-mapparlo come sesto colore senza una riga di palette nuova. **La caveat, e va
-scritta**: in scala di grigi il rosso cade sul piolo di `--chart-3` (rapporto
-0.898, cioè l'11% di scarto), quindi un calendario stampato in bianco e nero
-confonderebbe «Guasto» e la categoria blu. Sotto i tre deficit invece regge
-(ΔE minimo 9.3, protanopia contro `chart-5`, soglia 5). Il calendario porta
-nome della categoria nella legenda e nel chip, quindi il colore non è l'unico
-mezzo — è la stessa condizione di sopra.
+| candidata | ΔE min | dove si rompe |
+|---|---:|---|
+| Okabe-Ito 8, forzata a 3:1 | **0,1** | deuteranopia: arancio e giallo, portati alla stessa chiarezza, collassano |
+| Tol *muted* 9, su card chiara | 10,4 | regge in chiaro… |
+| Tol *light* 9, su card scura | **2,9** | …e il suo gemello per fondo scuro crolla in protanopia |
 
-**Il fondo della banda intermedia (misuratore di robustezza, M4ter.5).**
-Misurato: `--warning` #FBE8C4 dà **1.18:1** sulla card chiara — come
-riempimento di una barra è invisibile, ed è corretto che lo sia, perché è un
-**fondo di badge** con sopra il suo testo, non un fondo di barra. `--primary`
-ne dà 1.91. Quello che manca non sono quindici tinte: è **un** token di
-riempimento ambrato che si legga su tutte e due le card. Se e quando servirà,
-è un token, non una palette — e il misuratore, per ora, resta dell'app
-(deciso da Francesco il 2026-09-19).
+### Le dieci, e come sono state scelte
+
+Semi fissi: arancio del brand, verde istituzionale, blu — e **un grigio caldo**
+(rilievo di Francesco: «un grigio soddisfa ogni criterio»). Le altre sei
+cercate massimizzando la distanza minima da tutte le già scelte, sotto le
+quattro visioni e **in tutte e due le modalità** insieme.
+
+Misurato sulla tavolozza finale (la story lo ricalcola a ogni apertura):
+
+| | visione piena | deuteranopia | protanopia | tritanopia |
+|---|---:|---:|---:|---:|
+| chiaro | 18,9 | 12,5 | 12,5 | **11,0** |
+| scuro | 17,4 | 12,8 | **8,5** | 11,0 |
+
+Soglia del gate: **5**. Il collo di bottiglia non è mai una tinta cercata —
+sono sempre le coppie del brand (arancio/verde, verde/blu), cioè un vincolo di
+partenza e non una debolezza della ricerca.
+
+**Due grigi erano il vero collo di bottiglia**, e toglierne uno è stata la
+correzione che ha cambiato l'ordine di grandezza: `chart-4` e `chart-5` erano
+due neutri vicini, la coppia più vicina di tutte, e c'erano solo per la
+garanzia in grigio. Persa quella, restava un posto speso male.
+
+### Il rosso, e cosa non è
+
+`--chart-10` è un rosso caldo, e chiude un innesco di M4ter.2: Officina
+distingue il «Guasto» in rosso, nella scala vecchia il rosso non c'era, e il
+guasto aveva dovuto prendere l'arancio. **Non è `--destructive`**, ed è una
+scelta: quello è il colore dell'**allarme**, e una categoria «Guasto» non è
+un'azione distruttiva; una serie di grafico che capita rossa non deve leggersi
+come un errore. Sono due rossi vicini di tinta (29 contro 27) e lontani di
+ruolo. Provato anche `--destructive` tale e quale: funziona (ΔE min 9,2) ma è
+peggiore **e** sovraccarica un significato.
+
+### Un errore di misura, a verbale perché la lezione vale
+
+La prima ricerca dava numeri **sbagliati**, e la conclusione era rovesciata:
+proponeva come migliore la tavolozza che sotto protanopia aveva due tinte
+**identiche** (ΔE 1,1). La causa: la memoria dei colori simulati era indicizzata
+con `f.name`, che per una funzione freccia anonima è la **stringa vuota** —
+quindi le quattro visioni condividevano lo stesso valore e i tre deficit
+riportavano il numero della visione piena.
+
+Il campanello c'era e non è stato raccolto al primo giro: **i quattro valori
+uscivano identici**, che è un risultato impossibile. Lo ha smascherato la
+pagina della style guide, che calcola senza memoria — cioè lo strumento
+costruito per farla guardare a un umano ha corretto lo strumento costruito per
+decidere. Da cui la regola: *quando quattro misure indipendenti danno lo stesso
+numero, il sospetto va allo strumento, non ai dati.*
+
+### Cosa cambia nel repo
+
+- `scripts/hex-to-oklch.ts`: le dieci tinte sono **scritte**, non più derivate
+  (`deriveSerie` e la costante `SERIE` sono state rimosse). La rampa monocroma
+  resta derivata, perché *quella* è ancora una scala.
+- `check:contrast`: due regole diverse per le due famiglie — la categorica non
+  ha il passo in grigio e ha `minSuCard: 3`; la rampa tiene entrambi.
+- `calendario.tsx`: `COLORI_EVENTO` passa da cinque nomi a **dieci**, e
+  `ardesia` diventa `rosso`. Nella story di Officina il «Guasto» è rosso.
+- `Tema/Tavolozza categorica` nella style guide: la pagina legge i token dal
+  tema a runtime e rifà le misure, quindi non può divergere dalla palette.
+

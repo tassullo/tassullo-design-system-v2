@@ -24,7 +24,7 @@
  * **Quello che delle demo NON si prende è la tavolozza.** Loro usano
  * `var(--color-blue-500)`, `bg-violet-500`, `text-[9px]`: colori grezzi di
  * Tailwind e valori arbitrari, che la **regola 3** non ammette. I colori qui
- * sono i cinque `--chart-*` del tema, e si scelgono per nome.
+ * sono i dieci `--chart-*` del tema, e si scelgono per nome.
  *
  * ── I QUATTRO DEFAULT DI CASA ───────────────────────────────────────────
  *
@@ -171,7 +171,7 @@ import type {
 /* ─────────────────────────── I colori ─────────────────────────── */
 
 /**
- * **I cinque colori del calendario sono i `--chart-*` del tema**, scelti per
+ * **I dieci colori del calendario sono i `--chart-*` del tema**, scelti per
  * nome e mai per valore. Un evento non porta un colore: porta il *nome* di un
  * colore, e la traduzione in token la fa questo file. È il modo in cui la
  * regola 3 si fa rispettare per costruzione invece che a memoria — `color` del
@@ -179,16 +179,29 @@ import type {
  * se ne accorga (i valori nelle prop non sono classi di Tailwind).
  *
  * Perché proprio i `--chart-*`: sono l'unica famiglia del tema pensata per
- * **distinguere serie fra loro**, ed è lo stesso mestiere. `chart-4` e
- * `chart-5` sono due grigi vicini, ed è voluto: servono a dire «questo non è
- * una categoria», per esempio un fermo chiuso o annullato.
+ * **distinguere categorie fra loro**, ed è lo stesso mestiere.
+ *
+ * **Da cinque a dieci il 2026-09-21** (M4ter.11): con cinque, un'app con più
+ * di cinque tipi di intervento doveva riusarne uno — e Officina ne aveva già
+ * bisogno, perché il «Guasto» vuole il **rosso** e nella scala vecchia il
+ * rosso non c'era (M4ter.2 dovette dargli l'arancio). Ora c'è: `rosso`, ed è
+ * `--chart-10`, **non `--destructive`** — quello resta il colore dell'allarme,
+ * e una categoria «Guasto» non è un'azione distruttiva.
+ *
+ * `grigio` è la sola tinta neutra e resta quella di prima: serve a dire
+ * «questo non è una categoria», per esempio un fermo chiuso o annullato.
  */
 export const COLORI_EVENTO = {
   arancio: "var(--chart-1)",
   verde: "var(--chart-2)",
   blu: "var(--chart-3)",
   grigio: "var(--chart-4)",
-  ardesia: "var(--chart-5)",
+  ocra: "var(--chart-5)",
+  prugna: "var(--chart-6)",
+  indaco: "var(--chart-7)",
+  oliva: "var(--chart-8)",
+  malva: "var(--chart-9)",
+  rosso: "var(--chart-10)",
 } as const
 
 export type ColoreEvento = keyof typeof COLORI_EVENTO
@@ -198,7 +211,12 @@ const ETICHETTE_COLORE: Record<ColoreEvento, string> = {
   verde: "Verde",
   blu: "Blu",
   grigio: "Grigio",
-  ardesia: "Ardesia",
+  ocra: "Ocra",
+  prugna: "Prugna",
+  indaco: "Indaco",
+  oliva: "Oliva",
+  malva: "Malva",
+  rosso: "Rosso",
 }
 
 /* ─────────────────────────── I tipi ─────────────────────────── */

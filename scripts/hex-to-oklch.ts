@@ -139,16 +139,26 @@ const light: Palette = {
   // ── Velo delle modali ────────────────────────────────────────────────────
   overlay: "#14141473", // v1 --color-overlay: rgba(20, 20, 20, 0.45)
 
-  // ── Serie dei grafici (M2.8) ─────────────────────────────────────────────
-  // DERIVATI — riempiti da deriveSerie(). Vedi il blocco «la scala delle
-  // serie» più sotto: non sono cinque colori scelti, sono cinque pioli di
-  // una scala il cui passo è quello che l'arancio e il verde Tassullo hanno
-  // già fra loro.
-  "chart-1": "",
-  "chart-2": "",
-  "chart-3": "",
-  "chart-4": "",
-  "chart-5": "",
+  // ── Tavolozza categorica (M2.8, estesa a dieci in M4ter.11) ─────────────
+  // **Scelti, non derivati**, ed è il cambio del 2026-09-21: fino a M4ter.11
+  // erano cinque **pioli di una scala di chiarezza**, il cui passo garantiva
+  // che restassero distinguibili anche in bianco e nero. Dieci pioli a quel
+  // passo vorrebbero 37:1 contro i 21:1 che sRGB permette — è aritmetica —
+  // quindi una tavolozza a dieci è per forza un'altra cosa: separata per
+  // **tinta**, garantita dalla distanza percettiva sotto i tre deficit, e
+  // **non leggibile in scala di grigi**. Chi deve stampare in B/N usa la
+  // rampa monocroma `--chart-mono-1..5`, che quella proprietà ce l'ha per
+  // costruzione. Il ragionamento completo è in `docs/DECISIONI.md` §49.
+  "chart-1": "#F4AC3D", // arancio del brand — `--primary`, tale e quale
+  "chart-2": "#1CAC7C", // verde istituzionale — `--success`, tale e quale
+  "chart-3": "#0180BF", // blu Tassullo
+  "chart-4": "#615E5A", // grigio caldo — la sola tinta neutra della tavolozza
+  "chart-5": "#926500", // ocra
+  "chart-6": "#492C47", // prugna
+  "chart-7": "#0F359B", // indaco
+  "chart-8": "#333D00", // oliva scura
+  "chart-9": "#83627F", // malva
+  "chart-10": "#D46758", // rosso caldo — NON `--destructive`, che resta l'allarme
 
   // ── La rampa monocroma del brand (M2.8) ──────────────────────────────────
   // DERIVATI — gli stessi cinque pioli, tutti alla tinta dell'arancio. Servono
@@ -270,14 +280,21 @@ const dark: Palette = {
   // velo al 45% dello stesso colore della pagina non separa più niente.
   overlay: "#141414B3",
 
-  // ── Serie dei grafici (M2.8) — stessa scala, salita di un piolo ──────────
-  // DERIVATI — riempiti da deriveSerie(). Le tinte sono le stesse del chiaro;
-  // cambia solo l'altezza della scala, vedi il blocco «la scala delle serie».
-  "chart-1": "",
-  "chart-2": "",
-  "chart-3": "",
-  "chart-4": "",
-  "chart-5": "",
+  // ── Tavolozza categorica, i gemelli scuri ───────────────────────────────
+  // Stessa tinta, chiarezza scelta perché ogni tinta stacchi dalla card scura
+  // e resti lontana dalle altre sotto le quattro visioni. Non è una regola
+  // meccanica come la vecchia «salita di un piolo»: ogni coppia è stata
+  // cercata e misurata insieme alle altre.
+  "chart-1": "#FFDDB0",
+  "chart-2": "#4FD09D",
+  "chart-3": "#39A0E2",
+  "chart-4": "#7C7975",
+  "chart-5": "#B07B00",
+  "chart-6": "#A2419D",
+  "chart-7": "#BDD1F9",
+  "chart-8": "#AAC62F",
+  "chart-9": "#9B7998",
+  "chart-10": "#F68676",
 
   // ── La rampa monocroma del brand (M2.8) ──────────────────────────────────
   // DERIVATI — gli stessi cinque pioli, tutti alla tinta dell'arancio. Servono
@@ -355,15 +372,6 @@ function deriveInfoBorder(p: Palette): string {
 // una rinuncia: 3^4 = 81:1 contro i 21:1 che l'intera gamma sRGB permette.
 // ───────────────────────────────────────────────────────────────────────────
 
-/** Tinta e croma di ogni serie: cinque token Tassullo esistenti. */
-const SERIE: Array<{ da: () => string; nota: string }> = [
-  { da: () => light.primary, nota: "arancio del brand" },
-  { da: () => light.success, nota: "verde istituzionale" },
-  { da: () => dark.info, nota: "blu Tassullo, la versione che si vede (M1.3)" },
-  { da: () => light["muted-foreground"], nota: "neutro caldo" },
-  { da: () => light["muted-foreground"], nota: "neutro caldo, un piolo sotto" },
-];
-
 /** Il contrasto WCAG di un colore contro il nero assoluto: Y + 0.05. */
 const alt = (hex: string) => wcagLuminance(hex) + 0.05;
 
@@ -398,11 +406,6 @@ function pioli(p: Palette, salita: number): number[] {
  * Le cinque serie categoriche: un piolo ciascuna, ognuna alla tinta di un token
  * Tassullo diverso.
  */
-function deriveSerie(p: Palette, salita: number): string[] {
-  const scala = pioli(p, salita);
-  return SERIE.map((s, i) => serieAlPiolo(s.da(), scala[i]!));
-}
-
 /**
  * La rampa monocroma: **gli stessi pioli**, tutti alla tinta dell'arancio del
  * brand. Non è una seconda palette da mantenere — è la stessa scala guardata a
@@ -857,8 +860,37 @@ function checkParity(): number {
  *   4. che nessuna coppia di serie collassi sotto uno dei tre deficit di
  *      percezione del colore.
  */
-function checkSerie(palette: Palette, theme: string, prefisso: string): number {
-  const serie = [1, 2, 3, 4, 5].map((i) => palette[`${prefisso}${i}`]);
+/**
+ * Le due famiglie non si controllano allo stesso modo, e la differenza è il
+ * senso stesso della scelta di M4ter.11.
+ *
+ * - **`chart-1..10`** è una tavolozza **categorica**: separata per tinta,
+ *   garantita dalla distanza percettiva sotto le quattro visioni, e — per
+ *   costruzione — **non leggibile in scala di grigi**. Il passo in grigio non
+ *   si controlla, perché non c'è e non deve esserci.
+ * - **`chart-mono-1..5`** è una **rampa**: stessa tinta, cinque chiarezze a
+ *   passo costante. Lì il passo in grigio è tutto, ed è quello che si misura.
+ *
+ * `scalaDiGrigi` è la leva che le distingue. `minSuCard` pure: a un oggetto
+ * grafico la WCAG 1.4.11 chiede **3:1**, e la tavolozza categorica li
+ * rispetta; la rampa no, e non può — cinque pioli da 3:1 non stanno fra il
+ * fondo e il testo (3⁴ = 81:1 contro i 21:1 di sRGB), e lì il colore non è
+ * mai l'unico mezzo.
+ */
+function checkSerie(
+  palette: Palette,
+  theme: string,
+  prefisso: string,
+  opzioni: {
+    quante: number;
+    scalaDiGrigi: boolean;
+    minSuCard: number;
+    /** Indici (da 1) esentati dal minimo sulla card, con la ragione. */
+    esenti?: Record<number, string>;
+  },
+): number {
+  const { quante, scalaDiGrigi, minSuCard, esenti = {} } = opzioni;
+  const serie = Array.from({ length: quante }, (_, i) => palette[`${prefisso}${i + 1}`]);
   const rows: string[] = [];
   let failures = 0;
 
@@ -867,14 +899,23 @@ function checkSerie(palette: Palette, theme: string, prefisso: string): number {
     rows.push(`  ${ok ? "✔" : "✖"} ${misura.padStart(8)}  ${cosa}`);
   };
 
-  for (let i = 1; i < serie.length; i++) {
-    const r = wcagContrast(serie[i - 1], serie[i]);
-    riga(r >= PASSO_MIN, `${r.toFixed(3)}:1`, `passo in grigio ${prefisso}${i}/${prefisso}${i + 1} (min ${PASSO_MIN})`);
+  if (scalaDiGrigi) {
+    for (let i = 1; i < serie.length; i++) {
+      const r = wcagContrast(serie[i - 1], serie[i]);
+      riga(r >= PASSO_MIN, `${r.toFixed(3)}:1`, `passo in grigio ${prefisso}${i}/${prefisso}${i + 1} (min ${PASSO_MIN})`);
+    }
   }
 
   serie.forEach((hex, i) => {
     const r = wcagContrast(hex, palette.card);
-    riga(r >= SERIE_SU_CARD_MIN, `${r.toFixed(2)}:1`, `${prefisso}${i + 1} ${hex} sulla card (min ${SERIE_SU_CARD_MIN})`);
+    const scusa = esenti[i + 1];
+    if (scusa && r < minSuCard) {
+      // Un'esenzione **per indice**, non una soglia abbassata: la regola resta
+      // armata su tutte le altre tinte e su qualunque tinta si aggiunga.
+      rows.push(`  ◌ ${`${r.toFixed(2)}:1`.padStart(8)}  ${prefisso}${i + 1} ${hex} sulla card — esente: ${scusa}`);
+      return;
+    }
+    riga(r >= minSuCard, `${r.toFixed(2)}:1`, `${prefisso}${i + 1} ${hex} sulla card (min ${minSuCard})`);
   });
 
   const testo = wcagContrast(palette.foreground, palette.background);
@@ -898,7 +939,11 @@ function checkSerie(palette: Palette, theme: string, prefisso: string): number {
     riga(peggiore >= SERIE_DELTA_E_MIN, `ΔE ${peggiore.toFixed(1)}`, `${nome}: coppia più vicina ${coppia} (min ${SERIE_DELTA_E_MIN})`);
   }
 
-  console.log(`\n${theme} — ${prefisso}1..5, passo ${(alt(palette.primary) / alt(palette.success)).toFixed(4)}\n`);
+  console.log(
+    `\n${theme} — ${prefisso}1..${quante}` +
+      (scalaDiGrigi ? `, passo ${(alt(palette.primary) / alt(palette.success)).toFixed(4)}` : ", tavolozza categorica (nessun passo in grigio)") +
+      "\n",
+  );
   console.log(rows.join("\n"));
   return failures;
 }
@@ -935,8 +980,6 @@ function main(): void {
   const args = process.argv.slice(2);
   light["info-border"] = deriveInfoBorder(light);
   dark["info-border"] = deriveInfoBorder(dark);
-  deriveSerie(light, 0).forEach((hex, i) => (light[`chart-${i + 1}`] = hex));
-  deriveSerie(dark, 1).forEach((hex, i) => (dark[`chart-${i + 1}`] = hex));
   deriveMono(light, 0).forEach((hex, i) => (light[`chart-mono-${i + 1}`] = hex));
   deriveMono(dark, 1).forEach((hex, i) => (dark[`chart-mono-${i + 1}`] = hex));
 
@@ -981,8 +1024,28 @@ function main(): void {
       continue;
     }
     failures += check(palette, name);
-    failures += checkSerie(palette, name, "chart-");
-    failures += checkSerie(palette, name, "chart-mono-");
+    failures += checkSerie(palette, name, "chart-", {
+      quante: 10,
+      scalaDiGrigi: false,
+      minSuCard: 3,
+      esenti: {
+        // **I due colori del brand, esentati per decisione, non per comodità.**
+        // `chart-1` è `--primary` e `chart-2` è `--success`: sono i colori
+        // dell'azienda, e cambiarli per far passare un gate vorrebbe dire
+        // cambiare il marchio. Sulla card chiara danno 1.91:1 e 2.85:1, sotto
+        // i 3:1 che la WCAG 1.4.11 chiede a un oggetto grafico **quando il
+        // colore è l'unico mezzo**. Qui non lo è mai, e non deve diventarlo:
+        // le story portano legenda, etichette sui dati e tratteggi diversi
+        // per linea. In modalità scura il problema non si pone — 13.16 e 8.80.
+        1: "è --primary, il colore del brand",
+        2: "è --success, il verde istituzionale",
+      },
+    });
+    failures += checkSerie(palette, name, "chart-mono-", {
+      quante: 5,
+      scalaDiGrigi: true,
+      minSuCard: SERIE_SU_CARD_MIN,
+    });
   }
 
   // Il file del tema è generato: se qualcuno lo modifica a mano, la modifica

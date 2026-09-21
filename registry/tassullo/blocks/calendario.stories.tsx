@@ -183,16 +183,20 @@ const g = (giorno: number, ora = 8, minuto = 0) =>
  * nella sua legenda: Guasto, Preventiva, Ispezione, Miglioria. È il colore a
  * dirlo.
  *
- * Officina usa un rosso per il guasto, che nella nostra tavolozza non c'è —
- * i cinque `--chart-*` sono arancio, verde, blu e due grigi. Il guasto prende
- * l'arancio, che è il più caldo dei cinque; se servisse un rosso vero si
- * aggiungerebbe alla palette in `scripts/hex-to-oklch.ts`, non qui.
+ * **Il guasto è rosso**, e dal 2026-09-21 lo è davvero: la tavolozza è passata
+ * da cinque a dieci tinte e `--chart-10` è un rosso caldo. In M4ter.2 il rosso
+ * non c'era e il guasto aveva preso l'arancio — «il più caldo dei cinque» —
+ * che era un ripiego e si leggeva come tale.
+ *
+ * Il rosso della tavolozza **non è `--destructive`**: quello è il colore
+ * dell'allarme, e una categoria «Guasto» non è un'azione distruttiva. Sono due
+ * rossi vicini di tinta (29 contro 27) e lontani di ruolo.
  */
 const INTERVENTI: CalendarioSorgente[] = [
-  { id: 'guasto', nome: 'Guasto', colore: 'arancio' },
+  { id: 'guasto', nome: 'Guasto', colore: 'rosso' },
   { id: 'preventiva', nome: 'Preventiva', colore: 'blu' },
   { id: 'ispezione', nome: 'Ispezione', colore: 'verde' },
-  { id: 'miglioria', nome: 'Miglioria', colore: 'ardesia' },
+  { id: 'miglioria', nome: 'Miglioria', colore: 'grigio' },
 ]
 
 /**

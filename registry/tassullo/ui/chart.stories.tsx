@@ -241,49 +241,48 @@ const solo = (...usati: Array<(typeof ARGOMENTI)[number]>) =>
  * al resto dell'interfaccia, e un `config` in cui ogni serie ha un'etichetta
  * **in italiano** e un colore.
  *
- * ## Le cinque serie non sono cinque colori scelti
+ * ## Dieci tinte categoriche, e nessuna scala
  *
- * `--chart-1..5` sono i **pioli di una scala**, e il passo della scala non è
- * stato deciso: è quello che l'arancio del brand e il verde istituzionale
- * hanno già fra loro — **1.4935:1** di contrasto WCAG, misurato. Da lì
- * scendono gli altri tre, ciascuno con la tinta di un token Tassullo
- * (`--info` per il blu, `--muted-foreground` per i due neutri caldi) e la
- * chiarezza che il piolo impone.
+ * `--chart-1..10` è una tavolozza **categorica**: dieci tinte scelte perché
+ * restino distinguibili **fra loro**, misurate a coppie sotto visione piena e
+ * sotto i tre deficit di percezione del colore. La coppia più vicina sta a
+ * **ΔE 11,0** in chiaro e **8,5** in scuro, contro una soglia di 5 —
+ * `npm run check:contrast` non lascia passare una tavolozza che scenda sotto.
  *
- * Il motivo è il requisito del piano, e non è estetico: **cinque serie che si
- * distinguano anche in scala di grigi**. Distinguerle in grigio vuol dire una
- * cosa sola — luminanze diverse e regolarmente spaziate. La prova a occhio si
- * fa **dentro ogni grafico**, col controllo `colori` su `grigio`: è il filtro
- * CSS sulla palette categorica, quindi si vede sul grafico che si sta
- * guardando invece che su una story a parte. La prova col numero è
- * `npm run check:contrast`, che non lascia passare una scala il cui passo
- * scenda sotto 1.45:1 — e che a differenza del filtro CSS misura la luminanza
- * vera, non i pesi applicati ai valori sRGB non linearizzati.
+ * **Fino al 2026-09-21 erano cinque, ed erano un'altra cosa**: cinque *pioli
+ * di una scala di chiarezza*, il cui passo — 1,4935, quello che l'arancio del
+ * brand e il verde istituzionale hanno già fra loro — garantiva che restassero
+ * distinguibili **anche in bianco e nero**. Quella garanzia non si estende a
+ * dieci, ed è aritmetica: dieci pioli a quel passo vorrebbero `1,4935⁹ ≈ 37:1`
+ * contro i **21:1** che l'intera gamma sRGB permette. Sopra gli otto non c'è
+ * spazio fra il bianco e il nero.
  *
- * Sul fondo scuro la scala **sale di un piolo esatto** — dello stesso passo,
- * non di un fattore inventato — perché all'altezza chiara la serie più bassa
- * starebbe a 1.78:1 dalla card e non si vedrebbe. Più su non si può: a un
- * piolo e mezzo la serie più chiara supererebbe in contrasto il *testo* di
- * pagina, e un dato più marcato del testo non è più un dato.
+ * Il cambio è stato fatto perché cinque non bastavano: un grafico a sei serie,
+ * o un calendario a sei tipi di intervento, doveva riusare un colore. Il
+ * prezzo, dichiarato: **la tavolozza categorica non si legge in bianco e
+ * nero**. Chi deve stampare in B/N usa la **rampa monocroma**
+ * `--chart-mono-1..5`, che quella proprietà ce l'ha per costruzione — il
+ * controllo `colori` di ogni story la mostra. Il ragionamento completo, con le
+ * tavolozze pubblicate provate e scartate, è in `docs/DECISIONI.md` §49.
  *
  * ## Il colore non è mai l'unica distinzione
  *
  * È la regola che il piano scrive esplicitamente, e vale a maggior ragione
- * qui: la serie più chiara sta a **1.91:1** dalla card, sotto i 3:1 che la
- * WCAG chiede a un oggetto grafico *quando il colore è l'unico mezzo*. Non
- * deve mai esserlo. Le story qui sotto lo mostrano in modi diversi: le
- * barre hanno la **legenda** e il valore nel tooltip, le linee hanno un
- * **tratteggio diverso per ciascuna**, le aree si **impilano** invece di
- * sovrapporsi, torta e ciambella hanno il **nome della fetta scritto accanto**.
- * Nessuna resta muta in bianco e nero.
+ * qui. Otto tinte su dieci stanno sopra i **3:1** che la WCAG 1.4.11 chiede a
+ * un oggetto grafico *quando il colore è l'unico mezzo*; le due che non ci
+ * arrivano sono `--chart-1` e `--chart-2`, cioè **l'arancio e il verde del
+ * brand** — 1,91:1 e 2,85:1 sulla card chiara — e sono esentate per decisione,
+ * perché cambiarle vorrebbe dire cambiare il marchio.
+ *
+ * Il colore non deve mai essere l'unico mezzo. Le story qui sotto lo mostrano
+ * in modi diversi: le barre hanno la **legenda** e il valore nel tooltip, le
+ * linee hanno un **tratteggio diverso per ciascuna**, le aree si **impilano**
+ * invece di sovrapporsi, torta e ciambella hanno il **nome della fetta scritto
+ * accanto**. Nessuna resta muta in bianco e nero.
  *
  * Ogni story porta i propri **controlli**, nel pannello `Controls`: servono a
  * provare la regola invece di leggerla — si spegne la legenda su cinque linee e
  * si guarda cosa resta da capire.
- *
- * Cinque pioli da 3:1 l'uno dall'altro non stanno fra il fondo e il testo, ed
- * è aritmetica e non una rinuncia: 3⁴ fa 81:1 contro i 21:1 che l'intera gamma
- * sRGB permette. La scala arriva fin dove può, e il resto lo fa l'etichetta.
  *
  * ## Un'altezza dichiarata, non ereditata
  *
@@ -362,14 +361,17 @@ type Story = StoryObj<ArgsGrafico>
 
 /**
  * Il colore di una serie. `arancio` prende la **rampa monocroma del brand**,
- * `--chart-mono-1..5`: gli stessi cinque pioli della scala categorica, tutti
- * alla tinta dell'arancio. Non è una seconda palette da mantenere — è la stessa
- * scala a tinta unita, e per costruzione eredita il passo in grigio.
+ * `--chart-mono-1..5`: cinque chiarezze della stessa tinta, a passo costante.
  *
- * Quando usarla, ed è una scelta di significato: le cinque tinte categoriche
- * dicono «cinque cose diverse», la rampa dice «la stessa cosa, di più». Su
- * categorie **ordinate** — poco, medio, molto — la categorica è sbagliata; e su
- * una serie sola prendere un arancio, un verde e un blu non ha senso.
+ * Quando usarla, ed è una scelta di significato: le tinte categoriche dicono
+ * «cose diverse», la rampa dice «la stessa cosa, di più». Su categorie
+ * **ordinate** — poco, medio, molto — la categorica è sbagliata; e su una serie
+ * sola prendere un arancio, un verde e un blu non ha senso.
+ *
+ * **E da M4ter.11 la rampa ha un secondo mestiere**: è l'unica delle due
+ * famiglie che si legge in **bianco e nero**, perché è una scala di chiarezza
+ * a passo 1,4935. La tavolozza categorica, passata a dieci tinte, quella
+ * proprietà l'ha persa — v. il blocco in testa a questa pagina.
  */
 const coloreSerie = (
   colori: ArgsGrafico['colori'],
@@ -378,9 +380,15 @@ const coloreSerie = (
 ): string => (colori === 'arancio' ? `var(--chart-mono-${i + 1})` : `var(--color-${famiglia})`)
 
 /**
- * `grigio` non è una terza palette: è la categorica passata per il filtro CSS,
- * cioè la prova di leggibilità fatta sul grafico che si sta guardando invece
- * che su una story a parte. La misura vera resta `npm run check:contrast`.
+ * `grigio` non è una terza palette: è la tavolozza in uso passata per il
+ * filtro CSS, cioè la prova di leggibilità fatta sul grafico che si sta
+ * guardando invece che su una story a parte.
+ *
+ * **Da M4ter.11 serve a mostrare un limite, non a confermare una garanzia.**
+ * Con la categorica a dieci tinte il grigio le appiattisce — è previsto, ed è
+ * il prezzo scritto a verbale. Commutando `colori` su `arancio` si vede la
+ * differenza: la rampa monocroma in grigio resta leggibile, perché è una scala
+ * di chiarezza.
  */
 const senzaColore = (colori: ArgsGrafico['colori']) => (colori === 'grigio' ? 'grayscale' : '')
 
