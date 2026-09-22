@@ -12060,3 +12060,25 @@ il totale da 69 a 74.
 #### Prossimi passi
 
 - `M5.0a`, in una sessione nuova. Poi b, c, d, e in fila; poi M5.1.
+
+## 2026-09-22 — M4ter.14 La testata di `Pagine/Lista` allineata a Prodotti
+
+**Da dove nasce.** Francesco, guardando `Pagine/Lista → Con Dati` nella style guide pubblicata: le due pagine modello dello **stesso** elenco — `Pagine/Lista` (il blocco `tassullo-pagina-lista`, M4.2) e `Pagine/Prodotti (Anagrafe)` (la pagina reale, M3.10/M3bis.11b) — mostravano tre forme diverse della stessa cosa. Chi legge la style guide da fuori non ha modo di sapere quale delle due è la forma buona. Non è un difetto di componente: nessuna primitiva cambia, cambia **cosa le due story compongono**.
+
+**Cosa c'era su Lista, misurato a video.** Ogni intestazione portava **tre controlli sempre accesi**: il titolo-bottone con la freccia d'ordinamento (`IntestazioneColonna`), la puntina che blocca (`colonneBloccabili`) e la maniglia di trascinamento (`colonneRiordinabili`). Con quattro colonne sono **dodici bersagli** in una riga che non porta un dato. Su Prodotti, la stessa riga ha quattro grilletti «⋮» invisibili finché non ci passi sopra.
+
+**Tre scelte, due prese da Francesco.**
+
+1. **Il riordino per trascinamento se ne va da Lista**, come M3bis.11b aveva già deciso per Prodotti («il menu colonna copre già ordinamento e pin, e Francesco non l'ha chiesto»). Scartata l'alternativa di portarlo *dentro* il menu come «Sposta a sinistra / a destra»: sarebbe una forma nuova, che non esiste in nessuna story e che nessuno ha chiesto. Il trascinamento resta dimostrato in `Blocchi/Data Table → Colonne Riordinabili`.
+2. **Il menu di testata sale nel registry.** Era **copiato a mano in tre posti** — `data-table.stories.tsx`, `PaginaProdotti.stories.tsx` e (sarebbe diventata la terza) `pagina-lista.stories.tsx` — ~120 righe identiche in ognuno, tre sorgenti della stessa forma da tenere allineate a mano. Esportato da `blocks/data-table.tsx` come **`IntestazioneColonnaMenu`**, con `MenuAzioniColonna` interno. Le tre story ora lo importano; tolti da loro gli import diventati morti (`Column`, le sei icone, `cn`, i pezzi di `DropdownMenu`).
+   **Non è diventato il default di `IntestazioneColonna`**, e la distinzione è scritta nel JSDoc del blocco: la testata normale resta quella dove il titolo *è* il bottone d'ordinamento, un clic e basta. Il menu si sceglie quando `colonneBloccabili` è acceso e la testata si affolla, colonna per colonna, insieme a `meta.azioniProprie: true` — senza il quale `colonneBloccabili` aggiungerebbe comunque la *sua* puntina e i grilletti di pin tornerebbero due (rilievo già a verbale in M3bis.11b).
+3. **I filtri diventano sfaccettati** (M3bis.6), su **Categoria** e **Stato**, col conteggio per opzione. Il `Select` «Tutti gli enti» che stava lì è caduto, e la ragione va scritta perché è un vincolo dello strumento e non un gusto: `FiltroSfaccettato` interroga una **colonna** (`tabella.getColumn(accessore)`), e l'ente nella tabella di Norme non è una colonna. Le due uscite erano aggiungere una colonna Ente — ma il codice **è già** `${ente} ${numero}` («UNI EN ISO 5028»), quindi sarebbe una colonna che ripete la prima — oppure dichiarare la colonna e nasconderla, che `DataTable` oggi non sa fare (non c'è una prop di visibilità iniziale, `visibilita` parte da `{}`). L'ente resta raggiungibile dalla casella di ricerca, che è dove stava già.
+
+**Un difetto di tipo preso dal compilatore, e vale oltre il caso.** La colonna `vigente` è un **booleano**, e `arrHas` di TanStack confronta il valore grezzo con `===` senza stringificarlo: contro le `"true"`/`"false"` che il filtro sfaccettato porta non troverebbe **mai** un pari — e non sarebbe un errore, sarebbe un filtro che non filtra niente. Stessa correzione già scritta su `attivo` in Prodotti: `filterFn` a mano, `valori.includes(String(riga.getValue(id)))`. Provato a video: «Superata» → **8 norme su 48**, che è il conteggio che il filtro stesso dichiara.
+
+**Misure.** `tsc -b --force` e `oxlint` a zero errori sui file toccati. Sette gate verdi: `check:registry` 0 errori / 62 avvisi (tutti ereditati da shadcn, invariati), `check:registry-build` **96 file allineati** dopo `registry:build` — `public/r/tassullo-data-table.json` è l'unico artefatto cambiato, le story non si spediscono e nessuna `registryDependencies` si muove — `check:riferimenti` **210 riferimenti, 0 rotti**, `check:contrast`, `check:font`, `check:logo`. **`test:a11y` 1524 scansioni su 381 story, 0 violazioni** in tutte e quattro le passate. `misura:bersagli` **3278 bersagli, 0 piccoli in entrambe le direzioni**. Verificato a video in chiaro e in scuro che il menu apra «Ordina / Blocca» e che i conteggi del filtro tornino (12+6+13+8+9 = 48 su Categoria).
+
+**Scostamento dal piano, a verbale.** M4ter.14 non era a piano: la FASE 4ter era chiusa con M4ter.13. Sta qui e non in FASE 5 per la stessa ragione di M4ter.11–13 — è **forma**, non documentazione, e M5.0 riscriverà il testo di queste pagine dando per buona la forma che trova. Farlo dopo avrebbe significato riscrivere due volte le stesse pagine.
+
+**Prossimi passi**: **M5.0a**, invariata.
+

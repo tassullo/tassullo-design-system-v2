@@ -1,21 +1,15 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { Column } from '@tanstack/react-table'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   BookOpenIcon,
   BoxesIcon,
-  EllipsisVerticalIcon,
   FolderTreeIcon,
   LogOutIcon,
   PackagePlusIcon,
   PencilIcon,
-  PinIcon,
-  PinOffIcon,
   PlusIcon,
   RefreshCwIcon,
   SendIcon,
@@ -23,10 +17,8 @@ import {
   ShieldIcon,
   Trash2Icon,
   UserIcon,
-  XIcon,
 } from 'lucide-react'
 
-import { cn } from 'cn'
 import { apriCol } from '@/prove/apri'
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 import { ConfirmDialog } from '@/registry/tassullo/blocks/confirm-dialog'
@@ -34,9 +26,9 @@ import {
   DataTable,
   RowMenuItem,
   RowMenuSeparator,
+  IntestazioneColonnaMenu,
   creaColonne,
   useDataTableRow,
-  type CaratteristicheTabella,
 } from '@/registry/tassullo/blocks/data-table'
 import { FiltroResetTutti } from '@/registry/tassullo/blocks/data-table-filtro-reset'
 import { FiltroSfaccettato } from '@/registry/tassullo/blocks/data-table-filtro-sfaccettato'
@@ -58,13 +50,9 @@ import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from '@/registry/tassullo/ui/dropdown-menu'
 import { FieldGroup } from '@/registry/tassullo/ui/field'
 import { Input } from '@/registry/tassullo/ui/input'
@@ -139,9 +127,9 @@ import { Toaster } from '@/registry/tassullo/ui/sonner'
  * - **Menu colonna unico** (`colonneBloccabili` + intestazioni proprie,
  *   `azioniProprie: true`): la forma confermata su `Blocchi/Data Table` →
  *   `Menu Colonna` — un solo grilletto «⋮» che compone ordinamento e pin,
- *   non due bottoni separati. Riscritta qui (non importata: resta
- *   un'alternativa opt-in di pagina, non la forma di default di
- *   `IntestazioneColonna`, v. la coda di quella story).
+ *   non due bottoni separati. **Da M4ter.14 è `IntestazioneColonnaMenu`, dal
+ *   blocco**, non più riscritta qui: resta un'alternativa opt-in, scelta
+ *   colonna per colonna, ma da una sorgente sola.
  * - **Menu di riga condiviso** (`menuRiga`, M3bis.9), con azioni vere:
  *   **Modifica** apre un `responsive-dialog` con un modulo `form-field` —
  *   Denominazione, Famiglia, Variante — che scrive davvero sulla riga.
@@ -330,121 +318,6 @@ function generaProdotti(quanti: number): Prodotto[] {
 const PRODOTTI = generaProdotti(220)
 
 /* ────────────────────────────────────────────────────────────────────────
- * Il menu colonna unico (M3bis.11b): ordinamento e pin in un solo
- * grilletto «⋮», la forma confermata su `Blocchi/Data Table` → `Menu
- * Colonna`. Riscritta qui, non importata da quella story — resta
- * un'alternativa opt-in di pagina, non la forma di default del blocco (v.
- * WORKLOG.md, coda di quella story).
- * ──────────────────────────────────────────────────────────────────────── */
-
-function MenuAzioniColonna<TValore>({
-  colonna,
-  titolo,
-}: {
-  colonna: Column<CaratteristicheTabella, Prodotto, TValore>
-  titolo: string
-}) {
-  const ordine = colonna.getIsSorted()
-  const posizionePin = colonna.getCanPin() ? colonna.getIsPinned() : false
-  const attiva = !!ordine || !!posizionePin
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              '-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
-              // `text-foreground`, non un accento a parte: il grilletto acceso
-              // deve leggere come lo stesso testo del titolo (rilievo di
-              // Francesco, v. WORKLOG.md).
-              attiva && 'text-foreground opacity-100'
-            )}
-          />
-        }
-        aria-label={`Azioni sulla colonna «${titolo}»`}
-      >
-        <EllipsisVerticalIcon aria-hidden />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Ordina</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(false)}
-            disabled={ordine === 'asc'}
-          >
-            <ArrowUpIcon aria-hidden />
-            Crescente
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(true)}
-            disabled={ordine === 'desc'}
-          >
-            <ArrowDownIcon aria-hidden />
-            Decrescente
-          </DropdownMenuItem>
-          {ordine ? (
-            <DropdownMenuItem onClick={() => colonna.clearSorting()}>
-              <XIcon aria-hidden />
-              Rimuovi ordinamento
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuGroup>
-        {colonna.getCanPin() ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Blocca</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => colonna.pin('start')}
-                disabled={posizionePin === 'start'}
-              >
-                <PinIcon aria-hidden />
-                Blocca a sinistra
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => colonna.pin('end')}
-                disabled={posizionePin === 'end'}
-              >
-                <PinIcon aria-hidden className="-scale-x-100" />
-                Blocca a destra
-              </DropdownMenuItem>
-              {posizionePin ? (
-                <DropdownMenuItem onClick={() => colonna.pin(false)}>
-                  <PinOffIcon aria-hidden />
-                  Non bloccare
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-/**
- * Il titolo torna testo semplice, e il `group` sta sul contenitore, non
- * sulla `<th>`: è quello che dice al grilletto quando diventare visibile.
- */
-function IntestazioneColonnaAzioni<TValore>({
-  colonna,
-  titolo,
-}: {
-  colonna: Column<CaratteristicheTabella, Prodotto, TValore>
-  titolo: string
-}) {
-  return (
-    <div className="group flex min-w-0 items-center justify-between gap-1">
-      <span className="min-w-0 truncate font-medium">{titolo}</span>
-      <MenuAzioniColonna colonna={colonna} titolo={titolo} />
-    </div>
-  )
-}
-
-/* ────────────────────────────────────────────────────────────────────────
  * Le colonne — le stesse sette dell'originale. `size`/`minSize`, non
  * `meta.larghezza` (M3bis.3/M3bis.11b): con `ridimensionabile` la larghezza
  * di partenza la dichiara l'utente trascinando, `larghezza` verrebbe
@@ -456,7 +329,7 @@ const col = creaColonne<Prodotto>()
 
 const COLONNE = col.columns([
   col.accessor('nome', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Nome" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Nome" />,
     meta: { titolo: 'Nome', azioniProprie: true },
     sortFn: 'text',
     size: 220,
@@ -473,7 +346,7 @@ const COLONNE = col.columns([
     ),
   }),
   col.accessor('variante', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Variante" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Variante" />,
     meta: { titolo: 'Variante', azioniProprie: true },
     sortFn: 'text',
     size: 110,
@@ -481,7 +354,7 @@ const COLONNE = col.columns([
     cell: ({ getValue }) => getValue<string | null>() ?? '—',
   }),
   col.accessor('tipo', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Tipo" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Tipo" />,
     meta: { titolo: 'Tipo', azioniProprie: true },
     sortFn: 'text',
     // Un valore per riga: `arrHas` tiene la riga il cui valore compare fra
@@ -492,7 +365,7 @@ const COLONNE = col.columns([
     cell: ({ getValue }) => <Badge variant="secondary">{LABEL_TIPO[getValue<Tipo>()]}</Badge>,
   }),
   col.accessor('famiglia', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Famiglia" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Famiglia" />,
     meta: { titolo: 'Famiglia', azioniProprie: true },
     sortFn: 'text',
     filterFn: 'arrHas',
@@ -500,7 +373,7 @@ const COLONNE = col.columns([
     minSize: 120,
   }),
   col.accessor('codiceInterno', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Codice interno" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Codice interno" />,
     meta: { titolo: 'Codice interno', azioniProprie: true },
     sortFn: 'alphanumeric',
     size: 150,
@@ -510,7 +383,7 @@ const COLONNE = col.columns([
     ),
   }),
   col.accessor('bcSystemCode', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="BC" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="BC" />,
     meta: { titolo: 'BC', azioniProprie: true },
     sortFn: 'alphanumeric',
     size: 120,
@@ -520,7 +393,7 @@ const COLONNE = col.columns([
     ),
   }),
   col.accessor('attivo', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Stato" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Stato" />,
     meta: { titolo: 'Stato', azioniProprie: true },
     sortFn: 'basic',
     // `arrHas` (TanStack) confronta il valore grezzo della colonna con

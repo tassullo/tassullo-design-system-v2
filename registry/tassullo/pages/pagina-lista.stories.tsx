@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import {
   BookOpenIcon,
@@ -12,24 +11,19 @@ import {
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 import {
   creaColonne,
-  IntestazioneColonna,
+  IntestazioneColonnaMenu,
   RowMenuItem,
   RowMenuSeparator,
   useDataTableRow,
+  type IstanzaTabella,
 } from '@/registry/tassullo/blocks/data-table'
+import { FiltroResetTutti } from '@/registry/tassullo/blocks/data-table-filtro-reset'
+import { FiltroSfaccettato } from '@/registry/tassullo/blocks/data-table-filtro-sfaccettato'
 import { PaginaLista } from '@/registry/tassullo/pages/pagina-lista'
 import { apriCol } from '@/prove/apri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/registry/tassullo/ui/select'
 
 /**
  * **M4.2 — seconda pagina modello.** `PaginaLista` compone quattro blocchi
@@ -44,14 +38,32 @@ import {
  * stati che Prodotti non aveva ancora: `caricamento` ed `errore`.
  *
  * **Da M3bis.11a**, la pagina porta anche le capacità di FASE 3bis che una
- * pagina sola lista usa davvero: colonne ridimensionabili, bloccabili,
- * riordinabili (M3bis.3, M3bis.8) e un menu di riga condiviso fra tendina e
- * tasto destro (M3bis.9) — sul caso comune (`Con Dati`, `Poche Righe`), non
- * in una story isolata a parte. Tree/subtotale, espansione, virtualizzazione
- * e la Data Grid editabile (M3bis.1, 2, 4, 5) restano fuori: sono il pattern
- * del caso reale "Computo" (già mostrato in `Blocchi/Data Table` e
+ * pagina sola lista usa davvero: colonne ridimensionabili, bloccabili
+ * (M3bis.3) e un menu di riga condiviso fra tendina e tasto destro
+ * (M3bis.9) — sul caso comune (`Con Dati`, `Poche Righe`), non in una story
+ * isolata a parte. Tree/subtotale, espansione, virtualizzazione e la Data
+ * Grid editabile (M3bis.1, 2, 4, 5) restano fuori: sono il pattern del caso
+ * reale "Computo" (già mostrato in `Blocchi/Data Table` e
  * `Blocchi/Data Grid`, story `Computo`), non di un elenco — non si sono
  * voluti forzare qui solo per completezza.
+ *
+ * ## M4ter.14 — la stessa testata e gli stessi filtri di Prodotti
+ *
+ * Rilievo di Francesco guardando questa pagina accanto a
+ * `Pagine/Prodotti (Anagrafe)`: le due pagine modello dello stesso elenco
+ * mostravano tre forme diverse della stessa cosa. Allineate qui, e la
+ * pagina modello segue la pagina reale, non il contrario.
+ *
+ * - **La testata è `IntestazioneColonnaMenu`** — un solo grilletto «⋮» che
+ *   si rivela al passaggio e porta Ordina + Blocca. Prima erano tre
+ *   controlli sempre accesi per colonna: freccia d'ordinamento, puntina,
+ *   maniglia di trascinamento.
+ * - **`colonneRiordinabili` è caduto**, come su Prodotti (M3bis.11b lo
+ *   aveva già escluso lì). Il riordino per trascinamento resta dimostrato
+ *   in `Blocchi/Data Table` → `Colonne Riordinabili`.
+ * - **I filtri sono sfaccettati** (M3bis.6) su Categoria e Stato, col
+ *   conteggio per opzione, al posto del `Select` «Tutti gli enti» — v. la
+ *   nota su `BarraFiltri`, sotto, per perché l'ente non poteva restare.
  *
  * ## D10 — la cella `375px × touch`
  *
@@ -139,13 +151,19 @@ const NORME = generaNorme(48)
  * l'utente trascinando, `larghezza` verrebbe ignorata. Nessuna colonna
  * azioni scritta a mano: `menuRiga`, su `Norme` sotto, la aggiunge da sé
  * in coda.
+ *
+ * **Le testate sono `IntestazioneColonnaMenu`** (M4ter.14), non
+ * `IntestazioneColonna`: un solo grilletto «⋮» che porta ordinamento e
+ * blocco, la stessa forma di `Pagine/Prodotti`. `meta.azioniProprie: true`
+ * su ognuna, o `colonneBloccabili` aggiungerebbe *anche* la sua puntina e
+ * per ogni colonna ci sarebbero due grilletti di pin.
  */
 const col = creaColonne<Norma>()
 
 const COLONNE = col.columns([
   col.accessor('codice', {
-    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
-    meta: { titolo: 'Codice' },
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Codice" />,
+    meta: { titolo: 'Codice', azioniProprie: true },
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
@@ -164,23 +182,31 @@ const COLONNE = col.columns([
     ),
   }),
   col.accessor('titolo', {
-    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Titolo" />,
-    meta: { titolo: 'Titolo' },
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Titolo" />,
+    meta: { titolo: 'Titolo', azioniProprie: true },
     sortFn: 'text',
     size: 320,
     minSize: 160,
   }),
   col.accessor('categoria', {
-    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Categoria" />,
-    meta: { titolo: 'Categoria' },
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Categoria" />,
+    meta: { titolo: 'Categoria', azioniProprie: true },
     sortFn: 'text',
+    // Un valore per riga: `arrHas` tiene la riga il cui valore compare fra
+    // quelli scelti nel filtro sfaccettato.
+    filterFn: 'arrHas',
     size: 150,
     minSize: 100,
   }),
   col.accessor('vigente', {
-    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
-    meta: { titolo: 'Stato' },
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato', azioniProprie: true },
     sortFn: 'basic',
+    // `arrHas` confronta il valore grezzo con `===`, senza convertirlo: un
+    // booleano contro le stringhe che il filtro sfaccettato porta
+    // ("true"/"false") non troverebbe mai un pari. Stessa correzione di
+    // `Pagine/Prodotti` sulla colonna `attivo`.
+    filterFn: (riga, id, valori: string[]) => valori.includes(String(riga.getValue(id))),
     size: 130,
     minSize: 90,
     cell: ({ getValue }) =>
@@ -220,27 +246,36 @@ function MenuAzioniNorma() {
   )
 }
 
-function BarraFiltri({ ente, setEnte }: { ente: string; setEnte: (v: string) => void }) {
+/**
+ * I filtri stanno **fuori dalla tabella** — `barra` li monta sopra il
+ * riquadro, non dentro l'intestazione — e sono **sfaccettati** (M3bis.6),
+ * la stessa forma di `Pagine/Prodotti`: ogni opzione porta il proprio
+ * conteggio, ricalcolato sulle righe che passano *gli altri* filtri.
+ *
+ * Filtrano due colonne **visibili**, Categoria e Stato. Il `Select` «Tutti
+ * gli enti» che stava qui prima è caduto: filtrava un campo che nella
+ * tabella non c'è come colonna — un filtro sfaccettato ha bisogno di una
+ * colonna vera da interrogare — e l'ente è comunque la testa del codice
+ * («UNI EN ISO 5028»), quindi la casella di ricerca ci arriva già.
+ */
+function BarraFiltri({ tabella }: { tabella: IstanzaTabella<Norma> }) {
   return (
-    <Select
-      value={ente}
-      onValueChange={(v) => setEnte(v ?? 'tutti')}
-      items={[{ value: 'tutti', label: 'Tutti gli enti' }, ...ENTI.map((e) => ({ value: e, label: e }))]}
-    >
-      <SelectTrigger size="sm" aria-label="Ente" className="w-40">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          <SelectItem value="tutti">Tutti gli enti</SelectItem>
-          {ENTI.map((e) => (
-            <SelectItem key={e} value={e}>
-              {e}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+    <>
+      <FiltroSfaccettato tabella={tabella} accessore="categoria" titolo="Categoria" />
+      {/* `opzioni` statiche perché il valore grezzo è un booleano: l'etichetta
+          la scrive la pagina, o si leggerebbe «True»/«False». */}
+      <FiltroSfaccettato
+        tabella={tabella}
+        accessore="vigente"
+        titolo="Stato"
+        opzioni={[
+          { value: 'true', label: 'Vigente' },
+          { value: 'false', label: 'Superata' },
+        ]}
+      />
+      {/* Sparisce da sé quando non c'è niente da cancellare. */}
+      <FiltroResetTutti tabella={tabella} />
+    </>
   )
 }
 
@@ -251,33 +286,32 @@ function Norme({
   dati: Norma[]
   stato?: 'pronto' | 'caricamento' | 'errore'
 }) {
-  const [ente, setEnte] = useState('tutti')
-  const filtrate = useMemo(
-    () => (ente === 'tutti' ? dati : dati.filter((n) => n.ente === ente)),
-    [dati, ente]
-  )
-
   return (
     <PaginaLista
       percorso={[{ titolo: 'Norme' }]}
       azioni={[{ titolo: 'Nuova norma', icona: PlusIcon, ruolo: 'primaria' }]}
       colonne={COLONNE}
-      dati={filtrate}
+      dati={dati}
       stato={stato}
       cerca="Cerca codice, titolo…"
       perPagina={25}
       nomeRighe={{ singolare: 'norma', plurale: 'norme' }}
-      barra={<BarraFiltri ente={ente} setEnte={setEnte} />}
+      barra={(_scelti, tabella) => <BarraFiltri tabella={tabella} />}
       // Le capacità di FASE 3bis rilevanti per una pagina sola lista
-      // (M3bis.11a): colonne che si ridimensionano, si bloccano, si
-      // riordinano (M3bis.3, M3bis.8) e il menu di riga condiviso fra
-      // tendina e tasto destro (M3bis.9) — sulla pagina "vera" (`Con Dati`,
-      // `Poche Righe`), non in una story isolata a parte: altrimenti chi
-      // guarda il caso comune non le vede mai.
+      // (M3bis.11a): colonne che si ridimensionano, si bloccano, e il menu
+      // di riga condiviso fra tendina e tasto destro (M3bis.9) — sulla
+      // pagina "vera" (`Con Dati`, `Poche Righe`), non in una story isolata
+      // a parte: altrimenti chi guarda il caso comune non le vede mai.
+      //
+      // **`colonneRiordinabili` è caduto in M4ter.14**, come su Prodotti: la
+      // maniglia di trascinamento era un terzo controllo sempre acceso in
+      // ogni testata, accanto alla freccia d'ordinamento e alla puntina —
+      // con quattro colonne, dodici bersagli per non leggere niente. Il
+      // menu «⋮» copre ordinamento e blocco; il riordino per trascinamento
+      // resta dimostrato in `Blocchi/Data Table` → `Colonne Riordinabili`.
       idRiga={(n) => String(n.id)}
       ridimensionabile
       colonneBloccabili
-      colonneRiordinabili
       menuRiga={{ menu: <MenuAzioniNorma />, ariaLabel: (n) => `Azioni su ${n.codice}` }}
       vuotoIniziale={{
         icona: <FileWarningIcon />,
@@ -313,10 +347,11 @@ function Guscio({ dati, stato }: { dati: Norma[]; stato?: 'pronto' | 'caricament
 }
 
 /**
- * Il caso comune: 48 norme finte, ricerca, un filtro, paginazione a 25 —
- * più le capacità di FASE 3bis (M3bis.11a): colonne ridimensionabili,
- * bloccabili, riordinabili, e il menu di riga condiviso (tendina «⋯» e
- * tasto destro), sulla stessa `<MenuAzioniNorma />`.
+ * Il caso comune: 48 norme finte, ricerca, due filtri sfaccettati,
+ * paginazione a 25 — più le capacità di FASE 3bis (M3bis.11a): colonne
+ * ridimensionabili e bloccabili, il menu di testata «⋮» che porta
+ * ordinamento e blocco, e il menu di riga condiviso (tendina «⋯» e tasto
+ * destro) sulla stessa `<MenuAzioniNorma />`.
  */
 export const ConDati: Story = {
   render: () => <Guscio dati={NORME} />,
@@ -349,7 +384,7 @@ export const Errore: Story = {
 
 /**
  * **Nessuna norma esiste ancora** — non "la ricerca non trova niente", che
- * `DataTable` gestisce da sé (story `ConDati`, filtro sull'ente). Qui la
+ * `DataTable` gestisce da sé (story `ConDati`, i filtri sfaccettati). Qui la
  * tabella non compare affatto: `vuotoIniziale` la sostituisce con la CTA che
  * crea la prima norma.
  */

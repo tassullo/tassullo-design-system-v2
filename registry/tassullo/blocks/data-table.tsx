@@ -162,6 +162,7 @@ import {
   SearchIcon,
   SearchXIcon,
   SlidersHorizontalIcon,
+  XIcon,
 } from "lucide-react"
 
 import { cn } from "cn"
@@ -394,8 +395,8 @@ export type MetaColonna<TDato = unknown> = {
   piede?: (righeFiltrate: TDato[]) => React.ReactNode
   /**
    * La colonna porta già, nel proprio `header`, un modo di bloccarsi (un
-   * menu che compone ordinamento e pin insieme — v. la story "in
-   * valutazione" `Menu Colonna` in `data-table.stories.tsx`): `colonneBloccabili`
+   * menu che compone ordinamento e pin insieme — `IntestazioneColonnaMenu`,
+   * qui sotto, o una testata scritta a mano): `colonneBloccabili`
    * non le aggiunge anche il proprio `MenuBloccaColonna`, o comparirebbero
    * due grilletti di pin per la stessa colonna. Non spegne `colonneBloccabili`
    * sulla colonna — resta bloccabile, `getCanPin()`/`pin()` restano gli
@@ -525,6 +526,132 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
     <div className="flex justify-end">{bottone}</div>
   ) : (
     bottone
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * L'intestazione a menu — la forma alternativa
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Ordinamento e blocco in **un solo grilletto** «⋮», invece dei due che
+ * `IntestazioneColonna` + `colonneBloccabili` mettono fianco a fianco.
+ *
+ * **È un'alternativa opt-in, non il default**, e la distinzione va tenuta:
+ * `IntestazioneColonna` resta la forma normale — il titolo *è* il bottone
+ * d'ordinamento, un clic e basta. Questa la si sceglie quando la testata si
+ * affolla: con `colonneBloccabili` acceso, ogni colonna porterebbe altrimenti
+ * freccia d'ordinamento **e** puntina, due bersagli per colonna moltiplicati
+ * per quante sono. Chi la usa dichiara `meta.azioniProprie: true` sulla
+ * colonna, o `colonneBloccabili` aggiungerebbe comunque la *sua* puntina e i
+ * grilletti di pin tornerebbero due.
+ *
+ * Il grilletto è invisibile finché non si passa sopra o non arriva il fuoco
+ * (`group-hover` / `group-focus-within`, col `group` sul contenitore qui
+ * dentro e non sulla `<th>`), e resta **acceso** quando la colonna è ordinata
+ * o bloccata: se lo stato c'è, il modo di toglierlo non si deve cercare.
+ * `text-foreground` e non un accento — il grilletto acceso legge come lo
+ * stesso testo del titolo (rilievo di Francesco, M3bis.11b).
+ *
+ * Da tastiera: `Tab` porta il fuoco sul grilletto di ogni intestazione, che
+ * si rivela da sé, e `Invio`/`Spazio` apre lo stesso menu.
+ *
+ * Promossa qui in M4ter.14: era copiata a mano in tre story
+ * (`Blocchi/Data Table → Menu Colonna`, `Pagine/Prodotti`, `Pagine/Lista`),
+ * tre sorgenti della stessa forma da tenere allineate a mano.
+ */
+export function IntestazioneColonnaMenu<TDato extends RowData, TValore>({
+  colonna,
+  titolo,
+}: Omit<IntestazioneColonnaProps<TDato, TValore>, "allinea">) {
+  return (
+    <div className="group flex min-w-0 items-center justify-between gap-1">
+      {/* Il titolo torna testo semplice: qui a essere il bottone è il menu. */}
+      <span className="min-w-0 truncate font-medium">{titolo}</span>
+      <MenuAzioniColonna colonna={colonna} titolo={titolo} />
+    </div>
+  )
+}
+
+function MenuAzioniColonna<TDato extends RowData, TValore>({
+  colonna,
+  titolo,
+}: Omit<IntestazioneColonnaProps<TDato, TValore>, "allinea">) {
+  const ordine = colonna.getIsSorted()
+  const posizionePin = colonna.getCanPin() ? colonna.getIsPinned() : false
+  const attiva = !!ordine || !!posizionePin
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+              attiva && "text-foreground opacity-100"
+            )}
+          />
+        }
+        aria-label={`Azioni sulla colonna «${titolo}»`}
+      >
+        <EllipsisVerticalIcon aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Ordina</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => colonna.toggleSorting(false)}
+            disabled={ordine === "asc"}
+          >
+            <ArrowUpIcon aria-hidden />
+            Crescente
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => colonna.toggleSorting(true)}
+            disabled={ordine === "desc"}
+          >
+            <ArrowDownIcon aria-hidden />
+            Decrescente
+          </DropdownMenuItem>
+          {ordine ? (
+            <DropdownMenuItem onClick={() => colonna.clearSorting()}>
+              <XIcon aria-hidden />
+              Rimuovi ordinamento
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+        {colonna.getCanPin() ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Blocca</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => colonna.pin("start")}
+                disabled={posizionePin === "start"}
+              >
+                <PinIcon aria-hidden />
+                Blocca a sinistra
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => colonna.pin("end")}
+                disabled={posizionePin === "end"}
+              >
+                <PinIcon aria-hidden className="-scale-x-100" />
+                Blocca a destra
+              </DropdownMenuItem>
+              {posizionePin ? (
+                <DropdownMenuItem onClick={() => colonna.pin(false)}>
+                  <PinOffIcon aria-hidden />
+                  Non bloccare
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
