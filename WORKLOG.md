@@ -11779,3 +11779,44 @@ l'altra se ne sommavano due. Ora il passo lo dà un `gap` solo — misurato:
 - `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
 - `misura:bersagli` — **3302 su 381, 0 piccoli**.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — il respiro attorno alla scheda, e il passo definitivo (2026-09-22)
+
+**«Va lasciato un po' di spazio sopra e sotto la scheda, non a tutta altezza
+finestra.»** `h-dvh` — la stesura precedente — mandava il dialogo a filo dei
+bordi. La correzione tiene tutte e tre le proprietà che servivano insieme:
+
+| serve | come |
+|---|---|
+| altezza **ferma** rispetto al contenuto | l'altezza la decidono gli inset, non ciò che c'è dentro |
+| che **cresca** col monitor | `top-8 bottom-8` è relativo al viewport |
+| **respiro** sopra e sotto | i due inset, che sono **32px** in densità normale e **48** in touch |
+
+`top-8 bottom-8 h-auto translate-y-0`: `h-auto` lascia decidere agli inset, e
+`translate-y-0` annulla il centraggio verticale di `DialogContent`, che con gli
+inset non serve più e sposterebbe il dialogo di mezza altezza.
+
+**Non un `max-h-[90dvh]`**, che sarebbe un valore arbitrario — `8` è un gradino
+della scala, quindi il margine **segue la densità** invece di essere una misura
+scritta a mano. È la stessa disciplina del `min-w-4xl` di M4ter.12.
+
+Rimisurato, con l'hover su cinque righe a ogni dimensione:
+
+| schermo | altezza del dialogo | margine | righe intere |
+|---|---|---|---:|
+| 1280×600 | **536, ferma** | 32+32 | 1 |
+| 1280×720 | **656, ferma** | 32+32 | 2 |
+| 1920×1080 | **1016, ferma** | 32+32 | 6 |
+| 2560×1440 | **1376, ferma** | 32+32 | 9 |
+
+**«Sono troppo distanti.»** Secondo giro sul passo fra i record: da 4px a
+**2px**. La ragione per cui si può stringere tanto è che le righe hanno **già un
+bordo** che le separa — lo spazio in mezzo deve solo impedire che i bordi si
+tocchino, non ridire la separazione una seconda volta.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.

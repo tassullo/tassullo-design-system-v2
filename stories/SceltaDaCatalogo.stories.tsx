@@ -276,19 +276,26 @@ function SceltaDaCatalogo() {
             tremolio ma dava le stesse righe su un 27" e su un portatile, cioè
             buttava via la richiesta di partenza.
 
-            `h-dvh` le tiene entrambe: **segue il viewport** — più schermo, più
-            righe, senza toccare niente — ed è **indipendente da cosa c'è
-            dentro**, quindi aprire gli strati cambia solo ciò che scorre. Il
-            dialogo arriva ai bordi dello schermo, ed è la forma che una palette
-            di ricerca ha di suo: sul telefono `responsive-dialog` è già un
-            cassetto a tutta altezza.
+            La soluzione le tiene entrambe **e lascia respiro**: `top-8
+            bottom-8` con `h-auto` — l'altezza la decidono i due inset, quindi
+            **segue il viewport** (più schermo, più righe) ed è **indipendente
+            da cosa c'è dentro** (aprire gli strati cambia solo ciò che scorre).
+            `translate-y-0` annulla il centraggio verticale di `DialogContent`,
+            che con gli inset non serve più e lo sposterebbe di mezza altezza.
+
+            **Non `h-dvh`**, che era la stesura precedente: mandava il dialogo a
+            filo dei bordi dello schermo — *«va lasciato un po' di spazio sopra
+            e sotto la scheda»*. E non un `max-h-[90dvh]`, che sarebbe un valore
+            arbitrario: `8` è un gradino della scala, quindi il margine **segue
+            la densità** (32px in normale, 48 in touch) invece di essere una
+            misura scritta a mano.
 
             `min-h-0` su ogni anello non è zelo: un figlio flex ha
             `min-height: auto` di default, cioè **si rifiuta di rimpicciolirsi
             sotto il proprio contenuto**, e basta un anello senza per far
             crescere il dialogo oltre lo schermo invece di far scorrere la
             lista. */}
-        <ResponsiveDialogContent className="flex h-dvh flex-col overflow-hidden sm:max-w-3xl">
+        <ResponsiveDialogContent className="top-8 bottom-8 flex h-auto translate-y-0 flex-col overflow-hidden sm:max-w-3xl">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>Scegli la lavorazione</ResponsiveDialogTitle>
           </ResponsiveDialogHeader>
@@ -337,9 +344,12 @@ function SceltaDaCatalogo() {
                 {/* Le righe stavano larghe: `command` dà a ogni `CommandItem`
                     il proprio padding e il gruppo aggiunge il suo, così fra una
                     riga e l'altra si sommavano due spazi. Qui il passo lo dà un
-                    `gap` solo, stretto — rilievo di Francesco, «riduciamo gli
-                    spazi fra un record e l'altro». */}
-                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-1">
+                    `gap` solo — e stretto: due rilievi di Francesco in fila,
+                    «riduciamo gli spazi» e poi «sono troppo distanti». Le righe
+                    hanno già un bordo che le separa, quindi lo spazio in mezzo
+                    deve solo impedire che i bordi si tocchino, non ridire la
+                    separazione una seconda volta. */}
+                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-0.5">
                   <CommandEmpty>
                     <div className="flex flex-col items-center gap-2 py-4">
                       <p>Nessun sistema corrisponde alla ricerca.</p>
