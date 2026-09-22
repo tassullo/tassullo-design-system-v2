@@ -691,6 +691,68 @@ qui, solo perché non si riparta da zero:
 3. **Un blocco terzo**, che non è né l'uno né l'altro. È il gradino 4 della regola 4bis:
    si propone, non si scrive.
 
+### 8.3bis L'esito di M4ter.12 (2026-09-21) — misurato, non più elencato
+
+M4ter.12 ha letto il Computo vero e misurato l'albero in Chromium vero. Il verbale intero
+sta in `docs/DECISIONI.md` §50; qui l'essenziale, perché **rettifica l'ordine di costo
+scritto qui sopra**.
+
+**La (2) non è «la correzione giusta e la più cara»: è cara *e* incompleta.** Il difetto
+non è solo l'indice. Cinque operazioni del motore — `serializzaSelezione`, `incolla`,
+`riempi`, `riempiInDirezione`, `cancellaSelezione` — sono **rettangoli `(r,c)`**, e un
+rettangolo presuppone che la colonna *c* voglia dire la stessa cosa su ogni riga che
+attraversa. Misurato su `Blocchi/Data Table → Albero`, espanso: **zero colonne su quattro**
+vogliono dire la stessa cosa sulla riga-madre e sulla figlia — due sono subtotali *derivati*
+sulla madre e valori *scritti* sulla figlia, una è vuota sulla madre, una porta due testi di
+natura diversa. Riordinare gli indici darebbe le frecce fra i livelli e lascerebbe incolla e
+riempimento senza significato sulle stesse celle. **Alla domanda «incolla e riempimento
+attraverso due livelli: funzionano o no?» la risposta è: non compongono**, e non per come è
+scritto il blocco.
+
+Il resto delle misure, in breve (i numeri e i `file:riga` in §50):
+
+- L'albero rende **20 righe nel DOM per 5 righe di dati**, con **0 celle** e **0 righe**
+  con `tabindex`: l'albero di oggi non ha nemmeno la tastiera *di riga*, in questa story.
+- `meta.sottototale` sta **sulla riga-madre**, che si rende **sopra** i figli. Il «SOMMANO»
+  di Primus sta **sotto**: anche con l'indice ad albero, la forma non si riprodurrebbe
+  senza una coda di gruppo che non esiste.
+- Il Computo vero: **144 voci** in un computo reale (PriMus di gara, 78 pagine), due livelli
+  esatti, nessun tetto e nessuna virtualizzazione, **~900–1150 `<tr>`** tutte montate.
+- Le **voci** si riordinano (`moveRiga ±1`), le **misure no** (nessun `moveMisura`, nessun
+  drag&drop). **Nessun incolla** da foglio di calcolo in tutto `frontend/src`. **Nessun
+  annulla/ripeti.**
+- E la tastiera che il Computo ha **oggi**: **8 celle scrivibili, 5 con le frecce, tutte e
+  cinque sullo stesso livello** (`Invio`/`↑`/`↓`, stessa colonna, stessa voce). Niente
+  `←`/`→`, niente passaggio fra voci. La navigazione fra i livelli che si stava per
+  costruire **non esiste nell'app che la chiederebbe**.
+
+**Esito, 2026-09-22: nessuna delle tre come erano scritte — si è fatta la (3), e
+subito.** Il verdetto della mattina era «la (1), e non adesso»; l'ha ribaltato la
+misura della tastiera sull'app viva, che ha mostrato due cose. La prima: il
+rettangolo è un problema **piccolo**, perché nel Computo vero le colonne si
+spartiscono per tipo di riga (`colSpan=4` sul SOMMANO) invece di sovrapporsi come
+nella story `Albero` da cui avevo generalizzato. La seconda, decisiva: «l'app non
+ha la tastiera fra i livelli» **non** voleva dire che non servisse — 21 `Tab` per
+entrare, SOMMANO e **prezzo irraggiungibili** con le frecce, e fra due misure il
+bottone **✕ Rimuovi**. La navigazione fra i livelli era ciò che *mancava*.
+
+Il blocco è **`tassullo-foglio-gruppi`** (M4ter.12, approvato da Francesco):
+una sequenza di gruppi con testata, corpo omogeneo e piede, dove la navigazione
+costruisce una **matrice di celle visive** e le frecce saltano i buchi — quindi
+attraversano zone e gruppi. `Tab` passa da **24 fermate a 1**; i comandi stanno
+su `Shift+F10`, fuori dall'ordine di `Tab`. La faccia stretta è un bivio
+`use-soglia` con una **scheda per voce** e la modifica in un cassetto dal basso.
+Misure e verbale: `docs/DECISIONI.md` §50 e il suo esito.
+
+**Il Computo può quindi migrare**, e `GUIDA-MIGRAZIONE.md` (M5.5) lo nomina fra
+le pagine che hanno un blocco pronto, non più fra quelle che restano sul v1.
+Restano fuori due cose, entrambe scritte: il **picker d'inserimento voci**
+(`SistemaPickerModal`), da valutare ai gradini 1–3 in una sessione sua; e
+**copia/incolla, riempimento e annulla/ripeti**, che sono le operazioni a
+rettangolo di `data-grid` e su colonne spartite per zona non hanno significato —
+un incolla *dentro un gruppo*, sulle sole colonne del corpo, resta possibile e
+non è stato scritto perché nessuno l'ha chiesto.
+
 ### 8.4 Una cosa che le tre pagine hanno in comune, e che la guida deve dire
 
 `window.confirm` e `window.prompt` sono ancora vivi in **Anagrafe** (`ChangeSets.tsx`:

@@ -2013,6 +2013,34 @@ const COLONNE_PIEDE = colPiede.columns([
  * cima, dal verso opposto. Su `altezza="naturale"` lo sticky è inerte per
  * definizione, perché non c&apos;è scarto da compensare.
  */
+/**
+ * **`bordiColonna`** — linee verticali fra le colonne e bordo esterno, spente
+ * di default. Si accendono quando la tabella si legge **per colonne** invece
+ * che per righe: un computo, un listino, una tabella di misure incolonnate,
+ * dove a metà riga l'occhio perde di quale colonna sia il numero che sta
+ * guardando. Le stesse misurazioni della story qui sotto, per confronto
+ * diretto.
+ *
+ * Non sono accese ovunque perché la tabella di shadcn separa le righe e basta,
+ * e cambiarlo per tutti vorrebbe dire cambiare l'aspetto di ogni tabella già
+ * composta. `tassullo-foglio-gruppi` invece li ha **sempre**: lì sono la forma
+ * del blocco, non un'opzione. Richiesta di Francesco, 2026-09-21.
+ */
+export const BordiColonna: StoryObj<typeof DataTable<MisurazioneComputo>> = {
+  name: 'Bordi Colonna',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_PIEDE}
+      dati={MISURAZIONI}
+      cerca={false}
+      piede
+      bordiColonna
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'misurazione', plurale: 'misurazioni' }}
+    />
+  ),
+}
+
 export const ConPiede: StoryObj<typeof DataTable<MisurazioneComputo>> = {
   name: 'Con Piede',
   render: () => (

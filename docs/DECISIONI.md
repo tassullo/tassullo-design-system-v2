@@ -3082,3 +3082,294 @@ numero, il sospetto va allo strumento, non ai dati.*
 - `Tema/Tavolozza categorica` nella style guide: la pagina legge i token dal
   tema a runtime e rifà le misure, quindi non può divergere dalla palette.
 
+
+---
+
+## 50. Il Computo di Studio: non è l'indice che non compone, è il rettangolo (M4ter.12, 2026-09-21)
+
+**Il difetto era già a verbale** — `data-table` ha l'albero e il sotto-totale ma
+la tastiera di riga; `data-grid` ha la tastiera di cella e `getSottoRighe`
+`Omit`-tato, perché naviga per indice sull'array piatto del motore. Quello che
+questa sessione ha misurato è **quanto** di quel difetto sia l'indice, e la
+risposta è: **poco.** L'indice è la metà facile. La metà che non si ripara è il
+**rettangolo**.
+
+### La misura che lo dice
+
+`Blocchi/Data Table → Albero`, espanso, in Chromium vero (§32 — strumento
+verificato prima: `visibilityState: "visible"`, `requestAnimationFrame` scatta).
+
+| | misura |
+|---|---|
+| righe nel DOM | **20** (5 madri + 15 figlie) |
+| righe nell'array dei dati | **5** |
+| celle con `tabindex` | **0** su 20 righe |
+| righe con `tabindex` | **0** |
+| `role` della tabella | **nessuno** (l'albero non è una `grid`) |
+
+Venti contro cinque: è l'indice, ed è la parte riparabile — una mappa
+`idRiga → posizione nel modello reso` al posto di `indiceRiga`, e le frecce
+tornerebbero a muoversi dove si guarda.
+
+Poi però c'è questo, sulle stesse righe:
+
+| col | intestazione | sulla riga-MADRE | sulla riga-FIGLIA |
+|---:|---|---|---|
+| 0 | *(senza nome)* | vuota | vuota |
+| 1 | Voce / misurazione | `01.01 — Scavo di sbancamento` | `Piano terra — ambiente 1` |
+| 2 | U.M. | **vuota** | `m³` |
+| 3 | Quantità | `21,63` — **subtotale, derivato** | `8,81` — valore |
+| 4 | Importo | `397,99 €` — **subtotale, derivato** | `162,10 €` — valore |
+
+**Zero colonne su quattro vogliono dire la stessa cosa ai due livelli.** Due
+sono derivate sulla madre e scritte sulla figlia (scriverci dentro non vuol dire
+niente), una è vuota sulla madre, una porta due testi di natura diversa.
+
+### Perché questo decide, e l'indice no
+
+Cinque operazioni del motore sono **rettangoli `(r,c)`**, non spostamenti:
+`serializzaSelezione`, `incolla`, `riempi`, `riempiInDirezione`,
+`cancellaSelezione` (`registry/tassullo/blocks/data-grid.tsx`, il blocco fra
+`cancellaSelezione` e `riempiInDirezione`). Un rettangolo presuppone una
+**matrice omogenea**: che la colonna *c* voglia dire la stessa cosa su ogni riga
+che attraversa. Su un albero a livelli eterogenei quella premessa è falsa, e
+resta falsa qualunque indice si scelga.
+
+Quindi, alla domanda che `PIANO.md` pone a questa sessione — *«incolla e
+riempimento su una selezione che attraversa due livelli: o funzionano, o è
+scritto a verbale che non compongono»* — la risposta è: **non compongono**, e
+non è un limite di implementazione. Riordinare gli indici darebbe le frecce fra
+i livelli e lascerebbe incolla e riempimento semanticamente vuoti sulle stesse
+celle.
+
+C'è un secondo scarto di forma, minore ma da sapere: `meta.sottototale` mette il
+subtotale **sulla riga-madre**, che TanStack rende **sopra** i suoi figli
+(`data-table.tsx`, `RigaTabellaCorpo`: la cella del subtotale prende il posto di
+quella normale quando `riga.subRows.length > 0`). Il «SOMMANO» di Primus sta
+**sotto** le misurazioni. Anche con l'indice ad albero, la forma del Computo non
+si riprodurrebbe senza un secondo meccanismo — una coda di gruppo, che oggi non
+c'è.
+
+### Il Computo vero: cosa chiede davvero
+
+Letto da un clone usa-e-getta via SSH, in sola lettura, cancellato a fine
+sessione (la strada di M4ter.9).
+
+| | misura | dove |
+|---|---|---|
+| voci di un computo reale | **144** (18 capitoli), computo PriMus di gara, 78 pagine | `tests/fixtures/capitolato_golden.json`, asserito in `tests/test_estrazione_computo.py` |
+| tetto d'import | **600** voci (`MAX_VOCI`), **300** righe sull'ingest prezzi | `tasks/estrazione_computo.py`, `tasks/ingest_documento_prezzi.py` |
+| tetto del computo nativo | **nessuno** — né `LIMIT` in lettura, né paginazione, né virtualizzazione | `db.py` (`list_computo_righe`), `ComputoTable.tsx` (`righe.map`) |
+| misurazioni per voce | **non documentate**; fixture 1–3, minimo reso 1 (riga «ghost») | `VoceRowGroup.tsx` |
+| livelli | **esattamente due** — nessun `parent_id`, nessun capitolo persistito | `scripts/ddl_f3_computo_estimativo.sql` |
+| le **voci** si riordinano | sì, `moveRiga(i, ±1)` da menu | `useComputoState.ts` |
+| le **misure** si riordinano | **no** — nessun `moveMisura`, nessun drag&drop in tutto il computo | `useComputoState.ts` |
+| incolla da foglio di calcolo | **no** — nessun `onPaste`, nessuna lettura di `clipboardData` in tutto `frontend/src` | — |
+| annulla/ripeti | **no** — un `useState` solo, nessuna pila di versioni | `useComputoState.ts` |
+
+Righe rese: 144 voci × (1 testata + 1÷4 misure + «+ misurazione» + SOMMANO)
+≈ **900–1150 `<tr>`**, tutte montate insieme.
+
+E la tastiera che il Computo ha **oggi**, che è la sorpresa della sessione:
+
+| celle scrivibili | quante | frecce |
+|---|---:|---|
+| testata voce — descrizione | 1 | **no** (`data-cell`, nessun `onKeyDown`) |
+| misurazione — descrizione, par.ug., lung., larg., h/peso | 5 | sì: `Invio`/`↑`/`↓`, **stessa colonna, stessa voce** |
+| SOMMANO — u.m. (`<select>`), prezzo unitario | 2 | **no** |
+
+**Otto celle scrivibili, cinque con le frecce, e tutte e cinque sullo stesso
+livello.** Niente `←`/`→`, niente passaggio da una voce all'altra, niente
+copia/incolla, niente riempimento, niente annulla. La navigazione fra i livelli
+che si stava per costruire in `data-grid` **non esiste nell'app che la
+chiederebbe**.
+
+### Le tre strade, pesate coi numeri
+
+1. **Appiattire il dato** — una riga per misurazione, la voce in colonna, il
+   totale in `piede`. La matrice delle misurazioni è **omogenea**: 5 colonne che
+   vogliono dire la stessa cosa su ogni riga, ~576 righe a 144×4 — e
+   `Blocchi/Data Grid → Computo` già regge **500 righe virtualizzate, 20
+   montate**. Tastiera, incolla, riempimento, annulla/ripeti funzionano tutti,
+   ed è **più** di quel che l'app ha oggi. Costo al registry: **zero** — la
+   forma piatta esiste già come story, `Blocchi/Data Table → Con Piede`
+   (`MISURAZIONI`, la voce riportata su ogni riga). Ciò che si perde: i campi di
+   **voce** (descrizione, u.m., prezzo) non sono celle della matrice, e il
+   «SOMMANO» per voce non è una riga del motore — vanno da un'altra parte
+   (testata di gruppo, o scheda accanto). **È un cambio di forma del computo, e
+   lo decide chi lo usa.**
+2. **Indice ad albero in `data-grid`** — sedici punti del motore contano su
+   «riga N = `motore.righe[N]`», di cui **cinque sono i rettangoli**. Riscrivere
+   gli undici dà le frecce; i cinque restano senza significato, come sopra. Cara
+   *e* incompleta.
+3. **Un blocco terzo** — gradino 4 della regola 4bis: si propone, non si scrive.
+   Questa sessione **non lo propone**, perché la (1) copre il bisogno misurato
+   con zero item nuovi.
+
+### Verdetto proposto (in attesa di Francesco)
+
+**La (1), e non adesso.** Il Computo resta sul v1 e si riapre quando Studio
+decide di migrarlo: la scelta è una scelta di **forma del computo** — se le
+misurazioni possano stare in una matrice piatta con la voce in colonna — e
+quella la fa chi lo usa, non il design system. `GUIDA-MIGRAZIONE.md` (M5.5) lo
+nomina fra le pagine che non si migrano al primo giro.
+
+**Il commento in testa a `data-grid.tsx` resta giusto e diventa più corto da
+difendere**: non «l'albero non compone perché l'indice è piatto», ma «l'albero
+non compone perché il rettangolo non attraversa i livelli». La seconda è una
+ragione che non invita a riprovare.
+
+### Revisione del §50, poche ore dopo, sull'app viva (2026-09-21)
+
+Francesco ha aperto il Computo deployato. **Due conclusioni qui sopra vanno
+corrette, e la seconda ribalta il verdetto.**
+
+**(a) Il rettangolo è un problema molto più piccolo di come è scritto.** La
+misura era su `Data Table → Albero`, dove il subtotale sta sulla riga-madre
+**nelle stesse colonne dei figli**. Il Computo vero no: il SOMMANO è una riga a
+parte e porta i suoi numeri in **colonne diverse** da quelle delle misure —
+`colSpan={4}` copre PAR.UG./LUNG./LARG./H/PESO con **una cella vuota**. Le
+colonne si spartiscono per tipo di riga invece di sovrapporsi, quindi un
+rettangolo sulle quattro colonne di misura incontra **celle vuote, non celle in
+conflitto**. Resta in conflitto la sola DESIGNAZIONE. *La misura era giusta
+sull'oggetto misurato e l'ho portata su un oggetto con geometria diversa* — la
+forma di §22 trasposta sulle colonne.
+
+**(b) «L'app non ce l'ha» non vuol dire «l'app non ne ha bisogno».** Misurata la
+tastiera vera, con la spia su `keydown` (i tasti passati come `"Down"` arrivano
+con `key: ""`: la prima passata dava «il fuoco non si muove mai» su una tastiera
+sana):
+
+| gesto | esito |
+|---|---|
+| `Tab` per entrare nella tabella | **21 fermate** |
+| frecce verticali | solo **fra misure della stessa voce**, stessa colonna |
+| frecce orizzontali | **niente** |
+| `Enter` | scende di una misura; **sull'ultima, niente** |
+| `Tab` fra due misure | **due fermate**, quella in mezzo è **✕ «Rimuovi misura»** |
+| SOMMANO (u.m., **prezzo**) e testata voce | **irraggiungibili con le frecce** |
+
+Costo contato sul DOM: un gruppo con 3 misure sono **24 fermate di `Tab`**, 18
+celle e **6 comandi**. A 144 voci: **~4300 fermate, ~1000 su comandi, 576 su
+«Rimuovi misura»**. Il fondo di ogni gruppo è un vicolo cieco, e il **prezzo** —
+la cella che determina l'importo — si raggiunge solo attraversando tutto il
+resto col `Tab`.
+
+**La navigazione fra i livelli è dunque ciò che manca, non ciò che non serve.**
+
+**Verdetto rivisto: la (3).** Non appiattire (la forma di Primus si tiene) e non
+l'indice ad albero dentro `data-grid` (quel motore è una matrice, e il Computo
+non lo è): un blocco a sé, un **foglio a gruppi** — sequenza di gruppi con
+testata, corpo omogeneo e piede, colonne spartite per zona. Gradino 1 verificato
+a vuoto (niente di simile all'MCP, né `@shadcn` né `@tassullo`). Consumatore
+**uno solo, Studio**: la motivazione non è «due app lo riscriverebbero» ma
+«Studio lo migra e deve trovarlo pronto», e va scritta così.
+
+**In attesa della conferma di Francesco sulla forma.**
+`registry/componenti-propri.json` resta a 1.
+
+Rilievo collaterale, misurato: a **951px** di viewport il foglio taglia **247px**
+e fuori campo finiscono **Quantità, Prezzo e Importo**. Fascia di un portatile
+13" col guscio aperto.
+
+### Esito: `tassullo-foglio-gruppi` (approvato e scritto, 2026-09-21)
+
+Francesco ha confermato la forma. Il blocco esiste, e queste sono le misure che
+lo chiudono — non le promesse della proposta.
+
+| | Computo di Studio, oggi | `tassullo-foglio-gruppi` |
+|---|---|---|
+| `Tab` dentro il foglio | **24 fermate** (gruppo da 3 righe) | **1** in tutto il foglio |
+| comandi nell'ordine di `Tab` | 6 per gruppo, fra cui ✕ «Rimuovi» | **0** — `Shift+F10` |
+| `ArrowDown` a fine gruppo | niente | entra nel gruppo dopo |
+| piede e **prezzo** con le frecce | irraggiungibili | raggiunti |
+| frecce orizzontali | niente | saltano alle colonne con una cella |
+
+**Un difetto che solo la misura poteva trovare, e che ripete la famiglia da cui
+il blocco nasce.** Alla prima stesura `[tabindex="0"]` valeva **0**: il fuoco
+mobile partiva da `null`, nessuna cella era tabbabile, e `Tab` scavalcava la
+tabella intera mentre le frecce funzionavano perfettamente. Da tastiera pura il
+foglio era irraggiungibile, **e axe dava zero violazioni** — perché non c'era
+niente di sbagliato da vedere: c'era una porta che non si apriva. È D15 in casa.
+Chiuso con `primaPosizione`. La lezione è che la misura da tastiera non è un
+collaudo finale: è l'unico modo di sapere se una griglia si usa.
+
+**Il perimetro del difetto di §50 si è ristretto, non è stato smentito.** Il
+blocco non fa copia/incolla, riempimento né annulla/ripeti: sono le operazioni a
+**rettangolo** di `data-grid`, e su colonne che si spartiscono per zona un
+rettangolo non ha significato. Un incolla *dentro un gruppo*, sulle sole colonne
+del corpo — che lì sono omogenee — resta possibile e non è stato scritto perché
+nessuno l'ha chiesto.
+
+**Due cose dichiarate, non nascoste.** La prop `ancorata` (`sticky right-0`)
+**non è esercitata** dalla story: misurato da 1440 a 600px, il foglio non scorre
+mai perché `table-fixed` comprime la designazione, e le tre colonne del risultato
+restano in campo a ogni larghezza. Serve a un consumatore che dichiari colonne
+più larghe della somma disponibile. E il prezzo di quella compressione era lo
+sbordamento: senza `truncate`, a 880px **otto celle sbordavano nella colonna
+accanto** — la stessa lezione già scritta in `data-table`. Con `truncate`: **0
+fino a 880px**, dodici sotto, e sotto sono puntini.
+
+Il registro dei componenti nostri **resta a 1**: il blocco sta in `blocks/`, e
+quel file è per ciò che prende il posto di una primitiva.
+
+Numeri di chiusura: **95 item** (era 94), `test:a11y` **1508 scansioni su 377
+story, 0 violazioni**, `misura:bersagli` **3255 su 377, 0 piccoli**, sette gate a
+**0**, lint **26 avvisi** preesistenti.
+
+## 51. La scala tipografica aveva disarmato la protezione anti-zoom di iOS (M4ter.12, coda, 2026-09-22)
+
+**iOS Safari ingrandisce la pagina da solo** quando il fuoco entra in un campo il
+cui testo sta **sotto i 16px**, e uscendo **non la rimpicciolisce**: l'utente
+resta con la pagina zoomata dopo ogni cella toccata. Non è una preferenza, è il
+comportamento del sistema, e l'unico modo di evitarlo — senza `maximum-scale`,
+che toglie lo zoom anche a chi ne ha bisogno — è tenere il campo a 16px o più.
+
+**shadcn lo sa e lo previene**: `ui/input.tsx` e `ui/textarea.tsx` nascono con
+**`text-base md:text-sm`**, dove `text-base` vale **16px in Tailwind** ed è
+scelto esattamente per stare sulla soglia; sopra `md` scende a `text-sm`, dove un
+puntatore c'è e il problema non esiste.
+
+**La nostra scala l'ha disarmata da un pixel.** D16 (M1.6, §30) tara
+`--text-base` a **15px** in densità normale — un gradino più basso di Tailwind,
+per una ragione buona e indipendente. Da allora `text-base` sui campi valeva 15px
+e iOS zoomava, **in ogni app**. Il difetto non si vede da nessuna parte sulla
+scrivania, non produce nessun errore, e nessun gate lo guarda: `check:registry`
+confronta la forma con l'originale — che è **identica**, la classe è la stessa —
+e axe non misura le grandezze.
+
+### La misura
+
+In Chromium vero, `Primitive/Input` e `Primitive/Textarea`, prima e dopo.
+
+| | 390px, densità normale | 390px, touch | 900px, normale | 900px, touch |
+|---|---|---|---|---|
+| **prima** (`text-base md:text-sm`) | **15px — zooma** | 16px | 13px | 14px |
+| **dopo** (`text-lg md:text-sm`) | **16px** | 17px | 13px | 14px |
+
+La densità **touch** si salvava già da sé, perché lì `--text-base` è 16.
+
+### La correzione, e perché è la minima possibile
+
+**`text-lg md:text-sm`** su entrambi i file. `text-lg` è **16px** nella nostra
+scala: rimette la soglia esattamente dove shadcn la voleva, con un **token del
+tema** e senza valori arbitrari. È **una sola stringa per file**, cioè gradino 2
+della regola 4bis — `check:registry` lo conferma: *«forma identica all'originale,
+1 stringhe di classi ri-stilate»* — e **sopra `md` non cambia niente**, quindi
+nessuna interfaccia da scrivania si muove di un pixel.
+
+**Approvata da Francesco il 2026-09-22**, perché tocca i campi di ogni app: non
+era una correzione da prendere di iniziativa dentro la sessione che l'ha trovata.
+
+### Cosa resta da sapere
+
+Il rimedio vive in **due file**, e un terzo campo che nascesse domani senza quelle
+classi ripeterebbe il difetto in silenzio. Non c'è un controllo che lo impedisca,
+e non se n'è aggiunto uno: un gate che misuri le grandezze rese vorrebbe un
+browser e una passata sua, e sarebbe il primo del repo a farlo. **Se ne nasce un
+terzo, la regola è questa riga.**
+
+La lezione oltre il caso: **quando si sposta un gradino della scala tipografica,
+si spostano anche le soglie che qualcun altro ci aveva appoggiato sopra.** D16 ha
+cambiato `--text-base` per ragioni sue, giuste, e ha rotto a distanza una
+protezione scritta in un file che non ha toccato.

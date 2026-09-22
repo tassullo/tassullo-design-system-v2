@@ -10793,3 +10793,741 @@ quattro prerequisiti), M5.5 — che ora può nominare blocchi che esistono tutti
 hanno la forma definitiva, e che ha tre voci in più da §8: il Computo fra le
 pagine da non migrare al primo giro, `window.confirm`/`prompt` come
 ricerca-e-sostituzione, e la soglia del bivio che la decide l'app — e M5.6.
+
+---
+
+## M4ter.12 — Il Computo di Studio: non è l'indice che non compone, è il rettangolo (2026-09-21)
+
+**Ramo**: `claude/m4ter-12-computo`. **Esito**: nessun componente aggiunto, nessuna
+story aggiunta, una decisione misurata e in attesa di Francesco.
+
+### Il punto di partenza, riverificato e non ricordato
+
+`npm install` fatto per primo (l'hook di sessione fa `pull`, non installa; senza,
+il gate di accessibilità mente in modo credibile — decine di
+`scrollable-region-focusable` sull'overlay d'errore di Vite, che è «build rotta»
+e non «CSS sbagliato»). Poi: `main` a `04427be` (PR #17), `registry.json` **94
+item**, `componenti-propri.json` **1** (`entity-image.tsx`), tema con
+`--chart-1..10` e **zero** `chart-mono`, `npm run check` **uscita 0** sui sette,
+`test:a11y` **1496 scansioni su 374 story, 0 violazioni**.
+
+### La prima mezza giornata, senza scrivere codice
+
+Il Computo vero letto da un clone usa-e-getta via SSH
+(`git clone --depth 1 git@github.com:tassullo/studio.git`), fuori dal repo, in
+sola lettura, cancellato a fine sessione — la strada di M4ter.9, perché `gh api`
+non arriva più ai `contents`. Un sub-agente in sola lettura per i numeri di
+dimensione (l'unico ammesso dal prompt).
+
+**Quanto albero serve davvero** (i `file:riga` stanno in `docs/DECISIONI.md` §50):
+
+| domanda | risposta |
+|---|---|
+| voci di un computo reale | **144**, 18 capitoli — computo PriMus di gara, 78 pagine, fixture golden |
+| tetti | **600** voci sull'import, **300** sull'ingest prezzi; **nessun tetto** sul computo nativo, nessun `LIMIT`, nessuna paginazione, nessuna virtualizzazione |
+| misurazioni per voce | **non documentate**; fixture 1–3, minimo reso 1 (riga «ghost») |
+| livelli | **esattamente due**. I capitoli esistono **solo nel parser d'import** e non si persistono: oggi non sono un terzo livello |
+| riordino | le **voci** sì (`moveRiga ±1` da menu); le **misure no** — nessun `moveMisura`, nessun drag&drop in tutto il computo |
+| incolla da foglio | **no** — nessun `onPaste`, nessuna lettura di `clipboardData` in tutto `frontend/src`. L'import da xlsx è un percorso asincrono separato che **appende in coda** |
+| annulla/ripeti | **no** — un `useState` solo, nessuna pila |
+
+Righe rese: 144 × (1 testata + 1÷4 misure + «+ misurazione» + SOMMANO)
+≈ **900–1150 `<tr>`**, tutte montate insieme.
+
+**E la sorpresa della sessione, che nessuno aveva guardato: la tastiera che il
+Computo ha *oggi*.**
+
+| celle scrivibili | quante | frecce |
+|---|---:|---|
+| testata voce — descrizione | 1 | **no** (ha `data-cell`, non ha `onKeyDown`) |
+| misurazione — descrizione, par.ug., lung., larg., h/peso | 5 | sì: `Invio`/`↑`/`↓`, stessa colonna, **stessa voce** |
+| SOMMANO — u.m. (`<select>`), prezzo unitario | 2 | **no** |
+
+**Otto celle scrivibili, cinque con le frecce, tutte e cinque sullo stesso
+livello.** Niente `←`/`→`, niente passaggio fra voci, niente copia/incolla,
+niente riempimento, niente annulla. *La navigazione fra i livelli che si stava
+per costruire non esiste nell'app che la chiederebbe.*
+
+### La misura in Chromium vero (D15 di nuovo, §32)
+
+Imbracatura nella cartella temporanea contro `storybook-static`, Chromium di
+Playwright headless, **niente aggiunto al repo**. Controllo dello strumento fatto
+**prima** della misura: `document.visibilityState === "visible"` e
+`requestAnimationFrame` **scatta** — cioè «non è successo niente» vuol dire
+davvero niente.
+
+**A) `Blocchi/Data Grid → Computo` (piatta, 500 righe).** La tastiera di cella
+che il criterio chiede, tutta verificata:
+
+| | misura |
+|---|---|
+| struttura | `role="grid"`, `aria-rowcount` **500**, `aria-colcount` **5**, **20 righe montate** |
+| `Tab` entra una volta sola | sì — 8 pressioni attraverso la barra, poi il fuoco è **sulla cella** (riga 0, col 0) |
+| frecce, per cella | `→ → ↓ ↓ ← ↑` = (0,1) (0,2) (1,2) (2,2) (2,1) **(1,1)** — torna esattamente dov'è partita |
+| `Invio` apre la modifica | sì — l'elemento a fuoco diventa un `<input>` |
+| `Esc` annulla e **riporta il fuoco alla cella** | sì — torna al `<div>` della cella (1,1), non al documento |
+| `Tab` su una cella | si sposta **dentro** la griglia (1,1) → (1,2), non esce |
+
+**B) `Blocchi/Data Table → Albero`, espanso.** Qui sta la misura che decide.
+
+| | misura |
+|---|---|
+| righe nel DOM | **20** (5 madri + 15 figlie) |
+| righe nell'array dei dati | **5** |
+| celle con `tabindex` | **0** su 20 righe |
+| righe con `tabindex` | **0** |
+| `role` della tabella | **nessuno** — l'albero non è una `grid` |
+
+Venti contro cinque **è** l'indice, ed è la metà riparabile. Poi però, sulle
+stesse righe:
+
+| col | intestazione | riga-MADRE | riga-FIGLIA |
+|---:|---|---|---|
+| 0 | *(senza nome)* | vuota | vuota |
+| 1 | Voce / misurazione | `01.01 — Scavo di sbancamento` | `Piano terra — ambiente 1` |
+| 2 | U.M. | **vuota** | `m³` |
+| 3 | Quantità | `21,63` — **subtotale, derivato** | `8,81` — valore |
+| 4 | Importo | `397,99 €` — **subtotale, derivato** | `162,10 €` — valore |
+
+**Zero colonne su quattro vogliono dire la stessa cosa ai due livelli.**
+
+### La decisione tecnica: il rettangolo, non l'indice
+
+Cinque operazioni del motore sono **rettangoli `(r,c)`** e non spostamenti:
+`serializzaSelezione`, `incolla`, `riempi`, `riempiInDirezione`,
+`cancellaSelezione`. Un rettangolo presuppone una **matrice omogenea** — che la
+colonna *c* voglia dire la stessa cosa su ogni riga che attraversa. Su un albero
+a livelli eterogenei quella premessa è falsa, e **resta falsa qualunque indice si
+scelga**.
+
+Quindi, alla domanda che il piano pone a questa sessione — *«incolla e
+riempimento su una selezione che attraversa due livelli: o funzionano, o è
+scritto a verbale che non compongono»* — **è scritto a verbale che non
+compongono**, e non è un limite di implementazione: riordinare gli indici darebbe
+le frecce fra i livelli e lascerebbe quelle due operazioni semanticamente vuote
+sulle stesse celle.
+
+Secondo scarto di forma, minore ma da sapere: `meta.sottototale` mette il
+subtotale **sulla riga-madre**, che TanStack rende **sopra** i figli. Il
+«SOMMANO» di Primus sta **sotto**. Anche con l'indice ad albero la forma non si
+riprodurrebbe senza una coda di gruppo, che non esiste.
+
+**Rettifica a `docs/ANALISI-COPERTURA-APP.md` §8.3**, dove la (2) era «la
+correzione giusta, ed è la più cara»: è cara **e incompleta**. L'ordine di costo
+crescente elencato lì resta, il giudizio di merito no.
+
+### Le tre strade, pesate coi numeri
+
+1. **Appiattire il dato.** La matrice delle misurazioni è **omogenea**: 5 colonne
+   che vogliono dire la stessa cosa su ogni riga, ~576 righe a 144×4 — e
+   `Blocchi/Data Grid → Computo` regge già **500 righe virtualizzate, 20
+   montate**. Tastiera, incolla, riempimento, annulla/ripeti funzionano tutti, ed
+   è **più** di quel che l'app ha oggi. Costo al registry **zero**, e la forma
+   piatta **esiste già come story**: `Blocchi/Data Table → Con Piede`
+   (`MISURAZIONI`, la voce riportata su ogni riga, il totale nel `piede`) —
+   nessuna story nuova da scrivere. Ciò che resta fuori dalla matrice: i campi di
+   **voce** (descrizione, u.m., prezzo) e il «SOMMANO» per voce, che vanno in una
+   testata di gruppo o in una scheda accanto.
+2. **Indice ad albero in `data-grid`.** Sedici punti del motore contano su «riga
+   N = `motore.righe[N]`», di cui **cinque sono i rettangoli**. Riscrivere gli
+   undici dà le frecce; i cinque restano senza significato. Cara *e* incompleta.
+3. **Un blocco terzo.** Gradino 4 della regola 4bis: si propone, non si scrive.
+   **Questa sessione non lo propone**, perché la (1) copre il bisogno misurato
+   con zero item nuovi. `registry/componenti-propri.json` **non si tocca**.
+
+### Verdetto proposto, in attesa di Francesco
+
+**La (1), e non adesso.** Il Computo resta sul v1 e si riapre quando Studio
+decide di migrarlo, perché la scelta è una scelta di **forma del computo** — se
+le misurazioni possano stare in una matrice piatta con la voce in colonna — e
+quella la fa **chi lo usa**, non il design system. `GUIDA-MIGRAZIONE.md` (M5.5) lo
+nomina fra le pagine che non si migrano al primo giro, come già previsto.
+
+### Modifiche
+
+- `docs/DECISIONI.md` **§50** — il verbale intero, con le misure e i `file:riga`.
+- `docs/ANALISI-COPERTURA-APP.md` **§8.3bis** — l'esito, con la rettifica alla (2).
+- `registry/tassullo/blocks/data-grid.tsx` — **solo commento**, nel blocco «Cosa
+  NON c'è, di proposito». La ragione per cui l'albero non compone passa da
+  «l'indice è piatto», che invita a riprovare, a «il rettangolo non attraversa i
+  livelli», che non invita. Nessuna riga di codice toccata, nessuna stringa di
+  classi: `check:registry` guarda `blocks/` per la sola regola 3.
+- `CHECKLIST.md`, `WORKLOG.md`.
+
+### Due cose viste di passaggio, che **non** sono di questo task
+
+- Nel Computo di Studio la riga «+ misurazione» rende **8 `<td>`** contro **9**
+  colonne dichiarate nel `<colgroup>`. `table-layout: fixed` lo assorbe e non si
+  vede. È codice dell'app, non del registry: annotato qui perché non si
+  riscopra, non perché si corregga qui.
+- L'autosave è a debounce 1s su ogni tasto e il salvataggio è un full-replace
+  (`DELETE` di tutte le righe e misure, poi un `INSERT` per ciascuna): a 144 voci
+  × 4 misure sono ~700 `INSERT` sequenziali per ogni autosave. Se a quella
+  dimensione qualcosa rallenta, è più probabile lì che nel rendering.
+
+E le due cose che `WORKLOG.md` elenca accanto al Computo **restano dove stanno**:
+i `window.confirm`/`window.prompt` di Anagrafe sono lavoro di migrazione (M5.5), e
+lo slot della fascia in `app-shell` — quello fra testata e `<Outlet/>`, da non
+confondere con `AppShell.contesto`, che sta nella testata della colonna — resta
+differito con l'innesco non scattato. Questo task aveva **una domanda sola**.
+
+### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1496 scansioni su 374 story, 0 violazioni**. Nessuna scena
+  aggiunta, quindi il conto è quello di partenza.
+- `misura:bersagli` — **3244 bersagli su 374 story, 0 piccoli in entrambe le
+  direzioni**, controllo dello strumento a 48px.
+- `registry.json` **94 item**, `componenti-propri.json` **1**.
+- `build` e `lint` verdi, **26 avvisi** tutti preesistenti.
+- Clone di Studio **cancellato**.
+
+### Prossimi passi
+
+La domanda per Francesco è una sola e ha tre risposte: **quale strada**. Se la
+(1), resta da sapere se il computo piatto sia accettabile per chi lo usa davvero
+— cioè se i campi di voce possano lasciare la matrice. Se la (2), resta da
+decidere se la spesa valga la pena adesso, sapendo che **incolla e riempimento
+fra i livelli non compongono comunque**. La FASE 5 non aspetta questa risposta.
+
+### Coda M4ter.12 — il Computo **vivo**, misurato con la tastiera (2026-09-21)
+
+Francesco ha aperto l'app deployata e ha dato accesso a un progetto di prova:
+*«computo è una schermata molto particolare, avrei provato a ricrearla»*. E ha
+risposto alla prima domanda: **il consumatore è Studio soltanto** — «officina»
+era un lapsus. La motivazione di un eventuale blocco cambia di conseguenza e va
+scritta com'è: non «due app lo riscriverebbero», ma «Studio lo migra e deve
+trovarlo pronto».
+
+**Due correzioni a quanto avevo scritto poche ore prima. Contano entrambe.**
+
+**(1) Avevo generalizzato dalla story sbagliata.** Ho misurato `Data Table →
+Albero`, dove `meta.sottototale` mette i subtotali **sulla riga-madre e nelle
+stesse colonne dei figli**: lì «0 colonne su 4 vogliono dire la stessa cosa» è
+vero. Il Computo vero ha geometria diversa, e ce l'avevo sotto gli occhi nel
+`colSpan={4}` del SOMMANO senza pesarlo. Le colonne **si spartiscono per tipo di
+riga invece di sovrapporsi**:
+
+| colonna | testata voce | misure | SOMMANO |
+|---|---|---|---|
+| PAR.UG. / LUNG. / LARG. / H/PESO | vuote | **le 4 celle scrivibili** | `colSpan=4`, **una cella vuota** |
+| QUANTITÀ | vuota | parziale (calcolato) | lorda (calcolato) |
+| PREZZO / IMPORTO | vuote | vuote | **prezzo scrivibile** + importo |
+| DESIGNAZIONE | descrizione voce | descrizione misura | «SOMMANO» + u.m. |
+
+Un rettangolo sulle quattro colonne di misura **non incontra celle in conflitto:
+incontra celle vuote**. Il rettangolo resta un problema solo su DESIGNAZIONE. È
+molto meno di quanto avevo concluso, e §50 va letto con questa rettifica.
+
+**(2) «L'app non ce l'ha» non vuol dire «l'app non ne ha bisogno».** Avevo letto
+l'assenza di navigazione fra i livelli come prova che non servisse. È il
+contrario, e lo dicono i numeri qui sotto.
+
+**Il conto dei `<td>` era sbagliato**: la testata voce ne rende **9**, non 10 —
+avevo contato male leggendo il JSX. Resta vera la riga «+ misurazione», a **8**
+contro 9. La nota precedente è stata corretta sopra.
+
+#### Controllo dello strumento: fallito, e dichiarato
+
+Il pannello del browser dell'app dà `visibilityState: "hidden"` e
+`requestAnimationFrame` **non scatta** — §22/§32 alla lettera. Conseguenza
+circoscritta: `addMisuraAndFocus` schedula `focusCell` in `rAF`, quindi **«+
+misurazione» e il fuoco sulla nuova riga non sono misurabili qui**. Le frecce sì:
+`misKey` chiama `focusCell` in modo sincrono.
+
+E un secondo difetto di strumento, costato una misura nulla: i tasti passati come
+`"Down"`/`"Return"` arrivano alla pagina con **`key: ""`**. Solo i nomi DOM
+completi (`ArrowDown`, `Enter`) arrivano interi. La prima passata riportava «il
+fuoco non si muove mai» su una tastiera **sana**: è la stessa famiglia di §22 —
+un tasto non arrivato non è un tasto senza effetto. Spia su `keydown` in cattura
+prima di concludere, sempre.
+
+#### La tastiera vera, misurata
+
+| gesto | esito |
+|---|---|
+| `Tab` per entrare nella tabella | **21 fermate** dall'inizio della pagina |
+| `ArrowDown` / `ArrowUp` | funzionano, ma **solo fra misure della stessa voce**, stessa colonna |
+| `ArrowLeft` / `ArrowRight` | **niente** — nessuna navigazione orizzontale |
+| `Enter` | sposta alla misura sotto; **sull'ultima non fa niente** |
+| `Tab` fra una misura e l'altra | **due fermate**, e quella in mezzo è il bottone **✕ «Rimuovi misura»** |
+| SOMMANO (u.m. e **prezzo**) | **non raggiungibile con le frecce** — solo con `Tab` |
+| testata voce (descrizione) | **non raggiungibile con le frecce** |
+
+**Il costo, contato sul DOM.** Un gruppo con 3 misure: **24 fermate di `Tab`**,
+di cui **18 celle e 6 comandi** (⋮, «Voce e analisi», 3× ✕, «+ misurazione»). Con
+4 misure sono 30 fermate, 7 delle quali comandi. **A 144 voci: ~4300 fermate, di
+cui ~1000 su comandi — e 576 su «Rimuovi misura».**
+
+Il fondo di ogni gruppo è un **vicolo cieco**: dall'ultima misura le frecce non
+portano da nessuna parte, e il prezzo — la cella che determina l'importo, quella
+che un computista tocca per ogni voce — si raggiunge solo attraversando col `Tab`
+tutte le celle rimanenti, il «+ misurazione» e il select dell'unità.
+
+**Quindi la navigazione fra i livelli non è un lusso: è esattamente ciò che
+manca, ed è la ragione per cui la pagina è faticosa.** Ribalta la conclusione
+della mattina.
+
+#### Un rilievo di larghezza, non di tastiera
+
+A **951px** di viewport il foglio dichiara `scrollWidth 920` contro
+`clientWidth 673`: **247px tagliati**, e ciò che esce dal campo sono
+**Quantità, Prezzo unitario e Importo** — le tre colonne che portano il
+risultato. Si raggiungono solo scorrendo in orizzontale. È la fascia di un
+portatile 13" col guscio aperto, cioè una condizione ordinaria, ed è la stessa
+famiglia del difetto del calendario chiuso in M4ter.11.
+
+#### Cosa non è stato toccato
+
+Solo navigazione: `Tab`, frecce, `Enter`. **Nessun carattere digitato** — il
+Computo ha autosave a debounce 1s e salvataggio full-replace, quindi un carattere
+di prova finirebbe nel progetto. Valori riletti a fine misura: **identici**.
+
+#### La proposta che ne esce, da confermare
+
+Non è la (1) e non è la (2) di §8.3: è la **(3)**, il gradino 4 della regola
+4bis — e adesso ha una ragione misurata invece che un'intuizione. Gradino 1
+verificato a vuoto: all'MCP non esiste niente di simile né in `@shadcn` né in
+`@tassullo`.
+
+La forma proposta è un **foglio a gruppi**: non un albero navigato
+uniformemente, ma una sequenza di gruppi, ognuno con **testata, corpo omogeneo e
+piede**, dove le colonne si spartiscono per zona — che è la geometria misurata
+sopra, non una generalizzazione. Tre cose che dovrebbe fare e che oggi non ci
+sono: le frecce **attraversano i tre livelli** (testata → misure → SOMMANO →
+testata della voce dopo); i comandi (⋮, ✕, «+ misurazione») **escono
+dall'ordine di `Tab`** e stanno su un tasto dedicato, così non si passa più su
+«Rimuovi» per cambiare riga; e le tre colonne del risultato **restano in campo**
+sotto gli 880px, o si dichiara per iscritto cosa fanno.
+
+**Non scritto**: `registry/componenti-propri.json` resta a **1** finché Francesco
+non conferma la forma.
+
+### Coda M4ter.12 — `tassullo-foglio-gruppi`, scritto (2026-09-21)
+
+Francesco ha confermato la forma: *«ok procedi con il foglio a gruppi»*. Gradino
+4 della regola 4bis chiuso con approvazione esplicita; gradino 1 verificato a
+vuoto all'MCP (niente di simile né in `@shadcn` né in `@tassullo`).
+
+**Dove sta il registro.** Il blocco vive in `registry/tassullo/blocks/`, non in
+`ui/`, e `registry/componenti-propri.json` **resta a 1**: quel registro è per ciò
+che prende il posto di una **primitiva** shadcn, e `check:registry` chiede ai
+blocchi la sola regola 3 — è scritto nel `CLAUDE.md` §Comandi. La tracciabilità
+del gradino 4 sta quindi qui, in `docs/DECISIONI.md` §50 e nel commento in testa
+al file, che è dove la cercherà chi lo apre.
+
+#### L'idea, in una riga
+
+**L'indice segue il foglio, non l'array.** La navigazione costruisce una
+**matrice di celle visive** — una riga per ogni riga resa, `null` dove la cella
+non esiste — e le frecce saltano i buchi. Da lì vengono, senza doverle
+programmare una per una, le due cose che mancavano al Computo vero: `ArrowDown`
+dall'ultima riga di un gruppo **entra nel gruppo dopo**, e il piede si raggiunge
+dalla colonna che le tre zone condividono (nel computo, la designazione), da cui
+`ArrowRight` arriva al prezzo.
+
+#### Misure in Chromium vero, strumento verificato
+
+`visibilityState: "visible"`, `requestAnimationFrame` scatta.
+
+| | prima (Computo di Studio) | ora (`foglio-gruppi`) |
+|---|---|---|
+| `Tab` dentro il foglio | **24 fermate** per un gruppo da 3 righe | **1 fermata** in tutto il foglio |
+| comandi nell'ordine di `Tab` | 6 per gruppo, fra cui ✕ «Rimuovi» | **0** (`tabIndex={-1}`, su `Shift+F10`) |
+| `ArrowDown` a fine gruppo | **niente** | entra nel gruppo dopo |
+| piede e prezzo con le frecce | **irraggiungibili** | raggiunti |
+| frecce orizzontali | **niente** | saltano alle colonne che hanno una cella |
+| `Esc` dopo `Invio` | — | torna alla cella |
+
+Struttura: `role="grid"`, `aria-rowcount 12`, `aria-colcount 9`, **1** elemento
+tabbabile, **3** comandi fuori dall'ordine di `Tab`.
+
+#### Un difetto trovato dalla misura, non dal codice
+
+Alla prima passata: **`[tabindex="0"]` valeva 0** e `Tab` scavalcava la tabella
+intera — con le frecce perfettamente funzionanti dietro. Il fuoco mobile partiva
+da `posizione = null`, quindi nessuna cella era tabbabile finché non si
+cliccava: **da tastiera pura il foglio era irraggiungibile.** È D15 in casa —
+axe dà zero violazioni, perché non c'è niente di sbagliato da vedere: c'è una
+porta che non si apre. Chiuso con `primaPosizione`, che porta `tabIndex={0}`
+finché il fuoco non è da nessuna parte.
+
+Vale la pena dirlo: il blocco **nasce** da un difetto di questa famiglia e ne ha
+prodotto un altro identico alla prima stesura. La misura da tastiera non è un
+collaudo finale, è l'unico modo di sapere se una griglia si usa.
+
+#### Il popup dichiarato — e lo slot guardato, non dedotto
+
+Il menu dei comandi è un popup, e `scripts/gate-a11y.ts` tiene l'elenco dei
+componenti che ne hanno uno **scritto a mano**: senza aggiungercelo, il gate lo
+avrebbe fatto passare per «senza popup» e non l'avrebbe mai aperto. Aggiunto a
+`CON_POPUP` e dichiarato con `play: apriCol(...)` nella story. Lo `data-slot` del
+grilletto **guardato nel DOM**: malgrado il `render={<Button/>}` resta
+`dropdown-menu-trigger` — come il menù utente del guscio, **non** come il
+combobox, che se lo fa riprendere. Il gate ora stampa `✔ foglio-gruppi apriCol`.
+
+#### La larghezza, e un compromesso dichiarato
+
+Misurato da 1440 a 600px: **le tre colonne del risultato restano in campo a ogni
+larghezza**, e il foglio **non scorre mai** — `table-fixed` comprime la
+designazione invece di forzare lo scorrimento. L'obiettivo è raggiunto, ma per
+una ragione diversa da quella progettata, **e va detto: la prop `ancorata`
+(`sticky right-0`) non è esercitata in questa story**, perché non c'è
+scorrimento da cui ancorarsi. Serve a un consumatore che dichiari colonne più
+larghe della somma disponibile.
+
+Il prezzo della compressione era lo **sbordamento**: senza `truncate`, a 880px
+otto celle sbordavano **nella colonna accanto** invece di tagliarsi — la stessa
+lezione già scritta in `data-table`. Aggiunto `truncate`: **0 celle sbordate
+fino a 880px**, dodici sotto, e sotto sono puntini, non invasioni.
+
+#### Cosa il blocco **non** fa, di proposito
+
+Niente **copia/incolla**, niente **riempimento**, niente **annulla/ripeti**.
+Sono le operazioni a rettangolo di `data-grid`, e su colonne che si spartiscono
+per zona un rettangolo non ha significato — è l'accertamento di §50, che resta
+in piedi: si è ristretto il *perimetro* del difetto, non lo si è smentito. Un
+consumatore che voglia incollare da un foglio di calcolo lo farà **dentro un
+gruppo**, sulle sole colonne del corpo, che lì sono omogenee: è la prima cosa da
+valutare se e quando serve, e non è stata scritta oggi perché nessuno l'ha
+chiesta.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1508 scansioni su 377 story, 0 violazioni** (base 1496/374, più
+  3 story × 4 passate). `foglio-gruppi` **dichiara il proprio popup**.
+- `misura:bersagli` — **3255 bersagli su 377 story, 0 piccoli** in entrambe le
+  direzioni (base 3244/374).
+- `registry.json` **95 item** (era 94), `componenti-propri.json` **1**,
+  `check:riferimenti` **210 riferimenti, 0 rotti, 105 file**.
+- `build` e `lint` verdi, **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.12 — quattro rilievi di Francesco a video (2026-09-21)
+
+Guardata la story accanto all'app vera, quattro rilievi. Tre corretti qui, uno
+resta aperto.
+
+**Dove stavano le story, che era la domanda di partenza.** `Blocchi → Foglio a
+gruppi`, voce di primo livello — non sotto `Data Table`. Il `Computo` che si
+trova sotto **Data Grid** è la griglia **piatta** di M3bis.5, cioè quella
+vecchia: tre cose con lo stesso nome a un livello di distanza, ed è bastato
+questo per cercare nel posto sbagliato. Da tenere presente quando si nomineranno
+le story nella guida di migrazione.
+
+**(a) La `play` apriva il menu sopra la tabella.** Storybook esegue le `play`
+**anche nel canvas**, quindi la story principale arrivava a video col menu dei
+comandi aperto sopra il contenuto — illeggibile proprio mentre la si guarda. La
+dichiarazione del popup è stata spostata su una story sua, `Comandi`, che il
+menu lo mostra apposta. Il gate legge la **prima** `play:` del file, quindi
+basta che una story la dichiari. È una cosa da sapere per ogni blocco con popup
+che si vorrà rivedere a video.
+
+**(b) Un clic solo apre la modifica, non due.** *«In studio basta cliccare sulla
+cella per entrare nella modalità modifica, qua serve doppio click, troppo
+lento.»* Aveva ragione e la ragione è strutturale: nel Computo vero le celle
+**sono** campi di testo sempre attivi, quindi cliccare **è** modificare. Un
+foglio che chiede due gesti per la stessa cosa è più lento di quello che
+sostituisce. Le frecce restano la via per attraversare senza toccare i valori.
+
+**(c) Il «+ misurazione» esce dal menu e diventa una riga vera.** *«Bottone +
+misura molto più veloce posizionato fuori dal menù ⋯»* — anche qui giusto, e
+correggeva una mia scelta sbagliata: avevo tolto **tutti** i comandi
+dall'ordine di `Tab` perché il difetto misurato era tabulare su «Rimuovi», ma ho
+buttato via con quelli anche l'azione **più frequente della pagina**. Ora è una
+**quarta zona** del foglio (`azioni`, fra corpo e piede): ci si arriva con le
+frecce come a qualunque riga, si attiva con `Invio`, e **non** entra
+nell'ordine di `Tab`. Veloce col mouse e veloce da tastiera, senza riaprire il
+difetto di partenza.
+
+**Il gate ha preso un difetto mio, introdotto correggendo (c).** La prima
+stesura della riga azioni accettava un **elenco** di azioni dentro un
+contenitore focalizzabile: `role="button"` su un `<div>` che contiene dei
+`<button>` è **`nested-interactive`** — 4 violazioni per passata, **16 in
+tutto**, su tutte e quattro. La correzione non è stata cambiare il ruolo ma il
+**numero**: la prop è diventata `azione` al singolare e il bottone **è** la
+cella, così non c'è niente da annidare. Ed è anche la forma giusta: una riga di
+azioni con cinque collegamenti è un menu travestito, e il menu c'è già.
+
+**(d) Le linee verticali e il bordo della tabella.** Un foglio di computo si
+legge **per colonne** — la lunghezza sotto la lunghezza, l'importo sotto
+l'importo — e senza separatori l'occhio perde la colonna a metà riga. Due
+risposte diverse, di proposito:
+
+- in **`tassullo-foglio-gruppi`** ci sono **sempre**: lì sono la forma del
+  blocco, non un'opzione;
+- in **`tassullo-data-table`** sono una prop nuova, **`bordiColonna`**, spenta
+  di default — accenderli ovunque cambierebbe l'aspetto di **ogni** tabella già
+  composta, e la tabella di shadcn separa le righe e basta. Story nuova
+  `Bordi Colonna`, sulle stesse misurazioni di `Con Piede`, per il confronto
+  diretto.
+
+**(e) Resta aperto: la schermata di inserimento voci.** Il `SistemaPickerModal`
+di Studio — campo di ricerca, filtri di categoria a chip, risultati raggruppati
+per famiglia con conteggio prodotti e un collegamento «Vedi strati». Francesco
+l'ha segnata «da implementare». **Non è di questo task**: è un blocco suo, con
+una ricerca, un raggruppamento e una scelta, e infilarlo qui annacquerebbe la
+sessione che aveva una domanda sola. Da valutare ai gradini 1–3 prima di
+proporlo: `combobox` con gruppi ci arriva vicino, `command` di shadcn ancora di
+più, e `tassullo-responsive-dialog` dà il contenitore. Va aperto come task a sé.
+
+#### Verifiche, dopo le correzioni
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1516 scansioni su 379 story, 0 violazioni** (+8 sulle 1508:
+  `Comandi` sul foglio e `Bordi Colonna` su data-table).
+- `misura:bersagli` — **3277 bersagli su 379 story, 0 piccoli**.
+- Tastiera rimisurata in Chromium vero: `Tab` **1 fermata** dentro il foglio,
+  `ArrowDown` attraversa testata → misure → **+ misurazione** → SOMMANO →
+  gruppo dopo.
+- `registry.json` **95 item**, `componenti-propri.json` **1**, lint **26
+  avvisi** preesistenti.
+
+### Coda M4ter.12 — sei rilievi a video, e due erano miei difetti nuovi (2026-09-22)
+
+Revisione a video con Francesco sulla story viva. Sei rilievi, tutti chiusi.
+
+**(a) I colori delle colonne ancorate in modalità Card.** `ancorata` metteva
+`sticky right-0 bg-background` sulle colonne del risultato, e `--background` è
+il fondo della **pagina**: la style guide commuta la superficie su
+`body[data-superficie]` e il tema la definisce `--card`/`--sidebar`, quindi su
+**due superfici su tre** le tre colonne restavano di un fondo diverso da tutto
+il resto. **La prop è stata tolta, non riparata**, per due misure che insieme
+non lasciavano scampo: non era **mai esercitata** (il foglio non scorreva mai) e
+il suo unico effetto osservabile era il difetto. Il difetto non era la classe
+sbagliata — era che un ancoraggio ha bisogno di sapere su che superficie
+poggia, e una classe fissa non può saperlo. Se servirà, la via è `bg-inherit` e
+**va misurata su tutte e tre**, non dedotta.
+
+**(b) «Con le frecce non riesco a spostarmi», e (f) solo su/giù.** Difetto mio,
+figlio della correzione precedente: da quando **un clic solo apre la modifica**,
+su una cella si è quasi sempre **dentro un campo di testo**, e lì le frecce
+muovono il cursore invece del fuoco. Il foglio rispondeva alle frecce solo nei
+pochi istanti in cui nessuna cella era aperta. Ora le frecce navigano **anche in
+modifica**: le verticali sempre; le orizzontali **quando il cursore è già al
+bordo** del testo (o tutto selezionato, che è lo stato di una cella appena
+aperta). La prima stesura le riservava al testo e mandava a `Tab` chi voleva
+spostarsi di lato — sbagliato, perché in un computo i valori sono numeri corti
+che si riscrivono invece di correggerli a metà. Misurato in Chromium vero:
+`→ → ` sposta di due colonne, `←` dal bordo destro rientra nel testo
+(cursore 3 → 2 → 0) e al terzo passa alla cella accanto.
+
+E con esse **la continuità del gesto**: chi si sposta mentre scrive arriva
+**pronto a scrivere**. Uscire da una modifica per doverne aprire un'altra
+raddoppierebbe i gesti nel caso che conta — compilare una colonna di misure
+dall'alto in basso — e il Computo di Studio non lo chiede, perché lì le celle
+sono campi sempre attivi. Chi naviga a celle chiuse resta a celle chiuse.
+
+**(c) Righe di misura alte come la riga «+ misurazione».** Il bottone è
+`text-sm` e le celle no: il passo del foglio si spezzava proprio dove l'occhio
+scende. Una costante sola, `RIGA = "flex min-h-8 items-center"`, su celle e
+bottone. Sta su `--spacing`, quindi segue la densità: 32px normale, 48 touch.
+
+**(d) Sovrapposizione stringendo la finestra.** Il difetto peggiore della
+tornata: `table-fixed` comprimeva la colonna elastica **senza limite**, e a
+finestra stretta «Designazione dei lavori» e «Par.ug.» finivano **scritte una
+sopra l'altra**, con la designazione ridotta a «RAS…». Due correzioni: `truncate`
+anche sulle **intestazioni** (l'avevo messo solo sulle celle) e **`min-w-4xl`**
+sulla tabella — sotto gli 896px il foglio **scorre** invece di comprimersi.
+Rimisurato da 1440 a 600px: **0 celle sbordate a ogni larghezza**, nessuna
+sovrapposizione. Una tabella che si comprime senza limite non degrada, si rompe.
+
+**(e) Il degrado stretto, e la strada l'ha indicata Francesco**: *«es. avevamo
+creato lista a due facce»*. È il pattern che c'è già — `use-soglia` e la ricetta
+di M4ter.6 — applicato al foglio, e non un meccanismo nuovo. Story `Due facce`:
+sopra soglia il foglio, sotto una **scheda per voce** con le misure come blocchi
+di campi. **La soglia la dichiara la pagina**, non il blocco: qui 896px, cioè la
+larghezza sotto la quale il foglio comincia a scorrere — e scorrere di lato su
+un telefono è esattamente ciò che la faccia stretta esiste per evitare.
+
+**E il rilievo che ha salvato la faccia stretta**: *«così non è però
+modificabile»*. La prima stesura mostrava i valori in **sola lettura**. Un
+computo che sul telefono si può solo leggere non è la faccia stretta del
+computo, è un suo estratto. Ora i campi scrivono davvero, col «+ misurazione»
+come bottone. Sulla faccia stretta **non** c'è il motore di navigazione, ed è
+giusto: su un telefono non ci sono le frecce, c'è il dito e il `Tab` della
+tastiera a schermo — i campi sono campi.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **0 piccoli** in entrambe le direzioni.
+- Larghezze da 1440 a 600px: **0 celle sbordate**, nessuna sovrapposizione.
+- Frecce dentro una cella aperta, misurate in Chromium vero (sopra).
+- `registry.json` **95 item**, `componenti-propri.json` **1**, lint **26
+  avvisi** preesistenti.
+
+**Nota per chi guarda le story**: `Due facce` dipende da `useSoglia`, che legge
+la **finestra**. L'interruttore Viewport di Storybook ridimensiona l'iframe
+nella cornice del manager, non la finestra (`docs/DECISIONI.md` §46): si guarda
+**restringendo la finestra del browser**, e nel gate rende sempre il ramo largo.
+
+### Coda M4ter.12 — la faccia stretta è la D, e un difetto di sistema sullo zoom (2026-09-22)
+
+Provate a video tutte e quattro le forme della faccia stretta, su un artifatto
+temporaneo fuori dal repo con la palette del tema e il riquadro a 380px.
+**Francesco ha scelto la D**: la lista resta in sola lettura e densissima — non
+si muove mai — e la modifica accade in un **cassetto dal basso**. La ragione
+detta da lui vale più della forma: sul telefono un computo **si legge molto e si
+corregge poco**.
+
+Il conto che ha deciso, misurato sull'artifatto:
+
+| | tocchi per correggere un numero | altezza di una voce a 3 misure | punto debole |
+|---|---:|---|---|
+| A · valore nudo | **1** | ~168px | un valore senza cornice non dice di essere modificabile |
+| B · riga espandibile | 2 | ~150 chiusa, ~300 aperta | una misura aperta sposta le altre |
+| C · leggi/modifica | 2 | ~150 / ~420 | una modalità in più da ricordare |
+| **D · cassetto** | 3 | **~150, sempre** | il gesto di conferma a ogni correzione |
+
+Nel registry la D usa `tassullo-responsive-dialog`, che sul telefono **è già** un
+`Drawer`: zero meccanismi nuovi.
+
+**«Occhio che così il titolo della voce e prezzo non sono modificabili.»** Vero:
+la prima stesura rendeva scrivibili le sole misure. Una faccia dove due campi su
+tre si possono solo leggere non è la faccia stretta del computo. Ora la testata
+apre il cassetto della **voce** (designazione, unità, prezzo) e ogni misura
+quello della **misura**.
+
+#### Il difetto di sistema: la scala tipografica ha disarmato la protezione anti-zoom
+
+**«Attenzione allo zoom quando entro in una cella modificabile da mobile.»** È un
+difetto vero, e non è della story: è del tema.
+
+iOS Safari **ingrandisce la pagina da solo** quando il fuoco entra in un campo il
+cui testo sta **sotto i 16px**, e uscendo non la rimpicciolisce. `ui/input.tsx`
+porta già il rimedio di shadcn — **`text-base md:text-sm`**, dove `text-base`
+vale **16px in Tailwind** ed è scelto esattamente per stare sulla soglia. Ma la
+nostra scala (D16, M1.6) tara **`--text-base` a 15px** in densità normale: la
+protezione è disarmata **da un pixel**, e non si vede da nessuna parte sulla
+scrivania.
+
+Misurato in Chromium vero a 390px di viewport:
+
+| | `Primitive/Input` nudo | il cassetto della faccia stretta |
+|---|---|---|
+| densità **normale** | **15px — iOS zooma** | 16px — no |
+| densità **touch** | 16px — no | 17px — no |
+
+La densità touch si salva da sé, perché lì `--text-base` è già 16.
+
+**Nella story il rimedio è `text-lg md:text-sm`**: `text-lg` è **16px** nella
+nostra scala, quindi rimette la soglia dove shadcn la voleva, con un token del
+tema e senza valori arbitrari. Sopra `md` torna `text-sm`, come nell'originale.
+
+**Ma la correzione giusta è su `ui/input.tsx`, e non l'ho presa di
+iniziativa.** È una divergenza di **sola stringa** — gradino 2, quindi
+permessa — e `check:registry` la accetterebbe; ma cambia la grandezza dei campi
+**in ogni app, su ogni telefono**, da 15 a 16px, e una cosa che si vede su tutte
+le schermate di tutte le app non è una decisione di questa sessione. **Proposta a
+Francesco, in attesa.** Se accettata, va anche verificato `textarea.tsx`, che ha
+lo stesso schema.
+
+**Errore di misura mio, a verbale perché la lezione vale.** La prima passata
+riportava «15px in **entrambe** le densità», cioè il difetto anche in touch. Era
+falso: avevo passato il global come `densita:touch` mentre in
+`.storybook/preview.tsx` si chiama **`density`**, quindi la passata «touch» non
+applicava niente e rimisurava la normale col nome dell'altra. È la stessa
+famiglia di §22 — una condizione non applicata non è una condizione senza
+difetti — e stavolta produceva un numero **più grave** del vero, che è il verso
+in cui è più facile crederci.
+
+#### Un difetto di lint, preso subito
+
+Il cassetto tiene una bozza locale e la prima stesura la risincronizzava con un
+`useEffect`: **`react(set-state-in-effect)`**, l'avviso salito da 26 a 27. Non
+serviva un effetto — il chiamante **rimonta** il cassetto con una `key` che
+cambia a ogni riga aperta, quindi `useState` semina da sé. Lint di nuovo a **26**,
+tutti preesistenti.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **0 piccoli** in entrambe le direzioni.
+- Zoom: campi del cassetto a **16px in normale e 17 in touch**, misurati a 390px.
+- `lint` **26 avvisi**, tutti preesistenti; `registry.json` **95 item**,
+  `componenti-propri.json` **1**.
+
+### Coda M4ter.12 — tre rifiniture della faccia stretta, tutte di linee (2026-09-22)
+
+Tre rilievi a video sulla forma D, tutti sullo stesso tema: **le linee dicono
+come si legge una scheda**, e tre volte su tre dicevano la cosa sbagliata.
+
+**(a) «Sotto −1,89 la linea è arrotondata e non dritta.»** Il `border-b` che
+separa due misure stava **sullo stesso elemento** che porta `rounded-md` per
+l'anello di fuoco: un bordo su un elemento con raggio **segue il raggio**, e la
+linea si incurvava agli estremi invece di correre dritta. Spostato sul
+**contenitore**, che raggio non ne ha. Verificato nel DOM: separatore con
+`border-bottom-left-radius: 0px`, bottone con i suoi 6px e **nessun bordo**. Si
+vede solo su una riga stretta, dove il raggio è una frazione grande della
+larghezza — su una riga larga lo stesso difetto è invisibile.
+
+**(b) I quattro fattori su una riga sola.** *«Alla fine si digitano numeri da
+3-4 e poco più»* — vero, e due file da due sprecavano l'altezza, che sul telefono
+è la risorsa scarsa. Ora `grid-cols-2 @xs:grid-cols-4` dentro un `@container`:
+**container query, non media query**, perché la soglia deve guardare il
+**cassetto** e non la finestra (il `Drawer` ha una larghezza sua, e §46 ricorda
+che una media query qui si misurerebbe anche male). Misurato:
+
+| viewport | file dei 4 fattori | larghezza campo | etichette tagliate |
+|---:|---:|---:|---:|
+| 320px | 2 | 138px | 0 |
+| **360px** | **1** | 73px | 0 |
+| 390px | 1 | 81px | 0 |
+| 430px | 1 | 91px | 0 |
+
+Da **360px in su** stanno su una riga; a 320 — il telefono più stretto in
+circolazione — tornano a due file da sole, che è il degrado giusto.
+
+**(c) «Una riga unica fra Prezzo unit. e Importo.»** I totali erano una
+`grid-cols-[1fr_auto] gap-x-4` e il `border-t` cadeva su `dt` e `dd`
+**separatamente**: il gap in mezzo non ne aveva, quindi la linea si spezzava nel
+vuoto e ripartiva sopra i numeri a destra. Ogni riga è ora **una riga** (`flex
+justify-between`), e il bordo sta su di essa. Misurato: **un solo elemento porta
+il bordo per voce, largo 326px su 326 di contenitore** — continuo.
+
+**Un valore arbitrario scritto e ritirato nello stesso passo.** Correggendo (a)
+avevo scritto `w-[calc(100%+var(--spacing)*4)]` per far sporgere il bottone
+quanto il bordo. È un **valore arbitrario**, vietato dalla regola 3 — e
+`check:registry` **non l'avrebbe preso**, perché guarda i `.tsx` dei componenti e
+non le `.stories.tsx`. Tolto subito spostando il margine negativo sul
+contenitore. Da sapere: **il gate non copre le story**, quindi lì la regola 3 è
+disciplina, non controllo.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **3283 su 380, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.12 — la protezione anti-zoom rimessa alla radice (2026-09-22)
+
+Francesco ha approvato la correzione proposta: **`input.tsx` e `textarea.tsx`**
+passano da `text-base md:text-sm` a **`text-lg md:text-sm`**. Verbale e misure in
+`docs/DECISIONI.md` **§51**; qui le due cose che riguardano il lavoro.
+
+**È gradino 2, e il gate lo dice**: *«forma identica all'originale, 1 stringhe di
+classi ri-stilate»* su entrambi i file. Nessuna prop nuova, nessuna struttura
+toccata — la stessa classe, un gradino più su della scala.
+
+**Ed è la correzione minima**: misurato in Chromium vero, sotto `md` i campi
+passano da **15px a 16** (17 in touch), **sopra `md` restano 13 e 14**, cioè
+invariati. Nessuna interfaccia da scrivania si muove di un pixel.
+
+**Tolta la classe locale dalla story del foglio.** `CAMPO_SENZA_ZOOM`
+(`text-lg md:text-sm` scritto sui campi del cassetto) era il rimedio provvisorio
+messo quando la causa non era ancora stata corretta: ora sarebbe **una copia
+locale di una regola di sistema**, cioè la riga che diverge al primo cambio. Via,
+insieme al commento che la spiegava — sostituito da uno che dice **dove** la
+regola vive adesso.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**; `check:registry` **0 errori**, 19
+  componenti ri-stilati sopra una forma originale intatta.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **3283 su 380, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.

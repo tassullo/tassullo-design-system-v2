@@ -74,6 +74,7 @@ const CON_POPUP = [
   "dialog",
   "drawer",
   "dropdown-menu",
+  "foglio-gruppi",
   "hover-card",
   "page-header",
   "popover",
