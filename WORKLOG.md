@@ -11362,3 +11362,90 @@ tastiera a schermo — i campi sono campi.
 la **finestra**. L'interruttore Viewport di Storybook ridimensiona l'iframe
 nella cornice del manager, non la finestra (`docs/DECISIONI.md` §46): si guarda
 **restringendo la finestra del browser**, e nel gate rende sempre il ramo largo.
+
+### Coda M4ter.12 — la faccia stretta è la D, e un difetto di sistema sullo zoom (2026-09-22)
+
+Provate a video tutte e quattro le forme della faccia stretta, su un artifatto
+temporaneo fuori dal repo con la palette del tema e il riquadro a 380px.
+**Francesco ha scelto la D**: la lista resta in sola lettura e densissima — non
+si muove mai — e la modifica accade in un **cassetto dal basso**. La ragione
+detta da lui vale più della forma: sul telefono un computo **si legge molto e si
+corregge poco**.
+
+Il conto che ha deciso, misurato sull'artifatto:
+
+| | tocchi per correggere un numero | altezza di una voce a 3 misure | punto debole |
+|---|---:|---|---|
+| A · valore nudo | **1** | ~168px | un valore senza cornice non dice di essere modificabile |
+| B · riga espandibile | 2 | ~150 chiusa, ~300 aperta | una misura aperta sposta le altre |
+| C · leggi/modifica | 2 | ~150 / ~420 | una modalità in più da ricordare |
+| **D · cassetto** | 3 | **~150, sempre** | il gesto di conferma a ogni correzione |
+
+Nel registry la D usa `tassullo-responsive-dialog`, che sul telefono **è già** un
+`Drawer`: zero meccanismi nuovi.
+
+**«Occhio che così il titolo della voce e prezzo non sono modificabili.»** Vero:
+la prima stesura rendeva scrivibili le sole misure. Una faccia dove due campi su
+tre si possono solo leggere non è la faccia stretta del computo. Ora la testata
+apre il cassetto della **voce** (designazione, unità, prezzo) e ogni misura
+quello della **misura**.
+
+#### Il difetto di sistema: la scala tipografica ha disarmato la protezione anti-zoom
+
+**«Attenzione allo zoom quando entro in una cella modificabile da mobile.»** È un
+difetto vero, e non è della story: è del tema.
+
+iOS Safari **ingrandisce la pagina da solo** quando il fuoco entra in un campo il
+cui testo sta **sotto i 16px**, e uscendo non la rimpicciolisce. `ui/input.tsx`
+porta già il rimedio di shadcn — **`text-base md:text-sm`**, dove `text-base`
+vale **16px in Tailwind** ed è scelto esattamente per stare sulla soglia. Ma la
+nostra scala (D16, M1.6) tara **`--text-base` a 15px** in densità normale: la
+protezione è disarmata **da un pixel**, e non si vede da nessuna parte sulla
+scrivania.
+
+Misurato in Chromium vero a 390px di viewport:
+
+| | `Primitive/Input` nudo | il cassetto della faccia stretta |
+|---|---|---|
+| densità **normale** | **15px — iOS zooma** | 16px — no |
+| densità **touch** | 16px — no | 17px — no |
+
+La densità touch si salva da sé, perché lì `--text-base` è già 16.
+
+**Nella story il rimedio è `text-lg md:text-sm`**: `text-lg` è **16px** nella
+nostra scala, quindi rimette la soglia dove shadcn la voleva, con un token del
+tema e senza valori arbitrari. Sopra `md` torna `text-sm`, come nell'originale.
+
+**Ma la correzione giusta è su `ui/input.tsx`, e non l'ho presa di
+iniziativa.** È una divergenza di **sola stringa** — gradino 2, quindi
+permessa — e `check:registry` la accetterebbe; ma cambia la grandezza dei campi
+**in ogni app, su ogni telefono**, da 15 a 16px, e una cosa che si vede su tutte
+le schermate di tutte le app non è una decisione di questa sessione. **Proposta a
+Francesco, in attesa.** Se accettata, va anche verificato `textarea.tsx`, che ha
+lo stesso schema.
+
+**Errore di misura mio, a verbale perché la lezione vale.** La prima passata
+riportava «15px in **entrambe** le densità», cioè il difetto anche in touch. Era
+falso: avevo passato il global come `densita:touch` mentre in
+`.storybook/preview.tsx` si chiama **`density`**, quindi la passata «touch» non
+applicava niente e rimisurava la normale col nome dell'altra. È la stessa
+famiglia di §22 — una condizione non applicata non è una condizione senza
+difetti — e stavolta produceva un numero **più grave** del vero, che è il verso
+in cui è più facile crederci.
+
+#### Un difetto di lint, preso subito
+
+Il cassetto tiene una bozza locale e la prima stesura la risincronizzava con un
+`useEffect`: **`react(set-state-in-effect)`**, l'avviso salito da 26 a 27. Non
+serviva un effetto — il chiamante **rimonta** il cassetto con una `key` che
+cambia a ogni riga aperta, quindi `useState` semina da sé. Lint di nuovo a **26**,
+tutti preesistenti.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **0 piccoli** in entrambe le direzioni.
+- Zoom: campi del cassetto a **16px in normale e 17 in touch**, misurati a 390px.
+- `lint` **26 avvisi**, tutti preesistenti; `registry.json` **95 item**,
+  `componenti-propri.json` **1**.

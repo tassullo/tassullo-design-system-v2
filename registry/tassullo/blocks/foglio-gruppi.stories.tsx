@@ -1,3 +1,4 @@
+import * as React from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import { apriCol } from '@/prove/apri'
@@ -10,6 +11,14 @@ import {
 } from '@/registry/tassullo/blocks/foglio-gruppi'
 import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
 import { decimale, valuta } from '@/registry/tassullo/lib/numeri'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogBody,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/registry/tassullo/blocks/responsive-dialog'
 import { Button } from '@/registry/tassullo/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
 import { Input } from '@/registry/tassullo/ui/input'
@@ -350,43 +359,111 @@ export const Comandi: Story = {
  * ──────────────────────────────────────────────────────────────────────── */
 
 /**
- * Un campo della scheda: etichetta sopra, valore sotto, e **scrive davvero**.
- * Sulla faccia stretta non c'è il motore di navigazione — su un telefono le
- * frecce non esistono, c'è il dito e il `Tab` della tastiera a schermo — ma i
- * campi sono gli stessi dati, e vanno modificabili: *«così non è però
- * modificabile»*, rilievo di Francesco sulla prima stesura, che era in sola
- * lettura. Un computo che sul telefono si può solo **leggere** non è la faccia
- * stretta del computo: è un suo estratto.
+ * **`text-lg` sul campo, e non è una scelta di grandezza: è la protezione
+ * anti-zoom.** iOS Safari ingrandisce la pagina da solo quando si entra in un
+ * campo il cui testo sta **sotto i 16px**, e non la rimpicciolisce uscendo:
+ * l'utente resta con la pagina zoomata dopo ogni cella. `ui/input.tsx` porta
+ * già il rimedio di shadcn — `text-base md:text-sm`, dove `text-base` vale 16px
+ * in Tailwind — ma la **nostra** scala (D16, M1.6) tara `--text-base` a
+ * **15px** in densità normale: la protezione è disarmata **da un pixel**, e non
+ * si vede da nessuna parte sulla scrivania. In densità touch `--text-base` è
+ * 16px e il difetto sparisce da sé.
+ *
+ * `text-lg` è **16px** nella nostra scala, quindi qui rimette la soglia dove
+ * shadcn la voleva, con un token del tema e senza valori arbitrari. Sopra `md`
+ * torna `text-sm`, come nell'originale. Rilievo di Francesco, 2026-09-22.
+ * **È un difetto di sistema, non di questa story**: va portato su `input.tsx`
+ * per tutte le app, ed è annotato in `WORKLOG.md`.
  */
-function CampoScheda({
+const CAMPO_SENZA_ZOOM = 'text-lg md:text-sm'
+
+function CampoCassetto({
   etichetta,
   valore,
   onScrivi,
-  larghezza = 'pieno',
+  numerico = false,
 }: {
   etichetta: string
   valore: string
   onScrivi: (v: string) => void
-  larghezza?: 'pieno' | 'stretto'
+  numerico?: boolean
 }) {
   return (
-    <label className={larghezza === 'stretto' ? 'flex flex-col gap-1' : 'flex flex-1 flex-col gap-1'}>
+    <label className="flex flex-col gap-1">
       <span className="text-sm text-muted-foreground">{etichetta}</span>
       <Input
         value={valore}
-        inputMode={larghezza === 'stretto' ? 'decimal' : undefined}
-        className={larghezza === 'stretto' ? 'w-20 text-right tabular-nums' : undefined}
+        inputMode={numerico ? 'decimal' : undefined}
+        className={numerico ? `${CAMPO_SENZA_ZOOM} text-right tabular-nums` : CAMPO_SENZA_ZOOM}
         onChange={(e) => onScrivi(e.target.value)}
       />
     </label>
   )
 }
 
+/** Il cassetto: bozza locale, si scrive solo confermando. */
+function CassettoModifica<T>({
+  aperto,
+  onApertoCambia,
+  titolo,
+  valoreIniziale,
+  onConferma,
+  campi,
+}: {
+  aperto: boolean
+  onApertoCambia: (v: boolean) => void
+  titolo: string
+  valoreIniziale: T
+  onConferma: (v: T) => void
+  campi: (bozza: T, scrivi: (patch: Partial<T>) => void) => React.ReactNode
+}) {
+  // Lo stato si semina **al montaggio** e basta: il chiamante rimonta il
+  // cassetto con una `key` che cambia a ogni riga aperta. Un `useEffect` che
+  // risincronizzasse la bozza sarebbe un `setState` dentro un effetto — la
+  // famiglia di difetti che `CLAUDE.md` mette in guardia, e che oxlint segnala
+  // come `react(set-state-in-effect)`: l'ha preso appena scritto.
+  const [bozza, setBozza] = React.useState(valoreIniziale)
+
+  return (
+    <ResponsiveDialog open={aperto} onOpenChange={onApertoCambia}>
+      <ResponsiveDialogContent>
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>{titolo}</ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
+        <ResponsiveDialogBody className="flex flex-col gap-3">
+          {campi(bozza, (patch) => setBozza((b) => ({ ...b, ...patch })))}
+        </ResponsiveDialogBody>
+        <ResponsiveDialogFooter>
+          <Button type="button" variant="outline" onClick={() => onApertoCambia(false)}>
+            Annulla
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              onConferma(bozza)
+              onApertoCambia(false)
+            }}
+          >
+            Conferma
+          </Button>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
+  )
+}
+
 /**
- * La faccia stretta del computo: una **scheda per voce**, le misure come
- * blocchi di campi, il SOMMANO in fondo. Non è un foglio rimpicciolito — nove
- * colonne su un telefono non ci stanno, e comprimerle è ciò che rompeva la
- * testata prima di `min-w-4xl`.
+ * La faccia stretta, **forma D**: la lista resta in sola lettura e densissima —
+ * non si muove mai — e la modifica accade in un **cassetto dal basso**. Scelta
+ * da Francesco fra le quattro provate, perché la lettura è ciò che sul telefono
+ * si fa di più.
+ *
+ * **Tutto è modificabile, anche la testata e il prezzo.** Nella prima stesura
+ * solo le misure lo erano: *«occhio che così il titolo della voce e prezzo non
+ * sono modificabili»* — e una faccia dove due campi su tre si possono solo
+ * leggere non è la faccia stretta del computo. La testata apre il cassetto
+ * della **voce** (designazione, unità, prezzo), ogni misura il cassetto della
+ * **misura**.
  */
 function SchedeComputo({
   gruppi,
@@ -395,100 +472,162 @@ function SchedeComputo({
   gruppi: GruppoFoglio<Voce, Misurazione>[]
   scrivi: (g: GruppoFoglio<Voce, Misurazione>[]) => void
 }) {
-  const aggiornaVoce = (gi: number, patch: Partial<Voce>) =>
-    scrivi(gruppi.map((g, i) => (i === gi ? { ...g, testata: { ...g.testata, ...patch } } : g)))
+  const [voceAperta, setVoceAperta] = React.useState<number | null>(null)
+  const [misuraAperta, setMisuraAperta] = React.useState<{ g: number; m: number } | null>(null)
 
-  const aggiornaMisura = (gi: number, mi: number, patch: Partial<Misurazione>) =>
+  const aggiornaVoce = (gi: number, testata: Voce) =>
+    scrivi(gruppi.map((g, i) => (i === gi ? { ...g, testata } : g)))
+  const aggiornaMisura = (gi: number, mi: number, m: Misurazione) =>
+    scrivi(
+      gruppi.map((g, i) =>
+        i === gi ? { ...g, righe: g.righe.map((r, j) => (j === mi ? m : r)) } : g
+      )
+    )
+  const aggiungiMisuraA = (gi: number) => {
     scrivi(
       gruppi.map((g, i) =>
         i === gi
-          ? { ...g, righe: g.righe.map((m, j) => (j === mi ? { ...m, ...patch } : m)) }
+          ? { ...g, righe: [...g.righe, { descrizione: '', parti: '1', lunghezza: '', larghezza: '', altezza: '' }] }
           : g
       )
     )
+    setMisuraAperta({ g: gi, m: gruppi[gi]!.righe.length })
+  }
+
+  const fattori = (m: Misurazione) =>
+    [m.parti, m.lunghezza, m.larghezza, m.altezza].filter(Boolean).join(' × ')
+
+  const voceCorrente = voceAperta != null ? gruppi[voceAperta]?.testata : undefined
+  const misuraCorrente =
+    misuraAperta != null ? gruppi[misuraAperta.g]?.righe[misuraAperta.m] : undefined
 
   return (
     <div className="flex flex-col gap-4">
       {gruppi.map((gruppo, gi) => (
         <Card key={gruppo.id}>
           <CardHeader>
-            <CardTitle className="sr-only">
-              {gruppo.testata.designazione || 'Voce senza descrizione'}
-            </CardTitle>
-            <CampoScheda
-              etichetta="Designazione dei lavori"
-              valore={gruppo.testata.designazione}
-              onScrivi={(v) => aggiornaVoce(gi, { designazione: v })}
-            />
+            {/* La testata è un bersaglio: apre il cassetto della voce. */}
+            <button
+              type="button"
+              className="-mx-2 rounded-md px-2 py-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              onClick={() => setVoceAperta(gi)}
+            >
+              <CardTitle>{gruppo.testata.designazione || 'Voce senza descrizione'}</CardTitle>
+            </button>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex flex-col gap-1">
             {gruppo.righe.map((m, mi) => (
-              <div key={mi} className="flex flex-col gap-2 border-b pb-4">
-                <CampoScheda
-                  etichetta="Misura"
-                  valore={m.descrizione}
-                  onScrivi={(v) => aggiornaMisura(gi, mi, { descrizione: v })}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <CampoScheda etichetta="Par.ug." larghezza="stretto" valore={m.parti}
-                    onScrivi={(v) => aggiornaMisura(gi, mi, { parti: v })} />
-                  <CampoScheda etichetta="Lung." larghezza="stretto" valore={m.lunghezza}
-                    onScrivi={(v) => aggiornaMisura(gi, mi, { lunghezza: v })} />
-                  <CampoScheda etichetta="Larg." larghezza="stretto" valore={m.larghezza}
-                    onScrivi={(v) => aggiornaMisura(gi, mi, { larghezza: v })} />
-                  <CampoScheda etichetta="H/Peso" larghezza="stretto" valore={m.altezza}
-                    onScrivi={(v) => aggiornaMisura(gi, mi, { altezza: v })} />
-                </div>
-                <p className="text-right text-sm text-muted-foreground">
-                  Parziale <strong className="tabular-nums">{decimale(parziale(m))}</strong>
-                </p>
-              </div>
+              <button
+                key={mi}
+                type="button"
+                className="-mx-2 flex items-baseline justify-between gap-3 rounded-md border-b px-2 py-2 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                onClick={() => setMisuraAperta({ g: gi, m: mi })}
+              >
+                <span className="truncate text-sm text-muted-foreground">
+                  {m.descrizione || 'misura senza descrizione'}
+                </span>
+                <span className="shrink-0 text-sm tabular-nums">
+                  {fattori(m)} <strong className="ps-2">{decimale(parziale(m))}</strong>
+                </span>
+              </button>
             ))}
 
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="self-start"
-              onClick={() =>
-                scrivi(
-                  gruppi.map((g, i) =>
-                    i === gi
-                      ? { ...g, righe: [...g.righe, { descrizione: '', parti: '1', lunghezza: '', larghezza: '', altezza: '' }] }
-                      : g
-                  )
-                )
-              }
+              className="self-start text-accent-ink"
+              onClick={() => aggiungiMisuraA(gi)}
             >
               + misurazione
             </Button>
 
-            <div className="flex items-end gap-4">
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Sommano</p>
-                <p className="tabular-nums">
-                  {decimale(sommano(gruppo.righe))} {gruppo.testata.unita}
-                </p>
-              </div>
-              <CampoScheda
-                etichetta="Prezzo unit."
-                larghezza="stretto"
-                valore={gruppo.testata.prezzo}
-                onScrivi={(v) => aggiornaVoce(gi, { prezzo: v })}
-              />
-            </div>
-            <p className="flex justify-between border-t pt-2 font-semibold">
-              <span>Importo</span>
-              <span className="tabular-nums">
+            <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-4 text-sm">
+              <dt className="text-muted-foreground">Sommano</dt>
+              <dd className="text-right tabular-nums">
+                {decimale(sommano(gruppo.righe))} {gruppo.testata.unita}
+              </dd>
+              <dt className="text-muted-foreground">Prezzo unit.</dt>
+              <dd className="text-right tabular-nums">
+                {gruppo.testata.prezzo ? valuta(numero(gruppo.testata.prezzo) ?? 0) : 'da prezzare'}
+              </dd>
+              <dt className="mt-1 border-t pt-1 font-semibold">Importo</dt>
+              <dd className="mt-1 border-t pt-1 text-right font-semibold tabular-nums">
                 {(() => {
                   const i = importo(gruppo.testata, gruppo.righe)
                   return i == null ? '—' : valuta(i)
                 })()}
-              </span>
-            </p>
+              </dd>
+            </dl>
           </CardContent>
         </Card>
       ))}
+
+      {voceCorrente ? (
+        <CassettoModifica<Voce>
+          key={`voce-${voceAperta}`}
+          aperto={voceAperta != null}
+          onApertoCambia={(v) => setVoceAperta(v ? voceAperta : null)}
+          titolo="Voce di computo"
+          valoreIniziale={voceCorrente}
+          onConferma={(v) => aggiornaVoce(voceAperta!, v)}
+          campi={(bozza, scriviBozza) => (
+            <>
+              <CampoCassetto
+                etichetta="Designazione dei lavori"
+                valore={bozza.designazione}
+                onScrivi={(v) => scriviBozza({ designazione: v })}
+              />
+              <div className="flex gap-3">
+                <CampoCassetto
+                  etichetta="Unità"
+                  valore={bozza.unita}
+                  onScrivi={(v) => scriviBozza({ unita: v })}
+                />
+                <CampoCassetto
+                  etichetta="Prezzo unitario"
+                  numerico
+                  valore={bozza.prezzo}
+                  onScrivi={(v) => scriviBozza({ prezzo: v })}
+                />
+              </div>
+            </>
+          )}
+        />
+      ) : null}
+
+      {misuraCorrente ? (
+        <CassettoModifica<Misurazione>
+          key={`misura-${misuraAperta?.g}-${misuraAperta?.m}`}
+          aperto={misuraAperta != null}
+          onApertoCambia={(v) => setMisuraAperta(v ? misuraAperta : null)}
+          titolo="Misurazione"
+          valoreIniziale={misuraCorrente}
+          onConferma={(m) => aggiornaMisura(misuraAperta!.g, misuraAperta!.m, m)}
+          campi={(bozza, scriviBozza) => (
+            <>
+              <CampoCassetto
+                etichetta="Descrizione (parti negative = detrazione)"
+                valore={bozza.descrizione}
+                onScrivi={(v) => scriviBozza({ descrizione: v })}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <CampoCassetto etichetta="Par.ug." numerico valore={bozza.parti}
+                  onScrivi={(v) => scriviBozza({ parti: v })} />
+                <CampoCassetto etichetta="Lung." numerico valore={bozza.lunghezza}
+                  onScrivi={(v) => scriviBozza({ lunghezza: v })} />
+                <CampoCassetto etichetta="Larg." numerico valore={bozza.larghezza}
+                  onScrivi={(v) => scriviBozza({ larghezza: v })} />
+                <CampoCassetto etichetta="H/Peso" numerico valore={bozza.altezza}
+                  onScrivi={(v) => scriviBozza({ altezza: v })} />
+              </div>
+              <p className="text-right text-sm text-muted-foreground">
+                Parziale <strong className="tabular-nums">{decimale(parziale(bozza))}</strong>
+              </p>
+            </>
+          )}
+        />
+      ) : null}
     </div>
   )
 }
@@ -517,10 +656,16 @@ function ComputoADueFacce() {
  * ha indicato la strada giusta: *«es. avevamo creato lista a due facce»*. È lo
  * stesso bivio di `Pagine/Lista a due facce` (M4ter.6), applicato al foglio.
  *
- * Sopra soglia il **foglio**, sotto le **schede**: una per voce, le misure come
- * blocchi di campi, il SOMMANO in fondo. **E si scrive**: la prima stesura
- * mostrava i valori in sola lettura, e un computo che sul telefono si può solo
- * leggere non è la faccia stretta del computo, è un suo estratto. La faccia stretta non è il foglio
+ * Sopra soglia il **foglio**, sotto la **forma D**: la lista resta in sola
+ * lettura e densissima — non si muove mai — e la modifica accade in un
+ * **cassetto dal basso** (`tassullo-responsive-dialog`, che sul telefono è già
+ * un `Drawer`). Scelta da Francesco fra quattro provate a video, perché sul
+ * telefono un computo si legge molto e si corregge poco.
+ *
+ * **Tutto si modifica**: la testata apre il cassetto della voce (designazione,
+ * unità, prezzo), ogni misura quello della misura. E i campi portano
+ * `text-lg md:text-sm`, che **non è una scelta di grandezza ma la protezione
+ * anti-zoom** — v. il commento su `CAMPO_SENZA_ZOOM`. La faccia stretta non è il foglio
  * rimpicciolito — nove colonne su un telefono non ci stanno, e comprimerle è
  * precisamente ciò che rompeva la testata (misurato: «Designazione dei lavori»
  * e «Par.ug.» scritte una sopra l'altra).
