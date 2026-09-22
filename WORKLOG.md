@@ -11886,3 +11886,53 @@ fa niente» si guarda **nel DOM**, non nel foglio di stile.
 - `npm run check` — sette gate, **uscita 0**.
 - `misura:bersagli` — **0 piccoli** in entrambe le direzioni.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — il foglio in densità touch era rotto, e l'ha trovato il giro a video (2026-09-22)
+
+Guardate le due story nuove nelle condizioni che nessuno aveva ancora aperto —
+**modalità scura** e **densità touch**. Il picker regge in tutte e due. **Il
+foglio a gruppi no**, e il difetto era grosso: in touch la colonna
+«Designazione dei lavori» **collassava**, i titoli delle voci si riducevano a una
+lettera («R.», «E», «M») e le descrizioni delle misure **sparivano del tutto**.
+
+**La causa è una mia correzione precedente, fatta a metà.** `min-w-4xl` —
+introdotto in M4ter.12 proprio per impedire alla tabella di comprimersi oltre il
+leggibile — è un token della scala dei **contenitori**, cioè **896px fissi**. Ma
+le colonne del foglio sono dichiarate in unità di `--spacing` (`w-20`, `w-28`,
+`w-32`), e in densità touch quella costante passa da 4px a 6: le colonne
+numeriche crescono del **50%** mentre il minimo resta fermo, e l'unica colonna
+che può cedere — l'elastica — viene schiacciata a zero. Il rimedio funzionava
+nella densità in cui era stato misurato e falliva nell'altra.
+
+Corretto in **`min-w-240`**, che sta sulla scala `--spacing` e quindi scala con
+le colonne che deve contenere: **960px in normale, 1440 in touch**. Misurato:
+
+| densità | viewport | larghezza Designazione | celle col testo tagliato |
+|---|---|---:|---:|
+| normale | 1440 | 687px | 0 |
+| normale | 1024 | 271px | 1 |
+| **touch** | 1440 | **359px** | **0** |
+| **touch** | 1024 | **359px** | **0** |
+
+Prima della correzione, in touch quella colonna era ridotta a nulla a entrambe
+le larghezze.
+
+**La regola che ne esce, e vale per ogni tabella del registry**: *il minimo di
+una tabella le cui colonne scalano deve scalare con loro*. Un minimo su una
+scala diversa da quella delle colonne è un rimedio che regge in una sola
+densità — e la densità in cui non regge è quella che non si guarda mai, perché
+sulla scrivania si sviluppa in `normale`.
+
+E la ragione per cui è stato trovato: **axe non lo vede** (nessuna violazione),
+`misura:bersagli` non lo vede (i bersagli restano grandi), e `check:registry` non
+lo vede (è una classe legittima). Lo si vede **aprendo la story in touch**. È
+la stessa famiglia di D15.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- Le due story nuove guardate in **scuro** e in **touch**: il picker regge, il
+  foglio ora anche.
+- `lint` **26 avvisi**, tutti preesistenti.

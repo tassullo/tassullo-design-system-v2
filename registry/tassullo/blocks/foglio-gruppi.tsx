@@ -815,14 +815,24 @@ export function FoglioGruppi<TTestata, TRiga>({
         // riga. Rilievo di Francesco il 2026-09-21, e la stessa ragione per cui
         // ogni foglio di calcolo li ha: qui non sono una prop, sono la forma
         // del blocco.
-        // `min-w-4xl` (896px) è la soglia sotto la quale il foglio **scorre**
-        // invece di comprimersi. Senza, `table-fixed` stringe la colonna
-        // elastica fino a zero e oltre: misurato, a finestra stretta
-        // «Designazione dei lavori» e «Par.ug.» finivano **scritte una sopra
-        // l'altra** e la designazione si riduceva a «RAS…» — rilievo di
-        // Francesco, 2026-09-22. Una tabella che si comprime senza limite non
+        // `min-w-240` è la soglia sotto la quale il foglio **scorre** invece di
+        // comprimersi. Senza, `table-fixed` stringe la colonna elastica fino a
+        // zero e oltre: a finestra stretta «Designazione dei lavori» e
+        // «Par.ug.» finivano **scritte una sopra l'altra** e la designazione si
+        // riduceva a «RAS…». Una tabella che si comprime senza limite non
         // degrada, si rompe; il contenitore ha `overflow-x-auto` apposta.
-        className="table-fixed min-w-4xl border border-border [&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
+        //
+        // **Sulla scala `--spacing`, non su quella dei contenitori**, ed è una
+        // correzione: la prima stesura usava `min-w-4xl`, cioè **896px fissi**.
+        // Ma le colonne sono dichiarate in unità di `--spacing` (`w-20`, `w-28`,
+        // `w-32`), e in densità touch quella costante passa da 4px a 6: le
+        // colonne numeriche crescono del 50% mentre il minimo resta fermo, e
+        // la colonna elastica — l'unica che può cedere — viene schiacciata a
+        // zero. Misurato in touch: i titoli delle voci ridotti a una lettera e
+        // le descrizioni delle misure **sparite**. Il minimo di una tabella le
+        // cui colonne scalano deve scalare con loro: 240 gradini sono 960px in
+        // normale e 1440 in touch.
+        className="table-fixed min-w-240 border border-border [&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
       >
         <colgroup>
           {colonne.map((col) => (
