@@ -54,13 +54,13 @@ const PESI = [
 ]
 
 const SCALA = [
-  { px: 12, tok: 'text-xs', testo: 'MICRO-ETICHETTA' },
-  { px: 13, tok: 'text-sm', testo: 'Voci di sidebar, breadcrumb, menu, bottoni' },
-  { px: 15, tok: 'text-base', testo: 'Corpo standard: rasatura armata su intonaco di sottofondo' },
-  { px: 16, tok: 'text-lg', testo: 'Titolo di card' },
-  { px: 19, tok: 'text-xl', testo: 'Titolo di sezione' },
-  { px: 27, tok: 'text-2xl', testo: 'Computo metrico estimativo' },
-  { px: 31, tok: 'text-3xl', testo: '1.284,50' },
+  { tok: 'text-xs', testo: 'MICRO-ETICHETTA' },
+  { tok: 'text-sm', testo: 'Voci di sidebar, breadcrumb, menu, bottoni' },
+  { tok: 'text-base', testo: 'Corpo standard: rasatura armata su intonaco di sottofondo' },
+  { tok: 'text-lg', testo: 'Titolo di card' },
+  { tok: 'text-xl', testo: 'Titolo di sezione' },
+  { tok: 'text-2xl', testo: 'Computo metrico estimativo' },
+  { tok: 'text-3xl', testo: '1.284,50' },
 ]
 
 /**
@@ -153,30 +153,47 @@ function Pesi() {
   )
 }
 
+/**
+ * Un gradino della scala, reso con la sua utility e non con un corpo in pixel:
+ * così segue la densità come nelle app. Il corpo accanto è letto dal DOM, e un
+ * `ResizeObserver` lo rilegge quando l'interruttore Densità lo cambia.
+ */
+function Gradino({ tok, testo }: { tok: string; testo: string }) {
+  const rif = useRef<HTMLSpanElement>(null)
+  const [px, setPx] = useState<string | null>(null)
+  useEffect(() => {
+    const el = rif.current
+    if (!el) return
+    const leggi = () => setPx(`${Number.parseFloat(getComputedStyle(el).fontSize).toFixed(0)}px`)
+    leggi()
+    const osservatore = new ResizeObserver(leggi)
+    osservatore.observe(el)
+    return () => osservatore.disconnect()
+  }, [])
+  const titolo = ['text-xl', 'text-2xl', 'text-3xl'].includes(tok)
+  return (
+    <div className="grid grid-cols-[9rem_1fr] items-baseline gap-4 border-b border-border py-2 last:border-b-0">
+      <span className="font-mono text-xs text-muted-foreground">
+        {tok} · {px ?? '…'}
+      </span>
+      <span ref={rif} className={`${tok} ${titolo ? 'font-semibold' : ''}`}>
+        {testo}
+      </span>
+    </div>
+  )
+}
+
 function Scala() {
   return (
     <div className="flex flex-col">
       {SCALA.map((g) => (
-        <div
-          key={g.tok}
-          className="grid grid-cols-[9rem_1fr] items-baseline gap-4 border-b border-border py-2 last:border-b-0"
-        >
-          <span className="font-mono text-xs text-muted-foreground">
-            {g.tok} · {g.px}px
-          </span>
-          <span
-            style={{ fontSize: `${g.px}px`, fontWeight: g.px >= 18 ? 600 : 400 }}
-            className={g.px === 11 ? 'tracking-wide' : undefined}
-          >
-            {g.testo}
-          </span>
-        </div>
+        <Gradino key={g.tok} tok={g.tok} testo={g.testo} />
       ))}
     </div>
   )
 }
 
-/** Dice se Inter è davvero caricato: senza, la pagina mente in silenzio. */
+/** Dice se Inter è davvero caricato: senza, le misure della pagina descrivono un altro carattere. */
 function Stato() {
   const [n, setN] = useState<number | null>(null)
   useEffect(() => {
@@ -202,9 +219,9 @@ function Stato() {
         </>
       ) : (
         <>
-          <strong>Inter non è caricato</strong> — stai vedendo il fallback di sistema, e le misure
-          qui sotto descrivono quello. Il <code>&lt;link&gt;</code> sta in{' '}
-          <code>.storybook/preview-head.html</code>.
+          <strong>Inter non è caricato</strong> — stai vedendo il carattere di sistema, e le misure
+          qui sotto descrivono quello. Inter viaggia col tema: l&apos;item <code>tema</code> porta
+          con sé <code>tema-font</code>.
         </>
       )}
     </div>
@@ -217,31 +234,34 @@ function Pagina() {
       <div className="mx-auto max-w-page space-y-8 px-5 py-6">
         <header className="space-y-3">
           <h1 className="text-2xl font-semibold">Il carattere</h1>
-          <p className="max-w-[62ch] text-base text-muted-foreground">
-            <strong className="text-foreground">Inter sullo schermo, Replica nelle stampe.</strong>{' '}
-            Deciso l’8 settembre 2026 dopo il confronto misurato di cinque candidati. Il
-            ragionamento completo è in <code>docs/DECISIONI.md</code> §14.
+          <p className="max-w-prose text-base text-muted-foreground">
+            <strong className="text-foreground">Le interfacce Tassullo sono in Inter</strong>, in
+            quattro pesi. Il carattere arriva col tema, dentro il suo CSS: l&apos;app non lo scarica
+            da nessun servizio esterno. Il carattere del marchio, Replica, resta alle stampe PDF.
           </p>
           <Stato />
         </header>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">I pesi, misurati</h2>
-          <p className="max-w-[68ch] text-base text-muted-foreground">
-            Il design system scrive quattro pesi: <code>400</code> per il corpo, <code>500</code>{' '}
-            per le etichette, <code>600</code> per i titoli, <code>700</code> per i totali. Un
-            carattere che non li ha tutti non protesta — il browser sostituisce il più vicino, e
-            due gradini diversi rendono identici. È qui che Replica non passava: 500 e 600 non
-            esistono nella famiglia, e quattro gradini scritti ne rendevano due.
+          <h2 className="text-xl font-semibold">I quattro pesi</h2>
+          <p className="max-w-prose text-base text-muted-foreground">
+            <code>font-normal</code> (400) per il corpo, <code>font-medium</code> (500) per le
+            etichette, <code>font-semibold</code> (600) per i titoli, <code>font-bold</code> (700)
+            per i totali e l&apos;enfasi. Altri pesi non si usano. La pagina misura la larghezza di
+            ogni peso: se due gradini rendessero uguali — cosa che succede, senza errori, con un
+            carattere che non li possiede tutti — il conto qui sotto lo direbbe.
           </p>
           <Pesi />
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">La scala tipografica</h2>
-          <p className="max-w-[68ch] text-base text-muted-foreground">
-            I sette gradini del tema, ai corpi reali in cui vengono usati. In densità touch salgono
-            tutti di un gradino — <code>Tema/Densità</code> lo mostra affiancato.
+          <p className="max-w-prose text-base text-muted-foreground">
+            Sette gradini, da <code>text-xs</code> a <code>text-3xl</code>, con l&apos;uso tipico
+            di ciascuno. Oltre <code>text-3xl</code> non si sale: i gradini più grandi di Tailwind
+            non sono tarati sul tema e non seguono la densità. In densità touch ogni gradino
+            cresce di circa l&apos;8% — prova l&apos;interruttore in barra, o guarda{' '}
+            <code>Tema/Densità</code>, che mostra le due densità affiancate.
           </p>
           <Scala />
         </section>
@@ -254,12 +274,22 @@ function Pagina() {
                 <code>font-sans</code> — Inter
               </div>
               <p className="mt-1 text-base text-muted-foreground">
-                Tutto ciò che si legge: prosa, titoli, etichette, e i numeri, che con{' '}
-                <code>tabular-nums</code> si incolonnano senza cambiare carattere (
+                Tutto ciò che compare in un&apos;app: prosa, titoli, etichette, numeri, e anche
+                codici, lotti, partite IVA. I numeri da confrontare in colonna prendono{' '}
+                <code>tabular-nums</code> e si incolonnano senza cambiare carattere (
                 <code>Tema/Cifre</code>).
               </p>
               <p className="mt-2 text-base">
                 Rasatura armata su intonaco — 20.497,60 € — <em>nota in corsivo</em>
+              </p>
+              <p className="mt-2 text-base">
+                Codice articolo{' '}
+                <span className="text-sm text-muted-foreground">TAS-04182-B</span>
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Un codice si scrive nel carattere del testo, con{' '}
+                <code>text-sm text-muted-foreground</code>: un identificativo non deve pesare
+                quanto la voce che identifica.
               </p>
             </div>
             <div className="rounded-md border border-border p-4">
@@ -267,33 +297,33 @@ function Pagina() {
                 <code>font-mono</code> — monospaziato di sistema
               </div>
               <p className="mt-1 text-base text-muted-foreground">
-                <strong>Sospeso sui codici dal 2026-09-20</strong> (Roberto,{' '}
-                <code>docs/DECISIONI.md</code> §48): identificativi, DoP e lotti si scrivono nel
-                carattere del testo, come qui sotto. Il mono resta ai blocchi di codice sorgente.
+                Solo per il <strong>codice sorgente</strong>: un blocco di codice, una classe
+                citata, un valore CSS. Non per i codici gestionali e non per i numeri.
               </p>
-              <p className="mt-2 text-sm">TAS-04182-B · TAS-0342-CPR-2024</p>
+              <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-muted p-2 font-mono text-sm">
+                <code>{'<td className="text-right tabular-nums">'}</code>
+              </pre>
               <p className="mt-2 text-sm text-muted-foreground">
-                Il costo, misurato in <code>Tema/Cifre</code> §4: in Inter <code>O</code> e{' '}
-                <code>0</code> si distinguono, <code>I</code> e <code>l</code> no — ma i codici
-                Tassullo sono maiuscoli, e la <code>l</code> non ci compare.
+                Un&apos;avvertenza sulle stringhe tecniche a cassa mista — hash, token, percorsi: in
+                Inter la <code>I</code> maiuscola e la <code>l</code> minuscola quasi coincidono.
+                Sui codici Tassullo, fatti di maiuscole e cifre, il caso non si presenta.{' '}
+                <code>Tema/Cifre</code> mostra le coppie a confronto.
               </p>
             </div>
           </div>
         </section>
 
         <section className="space-y-3 rounded-md border border-border bg-card p-4">
-          <h2 className="text-xl font-semibold">Replica non sparisce</h2>
-          <p className="max-w-[72ch] text-base">
-            Resta il carattere del marchio e <strong>resta nelle stampe PDF</strong>, generate
-            server-side con reportlab. Non è più nello stack dello schermo, e non ci deve tornare
-            «per un titolo»: tenerlo lì lo farebbe apparire sulle macchine che ce l’hanno
-            installato e non sulle altre — cioè renderebbe l’interfaccia diversa da persona a
-            persona.
+          <h2 className="text-xl font-semibold">Replica, nelle stampe</h2>
+          <p className="max-w-prose text-base">
+            Replica è il carattere del marchio e <strong>si usa nei documenti PDF</strong>. Sullo
+            schermo no, nemmeno per un titolo: un carattere che non viaggia col tema comparirebbe
+            solo sui computer che lo hanno installato, e l&apos;interfaccia sarebbe diversa da
+            persona a persona.
           </p>
-          <p className="max-w-[72ch] text-base text-muted-foreground">
-            Conseguenza da sapere, e da non scoprire per caso: <strong>lo stesso computo è in Inter
-            a schermo e in Replica sul PDF.</strong> È una scelta — lo schermo prende il carattere
-            che lavora meglio, la carta quello del marchio.
+          <p className="max-w-prose text-base text-muted-foreground">
+            Ne segue che lo stesso documento è in Inter a schermo e in Replica sulla carta. È
+            voluto: lo schermo usa il carattere che lavora meglio, la carta quello del marchio.
           </p>
         </section>
       </div>
@@ -301,6 +331,19 @@ function Pagina() {
   )
 }
 
+/**
+ * Il carattere delle interfacce Tassullo: Inter sullo schermo, Replica nelle
+ * stampe PDF.
+ *
+ * Si installa col tema — `npx shadcn@latest add tassullo/tassullo-design-system-v2/tema`
+ * porta anche l'item `tema-font`, cioè Inter dentro il CSS, senza richieste a
+ * servizi esterni.
+ *
+ * Regole d'uso: quattro pesi (`font-normal`, `font-medium`, `font-semibold`,
+ * `font-bold`); sette gradini di corpo, da `text-xs` a `text-3xl`, e non oltre;
+ * `font-mono` solo per il codice sorgente; codici e identificativi nel
+ * carattere del testo, con `text-sm text-muted-foreground`.
+ */
 const meta = {
   title: 'Tema/Carattere',
   component: Pagina,

@@ -223,6 +223,29 @@ function Affiancate() {
     <div className="min-h-dvh bg-background">
       <header className="mx-auto max-w-page px-5 pt-6 pb-2">
         <h1 className="text-2xl font-semibold text-foreground">Densità</h1>
+        <p className="mt-1 max-w-prose text-base text-muted-foreground">
+          Le app Tassullo hanno due densità. La <strong className="text-foreground">normale</strong>{' '}
+          è per la scrivania. La <strong className="text-foreground">touch</strong> è per chi
+          lavora in cantiere o in magazzino, col dito o coi guanti: i bersagli crescono — il
+          bottone passa a 48px — e il testo sale di un gradino.
+        </p>
+        <ul className="mt-3 max-w-prose list-disc space-y-1 pl-5 text-base text-muted-foreground">
+          <li>
+            La densità si sceglie per app, con un attributo sulla radice:{' '}
+            <code>{'<html data-density="touch">'}</code>. La decide l&apos;app, perché è lei a
+            sapere se si usa in campo — un tablet in ufficio non vuole i bersagli da guanti.
+          </li>
+          <li>
+            Si può tornare alla normale dentro una parte della pagina con{' '}
+            <code>data-density="normale"</code>: le due colonne qui sotto fanno proprio questo, e
+            per questo non seguono l&apos;interruttore in barra.
+          </li>
+          <li>
+            I componenti non hanno una taglia «touch»: altezze, spaziature, icone e corpi del
+            testo seguono l&apos;attributo da soli. Raggi, bordi e larghezze massime restano
+            uguali.
+          </li>
+        </ul>
       </header>
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2">
         <Colonna densita="normale" etichetta="Normale" />
@@ -232,6 +255,18 @@ function Affiancate() {
   )
 }
 
+/**
+ * Le due densità del tema — normale per la scrivania, touch per il cantiere —
+ * affiancate, con le misure lette dalla pagina.
+ *
+ * Si installano col tema: `npx shadcn@latest add tassullo/tassullo-design-system-v2/tema`.
+ * Si attiva la touch con `data-density="touch"` sulla radice dell'app, e si
+ * torna alla normale in un sottoalbero con `data-density="normale"`.
+ *
+ * Regole d'uso: la densità la sceglie l'app, non il dispositivo; nessun
+ * componente ha una variante touch — altezze, spaziature, icone e testo seguono
+ * l'attributo, mentre raggi, bordi e larghezze massime restano fermi.
+ */
 const meta = {
   title: 'Tema/Densità',
   component: Affiancate,

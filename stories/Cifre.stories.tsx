@@ -300,7 +300,7 @@ function Sorgente({ children }: { children: string }) {
   )
 }
 
-/** La tabella nella forma adottata: codici in mono, numeri in tabellare. */
+/** La tabella nella forma adottata: codici nel carattere del testo, numeri in tabellare. */
 function TabellaModello() {
   return (
     <table className="w-full border-collapse text-base">
@@ -419,9 +419,9 @@ function StatoFont() {
       ) : (
         <>
           <strong>Inter non è caricato</strong> — stai vedendo <code>{stato.famiglia}</code>, il
-          fallback di sistema, che ha le cifre già tabellari di suo. La dimostrazione sembrerà
-          riuscire e non dimostrerà niente. Inter arriva dal <code>&lt;link&gt;</code> in{' '}
-          <code>.storybook/preview-head.html</code>: se manca, manca lì.
+          carattere di sistema, che ha le cifre già tabellari di suo: le misure qui sotto
+          sembreranno riuscire senza dimostrare niente. Inter viaggia col tema, nell&apos;item{' '}
+          <code>tema-font</code>.
         </>
       )}
     </div>
@@ -434,19 +434,21 @@ function Pagina() {
       <div className="mx-auto max-w-page space-y-8 px-5 py-6">
         <header className="space-y-3">
           <h1 className="text-2xl font-semibold">Cifre e dati tabellari</h1>
-          <p className="text-base text-muted-foreground">
-            Le colonne di numeri si allineano con Inter, senza cambiare carattere. Serve una
-            utility, <code>tabular-nums</code>, e non un secondo font.
+          <p className="max-w-prose text-base text-muted-foreground">
+            Le colonne di numeri si allineano con Inter, senza cambiare carattere: basta la utility{' '}
+            <code>tabular-nums</code>. Questa pagina lo dimostra misurando, e dice come si scrivono
+            numeri, codici e separatori nelle app.
           </p>
           <StatoFont />
         </header>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">1. Le dieci cifre, misurate</h2>
-          <p className="text-base text-muted-foreground">
-            Le larghezze sono lette dal DOM dopo <code>document.fonts.ready</code>, non scritte qui:
-            una tabella di numeri scritta a mano resta verde anche il giorno in cui{' '}
-            <code>tabular-nums</code> smette di funzionare.
+          <p className="max-w-prose text-base text-muted-foreground">
+            Di default le cifre di Inter sono <strong>proporzionali</strong>: l&apos;1 è più
+            stretto dell&apos;8, e una colonna di importi non si incolonna. Con{' '}
+            <code>tabular-nums</code> diventano tutte larghe uguali. Le larghezze qui sotto sono
+            lette dalla pagina, a carattere caricato.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             <ContaLarghezze classi="" etichetta="Come sono di default (proporzionali)" />
@@ -456,14 +458,13 @@ function Pagina() {
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">
-            2. Lo stesso computo: il difetto, e la forma adottata
+            2. Lo stesso computo: il difetto, e la forma giusta
           </h2>
-          <p className="text-base text-muted-foreground">
-            Il bordo destro combacia in tutti e due i casi — non è lì che si vede. Si vede dove
-            comincia il <strong>gruppo dei decimali</strong>, misurato sotto ogni tabella, e sulla
-            riga «Sommano», che è in grassetto: se si incolonna col corpo in tondo è perché la
-            cifra tabellare del carattere resta larga uguale cambiando peso. Non è scontato — fra i
-            candidati, Geist derivava del 6% e i totali in grassetto sfasavano.
+          <p className="max-w-prose text-base text-muted-foreground">
+            In una colonna allineata a destra il bordo destro combacia sempre — il difetto non si
+            vede lì. Si vede dove comincia il <strong>gruppo dei decimali</strong>, misurato sotto
+            ogni tabella, e sulla riga «Sommano» in grassetto: si incolonna col corpo in tondo
+            perché in Inter la cifra tabellare ha la stessa larghezza a tutti i pesi.
           </p>
           <div className="grid gap-6 md:grid-cols-2">
             <Tabella
@@ -473,28 +474,20 @@ function Pagina() {
             />
             <Tabella
               num="tabular-nums"
-              titolo="✓ Adottato — con tabular-nums"
-              nota="Una utility su ogni cella numerica. Nessun cambio di carattere. È questa la forma che le app devono scrivere."
+              titolo="✓ Corretto — con tabular-nums"
+              nota="Una utility su ogni cella numerica, nessun cambio di carattere. È la forma che le app scrivono."
             />
           </div>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">3. Il modello da copiare</h2>
-          <p className="text-base text-muted-foreground">
-            Su una riga di computo vera: i <strong>numeri</strong> in <code>tabular-nums</code>,
-            perché si confrontano in colonna; tutto il resto — codice compreso —{' '}
-            <strong>nel carattere del testo</strong>. Il codice porta ancora{' '}
-            <code>text-sm text-muted-foreground</code>, che non è il carattere ma il{' '}
-            <em>peso</em>: un identificativo non deve pesare quanto la voce che identifica.
-          </p>
-          <p className="text-base text-muted-foreground">
-            <strong>
-              Il <code>font-mono</code> sui codici è sospeso dal 2026-09-20
-            </strong>{' '}
-            (chiesto da Roberto, v. la sezione 4 e <code>docs/DECISIONI.md</code> §48). Fino a
-            quella data questa riga diceva «il codice di sistema in <code>font-mono</code>»: se
-            capita di vederlo scritto da qualche parte, è quello il verbale che l&apos;ha tolto.
+          <p className="max-w-prose text-base text-muted-foreground">
+            I <strong>numeri</strong> in <code>tabular-nums</code>, perché si confrontano in
+            colonna; tutto il resto — codice compreso — <strong>nel carattere del testo</strong>.
+            Il codice prende <code>text-sm text-muted-foreground</code>, che non cambia il
+            carattere ma il <em>peso</em>: un identificativo non deve pesare quanto la voce che
+            identifica.
           </p>
           <div className="rounded-md border border-border p-4">
             <TabellaModello />
@@ -504,114 +497,56 @@ function Pagina() {
 <td className="text-right tabular-nums">1.114,00</td>
 <td className="text-right tabular-nums">18,40</td>
 <td className="text-right tabular-nums">20.497,60</td>`}</Sorgente>
-          <p className="text-base text-muted-foreground">
-            Da <strong>M2.4</strong> è la primitiva <code>table</code> a portarsi dietro{' '}
-            <code>tabular-nums</code>: nelle app non si riscrive a mano.
+          <p className="max-w-prose text-base text-muted-foreground">
+            La primitiva <code>table</code> e il blocco <code>data-table</code> portano già{' '}
+            <code>tabular-nums</code>: dentro di loro non va riscritto a mano. Serve scriverlo sui
+            numeri che stanno fuori da una tabella — un totale in una card, una colonna di un
+            elenco composto a mano.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">
-            4. I codici di sistema — il mono è <span className="text-accent-ink">sospeso</span>
-          </h2>
-          <p className="text-base text-muted-foreground">
-            La style guide del v1 diceva «monospace per codici sistema <em>e dati tabellari</em>».
-            La seconda metà è caduta con la sezione 2. <strong>Dal 2026-09-20 cade anche la
-            prima</strong>: codici, lotti, DoP e identificativi si scrivono nel carattere del
-            testo, come tutto il resto. Chiesto da Roberto, riferito da Francesco.{' '}
-            <code>docs/DECISIONI.md</code> §48.
+          <h2 className="text-xl font-semibold">4. Codici e identificativi</h2>
+          <p className="max-w-prose text-base text-muted-foreground">
+            Codici articolo, numeri DoP, lotti, partite IVA si scrivono{' '}
+            <strong>nel carattere del testo</strong>, come tutto il resto: niente{' '}
+            <code>font-mono</code>. Resta la distinzione fra la stringa che <em>si trascrive</em> e
+            la quantità che <em>si legge</em> — la prima prende <code>text-sm</code> e il grigio
+            attenuato, la seconda <code>tabular-nums</code>.
           </p>
-          <p className="text-base text-muted-foreground">
-            <strong>«Per ora»</strong>, ed è la parola con cui è arrivata: la decisione è
-            reversibile e questa sezione resta in piedi apposta — il ragionamento che c&apos;era
-            sotto e le misure che lo sostenevano sono qui, così chi vorrà riaprirla non dovrà
-            rifarle.
-          </p>
-
-          <div className="space-y-3 rounded-md border border-border bg-card p-4">
-            <div className="text-sm font-semibold">Cosa si perde, misurato</div>
-            <p className="text-base">
-              Il mono sui codici non serviva a incolonnare — a quello basta{' '}
-              <code>tabular-nums</code> — serviva a <strong>far vedere che quella stringa non è
-              prosa</strong>, e a rendere sicura una trascrizione. Il rischio vero di una
-              trascrizione è una <em>coppia di glifi che si somigliano</em>, e in Inter la coppia
-              pericolosa non è quella che ci si aspetta:
-            </p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-md border border-border p-3">
-                <div className="text-sm text-muted-foreground">Inter, il carattere del testo</div>
-                <div className="text-3xl tracking-wider">O0 IlL1 5S8B</div>
-              </div>
-              <div className="rounded-md border border-border p-3">
-                <div className="text-sm text-muted-foreground">mono di sistema</div>
-                <div className="font-mono text-3xl tracking-wider">O0 IlL1 5S8B</div>
-              </div>
-            </div>
-            <p className="text-base">
-              <strong>
-                <code>O</code> e <code>0</code> si distinguono benissimo
-              </strong>{' '}
-              anche in Inter — misurati a 32px, <span className="tabular-nums">23,97px</span>{' '}
-              contro <span className="tabular-nums">19,63px</span>, lo zero è più stretto e più
-              chiuso. La coppia che collassa è{' '}
-              <strong>
-                <code>I</code> maiuscola e <code>l</code> minuscola
-              </strong>
-              : due barre verticali nude, <span className="tabular-nums">7,44px</span> contro{' '}
-              <span className="tabular-nums">6,59px</span>, indistinguibili a occhio. Nel mono la
-              prima porta le grazie e la seconda la coda.
-            </p>
-            <p className="text-base">
-              <strong>
-                E proprio per questo la sospensione costa poco sui codici Tassullo
-              </strong>
-              : sono <em>maiuscoli e cifre</em> — <span className="text-sm">TAS-04182-B</span>,{' '}
-              <span className="text-sm">L240718-03</span>,{' '}
-              <span className="text-sm">IT01234567890</span>, scritti qui come li scriverà
-              un&apos;app — e in una stringa senza minuscole la <code>l</code> non compare mai. Dove la caveat resta viva è sulle stringhe{' '}
-              <em>tecniche</em> a cassa mista: hash, token, percorsi. Chi ne metterà una in pagina
-              riapra questa sezione.
-            </p>
-            <p className="text-base text-muted-foreground">
-              Fuori discussione invece <code>slashed-zero</code>: la utility di Tailwind chiede al
-              font lo zero barrato, e <strong>Inter quella feature non ce l&apos;ha</strong> —
-              misurate le cinque coppie con e senza, i numeri sono identici al centesimo di pixel.
-              Non è una leva disponibile.
-            </p>
-          </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-md border border-border p-4">
-              <div className="text-sm font-semibold">Si trascrive — nel carattere del testo</div>
+              <div className="text-sm font-semibold">
+                Si trascrive — <code>text-sm text-muted-foreground</code>
+              </div>
               <ul className="mt-2 space-y-2 text-base">
                 <li>
-                  Codice articolo <span className="text-sm">TAS-04182-B</span>
+                  Codice articolo{' '}
+                  <span className="text-sm text-muted-foreground">TAS-04182-B</span>
                 </li>
                 <li>
-                  Numero DoP <span className="text-sm">TAS-0342-CPR-2024</span>
+                  Numero DoP{' '}
+                  <span className="text-sm text-muted-foreground">TAS-0342-CPR-2024</span>
                 </li>
                 <li>
-                  Lotto di produzione <span className="text-sm">L240718-03</span>
+                  Lotto di produzione{' '}
+                  <span className="text-sm text-muted-foreground">L240718-03</span>
                 </li>
                 <li>
-                  Partita IVA <span className="text-sm">IT01234567890</span>
+                  Partita IVA{' '}
+                  <span className="text-sm text-muted-foreground">IT01234567890</span>
                 </li>
                 <li>
-                  Percorso <span className="text-sm">/allegati/dop/2024/</span>
-                </li>
-                <li>
-                  Token, hash, id tecnici <span className="text-sm">a3f9c1e0</span>
+                  Percorso{' '}
+                  <span className="text-sm text-muted-foreground">/allegati/dop/2024/</span>
                 </li>
               </ul>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Erano la colonna «✓ mono». La distinzione fra le due colonne{' '}
-                <strong>non è caduta</strong> — una stringa che si trascrive resta una cosa diversa
-                da una quantità che si legge, e vuole comunque <code>text-sm</code> e il grigio
-                attenuato. Quello che è caduto è il <em>carattere</em> con cui la si segnala.
-              </p>
             </div>
             <div className="rounded-md border border-border p-4">
-              <div className="text-sm font-semibold">Si legge — e prende tabular-nums</div>
+              <div className="text-sm font-semibold">
+                Si legge — <code>tabular-nums</code>
+              </div>
               <ul className="mt-2 space-y-2 text-base">
                 <li>
                   Importi e prezzi <span className="tabular-nums">20.497,60 €</span>
@@ -628,42 +563,62 @@ function Pagina() {
                 <li>
                   Progressivi di riga <span className="tabular-nums">1, 2, 3</span>
                 </li>
-                <li>Titoli, descrizioni, note — prosa, e basta</li>
               </ul>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Titoli, descrizioni e note sono prosa: il carattere del testo, senza utility
+                numeriche.
+              </p>
             </div>
           </div>
 
-          <div className="space-y-3 rounded-md border border-border p-4">
-            <div className="text-sm font-semibold">
-              Perché un numero non andava in mono — e questa metà della regola resta
+          <div className="space-y-3 rounded-md border border-border bg-card p-4">
+            <div className="text-sm font-semibold">Le lettere che si somigliano</div>
+            <p className="max-w-prose text-base">
+              Chi ricopia un codice a mano sbaglia sulle coppie di glifi simili. In Inter{' '}
+              <strong>
+                <code>O</code> e <code>0</code> si distinguono
+              </strong>{' '}
+              — lo zero è più stretto e più chiuso — mentre{' '}
+              <strong>
+                <code>I</code> maiuscola e <code>l</code> minuscola
+              </strong>{' '}
+              sono due barre verticali quasi identiche. Nel monospaziato la prima porta le grazie e
+              la seconda la coda.
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-md border border-border p-3">
+                <div className="text-sm text-muted-foreground">Inter, il carattere del testo</div>
+                <div className="text-3xl tracking-wider">O0 IlL1 5S8B</div>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <div className="text-sm text-muted-foreground">monospaziato di sistema</div>
+                <div className="font-mono text-3xl tracking-wider">O0 IlL1 5S8B</div>
+              </div>
             </div>
+            <p className="max-w-prose text-base">
+              I codici Tassullo sono fatti di <strong>maiuscole e cifre</strong>, e in una stringa
+              senza minuscole la <code>l</code> non compare: per loro il carattere del testo basta.
+              Se una pagina deve far ricopiare stringhe tecniche <em>a cassa mista</em> — hash,
+              token, percorsi — è un caso da portare al design system prima di scriverla.
+            </p>
+            <p className="max-w-prose text-base text-muted-foreground">
+              Lo zero barrato non è disponibile: la utility <code>slashed-zero</code> chiede al
+              carattere un glifo che Inter non ha, e non cambia niente —{' '}
+              <span className="text-xl">O0</span> contro{' '}
+              <span className="slashed-zero text-xl">O0</span>.
+            </p>
+          </div>
+
+          <div className="space-y-3 rounded-md border border-border p-4">
+            <div className="text-sm font-semibold">Perché un numero non va in monospaziato</div>
             <p className="text-base">
               Importo della voce: <span className="tabular-nums">20.497,60</span> € — con{' '}
               <code>tabular-nums</code> il numero è dello stesso carattere della frase.
             </p>
             <p className="text-base">
               Importo della voce: <span className="font-mono">20.497,60</span> € — con{' '}
-              <code>font-mono</code> il numero è un corpo estraneo: altra altezza-x, altro peso
+              <code>font-mono</code> il numero è un corpo estraneo: altra altezza, altro peso
               apparente, e l&apos;occhio ci inciampa.
-            </p>
-          </div>
-
-          <div className="space-y-2 rounded-md border border-border p-4">
-            <div className="text-sm font-semibold">
-              Lo zero barrato non è una leva, e conviene saperlo prima di cercarla
-            </div>
-            <p className="text-base">
-              <code>slashed-zero</code> in Tailwind chiede al font lo zero barrato — dove il font
-              ce l&apos;ha: <span className="text-xl">O0</span> normale contro{' '}
-              <span className="slashed-zero text-xl">O0</span>. <strong>Inter non la porta</strong>,
-              e i due sono identici al centesimo di pixel. Replica sì, ma Replica non è più il
-              carattere dello schermo (<code>docs/DECISIONI.md</code> §14).
-            </p>
-            <p className="text-base">
-              Non è comunque quella la coppia che fa sbagliare una trascrizione in Inter: v. la
-              misura sopra — <code>O</code> e <code>0</code> si distinguono, <code>I</code> e{' '}
-              <code>l</code> no. E i codici Tassullo sono maiuscoli, quindi la <code>l</code> non
-              ci compare.
             </p>
           </div>
         </section>
@@ -672,10 +627,9 @@ function Pagina() {
           <h2 className="text-xl font-semibold">
             5. I due pesi affiancati, e il limite dei separatori
           </h2>
-          <p className="text-base text-muted-foreground">
-            La proprietà che fa incolonnare i totali: la cifra tabellare deve occupare lo stesso
-            spazio a tutti i pesi. Sotto è misurata, non affermata — ed è il criterio su cui, nel
-            confronto fra i candidati, Geist ha perso.
+          <p className="max-w-prose text-base text-muted-foreground">
+            Perché i totali in grassetto si incolonnino, la cifra tabellare deve occupare lo stesso
+            spazio a tutti i pesi. Qui sotto è misurata.
           </p>
           <div className="space-y-3">
             <div>
@@ -706,7 +660,7 @@ function Pagina() {
             </div>
             <div>
               <div className="text-sm font-semibold">
-                L&apos;importo intero, tabellare, nei due pesi — e qui le larghezze NON coincidono
+                L&apos;importo intero, tabellare, nei due pesi
               </div>
               <Campioni
                 campioni={[
@@ -718,26 +672,24 @@ function Pagina() {
                   },
                 ]}
               />
-              <p className="mt-1 text-base text-muted-foreground">
-                E va benissimo così. La differenza è tutta nei <strong>separatori</strong>, che{' '}
-                <code>tnum</code> non tocca: restano proporzionali e possono cambiare larghezza
-                col peso — <Separatori /> — mentre le <em>cifre</em> restano incolonnate, ed è
-                quello che conta in una colonna allineata a destra. Chi misurasse la larghezza dell&apos;intera
-                stringa, o puntasse il righello sulla virgola, concluderebbe a torto che non
-                funziona.
+              <p className="mt-1 max-w-prose text-base text-muted-foreground">
+                <code>tabular-nums</code> agisce sulle <em>cifre</em>, non sui{' '}
+                <strong>separatori</strong>: virgola e punto restano proporzionali e sono accostati
+                al carattere che li precede — <Separatori />. Per questo, per verificare un
+                incolonnamento, il righello va sul bordo dei decimali, non sulla virgola né sulla
+                larghezza dell&apos;intera stringa.
               </p>
             </div>
           </div>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">6. Le altre feature che il font porta</h2>
-          <p className="text-base text-muted-foreground">
-            Oltre a <code>tnum</code>, Inter dichiara <code>pnum</code> (cifre proporzionali),{' '}
-            <code>frac</code>, <code>numr</code> e <code>dnom</code>. <strong>Nessuna è in uso
-            oggi</strong>: sono annotate perché esistano nella testa di chi progetta una pagina, non
-            perché si adottino adesso. Non porta invece <code>zero</code> né <code>onum</code>, che
-            Replica aveva — nessuna delle due era in uso, quindi non si perde niente.
+          <h2 className="text-xl font-semibold">6. Le altre feature numeriche del carattere</h2>
+          <p className="max-w-prose text-base text-muted-foreground">
+            Oltre a <code>tnum</code>, la feature che <code>tabular-nums</code> accende, Inter
+            porta <code>pnum</code> (cifre proporzionali), <code>frac</code>, <code>numr</code> e{' '}
+            <code>dnom</code> (frazioni). Il design system non le usa. Non porta invece lo zero
+            barrato (<code>zero</code>) né le cifre minuscole da prosa (<code>onum</code>).
           </p>
         </section>
 
@@ -745,11 +697,11 @@ function Pagina() {
           <h2 className="text-xl font-semibold">
             7. Il separatore delle migliaia, che <code>tabular-nums</code> non può dare
           </h2>
-          <p className="text-base text-muted-foreground">
+          <p className="max-w-prose text-base text-muted-foreground">
             Le cifre allineate non bastano se il <strong>punto delle migliaia</strong> compare a
-            intermittenza — ed è quello che fa{' '}
-            <code>Intl.NumberFormat(&apos;it-IT&apos;)</code> lasciato a sé: il CLDR italiano
-            dichiara <code>minimumGroupingDigits: 2</code>, cioè raggruppa solo da{' '}
+            intermittenza — ed è ciò che fa <code>Intl.NumberFormat(&apos;it-IT&apos;)</code>{' '}
+            lasciato a sé: le regole italiane del CLDR dichiarano{' '}
+            <code>minimumGroupingDigits: 2</code>, cioè raggruppano solo da{' '}
             <strong>cinque</strong> cifre in su. Un importo di quattro cifre esce senza punto e uno
             di cinque col punto, nella stessa colonna.
           </p>
@@ -762,7 +714,7 @@ function Pagina() {
                     <code>it-IT</code> così com&apos;è
                   </th>
                   <th className="p-2 text-right font-medium">
-                    con <code>useGrouping</code>
+                    con <code>decimale()</code>
                   </th>
                 </tr>
               </thead>
@@ -779,55 +731,44 @@ function Pagina() {
               </tbody>
             </table>
           </div>
-          <p className="text-base text-muted-foreground">
-            Nella colonna di mezzo <strong>due valori su cinque</strong> perdono il punto, ed è
-            esattamente la fascia fra mille e diecimila — in un computo o in un listino, la maggior
-            parte delle righe. <code>812,40</code> non lo perde perché di cifre ne ha tre e non
-            c&apos;è niente da raggruppare. Due numeri incolonnati, uno col punto e uno senza, si leggono di ordini di
-            grandezza diversi: <code>tabular-nums</code> allinea le cifre, ma non può inventare un
-            separatore che non c&apos;è.
+          <p className="max-w-prose text-base text-muted-foreground">
+            Nella colonna di mezzo <strong>due valori su cinque</strong> perdono il punto: proprio
+            la fascia fra mille e diecimila, che in un computo o in un listino è la maggior parte
+            delle righe. Due numeri incolonnati, uno col punto e uno senza, si leggono di ordini di
+            grandezza diversi.
           </p>
-          <p className="text-base text-muted-foreground">
+          <p className="max-w-prose text-base text-muted-foreground">
             La convenzione Tassullo è <strong>sempre il punto delle migliaia</strong>, e non si
-            riscrive a mano: sta nell&apos;item <code>numeri</code> —{' '}
-            <code>intero()</code>, <code>decimale()</code>, <code>valuta()</code> — che le app
-            installano insieme al tema. Una formattatrice scritta nel punto d&apos;uso è la riga in
-            cui <code>useGrouping</code> si dimentica, e dimenticarla non dà nessun errore.{' '}
-            <code>docs/DECISIONI.md</code> §47.
+            riscrive a mano: sta nell&apos;item <code>numeri</code> — <code>intero()</code>,{' '}
+            <code>decimale()</code>, <code>valuta()</code>, e <code>formattatore()</code> per i
+            casi che le tre non coprono. Un anno, un codice, un CAP non si formattano: sono stringhe
+            scritte con delle cifre.
           </p>
+          <Sorgente>{`npx shadcn@latest add tassullo/tassullo-design-system-v2/numeri`}</Sorgente>
         </section>
 
         <section className="space-y-2 rounded-md border border-border bg-card p-4">
-          <h2 className="text-xl font-semibold">La regola</h2>
+          <h2 className="text-xl font-semibold">Le regole</h2>
           <p className="text-base">
             <strong>
-              Ogni cella che contiene un numero da confrontare in colonna porta{' '}
-              <code>tabular-nums</code>.
+              Ogni numero da confrontare in colonna porta <code>tabular-nums</code>.
             </strong>{' '}
             Importi, quantità, prezzi, date, progressivi, percentuali. Il carattere resta quello del
             testo.
           </p>
           <p className="text-base">
             <strong>
-              Il <code>font-mono</code> non si usa — nemmeno sui codici, nemmeno sui lotti.
-            </strong>{' '}
-            Sospeso il 2026-09-20 su richiesta di Roberto (<code>docs/DECISIONI.md</code> §48):
-            codici, DoP, lotti, partite IVA e identificativi si scrivono nel carattere del testo.
-            Resta la distinzione fra la stringa che <em>si trascrive</em> e la quantità che{' '}
-            <em>si legge</em> — la prima prende <code>text-sm</code> e il grigio attenuato, la
-            seconda <code>tabular-nums</code> — ma non la si segnala più cambiando carattere. Il{' '}
-            <code>font-mono</code> resta ai blocchi di <strong>codice sorgente</strong>, che codice
-            sono.
+              Codici, DoP, lotti, partite IVA e identificativi si scrivono nel carattere del testo
+            </strong>
+            , con <code>text-sm text-muted-foreground</code>. Il <code>font-mono</code> è solo per
+            il codice sorgente.
           </p>
           <p className="text-base">
-            <strong>La designazione, i titoli e le note non prendono niente.</strong> Sono prosa: il
-            carattere del testo, senza utility numeriche addosso.
+            <strong>I numeri si formattano con l&apos;item <code>numeri</code></strong>, che mette
+            sempre il punto delle migliaia.
           </p>
-          <p className="text-base text-muted-foreground">
-            Dove finirà scritta: nella primitiva <code>typography</code> (<strong>M2.1</strong>) e
-            in <code>table</code> (<strong>M2.4</strong>), che porterà{' '}
-            <code>tabular-nums</code> sulle colonne dichiarate numeriche — nelle app non si
-            riscriverà a mano. Qui c&apos;è la misura che la giustifica.
+          <p className="text-base">
+            <strong>La designazione, i titoli e le note non prendono niente.</strong> Sono prosa.
           </p>
         </section>
       </div>
@@ -835,6 +776,17 @@ function Pagina() {
   )
 }
 
+/**
+ * Come si scrivono i numeri nelle interfacce Tassullo: le cifre incolonnate con
+ * `tabular-nums`, i codici nel carattere del testo, il punto delle migliaia
+ * sempre presente.
+ *
+ * `tabular-nums` è una utility di Tailwind e non si installa; le formattatrici
+ * sì: `npx shadcn@latest add tassullo/tassullo-design-system-v2/numeri`.
+ *
+ * La pagina misura quello che afferma — larghezze delle cifre, scarto dei
+ * decimali, separatori — leggendolo dal carattere caricato.
+ */
 const meta = {
   title: 'Tema/Cifre',
   component: Pagina,

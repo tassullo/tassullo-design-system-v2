@@ -4,32 +4,98 @@ import { Meta } from '@storybook/addon-docs/blocks'
 
 # Tassullo Design System 2.0
 
-Questa è la **style guide** del design system: non una pagina che imita i
-componenti, ma i componenti React veri, montati e manovrabili. È l'erede di
-`styleguide.html` del v1, e la differenza sta tutta qui — quella era HTML
-scritto a mano, e ogni volta che divergeva dal codice reale le app divergevano
-con lei.
+Questa è la **style guide** delle applicazioni Tassullo: dice quale design si
+usa e come si applica. Quello che vedi non è un'imitazione dei componenti — sono
+i componenti React veri, gli stessi che le app installano, montati e
+manovrabili. Se una pagina qui si comporta in un modo, nell'app si comporta
+allo stesso modo.
 
-## Le tre sezioni
+Il design system è un **registry [shadcn/ui](https://ui.shadcn.com)**: non un
+pacchetto da installare, ma un catalogo da cui la CLI di shadcn **copia il
+codice sorgente** dentro l'app. Le primitive sono costruite su
+[Base UI](https://base-ui.com), lo stile su [Tailwind CSS v4](https://tailwindcss.com).
 
-- **Tema** — i token: palette in chiaro e in scuro, tipografia, raggi, densità.
-  È il livello che regge tutto il resto (FASE 1).
-- **Primitive** — i mattoni shadcn ri-stilati Tassullo: bottoni, campi,
-  overlay, tabelle, navigazione (FASE 2).
-- **Blocchi** — i pattern che si ripetono nelle app dello studio e che shadcn
-  non copre: app shell, data table, stati, upload, diff (FASE 3).
+## Le quattro sezioni
 
-## I tre interruttori
+- **Tema** — i fondamenti: la palette in chiaro e in scuro, il carattere, la
+  scala tipografica, le cifre nelle tabelle, la tavolozza dei grafici, le due
+  densità. Tutto il resto è costruito su questi token.
+- **Primitive** — i mattoni dell'interfaccia: bottoni, campi, menu, dialoghi,
+  tabelle, navigazione. Sono i componenti di shadcn/ui con lo stile Tassullo.
+- **Blocchi** — i pattern ricorrenti delle app, composti dalle primitive: il
+  guscio dell'applicazione, la tabella dati, gli stati vuoti, il caricamento
+  di file, il calendario.
+- **Pagine** — pagine intere già composte: accesso, elenco, scheda, cruscotto,
+  amministrazione, errore. Sono il punto di partenza di una pagina nuova.
 
-Nella barra in alto, e vanno usati tutti e tre: ogni componente si guarda in
-**chiaro e scuro**, in densità **normale e touch** (i bersagli da ≥44px per chi
-lavora in cantiere coi guanti) e nei due formati **Scrivania 1440** e
-**Telefono 375**. Sono quattro combinazioni per due formati: se un componente
-regge solo la prima, non è finito.
+Ogni pagina di componente risponde, nell'ordine, alle stesse domande: **cos'è**
+e a cosa serve, **quando** si usa e quando no, **come si installa**, quali
+**varianti** esistono, le **regole d'uso**, e cosa fa con la **tastiera**.
+
+## Gli interruttori in barra
+
+In alto ci sono quattro interruttori, e vanno usati: un componente che regge
+solo nella combinazione di partenza non è finito.
+
+- **Modalità** — chiaro o scuro. Ogni componente esiste in entrambe.
+- **Superficie** — Pagina, Card o Sidebar: il fondo su cui il componente
+  poggia. Un componente si guarda sul fondo su cui starà davvero.
+- **Densità** — normale o touch. In touch i bersagli crescono (il bottone
+  passa a 48px) e il testo sale di un gradino, per chi usa l'app in cantiere,
+  anche coi guanti.
+- **Viewport** — Scrivania 1440 e Telefono 375, i due formati di riferimento.
+
+## Come si installa
+
+Si parte **dal tema**, prima di scrivere la prima pagina. Un comando solo porta
+i token, il carattere Inter e il marchio:
+
+```bash
+npx shadcn@latest add tassullo/tassullo-design-system-v2/tema
+```
+
+Poi ogni componente si installa per nome — il nome è scritto in testa alla sua
+pagina:
+
+```bash
+npx shadcn@latest add tassullo/tassullo-design-system-v2/button
+```
+
+In produzione conviene fissare la versione con un tag, così nessuna app si
+aggiorna da sola:
+
+```bash
+npx shadcn@latest add tassullo/tassullo-design-system-v2/button#v2.0.0
+```
+
+Un'app nuova ha bisogno, prima del primo comando, di Tailwind v4, dell'alias
+`@/*` e del registry `@tassullo` dichiarato in `components.json`. I passi
+esatti sono nel [README del repository](https://github.com/tassullo/tassullo-design-system-v2#readme).
+
+## Le regole che valgono ovunque
+
+- **Si usano i token del tema, mai valori scritti a mano.** Niente
+  `bg-[#F4AC3D]`, niente `h-[37px]`, niente esadecimali negli stili: le utility
+  Tailwind si scrivono solo sui token.
+- **L'arancio del brand è `--primary`, e non si usa per il testo.** Per il testo
+  arancione c'è `text-accent-ink`, corretto in chiaro e in scuro. `--accent`, in
+  shadcn, è il grigio di hover dei menu, non il brand.
+- **Un componente si sceglie per quello che fa, non per come appare.** Un
+  `badge` è un'etichetta che si legge; un `toggle-group` è un filtro che si
+  clicca.
+- **I componenti si correggono nel design system, non nell'app.** Se serve una
+  variante che manca, si chiede qui: un componente modificato in casa diverge
+  al primo aggiornamento.
 
 ## Accessibilità
 
-Ogni story passa da **axe-core** (pannello *Accessibility*). Oggi le violazioni
-si segnalano soltanto; da **M2.9** fanno fallire la CI, e il minimo di
-accessibilità che `docs/INTERFACCE.md` §1 di Anagrafe pone diventa una cosa che
-la macchina verifica invece di una cosa che ci si ricorda.
+Ogni scena di questa style guide è verificata automaticamente con **axe**, in
+modalità chiara e scura, con i menu e i dialoghi sia chiusi sia aperti. Il testo
+rispetta il contrasto **4,5:1** della WCAG, gli elementi grafici il **3:1**. In
+densità touch i bottoni sono alti 48px, e nessun bersaglio è piccolo in
+entrambe le direzioni.
+
+I componenti interattivi si usano anche da tastiera: `Tab` sposta il fuoco,
+`Invio` e `Spazio` attivano, le frecce si muovono dentro menu ed elenchi, `Esc`
+chiude e riporta il fuoco dov'era. Ogni pagina di componente dice cosa
+garantisce il suo.

@@ -15,68 +15,22 @@ import { cn } from 'cn'
 import { decimale } from '@/registry/tassullo/lib/numeri'
 
 /**
- * # Tema / Tavolozza categorica — `--chart-1..10`
+ * Dieci tinte per distinguere **categorie** — le serie di un grafico, i tipi di
+ * intervento di un calendario, le famiglie di un elenco: da `--chart-1` a
+ * `--chart-10`, in chiaro e in scuro.
  *
- * Le dieci tinte con cui si distinguono **categorie**: le serie di un grafico,
- * i tipi di intervento di un calendario, le famiglie di un elenco. Sono nel
- * tema dal **2026-09-21** (M4ter.11); prima erano cinque.
+ * Si usano per ciò che non ha un ordine né una gravità. Gli stati hanno i
+ * propri token (`--success`, `--warning`, `--info`, `--destructive`), e
+ * `--chart-10`, pur essendo un rosso, non è il colore dell'errore.
  *
- * ## Cosa garantiscono, e cosa no
+ * Si installano col tema: `npx shadcn@latest add tassullo/tassullo-design-system-v2/tema`.
  *
- * **Garantiscono di essere distinguibili fra loro**, e non a occhio: misurate
- * a coppie sotto visione piena e sotto i tre deficit di percezione del colore.
- * La coppia più vicina sta a **ΔE 11,0** in chiaro e **8,5** in scuro, contro
- * una soglia di **5** — `npm run check:contrast` non lascia passare una
- * tavolozza che scenda sotto, e il conto lo rifà a ogni build.
- *
- * **Non garantiscono la leggibilità in bianco e nero**, ed è il prezzo pagato
- * consapevolmente per arrivare a dieci. Fino a M4ter.11 le cinque tinte erano
- * *pioli di una scala di chiarezza*, il cui passo — 1,4935, quello che
- * l'arancio del brand e il verde istituzionale hanno già fra loro — le teneva
- * distinguibili anche in grigio. Quella garanzia **non si estende a dieci**, e
- * non per una scelta: dieci pioli a quel passo vorrebbero `1,4935⁹ ≈ 37:1`
- * contro i **21:1** che l'intera gamma sRGB permette. Sopra gli otto non c'è
- * spazio fra il bianco e il nero.
- *
- * E **non c'è più una famiglia che ci riesca**: la rampa monocroma
- * `--chart-mono-1..5` è stata tolta insieme alla garanzia, perché era l'unica
- * cosa che la mostrava e un token che nessuno guarda si degrada in silenzio.
- * Chi avesse bisogno del bianco e nero distingue con altro — tratteggi,
- * etichette sui dati, riempimenti a trama.
- *
- * ## La soglia di contrasto è 3:1, non 4,5
- *
- * A un **oggetto grafico** necessario a capire il contenuto la WCAG chiede
- * **3:1** (1.4.11); 4,5 è la soglia del **testo** (1.4.3). Chiedere 4,5 alle
- * tinte le spingerebbe tutte in una banda scura dove smetterebbero di
- * distinguersi fra loro, cioè peggiorerebbe ciò che dice di proteggere.
- *
- * Otto tinte su dieci ci arrivano. Le due che non ci arrivano sono
- * **`--chart-1` e `--chart-2`**, cioè l'arancio e il verde del brand: 1,91:1 e
- * 2,85:1 sulla card chiara. Sono **esentate per decisione**, perché cambiarle
- * vorrebbe dire cambiare il marchio — e l'esenzione è scritta **per indice**
- * nel gate, non come soglia abbassata, così la regola resta armata su tutte le
- * altre e su qualunque tinta si aggiunga. La condizione che la rende
- * accettabile: **il colore non è mai l'unico mezzo** — legenda, etichette sui
- * dati, tratteggi diversi per linea.
- *
- * ## Il rosso non è `--destructive`
- *
- * `--chart-10` è un rosso caldo, ed esiste perché Officina distingue il
- * «Guasto» in rosso e nella scala vecchia il rosso non c'era (M4ter.2 dovette
- * dargli l'arancio). **Non** è `--destructive`: quello è il colore
- * dell'allarme, e una categoria «Guasto» non è un'azione distruttiva. Sono due
- * rossi vicini di tinta — 29 contro 27 — e lontani di ruolo.
- *
- * ## Come si è arrivati a queste dieci
- *
- * Cercandole, dopo aver provato e scartato le tavolozze qualitative
- * pubblicate: **Okabe-Ito** crolla a ΔE 0,1 sotto deuteranopia appena la si
- * forza a 3:1 su fondo chiaro — arancio e giallo, portati alla stessa banda di
- * chiarezza, diventano lo stesso colore — e **Tol *muted*** è ottima in chiaro
- * ma il suo gemello per fondo scuro scende a 2,9 sotto protanopia. Sono nate
- * per **linee e punti su fondo bianco**; qui servono **riempimenti, in due
- * modalità**, e il vincolo raddoppia. Il verbale è in `docs/DECISIONI.md` §49.
+ * Regole d'uso: il colore non è mai l'unico mezzo per distinguere — ci vogliono
+ * una legenda, le etichette sui dati o tratteggi diversi; in scala di grigi le
+ * tinte si confondono, quindi una stampa in bianco e nero distingue con altro;
+ * `--chart-1` e `--chart-2` sono l'arancio e il verde del brand e sul fondo
+ * chiaro stanno sotto il contrasto 3:1 chiesto agli elementi grafici, ed è una
+ * ragione in più per non affidare la distinzione al solo colore.
  */
 const meta = {
   title: 'Tema/Tavolozza categorica',
@@ -275,25 +229,47 @@ function Tavola({ modalita }: { modalita: 'chiaro' | 'scuro' }) {
 }
 
 /**
- * **Le dieci tinte, sotto cinque visioni.** I valori si leggono dal tema a
- * runtime — dipingendo ogni token su un canvas 1×1 e leggendo il pixel —
- * quindi questa pagina non può divergere dalla palette: se il tema cambia,
- * cambia anche lei, misure comprese.
- *
- * **Cosa guardare.** Le prime quattro righe devono restare dieci riquadri
- * distinti: è la garanzia, e il numero accanto la misura. **L'ultima riga
- * no** — in scala di grigi la tavolozza si appiattisce, ed è il prezzo scritto
- * a verbale. Se serve il bianco e nero, la distinzione va portata da
- * altro: tratteggi, etichette scritte sui dati, riempimenti a trama.
- *
- * La riga del contrasto dice **quante** tinte stanno sopra i 3:1 di 1.4.11:
- * otto su dieci in chiaro, dieci su dieci in scuro. Le due che mancano sono
- * l'arancio e il verde del brand, esentate per decisione.
+ * Le dieci tinte sotto cinque visioni — piena, tre deficit di percezione del
+ * colore, scala di grigi — con accanto la coppia più vicina e il contrasto dal
+ * fondo. Le prime quattro righe devono restare dieci riquadri distinti;
+ * l'ultima, in grigio, no.
  */
 export const LeDieciTinte: Story = {
   name: 'Le dieci tinte',
   render: () => (
     <div className="flex flex-col gap-4">
+      <header className="flex max-w-prose flex-col gap-2 text-foreground">
+        <h1 className="text-2xl font-semibold">Tavolozza categorica</h1>
+        <p className="text-base text-muted-foreground">
+          Dieci tinte per distinguere categorie: le serie di un grafico, i tipi di intervento di un
+          calendario, le famiglie di un elenco. Si scrivono per nome, da{' '}
+          <code>--chart-1</code> a <code>--chart-10</code>.
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
+          <li>
+            <strong className="text-foreground">Sono per le categorie, non per gli stati.</strong>{' '}
+            Successo, avviso, informazione ed errore hanno i propri token. <code>--chart-10</code>{' '}
+            è un rosso, ma non è <code>--destructive</code>: una categoria «Guasto» non è
+            un&apos;azione distruttiva.
+          </li>
+          <li>
+            <strong className="text-foreground">Il colore non è mai l&apos;unico mezzo.</strong>{' '}
+            Una legenda, le etichette sui dati, tratteggi diversi per linea: chi non distingue i
+            colori deve poter leggere lo stesso grafico.
+          </li>
+          <li>
+            <strong className="text-foreground">In bianco e nero non reggono.</strong> In scala di
+            grigi le tinte si confondono (ultima riga): una stampa monocromatica distingue con
+            tratteggi, trame o etichette.
+          </li>
+          <li>
+            <strong className="text-foreground">Il contrasto chiesto è 3:1</strong>, quello della
+            WCAG per gli elementi grafici. <code>--chart-1</code> e <code>--chart-2</code> — arancio
+            e verde del brand — sul fondo chiaro stanno sotto: è una ragione in più per la regola
+            precedente.
+          </li>
+        </ul>
+      </header>
       <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-2">
         <Tavola modalita="chiaro" />
         <Tavola modalita="scuro" />

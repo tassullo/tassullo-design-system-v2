@@ -22,7 +22,8 @@
     "check:logo": "node scripts/build-logo-css.ts",
     "test:a11y": "node scripts/gate-a11y.ts",
     "misura:bersagli": "node scripts/misura-bersagli.ts",
-    "check:riferimenti": "node scripts/check-riferimenti.ts"
+    "check:riferimenti": "node scripts/check-riferimenti.ts",
+    "check:storybook": "node scripts/check-storybook.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

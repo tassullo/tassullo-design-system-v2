@@ -73,7 +73,7 @@ const COPPIE: Gruppo[] = [
   },
   {
     titolo: 'Stati semantici — livello pieno',
-    testo: 'Un colore per stato in entrambe le modalità, con una sola eccezione: --info, che sul fondo scuro dava 2.20:1 ed era un badge invisibile.',
+    testo: 'Un colore per stato. --info è l’unico che cambia fra le due modalità: il blu del chiaro, sul fondo scuro, non si leggerebbe.',
     tessere: [
       { token: 'success', su: 'success-foreground' },
       { token: 'warning', su: 'warning-foreground' },
@@ -82,7 +82,7 @@ const COPPIE: Gruppo[] = [
     ],
   },
   {
-    titolo: 'Stati semantici — livello tenue (gli alert di M2.4)',
+    titolo: 'Stati semantici — livello tenue (avvisi e badge)',
     testo: 'Le quattro famiglie devono pesare uguale: se una salta all’occhio più delle altre, l’alert corrispondente sembrerà più grave di quello che è.',
     tessere: [
       { token: 'success-subtle', su: 'success-subtle-foreground' },
@@ -124,18 +124,13 @@ const TINTE: Gruppo[] = [
     tessere: [
       { token: 'sidebar-border' },
       { token: 'sidebar-ring' },
-      { token: 'overlay', nota: 'velo dei modali (M2.3)', velo: true },
+      { token: 'overlay', nota: 'velo dei modali', velo: true },
     ],
   },
   {
-    titolo: 'Serie dei grafici — provvisorie (M2.8)',
-    tessere: [
-      { token: 'chart-1' },
-      { token: 'chart-2' },
-      { token: 'chart-3' },
-      { token: 'chart-4' },
-      { token: 'chart-5' },
-    ],
+    titolo: 'Tavolozza categorica — serie dei grafici e categorie',
+    testo: 'Dieci tinte distinguibili fra loro, anche sotto i deficit di percezione del colore. Come si usano è spiegato in Tema/Tavolozza categorica.',
+    tessere: Array.from({ length: 10 }, (_, i) => ({ token: `chart-${i + 1}` })),
   },
 ]
 
@@ -307,10 +302,35 @@ function Affiancate() {
     <div className="min-h-dvh bg-background">
       <header className="mx-auto max-w-page px-5 pt-6 pb-2">
         <h1 className="text-2xl font-semibold text-foreground">Palette</h1>
-        <p className="mt-1 text-base text-muted-foreground">
-          Tutti i {QUANTI} token del tema, nelle due modalità. Il valore è letto dal DOM; un clic
-          sulla riga copia il nome del token.
+        <p className="mt-1 max-w-prose text-base text-muted-foreground">
+          Tutti i {QUANTI} token di colore del tema, nella modalità chiara e in quella scura. Un
+          clic sulla riga copia il nome del token; il valore accanto è quello che il tema
+          risolve, ed è lì per riconoscere il colore, non per copiarlo.
         </p>
+        <ul className="mt-3 max-w-prose list-disc space-y-1 pl-5 text-base text-muted-foreground">
+          <li>
+            I colori si usano <strong className="text-foreground">per nome</strong>, con le
+            utility di Tailwind — <code>bg-primary</code>, <code>text-muted-foreground</code>,{' '}
+            <code>border-border</code> — mai col valore.
+          </li>
+          <li>
+            L&apos;arancio del brand è <code>--primary</code>, e sopra ci va il testo nero di{' '}
+            <code>--primary-foreground</code>. Per il testo arancione c&apos;è{' '}
+            <code>text-accent-ink</code>: <code>text-primary</code> sul fondo chiaro non si legge.
+          </li>
+          <li>
+            <code>--accent</code> non è il brand: è il grigio di hover dei menu.
+          </li>
+          <li>
+            <code>--destructive</code> è un colore di fondo. Il testo rosso lo danno le varianti{' '}
+            <code>destructive</code> dei componenti, non una classe di colore.
+          </li>
+          <li>
+            Niente <code>opacity-*</code> sul testo: sbiadisce il colore sotto il contrasto
+            minimo. Per un testo che pesi meno si usa <code>text-muted-foreground</code> o un
+            gradino più piccolo.
+          </li>
+        </ul>
       </header>
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2">
         <Colonna modo="light" etichetta="Chiaro" />
@@ -320,6 +340,18 @@ function Affiancate() {
   )
 }
 
+/**
+ * La palette del tema, nelle due modalità affiancate: ogni token di colore con
+ * il testo che gli va sopra.
+ *
+ * Si installa col tema: `npx shadcn@latest add tassullo/tassullo-design-system-v2/tema`.
+ *
+ * Regole d'uso: i colori si scrivono per nome con le utility Tailwind, mai col
+ * valore; `--primary` è l'arancio del brand e non si usa per il testo, che
+ * prende `text-accent-ink`; `--accent` è il grigio di hover dei menu;
+ * `--destructive` è un fondo, e il testo rosso viene dalle varianti
+ * `destructive` dei componenti. Un clic su una riga copia il nome del token.
+ */
 const meta = {
   title: 'Tema/Palette',
   component: Affiancate,

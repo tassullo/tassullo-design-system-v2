@@ -476,6 +476,25 @@ axe-core su `Tema/Cifre`: **0 violazioni, 0 incomplete** in chiaro, in scuro e i
 
 **Trappola d'ambiente, non di codice:** le utility del file nuovo non venivano generate affatto — `.tabular-nums` non esisteva nel CSS e anche `md:grid-cols-2` non applicava — perché il dev server di Storybook era in piedi da prima che il file esistesse e Tailwind non l'aveva ripreso. Si vede come un difetto di codice e non lo è. Riavviare il server.
 
+### La stessa misura con Inter (rifatta il 2026-09-08, portata qui in M5.0a)
+
+Le misure qui sopra sono di **Replicall**, il carattere di quando la sezione è stata scritta. Con il passaggio a Inter (§14) la pagina `Tema/Cifre` le ha rifatte dal DOM, e i numeri stavano finora solo in `WORKLOG.md` (voce del 2026-09-08) e in `CLAUDE.md`. In M5.0a la pagina è stata riscritta per chi legge da fuori e non li cita più a parole — li misura e basta — quindi vengono scritti qui, dove si cercano.
+
+| | Replicall (sopra) | **Inter** |
+|---|---|---|
+| dieci cifre di default, a `text-xl` | 6 larghezze, 6.84–10.45px | **9 larghezze, 7,15–11,52px** |
+| dieci cifre con `tabular-nums` | una sola, 10.45px | **una sola, 11,66px** |
+| scarto del bordo dei decimali, default | 2.38px | **2,69px** |
+| scarto del bordo dei decimali, `tabular-nums` | 0px | **0,04px** |
+| virgola e punto fra peso 400 e 600 | cambiano (11,2 → 12,8px a 40px) | **stabili** |
+| feature numeriche dichiarate | `zero onum lnum pnum frac sups subs numr dnom` | **`pnum frac numr dnom`** — niente `zero`, niente `onum` |
+
+**I valori assoluti dipendono dal motore di resa, la forma no.** Riaperta nel pannello del browser dell'app il 2026-09-22 la stessa pagina dà 9 larghezze da 7,5 a 12,13px, una sola larghezza tabellare di 12,3px e uno scarto di 2,88px contro 0,04px: numeri diversi, stesso verdetto. È la ragione per cui la pagina li misura e non li scrive.
+
+Lo **0,04px** non è un disallineamento: è l'arrotondamento del motore di resa, e la pagina lo giudica con una soglia di un quarto di pixel, tenendo sempre il numero esatto in vista. La soglia è nata proprio qui, quando un verdetto scritto «a zero secco» dichiarava ballerini i decimali per quattro centesimi di pixel.
+
+Due conseguenze. **La trappola 1 qui sopra in Inter non scatta** — i separatori non cambiano col peso — e la pagina sceglie la frase in base alla misura invece di affermarla, perché resti vera al prossimo cambio di carattere. E **lo zero barrato non è più disponibile**: `slashed-zero` chiede la feature `zero`, che Inter non porta (§48).
+
 ---
 
 ## 14. Il carattere: Inter sullo schermo, Replica nelle stampe (deciso il 2026-09-08)
