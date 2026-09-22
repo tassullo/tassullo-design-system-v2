@@ -11936,3 +11936,31 @@ la stessa famiglia di D15.
 - Le due story nuove guardate in **scuro** e in **touch**: il picker regge, il
   foglio ora anche.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — il doppio bordo di `bordiColonna` (2026-09-22)
+
+Guardata `Blocchi/Data Table → Bordi Colonna`, l'ultima story che nessuno aveva
+ancora aperto. **Doppio bordo sul perimetro**: misurato, la `<table>` da 1406px
+dentro un contenitore da 1408, cioè due linee a un pixel di distanza.
+
+La causa è una classe copiata senza guardare il contesto. `bordiColonna`
+metteva `border border-border` **più** i separatori verticali, e il `border`
+esterno era di troppo: il riquadro che contiene una `data-table` ha **già** il
+proprio perimetro. In `tassullo-foglio-gruppi` la stessa classe è corretta,
+perché lì attorno alla tabella non c'è nessun riquadro — misurato: un solo
+elemento con bordo.
+
+La prop disegna ora le **sole linee verticali**. Misurato dopo: **un solo
+elemento con bordo** in entrambi i blocchi.
+
+**La lezione**: la stessa stringa di classi in due posti diversi va guardata
+**nel contesto**, non copiata. Il perimetro non è una proprietà della tabella, è
+una proprietà di ciò che la contiene — e i due blocchi hanno contenitori
+diversi.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.
