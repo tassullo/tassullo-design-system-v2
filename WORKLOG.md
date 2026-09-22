@@ -11717,3 +11717,65 @@ questo ramo **ribasato su `main`**: ora porta i suoi due commit e basta.
   attraversano i gruppi, strati che seguono l'attivo, **0 bottoni dentro le
   opzioni**; spazio fra le tre zone **16px e 16px**.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — l'evidenziazione, l'altezza, il passo (2026-09-22)
+
+**(a) «Mostra il secondo record, il mouse è sopra il primo» — e «nella voce
+evidenziata non compare più il suo titolo».** Due sintomi, **un difetto solo**:
+la riga attiva **non era evidenziata affatto**, e il pannello degli strati stava
+in un riquadro *staccato* sotto di essa. L'unico segno della voce attiva erano
+gli strati che comparivano — e comparendo fra una riga e l'altra sembravano
+appartenere a quella **sotto**, che a quel punto pareva senza titolo. Il fuoco
+non era mai stato sfasato: misurato prima e dopo, seguiva il mouse riga per riga.
+
+Due correzioni, e la prima rende la seconda quasi superflua: **una cornice sola
+per voce**, con gli strati dentro (`Item` a `flex-col`), così la domanda «di chi
+sono questi strati» non si pone; e la voce attiva prende **bordo e fondo**
+(`group-data-[selected=true]/voce`), perché `Item` non cambia aspetto da sé —
+`data-selected` sta sul `CommandItem`, che è il genitore.
+
+Misurato con l'hover su quattro righe diverse: **`coincidono: true` sempre**
+(la voce selezionata è quella che mostra gli strati) ed **evidenziata
+visibilmente** in tutti i casi.
+
+**(b) «Si può calcolare l'altezza in funzione dello schermo?» e poi «attenzione
+che spostando il mouse cambia l'altezza della scheda».** Le due richieste
+sembrano opposte e non lo sono: **l'altezza dev'essere ferma rispetto al
+contenuto, non rispetto allo schermo**. La prima stesura le ha confuse — un
+numero fisso (`h-192`) toglieva il tremolio ma dava le stesse righe su un 27" e
+su un portatile, cioè buttava via la richiesta di partenza.
+
+`h-dvh` le tiene entrambe. Misurato, con l'hover su cinque righe a ogni
+dimensione:
+
+| schermo | altezza del dialogo | righe intere |
+|---|---|---:|
+| 1280×600 | **600, ferma** | 2 |
+| 1280×720 | **720, ferma** | 3 |
+| 1920×1080 | **1080, ferma** | 7 |
+| 2560×1440 | **1440, ferma** | 10 |
+
+Il difetto vero era il secondo: con un'altezza che si adatta al contenuto,
+aprire gli strati **allunga il dialogo**, quello che sta sotto scorre sotto il
+cursore, e la riga che ci finisce sotto diventa quella attiva — il contenuto si
+muove da solo mentre lo si guarda. Il dialogo ora arriva ai bordi dello schermo,
+ed è la forma che una palette di ricerca ha di suo: sul telefono
+`responsive-dialog` è già un cassetto a tutta altezza.
+
+La catena che lo regge: `flex-col` + `overflow-hidden` sul contenuto, e
+`min-h-0 flex-1` su **ogni** anello (corpo, `Command`, `CommandList`). `min-h-0`
+non è zelo — un figlio flex ha `min-height: auto`, cioè si rifiuta di
+rimpicciolirsi sotto il proprio contenuto, e basta un anello senza per far
+crescere il dialogo oltre lo schermo invece di far scorrere la lista.
+
+**(c) «Riduciamo gli spazi fra un record e l'altro.»** `command` dà a ogni
+`CommandItem` il proprio padding e il gruppo aggiunge il suo: fra una riga e
+l'altra se ne sommavano due. Ora il passo lo dà un `gap` solo — misurato:
+**4px**.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.

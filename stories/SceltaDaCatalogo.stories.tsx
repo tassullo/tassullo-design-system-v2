@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import * as React from 'react'
 
+import { cn } from 'cn'
+
 import { apriCol } from '@/prove/apri'
 import {
   ResponsiveDialog,
@@ -256,11 +258,41 @@ function SceltaDaCatalogo() {
         <ResponsiveDialogTrigger
           render={<Button type="button" variant="outline">Scegli il sistema dall&apos;elenco prezzi Tassullo</Button>}
         />
-        <ResponsiveDialogContent className="sm:max-w-3xl">
+        {/* **L'altezza è ferma, e non dipende da cosa c'è dentro.** Due
+            rilievi di Francesco in fila, e il secondo corregge il primo:
+            «si può calcolare l'altezza in funzione dello schermo? con monitor
+            esterno si vedono più righe» — e poi «attenzione che **spostando il
+            mouse cambia l'altezza della scheda**».
+
+            Il secondo è il difetto peggiore: con un'altezza che si adatta al
+            contenuto, aprire gli strati sulla voce attiva **allunga il
+            dialogo**, tutto quello che sta sotto si sposta sotto il cursore, e
+            la riga che finisce sotto il mouse diventa quella attiva — cioè il
+            contenuto si muove da solo mentre lo si guarda.
+
+**Le due cose non sono in conflitto**, e la prima stesura le aveva
+            confuse: l'altezza deve essere ferma rispetto al **contenuto**, non
+            rispetto allo **schermo**. Un numero fisso (`h-192`) toglieva il
+            tremolio ma dava le stesse righe su un 27" e su un portatile, cioè
+            buttava via la richiesta di partenza.
+
+            `h-dvh` le tiene entrambe: **segue il viewport** — più schermo, più
+            righe, senza toccare niente — ed è **indipendente da cosa c'è
+            dentro**, quindi aprire gli strati cambia solo ciò che scorre. Il
+            dialogo arriva ai bordi dello schermo, ed è la forma che una palette
+            di ricerca ha di suo: sul telefono `responsive-dialog` è già un
+            cassetto a tutta altezza.
+
+            `min-h-0` su ogni anello non è zelo: un figlio flex ha
+            `min-height: auto` di default, cioè **si rifiuta di rimpicciolirsi
+            sotto il proprio contenuto**, e basta un anello senza per far
+            crescere il dialogo oltre lo schermo invece di far scorrere la
+            lista. */}
+        <ResponsiveDialogContent className="flex h-dvh flex-col overflow-hidden sm:max-w-3xl">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>Scegli la lavorazione</ResponsiveDialogTitle>
           </ResponsiveDialogHeader>
-          <ResponsiveDialogBody className="flex flex-col gap-3">
+          <ResponsiveDialogBody className="flex min-h-0 flex-1 flex-col gap-3">
             {/* **Le tre zone hanno bisogno di respiro fra loro.** `Command` è
                 già `flex flex-col` ma impila i figli **senza gap**: ricerca,
                 filtri e risultati si toccavano, e tre cose attaccate si leggono
@@ -273,7 +305,7 @@ function SceltaDaCatalogo() {
               shouldFilter={false}
               value={codiceAttivo}
               onValueChange={setAttivo}
-              className="gap-4"
+              className="min-h-0 flex-1 gap-4"
             >
               <CommandInput
                 placeholder="Cerca: nome, prodotto, variante o caso d'uso…"
@@ -301,8 +333,13 @@ function SceltaDaCatalogo() {
                 ))}
               </ToggleGroup>
 
-              <div className="flex min-h-0">
-                <CommandList className="max-h-96 flex-1">
+              <div className="flex min-h-0 flex-1">
+                {/* Le righe stavano larghe: `command` dà a ogni `CommandItem`
+                    il proprio padding e il gruppo aggiunge il suo, così fra una
+                    riga e l'altra si sommavano due spazi. Qui il passo lo dà un
+                    `gap` solo, stretto — rilievo di Francesco, «riduciamo gli
+                    spazi fra un record e l'altro». */}
+                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-1">
                   <CommandEmpty>
                     <div className="flex flex-col items-center gap-2 py-4">
                       <p>Nessun sistema corrisponde alla ricerca.</p>
@@ -329,78 +366,92 @@ function SceltaDaCatalogo() {
                             setScelto(s)
                             setAperto(false)
                           }}
-                          className="flex-col items-start gap-2 p-0 data-[selected=true]:bg-transparent"
+                          className="group/voce flex-col items-start p-0 data-[selected=true]:bg-transparent"
                         >
-                          {/* **Il bordo per riconoscere le righe** —
-                              rilievo di Francesco, «così sembra tutto
-                              attaccato». Non è una classe scritta a mano: è
-                              `Item` con `variant="outline"`, che il registry ha
-                              già e che porta con sé titolo, descrizione,
-                              media e azioni nei posti giusti. Il `CommandItem`
-                              resta il bersaglio (è lui il `role="option"`), e
-                              `Item` gli dà solo la forma: `asChild` non serve,
-                              perché qui `Item` è un `<div>` dentro l'opzione e
-                              non un secondo controllo. */}
-                          <Item variant="outline" size="sm" className="w-full bg-card">
-                            <ItemContent>
-                              <ItemTitle>
-                                <span className="font-medium">{s.famiglia}</span> — {s.variante}
-                              </ItemTitle>
-                              <ItemDescription>{s.casoUso}</ItemDescription>
-                            </ItemContent>
-                            <ItemActions className="flex-wrap justify-end gap-1">
-                              {s.voceStandard ? <Badge variant="secondary">Voce standard</Badge> : null}
-                              <Badge variant="outline">{intero(s.prodotti)} prodotti</Badge>
-                            </ItemActions>
-                          </Item>
+                          {/* **Una cornice sola per voce, e gli strati stanno
+                              dentro.** Prima erano due riquadri accostati — la
+                              riga col suo bordo e il pannello degli strati
+                              sotto, staccato — e il risultato era che il
+                              pannello sembrava appartenere alla voce **dopo**:
+                              rilievo di Francesco, *«mostra il secondo record,
+                              il mouse è sopra il primo»*. Non era il fuoco a
+                              essere sfasato, era il pannello a non dire di chi
+                              fosse. Dentro la cornice, la domanda non si pone.
 
-                          {/* **Gli strati si aprono sotto la riga**, come nel
-                              picker di Studio — ma **senza il «Vedi strati»**,
-                              e la differenza è ciò che rende la forma
-                              ricomponibile. Nell'app quel comando è un
-                              `<button>` dentro un `role="option"`, cioè
-                              `nested-interactive`; qui gli strati compaiono da
-                              sé sulla voce **attiva**, quindi non c'è niente da
-                              premere per vederli e niente da annidare. E il
-                              «Usa questo sistema» non serve: la voce stessa è
-                              il bersaglio, `Invio` la sceglie. */}
-                          {s.codice === codiceAttivo ? (
-                            <span className="flex w-full gap-3 rounded-lg bg-muted/50 p-3 text-sm">
-                              <span className="flex-1">
-                                <span className="block pb-1 font-medium">Strati</span>
-                                <span className="flex flex-col gap-1">
-                                  {s.strati.map((alternative, i) => (
-                                    <span key={i} className="block">
-                                      <span className="pe-1 tabular-nums text-muted-foreground">
-                                        {intero(i + 1)}.
-                                      </span>
-                                      {alternative.map((prodotto, j) => (
-                                        <span key={prodotto.nome}>
-                                          {j > 0 ? <em className="text-muted-foreground"> oppure </em> : null}
-                                          <strong className="font-medium">{prodotto.nome}</strong>
-                                          {/* La **resa** accanto al nome: è il
-                                              numero con cui si calcola il
-                                              fabbisogno, quindi sta dove si
-                                              legge il prodotto, non in fondo.
-                                              Attenuata, perché è un dato di
-                                              servizio e non il nome. */}
-                                          <span className="text-muted-foreground"> · resa {prodotto.resa}</span>
+                              **E la voce attiva si vede**: `Item` non cambia
+                              aspetto da sé quando l'opzione è selezionata —
+                              `data-selected` sta sul `CommandItem`, che è il
+                              genitore — quindi il contorno lo prende da lì con
+                              `group-data-[selected=true]`. Senza, l'unico segno
+                              della voce attiva erano gli strati che
+                              comparivano, cioè nessun segno sulla riga. */}
+                          <Item
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "w-full flex-col items-stretch bg-card",
+                              "group-data-[selected=true]/voce:border-primary",
+                              "group-data-[selected=true]/voce:bg-primary-subtle"
+                            )}
+                          >
+                            <div className="flex w-full items-start gap-2">
+                              <ItemContent>
+                                <ItemTitle>
+                                  <span className="font-medium">{s.famiglia}</span> — {s.variante}
+                                </ItemTitle>
+                                <ItemDescription>{s.casoUso}</ItemDescription>
+                              </ItemContent>
+                              <ItemActions className="flex-wrap justify-end gap-1">
+                                {s.voceStandard ? <Badge variant="secondary">Voce standard</Badge> : null}
+                                <Badge variant="outline">{intero(s.prodotti)} prodotti</Badge>
+                              </ItemActions>
+                            </div>
+
+                            {/* Gli strati si aprono sotto il titolo **dentro la
+                                stessa cornice**, come nel picker di Studio, ma
+                                **senza il «Vedi strati»**: nell'app quel comando
+                                è un `<button>` dentro un `role="option"`, cioè
+                                `nested-interactive`. Qui compaiono da sé sulla
+                                voce attiva — niente da premere, niente da
+                                annidare — e il «Usa questo sistema» non serve
+                                perché la voce stessa è il bersaglio. */}
+                            {s.codice === codiceAttivo ? (
+                              <div className="flex w-full gap-3 border-t pt-2 text-sm">
+                                <div className="flex-1">
+                                  <p className="pb-1 font-medium">Strati</p>
+                                  <div className="flex flex-col gap-1">
+                                    {s.strati.map((alternative, i) => (
+                                      <p key={i}>
+                                        <span className="pe-1 tabular-nums text-muted-foreground">
+                                          {intero(i + 1)}.
                                         </span>
-                                      ))}
-                                    </span>
-                                  ))}
-                                </span>
-                              </span>
-                              {s.immagine ? (
-                                <EntityImage
-                                  src={s.immagine}
-                                  alt={`Sistema ${s.famiglia} — ${s.variante}`}
-                                  rapporto="1:1"
-                                  className="w-24 shrink-0 self-start"
-                                />
-                              ) : null}
-                            </span>
-                          ) : null}
+                                        {alternative.map((prodotto, j) => (
+                                          <React.Fragment key={prodotto.nome}>
+                                            {j > 0 ? <em className="text-muted-foreground"> oppure </em> : null}
+                                            <strong className="font-medium">{prodotto.nome}</strong>
+                                            {/* La **resa** accanto al nome: è il
+                                                numero con cui si calcola il
+                                                fabbisogno, quindi sta dove si
+                                                legge il prodotto. Attenuata,
+                                                perché è un dato di servizio. */}
+                                            <span className="text-muted-foreground"> · resa {prodotto.resa}</span>
+                                          </React.Fragment>
+                                        ))}
+                                      </p>
+                                    ))}
+                                  </div>
+                                </div>
+                                {s.immagine ? (
+                                  <EntityImage
+                                    src={s.immagine}
+                                    alt={`Sistema ${s.famiglia} — ${s.variante}`}
+                                    rapporto="1:1"
+                                    className="w-24 shrink-0 self-start"
+                                  />
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </Item>
                         </CommandItem>
                       ))}
                     </CommandGroup>
