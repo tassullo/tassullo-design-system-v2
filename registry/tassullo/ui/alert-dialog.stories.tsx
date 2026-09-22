@@ -17,26 +17,37 @@ import { apriCol } from '@/prove/apri'
 import { Button } from '@/registry/tassullo/ui/button'
 
 /**
- * **Nessun ri-stile.** Come per il `dialog`, il preset poggia già sui token.
- * I due `grid-rows-[auto_1fr]` restano ereditati: un elenco di tracce di
- * griglia non è una lunghezza né un colore, e Tailwind non ha un gradino per
- * dirlo — stessa famiglia del `transition-[color,box-shadow]` accertata in
- * M2.2.
+ * Una conferma che non si chiude per sbaglio: chiede di decidere prima di
+ * un'azione che non si può annullare, e non si chiude cliccando fuori.
  *
- * **Perché esiste separato da `Dialog`, che sembra identico.** Perché la
- * differenza non si vede: `AlertDialog` **non si chiude cliccando fuori**. È
- * l'unica cosa che lo distingue, ed è tutto il suo scopo. Si usa dove la fuga
- * accidentale cancella lavoro — eliminare una scheda, revocare un ruolo,
- * scartare una revisione — e in nessun altro posto. Un `AlertDialog` usato
- * per una notifica è solo un dialog che non si riesce a chiudere.
+ * **Quando sì, quando no.** Solo dove una chiusura distratta costerebbe lavoro
+ * — eliminare una scheda, revocare un ruolo, scartare le modifiche. Per tutto
+ * il resto che si apre sopra la pagina — un modulo, un dettaglio, un avviso da
+ * leggere — c'è `dialog`, che si chiude anche col clic fuori. Su telefono, per
+ * gli stessi contenuti, c'è `drawer`, che si apre dal basso e si trascina; un
+ * pannello di lavoro che resta accostato a un lato dello schermo è `sheet`.
+ * Per una conferma pronta, testo e bottoni inclusi, c'è il blocco
+ * `Dialogo di conferma`.
  *
- * `Esc` invece chiude: è una via d'uscita da tastiera, e toglierla sarebbe
- * WCAG 2.1.2. La protezione è contro il clic distratto, non contro l'intento.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/alert-dialog
+ * ```
  *
- * **La regola delle due trappole vale anche qui.** L'azione distruttiva è un
- * bottone `variant="destructive"` — arancione mai, rosso come **fondo** e non
- * come testo. Il `text-destructive` come colore di testo è il difetto già
- * chiuso su `badge` (M2.1), `field` (M2.2) e sui menu di questa sessione.
+ * **Varianti e taglie.** `size` su `AlertDialogContent`: `default`, oppure
+ * `sm` per le conferme brevissime, dove le due azioni diventano due colonne
+ * della stessa larghezza. `AlertDialogMedia` aggiunge un'icona in testa.
+ * `AlertDialogAction` prende le varianti di `button`.
+ *
+ * **Regole d'uso.** L'azione che distrugge qualcosa di irrecuperabile è
+ * `variant="destructive"`; quella che si può rifare — un ruolo che si
+ * riassegna — resta nella variante di base. Il rosso vale solo se è raro.
+ * `AlertDialogTitle` è obbligatorio: è il nome con cui la finestra si
+ * annuncia.
+ *
+ * **Tastiera e accessibilità.** All'apertura il fuoco entra nella finestra e
+ * `Tab` gira al suo interno senza uscire; `Esc` chiude, perché una via
+ * d'uscita da tastiera c'è sempre; alla chiusura il fuoco torna sul bottone
+ * che l'aveva aperta. Il clic fuori, invece, non chiude.
  */
 const meta = {
   title: 'Primitive/Alert Dialog',
@@ -74,8 +85,8 @@ export const Predefinito: Story = {
 
 /**
  * Con l'icona (`AlertDialogMedia`). Su schermo largo l'icona sta a sinistra e
- * il testo si allinea a bandiera; su schermo stretto va sopra e tutto si
- * centra. È il preset, e non c'è un `if` da scrivere.
+ * il testo a bandiera; su schermo stretto va sopra e tutto si centra, senza
+ * nulla da scrivere nella pagina.
  */
 export const ConIcona: Story = {
   render: () => (
@@ -105,9 +116,8 @@ export const ConIcona: Story = {
 }
 
 /**
- * La revoca di un ruolo: distruttiva ma non irreversibile, quindi l'azione
- * non è rossa. **Il rosso è per ciò che non si recupera**; qui il ruolo si
- * riassegna. Distinguere le due cose è ciò che tiene al rosso il suo peso.
+ * Un'azione distruttiva ma recuperabile: il ruolo si riassegna, quindi il
+ * bottone di conferma non è rosso.
  */
 export const RevocaRuolo: Story = {
   render: () => (
@@ -135,9 +145,8 @@ export const RevocaRuolo: Story = {
 }
 
 /**
- * La taglia `sm`: il piè di pagina diventa due colonne uguali, e le azioni
- * hanno la stessa larghezza. Serve alle conferme brevissime, dove leggere due
- * bottoni di larghezza diversa è più lento che leggerne due uguali.
+ * La taglia `sm`: le due azioni hanno la stessa larghezza e si leggono come
+ * una scelta secca.
  */
 export const Compatto: Story = {
   render: () => (

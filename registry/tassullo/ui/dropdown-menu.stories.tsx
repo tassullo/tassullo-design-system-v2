@@ -29,75 +29,40 @@ import {
 } from '@/registry/tassullo/ui/dropdown-menu'
 
 /**
- * **Due ri-stili, e il primo è un difetto vero del preset.**
+ * Il menu delle azioni su un elemento: si apre da un bottone, elenca cosa si
+ * può fare, si chiude appena si sceglie.
  *
- * 1. **`variant="destructive"` scriveva il testo in `text-destructive`**, cioè
- *    nel rosso pieno che è un colore da **fondo**. È la terza volta che lo
- *    stesso errore ricompare — `badge` in M2.1, `field` in M2.2, i due menu
- *    qui — ed è esattamente la trappola scritta nel `CLAUDE.md`. Corretto in
- *    `text-destructive-subtle-foreground`, il token che il v1 chiamava
- *    `--color-danger-text`, nelle tre occorrenze: testo a riposo, testo col
- *    fuoco, icona.
- * 2. **`min-w-[96px]`** sul sottomenu → `min-w-24`. Stesso pixel al gradino
- *    normale, ma ora è del tema e segue la densità come tutto il resto.
+ * **Quando sì, quando no.** Per azioni — modificare, duplicare, eliminare — o
+ * per impostazioni di vista con spunte e gruppi radio. Per scegliere un valore
+ * da mettere in un campo di modulo si usa `select` o `combobox`, che mostrano
+ * la scelta fatta. Lo stesso menu aperto col tasto destro è `context-menu`,
+ * che non lo sostituisce mai: lo accompagna.
  *
- * ## Un requisito d'uso che shadcn non documenta, e che **schianta la pagina**
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/dropdown-menu
+ * ```
  *
- * **`DropdownMenuLabel` va messo dentro un `DropdownMenuGroup`** (o dentro un
- * `DropdownMenuRadioGroup`). Sotto c'è `Menu.GroupLabel` di Base UI, che
- * **lancia** se non trova il contesto del gruppo: «MenuGroupContext is
- * missing», errore #31. Il menu non si apre affatto e la story sparisce.
+ * **Parti e varianti.** `DropdownMenuItem` è una voce, con `variant`:
+ * `default` o `destructive`. `DropdownMenuGroup` e `DropdownMenuLabel` fanno
+ * un gruppo con la sua intestazione; `DropdownMenuCheckboxItem` è una spunta
+ * (se ne possono accendere più d'una); `DropdownMenuRadioGroup` e
+ * `DropdownMenuRadioItem` una scelta esclusiva; `DropdownMenuSub`,
+ * `DropdownMenuSubTrigger` e `DropdownMenuSubContent` un sottomenu;
+ * `DropdownMenuSeparator` e `DropdownMenuShortcut` il filo e la scorciatoia.
  *
- * Non è un difetto del ri-stile e non si vede leggendo il componente: si vede
- * solo aprendo il menu. Gli esempi di shadcn mettono `DropdownMenuLabel` in
- * cima al contenuto, fuori da qualsiasi gruppo — cioè nella forma che
- * fallisce. **Quattro story su cinque, in questa sessione, erano scritte così
- * e sono crollate all'apertura.** È lo stesso genere di rilievo del `select`
- * che vuole `items` (M2.2), ma peggiore: lì il campo mostrava il valore
- * grezzo, qui non c'è più niente da mostrare.
+ * **Regole d'uso.** `DropdownMenuLabel` va sempre dentro un
+ * `DropdownMenuGroup` o un `DropdownMenuRadioGroup`: fuori da un gruppo il
+ * menu dà errore all'apertura e non si apre. Un grilletto di sola icona, come
+ * il «⋯» di una riga, ha un nome scritto per il lettore di schermo (`sr-only`
+ * o `aria-label`). Le azioni distruttive usano `variant="destructive"`, non
+ * una classe di colore.
  *
- * ## Da tastiera, che è il criterio di accettazione
- *
- * `Invio` o `↓` sul grilletto apre e porta il fuoco sulla prima voce;
- * `↑`/`↓` scorrono e ciclano; le **lettere** saltano alla voce che comincia
- * così — e più lettere di fila si accumulano in una parola, quindi «d» poi
- * «e» cerca «de», non «e»; `→` entra nel sottomenu, `←` ne esce; `Esc` chiude
- * e **riporta il fuoco sul grilletto**.
- *
- * ## Due misure che questa pagina consegna a M2.9
- *
- * 1. **axe dà `aria-hidden-focus` × 6 su ogni menu aperto, in entrambe le
- *    modalità, e non è chiudibile qui** (il `select` aperto ne dà 4, stessa
- *    causa: **12 violazioni in tutto**). I sei nodi sono i **guardiani del
- *    fuoco di Base UI** — `<span aria-hidden="true" tabindex="0"
- *    data-base-ui-focus-guard>` — cioè proprio il meccanismo che fa girare il
- *    `Tab` dentro al menu. Sono generati dalla libreria, non dal ri-stile, e
- *    non compaiono in nessuna stringa di classi: la regola 4bis non lascia
- *    modo di toccarli. Il `dialog` monta gli stessi guardiani ma lì axe li
- *    marca *incomplete* invece che violazione, perché portano anche
- *    `data-base-ui-inert`. È un falso positivo noto verso questa famiglia di
- *    librerie; **M2.9 dovrà decidere se esentare la regola** quando axe passa
- *    in CI, o la CI nasce rossa.
- *
- *    Da sapere: queste violazioni **non si vedevano prima di M2.3**, perché
- *    fino a qui i popup non si riuscivano ad aprire in fase di misura. Aprire
- *    i popup cambia il registro, e M2.9 parte da questo.
- *
- * 2. **La voce di menu è il bersaglio più piccolo del set in densità touch**:
- *    **36px**, contro i 48 di bottone, campo e select. Passa WCAG 2.5.8 (24px
- *    minimi) ma sta sotto i 44 che M2.9 chiederà. Il rimedio è una stringa di
- *    classi sola — `py-1` → **`py-2`**, misurata: **48px esatti in touch**,
- *    33 in normale contro gli attuali 25 — ma alza tutti i menu di tutte le
- *    app anche alla densità da scrivania, quindi è una scelta di sistema come
- *    le costanti della sidebar, non una correzione da fare di passaggio.
- *
- * **Le voci disabilitate prendono il fuoco, e va bene così.** Misurato: la
- * freccia si ferma sulla voce disabilitata, che porta `aria-disabled="true"`,
- * e `Invio` non la attiva — il menu resta aperto. È il comportamento
- * dell'ARIA Authoring Practices, ed è quello giusto: una voce che il fuoco
- * salta è una voce che chi non vede non sa che esista. Saltarla nasconderebbe
- * che l'azione c'è ma non è disponibile, che di solito è proprio ciò che si
- * vuole comunicare — «Pubblica» esiste, serve il ruolo Redattore.
+ * **Tastiera.** `Invio` o `↓` sul grilletto aprono il menu e portano il fuoco
+ * sulla prima voce; `↑` e `↓` scorrono e ricominciano dall'inizio; una lettera
+ * salta alla voce che comincia così, e più lettere di fila cercano una parola;
+ * `→` entra in un sottomenu e `←` ne esce; `Esc` chiude e riporta il fuoco sul
+ * grilletto. Le voci disabilitate prendono il fuoco ma non si attivano: così
+ * chi non vede sa che l'azione esiste, anche se ora non è disponibile.
  */
 const meta = {
   title: 'Primitive/Dropdown Menu',
@@ -140,13 +105,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Il menu di riga di una tabella: grilletto a sola icona, quindi con un nome
- * accessibile scritto a mano (`sr-only`). Senza, si annuncia «pulsante» e
- * basta — ed è la forma in cui `data-table` (M3.3) lo userà, moltiplicata per
- * cinquecento righe.
- *
- * Qui si vede anche il gruppo attorno all'intestazione: senza, questa story
- * non si aprirebbe.
+ * Il menu di una riga di tabella: il grilletto è di sola icona e porta un nome
+ * scritto per il lettore di schermo. L'intestazione sta dentro un gruppo.
  */
 export const MenuDiRiga: Story = {
   render: () => (
@@ -182,12 +142,9 @@ export const MenuDiRiga: Story = {
 }
 
 /**
- * Sottomenu, spunte e gruppo radio, cioè tutto ciò che un menu sa fare oltre
- * a elencare azioni. Le spunte reggono lo stato: sono **filtri**, e a colpo
- * d'occhio si distinguono dal gruppo radio perché più d'una può essere accesa.
- *
- * L'intestazione «Ordinamento» sta **dentro** il `RadioGroup`, non prima:
- * anche il gruppo radio fornisce il contesto che la `GroupLabel` pretende.
+ * Sottomenu, spunte e gruppo radio. Le spunte si accendono anche più d'una;
+ * nel gruppo radio una sola. L'intestazione «Ordinamento» sta dentro il
+ * `DropdownMenuRadioGroup`, che fa da gruppo.
  */
 export const ConSottomenuESpunte: Story = {
   render: function ConSottomenuESpunteRender() {
@@ -254,7 +211,9 @@ export const ConSottomenuESpunte: Story = {
   },
 }
 
-/** Il menu dell'utente in testata, con gruppi e scorciatoie. */
+/**
+ * Il menu dell'utente in testata, con gruppi e scorciatoie.
+ */
 export const MenuUtente: Story = {
   render: () => (
     <DropdownMenu>

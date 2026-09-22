@@ -15,25 +15,29 @@ import { Button } from '@/registry/tassullo/ui/button'
 import { Separator } from '@/registry/tassullo/ui/separator'
 
 /**
- * **La card NON finge di essere cliccabile**, ed è una regressione già pagata
- * nel v1 (commit `94b0f5a`): una scheda che si illumina al passaggio del
- * mouse promette un clic che non esiste, e chi la usa lo prova due o tre
- * volte prima di rinunciare. Peggio ancora da tastiera, dove non c'è nessun
- * fermo di tabulazione a cui arrivare.
+ * Un riquadro che raccoglie un gruppo di informazioni su una cosa sola: un
+ * prodotto, un indicatore, un riepilogo.
  *
- * Il preset shadcn qui è già a posto — **nessun `hover:`, nessun
- * `cursor-pointer`, nessun `transition` sulla card** — quindi non c'è niente
- * da ri-stilare: `card.tsx` è identico all'originale. Vale la pena scriverlo
- * lo stesso, perché la regola non sta nel codice: sta nel non aggiungercelo.
+ * **Quando sì, quando no.** Per dare un contorno a un contenuto che sta
+ * insieme. Non è un bottone: la card non si illumina al passaggio del mouse e
+ * non si clicca per intero. Se deve portare da qualche parte, dentro ci va un
+ * elemento vero — un link o un `button` — che prende il fuoco e dice cosa fa.
+ * Per righe di un elenco, `item`; per un indicatore numerico pronto, il blocco
+ * `Indicatori`.
  *
- * Se una scheda **deve** portare da qualche parte, il bersaglio è un
- * elemento vero dentro la card — un bottone o un link, che prende il fuoco,
- * ha un nome accessibile e si annuncia per quello che è. Le due forme sono
- * affiancate in `Cliccabile`.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/card
+ * ```
  *
- * La card ha una taglia in meno del solito: `size="sm"` stringe la spaziatura
- * interna (`--card-spacing`) e rimpicciolisce il titolo. Non è una densità:
- * la densità è la leva del tema e agisce su entrambe.
+ * **Taglie e parti.** `size`: `default` o `sm`, che stringe la spaziatura
+ * interna e il titolo. `CardHeader` con `CardTitle`, `CardDescription` e
+ * `CardAction` (allineata a destra del titolo); `CardContent`; `CardFooter`,
+ * che si attacca al fondo col suo filo sopra.
+ *
+ * **Regole d'uso.** Niente `hover:` e niente `cursor-pointer` sulla card: una
+ * scheda che reagisce al mouse promette un clic che non c'è, e da tastiera non
+ * ha nessun fermo di tabulazione. La taglia `sm` non è la densità: la densità
+ * la decide il tema e agisce su entrambe.
  */
 const meta = {
   title: 'Primitive/Card',
@@ -59,7 +63,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Con l'azione in testata: `CardAction` si allinea a destra del titolo. */
+/**
+ * Con l'azione in testata: `CardAction` si allinea a destra del titolo.
+ */
 export const ConAzione: Story = {
   render: () => (
     <Card className="w-96">
@@ -79,7 +85,9 @@ export const ConAzione: Story = {
   ),
 }
 
-/** Col piede: `CardFooter` si attacca al fondo e porta il proprio filo sopra. */
+/**
+ * Col piede: `CardFooter` si attacca al fondo e porta il suo filo sopra.
+ */
 export const ConPiede: Story = {
   render: () => (
     <Card className="w-96">
@@ -101,13 +109,10 @@ export const ConPiede: Story = {
 }
 
 /**
- * **Il punto della story.** A sinistra la card che *sembra* cliccabile — la
- * regressione del v1, riprodotta apposta: fondo che cambia al passaggio, mano
- * del cursore, e nessun fermo di tabulazione. A destra la forma giusta: il
- * titolo è un link vero, che si raggiunge col `Tab`, si legge allo screen
- * reader e mostra l'anello di fuoco.
- *
- * Provala da tastiera: sulla sinistra il `Tab` non trova niente.
+ * A sinistra la forma sbagliata: una card che reagisce al mouse ma non ha
+ * nessun fermo di tabulazione. A destra quella giusta: il titolo è un link
+ * vero, raggiungibile con `Tab` e con l'anello di fuoco visibile. Provala da
+ * tastiera.
  */
 export const Cliccabile: Story = {
   render: () => (
@@ -144,7 +149,10 @@ export const Cliccabile: Story = {
   ),
 }
 
-/** Le due taglie affiancate: cambia `--card-spacing` e il corpo del titolo. */
+/**
+ * Le due taglie affiancate: cambiano la spaziatura interna e il corpo del
+ * titolo.
+ */
 export const Taglie: Story = {
   render: () => (
     <div className="flex flex-wrap items-start gap-4">

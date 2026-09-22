@@ -4,22 +4,28 @@ import { Checkbox } from '@/registry/tassullo/ui/checkbox'
 import { Label } from '@/registry/tassullo/ui/label'
 
 /**
- * **Un ri-stile solo**: `rounded-[4px]` → `rounded-sm`. Stesso valore oggi
- * (4px), ma preso dal tema invece che scritto a mano — se il gradino `sm`
- * cambia, la casella lo segue. Era invisibile al gate fino a M2.2: l'originale
- * shadcn del checkbox è un **template a segnaposto d'icona**, e il controllo
- * usciva prima di arrivare alle stringhe di classi. Corretto lì.
+ * Una casella da spuntare: un sì o un no su una voce, indipendente dalle
+ * altre.
  *
- * La casella è `size-4` — 16px in normale, **24px in touch** — ma il bersaglio
- * cliccabile è più largo del disegno: `after:-inset-x-3 after:-inset-y-2`
- * stende un pseudo-elemento tutt'intorno. È il motivo per cui una casella
- * piccola resta premibile col guanto in cantiere senza diventare un quadrato
- * enorme sullo schermo.
+ * **Quando sì, quando no.** Per scelte che si possono combinare, o per un
+ * consenso da dare. Se si sceglie una sola voce fra alcune, è `radio-group`;
+ * se l'effetto è immediato, come accendere un'impostazione, è `switch`.
  *
- * **L'etichetta va sempre associata.** Una casella senza etichetta è un
- * quadratino che il lettore di schermo annuncia come «casella di controllo,
- * non selezionata» e basta. In un modulo si usa `FieldLabel` di `Field`, che
- * fa da bersaglio anche lui.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/checkbox
+ * ```
+ *
+ * **Stati.** `checked` o `defaultChecked`; `indeterminate` per la selezione
+ * parziale; `disabled`. Lo stato indeterminato non si sceglie: lo mostra una
+ * casella «tutti» quando sotto la selezione è parziale, come nella testata di
+ * una tabella.
+ *
+ * **Regole d'uso.** La casella ha sempre un'etichetta associata — in un
+ * modulo, `FieldLabel` di `field`, che fa anche da bersaglio. L'area
+ * cliccabile è più larga del disegno, così la casella resta facile da colpire
+ * senza diventare grande.
+ *
+ * **Tastiera.** Si raggiunge con `Tab` e si spunta con `Spazio`.
  */
 const meta = {
   title: 'Primitive/Checkbox',
@@ -70,9 +76,8 @@ export const Stati: Story = {
 }
 
 /**
- * Lo stato **indeterminato** non è un terzo valore che l'utente sceglie: è
- * quello che mostra una casella «tutti» quando sotto la selezione è parziale.
- * Serve alla testata di una tabella (M2.4) e alla selezione multipla di righe.
+ * La casella «tutti» in stato indeterminato: sotto, la selezione è parziale.
+ * Serve alla testata di una tabella e alla selezione multipla di righe.
  */
 export const SelezioneParziale: Story = {
   render: () => (

@@ -4,22 +4,25 @@ import { ImageIcon } from 'lucide-react'
 import { AspectRatio } from '@/registry/tassullo/ui/aspect-ratio'
 
 /**
- * `aspect-ratio.tsx` è identico all'originale, ed è il file più piccolo del
- * registry: un `div` che mette il rapporto in una variabile CSS e la usa con
- * `aspect-(--ratio)`. Nessuna classe da ri-stilare.
+ * Un riquadro con un rapporto fra i lati fisso: tiene il posto di un'immagine
+ * prima che arrivi, così la pagina non salta mentre si carica.
  *
- * **A cosa serve davvero**: a tenere ferma la pagina mentre le immagini
- * arrivano. Senza rapporto fisso, ogni foto che finisce di caricarsi sposta
- * quello che sta sotto — e chi stava per cliccare clicca un'altra cosa. Con le
- * foto di prodotto e gli asset REN/RES/IM1-9 previsti dalla roadmap di
- * Anagrafe, che arrivano in numero e a dimensioni diverse, è la differenza fra
- * una griglia che si assesta e una che salta per due secondi.
+ * **Quando sì, quando no.** Per foto, anteprime e video che arrivano dalla
+ * rete a dimensioni diverse, soprattutto in griglia. Per l'immagine di un
+ * prodotto o di una scheda, con il ripiego già pronto quando la foto manca,
+ * c'è `entity-image`, che lo usa. Per una persona, `avatar`.
  *
- * Va in coppia con `carousel` (M2.4) e con `pdf-preview` (M3.7).
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/aspect-ratio
+ * ```
  *
- * Nelle story qui sotto non ci sono immagini vere: un riquadro su `bg-muted`
- * fa vedere il rapporto senza portarsi dietro un file da distribuire col
- * registry.
+ * **Opzioni.** `ratio`, un numero: `16 / 9`, `4 / 3`, `1`. Il contenuto
+ * riempie il riquadro; per le immagini si aggiunge `object-cover` o
+ * `object-contain`.
+ *
+ * **Regole d'uso.** 16:9 per le foto di posa, 4:3 per i dettagli, 1:1 per le
+ * miniature. In una griglia tutte le celle prendono lo stesso rapporto,
+ * qualunque sia la foto che ci arriverà.
  */
 const meta = {
   title: 'Primitive/AspectRatio',
@@ -49,7 +52,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** I rapporti che servono: 16:9 per le foto di posa, 4:3 per i dettagli, 1:1 per le miniature. */
+/**
+ * I tre rapporti d'uso: 16:9, 4:3 e 1:1.
+ */
 export const Rapporti: Story = {
   render: () => (
     <div className="flex flex-wrap items-start gap-4">
@@ -67,8 +72,8 @@ export const Rapporti: Story = {
 }
 
 /**
- * In griglia: è il caso vero. Le celle restano allineate qualunque sia la
- * dimensione della foto che ci arriverà dentro, e la pagina non salta.
+ * In griglia: le celle restano allineate qualunque sia la dimensione della
+ * foto che ci arriverà dentro.
  */
 export const Griglia: Story = {
   render: () => (

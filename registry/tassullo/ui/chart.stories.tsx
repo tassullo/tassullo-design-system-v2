@@ -266,85 +266,52 @@ const solo = (...usati: Array<(typeof ARGOMENTI)[number]>) =>
   )
 
 /**
- * Il wrapper ufficiale shadcn attorno a **Recharts**. Non disegna niente da
- * sé: dà a Recharts i token del tema, una legenda e un tooltip che somigliano
- * al resto dell'interfaccia, e un `config` in cui ogni serie ha un'etichetta
- * **in italiano** e un colore.
+ * I grafici: barre, linee, aree, torte e ciambelle disegnate con Recharts, con
+ * i colori, la legenda e il tooltip del tema.
  *
- * ## Dieci tinte categoriche, e nessuna scala
+ * **Quando sì, quando no.** Per un andamento nel tempo, un confronto fra
+ * famiglie, una ripartizione. Un numero solo, con la sua variazione, sta
+ * meglio nel blocco `Indicatori`; valori esatti da leggere uno per uno stanno
+ * meglio in una tabella.
  *
- * `--chart-1..10` è una tavolozza **categorica**: dieci tinte scelte perché
- * restino distinguibili **fra loro**, misurate a coppie sotto visione piena e
- * sotto i tre deficit di percezione del colore. La coppia più vicina sta a
- * **ΔE 11,0** in chiaro e **8,5** in scuro, contro una soglia di 5 —
- * `npm run check:contrast` non lascia passare una tavolozza che scenda sotto.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/chart
+ * ```
  *
- * **Fino al 2026-09-21 erano cinque, ed erano un'altra cosa**: cinque *pioli
- * di una scala di chiarezza*, il cui passo — 1,4935, quello che l'arancio del
- * brand e il verde istituzionale hanno già fra loro — garantiva che restassero
- * distinguibili **anche in bianco e nero**. Quella garanzia non si estende a
- * dieci, ed è aritmetica: dieci pioli a quel passo vorrebbero `1,4935⁹ ≈ 37:1`
- * contro i **21:1** che l'intera gamma sRGB permette. Sopra gli otto non c'è
- * spazio fra il bianco e il nero.
+ * **Parti.** `ChartContainer` riceve un `config` in cui ogni serie ha la sua
+ * etichetta in italiano e il suo colore; dentro si mette il grafico di
+ * Recharts. `ChartTooltip` con `ChartTooltipContent` e `ChartLegend` con
+ * `ChartLegendContent` danno tooltip e legenda. La ciambella non è un
+ * componente a sé: è un `Pie` con `innerRadius`.
  *
- * Il cambio è stato fatto perché cinque non bastavano: un grafico a sei serie,
- * o un calendario a sei tipi di intervento, doveva riusare un colore. Il
- * prezzo, dichiarato: **la tavolozza categorica non si legge in bianco e
- * nero**, e non c'è più una famiglia che ci riesca: la rampa monocroma
- * `--chart-mono-1..5` è stata tolta insieme alla garanzia (2026-09-21). Il
- * ragionamento completo, con le tavolozze pubblicate provate e scartate, è in
- * `docs/DECISIONI.md` §49.
+ * **Regole d'uso.**
  *
- * **Il controllo `colori` non c'è più** (2026-09-21): offriva «categorici /
- * arancio / grigio», cioè la tavolozza, la rampa monocroma del brand e il
- * filtro in scala di grigi. Le ultime due erano l'apparato della *vecchia*
- * garanzia — la scala a cinque pioli leggibile in B/N — e con la tavolozza a
- * dieci quella garanzia non c'è più: un interruttore che mostra una proprietà
- * che il tema non promette più è peggio che assente. Le story mostrano la
- * tavolozza, e basta.
+ * - Le serie prendono i colori `--chart-1` … `--chart-10`, nell'ordine: è la
+ *   tavolozza categorica del tema, descritta in `Tema/Tavolozza categorica`.
+ *   Sono tinte per distinguere *categorie*, non stati: i colori di successo ed
+ *   errore non si usano per le serie.
+ * - Il colore non è mai l'unico mezzo. Le barre hanno la legenda e il valore
+ *   nel tooltip, le linee un tratteggio diverso per ciascuna, torta e
+ *   ciambella il nome della fetta scritto accanto. La tavolozza non si legge
+ *   in bianco e nero, e le prime due tinte — l'arancio e il verde del brand —
+ *   stanno sotto il contrasto che un grafico chiede quando il colore è da
+ *   solo.
+ * - Le aree si riempiono piene e si impilano. Aree traslucide sovrapposte
+ *   mescolano il colore con il fondo e le serie si confondono: per serie che
+ *   si sovrappongono si usano le linee. La sfumatura si usa con una o due
+ *   serie.
+ * - Il contenitore ha un'altezza dichiarata, come `h-72`: le proporzioni del
+ *   video danno un grafico troppo alto dentro una card larga.
+ * - I valori nel tooltip si scrivono con le funzioni dell'item `numeri`,
+ *   passate come `formatter` a `ChartTooltipContent`: di suo il componente
+ *   lascia la forma del numero al browser. Il `formatter` sostituisce l'intera
+ *   riga, quindi riscrive anche nome e pastiglia del colore.
+ * - I numeri in un grafico — tooltip, totali, etichette — sono in
+ *   `tabular-nums`.
  *
- * ## Il colore non è mai l'unica distinzione
- *
- * È la regola che il piano scrive esplicitamente, e vale a maggior ragione
- * qui. Otto tinte su dieci stanno sopra i **3:1** che la WCAG 1.4.11 chiede a
- * un oggetto grafico *quando il colore è l'unico mezzo*; le due che non ci
- * arrivano sono `--chart-1` e `--chart-2`, cioè **l'arancio e il verde del
- * brand** — 1,91:1 e 2,85:1 sulla card chiara — e sono esentate per decisione,
- * perché cambiarle vorrebbe dire cambiare il marchio.
- *
- * Il colore non deve mai essere l'unico mezzo. Le story qui sotto lo mostrano
- * in modi diversi: le barre hanno la **legenda** e il valore nel tooltip, le
- * linee hanno un **tratteggio diverso per ciascuna**, le aree si **impilano**
- * invece di sovrapporsi, torta e ciambella hanno il **nome della fetta scritto
- * accanto**. Nessuna resta muta in bianco e nero.
- *
- * Ogni story porta i propri **controlli**, nel pannello `Controls`: servono a
- * provare la regola invece di leggerla — si spegne la legenda su cinque linee e
- * si guarda cosa resta da capire.
- *
- * ## Un'altezza dichiarata, non ereditata
- *
- * I contenitori cartesiani sono a `h-72` invece che all'`aspect-video` del
- * preset. Non è un gusto: su una card larga 672px l'aspetto video dà un grafico
- * **alto 378px**, e con l'intestazione la card supera l'area visibile del
- * canvas di Storybook — la legenda finisce sotto la piega e sembra non essere
- * stata disegnata. Misurato: c'è, sta a 26px dal fondo della card, e la card
- * finiva a 674px in un viewport da 900. Con `h-72` la card finisce a 638.
- *
- * La seconda metà del rimedio è il `layout: 'padded'` del meta, contro il
- * `centered` globale: **centrata**, una card alta viene spinta in mezzo al
- * viewport e la sua metà inferiore esce dall'area visibile del canvas;
- * allineata in alto, ci sta per intero. Le due cose insieme sono il motivo per
- * cui «la legenda non si accende» pur essendo disegnata — segnalato tre volte,
- * su linee, aree e barre, ed era sempre lo stesso.
- *
- * ## Un ri-stile solo
- *
- * `ChartTooltipContent`: `bg-background` → `bg-popover`. Il tooltip **fluttua**
- * sopra il grafico, e il grafico sta quasi sempre dentro una card: col colore
- * di pagina sarebbe più scuro della card su cui galleggia, cioè un buco invece
- * di un oggetto sollevato. Tutti gli altri popup del set stanno su
- * `bg-popover`. Struttura, props ed export sono il preset intatto.
+ * **Controlli.** Ogni scena ha i suoi interruttori nel pannello `Controls`:
+ * servono a provare le regole — spegnere la legenda su cinque linee, e
+ * guardare cosa resta da capire.
  */
 const meta = {
   title: 'Primitive/Chart',
@@ -449,25 +416,14 @@ const EtichettaSulDato = () => (
 )
 
 /**
- * **Barre.** La legenda nomina le serie e il tooltip dà il valore esatto in
- * cifre tabellari: nessuna delle due informazioni passa dal colore.
+ * Barre a più serie: la legenda le nomina e il tooltip dà il valore esatto.
  *
- * Due interruttori che cambiano il grafico, non il vestito:
- *
- * - **impilato** — affiancate si confrontano le serie fra loro, impilate si
- *   legge il **totale** e si perde il confronto. È una scelta su cosa si vuol
- *   far vedere, non una scelta estetica.
- * - **totale** — solo a pila accesa: il numero in cima alla colonna. Impilando
- *   si guadagna il totale e si perde il confronto fra le serie, quindi tanto
- *   vale **scriverlo**, il totale, invece di lasciarlo stimare a occhio
- *   sull'asse. shadcn non ha un esempio per questo — le sue barre impilate si
- *   fermano alle etichette di segmento — ma non serve niente di nuovo: un
- *   secondo `LabelList` appeso all'**ultima** serie, quella in cima, con un
- *   `valueAccessor` che somma la riga.
- * - **orizzontali** — `layout="vertical"` in Recharts, che è il nome al
- *   contrario e va saputo. Servono quando le categorie hanno **nomi lunghi**:
- *   in verticale «Prefabbricati» sotto l'asse o si taglia o si inclina. Sui
- *   mesi non servono, ed è il motivo per cui il default resta verticale.
+ * - **impilato**: affiancate si confrontano le serie, impilate si legge il
+ *   totale.
+ * - **totale**: con la pila accesa, il numero in cima alla colonna, perché il
+ *   totale si legga e non si stimi sull'asse.
+ * - **orizzontali**: per categorie con nomi lunghi, che in verticale si
+ *   taglierebbero. In Recharts si chiama `layout="vertical"`.
  */
 export const Barre: Story = {
   argTypes: solo(
@@ -573,49 +529,14 @@ export const Barre: Story = {
 }
 
 /**
- * **Scostamenti: le barre che vanno sotto zero.** È l'esempio shadcn
- * `chart-bar-negative`, sui nostri token — e sta in una story sua perché non è
- * una variante delle barre categoriche: è **una serie sola**, e la cosa che si
- * legge non è «quale famiglia» ma «di quanto è cresciuto o calato».
+ * Una serie sola che va sopra e sotto lo zero: si legge di quanto è cresciuto
+ * o calato. Il segno lo dice la posizione rispetto alla linea dello zero, che
+ * si disegna; il colore diverso è un rinforzo, e con `coloreUnico` il grafico
+ * si legge lo stesso.
  *
- * ## Il segno lo dice la posizione, non il colore
- *
- * Una barra sotto la linea dello zero è già negativa senza bisogno di essere
- * di un altro colore, ed è la ragione per cui la **linea dello zero si
- * disegna** (`ReferenceLine`, che prende il colore dai token perché il
- * componente intercetta il `#ccc` che Recharts le cuce addosso). Il colore
- * diverso è un rinforzo, non l'informazione: spegnendo `colori` su `grigio` il
- * grafico si legge lo stesso.
- *
- * ## E i due colori non sono verde e rosso
- *
- * La tentazione è `--success` e `--destructive`, ed è **sbagliata**: un
- * calo di schede aperte non è un errore, e un aumento non è un successo. Gli
- * stati semantici vanno tenuti per ciò che è davvero un esito, altrimenti
- * perdono senso proprio quando serve — è la stessa ragione per cui `progress`
- * non diventa rosso (M2.4). Si usano quindi i primi due pioli della scala,
- * come fa shadcn, che fra loro hanno il passo in grigio e quindi restano
- * distinguibili anche in bianco e nero.
- *
- * ## Due dettagli che il segno cambia
- *
- * **Gli angoli si arrotondano dalla parte opposta allo zero** — in cima se la
- * barra sale, in fondo se scende. Arrotondarli tutti e quattro, come fa il
- * `radius={4}` normale, stacca la barra dalla linea dello zero: sembra
- * appoggiata lì invece che attaccata. L'interruttore `arrotondate` li toglie
- * del tutto, che è la forma più sobria delle due.
- *
- * **L'etichetta si disegna dentro la forma della barra**, non con una
- * `LabelList`. Misurato: su una barra negativa `top`, `bottom` e
- * `insideBottom` finiscono tutte e tre **sopra** la barra, sulla linea dello
- * zero — e nemmeno il `content` della `LabelList` riceve il rettangolo giusto
- * quando la barra ha una `shape` sua. Dentro la `shape`, invece, `x`, `y`,
- * `width`, `height` e `value` ci sono tutti. **Con un'avvertenza misurata**:
- * su una barra negativa Recharts passa `y` al **fondo** e `height`
- * **negativa**, quindi `y + height` è il bordo alto e non quello basso.
- * Prendendo `min` e `max` dei due la formula vale per entrambi i segni, e non
- * c'è niente da indovinare: il numero va sopra se la barra sale, sotto se
- * scende.
+ * I due colori sono le prime due tinte della tavolozza, non verde e rosso: un
+ * calo non è un errore. Gli angoli si arrotondano dalla parte opposta allo
+ * zero, e il valore sta sopra la barra se sale, sotto se scende.
  */
 export const Scostamenti: Story = {
   argTypes: solo('legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'arrotondate', 'coloreUnico'),
@@ -683,16 +604,10 @@ export const Scostamenti: Story = {
 }
 
 /**
- * **Linee, fino a cinque.** È il caso in cui il colore da solo regge meno,
- * perché una linea è un tratto sottile e non un'area: per questo ognuna ha un
- * **tratteggio diverso** — continua, lunga, corta, punto-linea, punteggiata. In
- * bianco e nero le cinque restano cinque, e si può verificarlo spegnendo
- * `tratteggi` con `colori` su `grigio`.
- *
- * `curva` passa da `linear` a `natural`. Non è un gusto: una spezzata dice «ho
- * misurato qui, qui e qui», una curva morbida suggerisce che fra due punti ci
- * sia un andamento che nessuno ha misurato. Su dati mensili radi la spezzata è
- * più onesta, ed è il default.
+ * Fino a cinque linee, ciascuna con il suo tratteggio: continua, lunga, corta,
+ * punto-linea, punteggiata. Spegnendo `tratteggi` si vede quanto il colore da
+ * solo regga meno. Di base la linea è spezzata; `curva` la ammorbidisce, ma su
+ * dati radi suggerisce un andamento che nessuno ha misurato.
  */
 export const Linee: Story = {
   argTypes: solo('serie', 'legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'pallini', 'tratteggi', 'curva'),
@@ -738,50 +653,9 @@ export const Linee: Story = {
 }
 
 /**
- * **Aree, e qui c'è una regola Tassullo che il preset shadcn non ha.**
- *
- * Gli esempi shadcn riempiono le aree a `fillOpacity={0.4}`, perché sovrapposte
- * l'una all'altra devono lasciarsi attraversare. Su di noi quel valore
- * **rompe il requisito**: l'opacità mescola il colore della serie col colore
- * della card, e la mescolanza schiaccia tutta la scala verso il fondo. Misurato
- * sui colori composti dal motore di resa, con cinque aree:
- *
- * | | passi in grigio |
- * |---|---|
- * | piene (`fillOpacity 1`) | 1.493 · 1.496 · 1.486 · 1.483 |
- * | traslucide (`0.4`), chiaro | **1.166 · 1.146 · 1.061 · 1.118** |
- * | traslucide (`0.4`), scuro | **1.285 · 1.238 · 1.199 · 1.171** |
- *
- * Sotto 1.45 la scala non tiene più, e a 1.06 due serie adiacenti sono lo
- * stesso grigio. È la quarta volta che l'opacità cambia un colore in
- * composizione senza che nessun token la dichiari — dopo il testo d'errore
- * (M2.2), l'etichetta della sidebar (M2.5) e il giorno disabilitato (M2.7) — e
- * `check:contrast` non può vederla, perché verifica i token, non le
- * composizioni.
- *
- * Quindi: **le aree Tassullo si riempiono piene, e si impilano.** Impilate non
- * si sovrappongono, quindi non c'è niente da attraversare e l'opacità non
- * serve; la scala resta intera e il grafico si legge anche in bianco e nero.
- * Se servono serie che si sovrappongono, il grafico giusto è quello a
- * **linee** — non un'area trasparente.
- *
- * L'interruttore `impilato` è lì apposta per farlo vedere: spegnendolo le aree
- * tornano sovrapposte e traslucide come negli esempi shadcn, ed è il caso da
- * non copiare.
- *
- * ## `sfumatura`, e quando è lecita
- *
- * È il riempimento a gradiente dell'esempio shadcn `chart-area-gradient`: dal
- * colore della serie all'80% in cima al 10% in fondo. **Ha lo stesso difetto
- * della traslucidità, e in forma più radicale** — dentro una sola area il
- * colore cambia dall'alto in basso, quindi il piolo della scala non esiste più
- * come valore unico e due serie non hanno più un passo fra loro.
- *
- * Perciò non è un'alternativa al riempimento pieno, è un'altra cosa: si usa su
- * **una o due serie**, dove la distinzione non deve reggerla il colore perché
- * non c'è niente da distinguere. Su cinque non si usa, e il controllo serve a
- * vederlo. Il gradiente è definito in composizione — un `<linearGradient>` per
- * serie dentro `<defs>` — perché è una scelta del grafico, non del componente.
+ * Aree piene e impilate, la forma da usare. Spegnendo `impilato` tornano
+ * sovrapposte e traslucide, ed è il caso da non copiare: le serie si
+ * confondono. `sfumatura` riempie a gradiente, e si usa con una o due serie.
  */
 export const Aree: Story = {
   argTypes: solo('serie', 'legenda', 'griglia', 'asseX', 'asseY', 'etichette', 'impilato', 'sfumatura', 'curva'),
@@ -843,23 +717,9 @@ export const Aree: Story = {
 }
 
 /**
- * **Torta.** Le fette hanno il nome scritto **fuori, in fondo a una lineetta**:
- * su una torta la legenda a lato costringe a fare la spola fra il colore e il
- * suo nome, e con cinque fette la spola diventa il lavoro principale.
- * L'etichetta attaccata al dato toglie il problema alla radice — e con essa il
- * colore diventa decorazione, che è il posto giusto per il colore.
- *
- * È il `label` di Recharts, cioè la stessa strada dell'esempio shadcn
- * `chart-pie-label`, con la lineetta di richiamo che tiene il testo staccato
- * dalla fetta. La prima stesura usava `LabelList` con `position="outside"`, che
- * incolla il testo al bordo: cambiato dopo la segnalazione di Francesco. Il
- * `label` scrive il valore di `nameKey` così com'è — cioè la chiave, non
- * l'etichetta — quindi la funzione lo traduce leggendo il `config`, che resta
- * il posto unico dove i nomi in italiano stanno scritti.
- *
- * Il colore del testo viene dal ri-stile che shadcn stesso indica,
- * `[&_.recharts-pie-label-text]:fill-foreground`: le etichette della torta sono
- * l'unico testo del set che Recharts non lascia ereditare.
+ * Il nome di ogni fetta è scritto fuori, in fondo a una lineetta: non serve
+ * fare la spola fra il colore e la legenda. Le etichette leggono i nomi dal
+ * `config`.
  */
 export const Torta: Story = {
   argTypes: solo('serie', 'legenda', 'etichette'),
@@ -899,14 +759,8 @@ export const Torta: Story = {
 }
 
 /**
- * **Ciambella.** Non è un altro tipo di grafico e non è un altro componente: è
- * la stessa torta con `innerRadius`. Vale la pena saperlo prima di cercare un
- * `donut` che non esiste — nel registry shadcn le due forme sono lo stesso
- * `Pie`, e la differenza è una prop.
- *
- * Il buco al centro serve a qualcosa, però: è il posto dove sta il **totale**,
- * che su una ripartizione è il numero che manca sempre. Le cifre sono
- * tabellari, come tutti i numeri del design system.
+ * La stessa torta con `innerRadius`. Al centro sta il totale, in cifre
+ * tabellari.
  */
 export const Ciambella: Story = {
   argTypes: solo('serie', 'legenda', 'etichette'),

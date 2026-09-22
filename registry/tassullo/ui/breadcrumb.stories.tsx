@@ -19,28 +19,36 @@ import {
 } from '@/registry/tassullo/ui/dropdown-menu'
 
 /**
- * `breadcrumb.tsx` è **identico all'originale nella forma e nelle stringhe di
- * classi**. L'unico intervento è la lingua, e sono due stringhe che nessun
- * vedente incontra mai: `aria-label="breadcrumb"` sul `<nav>` e l'`sr-only`
- * dell'ellissi. Chi usa uno screen reader sentiva «breadcrumb navigation» e
- * «more» in mezzo a un'interfaccia italiana.
+ * Il percorso che dice dove sei: la sezione, la famiglia, la pagina corrente,
+ * e ogni gradino tranne l'ultimo porta indietro.
  *
- * **Il breadcrumb dice dove sei, le tabs cambiano cosa vedi.** È la coppia
- * che nel v1 si confondeva: se un'etichetta porta a un altro indirizzo è
- * navigazione e sta qui; se cambia solo il pannello sotto è `tabs` (M2.4).
- * Il segno pratico è il tasto indietro del browser — deve funzionare su
- * questi, non su quelle.
+ * **Quando sì, quando no.** Il breadcrumb dice dove sei, le `tabs` cambiano
+ * cosa vedi. Se un'etichetta porta a un altro indirizzo è navigazione e sta
+ * qui; se cambia solo il pannello sotto, è `tabs`. La prova pratica è il tasto
+ * indietro del browser: deve funzionare fra i gradini del breadcrumb, non fra
+ * le schede.
  *
- * **L'ultimo elemento non è un link**, ed è `BreadcrumbPage`: la pagina in cui
- * già ti trovi non porta da nessuna parte. Il preset gli mette
- * `aria-current="page"` e `aria-disabled`, quindi resta annunciato ma non
- * cliccabile. Metterci un `BreadcrumbLink` che punta a sé stesso è l'errore
- * classico, e si vede solo da tastiera: un fermo di tabulazione in più che
- * non fa nulla.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/breadcrumb
+ * ```
  *
- * Il separatore è un `<li role="presentation" aria-hidden>`: non entra nella
- * lettura, quindi lo si può cambiare — la story `Separatore` usa una barra —
- * senza toccare quello che sente chi non lo vede.
+ * **Parti.** `BreadcrumbList` e `BreadcrumbItem` fanno l'elenco;
+ * `BreadcrumbLink` è un gradino che porta da qualche parte; `BreadcrumbPage` è
+ * la pagina corrente; `BreadcrumbSeparator` il segno fra i gradini, che si
+ * cambia passandogli un figlio; `BreadcrumbEllipsis` raccoglie i livelli
+ * intermedi dei percorsi profondi.
+ *
+ * **Regole d'uso.** L'ultimo gradino è sempre `BreadcrumbPage`, mai un link
+ * che punta alla pagina stessa: sarebbe un fermo di tabulazione che non fa
+ * nulla. L'ellissi da sola è muta: va messa dentro un grilletto vero — un
+ * `dropdown-menu` con i livelli nascosti — o quei livelli diventano
+ * irraggiungibili da tastiera. Il grilletto prende `size-8`, non la misura
+ * dell'ellissi, che da sola è troppo piccola per essere un bersaglio.
+ *
+ * **Accessibilità.** Il percorso è un `<nav>` annunciato come «percorso di
+ * navigazione», la pagina corrente porta `aria-current="page"` e resta
+ * leggibile senza essere cliccabile, e i separatori sono esclusi dalla
+ * lettura: cambiarli non cambia ciò che sente chi usa un lettore di schermo.
  */
 const meta = {
   title: 'Primitive/Breadcrumb',
@@ -50,7 +58,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** Il percorso tipico di Anagrafe: sezione, famiglia, prodotto. */
+/**
+ * Il percorso tipico: sezione, famiglia, prodotto.
+ */
 export const Base: Story = {
   render: () => (
     <Breadcrumb>
@@ -72,17 +82,8 @@ export const Base: Story = {
 }
 
 /**
- * Percorsi profondi: i livelli intermedi si raccolgono nell'ellissi. Da sola
- * `BreadcrumbEllipsis` è muta — è `aria-hidden` — quindi va messa dentro un
- * grilletto vero, qui un `dropdown-menu`, o i livelli nascosti diventano
- * irraggiungibili da tastiera.
- *
- * Nota d'uso ereditata da M2.3: le voci del menu vanno dentro un
- * `DropdownMenuGroup`, o Base UI lancia l'errore #31.
- *
- * Il grilletto ha una taglia propria — `size-8`, sulla scala di `--spacing` —
- * e non quella dell'ellissi: `BreadcrumbEllipsis` è `size-5`, cioè 20px in
- * normale e 30 in touch, e 30px non è un bersaglio. Con `size-8` fa 32 e 48.
+ * Un percorso profondo: i livelli intermedi stanno nell'ellissi, che apre un
+ * menu da cui raggiungerli anche da tastiera.
  */
 export const ConEllissi: Story = {
   render: () => (
@@ -123,8 +124,8 @@ export const ConEllissi: Story = {
 }
 
 /**
- * Il separatore si sostituisce passando un figlio. Resta `aria-hidden`, quindi
- * la scelta è puramente visiva: chi ascolta sente la stessa cosa.
+ * Il separatore sostituito con una barra, passata come figlio. La scelta è
+ * solo visiva: chi ascolta sente la stessa cosa.
  */
 export const Separatore: Story = {
   render: () => (

@@ -22,42 +22,34 @@ import {
 import { Kbd } from '@/registry/tassullo/ui/kbd'
 
 /**
- * **Nessun ri-stile.** È l'unico overlay che non è Base UI: sotto c'è
- * **`cmdk`**, ed è shadcn a portarcelo — non una nostra scelta, e non
- * un'eccezione a D9, che riguarda le primitive che scegliamo noi.
+ * Un elenco che si filtra scrivendo: si digita, le voci si riducono, si
+ * sceglie con la tastiera.
  *
- * **Cos'è davvero: un elenco che si filtra scrivendo.** Non è un menu, non è
- * un `select`. Da solo serve a poco; conta perché è **metà di due cose che
- * vengono dopo**:
+ * **Quando sì, quando no.** Da solo è la ricerca in un elenco lungo. Dentro un
+ * `dialog`, con `CommandDialog`, è la palette dei comandi. Per scegliere un
+ * valore da mettere in un campo di modulo si usa `combobox`, che ha già il
+ * campo e le pillole; per poche voci fisse, `select`; per le azioni su un
+ * elemento, `dropdown-menu`.
  *
- * - dentro un `popover`, è il **`combobox` di M2.6** — quello che sostituisce
- *   i `<select>` nudi con cui oggi in Anagrafe si scelgono famiglie e norme,
- *   che con centinaia di voci non reggono;
- * - dentro un `dialog` (`CommandDialog`), è la **palette comandi**.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/command
+ * ```
  *
- * **Da tastiera funziona senza toccare il mouse**, ed è tutto il punto: si
- * scrive per filtrare, `↑`/`↓` scorrono, `Invio` sceglie, `Esc` chiude. Il
- * fuoco resta **sempre nel campo di ricerca** — la selezione si muove
- * nell'elenco con `aria-activedescendant`, non col fuoco. È il modo giusto e
- * l'unico che permette di continuare a scrivere mentre si scorre.
+ * **Parti.** `CommandInput` è il campo di ricerca, `CommandList` l'elenco,
+ * `CommandGroup` un gruppo con la sua intestazione, `CommandItem` una voce,
+ * `CommandShortcut` la scorciatoia scritta a destra, `CommandEmpty` ciò che si
+ * vede quando il filtro non trova niente.
  *
- * **`CommandDialog` mette il titolo in `sr-only`**: la finestra ha il suo
- * nome accessibile anche se non si vede. È il caso previsto dalla nota del
- * `dialog`, non un'eccezione.
+ * **Regole d'uso.** Fra un gruppo e l'altro non si mette `CommandSeparator`
+ * dentro `CommandList`: un separatore non è un figlio ammesso di un elenco, e
+ * l'intestazione del gruppo separa già i blocchi in un modo che anche un
+ * lettore di schermo annuncia. `CommandEmpty` c'è sempre. La scorciatoia che
+ * apre la palette la decide l'app, non il componente.
  *
- * ## `CommandSeparator` non va dentro `CommandList`
- *
- * `CommandList` è un `role="listbox"`, e un `role="separator"` **non è un
- * figlio ammesso**: axe dà `aria-required-children`, «Element has children
- * which are not allowed: [role=separator]». Misurato in M2.3, e la forma che
- * lo produce è quella degli esempi di shadcn — un `CommandSeparator` fra due
- * `CommandGroup`.
- *
- * Non è una riga da correggere ri-stilando: il ruolo lo mette `cmdk`, e la
- * struttura non si tocca (regola 4bis). La risposta è **non usarlo lì**:
- * l'intestazione di gruppo separa già i blocchi, e lo fa in un modo che chi
- * usa uno screen reader sente, mentre una riga grigia no. Queste story non ne
- * hanno nessuno, ed è una scelta, non una svista.
+ * **Tastiera e accessibilità.** Si scrive per filtrare, `↑` e `↓` scorrono,
+ * `Invio` sceglie, `Esc` chiude la palette. Il fuoco resta sempre nel campo di
+ * ricerca, così si continua a scrivere mentre si scorre. `CommandDialog` ha un
+ * titolo nascosto alla vista che dà il nome alla finestra.
  */
 const meta = {
   title: 'Primitive/Command',
@@ -105,9 +97,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * La palette comandi, aperta da `⌘K` o dal bottone. Il gestore della
- * scorciatoia sta nella story e non nel componente: è l'app a decidere quale
- * tasto la apre.
+ * La palette comandi, aperta da `⌘K` o dal bottone. La scorciatoia è gestita
+ * dalla scena, non dal componente.
  */
 export const PaletteComandi: Story = {
   render: function PaletteComandiRender() {
@@ -173,10 +164,8 @@ export const PaletteComandi: Story = {
 }
 
 /**
- * Cinquecento voci finte: è la prova che M2.6 chiederà al `combobox`, presa
- * qui perché il filtro è di `command` e non del popover che lo conterrà.
- * Si scrive «34» e l'elenco si riduce senza scatti; `↑`/`↓` scorrono ciò che
- * resta.
+ * Cinquecento voci: scrivendo «34» l'elenco si riduce senza scatti, e `↑`/`↓`
+ * scorrono ciò che resta.
  */
 export const CinquecentoVoci: Story = {
   render: () => (
@@ -199,7 +188,9 @@ export const CinquecentoVoci: Story = {
   ),
 }
 
-/** L'elenco vuoto: lo stato che si vede più spesso e che si cura meno. */
+/**
+ * L'elenco vuoto, con `CommandEmpty`: lo stato che si vede più spesso.
+ */
 export const NessunRisultato: Story = {
   render: () => (
     <Command className="w-80 rounded-lg border">

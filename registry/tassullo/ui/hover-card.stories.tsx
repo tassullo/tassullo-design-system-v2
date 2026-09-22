@@ -11,24 +11,22 @@ import {
 import { Separator } from '@/registry/tassullo/ui/separator'
 
 /**
- * **Nessun ri-stile.** Poggia sugli stessi token del popover.
+ * Un'anteprima che compare passando il puntatore su un riferimento: risponde a
+ * «cos'è questo?» senza cambiare pagina — un prodotto citato in un testo, una
+ * norma richiamata in nota, chi ha firmato una revisione.
  *
- * **Si chiama `hover-card` ma dentro c'è `PreviewCard` di Base UI**, e il
- * nome di Base UI è quello giusto: è un'**anteprima**, non una scheda che si
- * apre al passaggio. Serve a rispondere a «cos'è questo?» senza far cambiare
- * pagina — un prodotto citato in un testo, una norma richiamata in una nota,
- * la persona che ha firmato una revisione.
+ * **Quando sì, quando no.** Solo per contenuto ridondante: si apre col
+ * passaggio del puntatore, e chi usa la tastiera o il tocco non la vede. Tutto
+ * ciò che c'è dentro deve trovarsi anche altrove. Dentro non ci va niente da
+ * cliccare: se il contenuto si clicca, è un `popover`; se è una parola di
+ * spiegazione su un controllo, è un `tooltip`.
  *
- * **Il vincolo, ed è severo: dentro non ci va niente da cliccare.** Si apre
- * solo col passaggio del puntatore — non col fuoco, a differenza del tooltip
- * — quindi chi naviga da tastiera non la vede mai, e chi usa il tocco
- * nemmeno. Tutto ciò che sta qui dentro dev'essere **ridondante**: una
- * comodità per chi ha il mouse, mai un'informazione che esiste solo qui. Se
- * il contenuto è necessario, va nella pagina; se è cliccabile, è un
- * `popover`.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/hover-card
+ * ```
  *
- * Per la stessa ragione il grilletto è quasi sempre un link: chi non vede
- * l'anteprima ci clicca e ci arriva lo stesso.
+ * **Regole d'uso.** Il grilletto è quasi sempre un link alla pagina del
+ * riferimento, così chi non vede l'anteprima ci arriva lo stesso con un clic.
  */
 const meta = {
   title: 'Primitive/Hover Card',
@@ -82,9 +80,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * L'anteprima di una norma richiamata in nota. Il testo dell'anteprima non
- * aggiunge nulla che non stia nella pagina della norma: è la regola della
- * ridondanza, applicata.
+ * L'anteprima di una norma richiamata in nota: dice solo ciò che sta già nella
+ * pagina della norma.
  */
 export const AnteprimaNorma: Story = {
   render: () => (
@@ -117,7 +114,10 @@ export const AnteprimaNorma: Story = {
   ),
 }
 
-/** Chi ha firmato la revisione. Il nome resta leggibile anche senza aprire. */
+/**
+ * Chi ha firmato la revisione: il nome resta leggibile anche senza aprire
+ * l'anteprima.
+ */
 export const AnteprimaPersona: Story = {
   render: () => (
     <p className="max-w-md text-sm">

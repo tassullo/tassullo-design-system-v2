@@ -5,21 +5,28 @@ import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 
 /**
- * **Il badge è un'etichetta che SI LEGGE, non un filtro che si clicca.** La
- * confusione fra i due è costata riscritture ripetute nel v1, ed è la prima
- * regola del CLAUDE.md sui nomi: il filtro cliccabile è `toggle-group`, e
- * arriva in M2.6. Se un badge sembra premibile, è il componente sbagliato.
+ * Un'etichetta che si legge: una parola breve che dice lo stato o la categoria
+ * di qualcosa — «Pubblicata», «In revisione», «Bozza».
  *
- * Tre cose ri-stilate rispetto al preset, e sono le stesse trappole del
- * bottone — il preset ci era cascato due volte:
+ * **Quando sì, quando no.** Il badge non si clicca. Se l'elemento serve a
+ * scegliere o filtrare, è un filtro che si clicca e si usa `toggle-group`; se
+ * porta a un'altra pagina, è un collegamento o un `button`. Un badge che
+ * sembra da premere è il componente sbagliato. Per un conteggio accanto a una
+ * voce di menu, `SidebarMenuBadge`.
  *
- * · `destructive` era `bg-destructive/10 text-destructive`, cioè un rosso su
- *   un velo di rosso: sotto soglia. Ora usa la famiglia **tenue** del tema
- *   (`destructive-subtle` + il suo testo + il suo bordo), che è la terna per
- *   cui il tema dichiara i tre valori insieme e che `check:contrast` verifica.
- * · `link` usava `text-primary` — di nuovo l'arancio del brand come testo.
- * · la forma: `rounded-4xl` è una pillola, i badge Tassullo sono a 4px; e il
- *   corpo passa da 11 a 12px, che è il gradino che il v1 dà ai badge.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/badge
+ * ```
+ *
+ * **Varianti.** `variant`: `default`, `secondary`, `destructive`, `outline`,
+ * `ghost`, `link`. I toni semantici — successo, informazione, avviso, errore,
+ * più il neutro per ciò che non dice niente, come «Archiviato» — si applicano
+ * con `className`, prendendo la stringa pronta da `TONO` dell'item `toni`.
+ *
+ * **Regole d'uso.** Una parola o due, mai una frase. In una colonna di tabella
+ * gli stati si mappano tutti dalla stessa `TONO`, così nessuno arriva per
+ * un'altra strada. Un'icona è ammessa, ma il testo la spiega: il colore da
+ * solo non basta.
  */
 const meta = {
   title: 'Primitive/Badge',
@@ -51,7 +58,9 @@ export const Varianti: Story = {
   ),
 }
 
-/** Con l'icona: resta un'etichetta, l'icona è decorativa e il testo la spiega. */
+/**
+ * Con l'icona: resta un'etichetta, e il testo dice cosa l'icona significa.
+ */
 export const ConIcona: Story = {
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
@@ -63,8 +72,7 @@ export const ConIcona: Story = {
 }
 
 /**
- * Gli stati di una scheda prodotto di Anagrafe, che è il caso d'uso vero:
- * una parola, un colore, nessuna azione.
+ * Gli stati di una scheda prodotto: una parola, un colore, nessuna azione.
  */
 export const StatiDiScheda: Story = {
   render: () => (
@@ -78,30 +86,8 @@ export const StatiDiScheda: Story = {
 }
 
 /**
- * **I quattro toni semantici si fanno con `className`, non con quattro
- * varianti** — ed è la risposta di shadcn stesso, scritta nella sezione
- * *Custom Colors* della pagina del badge: «You can customize the colors of a
- * badge by adding custom classes such as `bg-green-50 dark:bg-green-800`». La
- * sua API Reference elenca sei varianti — `default`, `secondary`,
- * `destructive`, `outline`, `ghost`, `link` — e nessuna semantica. La scala
- * della regola 4bis si ferma quindi al **gradino 1**, e `badge.tsx` resta
- * identico all&apos;originale nella forma.
- *
- * La strada opposta era già stata **provata e misurata**, in M2.4 sugli alert:
- * aggiungere `info`, `success` e `warning` ai nomi di variante del `cva` manda
- * `check:registry` in rosso — «diverge dall&apos;originale FUORI dalle
- * stringhe di classi: nomi di varianti». Il gate fa il suo mestiere: un nome
- * di variante in più non si distingue da ciò che ha cambiato shadcn quando
- * esce una versione nuova, e la scelta diventa «riscrivo tutto» oppure «resto
- * indietro per sempre».
- *
- * Shadcn però si ferma un passo prima di dove serve a noi: il suo esempio
- * scrive `bg-green-50` **a mano, nel punto d&apos;uso**. Da noi i colori
- * escono dai token del tema (regola 3), e soprattutto un badge di stato si
- * scrive **dentro la definizione di colonna di ogni tabella di ogni app** —
- * una terna di classi ripetuta lì è il punto esatto da cui le app del v1 hanno
- * cominciato a divergere. Le terne stanno quindi in `lib/toni`, in un posto
- * solo:
+ * I toni semantici, dall'item `toni`: le classi arrivano da una mappa sola e
+ * il badge resta quello.
  *
  * ```tsx
  * import { TONO } from '@/lib/toni'
@@ -109,20 +95,8 @@ export const StatiDiScheda: Story = {
  * <Badge className={TONO.success}>Attivo</Badge>
  * ```
  *
- * `destructive` c&apos;è **anche** come variante, ed è la sola delle quattro:
- * chi ne usa una sola usi quella. `TONO.destructive` serve a chi mappa tutti e
- * quattro gli stati dalla stessa parte e non vuole che uno solo arrivi per
- * un&apos;altra strada.
- *
- * Il **neutro** non è una famiglia semantica e non ha token propri: è lo stato
- * che non dice niente — «archiviato», «non applicabile» — e sta nella mappa
- * perché una tabella di stati che lo lascia fuori costringe a uscire dal file
- * per un caso solo.
- *
- * I quattro **pesano uguale**, ed è costruito: nella modalità scura i tenui si
- * specchiano a gradini fissi, uguali per tutte le famiglie. Se una saltasse
- * all&apos;occhio più delle altre, quello stato sembrerebbe più grave di
- * quello che è. Da guardare commutando la modalità, che è la prova.
+ * Tutti i toni pesano uguale, in chiaro e in scuro: commutando la modalità
+ * nessuno stato sembra più grave degli altri.
  */
 export const ToniSemantici: Story = {
   name: 'Toni Semantici',

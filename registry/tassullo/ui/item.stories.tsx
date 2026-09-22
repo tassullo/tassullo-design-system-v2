@@ -30,62 +30,42 @@ import {
 import { Switch } from '@/registry/tassullo/ui/switch'
 
 /**
- * **La riga di un elenco che non è una tabella.** Sta esattamente nel buco fra
- * i due componenti che già avevamo: `tassullo-data-table`, che è la lista che
- * si cerca, si ordina e si pagina, e `card`, che è un contenitore e non una
- * riga. In mezzo c'è tutto il resto — allegati, impostazioni, elenchi
- * selezionabili — e fino a M4.7 ogni app se lo riscriveva da sé.
+ * La riga di un elenco che non è una tabella: un allegato, un'impostazione,
+ * una persona, una voce da scegliere.
  *
- * ## Perché è entrata (M4.7, misurata)
+ * **Quando sì, quando no.** Per elenchi brevi di cose omogenee, ciascuna con
+ * un'icona o un'immagine, un titolo, una descrizione e le sue azioni. Se
+ * l'elenco ha bisogno di ordinamento, ricerca, colonne o paginazione, non è un
+ * elenco ma una tabella: si usa il blocco `Data Table`, spegnendo ciò che non
+ * serve. Un contenitore che raccoglie informazioni diverse su una cosa sola è
+ * una `card`.
  *
- * Contando nei CSS delle tre app i selettori il cui nome dice riga/voce:
- * **~120 in Officina, ~22 in Studio, ~19 in Anagrafe**. È il secondo pattern
- * più ripetuto dopo la tabella. Quattro casi di Anagrafe si mappano uno a uno
- * su questa anatomia: `sed-riga` di `SistemaEditor` (codice + badge +
- * bottone), `nrm-elenco-voce` di `Norme` (elenco selezionabile),
- * `adm-accordion-voce` di `Admin` (impostazione con interruttore),
- * `abc-modifica-riga` di `AdminBC`.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/item
+ * ```
  *
- * ## Come è fatta
+ * **Parti.** `Item` è la riga; dentro, in quest'ordine, `ItemMedia` (icona o
+ * immagine), `ItemContent` con `ItemTitle` e `ItemDescription`, e
+ * `ItemActions`. `ItemHeader` e `ItemFooter` occupano tutta la larghezza sopra
+ * e sotto il contenuto. `ItemGroup` raccoglie più righe in una lista;
+ * `ItemSeparator` mette il filo fra una riga e l'altra.
  *
- * `Item` è il contenitore; dentro ci vanno, in quest'ordine, `ItemMedia`
- * (icona o immagine), `ItemContent` (con `ItemTitle` e `ItemDescription`) e
- * `ItemActions`. `ItemGroup` raccoglie più righe e dichiara `role="list"`;
- * `ItemSeparator` mette il filo fra una e l'altra.
+ * **Varianti e taglie.** `variant`: `default` (senza bordo, per stare dentro
+ * un riquadro che il bordo ce l'ha), `outline` (la riga autonoma), `muted`
+ * (fondo tenue). `size`: `default`, `sm`, `xs`. `ItemMedia` ha `variant`:
+ * `default`, `icon`, `image`; la miniatura si rimpicciolisce con la taglia
+ * della riga.
  *
- * Tre varianti — `default` senza bordo, `outline` col bordo, `muted` col fondo
- * tenue — e tre taglie, `default`, `sm`, `xs`.
+ * **Regole d'uso.**
  *
- * ## Il ri-stile: uno solo, ed è sempre la stessa trappola
- *
- * `ItemDescription` dava ai link `hover:text-primary`, cioè l'arancio del
- * brand come **testo**, che in modalità chiara fa 1.79:1. Ora è
- * `text-accent-ink`, il token che esiste per questo ed è corretto in entrambe
- * le modalità. È la **settima** volta che il preset shadcn ripete
- * `text-primary` come colore di testo: in un componente nuovo conviene
- * cercarla per prima cosa.
- *
- * ## Le due trappole di `ItemGroup`, misurate in M4.7
- *
- * `ItemGroup` dichiara `role="list"`, e una lista ARIA ammette **solo**
- * `listitem` come figli. Da qui due difetti che non si vedono guardando la
- * pagina, e che il gate ha preso al primo giro (8 violazioni su 4 passate):
- *
- * 1. **`Item` non si dichiara `listitem` da sé.** shadcn lascia la scelta a
- *    chi compone — un `Item` può stare benissimo fuori da una lista — quindi
- *    dentro un `ItemGroup` il ruolo lo si passa: `<Item role="listitem">`.
- * 2. **Il filo di `ItemSeparator` è un figlio non ammesso.** Dentro una lista
- *    è decorazione, non contenuto, e va nascosto all'albero di accessibilità
- *    con `aria-hidden`. Provato prima `role="none"`, che **non basta**: Base
- *    UI mette `aria-orientation` sul separatore, e quell'attributo su
- *    `role="none"` è a sua volta una violazione (`aria-allowed-attr`) — il
- *    conto è passato da 2 a 1, non a 0. Con `aria-hidden` va a **0**.
- *
- * ## Quando **non** usarla
- *
- * Se la lista ha bisogno di ordinamento, ricerca, colonne o paginazione, non è
- * un elenco: è una tabella, e si monta `tassullo-data-table` spegnendo ciò che
- * non serve. È la soglia fissata il 2026-09-18 sulla dashboard.
+ * - Dentro un `ItemGroup`, che è una lista, ogni `Item` porta
+ *   `role="listitem"` e ogni `ItemSeparator` porta `aria-hidden`.
+ * - Una riga che porta a un'altra pagina è un collegamento intero: `render`
+ *   con `<a href="…">` sull'`Item`. In quel caso le righe non vanno in un
+ *   `ItemGroup` ma in una `<ul>` con le sue `<li>`, perché il ruolo di lista
+ *   toglierebbe alla riga quello di collegamento.
+ * - Per una persona, in `ItemMedia` va un `Avatar`, senza `variant`.
+ * - I link nella descrizione sono già nel colore giusto e non si ricolorano.
  */
 const meta = {
   title: 'Primitive/Item',
@@ -110,7 +90,9 @@ function Miniatura() {
   )
 }
 
-/** La forma nuda: media, contenuto, azioni. */
+/**
+ * La forma nuda: media, contenuto, azioni.
+ */
 export const Predefinito: Story = {
   render: () => (
     <Item variant="outline" className="max-w-md">
@@ -131,9 +113,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Le tre varianti a confronto. `default` non ha bordo — serve dentro un
- * riquadro che il bordo ce l'ha già; `outline` è la riga autonoma; `muted`
- * stacca sul fondo senza disegnare una linea.
+ * Le tre varianti a confronto: `default` senza bordo, `outline` col bordo,
+ * `muted` col fondo tenue.
  */
 export const Varianti: Story = {
   render: () => (
@@ -154,25 +135,8 @@ export const Varianti: Story = {
 }
 
 /**
- * **Le tre taglie, e un ri-stile che corregge shadcn.**
- *
- * Nell'originale `sm` ha le **stesse identiche classi** di `default` —
- * verificato riga per riga contro `registry/.upstream/item.tsx` e **misurato
- * sulla pagina di documentazione di shadcn**, dove le due righe della sezione
- * "Size" rendono entrambe 66.3px — mentre il testo accanto promette «a compact
- * size for dense layouts». Codice e documentazione dicono cose diverse: è un
- * difetto loro, non una sottigliezza.
- *
- * Qui `sm` fa quello che la loro documentazione dichiara: stessa larghezza di
- * `default`, meno respiro sopra e sotto (`py-2.5` → `py-2`). Sulla scala del
- * tema non esiste un gradino fra 10px e 8px, quindi la densità si prende sul
- * verticale e l'orizzontale resta `px-3` — che è poi ciò che distingue `sm` da
- * `xs`, il quale stringe anche ai lati (`px-2.5`).
- *
- * Le righe stanno dentro un `ItemGroup` e portano una miniatura, perché `sm`
- * tocca anche **lo spazio fra una riga e l'altra** (`gap-4` → `gap-2.5`) e
- * **la dimensione della miniatura** (`size-10` → `size-8`): con righe sciolte
- * e un'icona al posto dell'immagine non si vedrebbe nessuna delle due cose.
+ * Le tre taglie, in un `ItemGroup` con miniatura. `sm` stringe lo spazio sopra
+ * e sotto, fra una riga e l'altra e la miniatura; `xs` stringe anche ai lati.
  */
 export const Taglie: Story = {
   render: () => (
@@ -199,9 +163,7 @@ export const Taglie: Story = {
 }
 
 /**
- * **Il caso di Anagrafe**: `adm-accordion-voce` di `Admin.tsx` — un'impostazione
- * con titolo, spiegazione e interruttore. Oggi sono sei regole CSS scritte a
- * mano; qui è composizione.
+ * Un'impostazione: titolo, spiegazione e interruttore.
  */
 export const Impostazione: Story = {
   render: () => (
@@ -240,10 +202,8 @@ export const Impostazione: Story = {
 }
 
 /**
- * **L'elenco di allegati**, che è il caso reale per cui M4.7 è stata aperta:
- * il tab «documenti» di `Pagine/Scheda` monta esattamente questo. `ItemGroup`
- * dichiara `role="list"`, quindi l'elenco si annuncia come tale senza scrivere
- * un `<ul>` a mano.
+ * Un elenco di allegati: `ItemGroup` lo annuncia come lista, senza scrivere un
+ * `<ul>` a mano.
  */
 export const ElencoAllegati: Story = {
   render: () => (
@@ -278,17 +238,8 @@ export const ElencoAllegati: Story = {
 }
 
 /**
- * **Un gruppo vero**, sul modello della scena «Group» di shadcn: righe
- * omogenee separate dal filo, dentro un solo `ItemGroup` che dichiara
- * `role="list"`. Il caso è quello di Anagrafe — le persone che hanno accesso a
- * una commessa — ma la forma è la stessa per qualunque elenco di entità con
- * un volto, un nome e un'azione.
- *
- * `ItemMedia` qui **non ha `variant`**: dentro ci va il nostro `Avatar`, che
- * porta già la propria forma. La documentazione di shadcn parla di un
- * `variant="avatar"`, ma nel preset `base-nova` che usiamo **non esiste** — le
- * varianti sono `default`, `icon`, `image` — ed è una delle differenze fra la
- * loro pagina e il codice che si installa davvero.
+ * Le persone che hanno accesso a una commessa: righe omogenee separate dal
+ * filo, con un `Avatar` in `ItemMedia`.
  */
 export const Gruppo: Story = {
   render: () => (
@@ -323,10 +274,8 @@ export const Gruppo: Story = {
 }
 
 /**
- * **Con miniatura** (`ItemMedia variant="image"`): il caso dei prodotti a
- * catalogo, dove la foto è ciò che si riconosce prima del nome. La miniatura
- * si rimpicciolisce da sé con la taglia della riga — 40px in `default`, 32 in
- * `sm`, 24 in `xs` — e questo lo fa già shadcn, non l'abbiamo aggiunto noi.
+ * Con miniatura (`ItemMedia variant="image"`): la foto si riconosce prima del
+ * nome. È di 40px in `default`, 32 in `sm`, 24 in `xs`.
  */
 export const ConMiniatura: Story = {
   render: () => (
@@ -358,10 +307,9 @@ export const ConMiniatura: Story = {
 }
 
 /**
- * **Intestazione e piè di riga** (`ItemHeader`, `ItemFooter`): occupano tutta
- * la larghezza sopra e sotto il contenuto, e servono quando una riga porta
- * anche un contesto — la commessa a cui appartiene, o il conto di ciò che
- * contiene.
+ * Con intestazione e piè di riga (`ItemHeader`, `ItemFooter`), per una riga
+ * che porta anche un contesto: la commessa a cui appartiene, o il conto di ciò
+ * che contiene.
  */
 export const ConIntestazione: Story = {
   render: () => (
@@ -385,23 +333,9 @@ export const ConIntestazione: Story = {
 }
 
 /**
- * **La riga come collegamento**, con la prop `render` di Base UI: l'intera riga
- * diventa un `<a>`, e sorvolo e fuoco si applicano all'ancora invece che a un
- * bottone dentro. È la forma da usare per un elenco che **naviga** — un
- * indice di sezioni, una lista di schede — al posto di una riga con dentro un
- * bottone «Apri».
- *
- * `render` è la via di Base UI a ciò che in Radix è `asChild`: si passa
- * l'elemento già scritto (`<a href="…">`), e il componente ci fonde le proprie
- * props invece di avvolgerlo in un nodo in più.
- *
- * **Qui non si usa `ItemGroup`, ed è una conseguenza misurata.** `ItemGroup`
- * dichiara `role="list"`, che vuole figli `listitem`; ma quando la riga **è**
- * l'ancora, scriverle sopra `role="listitem"` le toglie il ruolo di
- * collegamento — e axe lo dice: `aria-allowed-role`, 1 violazione. La forma
- * corretta è quella del markup di sempre: una `<ul>` con le sue `<li>`, e
- * l'ancora dentro. Si perde la spaziatura che `ItemGroup` porta da sé, e si
- * riscrive con un `gap`.
+ * Ogni riga è un collegamento intero, fatto con `render`: sorvolo e fuoco
+ * stanno sull'ancora. Le righe sono in una `<ul>` con le sue `<li>`, non in un
+ * `ItemGroup`.
  */
 export const ComeCollegamento: Story = {
   render: () => (

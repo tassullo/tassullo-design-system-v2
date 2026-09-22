@@ -4,21 +4,23 @@ import { Input } from '@/registry/tassullo/ui/input'
 import { Label } from '@/registry/tassullo/ui/label'
 
 /**
- * **Nessun ri-stile.** Il default shadcn è già sui token del tema, e l'altezza
- * `h-8` deriva da `--spacing`: **32px in normale, 48px in touch**, cioè
- * esattamente il bersaglio del bottone. Campo e bottone si allineano nelle due
- * densità senza che nessuno dei due sappia dell'altro, ed è il motivo per cui
- * la densità sta nel tema e non nelle primitive (M1.4).
+ * Il campo di testo di una riga: dove si scrive un valore.
  *
- * Una cosa da non «correggere»: `text-base md:text-sm`. Sembra un refuso —
- * il corpo grande sotto la soglia, il piccolo sopra — e non lo è. Sotto i
- * 16px iOS ingrandisce la pagina da sé quando il fuoco entra in un campo, e
- * l'unico modo di impedirglielo è non scendere sotto 16px sul telefono. È il
- * comportamento del browser, non una scelta di stile.
+ * **Quando sì, quando no.** Per testo breve, numeri, date scritte, indirizzi
+ * di posta. Per più righe c'è `textarea`; per un valore da scegliere in un
+ * elenco, `select` o `combobox`; per un'icona o un'unità dentro il bordo,
+ * `input-group`. Etichetta ed errore li mette `field`.
  *
- * `aria-invalid` non è decorazione: è ciò che i lettori di schermo annunciano.
- * Il bordo rosso è la sua conseguenza visiva, non il contrario — e quindi lo
- * stato d'errore si accende su quell'attributo, mai su una classe.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/input
+ * ```
+ *
+ * **Regole d'uso.** Il campo è alto quanto il bottone in entrambe le densità,
+ * quindi i due si allineano in riga senza aggiustamenti. Sul telefono il testo
+ * del campo resta a 16px: sotto quel corpo iOS ingrandisce la pagina quando il
+ * fuoco entra nel campo. Lo stato d'errore si accende con `aria-invalid`, non
+ * con una classe. `type="number"` è per le quantità; un codice fatto di cifre
+ * è testo. Le quantità da confrontare in colonna prendono `tabular-nums`.
  */
 const meta = {
   title: 'Primitive/Input',
@@ -60,9 +62,8 @@ export const Stati: Story = {
 }
 
 /**
- * I tipi che servono davvero alle app Tassullo. `type="number"` porta con sé
- * le frecce del browser e la rotellina: per una quantità va bene, per un
- * codice no — un codice è testo, anche quando è fatto di cifre.
+ * I tipi d'uso più comuni. `type="number"` porta le frecce e la rotellina: va
+ * bene per una quantità, non per un codice.
  */
 export const Tipi: Story = {
   render: () => (
@@ -92,10 +93,8 @@ export const Tipi: Story = {
 }
 
 /**
- * **I numeri da confrontare in colonna vogliono `tabular-nums`** — la regola
- * fissata in `Tema/Cifre`. Vale anche dentro un campo: due quantità incolonnate
- * con le cifre proporzionali ballano, e in un modulo di conformità la colonna
- * dei decimali è il righello con cui si legge.
+ * Quantità incolonnate con `tabular-nums`: le cifre hanno tutte la stessa
+ * larghezza, e i decimali si allineano anche dentro un campo.
  */
 export const CifreInColonna: Story = {
   render: () => (

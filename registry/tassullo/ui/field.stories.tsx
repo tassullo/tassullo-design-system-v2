@@ -35,31 +35,38 @@ import { Switch } from '@/registry/tassullo/ui/switch'
 import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
- * **`Field` è la riga etichetta + campo + descrizione + errore, e non si
- * reinventa.** È la primitiva ufficiale shadcn per il compito, il blocco
- * `form-field` di M3.4 ci si appoggerà sopra, e la regola 4bis dice di partire
- * da qui invece di scrivere l'ennesimo wrapper.
+ * La riga di un modulo: etichetta, campo, descrizione ed errore tenuti
+ * insieme, con i collegamenti che servono a chi usa un lettore di schermo.
  *
- * **Due ri-stili, ed erano tutt'e due trappole scritte nel CLAUDE.md.**
- * Misurate, non stimate:
+ * **Quando sì, quando no.** Attorno a ogni campo di un modulo, invece di
+ * scrivere un contenitore proprio. Per un campo già cablato con la
+ * validazione, c'è il blocco `Campo di modulo`, che lo usa. Ciò che sta
+ * *dentro* il bordo del campo — un'icona, un'unità, un bottone — è
+ * `input-group`, e sta dentro il `Field`.
  *
- * | | prima | rapporto | ora | rapporto |
- * |---|---|---|---|---|
- * | testo d'errore, chiaro | `text-destructive` | **4,46:1** su pagina, 4,75 su card | `text-destructive-subtle-foreground` | **7,68:1** / 8,17 |
- * | testo d'errore, scuro | `text-destructive` | **3,81:1** su pagina, **3,53** su card | idem | **11,29:1** / 10,45 |
- * | link in hover | `text-primary` | **1,79:1** | `text-accent-ink` | **4,77:1** / 5,07 |
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/field
+ * ```
  *
- * `--destructive` è un colore da **fondo** — è il rosso pieno del bottone
- * distruttivo — e come testo non arriva a 4,5:1 in **nessuna** delle quattro
- * combinazioni. Il testo rosso ha già il suo token, `--destructive-subtle-foreground`,
- * che nel v1 si chiamava `--color-danger-text` e fa esattamente questo mestiere.
- * È la stessa correzione fatta al `badge` in M2.1, sullo stesso errore del preset.
+ * **Parti e orientamenti.** `Field` è la riga, con `orientation`: `vertical`
+ * (di base, etichetta sopra), `horizontal` (etichetta accanto, per caselle e
+ * interruttori), `responsive` (passa da colonna a riga secondo la larghezza
+ * del contenitore, non della finestra). `FieldLabel`, `FieldDescription`,
+ * `FieldError`; `FieldContent` raggruppa etichetta e descrizione accanto a un
+ * controllo; `FieldSet`, `FieldLegend` e `FieldGroup` raccolgono più righe;
+ * `FieldSeparator` le divide; `FieldTitle` è un titolo che non è un'etichetta.
  *
- * Il link in hover è la prima delle «due trappole che costano riscritture»:
- * `--primary` è l'arancio del brand, e come **testo** dà 1,79:1 in chiaro.
- * `text-accent-ink` è corretto in entrambe le modalità — sul fondo scuro
- * coincide col brand, ed è proprio per questo che si scrive così e non
- * `text-primary`.
+ * **Regole d'uso.** Ogni campo ha un'etichetta. Lo stato d'errore si accende
+ * con `aria-invalid` sul campo e `data-invalid` sul `Field`: il bordo rosso è
+ * la conseguenza, non il segnale. Il testo d'errore è già nel colore giusto, e
+ * non si ricolora con `text-destructive`. Un `FieldLabel` che contiene un
+ * `Field` diventa una scheda da scegliere, che si accende sulla voce
+ * selezionata.
+ *
+ * **Tastiera e accessibilità.** `FieldError` ha `role="alert"`: quando compare
+ * viene letto, senza che il fuoco ci vada sopra. Un modulo fatto di `Field` si
+ * percorre tutto con `Tab`, in ordine, e l'anello di fuoco si vede su ogni
+ * controllo.
  */
 const meta = {
   title: 'Primitive/Field',
@@ -84,9 +91,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Con l'errore. `FieldError` ha `role="alert"`: il lettore di schermo lo
- * annuncia quando compare, senza che il fuoco ci vada sopra. E il campo porta
- * `aria-invalid` — è quello a dire che è sbagliato, il rosso è la conseguenza.
+ * Con l'errore: il campo porta `aria-invalid`, e `FieldError` viene letto
+ * appena compare.
  */
 export const ConErrore: Story = {
   render: () => (
@@ -100,7 +106,10 @@ export const ConErrore: Story = {
   ),
 }
 
-/** Più errori insieme: `errors` li deduplica e li impagina in elenco. */
+/**
+ * Più errori insieme: la prop `errors` di `FieldError` li deduplica e li mette
+ * in elenco.
+ */
 export const PiuErrori: Story = {
   render: () => (
     <div className="w-96">
@@ -119,7 +128,10 @@ export const PiuErrori: Story = {
   ),
 }
 
-/** I tre orientamenti. `responsive` passa da colonna a riga sul contenitore, non sulla finestra. */
+/**
+ * I tre orientamenti. `responsive` passa da colonna a riga secondo la
+ * larghezza del contenitore, non della finestra.
+ */
 export const Orientamenti: Story = {
   render: () => (
     <FieldGroup className="w-[36rem]">
@@ -143,9 +155,8 @@ export const Orientamenti: Story = {
 }
 
 /**
- * La scelta a schede: `FieldLabel` che contiene un `Field` diventa un
- * riquadro premibile, e si accende sulla voce scelta. È il pattern per cui
- * `has-data-checked` esiste — nessun JavaScript, nessuna classe condizionale.
+ * La scelta a schede: un `FieldLabel` che contiene un `Field` diventa un
+ * riquadro da premere, e si accende sulla voce scelta.
  */
 export const ScelteASchede: Story = {
   render: () => (
@@ -176,25 +187,14 @@ export const ScelteASchede: Story = {
 }
 
 /**
- * ## Il form di prova — criterio di accettazione di M2.2
+ * Un modulo completo, da percorrere solo con la tastiera: ogni campo ha
+ * un'etichetta, e `Tab` passa in ordine da `Cerca` a `Salva`.
  *
- * Tutte e dieci le primitive della fase in una pagina sola, **navigabile
- * interamente da tastiera** e con **ogni campo etichettato** (INTERFACCE.md §1).
- *
- * Il percorso da provare, `Tab` dopo `Tab`, senza mai toccare il mouse:
- *
- * 1. `Cerca` → 2. `Denominazione` → 3. `Codice` (in errore) → 4. `Famiglia`
- * (`Spazio` apre, frecce e lettere scelgono, `Esc` chiude) → 5. `Resa` →
- * 6. `Range di conformità` (due maniglie, frecce per muoverle) →
- * 7. i tre `Ambito` (**un solo fermo**: dentro si va con le frecce) →
- * 8. le due caselle `Norme` → 9. l'interruttore `Pubblica` →
- * 10. `Note` → 11. `Annulla` → 12. `Salva`.
- *
- * Due cose da guardare mentre si tabula, perché sono quelle che si rompono:
- * l'anello di fuoco dev'essere **sempre visibile** (anche sulle caselle e sulle
- * maniglie del cursore, che sono i due punti dove di solito sparisce), e da
- * nessuna parte il fuoco deve **saltare all'indietro** o uscire dal modulo
- * prima di `Salva`.
+ * Dentro `Famiglia`, `Spazio` apre e le frecce scelgono; nel cursore della
+ * resa le frecce muovono le maniglie; i tre `Ambito` sono un fermo solo, e fra
+ * loro ci si muove con le frecce. L'anello di fuoco deve vedersi sempre, anche
+ * su caselle e maniglie, e il fuoco non deve mai tornare indietro o uscire dal
+ * modulo prima di `Salva`.
  */
 export const FormDiProva: Story = {
   parameters: { layout: 'padded' },

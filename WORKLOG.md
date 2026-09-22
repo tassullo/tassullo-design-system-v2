@@ -12233,3 +12233,63 @@ Su indicazione di Francesco, il secondo rilievo è chiuso subito: `tags: ['autod
 **Misure.** `build-storybook` verde, `index.json` con **90 voci Docs** (89 componenti più `Introduzione`) e **385 story**, lo stesso numero di prima. **`test:a11y` 1540 scansioni su 385 story, 0 violazioni** in tutte e quattro le passate: le pagine Docs non sono story, e l'addon non le scansiona. Aperte nel pannello `Primitive/Dropdown Menu` e `Tema/Palette`: il JSDoc del meta in testa, sotto le scene; le story coi popup restano chiuse nella pagina Docs.
 
 **Conseguenza per M5.0b–e, ed è il motivo per cui conviene averlo fatto prima**: da adesso il JSDoc del meta **è** la pagina che un visitatore apre per prima su ogni componente, e oggi su 79 file è ancora il diario. Il testo da riscrivere si legge nel posto in cui verrà letto, non immaginandolo.
+
+## 2026-09-22 — M5.0b Primitive, prima metà
+
+Le 28 story di `registry/tassullo/ui/` da `accordion` a `item`, riscritte secondo il canone di M5.0a. Nessun sorgente di componente, nessuna `play`, nessun dato d'esempio toccato (con un'eccezione, sotto); i JSDoc non attaccati e i commenti `//` sono rimasti dove erano.
+
+#### Il conto
+
+**152 segnalazioni sui 28 file, non 170**: rimisurato aprendo la sessione (`check:storybook -- --avvisa` sui 28), 26 file su 28 con segnalazioni — `hover-card` e `input-group` erano a 0 e sono stati riscritti lo stesso. A fine sessione **0 sui 28**; sul repo **514 → 362** (esattamente 514 − 152), di cui `ui/` 123 su 22 file, `blocks/` 129, `pages/` 49, `stories/` 61.
+
+#### Come sono scritte
+
+Ogni pagina ha lo stesso scheletro, e solo le sezioni che servono: una frase su cos'è, per funzione; **Quando sì, quando no** col confine verso il vicino; il comando `add` in un blocco `bash` (il nome dell'item preso da `registry.json`: per tutti i 28 coincide col nome del file); **Varianti / Taglie / Opzioni / Parti** coi nomi delle prop; **Regole d'uso**; **Tastiera e accessibilità** come comportamento. Le story hanno una o due frasi.
+
+I confini chiesti dal mandato:
+- **`badge`**: «un'etichetta che si legge»; se si sceglie o si filtra, è `toggle-group`; un badge che sembra da premere è il componente sbagliato. Il rovescio lo scrive M5.0c su `toggle-group`.
+- **`dialog` / `alert-dialog` / `drawer`** (e `sheet`, in M5.0c): il `dialog` è l'overlay di base su schermo largo; `alert-dialog` solo dove una chiusura distratta costa lavoro, e non si chiude col clic fuori; `drawer` è la forma del telefono, e la differenza con `sheet` è il gesto (si tira), non il bordo. `Dialogo adattivo` sceglie fra dialog e drawer.
+- **`combobox` / `select`**: il confine è la lunghezza dell'elenco — fino a poche decine `select`, sopra `combobox`; il segno è «se bisogna scorrere». Anche `command` è posizionato: una ricerca che non mette un valore in un modulo.
+- **`chart`**: rimanda a `Tema/Tavolozza categorica` per i colori, e «il colore non è mai l'unico mezzo» è scritto come regola, con i mezzi (legenda, tratteggi, nomi accanto alle fette).
+- **`entity-image`**: dice cosa fa e quando; da dove viene resta in `DECISIONI.md` §45.
+- **`calendar`**: la tastiera è scritta come comportamento — il `Tab` passa per mese precedente, successivo e *un* giorno; **le frecce non spostano il fuoco fra i giorni**; per chi lavora da tastiera la data si scrive nel campo.
+
+#### Cose verificate invece che copiate
+
+Il canone vuole la tastiera «come comportamento garantito», quindi le affermazioni della vecchia prosa si sono controllate prima di riscriverle come garanzia.
+- **`accordion` senza frecce**: vero, e la ragione è nella libreria — `Accordion.Root.loopFocus` in `@base-ui/react` è **deprecata e senza effetto**, tolta seguendo l'aggiornamento delle ARIA Authoring Practices. Portato in `DECISIONI.md` §52.
+- **`input`**: la vecchia pagina diceva `text-base md:text-sm`; il file oggi ha `text-lg md:text-sm` (§51). La pagina ora dice la regola — 16px sul telefono — e non la classe.
+- **`chart`**: la prosa descriveva un controllo `colori` («categorici / arancio / grigio») che **non esiste più** da M4ter.11, e la scena `Scostamenti` diceva che le due tinte «restano distinguibili in bianco e nero», che con la tavolozza a dieci non è più vero. Riscritta sul controllo che c'è davvero (`coloreUnico`). **Nel codice resta un residuo**: `'colori'` è ancora in `ARGOMENTI` e nel `solo(…)` di `Barre`, senza un arg corrispondente — innocuo, e non toccato perché il mandato esclude il codice delle story.
+- **`calendar`, `GiorniDisabilitatiEMarcati`**: la regola «il colore non è l'unico segnale» è scritta come la scena la applica davvero, colore **e** peso (`font-semibold text-accent-ink`).
+- **`combobox`, `Etichette`**: la vecchia prosa lo presentava come un campo in cui gli `items` «fanno da suggerimento e non da vincolo». Non è così: la scena sceglie solo fra i suggerimenti. La pagina ora dice questo.
+- **`combobox`, D14**: la pagina dice come comportamento che freccia e crocetta sono bottoni di sola icona senza nome, che la crocetta non è un fermo di tabulazione e che le pillole si tolgono con `Backspace`. La decisione e il suo perché restano in `CLAUDE.md` e qui.
+
+#### L'unico testo toccato fuori dai JSDoc
+
+In `dialog.stories.tsx`, dentro la scena `Annidato`, due frasi erano **testo reso nel canvas** e portavano note interne: «la stampa è l'unico posto dove il carattere del v1 resta» e «L'anteprima PDF arriva col blocco `pdf-preview` di M3.7». Il gate non le vede (per `ui/` legge i soli JSDoc), ma il `grep` di M5.0e su `storybook-static/` le avrebbe trovate. Riscritte come contenuto d'esempio neutro. I nomi di persona nei dati (`Francesco Sartori`, `Roberto Zanetti` in `avatar`, `dropdown-menu`, `hover-card`, `item`) **restano**: sono M5.0e.
+
+#### Le misure: cercate prima di togliere
+
+Per ogni file, prima di sostituire il JSDoc, si sono estratti i numeri con unità (`px`, `:1`, `%`) e cercati in `DECISIONI.md` e `WORKLOG.md`. Quasi tutto c'era: le misure del calendario (35/1 giorni, 0 su 7 tasti, 257px, le 14 *incomplete*), quelle di `field` (4.46 → 7.68, scritte col punto nel diario), del drawer con gli agganci, del chart (378px, i passi in grigio in §26), di `entity-image` (§45). Quattro cose stavano **solo** nelle story, e sono in `DECISIONI.md` **§52**: la cella del calendario a 42px in touch e perché `--spacing(8)` non è stata presa; la traduzione delle stringhe per il lettore di schermo di `carousel` e `breadcrumb` come gradino 2; il bersaglio della casella più largo del disegno (`after:-inset-*`); l'accordion senza frecce.
+
+#### Uno strumento, e due difetti che ha avuto
+
+Il testo è stato scritto a mano, file per file; la sostituzione del JSDoc attaccato a `meta` e a ogni `export const` l'ha fatta uno script di appoggio nella cartella temporanea, che va a capo a 76 colonne. Ha sbagliato due volte, ed entrambe si sono viste **solo aprendo la pagina Docs**:
+1. andando a capo dentro uno span di codice (`` `parse(valore, 'dd/MM/yyyy', …, { `` / `` locale: it })` ``), `markdown-to-jsx` di Storybook rende lo span come **blocco di codice** in mezzo all'elenco. Corretto non spezzando mai dentro i backtick;
+2. un blocco recintato con una riga vuota dentro (l'`import` e poi il JSX, in `alert` e `badge`) veniva spezzato in due paragrafi, e la chiusura ```` ``` ```` finiva in coda a una riga di testo. Corretto trattando i recinti come blocchi interi.
+
+La lezione vale per M5.0c–e: **la pagina si controlla renderizzata**, non sul sorgente — `check:storybook` dice solo che non ci sono note interne, non che il markdown regge.
+
+#### Verifiche
+
+- `check:storybook` sui 28: **0 segnalazioni**; `-- --avvisa` sul repo: **362 su 53 file di 90**.
+- `build-storybook` verde.
+- **`test:a11y` 1540 scansioni su 385 story, 0 violazioni** in tutte e quattro le passate — invariato. (Lanciato dopo l'ultima modifica al JSX di `dialog`; le correzioni successive sono solo JSDoc, che non entrano nel canvas.)
+- Gli altri sei gate verdi (`check:contrast`, `check:registry`, `check:registry-build`, `check:riferimenti`, `check:font`, `check:logo`); `oxlint` a zero sui 28.
+- Pagine Docs aperte nel pannello del browser (visibile, questa volta: `visibilityState` `visible`) in chiaro e in scuro: `Calendar`, `Dropdown Menu`, `Badge`, `Combobox`, `Dialog`.
+
+#### Un rilievo, preesistente e fuori perimetro
+
+**In modalità Scuro le pagine Docs restano su fondo bianco.** Il `dark` arriva sull'`<html>` dell'iframe (fondo del `body` `oklch(0.1913 0 0)`), ma `.sbdocs-wrapper` di Storybook tiene il suo bianco e il suo testo scuro; le scene dentro `.docs-story` hanno fondo trasparente e si rendono coi token scuri. Risultato: ciò che non ha un fondo proprio scrive chiaro su bianco — in `Primitive/Badge` → `Varianti` le varianti `outline` e `ghost` **quasi spariscono**. Nasce con `autodocs` acceso per tutti in coda a M5.0a; `test:a11y` non lo vede perché misura il canvas, non le pagine Docs. Non corretto qui (è configurazione di `.storybook/`, non testo): proposto come task a parte. Da chiudere prima di M5.0e, che rilegge Pages dall'URL pubblico.
+
+**Prossimi passi**: **M5.0c** — le 24 story da `kbd` a `tooltip`, con il rovescio di `badge` su `toggle-group` e `sheet` nel confine degli overlay. E il rilievo delle pagine Docs in scuro.

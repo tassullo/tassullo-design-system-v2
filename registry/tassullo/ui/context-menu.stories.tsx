@@ -20,28 +20,30 @@ import {
 } from '@/registry/tassullo/ui/context-menu'
 
 /**
- * **Un ri-stile, lo stesso difetto del `dropdown-menu`**: il testo di
- * `variant="destructive"` era `text-destructive` — il rosso da fondo usato
- * come colore di testo — ed è diventato `text-destructive-subtle-foreground`,
- * nelle tre occorrenze. Stessa trappola, stesso rimedio, terza e quarta volta
- * che ricompare nel preset.
+ * Il menu che si apre col tasto destro su un elemento: le azioni su quella
+ * cosa, a portata di chi già sa che ci sono.
  *
- * **`ContextMenuLabel` va dentro un `ContextMenuGroup`, o il menu si schianta
- * all'apertura.** È lo stesso requisito del menu a tendina — sotto è la stessa
- * `Menu.GroupLabel` di Base UI — e vale la pena ripeterlo qui perché il
- * fallimento non è una resa storta: è un errore lanciato, che porta via la
- * pagina. Misurato in M2.3, vedi la nota del `dropdown-menu`.
+ * **Quando sì, quando no.** Solo come scorciatoia. Chi usa la tastiera o il
+ * tocco il tasto destro non ce l'ha, e chi non sa che c'è non lo prova: ogni
+ * azione che sta qui deve stare anche altrove, in un `dropdown-menu` (il menu
+ * «⋯» di una riga) o in una barra di azioni.
  *
- * **Il costo d'ingresso: il tasto destro non è una via d'accesso.** Chi
- * naviga da tastiera non lo può premere, chi usa il tocco non ce l'ha, e chi
- * non sa che c'è non lo prova. Quindi la regola è: **ogni azione che sta qui
- * dentro deve stare anche altrove** — in un `dropdown-menu` di riga, in una
- * barra di azioni. Il menu contestuale è una scorciatoia per chi già sa, mai
- * l'unico modo per fare una cosa. In `data-table` (M3.3) accompagna il menu
- * «⋯» di riga, non lo sostituisce.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/context-menu
+ * ```
  *
- * Aperto, però, si comporta come gli altri menu: frecce, lettere, `→`/`←` per
- * i sottomenu, `Esc` per chiudere. È la stessa macchina di Base UI.
+ * **Parti e varianti.** Le stesse di `dropdown-menu`: voci, gruppi con
+ * etichetta, spunte (`ContextMenuCheckboxItem`), gruppi radio, sottomenu,
+ * separatori e scorciatoie. `variant="destructive"` su una voce la segna come
+ * distruttiva.
+ *
+ * **Regole d'uso.** `ContextMenuLabel` va sempre dentro un `ContextMenuGroup`,
+ * o il menu dà errore all'apertura. L'area che risponde al tasto destro va
+ * indicata, o nessuno la trova.
+ *
+ * **Tastiera.** Aperto, si comporta come gli altri menu: `↑` e `↓` scorrono le
+ * voci, una lettera salta alla voce che comincia così, `→` e `←` aprono e
+ * chiudono i sottomenu, `Esc` chiude.
  */
 const meta = {
   title: 'Primitive/Context Menu',
@@ -54,7 +56,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** Il bersaglio del tasto destro va detto, o nessuno lo trova. */
+/**
+ * L'area che risponde al tasto destro, indicata a parole.
+ */
 export const Predefinito: Story = {
   render: () => (
     <ContextMenu>
@@ -82,9 +86,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Su una riga di tabella, che è il caso previsto dal piano. Da notare: la
- * riga ha **anche** il suo menu «⋯», e le stesse voci ci stanno dentro. Il
- * tasto destro qui non aggiunge poteri, toglie un clic.
+ * Su una riga di tabella, che ha anche il suo menu «⋯» con le stesse voci: il
+ * tasto destro non aggiunge azioni, toglie un clic.
  */
 export const SuUnaRiga: Story = {
   render: () => (
@@ -123,7 +126,9 @@ export const SuUnaRiga: Story = {
   ),
 }
 
-/** Spunte e gruppo radio, come nel menu a tendina. */
+/**
+ * Spunte e gruppo radio, come nel menu a tendina.
+ */
 export const ConSpunteERadio: Story = {
   render: function ConSpunteERadioRender() {
     const [griglia, setGriglia] = React.useState(true)

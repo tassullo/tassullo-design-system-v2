@@ -23,28 +23,34 @@ import {
 } from '@/registry/tassullo/ui/select'
 
 /**
- * **Nessun ri-stile, e nessuna libreria in più.** Nel v1 di shadcn il drawer
- * era `vaul`; in `base-nova` è Base UI, `@base-ui/react/drawer`. Un pacchetto
- * di terze parti in meno da mantenere, e la stessa macchina di popup di
- * dialog, sheet e menu — quindi lo stesso comportamento del fuoco.
+ * Un pannello che sale dal bordo dello schermo e si trascina col dito: la
+ * forma del dialogo su telefono.
  *
- * **Perché c'è, dato che c'è già `Sheet`.** Perché il drawer si **trascina**:
- * ha l'inerzia, i punti d'aggancio (`snapPoints`) e la maniglia. È il gesto
- * del telefono, non la finestra del desktop. È il mattone mobile del
- * `responsive-dialog` di M3.4 — `Dialog` sopra la soglia, `Drawer` sotto,
- * **senza un `if` nella pagina** — ed è per questo che sta in FASE 2 e non
- * dove servirà.
+ * **Quando sì, quando no.** Sotto la soglia del telefono, per gli stessi
+ * contenuti che su schermo largo andrebbero in un `dialog` — il blocco
+ * `Dialogo adattivo` sceglie fra i due da sé. La differenza con `sheet` non è
+ * il bordo da cui entra ma il gesto: il drawer si tira, ha l'inerzia e i punti
+ * d'aggancio; lo `sheet` è un pannello di lavoro fisso a lato. Per una
+ * conferma irreversibile c'è `alert-dialog`.
  *
- * **I valori arbitrari qui sono fisica, non tema.** `ease-[cubic-bezier(...)]`,
- * `duration-[calc(var(--drawer-swipe-strength)*400ms)]`,
- * `opacity-[max(...)]`: descrivono come il pannello segue il dito. Non sono
- * lunghezze né colori, non hanno un gradino nel tema e ripulirli
- * ri-stilando significherebbe cambiare il comportamento, non la resa. Restano
- * ereditati, ed è una scelta, non una dimenticanza.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/drawer
+ * ```
  *
- * **Da tastiera** vale quel che vale per il dialog: `Tab` gira dentro, `Esc`
- * chiude, il fuoco torna al grilletto. Il trascinamento è un'aggiunta per chi
- * ha un dito, non l'unica via.
+ * **Opzioni.** `swipeDirection` (`down` di base, poi `up`, `left`, `right`)
+ * dice da che bordo entra e in che verso si chiude. `showSwipeHandle` mostra
+ * la maniglia. `snapPoints` ferma il pannello a metà o tutto aperto.
+ *
+ * **Regole d'uso.** La maniglia si mette: senza, il gesto funziona ma nessuno
+ * lo prova. Con `snapPoints` il contenuto deve stare dentro l'aggancio di
+ * apertura: ciò che resta sotto la piega esce dallo schermo e non scorre, si
+ * raggiunge solo trascinando. Per un elenco lungo si usa il drawer senza
+ * agganci, che si apre all'altezza del contenuto e scorre.
+ *
+ * **Tastiera e accessibilità.** Come il `dialog`: il fuoco entra nel pannello
+ * e `Tab` gira al suo interno, `Esc` chiude, il fuoco torna sul bottone che lo
+ * aveva aperto. Il trascinamento è un'aggiunta per chi usa il dito, non
+ * l'unica via per chiudere.
  */
 const meta = {
   title: 'Primitive/Drawer',
@@ -109,9 +115,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Con la maniglia di trascinamento (`showSwipeHandle`). È l'affordance che
- * dice «questo si tira»: senza, il gesto funziona lo stesso ma nessuno lo
- * prova.
+ * Con la maniglia di trascinamento (`showSwipeHandle`), il segno che dice
+ * «questo si tira».
  */
 export const ConManiglia: Story = {
   render: () => (
@@ -142,25 +147,8 @@ export const ConManiglia: Story = {
 
 /**
  * Con i punti d'aggancio: il pannello si ferma a metà o tutto aperto. Serve
- * quando sotto c'è qualcosa da guardare mentre si legge — una mappa, una
- * tabella — e non è il caso più comune.
- *
- * **Il contenuto deve stare dentro l'aggancio d'apertura.** Con `snapPoints`
- * il popup è alto quanto l'aggancio **massimo** e viene traslato giù di
- * `--drawer-snap-point-offset`: la parte sotto la piega esce dallo schermo, e
- * un `overflow-y-auto` là dentro non ha niente da scorrere, perché overflow
- * non ce n'è — il contenuto ci sta comodo nell'altezza piena del popup.
- * Misurato: con l'aggancio a `0.4` su una finestra di 720px il popup andava
- * da 432 a 1056, `padding-bottom` 0, `scrollHeight === clientHeight`, e
- * l'ultima voce finiva 45px **sotto** il bordo. L'unico modo di leggerla era
- * trascinare.
- *
- * La doc di Base UI compensa, nel proprio esempio, con un `padding-bottom`
- * pari all'offset sul popup; **shadcn `base-nova` non lo fa** e noi non
- * diverghiamo per aggiungerlo (deciso il 2026-09-09). Finché resta così, gli
- * agganci vogliono contenuto **corto**: qui due revisioni, non quattro. Per
- * un elenco lungo si usa il drawer senza agganci, che si apre all'altezza del
- * contenuto e scorre.
+ * quando sotto c'è qualcosa da guardare mentre si legge. Il contenuto è corto
+ * di proposito: con gli agganci deve stare dentro l'altezza di apertura.
  */
 export const ConAgganci: Story = {
   render: () => (
@@ -194,9 +182,9 @@ export const ConAgganci: Story = {
 }
 
 /**
- * Dal lato: `swipeDirection="right"` lo ancora al bordo destro. È la forma in
- * cui somiglia di più a `Sheet` — e la domanda giusta resta quale gesto ci si
- * aspetta, non quale bordo.
+ * Dal lato, con `swipeDirection="right"`. È la forma che somiglia di più a
+ * `sheet`: la scelta fra i due la decide il gesto che ci si aspetta, non il
+ * bordo.
  */
 export const DaDestra: Story = {
   render: () => (

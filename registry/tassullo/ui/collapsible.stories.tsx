@@ -9,20 +9,23 @@ import {
 import { Button } from '@/registry/tassullo/ui/button'
 
 /**
- * **`collapsible.tsx` è il file più nudo del registry: tre righe di rendering
- * e nessuna classe.** È voluto in shadcn, e lo si lascia così: il componente
- * è solo la meccanica di apertura di Base UI (stato, `aria-expanded`,
- * `aria-controls`, animazione dell'altezza), e l'aspetto lo mette chi lo usa.
+ * Un contenuto che si apre e si chiude con un grilletto: la meccanica, senza
+ * un aspetto proprio.
  *
- * **Non confonderlo con `accordion`.** L'accordion è un *insieme* di sezioni
- * che si coordinano fra loro — apri una, si chiude l'altra — e porta con sé
- * intestazioni, filo di separazione e chevron. Il collapsible è **una**
- * sezione sola che si apre e si chiude, senza nessuna delle due cose. È la
- * regola dei nomi del CLAUDE.md: si sceglie per cosa fa l'elemento, non per
- * come somiglia.
+ * **Quando sì, quando no.** Per una sezione sola da mostrare a richiesta —
+ * dettagli, opzioni avanzate. Per più sezioni coordinate, con intestazioni e
+ * indicatore già pronti, si usa `accordion`. Il collapsible non ha classi: il
+ * grilletto e il contenuto li disegna chi lo usa.
  *
- * Da tastiera funziona senza che si debba fare niente: il grilletto è un
- * bottone, `Invio` e `Spazio` commutano, e `aria-expanded` segue.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/collapsible
+ * ```
+ *
+ * **Opzioni.** `open` e `onOpenChange` per governarlo, `defaultOpen` per
+ * partire aperto.
+ *
+ * **Tastiera.** Il grilletto è un bottone: `Invio` e `Spazio` aprono e
+ * chiudono, e lo stato aperto o chiuso è annunciato.
  */
 const meta = {
   title: 'Primitive/Collapsible',
@@ -54,7 +57,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Già aperto, con `defaultOpen`: è lo stato che serve quando il contenuto conta. */
+/**
+ * Già aperto all'arrivo, con `defaultOpen`: si usa quando il contenuto conta.
+ */
 export const GiaAperto: Story = {
   render: () => (
     <Collapsible defaultOpen className="w-96">

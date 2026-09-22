@@ -3392,3 +3392,12 @@ La lezione oltre il caso: **quando si sposta un gradino della scala tipografica,
 si spostano anche le soglie che qualcun altro ci aveva appoggiato sopra.** D16 ha
 cambiato `--text-base` per ragioni sue, giuste, e ha rotto a distanza una
 protezione scritta in un file che non ha toccato.
+
+## 52. Quello che sapevano solo le pagine delle primitive (M5.0b, 2026-09-22)
+
+M5.0b ha riscritto per chi legge da fuori le pagine di 28 primitive, da `accordion` a `item`. Prima di togliere un paragrafo con una misura o un ragionamento, lo si è cercato qui e in `WORKLOG.md`: quasi tutto c'era già. Queste quattro cose stavano **solo** nelle story, e si portano qui prima di toglierle.
+
+1. **La cella del calendario in touch è 42px, e non si è alzata.** `--cell-size: --spacing(7)` dà 28px in normale e 42 in touch. `--spacing(8)` darebbe 48 in touch, ma 32 in normale: un calendario più largo su ogni pagina da scrivania per un requisito che vale solo sul telefono. Lasciato al preset; `misura:bersagli` lo conta fra i bersagli sotto i 44px, non fra i piccoli.
+2. **Le stringhe per il lettore di schermo si traducono senza uscire dal gradino 2.** `carousel` ha tradotto l'`sr-only` delle frecce e i due `aria-roledescription` («carosello», «diapositiva»); `breadcrumb` l'`aria-label` del `<nav>` («percorso di navigazione») e l'`sr-only` dell'ellissi («Altri livelli»). `check:registry` confronta la forma **azzerando il contenuto delle stringhe**, quindi tradurre non è una divergenza: sono le sole stringhe di quei componenti che arrivano a un utente, e le sente solo chi non può accorgersi che sono nella lingua sbagliata.
+3. **La casella è piccola, il suo bersaglio no.** `checkbox` disegna `size-4` (16px in normale, 24 in touch), ma `after:-inset-x-3 after:-inset-y-2` stende un pseudo-elemento cliccabile tutt'intorno: resta premibile col guanto senza diventare un quadrato enorme.
+4. **L'accordion non ha le frecce, e non è una dimenticanza.** Verificato su `@base-ui/react` installato: `Accordion.Root` ha ancora la prop `loopFocus`, ma è **deprecata e senza effetto** — Base UI ha tolto il fuoco a scorrimento seguendo l'aggiornamento dell'ARIA Authoring Practices (w3c/aria-practices#3434). Ogni intestazione è un bottone raggiunto col `Tab`, e la pagina lo scrive come comportamento.
