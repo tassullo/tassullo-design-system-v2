@@ -919,14 +919,11 @@ function PaginaProdotti({
       ) : !largo ? (
         <>
           <ComandiStretti filtri={filtriStretti} setFiltri={setFiltriStretti} />
-          {/* Il conteggio che sopra soglia scrive `nomeRighe` da sé: qui
-              una tabella non c'è, e senza questa riga non si saprebbe
-              quanto sta filtrando. */}
-          <p className="text-sm text-muted-foreground">
-            {visibili.length === prodotti.length
-              ? `${prodotti.length} prodotti`
-              : `${visibili.length} di ${prodotti.length} prodotti`}
-          </p>
+          {/* **Nessuna riga di conteggio** (richiesta di Francesco): sopra
+              soglia la scrive `nomeRighe`, qui era una riga di testo fra i
+              filtri e la prima scheda — cioè uno scalino che allontana la
+              lista dal pollice per dire un numero che i conteggi di gruppo
+              già danno, famiglia per famiglia. */}
           <SchedeProdotti
             dati={visibili}
             onModifica={setInModifica}

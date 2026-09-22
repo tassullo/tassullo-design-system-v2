@@ -545,6 +545,11 @@ Dipendenze: FASE 4.
 - **Esito**: schede raggruppate per famiglia, un solo filtro (Stato, a chip), soglia **1024px** misurata contro il punto in cui la tabella smette di scorrere (1392). Tre scene, due deterministiche per il gate. **Nessun file del registry toccato.** Dettaglio, i cinque difetti trovati a video e la cucitura dei filtri fra le due facce in `WORKLOG.md`, voce **M4ter.15**.
 - **Resta aperto**: `Pagine/Lista` (Norme) con la stessa forma, **dopo il collaudo di Francesco** — è la seconda metà del mandato e non si fa prima, o si replicherebbe una forma non ancora validata.
 
+**M4ter.16 — La faccia stretta di `Pagine/Lista` (1 sessione)** — aggiunto il 2026-09-22, seconda metà del mandato di M4ter.15, aperto da Francesco dopo aver validato Prodotti.
+
+- **Obiettivo**: la stessa forma sulla pagina modello, che è un **item del registry** e non una story composta a mano.
+- **Esito**: il bivio entra in `PaginaLista` (`facciaStretta`, `soglia`, `faccia`), perché le sei pagine-elenco di Anagrafe non riscrivano ognuna il proprio `useSoglia`; la faccia stretta resta scritta dalla pagina. Raggruppa per Categoria, Stato a chip, codice sopra il titolo. `@tassullo/use-soglia` dichiarato e provato con `add --dry-run`. Dettaglio in `WORKLOG.md`, voce **M4ter.16**.
+
 ---
 ### FASE 5 — Registry, distribuzione e guida di adozione — 11 sessioni (6 + le 5 di M5.0, aggiunta il 2026-09-22)
 
@@ -646,7 +651,7 @@ Regola shadcn da rispettare ovunque: gli import interni al registry usano **semp
 
 **42 sessioni** (5 + 5 + 9 + 11 + 6 + 6) nel piano originale. Percorso critico: FASE 1 (il tema regge tutto il resto) → FASE 2 → M3.3 `data-table` (il blocco più costoso e quello che ripaga di più) → M3.10 gate → FASE 5.
 
-**Aggiornato al 2026-09-22: 76 sessioni** (**M4ter.14** aggiunta a cose fatte in coda alla FASE 4ter il 2026-09-22: allineamento di forma fra le due pagine modello dello stesso elenco) (**M5.0a–e** aggiunte in testa alla FASE 5 il 2026-09-22: la style guide va riscritta per chi legge da fuori, 87 file su 89 portano le note interne). Prima, al 2026-09-21: 69 sessioni (**M4ter.11** e **M4ter.12** aggiunte in coda alla FASE 4ter il 2026-09-21; la 12 nasce dall'unica pagina che M4ter.11 ha trovato non ricomponibile). Prima, al 2026-09-19: 67. Alle 42 si sono aggiunte la **FASE 3bis** (12 righe = 14 sessioni, `M3bis.5` ne vale 3), **M4.7** in coda alla FASE 4, e la **FASE 4ter** (10). Le due fasi nuove non erano imprevidenza del piano originale: nascono da due cose che si potevano sapere solo guardando — niko-table per la 3bis, la gap analysis delle tre app per la 4ter. Il percorso critico non cambia: la FASE 4ter è **additiva** e non blocca la FASE 5, salvo che M5.5 va scritta **dopo**, o la guida di migrazione nominerebbe blocchi che non esistono ancora.
+**Aggiornato al 2026-09-22: 77 sessioni** (**M4ter.14** aggiunta a cose fatte in coda alla FASE 4ter il 2026-09-22: allineamento di forma fra le due pagine modello dello stesso elenco) (**M5.0a–e** aggiunte in testa alla FASE 5 il 2026-09-22: la style guide va riscritta per chi legge da fuori, 87 file su 89 portano le note interne). Prima, al 2026-09-21: 69 sessioni (**M4ter.11** e **M4ter.12** aggiunte in coda alla FASE 4ter il 2026-09-21; la 12 nasce dall'unica pagina che M4ter.11 ha trovato non ricomponibile). Prima, al 2026-09-19: 67. Alle 42 si sono aggiunte la **FASE 3bis** (12 righe = 14 sessioni, `M3bis.5` ne vale 3), **M4.7** in coda alla FASE 4, e la **FASE 4ter** (10). Le due fasi nuove non erano imprevidenza del piano originale: nascono da due cose che si potevano sapere solo guardando — niko-table per la 3bis, la gap analysis delle tre app per la 4ter. Il percorso critico non cambia: la FASE 4ter è **additiva** e non blocca la FASE 5, salvo che M5.5 va scritta **dopo**, o la guida di migrazione nominerebbe blocchi che non esistono ancora.
 
 Al termine il design system è completo, documentato e adottabile, **senza che una riga di Anagrafe, Studio o Officina sia stata toccata**. Le app esistenti continuano a girare sul v1; la prima nuova app parte direttamente sul v2; e quando una delle tre vorrà passare, la guida M5.5 è già scritta.
 

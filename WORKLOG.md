@@ -12130,3 +12130,25 @@ Sette gate verdi dopo la correzione: a11y **1524/0** su 381 story, bersagli **32
 
 **Prossimi passi**: il collaudo di Francesco su questa faccia. Se validata, **la stessa forma su `Pagine/Lista`** (Norme), che è la seconda metà del mandato.
 
+## 2026-09-22 — M4ter.16 La faccia stretta di `Pagine/Lista` (Norme)
+
+Seconda metà del mandato di M4ter.15, aperta da Francesco dopo aver validato Prodotti: «Okay per prodotti, facciamo anche per Liste (normative)».
+
+**La differenza che cambia dove sta il codice.** Prodotti è composta **a mano** nella story: il bivio poteva starci dentro. `Pagine/Lista` è invece l'item `tassullo-pagina-lista`, cioè il modello che le app **installano** — e in Anagrafe le pagine-elenco sono sei. Se il bivio restasse nella story, quelle sei riscriverebbero ognuna il proprio `useSoglia`, che è esattamente la deriva che il registry esiste per evitare. Il blocco prende quindi tre prop — **`facciaStretta`**, `soglia` (1024px di default) e `faccia` — e la divisione resta quella di `Lista a due facce`: **il blocco sceglie *quando*, la pagina scrive *cosa***. Le due facce non sono la stessa lista impaginata due volte, e quali colonne diventino un raggruppamento lo sa solo chi quella lista la conosce.
+
+Tre conseguenze scritte sul posto. **`facciaStretta` assente = comportamento di prima**, quindi nessuna pagina già scritta cambia. Quando è montata **spariscono anche `cerca`, `barra` e la paginazione**, che sono contorno della `DataTable`: i comandi stretti li porta lei. E sta **dopo `vuotoIniziale`** nel ramo, non prima: «non esiste ancora niente» è vero a ogni larghezza, e la CTA che crea il primo record non ha una faccia stretta da sostituirle.
+
+**Registry**: `tassullo-pagina-lista` dichiara ora `@tassullo/use-soglia`. Verificato **installando davvero** (`shadcn add --dry-run` dal registry servito): 24 file, 10 dipendenze, `use-soglia.ts` fra i file. Senza quella riga il gate sarebbe rimasto verde e l'app consumer non avrebbe compilato — è la famiglia di difetti di `check:riferimenti`.
+
+**La forma, per corrispondenze con Prodotti**: raggruppa per **Categoria** invece che per Famiglia; Stato a chip (Vigenti/Superate); niente popover. Due scelte non meccaniche. **In testata il codice sta sopra il titolo**, perché su una norma l'identità è il codice — «UNI EN ISO 5028» è come si cita e si cerca — mentre su Prodotti è il nome: copiare la forma invece della sua ragione avrebbe messo per primo «Requisiti per malte da costruzione». E **nel pannello resta il solo Ente**: la categoria è già nell'intestazione del gruppo, e l'ente sopra soglia **non è nemmeno una colonna** — la faccia stretta mostra qui *più* della larga, non meno.
+
+**`Poche Righe` è passata a `faccia="tabella"`.** La sua tesi è sul **riquadro** — che si ferma sul contenuto e tiene il piè in vista — e sotto soglia un riquadro non c'è: lasciandola in `'auto'` avrebbe cambiato soggetto restringendo la finestra, senza dirlo. `Caricamento`, `Errore` e `Vuoto Iniziale` non ne hanno bisogno: il loro ramo viene prima di quello della faccia.
+
+**Tolta la riga di conteggio su tutt'e due le pagine** (richiesta di Francesco): sopra soglia la scrive `nomeRighe`, sotto era una riga di testo fra i filtri e la prima scheda — uno scalino che allontana la lista dal pollice per dire un numero che i conteggi di gruppo già danno, gruppo per gruppo.
+
+**Misure.** Sette gate verdi. `test:a11y` **1540 scansioni su 385 story, 0 violazioni** (1532/383 prima: le due scene nuove valgono 8 scansioni). `misura:bersagli` **3505 bersagli, 0 piccoli in entrambe le direzioni**. `check:riferimenti` **211 riferimenti**, uno in più ed è `use-soglia`. Provato a video a 375px: gruppi e conteggi tornano (12+6+13+8+9 = 48), «Superate» filtra a 8 su cinque categorie, il pannello apre Ente e le tre azioni, il taglio dice «Mostra altre 8 · ne restano 8».
+
+**Cucitura**, la stessa di M4ter.15: attraversare la soglia non porta i filtri con sé. Sopra li tiene la tabella, sotto la pagina.
+
+**Prossimi passi**: **M5.0a**. Le due facce sono fatte su entrambe le pagine del mandato.
+
