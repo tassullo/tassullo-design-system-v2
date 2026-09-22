@@ -11670,3 +11670,50 @@ passate anche con gli strati dentro l'opzione.
 - `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
 - Tastiera rimisurata: il fuoco resta nel campo, le frecce attraversano i
   gruppi, gli strati seguono l'attivo.
+
+### Coda M4ter.13 — il bordo, la resa, l'immagine (2026-09-22)
+
+Tre rilievi a video sugli esempi veri di Studio, tutti chiusi.
+
+**(a) «Le varie righe andrebbero con un bordo (vedi ITEM), così sembra tutto
+attaccato.»** Il riferimento era al componente: `Item` con
+`variant="outline"` — che il registry ha già e che porta titolo, descrizione e
+azioni nei posti giusti. **Non una classe scritta a mano**: è il gradino 1
+un'altra volta, dentro la stessa sessione. Il `CommandItem` resta il bersaglio
+(è lui il `role="option"`) e `Item` gli dà solo la forma. Misurato: **10 righe su
+10 col bordo**.
+
+**(b) La resa accanto al nome dello strato.** Il modello passa da
+`string[][]` a `{ nome, resa }[][]`: la resa è **il numero con cui si calcola il
+fabbisogno**, quindi sta dove si legge il prodotto e non in fondo alla riga —
+attenuata, perché è un dato di servizio e non il nome. Gli esempi veri mostrano
+anche il caso che la struttura deve reggere: *«Angolare preformato · resa 0
+**oppure** Rete strutturale … · resa 1,2 **oppure** Rete … alta resistenza ·
+resa 1,2»*, cioè **tre alternative sulla stessa posizione**, ognuna con la sua
+resa. Il dato della story lo riproduce.
+
+**(c) L'immagine del sistema.** Erano già nel repo: **`public/esempi/`**, sei
+`sistema-*.png` che altre story usano di già — `entity-image.stories.tsx`,
+`ListaDueFacce`, `pdf-preview`. Montate con **`entity-image`** (D20), che è il
+componente nostro fatto apposta: rapporto `1:1`, che è la forma delle sorgenti
+Tassullo (render dei sistemi 1080×1080), e il segnaposto quando la foto non
+c'è — quattro sistemi su dieci nella story non ce l'hanno, apposta. Verificato
+che si **carichi davvero** (`naturalWidth > 0`) e non solo che l'`alt` sia
+giusto: un file mancante con un `alt` corretto non lo direbbe nessun gate.
+
+**E un difetto di lint preso al volo**: `sistemaAttivo` era rimasto orfano dopo
+aver tolto il pannello laterale — `no-unused-vars`, 26 → 27. Tolto, di nuovo 26.
+
+#### Il ramo
+
+`claude/m4ter-12-computo` è stato **fuso** (PR #18, gate CI verde in 4m32s) e
+questo ramo **ribasato su `main`**: ora porta i suoi due commit e basta.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- Tastiera rimisurata dopo il cambio di forma: fuoco nel campo, frecce che
+  attraversano i gruppi, strati che seguono l'attivo, **0 bottoni dentro le
+  opzioni**; spazio fra le tre zone **16px e 16px**.
+- `lint` **26 avvisi**, tutti preesistenti.

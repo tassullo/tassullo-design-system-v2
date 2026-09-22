@@ -12,6 +12,14 @@ import {
 } from '@/registry/tassullo/blocks/responsive-dialog'
 import { intero } from '@/registry/tassullo/lib/numeri'
 import { Badge } from '@/registry/tassullo/ui/badge'
+import { EntityImage } from '@/registry/tassullo/ui/entity-image'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemTitle,
+} from '@/registry/tassullo/ui/item'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
   Command,
@@ -45,7 +53,14 @@ type Sistema = {
   voceStandard?: boolean
   /** I sinonimi dell'ufficio tecnico: si cercano, non si mostrano mai. */
   sinonimi?: string[]
-  strati: string[][]
+  /** L'immagine del sistema, da `public/esempi/`. */
+  immagine?: string
+  /**
+   * Gli strati, in ordine di posa. Ogni posizione può avere **alternative**
+   * («oppure»), e ogni prodotto porta la propria **resa** — che è il dato con
+   * cui si calcola il fabbisogno, quindi va accanto al nome e non altrove.
+   */
+  strati: { nome: string; resa: string }[][]
 }
 
 const CATEGORIE = [
@@ -62,37 +77,59 @@ const SISTEMI: Sistema[] = [
     codice: 'ST100', famiglia: 'MURO', variante: 'Blocchi tradizionali',
     casoUso: 'Stai costruendo un edificio in muratura tradizionale?',
     categoria: 'EDILIZIA CIVILE', prodotti: 3, voceStandard: true,
-    strati: [['Malta da muratura M5'], ['Intonaco di fondo', 'Rinzaffo di aggrappo'], ['Finitura civile']],
+    immagine: '/esempi/sistema-risanamento.png',
+    strati: [
+      [{ nome: 'Malta da muratura M5', resa: '18' }],
+      [{ nome: 'Intonaco di fondo', resa: '14' }, { nome: 'Rinzaffo di aggrappo', resa: '5' }],
+      [{ nome: 'Finitura civile', resa: '1,43' }],
+    ],
   },
   {
     codice: 'ST101', famiglia: 'MURO', variante: 'Bioedilizia',
     casoUso: 'Stai operando nell’ambito del restauro o della bioedilizia?',
     categoria: 'RESTAURO', prodotti: 2,
-    strati: [['Malta di calce naturale NHL'], ['Intonaco deumidificante']],
+    strati: [
+      [{ nome: 'Malta di calce naturale NHL 3.5', resa: '18' }],
+      [{ nome: 'Intonaco deumidificante', resa: '12' }],
+    ],
   },
   {
     codice: 'ST102', famiglia: 'MURO', variante: 'Laterizio porizzato',
     casoUso: 'Stai utilizzando laterizi porizzati o termoisolanti?',
     categoria: 'EDILIZIA CIVILE', prodotti: 2,
-    strati: [['Malta termica'], ['Intonaco di fondo alleggerito']],
+    strati: [
+      [{ nome: 'Malta termica', resa: '9' }],
+      [{ nome: 'Intonaco di fondo alleggerito', resa: '8,5' }],
+    ],
   },
   {
     codice: 'ST103', famiglia: 'MURO', variante: 'Blocchi in calcestruzzo',
     casoUso: 'Vuoi applicare blocchi in calcestruzzo a vista?',
     categoria: 'EDILIZIA CIVILE', prodotti: 2,
-    strati: [['Malta da muratura M10'], ['Rasante cementizio']],
+    strati: [
+      [{ nome: 'Malta da muratura M10', resa: '20' }],
+      [{ nome: 'Rasante cementizio', resa: '1,5' }],
+    ],
   },
   {
     codice: 'ST200', famiglia: 'FACCIA VISTA', variante: '100% calce idraulica naturale',
     casoUso: 'Stai operando nell’ambito del restauro o della bioedilizia?',
     categoria: 'RESTAURO', prodotti: 3, voceStandard: true,
-    strati: [['Malta di allettamento NHL 3.5'], ['Stilatura dei giunti']],
+    immagine: '/esempi/sistema-ripristino-storico.png',
+    strati: [
+      [{ nome: 'Malta di allettamento NHL 3.5', resa: '18' }],
+      [{ nome: 'Stilatura dei giunti a base di calce idraulica naturale', resa: '2' }],
+    ],
   },
   {
     codice: 'ST201', famiglia: 'FACCIA VISTA', variante: '4 colori',
     casoUso: 'Hai bisogno di una malta colorata?',
     categoria: 'FINITURE DI PREGIO', prodotti: 3,
-    strati: [['Malta colorata in pasta'], ['Idrorepellente silossanico']],
+    immagine: '/esempi/sistema-effetto-seta.png',
+    strati: [
+      [{ nome: 'Malta colorata in pasta', resa: '1,8' }],
+      [{ nome: 'Idrorepellente silossanico', resa: '0,17' }],
+    ],
   },
   {
     codice: 'ST300', famiglia: 'CAPPOTTO', variante: 'Sistema a pannelli EPS',
@@ -101,26 +138,50 @@ const SISTEMI: Sistema[] = [
     // Il caso che la ricerca per sinonimi deve prendere: in cantiere si dice
     // «ETICS», e la parola non compare da nessuna parte nella scheda.
     sinonimi: ['ETICS', 'isolamento a cappotto'],
-    strati: [['Collante cementizio'], ['Pannello EPS'], ['Rasatura armata', 'Rete in fibra di vetro'], ['Finitura ai silicati']],
+    immagine: '/esempi/sistema-cappotto.png',
+    strati: [
+      [{ nome: 'Collante cementizio', resa: '4,5' }],
+      [{ nome: 'Pannello EPS', resa: '0' }],
+      [
+        { nome: 'Rasatura armata', resa: '1,2' },
+        { nome: 'Rete strutturale bidirezionale in fibra di vetro maglia 40×40 mm2', resa: '1,2' },
+      ],
+      [{ nome: 'Finitura ai silicati', resa: '0,25' }],
+    ],
   },
   {
     codice: 'ST400', famiglia: 'RASATURA ARMATA', variante: 'Tradizionale',
     casoUso: 'Devi consolidare un intonaco esistente prima della finitura?',
     categoria: 'RESTAURO', prodotti: 2,
-    strati: [['Rasante fibrorinforzato'], ['Rete in fibra di vetro']],
+    strati: [
+      [{ nome: 'Rasante fibrorinforzato', resa: '1,43' }],
+      [{ nome: 'Rete in fibra di vetro alcalino resistente', resa: '1,2' }],
+    ],
   },
   {
     codice: 'ST500', famiglia: 'RINFORZO STRUTTURALE', variante: 'FRCM su muratura',
     casoUso: 'Devi rinforzare una muratura portante?',
     categoria: 'RINFORZI STRUTTURALI', prodotti: 4, voceStandard: true,
     sinonimi: ['FRCM', 'fibra di basalto'],
-    strati: [['Malta strutturale'], ['Rete in basalto'], ['Malta di finitura']],
+    immagine: '/esempi/sistema-crm.png',
+    strati: [
+      [{ nome: 'Malta strutturale di calce idraulica naturale NHL 5 per rinforzi strutturali', resa: '18' }],
+      [
+        { nome: 'Angolare preformato in fibra di rete alcalino resistente', resa: '0' },
+        { nome: 'Rete strutturale bidirezionale in fibra di vetro maglia 40×40 mm2', resa: '1,2' },
+      ],
+      [{ nome: 'Malta di finitura', resa: '2' }],
+    ],
   },
   {
     codice: 'ST600', famiglia: 'SOTTOFONDO', variante: 'Massetto alleggerito',
     casoUso: 'Devi realizzare un massetto su solaio esistente?',
     categoria: 'SOTTOFONDI E POSA PAVIMENTI', prodotti: 3,
-    strati: [['Massetto alleggerito'], ['Autolivellante']],
+    immagine: '/esempi/sistema-radiante.png',
+    strati: [
+      [{ nome: 'Massetto alleggerito', resa: '6' }],
+      [{ nome: 'Autolivellante', resa: '1,6' }],
+    ],
   },
 ]
 
@@ -188,7 +249,6 @@ function SceltaDaCatalogo() {
   // risultato diventa l'attivo. Deriva dalla lista, non da un effetto.
   const attivoValido = filtrati.some((s) => s.codice === attivo)
   const codiceAttivo = attivoValido ? attivo : (filtrati[0]?.codice ?? '')
-  const sistemaAttivo = filtrati.find((s) => s.codice === codiceAttivo)
 
   return (
     <div className="flex flex-col gap-4">
@@ -269,18 +329,30 @@ function SceltaDaCatalogo() {
                             setScelto(s)
                             setAperto(false)
                           }}
-                          className="flex-col items-start gap-1"
+                          className="flex-col items-start gap-2 p-0 data-[selected=true]:bg-transparent"
                         >
-                          <span className="flex w-full flex-wrap items-baseline justify-between gap-2">
-                            <span>
-                              <span className="font-medium">{s.famiglia}</span> — {s.variante}
-                            </span>
-                            <span className="flex flex-wrap gap-1">
+                          {/* **Il bordo per riconoscere le righe** —
+                              rilievo di Francesco, «così sembra tutto
+                              attaccato». Non è una classe scritta a mano: è
+                              `Item` con `variant="outline"`, che il registry ha
+                              già e che porta con sé titolo, descrizione,
+                              media e azioni nei posti giusti. Il `CommandItem`
+                              resta il bersaglio (è lui il `role="option"`), e
+                              `Item` gli dà solo la forma: `asChild` non serve,
+                              perché qui `Item` è un `<div>` dentro l'opzione e
+                              non un secondo controllo. */}
+                          <Item variant="outline" size="sm" className="w-full bg-card">
+                            <ItemContent>
+                              <ItemTitle>
+                                <span className="font-medium">{s.famiglia}</span> — {s.variante}
+                              </ItemTitle>
+                              <ItemDescription>{s.casoUso}</ItemDescription>
+                            </ItemContent>
+                            <ItemActions className="flex-wrap justify-end gap-1">
                               {s.voceStandard ? <Badge variant="secondary">Voce standard</Badge> : null}
                               <Badge variant="outline">{intero(s.prodotti)} prodotti</Badge>
-                            </span>
-                          </span>
-                          <span className="text-sm text-muted-foreground">{s.casoUso}</span>
+                            </ItemActions>
+                          </Item>
 
                           {/* **Gli strati si aprono sotto la riga**, come nel
                               picker di Studio — ma **senza il «Vedi strati»**,
@@ -289,28 +361,44 @@ function SceltaDaCatalogo() {
                               `<button>` dentro un `role="option"`, cioè
                               `nested-interactive`; qui gli strati compaiono da
                               sé sulla voce **attiva**, quindi non c'è niente da
-                              premere per vederli e niente da annidare.
-                              Scorrendo con le frecce si aprono e si chiudono da
-                              soli, che è **meno** lavoro di aprirli riga per
-                              riga col mouse. E il «Usa questo sistema» non
-                              serve: la voce stessa è il bersaglio, `Invio` la
-                              sceglie. */}
+                              premere per vederli e niente da annidare. E il
+                              «Usa questo sistema» non serve: la voce stessa è
+                              il bersaglio, `Invio` la sceglie. */}
                           {s.codice === codiceAttivo ? (
-                            <span className="mt-1 block w-full border-t pt-2 text-sm">
-                              <span className="block pb-1 font-medium">Strati</span>
-                              <span className="flex flex-col gap-0.5 text-muted-foreground">
-                                {s.strati.map((alternative, i) => (
-                                  <span key={i} className="block">
-                                    <span className="pe-1 tabular-nums">{intero(i + 1)}.</span>
-                                    {alternative.map((f, j) => (
-                                      <span key={f}>
-                                        {j > 0 ? <em> oppure </em> : null}
-                                        {f}
+                            <span className="flex w-full gap-3 rounded-lg bg-muted/50 p-3 text-sm">
+                              <span className="flex-1">
+                                <span className="block pb-1 font-medium">Strati</span>
+                                <span className="flex flex-col gap-1">
+                                  {s.strati.map((alternative, i) => (
+                                    <span key={i} className="block">
+                                      <span className="pe-1 tabular-nums text-muted-foreground">
+                                        {intero(i + 1)}.
                                       </span>
-                                    ))}
-                                  </span>
-                                ))}
+                                      {alternative.map((prodotto, j) => (
+                                        <span key={prodotto.nome}>
+                                          {j > 0 ? <em className="text-muted-foreground"> oppure </em> : null}
+                                          <strong className="font-medium">{prodotto.nome}</strong>
+                                          {/* La **resa** accanto al nome: è il
+                                              numero con cui si calcola il
+                                              fabbisogno, quindi sta dove si
+                                              legge il prodotto, non in fondo.
+                                              Attenuata, perché è un dato di
+                                              servizio e non il nome. */}
+                                          <span className="text-muted-foreground"> · resa {prodotto.resa}</span>
+                                        </span>
+                                      ))}
+                                    </span>
+                                  ))}
+                                </span>
                               </span>
+                              {s.immagine ? (
+                                <EntityImage
+                                  src={s.immagine}
+                                  alt={`Sistema ${s.famiglia} — ${s.variante}`}
+                                  rapporto="1:1"
+                                  className="w-24 shrink-0 self-start"
+                                />
+                              ) : null}
                             </span>
                           ) : null}
                         </CommandItem>
