@@ -201,7 +201,20 @@ function SceltaDaCatalogo() {
             <ResponsiveDialogTitle>Scegli la lavorazione</ResponsiveDialogTitle>
           </ResponsiveDialogHeader>
           <ResponsiveDialogBody className="flex flex-col gap-3">
-            <Command shouldFilter={false} value={codiceAttivo} onValueChange={setAttivo}>
+            {/* **Le tre zone hanno bisogno di respiro fra loro.** `Command` è
+                già `flex flex-col` ma impila i figli **senza gap**: ricerca,
+                filtri e risultati si toccavano, e tre cose attaccate si leggono
+                come una sola (rilievo di Francesco, 2026-09-22). Il `gap` si dà
+                qui, dal punto di chiamata — la primitiva non si tocca, perché
+                un `command` dentro un `popover` (il `combobox` di M2.6) quel
+                respiro **non** lo vuole: lì i figli sono due e il gap
+                aprirebbe una fessura nel popup. */}
+            <Command
+              shouldFilter={false}
+              value={codiceAttivo}
+              onValueChange={setAttivo}
+              className="gap-4"
+            >
               <CommandInput
                 placeholder="Cerca: nome, prodotto, variante o caso d'uso…"
                 value={query}
@@ -228,8 +241,8 @@ function SceltaDaCatalogo() {
                 ))}
               </ToggleGroup>
 
-              <div className="flex min-h-0 gap-4">
-                <CommandList className="max-h-80 flex-1">
+              <div className="flex min-h-0">
+                <CommandList className="max-h-96 flex-1">
                   <CommandEmpty>
                     <div className="flex flex-col items-center gap-2 py-4">
                       <p>Nessun sistema corrisponde alla ricerca.</p>
@@ -258,62 +271,54 @@ function SceltaDaCatalogo() {
                           }}
                           className="flex-col items-start gap-1"
                         >
-                          {/* **La variante non è colorata**, e non è una scelta
-                              di gusto: `text-accent-ink` qui dà **4,29:1** sul
-                              fondo di una voce selezionata (`--accent`,
-                              #ECEAE8) — misurato dal gate appena l'imbracatura
-                              ha imparato ad aprire il dialogo. `--accent-ink` è
-                              verificato contro `--background` e `--card`, non
-                              contro `--accent`: è una coppia che
-                              `check:contrast` **non copre**, e su un elenco
-                              dove la voce attiva ha sempre quel fondo salta
-                              fuori subito. La famiglia e la variante si
-                              distinguono col **peso**, che non ha un contrasto
-                              da rispettare. */}
-                          <span>
-                            <span className="font-medium">{s.famiglia}</span> — {s.variante}
+                          <span className="flex w-full flex-wrap items-baseline justify-between gap-2">
+                            <span>
+                              <span className="font-medium">{s.famiglia}</span> — {s.variante}
+                            </span>
+                            <span className="flex flex-wrap gap-1">
+                              {s.voceStandard ? <Badge variant="secondary">Voce standard</Badge> : null}
+                              <Badge variant="outline">{intero(s.prodotti)} prodotti</Badge>
+                            </span>
                           </span>
                           <span className="text-sm text-muted-foreground">{s.casoUso}</span>
-                          {/* Etichette che **si leggono**: `badge`, non
-                              `toggle-group`. E niente bottoni qui dentro —
-                              v. il commento della story. */}
-                          <span className="flex flex-wrap gap-1 pt-1">
-                            {s.voceStandard ? <Badge variant="secondary">Voce standard</Badge> : null}
-                            <Badge variant="outline">{intero(s.prodotti)} prodotti</Badge>
-                          </span>
+
+                          {/* **Gli strati si aprono sotto la riga**, come nel
+                              picker di Studio — ma **senza il «Vedi strati»**,
+                              e la differenza è ciò che rende la forma
+                              ricomponibile. Nell'app quel comando è un
+                              `<button>` dentro un `role="option"`, cioè
+                              `nested-interactive`; qui gli strati compaiono da
+                              sé sulla voce **attiva**, quindi non c'è niente da
+                              premere per vederli e niente da annidare.
+                              Scorrendo con le frecce si aprono e si chiudono da
+                              soli, che è **meno** lavoro di aprirli riga per
+                              riga col mouse. E il «Usa questo sistema» non
+                              serve: la voce stessa è il bersaglio, `Invio` la
+                              sceglie. */}
+                          {s.codice === codiceAttivo ? (
+                            <span className="mt-1 block w-full border-t pt-2 text-sm">
+                              <span className="block pb-1 font-medium">Strati</span>
+                              <span className="flex flex-col gap-0.5 text-muted-foreground">
+                                {s.strati.map((alternative, i) => (
+                                  <span key={i} className="block">
+                                    <span className="pe-1 tabular-nums">{intero(i + 1)}.</span>
+                                    {alternative.map((f, j) => (
+                                      <span key={f}>
+                                        {j > 0 ? <em> oppure </em> : null}
+                                        {f}
+                                      </span>
+                                    ))}
+                                  </span>
+                                ))}
+                              </span>
+                            </span>
+                          ) : null}
                         </CommandItem>
                       ))}
                     </CommandGroup>
                   ))}
                 </CommandList>
 
-                {/* Gli strati dell'elemento **attivo**, non di ogni riga.
-                    V. il commento della story: è la correzione di un difetto
-                    dell'app, non una semplificazione. */}
-                <aside
-                  aria-live="polite"
-                  className="hidden w-64 shrink-0 overflow-y-auto border-s ps-4 sm:block"
-                >
-                  {sistemaAttivo ? (
-                    <>
-                      <p className="text-sm font-medium">{sistemaAttivo.famiglia}</p>
-                      <p className="pb-2 text-sm text-muted-foreground">{sistemaAttivo.variante}</p>
-                      <p className="pb-1 text-sm font-medium">Strati</p>
-                      <ol className="flex flex-col gap-1 text-sm text-muted-foreground">
-                        {sistemaAttivo.strati.map((alternative, i) => (
-                          <li key={i}>
-                            {alternative.map((f, j) => (
-                              <span key={f}>
-                                {j > 0 ? <em> oppure </em> : null}
-                                {f}
-                              </span>
-                            ))}
-                          </li>
-                        ))}
-                      </ol>
-                    </>
-                  ) : null}
-                </aside>
               </div>
             </Command>
           </ResponsiveDialogBody>
@@ -352,16 +357,21 @@ function SceltaDaCatalogo() {
  *
  * ## Le due cose che **non** si copiano dall'app
  *
- * **«Vedi strati» non è un bottone dentro la voce.** Nel picker di Studio ogni
- * riga è un `<div role="option">` che contiene un `<button>`: è
- * **`nested-interactive`**, la stessa violazione che il gate ha preso in
- * M4ter.12 su una riga di azioni, e un `role="option"` con un comando dentro
- * non è riparabile restando quella forma. Qui gli strati stanno in un pannello
- * accanto che segue l'**elemento attivo** — uno solo, non uno per riga — e il
- * guadagno è più grande della correzione: **scorrendo con le frecce gli strati
- * si vedono senza premere niente**, mentre nell'app vanno aperti riga per riga
- * col mouse. Sotto `sm` il pannello si nasconde: su un telefono la lista ha
- * bisogno di tutta la larghezza, e gli strati si guardano dopo aver scelto.
+ * **Gli strati si aprono sotto la riga, come nell'app — ma senza il «Vedi
+ * strati».** La forma è quella di Studio: il pannello compare in linea sotto la
+ * voce, non in una colonna accanto (prima stesura, corretta su rilievo di
+ * Francesco: *«si aprono sotto la riga e non a lato»*). Quello che **non** si
+ * copia è il comando: nell'app «Vedi strati» è un `<button>` dentro un
+ * `<div role="option">`, cioè **`nested-interactive`** — la stessa violazione
+ * che il gate ha preso in M4ter.12 — e un `role="option"` con un comando dentro
+ * non è riparabile restando quella forma.
+ *
+ * La via d'uscita non è spostare il bottone: è **toglierlo**. Gli strati si
+ * aprono da sé sulla voce **attiva**, quindi non c'è niente da premere per
+ * vederli e niente da annidare — e scorrendo con le frecce si aprono e si
+ * chiudono da soli, che è **meno** lavoro che aprirli riga per riga col mouse.
+ * Per lo stesso motivo sparisce anche il «Usa questo sistema»: la voce stessa è
+ * il bersaglio, e `Invio` la sceglie.
  *
  * **Il filtro di `command` si spegne.** `shouldFilter={false}`: `command`
  * cerca su una stringa, questo catalogo su sei campi più i **sinonimi

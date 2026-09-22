@@ -11632,3 +11632,41 @@ sottotitolo («Stai costruendo un edificio in muratura tradizionale?») è il mo
 giusto di scegliere, o è un residuo del v1? La ricetta lo riproduce fedelmente,
 ma è l'unica scelta di forma che non ho messo in discussione. E la coppia
 `accent-ink`/`accent` in `check:contrast`.
+
+### Coda M4ter.13 — due rilievi a video (2026-09-22)
+
+**(a) «Sono attaccati, vanno lasciati spazi: ricerca / filtri / record
+trovati.»** `Command` è già `flex flex-col` ma impila i figli **senza gap**, e
+tre zone attaccate si leggono come una sola. Il `gap` si dà **dal punto di
+chiamata** e non dalla primitiva, per una ragione: un `command` dentro un
+`popover` — il `combobox` di M2.6 — quel respiro **non** lo vuole, perché lì i
+figli sono due e il gap aprirebbe una fessura nel popup. Misurato:
+**16px fra ricerca e filtri, 16 fra filtri e risultati**.
+
+**(b) «Gli strati si aprono sotto la riga e non a lato.»** La prima stesura li
+metteva in una colonna accanto; l'app li apre **in linea sotto la voce**, ed è
+la forma giusta. Il motivo per cui li avevo spostati resta però valido: nell'app
+«Vedi strati» è un `<button>` dentro un `<div role="option">`, cioè
+**`nested-interactive`**.
+
+**La via d'uscita non era spostare il bottone: era toglierlo.** Gli strati ora
+compaiono **sotto la voce attiva**, da soli — niente da premere per vederli,
+niente da annidare — e scorrendo con le frecce si aprono e si chiudono
+seguendo il fuoco, che è **meno** lavoro che aprirli riga per riga col mouse.
+Per lo stesso motivo sparisce il «Usa questo sistema»: la voce stessa è il
+bersaglio e `Invio` la sceglie. Si ottiene così la forma dell'app **e** zero
+comandi annidati: misurato, **0 bottoni dentro le opzioni**, e un pannello solo
+alla volta.
+
+Da sapere per chi ci tornerà: il pannello sta **dentro** il `CommandItem`, non
+fra un item e l'altro. Un fratello degli item sarebbe un figlio non ammesso del
+`role="listbox"` — è il difetto già misurato in M2.3 su `CommandSeparator`,
+`aria-required-children`. Verificato: **0 violazioni** in tutte e quattro le
+passate anche con gli strati dentro l'opzione.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- Tastiera rimisurata: il fuoco resta nel campo, le frecce attraversano i
+  gruppi, gli strati seguono l'attivo.
