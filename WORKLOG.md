@@ -11857,3 +11857,32 @@ FHD passano da **6 a 9**.
   visibilmente.
 - Altezza: **536/656/1016/1376**, ferma sotto l'hover a ogni dimensione.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — tre distanze per tre relazioni (2026-09-22)
+
+**«Aumenta un attimo la distanza fra i gruppi e le card, e fra l'ultima card di
+un gruppo e il gruppo successivo.»** Il passo fra le righe era stato tarato in
+quattro giri (4 → 2 → 6); questi due sono spazi **diversi**, e la gerarchia
+chiede che lo siano:
+
+| relazione | distanza | perché |
+|---|---:|---|
+| riga ↔ riga, stesso gruppo | **6px** | sono sorelle, e hanno già un bordo che le separa |
+| titolo ↔ prima card del gruppo | **8px** | il titolo deve appartenere a ciò che **segue** |
+| ultima card ↔ gruppo successivo | **20px** | è uno stacco, non un passo |
+
+Tre misure per tre relazioni invece di un passo unico ripetuto.
+
+**Un difetto muto preso misurando**: lo stacco sotto il titolo era stato scritto
+come `pb-2` e valeva **0px**. `command` dà alle intestazioni un `py-1.5` con una
+specificità maggiore (`**:[[cmdk-group-heading]]:`), che **vince** su un `pb`
+scritto dal punto di chiamata e lo rende muto — nessun errore, nessun avviso, la
+classe semplicemente non arriva. Un `mb` non entra in conflitto con un `py` e
+passa. È la stessa famiglia delle trappole del `CLAUDE.md`: una classe che «non
+fa niente» si guarda **nel DOM**, non nel foglio di stile.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `misura:bersagli` — **0 piccoli** in entrambe le direzioni.
+- `lint` **26 avvisi**, tutti preesistenti.

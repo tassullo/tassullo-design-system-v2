@@ -350,8 +350,24 @@ function SceltaDaCatalogo() {
                     che le separa, quindi lo spazio in mezzo deve solo impedire
                     che i bordi si tocchino, non ridire la separazione una
                     seconda volta: per questo sta su un gradino basso della
-                    scala, e si alza o si abbassa di uno. */}
-                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-1.5 [&_[data-slot=command-group]>div]:p-0">
+                    scala, e si alza o si abbassa di uno.
+
+                    **Fra i gruppi e le loro intestazioni lo spazio è invece
+                    largo**, ed è la gerarchia a chiederlo: dentro un gruppo le
+                    righe sono sorelle e stanno vicine; fra un gruppo e l'altro
+                    c'è uno stacco, e l'intestazione deve appartenere
+                    visibilmente a ciò che **segue**, non galleggiare fra i due.
+                    Tre misure diverse per tre relazioni diverse — riga/riga,
+                    titolo/gruppo, gruppo/gruppo — invece di un unico passo
+                    ripetuto.
+
+                    Lo stacco sotto il titolo è un **margine** e non un
+                    padding: `command` dà alle intestazioni un `py-1.5` con
+                    specificità maggiore (`**:[[cmdk-group-heading]]:`), che
+                    vince su un `pb` scritto qui e lo rende muto — misurato,
+                    **0px** invece dei 2 attesi. Un `mb` non entra in conflitto
+                    con un `py` e arriva a destinazione. */}
+                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-1.5 [&_[data-slot=command-group]>div]:p-0 [&_[data-slot=command-group]]:pb-4 [&_[cmdk-group-heading]]:mb-2">
                   <CommandEmpty>
                     <div className="flex flex-col items-center gap-2 py-4">
                       <p>Nessun sistema corrisponde alla ricerca.</p>
