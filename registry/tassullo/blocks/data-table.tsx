@@ -2834,6 +2834,10 @@ export type DataTableProps<TDato extends RowData> = {
    * numero che sta guardando. Richiesto da Francesco il 2026-09-21 guardando
    * il Computo di Studio, dove ci sono; `tassullo-foglio-gruppi` li ha
    * sempre, perché lì sono la forma del blocco e non un'opzione.
+   *
+   * Disegna le **sole linee verticali**, non il perimetro: quello ce l'ha già
+   * il riquadro che contiene la tabella, e sovrapporne un secondo dà un doppio
+   * bordo a un pixel di distanza.
    */
   bordiColonna?: boolean
   /** Aggiunge la colonna delle caselle. */
@@ -3850,8 +3854,16 @@ export function DataTable<TDato extends RowData>({
           ref={tabellaRef}
           className={cn(
             "table-fixed",
+            // **Solo le linee verticali, non il perimetro**: il riquadro che
+            // contiene la tabella ha già il proprio bordo, e aggiungerne uno
+            // qui ne disegna **due** a un pixel di distanza — misurato,
+            // tabella da 1406px dentro un contenitore da 1408 (rilievo di
+            // Francesco, 2026-09-22). `tassullo-foglio-gruppi` invece il
+            // perimetro ce l'ha, perché lì attorno alla tabella non c'è nessun
+            // riquadro: la stessa classe in due posti diversi va guardata nel
+            // contesto, non copiata.
             bordiColonna &&
-              "border border-border [&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
+              "[&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
           )}
           {...attributiTabella}
         >

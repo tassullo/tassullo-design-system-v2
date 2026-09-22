@@ -11531,3 +11531,436 @@ regola vive adesso.
 - `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
 - `misura:bersagli` — **3283 su 380, 0 piccoli**.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+---
+
+## M4ter.13 — Il picker d'inserimento voci: **si compone**, e l'esito è una ricetta (2026-09-22)
+
+**Ramo**: `claude/m4ter-13-picker-voci`, aperto da `claude/m4ter-12-computo`
+perché la PR #18 non è ancora fusa e i documenti di conduzione stanno lì.
+
+**Verdetto: nessun componente nuovo.** `registry.json` resta a **95 item**,
+`componenti-propri.json` a **1**. Il `SistemaPickerModal` di Studio si ricompone
+con quattro item che il registry ha già, e l'esito del task è una **ricetta**:
+`stories/SceltaDaCatalogo.stories.tsx` → `Pagine/Scelta da catalogo`.
+
+| pezzo | item |
+|---|---|
+| il contenitore | `tassullo-responsive-dialog` — dialogo sulla scrivania, **cassetto** sul telefono |
+| ricerca, gruppi, frecce, `Invio`, `aria-activedescendant` | `command` |
+| i chip di categoria | `toggle-group`, scelta singola deselezionabile |
+| «Voce standard», «N prodotti» | `badge` |
+
+**Gradino 1 chiuso a vuoto**: chiesto all'MCP, `command` **esiste già** nel
+registry Tassullo e la sua story `Cinquecento Voci` regge 500 voci — più del
+catalogo vero.
+
+#### I numeri del catalogo
+
+Misurati su `data/prodotti_kb.json` del clone: **6 categorie** — le stesse sei
+dello screenshot — con 146 nodi in RINFORZI STRUTTURALI, 109 FINITURE DI PREGIO,
+70 EDILIZIA CIVILE, 68 RESTAURO, 59 SOTTOFONDI E POSA PAVIMENTI, 38 RISANAMENTO
+E IMPERMEABILIZZAZIONI, e **124 codici categorizzati**. **I sistemi veri non sono
+nel repo**: arrivano da Business Central a runtime, quindi 124 è l'ordine di
+grandezza, non il conto. In ogni caso **nessuna virtualizzazione serve**.
+
+#### Le due cose che **non** si copiano dall'app
+
+**«Vedi strati» non può restare un bottone dentro la voce.** Nel picker di Studio
+ogni riga è un `<div role="option">` che contiene un `<button>`: è
+**`nested-interactive`**, la stessa violazione presa in M4ter.12 su una riga di
+azioni, e un `role="option"` con un comando dentro non è riparabile restando
+quella forma. Nella ricetta gli strati stanno in un **pannello accanto che segue
+l'elemento attivo** — uno solo, non uno per riga — e il guadagno supera la
+correzione: **scorrendo con le frecce gli strati si vedono senza premere
+niente**, mentre nell'app vanno aperti riga per riga col mouse. Misurato: **0
+bottoni dentro le opzioni**. Sotto `sm` il pannello si nasconde.
+
+**Il filtro di `command` si spegne** (`shouldFilter={false}`): quel componente
+cerca su **una stringa**, il catalogo Tassullo su sei campi più i **sinonimi
+dell'ufficio tecnico**, che non si mostrano mai. Misurato: **«etics» trova il
+cappotto**, e la parola non compare in nessun campo visibile.
+
+#### Tre difetti, tutti trovati misurando e nessuno rileggendo
+
+**(1) «calce» trovava «calcestruzzo».** Avevo scritto «a parola intera» nel
+commento e implementato un **prefisso**: `"calcestruzzo".startsWith("calce")` è
+vero. È esattamente il falso che l'ufficio tecnico di Studio ha già segnalato nel
+proprio codice. Corretto a uguaglianza di parola. **Il costo, dichiarato**: la
+ricerca si chiude solo a parola finita — «cal» non trova niente. È la regola che
+hanno chiesto, e sta nella **pagina** proprio perché è lì che si cambia.
+
+**(2) Lo slot del dialogo l'ho dedotto invece di guardarlo.** `apriCol(...,
+'dialog-content')`: lo slot vero è **`responsive-dialog-content`** — il blocco ne
+tiene uno proprio apposta, perché monta `Dialog` o `Drawer` e chi cerca il
+contenuto dovrebbe altrimenti sapere in che forma si sta rendendo. Il gate l'ha
+preso come **`imbracatura×1`** in entrambe le passate `aperto`: una story che
+fallisce **senza nessuna violazione axe**, che è il modo in cui si manifesta una
+`play` rotta. È la regola del `CLAUDE.md`, ripetuta: *lo slot si guarda nel DOM*.
+
+**(3) E appena l'imbracatura ha aperto il dialogo davvero, axe ha trovato quello
+che prima non poteva vedere**: `text-accent-ink` sulla variante dà **4,29:1** sul
+fondo di una voce **selezionata** (`--accent`, #ECEAE8). È §22 in diretta — *un
+popup non aperto non è un popup senza violazioni* — e ha un risvolto che vale
+oltre questa story: **`--accent-ink` è verificato contro `--background` e
+`--card`, non contro `--accent`**, e in un elenco la voce attiva ha *sempre*
+quel fondo. È una coppia che `check:contrast` **non copre** — non l'ho aggiunta
+di iniziativa, perché toccare le 48 coppie del gate è una decisione di sistema:
+**segnalata a Francesco**. Nella ricetta la variante si distingue col **peso**,
+che un contrasto da rispettare non ce l'ha.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni** (+4 sulla base di
+  M4ter.12: una scena nuova × 4 passate). Il popup è **dichiarato** con
+  `play: apriCol(...)`; `scripts/gate-a11y.ts` **non** è stato toccato, perché
+  `CON_POPUP` elenca i componenti di `ui/` e `blocks/` e questa è una ricetta di
+  `stories/`.
+- `misura:bersagli` — **3302 bersagli su 381 story, 0 piccoli**.
+- Tastiera in **Chromium vero**, strumento verificato: il fuoco resta **sempre**
+  nel campo di ricerca, `↑`/`↓` scorrono **attraversando i gruppi**, il pannello
+  degli strati segue l'attivo, `Invio` sceglie e chiude.
+- `registry.json` **95 item**, `componenti-propri.json` **1**, lint **26
+  avvisi** preesistenti.
+- Clone di Studio **cancellato**.
+
+#### Prossimi passi
+
+Per Francesco: il raggruppamento per famiglia con la **domanda** come
+sottotitolo («Stai costruendo un edificio in muratura tradizionale?») è il modo
+giusto di scegliere, o è un residuo del v1? La ricetta lo riproduce fedelmente,
+ma è l'unica scelta di forma che non ho messo in discussione. E la coppia
+`accent-ink`/`accent` in `check:contrast`.
+
+### Coda M4ter.13 — due rilievi a video (2026-09-22)
+
+**(a) «Sono attaccati, vanno lasciati spazi: ricerca / filtri / record
+trovati.»** `Command` è già `flex flex-col` ma impila i figli **senza gap**, e
+tre zone attaccate si leggono come una sola. Il `gap` si dà **dal punto di
+chiamata** e non dalla primitiva, per una ragione: un `command` dentro un
+`popover` — il `combobox` di M2.6 — quel respiro **non** lo vuole, perché lì i
+figli sono due e il gap aprirebbe una fessura nel popup. Misurato:
+**16px fra ricerca e filtri, 16 fra filtri e risultati**.
+
+**(b) «Gli strati si aprono sotto la riga e non a lato.»** La prima stesura li
+metteva in una colonna accanto; l'app li apre **in linea sotto la voce**, ed è
+la forma giusta. Il motivo per cui li avevo spostati resta però valido: nell'app
+«Vedi strati» è un `<button>` dentro un `<div role="option">`, cioè
+**`nested-interactive`**.
+
+**La via d'uscita non era spostare il bottone: era toglierlo.** Gli strati ora
+compaiono **sotto la voce attiva**, da soli — niente da premere per vederli,
+niente da annidare — e scorrendo con le frecce si aprono e si chiudono
+seguendo il fuoco, che è **meno** lavoro che aprirli riga per riga col mouse.
+Per lo stesso motivo sparisce il «Usa questo sistema»: la voce stessa è il
+bersaglio e `Invio` la sceglie. Si ottiene così la forma dell'app **e** zero
+comandi annidati: misurato, **0 bottoni dentro le opzioni**, e un pannello solo
+alla volta.
+
+Da sapere per chi ci tornerà: il pannello sta **dentro** il `CommandItem`, non
+fra un item e l'altro. Un fratello degli item sarebbe un figlio non ammesso del
+`role="listbox"` — è il difetto già misurato in M2.3 su `CommandSeparator`,
+`aria-required-children`. Verificato: **0 violazioni** in tutte e quattro le
+passate anche con gli strati dentro l'opzione.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- Tastiera rimisurata: il fuoco resta nel campo, le frecce attraversano i
+  gruppi, gli strati seguono l'attivo.
+
+### Coda M4ter.13 — il bordo, la resa, l'immagine (2026-09-22)
+
+Tre rilievi a video sugli esempi veri di Studio, tutti chiusi.
+
+**(a) «Le varie righe andrebbero con un bordo (vedi ITEM), così sembra tutto
+attaccato.»** Il riferimento era al componente: `Item` con
+`variant="outline"` — che il registry ha già e che porta titolo, descrizione e
+azioni nei posti giusti. **Non una classe scritta a mano**: è il gradino 1
+un'altra volta, dentro la stessa sessione. Il `CommandItem` resta il bersaglio
+(è lui il `role="option"`) e `Item` gli dà solo la forma. Misurato: **10 righe su
+10 col bordo**.
+
+**(b) La resa accanto al nome dello strato.** Il modello passa da
+`string[][]` a `{ nome, resa }[][]`: la resa è **il numero con cui si calcola il
+fabbisogno**, quindi sta dove si legge il prodotto e non in fondo alla riga —
+attenuata, perché è un dato di servizio e non il nome. Gli esempi veri mostrano
+anche il caso che la struttura deve reggere: *«Angolare preformato · resa 0
+**oppure** Rete strutturale … · resa 1,2 **oppure** Rete … alta resistenza ·
+resa 1,2»*, cioè **tre alternative sulla stessa posizione**, ognuna con la sua
+resa. Il dato della story lo riproduce.
+
+**(c) L'immagine del sistema.** Erano già nel repo: **`public/esempi/`**, sei
+`sistema-*.png` che altre story usano di già — `entity-image.stories.tsx`,
+`ListaDueFacce`, `pdf-preview`. Montate con **`entity-image`** (D20), che è il
+componente nostro fatto apposta: rapporto `1:1`, che è la forma delle sorgenti
+Tassullo (render dei sistemi 1080×1080), e il segnaposto quando la foto non
+c'è — quattro sistemi su dieci nella story non ce l'hanno, apposta. Verificato
+che si **carichi davvero** (`naturalWidth > 0`) e non solo che l'`alt` sia
+giusto: un file mancante con un `alt` corretto non lo direbbe nessun gate.
+
+**E un difetto di lint preso al volo**: `sistemaAttivo` era rimasto orfano dopo
+aver tolto il pannello laterale — `no-unused-vars`, 26 → 27. Tolto, di nuovo 26.
+
+#### Il ramo
+
+`claude/m4ter-12-computo` è stato **fuso** (PR #18, gate CI verde in 4m32s) e
+questo ramo **ribasato su `main`**: ora porta i suoi due commit e basta.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- Tastiera rimisurata dopo il cambio di forma: fuoco nel campo, frecce che
+  attraversano i gruppi, strati che seguono l'attivo, **0 bottoni dentro le
+  opzioni**; spazio fra le tre zone **16px e 16px**.
+- `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — l'evidenziazione, l'altezza, il passo (2026-09-22)
+
+**(a) «Mostra il secondo record, il mouse è sopra il primo» — e «nella voce
+evidenziata non compare più il suo titolo».** Due sintomi, **un difetto solo**:
+la riga attiva **non era evidenziata affatto**, e il pannello degli strati stava
+in un riquadro *staccato* sotto di essa. L'unico segno della voce attiva erano
+gli strati che comparivano — e comparendo fra una riga e l'altra sembravano
+appartenere a quella **sotto**, che a quel punto pareva senza titolo. Il fuoco
+non era mai stato sfasato: misurato prima e dopo, seguiva il mouse riga per riga.
+
+Due correzioni, e la prima rende la seconda quasi superflua: **una cornice sola
+per voce**, con gli strati dentro (`Item` a `flex-col`), così la domanda «di chi
+sono questi strati» non si pone; e la voce attiva prende **bordo e fondo**
+(`group-data-[selected=true]/voce`), perché `Item` non cambia aspetto da sé —
+`data-selected` sta sul `CommandItem`, che è il genitore.
+
+Misurato con l'hover su quattro righe diverse: **`coincidono: true` sempre**
+(la voce selezionata è quella che mostra gli strati) ed **evidenziata
+visibilmente** in tutti i casi.
+
+**(b) «Si può calcolare l'altezza in funzione dello schermo?» e poi «attenzione
+che spostando il mouse cambia l'altezza della scheda».** Le due richieste
+sembrano opposte e non lo sono: **l'altezza dev'essere ferma rispetto al
+contenuto, non rispetto allo schermo**. La prima stesura le ha confuse — un
+numero fisso (`h-192`) toglieva il tremolio ma dava le stesse righe su un 27" e
+su un portatile, cioè buttava via la richiesta di partenza.
+
+`h-dvh` le tiene entrambe. Misurato, con l'hover su cinque righe a ogni
+dimensione:
+
+| schermo | altezza del dialogo | righe intere |
+|---|---|---:|
+| 1280×600 | **600, ferma** | 2 |
+| 1280×720 | **720, ferma** | 3 |
+| 1920×1080 | **1080, ferma** | 7 |
+| 2560×1440 | **1440, ferma** | 10 |
+
+Il difetto vero era il secondo: con un'altezza che si adatta al contenuto,
+aprire gli strati **allunga il dialogo**, quello che sta sotto scorre sotto il
+cursore, e la riga che ci finisce sotto diventa quella attiva — il contenuto si
+muove da solo mentre lo si guarda. Il dialogo ora arriva ai bordi dello schermo,
+ed è la forma che una palette di ricerca ha di suo: sul telefono
+`responsive-dialog` è già un cassetto a tutta altezza.
+
+La catena che lo regge: `flex-col` + `overflow-hidden` sul contenuto, e
+`min-h-0 flex-1` su **ogni** anello (corpo, `Command`, `CommandList`). `min-h-0`
+non è zelo — un figlio flex ha `min-height: auto`, cioè si rifiuta di
+rimpicciolirsi sotto il proprio contenuto, e basta un anello senza per far
+crescere il dialogo oltre lo schermo invece di far scorrere la lista.
+
+**(c) «Riduciamo gli spazi fra un record e l'altro.»** `command` dà a ogni
+`CommandItem` il proprio padding e il gruppo aggiunge il suo: fra una riga e
+l'altra se ne sommavano due. Ora il passo lo dà un `gap` solo — misurato:
+**4px**.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — il respiro attorno alla scheda, e il passo definitivo (2026-09-22)
+
+**«Va lasciato un po' di spazio sopra e sotto la scheda, non a tutta altezza
+finestra.»** `h-dvh` — la stesura precedente — mandava il dialogo a filo dei
+bordi. La correzione tiene tutte e tre le proprietà che servivano insieme:
+
+| serve | come |
+|---|---|
+| altezza **ferma** rispetto al contenuto | l'altezza la decidono gli inset, non ciò che c'è dentro |
+| che **cresca** col monitor | `top-8 bottom-8` è relativo al viewport |
+| **respiro** sopra e sotto | i due inset, che sono **32px** in densità normale e **48** in touch |
+
+`top-8 bottom-8 h-auto translate-y-0`: `h-auto` lascia decidere agli inset, e
+`translate-y-0` annulla il centraggio verticale di `DialogContent`, che con gli
+inset non serve più e sposterebbe il dialogo di mezza altezza.
+
+**Non un `max-h-[90dvh]`**, che sarebbe un valore arbitrario — `8` è un gradino
+della scala, quindi il margine **segue la densità** invece di essere una misura
+scritta a mano. È la stessa disciplina del `min-w-4xl` di M4ter.12.
+
+Rimisurato, con l'hover su cinque righe a ogni dimensione:
+
+| schermo | altezza del dialogo | margine | righe intere |
+|---|---|---|---:|
+| 1280×600 | **536, ferma** | 32+32 | 1 |
+| 1280×720 | **656, ferma** | 32+32 | 2 |
+| 1920×1080 | **1016, ferma** | 32+32 | 6 |
+| 2560×1440 | **1376, ferma** | 32+32 | 9 |
+
+**«Sono troppo distanti.»** Secondo giro sul passo fra i record: da 4px a
+**2px**. La ragione per cui si può stringere tanto è che le righe hanno **già un
+bordo** che le separa — lo spazio in mezzo deve solo impedire che i bordi si
+tocchino, non ridire la separazione una seconda volta.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — i 24px invisibili fra le righe (2026-09-22)
+
+**«Puoi avvicinare le righe fra di loro, sono troppo lontane.»** Terzo giro sullo
+stesso punto, e i due precedenti avevano misurato **la cosa sbagliata**: il
+`gap` fra i `command-item` valeva già 2px, ma fra i **bordi delle card** — cioè
+fra quello che si vede — ne restavano **26**.
+
+La causa erano 24px invisibili dentro ogni voce. `command` aggiunge a ogni item
+un'**icona di spunta**, e la prima stesura dava al `CommandItem` anche
+`flex-col`: così l'icona non finiva accanto alla card ma **sotto**, 16px di
+altezza più 8 di `gap`. Un elemento che non si vede — è un `<svg>` senza fondo
+in fondo a una card bianca — e che occupava più spazio del passo che stavo
+cercando di stringere.
+
+Corretto: `[&>svg]:hidden` (la selezione si vede già dal bordo e dal fondo della
+card, quindi la spunta è ridondante), via `flex-col`, e azzerato il padding del
+contenitore di gruppo. Misurato fra i bordi delle card: **26px → 2px**. I 24px
+che restano fra l'ultima riga di un gruppo e la prima del successivo sono
+l'**intestazione del gruppo**, che è corretto.
+
+**La lezione, e vale oltre il caso**: per tre volte ho misurato il `gap`
+dichiarato invece della distanza **fra ciò che si vede**. Un `gap: 2px` fra due
+contenitori dice pochissimo se i contenitori non sono pieni — e qui uno dei due
+figli era invisibile. **La misura giusta è fra i bordi renderizzati**, non fra
+le scatole che li contengono.
+
+Effetto collaterale utile: con 24px in meno per riga, le righe intere viste su un
+FHD passano da **6 a 9**.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- Selezione e strati: `coincidono: true` su ogni riga provata, evidenziata
+  visibilmente.
+- Altezza: **536/656/1016/1376**, ferma sotto l'hover a ogni dimensione.
+- `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — tre distanze per tre relazioni (2026-09-22)
+
+**«Aumenta un attimo la distanza fra i gruppi e le card, e fra l'ultima card di
+un gruppo e il gruppo successivo.»** Il passo fra le righe era stato tarato in
+quattro giri (4 → 2 → 6); questi due sono spazi **diversi**, e la gerarchia
+chiede che lo siano:
+
+| relazione | distanza | perché |
+|---|---:|---|
+| riga ↔ riga, stesso gruppo | **6px** | sono sorelle, e hanno già un bordo che le separa |
+| titolo ↔ prima card del gruppo | **8px** | il titolo deve appartenere a ciò che **segue** |
+| ultima card ↔ gruppo successivo | **20px** | è uno stacco, non un passo |
+
+Tre misure per tre relazioni invece di un passo unico ripetuto.
+
+**Un difetto muto preso misurando**: lo stacco sotto il titolo era stato scritto
+come `pb-2` e valeva **0px**. `command` dà alle intestazioni un `py-1.5` con una
+specificità maggiore (`**:[[cmdk-group-heading]]:`), che **vince** su un `pb`
+scritto dal punto di chiamata e lo rende muto — nessun errore, nessun avviso, la
+classe semplicemente non arriva. Un `mb` non entra in conflitto con un `py` e
+passa. È la stessa famiglia delle trappole del `CLAUDE.md`: una classe che «non
+fa niente» si guarda **nel DOM**, non nel foglio di stile.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `misura:bersagli` — **0 piccoli** in entrambe le direzioni.
+- `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — il foglio in densità touch era rotto, e l'ha trovato il giro a video (2026-09-22)
+
+Guardate le due story nuove nelle condizioni che nessuno aveva ancora aperto —
+**modalità scura** e **densità touch**. Il picker regge in tutte e due. **Il
+foglio a gruppi no**, e il difetto era grosso: in touch la colonna
+«Designazione dei lavori» **collassava**, i titoli delle voci si riducevano a una
+lettera («R.», «E», «M») e le descrizioni delle misure **sparivano del tutto**.
+
+**La causa è una mia correzione precedente, fatta a metà.** `min-w-4xl` —
+introdotto in M4ter.12 proprio per impedire alla tabella di comprimersi oltre il
+leggibile — è un token della scala dei **contenitori**, cioè **896px fissi**. Ma
+le colonne del foglio sono dichiarate in unità di `--spacing` (`w-20`, `w-28`,
+`w-32`), e in densità touch quella costante passa da 4px a 6: le colonne
+numeriche crescono del **50%** mentre il minimo resta fermo, e l'unica colonna
+che può cedere — l'elastica — viene schiacciata a zero. Il rimedio funzionava
+nella densità in cui era stato misurato e falliva nell'altra.
+
+Corretto in **`min-w-240`**, che sta sulla scala `--spacing` e quindi scala con
+le colonne che deve contenere: **960px in normale, 1440 in touch**. Misurato:
+
+| densità | viewport | larghezza Designazione | celle col testo tagliato |
+|---|---|---:|---:|
+| normale | 1440 | 687px | 0 |
+| normale | 1024 | 271px | 1 |
+| **touch** | 1440 | **359px** | **0** |
+| **touch** | 1024 | **359px** | **0** |
+
+Prima della correzione, in touch quella colonna era ridotta a nulla a entrambe
+le larghezze.
+
+**La regola che ne esce, e vale per ogni tabella del registry**: *il minimo di
+una tabella le cui colonne scalano deve scalare con loro*. Un minimo su una
+scala diversa da quella delle colonne è un rimedio che regge in una sola
+densità — e la densità in cui non regge è quella che non si guarda mai, perché
+sulla scrivania si sviluppa in `normale`.
+
+E la ragione per cui è stato trovato: **axe non lo vede** (nessuna violazione),
+`misura:bersagli` non lo vede (i bersagli restano grandi), e `check:registry` non
+lo vede (è una classe legittima). Lo si vede **aprendo la story in touch**. È
+la stessa famiglia di D15.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- Le due story nuove guardate in **scuro** e in **touch**: il picker regge, il
+  foglio ora anche.
+- `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — il doppio bordo di `bordiColonna` (2026-09-22)
+
+Guardata `Blocchi/Data Table → Bordi Colonna`, l'ultima story che nessuno aveva
+ancora aperto. **Doppio bordo sul perimetro**: misurato, la `<table>` da 1406px
+dentro un contenitore da 1408, cioè due linee a un pixel di distanza.
+
+La causa è una classe copiata senza guardare il contesto. `bordiColonna`
+metteva `border border-border` **più** i separatori verticali, e il `border`
+esterno era di troppo: il riquadro che contiene una `data-table` ha **già** il
+proprio perimetro. In `tassullo-foglio-gruppi` la stessa classe è corretta,
+perché lì attorno alla tabella non c'è nessun riquadro — misurato: un solo
+elemento con bordo.
+
+La prop disegna ora le **sole linee verticali**. Misurato dopo: **un solo
+elemento con bordo** in entrambi i blocchi.
+
+**La lezione**: la stessa stringa di classi in due posti diversi va guardata
+**nel contesto**, non copiata. Il perimetro non è una proprietà della tabella, è
+una proprietà di ciò che la contiene — e i due blocchi hanno contenitori
+diversi.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
+- `misura:bersagli` — **3302 su 381, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.
