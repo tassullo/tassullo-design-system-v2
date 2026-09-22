@@ -349,7 +349,7 @@ function SceltaDaCatalogo() {
                     hanno già un bordo che le separa, quindi lo spazio in mezzo
                     deve solo impedire che i bordi si tocchino, non ridire la
                     separazione una seconda volta. */}
-                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-0.5">
+                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-0.5 [&_[data-slot=command-group]>div]:p-0">
                   <CommandEmpty>
                     <div className="flex flex-col items-center gap-2 py-4">
                       <p>Nessun sistema corrisponde alla ricerca.</p>
@@ -376,7 +376,17 @@ function SceltaDaCatalogo() {
                             setScelto(s)
                             setAperto(false)
                           }}
-                          className="group/voce flex-col items-start p-0 data-[selected=true]:bg-transparent"
+                          // `p-0` e **`[&>svg]:hidden`**: `command` aggiunge a
+                          // ogni voce un'icona di spunta, e la prima stesura le
+                          // dava anche `flex-col` — così l'icona finiva **sotto
+                          // la card**, alta 16px più 8 di `gap`. Erano i 24px
+                          // che rendevano le righe distanti: il `gap` fra gli
+                          // item era 2px, ma fra i **bordi** delle card ne
+                          // restavano 26. Qui la selezione si vede dal bordo e
+                          // dal fondo della card, quindi la spunta è ridondante
+                          // e si toglie; senza `flex-col` l'unico figlio resta
+                          // la card, che occupa tutta la riga.
+                          className="group/voce block p-0 data-[selected=true]:bg-transparent [&>svg]:hidden"
                         >
                           {/* **Una cornice sola per voce, e gli strati stanno
                               dentro.** Prima erano due riquadri accostati — la

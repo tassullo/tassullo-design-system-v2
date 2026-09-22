@@ -11820,3 +11820,40 @@ tocchino, non ridire la separazione una seconda volta.
 - `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
 - `misura:bersagli` — **3302 su 381, 0 piccoli**.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.13 — i 24px invisibili fra le righe (2026-09-22)
+
+**«Puoi avvicinare le righe fra di loro, sono troppo lontane.»** Terzo giro sullo
+stesso punto, e i due precedenti avevano misurato **la cosa sbagliata**: il
+`gap` fra i `command-item` valeva già 2px, ma fra i **bordi delle card** — cioè
+fra quello che si vede — ne restavano **26**.
+
+La causa erano 24px invisibili dentro ogni voce. `command` aggiunge a ogni item
+un'**icona di spunta**, e la prima stesura dava al `CommandItem` anche
+`flex-col`: così l'icona non finiva accanto alla card ma **sotto**, 16px di
+altezza più 8 di `gap`. Un elemento che non si vede — è un `<svg>` senza fondo
+in fondo a una card bianca — e che occupava più spazio del passo che stavo
+cercando di stringere.
+
+Corretto: `[&>svg]:hidden` (la selezione si vede già dal bordo e dal fondo della
+card, quindi la spunta è ridondante), via `flex-col`, e azzerato il padding del
+contenitore di gruppo. Misurato fra i bordi delle card: **26px → 2px**. I 24px
+che restano fra l'ultima riga di un gruppo e la prima del successivo sono
+l'**intestazione del gruppo**, che è corretto.
+
+**La lezione, e vale oltre il caso**: per tre volte ho misurato il `gap`
+dichiarato invece della distanza **fra ciò che si vede**. Un `gap: 2px` fra due
+contenitori dice pochissimo se i contenitori non sono pieni — e qui uno dei due
+figli era invisibile. **La misura giusta è fra i bordi renderizzati**, non fra
+le scatole che li contengono.
+
+Effetto collaterale utile: con 24px in meno per riga, le righe intere viste su un
+FHD passano da **6 a 9**.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- Selezione e strati: `coincidono: true` su ogni riga provata, evidenziata
+  visibilmente.
+- Altezza: **536/656/1016/1376**, ferma sotto l'hover a ogni dimensione.
+- `lint` **26 avvisi**, tutti preesistenti.
