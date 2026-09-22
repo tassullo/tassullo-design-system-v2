@@ -11964,3 +11964,99 @@ diversi.
 - `test:a11y` — **1524 scansioni su 381 story, 0 violazioni**.
 - `misura:bersagli` — **3302 su 381, 0 piccoli**.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+## 2026-09-22 — M5.0 aperta in testa alla FASE 5: la style guide per chi legge da fuori
+
+Sessione di sola pianificazione, su richiesta di Francesco: **guardare insieme la
+FASE 5 prima di aprirla**, e verificare che lo Storybook pubblicato sia leggibile
+da esterni. Nessuna story, nessuno script e nessun gate toccati: questa voce
+apre un task, non lo esegue.
+
+#### La FASE 5 letta oggi
+
+Sei task, tutti sbloccati da M4ter.13. Due sono di fatto già fatti — M5.1
+(`validate` e `list` verdi da M4.6, `registryDependencies` e artefatto in gate
+da M4ter.10 e M4ter.4bis; resta solo la verifica delle `dependencies` npm sui
+96 item, che nessun gate guarda) e M5.2 (installazione provata due volte, 36s,
+ma dal raw GitHub e non dal locale: si fonde con l'accettazione di M5.3). M5.6
+è a metà: repo e Pages online dal 2026-09-10, mancano il tag `v2.0.0` e la prova
+con la scorciatoia pubblica. Il lavoro vero della fase sono **due documenti
+nuovi**: `docs/INTEGRAZIONE.md` (M5.3 + M5.4, agganciare un'app nuova e il
+blocco di regole per il suo `CLAUDE.md`) e `docs/GUIDA-MIGRAZIONE.md` (M5.5,
+col passo 0 dell'MCP eseguito davvero su Anagrafe). Resta aperta la divisione
+M5.5a/b (`docs/ANALISI-COPERTURA-APP.md` §5), da decidere aprendo M5.5. Le
+rettifiche a M5.1 e M5.2 sono annotate in corsivo in `PIANO.md` e nelle righe
+di `CHECKLIST.md`.
+
+#### La ricognizione della style guide
+
+Fatta con un sub-agente in sola lettura su 89 file di story più
+`stories/Introduzione.mdx`. Il metodo conta più del numero: Storybook rende
+come prosa **ogni JSDoc immediatamente prima di `const meta` o di
+`export const Story`** (`parameters.docs.description.component` / `.story`),
+più il corpo dei `.mdx` e il JSX delle pagine `Tema/*`. Quello è il testo che
+un visitatore legge; i commenti `//`, i `/* */` staccati, le `play` e i
+sorgenti dei componenti no.
+
+Esito: **87 file su 89** portano annotazioni interne nel testo visibile,
+**~750 rimandi** su **~7.000 righe** di prosa (3.599 in descrizioni di
+componente, 3.359 in descrizioni di story). Non sono note sparse: le
+descrizioni **sono** il diario di sessione — sigle di fase e di decisione,
+paragrafi di `DECISIONI.md`, date, «misurato», «in carico a M2.9», i nomi di
+Francesco e Roberto, rimandi a `WORKLOG.md`/`PIANO.md`/`CLAUDE.md`/
+`INTERFACCE.md`, `check:registry`, «il gate ha fatto il suo mestiere». Per
+categoria, a spanne: rimandi di fase ~300, strumenti e gate ~140, app e v1
+~135, storia e misure ~120, persone ~60, documenti ~55.
+
+I casi più esposti: `stories/Introduzione.mdx`, che è la pagina d'ingresso e
+dice «da M2.9 fanno fallire la CI» citando `docs/INTERFACCE.md` di Anagrafe;
+`Tema/Carattere` e `Tema/Cifre`, prosa JSX con «deciso l'8 settembre 2026»,
+«sospeso il 2026-09-20 su richiesta di Roberto», §14 e §48;
+`Pagine/Prodotti (Anagrafe)`, l'unico titolo con un nome d'app nell'indice.
+I più pesanti per righe: `data-table` (291 di JSDoc), `foglio-gruppi` (288),
+`calendar` (278), `chart` (243), `toggle-group` (215). Puliti: `label`,
+`radio-group`, `Tema/Densità`, le etichette della barra in
+`.storybook/preview.tsx`.
+
+Un rilievo di metodo: il blocco di 63 righe in testa a
+`stories/Tipografia.stories.tsx` **non** è visibile, perché è attaccato a
+`const PARTI` e non al `meta`. La differenza fra visibile e invisibile è la
+posizione del commento, non il suo contenuto — ed è per questo che il gate
+deve guardare l'attaccamento, non il file.
+
+#### Le quattro scelte di Francesco
+
+1. **Riscrittura** per chi legge da fuori, non sola rimozione dei marcatori:
+   togliere le sigle da un diario lascia un diario.
+2. Le note interne **si cancellano**. Sono già in `WORKLOG.md` e
+   `docs/DECISIONI.md`; se una misura sta *solo* nella story, si sposta in
+   `DECISIONI.md` prima di toglierla.
+3. Nei dati d'esempio **le app restano** — Anagrafe, Officina e Studio sono le
+   app Tassullo, e il design system è loro — e **le persone reali diventano
+   fittizie** (`Francesco Sartori`, `Roberto Zanetti` → nomi inventati).
+   Sparisce però ogni frase su cosa un'app fa oggi.
+4. **Ottavo gate**, `check:storybook`: una regola senza gate si perde in poche
+   settimane, e questa si è persa in tre.
+
+#### Il task
+
+**M5.0, cinque sessioni** (M5.0a–e): canone + `Introduzione` + `Tema/*` + gate
+in modalità avviso; primitive in due metà alfabetiche (26 + 26); blocchi (21);
+pagine (6 + 4), nomi fittizi, gate armato in `npm run check` e in CI, `grep`
+finale su `storybook-static/`. Il canone di pagina (cos'è · quando sì e quando
+no · `add` · varianti · regole d'uso · tastiera) e l'elenco dei token vietati
+stanno in `PIANO.md` §M5.0, e si ripetono in testa allo script in M5.0a. La
+prova di chiusura è a11y **invariato a 1524/0**: le descrizioni non entrano nel
+canvas, quindi se il conto si muove si è toccato altro.
+
+**Perché in FASE 5 e non in coda alla 4ter**: M4ter.11 era stata messa in coda
+alla 4ter con la ragione che «la FASE 5 è documentazione e chiusura e le
+modifiche alle story non ci stanno». Qui vale il rovescio della stessa regola:
+nessun componente cambia forma, cambia solo ciò che la style guide *dice*, e la
+style guide è il primo documento che un esterno apre — viene prima di
+`INTEGRAZIONE.md`, che la cita. Il conto della FASE 5 passa da 6 a 11 sessioni;
+il totale da 69 a 74.
+
+#### Prossimi passi
+
+- `M5.0a`, in una sessione nuova. Poi b, c, d, e in fila; poi M5.1.
