@@ -11502,3 +11502,32 @@ disciplina, non controllo.
 - `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
 - `misura:bersagli` — **3283 su 380, 0 piccoli**.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+### Coda M4ter.12 — la protezione anti-zoom rimessa alla radice (2026-09-22)
+
+Francesco ha approvato la correzione proposta: **`input.tsx` e `textarea.tsx`**
+passano da `text-base md:text-sm` a **`text-lg md:text-sm`**. Verbale e misure in
+`docs/DECISIONI.md` **§51**; qui le due cose che riguardano il lavoro.
+
+**È gradino 2, e il gate lo dice**: *«forma identica all'originale, 1 stringhe di
+classi ri-stilate»* su entrambi i file. Nessuna prop nuova, nessuna struttura
+toccata — la stessa classe, un gradino più su della scala.
+
+**Ed è la correzione minima**: misurato in Chromium vero, sotto `md` i campi
+passano da **15px a 16** (17 in touch), **sopra `md` restano 13 e 14**, cioè
+invariati. Nessuna interfaccia da scrivania si muove di un pixel.
+
+**Tolta la classe locale dalla story del foglio.** `CAMPO_SENZA_ZOOM`
+(`text-lg md:text-sm` scritto sui campi del cassetto) era il rimedio provvisorio
+messo quando la causa non era ancora stata corretta: ora sarebbe **una copia
+locale di una regola di sistema**, cioè la riga che diverge al primo cambio. Via,
+insieme al commento che la spiegava — sostituito da uno che dice **dove** la
+regola vive adesso.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**; `check:registry` **0 errori**, 19
+  componenti ri-stilati sopra una forma originale intatta.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **3283 su 380, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.

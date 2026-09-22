@@ -359,23 +359,17 @@ export const Comandi: Story = {
  * ──────────────────────────────────────────────────────────────────────── */
 
 /**
- * **`text-lg` sul campo, e non è una scelta di grandezza: è la protezione
- * anti-zoom.** iOS Safari ingrandisce la pagina da solo quando si entra in un
- * campo il cui testo sta **sotto i 16px**, e non la rimpicciolisce uscendo:
- * l'utente resta con la pagina zoomata dopo ogni cella. `ui/input.tsx` porta
- * già il rimedio di shadcn — `text-base md:text-sm`, dove `text-base` vale 16px
- * in Tailwind — ma la **nostra** scala (D16, M1.6) tara `--text-base` a
- * **15px** in densità normale: la protezione è disarmata **da un pixel**, e non
- * si vede da nessuna parte sulla scrivania. In densità touch `--text-base` è
- * 16px e il difetto sparisce da sé.
- *
- * `text-lg` è **16px** nella nostra scala, quindi qui rimette la soglia dove
- * shadcn la voleva, con un token del tema e senza valori arbitrari. Sopra `md`
- * torna `text-sm`, come nell'originale. Rilievo di Francesco, 2026-09-22.
- * **È un difetto di sistema, non di questa story**: va portato su `input.tsx`
- * per tutte le app, ed è annotato in `WORKLOG.md`.
+ * **La protezione anti-zoom non è più qui: sta in `ui/input.tsx`**, dov'è il suo
+ * posto. iOS Safari ingrandisce la pagina quando il fuoco entra in un campo
+ * sotto i **16px** e non la rimpicciolisce uscendo; shadcn lo previene con
+ * `text-base md:text-sm`, dove `text-base` vale 16px **in Tailwind** — ma la
+ * nostra scala (D16, M1.6) tara `--text-base` a **15px**, e la protezione era
+ * disarmata da un pixel. Corretto alla radice il 2026-09-22 su richiesta di
+ * Francesco: `text-lg md:text-sm` su `input` e `textarea`, che nella nostra
+ * scala è esattamente 16px. Questa story non porta più nessuna classe propria
+ * per lo zoom — una copia locale di una regola di sistema è la riga che
+ * diverge al primo cambio.
  */
-const CAMPO_SENZA_ZOOM = 'text-lg md:text-sm'
 
 function CampoCassetto({
   etichetta,
@@ -394,7 +388,7 @@ function CampoCassetto({
       <Input
         value={valore}
         inputMode={numerico ? 'decimal' : undefined}
-        className={numerico ? `${CAMPO_SENZA_ZOOM} text-right tabular-nums` : CAMPO_SENZA_ZOOM}
+        className={numerico ? 'text-right tabular-nums' : undefined}
         onChange={(e) => onScrivi(e.target.value)}
       />
     </label>
@@ -692,9 +686,9 @@ function ComputoADueFacce() {
  * telefono un computo si legge molto e si corregge poco.
  *
  * **Tutto si modifica**: la testata apre il cassetto della voce (designazione,
- * unità, prezzo), ogni misura quello della misura. E i campi portano
- * `text-lg md:text-sm`, che **non è una scelta di grandezza ma la protezione
- * anti-zoom** — v. il commento su `CAMPO_SENZA_ZOOM`. La faccia stretta non è il foglio
+ * unità, prezzo), ogni misura quello della misura. I campi non portano nessuna
+ * classe propria per lo zoom: la protezione sta in `ui/input.tsx`, dov'è il suo
+ * posto (v. sopra). La faccia stretta non è il foglio
  * rimpicciolito — nove colonne su un telefono non ci stanno, e comprimerle è
  * precisamente ciò che rompeva la testata (misurato: «Designazione dei lavori»
  * e «Par.ug.» scritte una sopra l'altra).

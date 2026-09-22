@@ -3316,3 +3316,60 @@ quel file è per ciò che prende il posto di una primitiva.
 Numeri di chiusura: **95 item** (era 94), `test:a11y` **1508 scansioni su 377
 story, 0 violazioni**, `misura:bersagli` **3255 su 377, 0 piccoli**, sette gate a
 **0**, lint **26 avvisi** preesistenti.
+
+## 51. La scala tipografica aveva disarmato la protezione anti-zoom di iOS (M4ter.12, coda, 2026-09-22)
+
+**iOS Safari ingrandisce la pagina da solo** quando il fuoco entra in un campo il
+cui testo sta **sotto i 16px**, e uscendo **non la rimpicciolisce**: l'utente
+resta con la pagina zoomata dopo ogni cella toccata. Non è una preferenza, è il
+comportamento del sistema, e l'unico modo di evitarlo — senza `maximum-scale`,
+che toglie lo zoom anche a chi ne ha bisogno — è tenere il campo a 16px o più.
+
+**shadcn lo sa e lo previene**: `ui/input.tsx` e `ui/textarea.tsx` nascono con
+**`text-base md:text-sm`**, dove `text-base` vale **16px in Tailwind** ed è
+scelto esattamente per stare sulla soglia; sopra `md` scende a `text-sm`, dove un
+puntatore c'è e il problema non esiste.
+
+**La nostra scala l'ha disarmata da un pixel.** D16 (M1.6, §30) tara
+`--text-base` a **15px** in densità normale — un gradino più basso di Tailwind,
+per una ragione buona e indipendente. Da allora `text-base` sui campi valeva 15px
+e iOS zoomava, **in ogni app**. Il difetto non si vede da nessuna parte sulla
+scrivania, non produce nessun errore, e nessun gate lo guarda: `check:registry`
+confronta la forma con l'originale — che è **identica**, la classe è la stessa —
+e axe non misura le grandezze.
+
+### La misura
+
+In Chromium vero, `Primitive/Input` e `Primitive/Textarea`, prima e dopo.
+
+| | 390px, densità normale | 390px, touch | 900px, normale | 900px, touch |
+|---|---|---|---|---|
+| **prima** (`text-base md:text-sm`) | **15px — zooma** | 16px | 13px | 14px |
+| **dopo** (`text-lg md:text-sm`) | **16px** | 17px | 13px | 14px |
+
+La densità **touch** si salvava già da sé, perché lì `--text-base` è 16.
+
+### La correzione, e perché è la minima possibile
+
+**`text-lg md:text-sm`** su entrambi i file. `text-lg` è **16px** nella nostra
+scala: rimette la soglia esattamente dove shadcn la voleva, con un **token del
+tema** e senza valori arbitrari. È **una sola stringa per file**, cioè gradino 2
+della regola 4bis — `check:registry` lo conferma: *«forma identica all'originale,
+1 stringhe di classi ri-stilate»* — e **sopra `md` non cambia niente**, quindi
+nessuna interfaccia da scrivania si muove di un pixel.
+
+**Approvata da Francesco il 2026-09-22**, perché tocca i campi di ogni app: non
+era una correzione da prendere di iniziativa dentro la sessione che l'ha trovata.
+
+### Cosa resta da sapere
+
+Il rimedio vive in **due file**, e un terzo campo che nascesse domani senza quelle
+classi ripeterebbe il difetto in silenzio. Non c'è un controllo che lo impedisca,
+e non se n'è aggiunto uno: un gate che misuri le grandezze rese vorrebbe un
+browser e una passata sua, e sarebbe il primo del repo a farlo. **Se ne nasce un
+terzo, la regola è questa riga.**
+
+La lezione oltre il caso: **quando si sposta un gradino della scala tipografica,
+si spostano anche le soglie che qualcun altro ci aveva appoggiato sopra.** D16 ha
+cambiato `--text-base` per ragioni sue, giuste, e ha rotto a distanza una
+protezione scritta in un file che non ha toccato.
