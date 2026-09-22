@@ -11449,3 +11449,56 @@ tutti preesistenti.
 - Zoom: campi del cassetto a **16px in normale e 17 in touch**, misurati a 390px.
 - `lint` **26 avvisi**, tutti preesistenti; `registry.json` **95 item**,
   `componenti-propri.json` **1**.
+
+### Coda M4ter.12 — tre rifiniture della faccia stretta, tutte di linee (2026-09-22)
+
+Tre rilievi a video sulla forma D, tutti sullo stesso tema: **le linee dicono
+come si legge una scheda**, e tre volte su tre dicevano la cosa sbagliata.
+
+**(a) «Sotto −1,89 la linea è arrotondata e non dritta.»** Il `border-b` che
+separa due misure stava **sullo stesso elemento** che porta `rounded-md` per
+l'anello di fuoco: un bordo su un elemento con raggio **segue il raggio**, e la
+linea si incurvava agli estremi invece di correre dritta. Spostato sul
+**contenitore**, che raggio non ne ha. Verificato nel DOM: separatore con
+`border-bottom-left-radius: 0px`, bottone con i suoi 6px e **nessun bordo**. Si
+vede solo su una riga stretta, dove il raggio è una frazione grande della
+larghezza — su una riga larga lo stesso difetto è invisibile.
+
+**(b) I quattro fattori su una riga sola.** *«Alla fine si digitano numeri da
+3-4 e poco più»* — vero, e due file da due sprecavano l'altezza, che sul telefono
+è la risorsa scarsa. Ora `grid-cols-2 @xs:grid-cols-4` dentro un `@container`:
+**container query, non media query**, perché la soglia deve guardare il
+**cassetto** e non la finestra (il `Drawer` ha una larghezza sua, e §46 ricorda
+che una media query qui si misurerebbe anche male). Misurato:
+
+| viewport | file dei 4 fattori | larghezza campo | etichette tagliate |
+|---:|---:|---:|---:|
+| 320px | 2 | 138px | 0 |
+| **360px** | **1** | 73px | 0 |
+| 390px | 1 | 81px | 0 |
+| 430px | 1 | 91px | 0 |
+
+Da **360px in su** stanno su una riga; a 320 — il telefono più stretto in
+circolazione — tornano a due file da sole, che è il degrado giusto.
+
+**(c) «Una riga unica fra Prezzo unit. e Importo.»** I totali erano una
+`grid-cols-[1fr_auto] gap-x-4` e il `border-t` cadeva su `dt` e `dd`
+**separatamente**: il gap in mezzo non ne aveva, quindi la linea si spezzava nel
+vuoto e ripartiva sopra i numeri a destra. Ogni riga è ora **una riga** (`flex
+justify-between`), e il bordo sta su di essa. Misurato: **un solo elemento porta
+il bordo per voce, largo 326px su 326 di contenitore** — continuo.
+
+**Un valore arbitrario scritto e ritirato nello stesso passo.** Correggendo (a)
+avevo scritto `w-[calc(100%+var(--spacing)*4)]` per far sporgere il bottone
+quanto il bordo. È un **valore arbitrario**, vietato dalla regola 3 — e
+`check:registry` **non l'avrebbe preso**, perché guarda i `.tsx` dei componenti e
+non le `.stories.tsx`. Tolto subito spostando il margine negativo sul
+contenitore. Da sapere: **il gate non copre le story**, quindi lì la regola 3 è
+disciplina, non controllo.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **3283 su 380, 0 piccoli**.
+- `lint` **26 avvisi**, tutti preesistenti.

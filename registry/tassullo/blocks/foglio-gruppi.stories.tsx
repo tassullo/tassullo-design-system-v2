@@ -517,10 +517,16 @@ function SchedeComputo({
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
             {gruppo.righe.map((m, mi) => (
+              // Il separatore sta sul **contenitore**, non sul bottone: un
+              // `border-b` sullo stesso elemento che porta `rounded-md` per
+              // l'anello di fuoco **segue il raggio**, e la linea si incurva
+              // agli estremi invece di correre dritta fra una misura e l'altra
+              // (rilievo di Francesco, 2026-09-22 — si vede solo su una riga
+              // stretta, dove il raggio è una frazione grande della larghezza).
+              <div key={mi} className="-mx-2 border-b px-2">
               <button
-                key={mi}
                 type="button"
-                className="-mx-2 flex items-baseline justify-between gap-3 rounded-md border-b px-2 py-2 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="flex w-full items-baseline justify-between gap-3 rounded-md py-2 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 onClick={() => setMisuraAperta({ g: gi, m: mi })}
               >
                 <span className="truncate text-sm text-muted-foreground">
@@ -530,6 +536,7 @@ function SchedeComputo({
                   {fattori(m)} <strong className="ps-2">{decimale(parziale(m))}</strong>
                 </span>
               </button>
+              </div>
             ))}
 
             <Button
@@ -542,22 +549,34 @@ function SchedeComputo({
               + misurazione
             </Button>
 
-            <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-4 text-sm">
-              <dt className="text-muted-foreground">Sommano</dt>
-              <dd className="text-right tabular-nums">
-                {decimale(sommano(gruppo.righe))} {gruppo.testata.unita}
-              </dd>
-              <dt className="text-muted-foreground">Prezzo unit.</dt>
-              <dd className="text-right tabular-nums">
-                {gruppo.testata.prezzo ? valuta(numero(gruppo.testata.prezzo) ?? 0) : 'da prezzare'}
-              </dd>
-              <dt className="mt-1 border-t pt-1 font-semibold">Importo</dt>
-              <dd className="mt-1 border-t pt-1 text-right font-semibold tabular-nums">
-                {(() => {
-                  const i = importo(gruppo.testata, gruppo.righe)
-                  return i == null ? '—' : valuta(i)
-                })()}
-              </dd>
+            {/* **Ogni riga è una riga**, non due celle di una griglia. Con
+                `grid-cols-[1fr_auto] gap-x-4` il `border-t` cadeva su `dt` e
+                `dd` separatamente e **il gap in mezzo non ne aveva**: la linea
+                si spezzava nel vuoto e ripartiva sopra i numeri a destra
+                (rilievo di Francesco, 2026-09-22). Un separatore che divide due
+                cose deve attraversarle tutte e due, quindi sta sulla riga. */}
+            <dl className="mt-1 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Sommano</dt>
+                <dd className="tabular-nums">
+                  {decimale(sommano(gruppo.righe))} {gruppo.testata.unita}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Prezzo unit.</dt>
+                <dd className="tabular-nums">
+                  {gruppo.testata.prezzo ? valuta(numero(gruppo.testata.prezzo) ?? 0) : 'da prezzare'}
+                </dd>
+              </div>
+              <div className="mt-1 flex justify-between gap-4 border-t pt-1 font-semibold">
+                <dt>Importo</dt>
+                <dd className="tabular-nums">
+                  {(() => {
+                    const i = importo(gruppo.testata, gruppo.righe)
+                    return i == null ? '—' : valuta(i)
+                  })()}
+                </dd>
+              </div>
             </dl>
           </CardContent>
         </Card>
@@ -611,15 +630,25 @@ function SchedeComputo({
                 valore={bozza.descrizione}
                 onScrivi={(v) => scriviBozza({ descrizione: v })}
               />
-              <div className="grid grid-cols-2 gap-3">
-                <CampoCassetto etichetta="Par.ug." numerico valore={bozza.parti}
-                  onScrivi={(v) => scriviBozza({ parti: v })} />
-                <CampoCassetto etichetta="Lung." numerico valore={bozza.lunghezza}
-                  onScrivi={(v) => scriviBozza({ lunghezza: v })} />
-                <CampoCassetto etichetta="Larg." numerico valore={bozza.larghezza}
-                  onScrivi={(v) => scriviBozza({ larghezza: v })} />
-                <CampoCassetto etichetta="H/Peso" numerico valore={bozza.altezza}
-                  onScrivi={(v) => scriviBozza({ altezza: v })} />
+              {/* I quattro fattori su **una riga sola** appena il cassetto è
+                  largo abbastanza: si digitano numeri di tre o quattro cifre,
+                  quindi due file da due sprecano un'altezza che sul telefono
+                  è la risorsa scarsa (rilievo di Francesco, 2026-09-22).
+                  **Container query, non media query**: la soglia guarda il
+                  cassetto, non la finestra — il `Drawer` ha una larghezza sua,
+                  e `docs/DECISIONI.md` §46 ricorda che una media query qui si
+                  misurerebbe anche male. `@xs` è 320px di contenitore. */}
+              <div className="@container">
+                <div className="grid grid-cols-2 gap-3 @xs:grid-cols-4">
+                  <CampoCassetto etichetta="Par.ug." numerico valore={bozza.parti}
+                    onScrivi={(v) => scriviBozza({ parti: v })} />
+                  <CampoCassetto etichetta="Lung." numerico valore={bozza.lunghezza}
+                    onScrivi={(v) => scriviBozza({ lunghezza: v })} />
+                  <CampoCassetto etichetta="Larg." numerico valore={bozza.larghezza}
+                    onScrivi={(v) => scriviBozza({ larghezza: v })} />
+                  <CampoCassetto etichetta="H/Peso" numerico valore={bozza.altezza}
+                    onScrivi={(v) => scriviBozza({ altezza: v })} />
+                </div>
               </div>
               <p className="text-right text-sm text-muted-foreground">
                 Parziale <strong className="tabular-nums">{decimale(parziale(bozza))}</strong>
