@@ -344,12 +344,14 @@ function SceltaDaCatalogo() {
                 {/* Le righe stavano larghe: `command` dà a ogni `CommandItem`
                     il proprio padding e il gruppo aggiunge il suo, così fra una
                     riga e l'altra si sommavano due spazi. Qui il passo lo dà un
-                    `gap` solo — e stretto: due rilievi di Francesco in fila,
-                    «riduciamo gli spazi» e poi «sono troppo distanti». Le righe
-                    hanno già un bordo che le separa, quindi lo spazio in mezzo
-                    deve solo impedire che i bordi si tocchino, non ridire la
-                    separazione una seconda volta. */}
-                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-0.5 [&_[data-slot=command-group]>div]:p-0">
+                    `gap` solo. Tarato in tre giri: 4px, poi 2 — che, tolti i
+                    24px invisibili della spunta, erano diventati davvero due —
+                    e infine **6**, «un po' di più». Le righe hanno già un bordo
+                    che le separa, quindi lo spazio in mezzo deve solo impedire
+                    che i bordi si tocchino, non ridire la separazione una
+                    seconda volta: per questo sta su un gradino basso della
+                    scala, e si alza o si abbassa di uno. */}
+                <CommandList className="max-h-none min-h-0 flex-1 [&_[data-slot=command-group]>div]:flex [&_[data-slot=command-group]>div]:flex-col [&_[data-slot=command-group]>div]:gap-1.5 [&_[data-slot=command-group]>div]:p-0">
                   <CommandEmpty>
                     <div className="flex flex-col items-center gap-2 py-4">
                       <p>Nessun sistema corrisponde alla ricerca.</p>
