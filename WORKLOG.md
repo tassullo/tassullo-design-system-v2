@@ -12225,3 +12225,11 @@ Le misure della Tavolozza (ΔE 11,0 / 8,5, 1,91 e 2,85:1, Okabe-Ito 0,1, Tol 2,9
 2. **`tags: ['autodocs']` è acceso su 3 file soli** (`calendario`, `data-grid`, `data-table`). Sulle altre primitive il JSDoc del meta — dove il canone mette «cos'è, quando, `add`» — non ha una pagina Docs su cui comparire: sta nel bundle, ed è per questo che il `grep` di M5.0e lo troverebbe, ma un visitatore non lo legge. Da decidere aprendo M5.0b; se si accende in `preview.tsx`, va provato che `test:a11y` resti a 1540.
 
 **Prossimi passi**: **M5.0b**.
+
+### Coda di M5.0a — `autodocs` per tutti
+
+Su indicazione di Francesco, il secondo rilievo è chiuso subito: `tags: ['autodocs']` in `.storybook/preview.tsx`, a livello globale, con un commento che dice perché e come si esclude una story (`'!autodocs'`). Le tre story di `calendario` che lo escludevano già restano escluse; i tre `tags: ['autodocs']` rimasti sui meta di `calendario`, `data-grid` e `data-table` ora sono ridondanti e innocui — si tolgono in M5.0d, che quei file li riscrive.
+
+**Misure.** `build-storybook` verde, `index.json` con **90 voci Docs** (89 componenti più `Introduzione`) e **385 story**, lo stesso numero di prima. **`test:a11y` 1540 scansioni su 385 story, 0 violazioni** in tutte e quattro le passate: le pagine Docs non sono story, e l'addon non le scansiona. Aperte nel pannello `Primitive/Dropdown Menu` e `Tema/Palette`: il JSDoc del meta in testa, sotto le scene; le story coi popup restano chiuse nella pagina Docs.
+
+**Conseguenza per M5.0b–e, ed è il motivo per cui conviene averlo fatto prima**: da adesso il JSDoc del meta **è** la pagina che un visitatore apre per prima su ogni componente, e oggi su 79 file è ancora il diario. Il testo da riscrivere si legge nel posto in cui verrà letto, non immaginandolo.
