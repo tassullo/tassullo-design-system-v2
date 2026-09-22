@@ -142,8 +142,6 @@ export type ColonnaFoglio<TTestata, TRiga> = {
   /** Classe di larghezza sul `<col>`; senza, la colonna assorbe lo spazio. */
   larghezza?: string
   allineamento?: "sinistra" | "destra"
-  /** Resta in campo quando il foglio scorre in orizzontale. */
-  ancorata?: boolean
   testata?: CellaScrivibile<TTestata> | CellaCalcolata<TTestata> | CellaFissa
   corpo?: CellaScrivibile<TRiga> | CellaCalcolata<TRiga> | CellaFissa
   piede?:
@@ -207,7 +205,7 @@ export type MotoreFoglioGruppi<TTestata, TRiga> = {
   errore: string | undefined
   aFuoco: (p: PosizioneFoglio) => boolean
   vaiA: (p: PosizioneFoglio) => void
-  muovi: (dy: number, dx: number) => void
+  muovi: (dy: number, dx: number) => PosizioneFoglio | null
   apriModifica: (p?: PosizioneFoglio, valoreIniziale?: string) => void
   aggiornaBozza: (v: string) => void
   confermaModifica: () => boolean
@@ -333,21 +331,28 @@ export function useFoglioGruppi<TTestata, TRiga>({
    * data. Verticale = stessa colonna, riga visiva successiva, attraverso zone e
    * gruppi. Orizzontale = stessa riga visiva, colonna successiva.
    */
-  const muovi = (dy: number, dx: number) => {
-    if (!posizione) return
+  const muovi = (dy: number, dx: number): PosizioneFoglio | null => {
+    if (!posizione) return null
     const y0 = indiceVisivo(posizione)
-    if (y0 < 0) return
+    if (y0 < 0) return null
     if (dy !== 0) {
       for (let y = y0 + dy; y >= 0 && y < matrice.length; y += dy) {
         const trovata = matrice[y]![posizione.colonna]
-        if (trovata) return vaiA(trovata)
+        if (trovata) {
+          vaiA(trovata)
+          return trovata
+        }
       }
-      return
+      return null
     }
     for (let x = posizione.colonna + dx; x >= 0 && x < colonne.length; x += dx) {
       const trovata = matrice[y0]![x]
-      if (trovata) return vaiA(trovata)
+      if (trovata) {
+        vaiA(trovata)
+        return trovata
+      }
     }
+    return null
   }
 
   const apriModifica = (p: PosizioneFoglio | undefined = posizione ?? undefined, valoreIniziale?: string) => {
@@ -395,14 +400,70 @@ export function useFoglioGruppi<TTestata, TRiga>({
         annullaModifica()
         return
       }
+      /**
+       * **Chi si sposta mentre scrive arriva pronto a scrivere.** Uscire da
+       * una modifica per doverne aprire un'altra a mano raddoppierebbe i gesti
+       * proprio nel caso che conta — compilare una colonna di misure dall'alto
+       * in basso — e il Computo di Studio non lo chiede: lì le celle sono
+       * campi sempre attivi, quindi scendere **è** trovarsi nel campo sotto.
+       * Si riapre solo se ci si stava già scrivendo: chi naviga a celle chiuse
+       * resta a celle chiuse.
+       */
+      const spostaERiapri = (dy: number, dx: number) => {
+        if (!confermaModifica()) return
+        const arrivo = muovi(dy, dx)
+        if (arrivo) apriModifica(arrivo)
+      }
       if (evento.key === "Enter") {
         evento.preventDefault()
-        if (confermaModifica()) muovi(1, 0)
+        spostaERiapri(1, 0)
         return
       }
       if (evento.key === "Tab") {
         evento.preventDefault()
-        if (confermaModifica()) muovi(0, evento.shiftKey ? -1 : 1)
+        spostaERiapri(0, evento.shiftKey ? -1 : 1)
+        return
+      }
+      /**
+       * **Le frecce navigano anche mentre si scrive**, ed è obbligatorio: da
+       * quando un clic solo apre la modifica, su una cella **si è quasi sempre
+       * dentro un campo di testo** — e lì una freccia muoverebbe il cursore
+       * invece del fuoco.
+       *
+       * Verticali sempre: in un campo a riga sola `↑`/`↓` non hanno niente da
+       * fare.
+       *
+       * **Orizzontali quando il cursore è già al bordo.** La prima stesura le
+       * riservava al testo e mandava a `Tab` chi voleva spostarsi di lato:
+       * *«riesco a spostarmi solo con le frecce su/giù e non destra/sinistra»*,
+       * e aveva ragione — in un computo i valori sono numeri corti, si
+       * riscrivono invece di correggerli a metà, quindi la freccia che «serve
+       * al testo» serve al testo quasi mai. Con la condizione sul bordo non si
+       * perde niente: dentro una parola `←`/`→` muovono il cursore, arrivati
+       * in fondo passano alla cella accanto. È come si comporta un campo in
+       * una griglia, e non richiede di sapere una scorciatoia in più.
+       */
+      if (evento.key === "ArrowDown" || evento.key === "ArrowUp") {
+        evento.preventDefault()
+        spostaERiapri(evento.key === "ArrowDown" ? 1 : -1, 0)
+        return
+      }
+      if (evento.key === "ArrowLeft" || evento.key === "ArrowRight") {
+        const campo = evento.currentTarget as HTMLInputElement
+        const inizio = campo.selectionStart ?? 0
+        const fine = campo.selectionEnd ?? 0
+        const tuttoSelezionato = inizio === 0 && fine === campo.value.length
+        const alBordo =
+          evento.key === "ArrowLeft"
+            ? inizio === 0 && fine === 0
+            : inizio === campo.value.length && fine === campo.value.length
+        // Un campo appena aperto ha il testo tutto selezionato: lì la freccia
+        // deve spostarsi, non collassare la selezione su un capo — o il primo
+        // `→` dopo un clic non farebbe niente di visibile.
+        if (alBordo || tuttoSelezionato) {
+          evento.preventDefault()
+          spostaERiapri(0, evento.key === "ArrowRight" ? 1 : -1)
+        }
         return
       }
       return
@@ -469,13 +530,40 @@ const classiAllineamento = (col: { allineamento?: "sinistra" | "destra" }) =>
   col.allineamento === "destra" ? "text-right tabular-nums" : "text-left"
 
 /**
- * Le colonne `ancorata` restano in campo quando il foglio scorre: sono le
- * colonne del risultato, che a 951px di viewport nel Computo di Studio
- * finivano **fuori campo** insieme ad altri 247px (misurato il 2026-09-21).
- * Un totale che si vede solo scorrendo è un totale che non si legge.
+ * L'altezza di **una riga**, uguale per le celle e per il bottone della riga
+ * azioni. Senza, il «+ misurazione» è più basso delle misure — il bottone è
+ * `text-sm`, le celle no — e il passo del foglio si spezza proprio dove
+ * l'occhio scende (rilievo di Francesco, 2026-09-22). Sta su `--spacing`,
+ * quindi segue la densità: **32px** in normale, **48** in touch.
  */
-const classiAncoraggio = (col: { ancorata?: boolean }) =>
-  col.ancorata ? "sticky right-0 bg-background" : undefined
+const RIGA = "flex min-h-8 items-center"
+
+/*
+ * ── Perché non c'è un ancoraggio delle colonne ──────────────────────────
+ *
+ * C'era: `ancorata` metteva `sticky right-0 bg-background` sulle colonne del
+ * risultato, perché nel Computo di Studio a 951px finivano fuori campo. È
+ * stata **tolta**, per due misure che insieme non lasciano scampo.
+ *
+ * **Non era mai esercitata**: misurato da 1440 a 600px, questo foglio non
+ * scorre **mai** — `table-fixed` comprime la colonna elastica invece di
+ * spingere le altre fuori — quindi non c'è nessuno scorrimento da cui
+ * ancorarsi.
+ *
+ * **E faceva un danno vero**: `bg-background` è il fondo della **pagina**, e
+ * la superficie può essere `card` o `sidebar` (la style guide le commuta su
+ * `body[data-superficie]`, e il tema le definisce come `--card`/`--sidebar`).
+ * Su due superfici su tre le tre colonne del risultato restavano di un fondo
+ * diverso da tutto il resto — rilievo di Francesco a video, in modalità Card.
+ * Un fondo opaco **serve** a una colonna ancorata, o si legge il contenuto che
+ * le scorre sotto: il difetto non era la classe sbagliata, era che
+ * l'ancoraggio ha bisogno di sapere su che superficie poggia, e una classe
+ * fissa non può saperlo.
+ *
+ * Se un giorno il foglio dovrà scorrere davvero, la via è `bg-inherit` sulla
+ * cella — che prende il fondo della riga qualunque sia la superficie — e va
+ * **misurata su tutte e tre**, non dedotta.
+ */
 
 function CellaFoglio<TTestata, TRiga>({
   motore,
@@ -509,11 +597,11 @@ function CellaFoglio<TTestata, TRiga>({
     if (aFuoco && !inModifica) riferimento.current?.focus()
   }, [aFuoco, inModifica])
 
-  if (!cella) return <TableCell className={cn(classiAncoraggio(colonna))} />
+  if (!cella) return <TableCell />
 
   if (cella.tipo === "fissa") {
     return (
-      <TableCell className={cn("truncate", classiAllineamento(colonna), classiAncoraggio(colonna))}>
+      <TableCell className={cn("truncate", classiAllineamento(colonna))}>
         {cella.rendi()}
       </TableCell>
     )
@@ -521,7 +609,7 @@ function CellaFoglio<TTestata, TRiga>({
 
   if (cella.tipo === "calcolata") {
     return (
-      <TableCell className={cn("truncate", classiAllineamento(colonna), classiAncoraggio(colonna))}>
+      <TableCell className={cn("truncate", classiAllineamento(colonna))}>
         {(cella.rendi as (d: unknown, a: unknown) => React.ReactNode)(dato, extra)}
       </TableCell>
     )
@@ -532,7 +620,7 @@ function CellaFoglio<TTestata, TRiga>({
   if (inModifica) {
     const errore = motore.errore
     return (
-      <TableCell className={cn("p-0", classiAncoraggio(colonna))}>
+      <TableCell className="p-0">
         <input
           autoFocus
           className={cn(
@@ -560,7 +648,7 @@ function CellaFoglio<TTestata, TRiga>({
   }
 
   return (
-    <TableCell className={cn("p-0", classiAncoraggio(colonna))}>
+    <TableCell className="p-0">
       <div
         ref={riferimento}
         // Fuoco mobile (roving tabindex): una sola cella tabbabile per volta,
@@ -576,6 +664,8 @@ function CellaFoglio<TTestata, TRiga>({
           // sborda è la designazione, cioè la colonna elastica. Meglio i
           // puntini: il testo intero resta leggibile aprendo la modifica.
           "cursor-text truncate px-2 py-1 outline-none",
+          RIGA,
+          colonna.allineamento === "destra" && "justify-end",
           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
           classiAllineamento(colonna),
           !valore && "text-muted-foreground"
@@ -725,7 +815,14 @@ export function FoglioGruppi<TTestata, TRiga>({
         // riga. Rilievo di Francesco il 2026-09-21, e la stessa ragione per cui
         // ogni foglio di calcolo li ha: qui non sono una prop, sono la forma
         // del blocco.
-        className="table-fixed border border-border [&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
+        // `min-w-4xl` (896px) è la soglia sotto la quale il foglio **scorre**
+        // invece di comprimersi. Senza, `table-fixed` stringe la colonna
+        // elastica fino a zero e oltre: misurato, a finestra stretta
+        // «Designazione dei lavori» e «Par.ug.» finivano **scritte una sopra
+        // l'altra** e la designazione si riduceva a «RAS…» — rilievo di
+        // Francesco, 2026-09-22. Una tabella che si comprime senza limite non
+        // degrada, si rompe; il contenitore ha `overflow-x-auto` apposta.
+        className="table-fixed min-w-4xl border border-border [&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
       >
         <colgroup>
           {colonne.map((col) => (
@@ -735,10 +832,7 @@ export function FoglioGruppi<TTestata, TRiga>({
         <TableHeader>
           <TableRow>
             {colonne.map((col) => (
-              <TableHead
-                key={col.id}
-                className={cn(classiAllineamento(col), classiAncoraggio(col))}
-              >
+              <TableHead key={col.id} className={cn("truncate", classiAllineamento(col))}>
                 {col.titolo}
               </TableHead>
             ))}
@@ -761,7 +855,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                   }
                   if (ci === 0 && comandiGruppo.length > 0) {
                     return (
-                      <TableCell key={col.id} className={cn(classiAncoraggio(col))}>
+                      <TableCell key={col.id}>
                         <ComandiGruppo
                           comandi={comandiGruppo}
                           etichetta={`Azioni del gruppo ${gi + 1}`}
@@ -825,6 +919,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                           tabIndex={aFuocoAzione ? 0 : -1}
                           disabled={comando.disabilitato}
                           className={cn(
+                            RIGA,
                             "px-2 py-1 text-sm text-accent-ink underline-offset-4 outline-none",
                             "hover:underline",
                             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"

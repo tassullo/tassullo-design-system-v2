@@ -11282,3 +11282,83 @@ più, e `tassullo-responsive-dialog` dà il contenitore. Va aperto come task a s
   gruppo dopo.
 - `registry.json` **95 item**, `componenti-propri.json` **1**, lint **26
   avvisi** preesistenti.
+
+### Coda M4ter.12 — sei rilievi a video, e due erano miei difetti nuovi (2026-09-22)
+
+Revisione a video con Francesco sulla story viva. Sei rilievi, tutti chiusi.
+
+**(a) I colori delle colonne ancorate in modalità Card.** `ancorata` metteva
+`sticky right-0 bg-background` sulle colonne del risultato, e `--background` è
+il fondo della **pagina**: la style guide commuta la superficie su
+`body[data-superficie]` e il tema la definisce `--card`/`--sidebar`, quindi su
+**due superfici su tre** le tre colonne restavano di un fondo diverso da tutto
+il resto. **La prop è stata tolta, non riparata**, per due misure che insieme
+non lasciavano scampo: non era **mai esercitata** (il foglio non scorreva mai) e
+il suo unico effetto osservabile era il difetto. Il difetto non era la classe
+sbagliata — era che un ancoraggio ha bisogno di sapere su che superficie
+poggia, e una classe fissa non può saperlo. Se servirà, la via è `bg-inherit` e
+**va misurata su tutte e tre**, non dedotta.
+
+**(b) «Con le frecce non riesco a spostarmi», e (f) solo su/giù.** Difetto mio,
+figlio della correzione precedente: da quando **un clic solo apre la modifica**,
+su una cella si è quasi sempre **dentro un campo di testo**, e lì le frecce
+muovono il cursore invece del fuoco. Il foglio rispondeva alle frecce solo nei
+pochi istanti in cui nessuna cella era aperta. Ora le frecce navigano **anche in
+modifica**: le verticali sempre; le orizzontali **quando il cursore è già al
+bordo** del testo (o tutto selezionato, che è lo stato di una cella appena
+aperta). La prima stesura le riservava al testo e mandava a `Tab` chi voleva
+spostarsi di lato — sbagliato, perché in un computo i valori sono numeri corti
+che si riscrivono invece di correggerli a metà. Misurato in Chromium vero:
+`→ → ` sposta di due colonne, `←` dal bordo destro rientra nel testo
+(cursore 3 → 2 → 0) e al terzo passa alla cella accanto.
+
+E con esse **la continuità del gesto**: chi si sposta mentre scrive arriva
+**pronto a scrivere**. Uscire da una modifica per doverne aprire un'altra
+raddoppierebbe i gesti nel caso che conta — compilare una colonna di misure
+dall'alto in basso — e il Computo di Studio non lo chiede, perché lì le celle
+sono campi sempre attivi. Chi naviga a celle chiuse resta a celle chiuse.
+
+**(c) Righe di misura alte come la riga «+ misurazione».** Il bottone è
+`text-sm` e le celle no: il passo del foglio si spezzava proprio dove l'occhio
+scende. Una costante sola, `RIGA = "flex min-h-8 items-center"`, su celle e
+bottone. Sta su `--spacing`, quindi segue la densità: 32px normale, 48 touch.
+
+**(d) Sovrapposizione stringendo la finestra.** Il difetto peggiore della
+tornata: `table-fixed` comprimeva la colonna elastica **senza limite**, e a
+finestra stretta «Designazione dei lavori» e «Par.ug.» finivano **scritte una
+sopra l'altra**, con la designazione ridotta a «RAS…». Due correzioni: `truncate`
+anche sulle **intestazioni** (l'avevo messo solo sulle celle) e **`min-w-4xl`**
+sulla tabella — sotto gli 896px il foglio **scorre** invece di comprimersi.
+Rimisurato da 1440 a 600px: **0 celle sbordate a ogni larghezza**, nessuna
+sovrapposizione. Una tabella che si comprime senza limite non degrada, si rompe.
+
+**(e) Il degrado stretto, e la strada l'ha indicata Francesco**: *«es. avevamo
+creato lista a due facce»*. È il pattern che c'è già — `use-soglia` e la ricetta
+di M4ter.6 — applicato al foglio, e non un meccanismo nuovo. Story `Due facce`:
+sopra soglia il foglio, sotto una **scheda per voce** con le misure come blocchi
+di campi. **La soglia la dichiara la pagina**, non il blocco: qui 896px, cioè la
+larghezza sotto la quale il foglio comincia a scorrere — e scorrere di lato su
+un telefono è esattamente ciò che la faccia stretta esiste per evitare.
+
+**E il rilievo che ha salvato la faccia stretta**: *«così non è però
+modificabile»*. La prima stesura mostrava i valori in **sola lettura**. Un
+computo che sul telefono si può solo leggere non è la faccia stretta del
+computo, è un suo estratto. Ora i campi scrivono davvero, col «+ misurazione»
+come bottone. Sulla faccia stretta **non** c'è il motore di navigazione, ed è
+giusto: su un telefono non ci sono le frecce, c'è il dito e il `Tab` della
+tastiera a schermo — i campi sono campi.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
+- `misura:bersagli` — **0 piccoli** in entrambe le direzioni.
+- Larghezze da 1440 a 600px: **0 celle sbordate**, nessuna sovrapposizione.
+- Frecce dentro una cella aperta, misurate in Chromium vero (sopra).
+- `registry.json` **95 item**, `componenti-propri.json` **1**, lint **26
+  avvisi** preesistenti.
+
+**Nota per chi guarda le story**: `Due facce` dipende da `useSoglia`, che legge
+la **finestra**. L'interruttore Viewport di Storybook ridimensiona l'iframe
+nella cornice del manager, non la finestra (`docs/DECISIONI.md` §46): si guarda
+**restringendo la finestra del browser**, e nel gate rende sempre il ramo largo.

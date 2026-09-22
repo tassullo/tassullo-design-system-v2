@@ -8,7 +8,11 @@ import {
   type ColonnaFoglio,
   type GruppoFoglio,
 } from '@/registry/tassullo/blocks/foglio-gruppi'
+import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
 import { decimale, valuta } from '@/registry/tassullo/lib/numeri'
+import { Button } from '@/registry/tassullo/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
+import { Input } from '@/registry/tassullo/ui/input'
 import { TableCell } from '@/registry/tassullo/ui/table'
 
 /**
@@ -130,7 +134,6 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
     titolo: 'Quantità',
     larghezza: 'w-28',
     allineamento: 'destra',
-    ancorata: true,
     corpo: { tipo: 'calcolata', rendi: (m) => decimale(parziale(m)) },
     piede: {
       tipo: 'calcolata',
@@ -142,7 +145,6 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
     titolo: 'Prezzo unit.',
     larghezza: 'w-28',
     allineamento: 'destra',
-    ancorata: true,
     piede: {
       tipo: 'scrivibile',
       leggi: (v) => v.prezzo,
@@ -157,7 +159,6 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
     titolo: 'Importo',
     larghezza: 'w-32',
     allineamento: 'destra',
-    ancorata: true,
     piede: {
       tipo: 'calcolata',
       rendi: (voce: Voce, righe: Misurazione[]) => {
@@ -342,4 +343,196 @@ export const Validazione: Story = {
 export const Comandi: Story = {
   render: () => <ComputoFoglio />,
   play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * La faccia stretta
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Un campo della scheda: etichetta sopra, valore sotto, e **scrive davvero**.
+ * Sulla faccia stretta non c'è il motore di navigazione — su un telefono le
+ * frecce non esistono, c'è il dito e il `Tab` della tastiera a schermo — ma i
+ * campi sono gli stessi dati, e vanno modificabili: *«così non è però
+ * modificabile»*, rilievo di Francesco sulla prima stesura, che era in sola
+ * lettura. Un computo che sul telefono si può solo **leggere** non è la faccia
+ * stretta del computo: è un suo estratto.
+ */
+function CampoScheda({
+  etichetta,
+  valore,
+  onScrivi,
+  larghezza = 'pieno',
+}: {
+  etichetta: string
+  valore: string
+  onScrivi: (v: string) => void
+  larghezza?: 'pieno' | 'stretto'
+}) {
+  return (
+    <label className={larghezza === 'stretto' ? 'flex flex-col gap-1' : 'flex flex-1 flex-col gap-1'}>
+      <span className="text-sm text-muted-foreground">{etichetta}</span>
+      <Input
+        value={valore}
+        inputMode={larghezza === 'stretto' ? 'decimal' : undefined}
+        className={larghezza === 'stretto' ? 'w-20 text-right tabular-nums' : undefined}
+        onChange={(e) => onScrivi(e.target.value)}
+      />
+    </label>
+  )
+}
+
+/**
+ * La faccia stretta del computo: una **scheda per voce**, le misure come
+ * blocchi di campi, il SOMMANO in fondo. Non è un foglio rimpicciolito — nove
+ * colonne su un telefono non ci stanno, e comprimerle è ciò che rompeva la
+ * testata prima di `min-w-4xl`.
+ */
+function SchedeComputo({
+  gruppi,
+  scrivi,
+}: {
+  gruppi: GruppoFoglio<Voce, Misurazione>[]
+  scrivi: (g: GruppoFoglio<Voce, Misurazione>[]) => void
+}) {
+  const aggiornaVoce = (gi: number, patch: Partial<Voce>) =>
+    scrivi(gruppi.map((g, i) => (i === gi ? { ...g, testata: { ...g.testata, ...patch } } : g)))
+
+  const aggiornaMisura = (gi: number, mi: number, patch: Partial<Misurazione>) =>
+    scrivi(
+      gruppi.map((g, i) =>
+        i === gi
+          ? { ...g, righe: g.righe.map((m, j) => (j === mi ? { ...m, ...patch } : m)) }
+          : g
+      )
+    )
+
+  return (
+    <div className="flex flex-col gap-4">
+      {gruppi.map((gruppo, gi) => (
+        <Card key={gruppo.id}>
+          <CardHeader>
+            <CardTitle className="sr-only">
+              {gruppo.testata.designazione || 'Voce senza descrizione'}
+            </CardTitle>
+            <CampoScheda
+              etichetta="Designazione dei lavori"
+              valore={gruppo.testata.designazione}
+              onScrivi={(v) => aggiornaVoce(gi, { designazione: v })}
+            />
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {gruppo.righe.map((m, mi) => (
+              <div key={mi} className="flex flex-col gap-2 border-b pb-4">
+                <CampoScheda
+                  etichetta="Misura"
+                  valore={m.descrizione}
+                  onScrivi={(v) => aggiornaMisura(gi, mi, { descrizione: v })}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <CampoScheda etichetta="Par.ug." larghezza="stretto" valore={m.parti}
+                    onScrivi={(v) => aggiornaMisura(gi, mi, { parti: v })} />
+                  <CampoScheda etichetta="Lung." larghezza="stretto" valore={m.lunghezza}
+                    onScrivi={(v) => aggiornaMisura(gi, mi, { lunghezza: v })} />
+                  <CampoScheda etichetta="Larg." larghezza="stretto" valore={m.larghezza}
+                    onScrivi={(v) => aggiornaMisura(gi, mi, { larghezza: v })} />
+                  <CampoScheda etichetta="H/Peso" larghezza="stretto" valore={m.altezza}
+                    onScrivi={(v) => aggiornaMisura(gi, mi, { altezza: v })} />
+                </div>
+                <p className="text-right text-sm text-muted-foreground">
+                  Parziale <strong className="tabular-nums">{decimale(parziale(m))}</strong>
+                </p>
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() =>
+                scrivi(
+                  gruppi.map((g, i) =>
+                    i === gi
+                      ? { ...g, righe: [...g.righe, { descrizione: '', parti: '1', lunghezza: '', larghezza: '', altezza: '' }] }
+                      : g
+                  )
+                )
+              }
+            >
+              + misurazione
+            </Button>
+
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground">Sommano</p>
+                <p className="tabular-nums">
+                  {decimale(sommano(gruppo.righe))} {gruppo.testata.unita}
+                </p>
+              </div>
+              <CampoScheda
+                etichetta="Prezzo unit."
+                larghezza="stretto"
+                valore={gruppo.testata.prezzo}
+                onScrivi={(v) => aggiornaVoce(gi, { prezzo: v })}
+              />
+            </div>
+            <p className="flex justify-between border-t pt-2 font-semibold">
+              <span>Importo</span>
+              <span className="tabular-nums">
+                {(() => {
+                  const i = importo(gruppo.testata, gruppo.righe)
+                  return i == null ? '—' : valuta(i)
+                })()}
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
+function ComputoADueFacce() {
+  // **La soglia la dichiara la pagina, non il blocco** — è la regola di
+  // `use-soglia` (M4ter.6): quante colonne ha quel foglio lo sa solo chi lo
+  // scrive. Qui 896px, perché è la larghezza sotto la quale il foglio comincia
+  // a scorrere (`min-w-4xl`): scorrere orizzontalmente su un telefono è
+  // esattamente ciò che la faccia stretta esiste per evitare.
+  const largo = useSoglia('(min-width: 896px)')
+  const motore = useFoglioGruppi<Voce, Misurazione>({
+    gruppiIniziali: COMPUTO,
+    colonne: COLONNE,
+    conRigaAzioni: true,
+  })
+  return largo ? (
+    <ComputoFoglio />
+  ) : (
+    <SchedeComputo gruppi={motore.gruppi} scrivi={motore.scriviGruppi} />
+  )
+}
+
+/**
+ * **Come degrada quando la finestra si stringe** — richiesta di Francesco, che
+ * ha indicato la strada giusta: *«es. avevamo creato lista a due facce»*. È lo
+ * stesso bivio di `Pagine/Lista a due facce` (M4ter.6), applicato al foglio.
+ *
+ * Sopra soglia il **foglio**, sotto le **schede**: una per voce, le misure come
+ * blocchi di campi, il SOMMANO in fondo. **E si scrive**: la prima stesura
+ * mostrava i valori in sola lettura, e un computo che sul telefono si può solo
+ * leggere non è la faccia stretta del computo, è un suo estratto. La faccia stretta non è il foglio
+ * rimpicciolito — nove colonne su un telefono non ci stanno, e comprimerle è
+ * precisamente ciò che rompeva la testata (misurato: «Designazione dei lavori»
+ * e «Par.ug.» scritte una sopra l'altra).
+ *
+ * **Avvertenza sulla misura, e non è un dettaglio**: `useSoglia` legge la
+ * **finestra**, e l'interruttore Viewport di Storybook ridimensiona l'iframe
+ * nella cornice del manager — nel canvas aperto per URL `window.innerWidth`
+ * resta quello della finestra vera (`docs/DECISIONI.md` §46). Questa story si
+ * guarda quindi **restringendo la finestra del browser**, non col Viewport, e
+ * nel gate rende sempre il ramo largo.
+ */
+export const DueFacce: Story = {
+  name: 'Due facce',
+  render: () => <ComputoADueFacce />,
 }
