@@ -726,15 +726,32 @@ Il resto delle misure, in breve (i numeri e i `file:riga` in §50):
   `←`/`→`, niente passaggio fra voci. La navigazione fra i livelli che si stava per
   costruire **non esiste nell'app che la chiederebbe**.
 
-**Verdetto proposto, in attesa di Francesco: la (1), e non adesso.** La matrice delle
-misurazioni è omogenea — 5 colonne, ~576 righe a 144×4 — e `Blocchi/Data Grid → Computo`
-già regge 500 righe virtualizzate con 20 montate: tastiera, incolla, riempimento e
-annulla/ripeti funzionerebbero tutti, cioè **più** di quel che l'app ha oggi. La forma
-piatta esiste già come story, `Blocchi/Data Table → Con Piede` — **nessuna story nuova da
-scrivere**. Ciò che resta fuori dalla matrice sono i campi di *voce* (descrizione, u.m.,
-prezzo) e il «SOMMANO» per voce, che vanno in una testata di gruppo o in una scheda
-accanto: **è un cambio di forma del computo, e lo decide chi lo usa.** Per questo il
-Computo resta sul v1 e si riapre quando Studio decide di migrarlo.
+**Esito, 2026-09-22: nessuna delle tre come erano scritte — si è fatta la (3), e
+subito.** Il verdetto della mattina era «la (1), e non adesso»; l'ha ribaltato la
+misura della tastiera sull'app viva, che ha mostrato due cose. La prima: il
+rettangolo è un problema **piccolo**, perché nel Computo vero le colonne si
+spartiscono per tipo di riga (`colSpan=4` sul SOMMANO) invece di sovrapporsi come
+nella story `Albero` da cui avevo generalizzato. La seconda, decisiva: «l'app non
+ha la tastiera fra i livelli» **non** voleva dire che non servisse — 21 `Tab` per
+entrare, SOMMANO e **prezzo irraggiungibili** con le frecce, e fra due misure il
+bottone **✕ Rimuovi**. La navigazione fra i livelli era ciò che *mancava*.
+
+Il blocco è **`tassullo-foglio-gruppi`** (M4ter.12, approvato da Francesco):
+una sequenza di gruppi con testata, corpo omogeneo e piede, dove la navigazione
+costruisce una **matrice di celle visive** e le frecce saltano i buchi — quindi
+attraversano zone e gruppi. `Tab` passa da **24 fermate a 1**; i comandi stanno
+su `Shift+F10`, fuori dall'ordine di `Tab`. La faccia stretta è un bivio
+`use-soglia` con una **scheda per voce** e la modifica in un cassetto dal basso.
+Misure e verbale: `docs/DECISIONI.md` §50 e il suo esito.
+
+**Il Computo può quindi migrare**, e `GUIDA-MIGRAZIONE.md` (M5.5) lo nomina fra
+le pagine che hanno un blocco pronto, non più fra quelle che restano sul v1.
+Restano fuori due cose, entrambe scritte: il **picker d'inserimento voci**
+(`SistemaPickerModal`), da valutare ai gradini 1–3 in una sessione sua; e
+**copia/incolla, riempimento e annulla/ripeti**, che sono le operazioni a
+rettangolo di `data-grid` e su colonne spartite per zona non hanno significato —
+un incolla *dentro un gruppo*, sulle sole colonne del corpo, resta possibile e
+non è stato scritto perché nessuno l'ha chiesto.
 
 ### 8.4 Una cosa che le tre pagine hanno in comune, e che la guida deve dire
 
