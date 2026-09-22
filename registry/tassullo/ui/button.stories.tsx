@@ -5,23 +5,34 @@ import { Button } from '@/registry/tassullo/ui/button'
 import { Spinner } from '@/registry/tassullo/ui/spinner'
 
 /**
- * Il bottone, ri-stilato in M2.1 sopra il preset `base-nova`. Quattro rilievi
- * chiusi qui, tutti misurati e non stimati:
+ * Il bottone: fa succedere qualcosa quando lo si preme — salvare, aprire,
+ * confermare, eliminare.
  *
- * · `link` usava `text-primary` — l'arancio del brand come colore di testo,
- *   1.79:1 in chiaro. È la trappola che il CLAUDE.md mette per iscritto, e ci
- *   era cascato il preset ufficiale. Ora `text-accent-ink`, che è arancione
- *   leggibile in ENTRAMBE le modalità con una classe sola.
- * · `destructive` era tenue (`bg-destructive/10 text-destructive`): 3.82:1 in
- *   chiaro e 3.57:1 in scuro, sotto soglia in tutte e due. Ora è il rosso
- *   pieno del v1.
- * · il raggio era `rounded-lg`, cioè 10px: i bottoni del v1 sono a 6px.
- * · `xs` e `sm` avevano valori arbitrari, e `text-[0.8rem]` stando fuori dai
- *   token non seguiva nemmeno la densità — restava 12,8px anche in touch.
+ * **Quando sì, quando no.** Per un'azione. Se l'elemento porta a un'altra
+ * pagina ma deve avere l'aspetto di un bottone, si usa `render` con un link o
+ * la variante `link`; se si sceglie fra alternative che restano premute, è
+ * `toggle` o `toggle-group`. Più azioni imparentate vanno in un
+ * `button-group`.
  *
- * Ogni story va guardata nelle QUATTRO combinazioni della barra: modalità ×
- * densità. Una misura fatta in una sola modalità non è una misura — `link`
- * lo dimostra, perché in scuro dava 9.49:1 e sembrava a posto.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/button
+ * ```
+ *
+ * **Varianti.** `variant`: `default` (l'azione principale, sul colore del
+ * brand), `secondary`, `outline`, `ghost`, `destructive`, `link`.
+ *
+ * **Taglie.** `size`: `xs`, `sm`, `default`, `lg` per i bottoni con testo;
+ * `icon-xs`, `icon-sm`, `icon`, `icon-lg` per quelli quadrati di sola icona.
+ * Seguono la densità: il `default` è alto 32px in normale e 48px in touch.
+ *
+ * **Regole d'uso.** Un'azione `default` per zona dello schermo; le altre si
+ * abbassano a `secondary`, `outline` o `ghost`. `destructive` solo per ciò che
+ * non si recupera. Il caricamento non è un prop: si mette uno `Spinner` dentro
+ * il bottone e lo si disabilita. Un bottone di sola icona vuole `aria-label`.
+ *
+ * **Tastiera e accessibilità.** Si raggiunge con `Tab`, si preme con `Invio` o
+ * `Spazio`, e il fuoco da tastiera si vede come un anello attorno al bottone.
+ * Tutte le varianti leggono sopra la soglia di contrasto in chiaro e in scuro.
  */
 const meta = {
   title: 'Primitive/Button',
@@ -59,9 +70,8 @@ export const Varianti: Story = {
 }
 
 /**
- * Le quattro taglie testuali. È qui che si legge a colpo d'occhio l'effetto
- * dell'interruttore di densità: `default` passa da 32 a 48px, e da M2.1 anche
- * il testo scatta di un gradino su tutte e quattro — prima `sm` restava fermo.
+ * Le quattro taglie con testo. Commutando la densità in barra si vede il
+ * `default` passare da 32 a 48px, e il testo crescere di un gradino.
  */
 export const Taglie: Story = {
   render: (args) => (
@@ -74,7 +84,9 @@ export const Taglie: Story = {
   ),
 }
 
-/** Le taglie quadrate. L'icona dentro non porta testo: serve `aria-label`. */
+/**
+ * Le taglie quadrate, di sola icona: ciascuna ha la sua `aria-label`.
+ */
 export const TaglieIcona: Story = {
   render: (args) => (
     <div className="flex flex-wrap items-center gap-3">
@@ -86,7 +98,10 @@ export const TaglieIcona: Story = {
   ),
 }
 
-/** Icona e testo insieme: il bottone stringe il padding dal lato dell'icona. */
+/**
+ * Icona e testo insieme: il bottone stringe lo spazio interno dal lato
+ * dell'icona.
+ */
 export const ConIcona: Story = {
   render: (args) => (
     <div className="flex flex-wrap items-center gap-3">
@@ -98,15 +113,9 @@ export const ConIcona: Story = {
 }
 
 /**
- * I quattro stati che l'accettazione di M2.1 chiede. `hover` e `focus` non si
- * possono mettere in una story: si provano col mouse e col tasto Tab, ed è
- * quello il punto — il focus da tastiera dev'essere visibile, e lo è come
- * anello `ring-3` sul token `--ring`.
- *
- * Il **caricamento** non è un prop del bottone e non deve diventarlo: è la
- * composizione con `Spinner`, disabilitando il bottone. Aggiungere un prop
- * `loading` sarebbe una modifica di forma, cioè esattamente ciò che il gate
- * di aggiornabilità impedisce (regola 4bis).
+ * Gli stati: normale, disabilitato e in caricamento, che è uno `Spinner`
+ * dentro un bottone disabilitato. Il passaggio del mouse e il fuoco si provano
+ * col mouse e col tasto `Tab`: il fuoco si vede come un anello.
  */
 export const Stati: Story = {
   render: (args) => (
@@ -128,9 +137,8 @@ export const Stati: Story = {
 export const Disabilitato: Story = { args: { disabled: true } }
 
 /**
- * Tutte le varianti per tutte le taglie, in una griglia sola: è la vista da
- * tenere aperta mentre si gira l'interruttore di modalità e quello di
- * densità, e quella su cui si legge il pannello Accessibility.
+ * Tutte le varianti per tutte le taglie. È la vista da tenere aperta mentre si
+ * commutano modalità e densità.
  */
 export const Griglia: Story = {
   parameters: { layout: 'padded' },

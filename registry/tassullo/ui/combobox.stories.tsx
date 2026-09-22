@@ -30,92 +30,50 @@ import {
 } from '@/registry/tassullo/ui/combobox'
 
 /**
- * **Il combobox è la risposta al `<select>` nudo con centinaia di voci.** In
- * Anagrafe le famiglie e le norme si scelgono oggi così, e non reggono: si
- * scorre a occhio una lista che non si può filtrare. Qui si **scrive**, e la
- * lista si stringe mentre si scrive.
+ * Un campo in cui si scrive per trovare una voce in un elenco lungo, e la si
+ * sceglie: l'elenco si stringe a ogni lettera.
  *
- * La regola di scelta, in una riga: **fino a poche decine di voci `select`,
- * sopra `combobox`.** Il confine non è netto e non serve che lo sia; il
- * sintomo sì: se per trovare una voce bisogna scorrere, era un combobox.
+ * **Quando sì, quando no.** Il confine con `select` è la lunghezza
+ * dell'elenco: fino a poche decine di voci si usa `select`, sopra si usa il
+ * combobox. Il segno è uno solo: se per trovare una voce bisogna scorrere,
+ * serviva un combobox. Con `multiple` sceglie più voci, che diventano pillole
+ * nel campo. Una ricerca che non mette un valore in un modulo — una palette di
+ * comandi, un salto a una pagina — è `command`. Le pillole non sono `badge`:
+ * stanno dentro un campo e si tolgono.
  *
- * ## Nessun ri-stile: `combobox.tsx` è il preset intatto
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/combobox
+ * ```
  *
- * E vale la pena dire **cosa non è stato fatto**. Fino a poco fa shadcn non
- * aveva un `combobox`: lo si componeva a mano da `command` + `popover`, ed è
- * quello che dice ancora `PIANO.md`. Oggi è un item suo (`registry:ui`), fatto
- * su `Combobox` di Base UI — quindi la scala 4bis si ferma al **gradino 1**:
- * il default shadcn, così com'è. Nessun componente nostro, `componenti-propri.json`
- * resta vuoto.
+ * **Opzioni e parti.** `items` sulla radice è l'elenco; `ComboboxList` riceve
+ * una funzione che rende una voce alla volta, già filtrata. `autoHighlight`
+ * evidenzia la prima voce rimasta. `ComboboxInput` è il campo, con
+ * `showTrigger` (la freccia, accesa di base) e `showClear` (la crocetta che
+ * azzera). A più scelte: `multiple`, con `ComboboxChips`, `ComboboxChip` e
+ * `ComboboxChipsInput`. Per i gruppi: `ComboboxGroup`, `ComboboxLabel`,
+ * `ComboboxCollection`, `ComboboxSeparator`. `ComboboxEmpty` è ciò che si vede
+ * quando il filtro non trova niente.
  *
- * Lo stesso vale per il **multi-select** e il **tag-input** che il piano
- * elencava come voci a sé: sono lo stesso componente con `multiple`, e le
- * pillole sono `ComboboxChips` / `ComboboxChip`, che il preset porta già.
- * Due componenti in meno da mantenere.
+ * **Regole d'uso.**
  *
- * ## Il filtro non si scrive: lo fa Base UI
+ * - Il filtro non si scrive: lo fa il componente, senza badare a maiuscole e
+ *   accenti.
+ * - A più scelte il riquadro si ancora alle pillole, che crescono di riga in
+ *   riga: `const anchor = useComboboxAnchor()`, `ref={anchor}` su
+ *   `ComboboxChips`, `anchor={anchor}` su `ComboboxContent`. Senza, il
+ *   riquadro scivola sotto la pillola su cui si sta scrivendo.
+ * - Nei gruppi, ogni `ComboboxGroup` ha i suoi `items`, l'etichetta sta dentro
+ *   il gruppo e le voci dentro `ComboboxCollection`. Scritta diversamente,
+ *   l'etichetta finisce fra le voci filtrate.
+ * - In un modulo il combobox sta dentro un `Field`, come ogni campo.
  *
- * Si passa l'elenco a `items` sulla radice e si dà a `ComboboxList` una
- * **funzione** invece di figli: quella funzione riceve una voce alla volta,
- * **già filtrata**. Il confronto è insensibile alle maiuscole e agli accenti,
- * che in italiano non è un dettaglio.
- *
- * ## Da tastiera
- *
- * `Tab` porta sul campo, si scrive per filtrare, `↓`/`↑` scorrono le voci
- * rimaste, `Invio` sceglie, `Esc` chiude senza cambiare. Con `autoHighlight`
- * la prima voce è già evidenziata, quindi scrivere tre lettere e battere
- * `Invio` è tutto il percorso: è la ragione per cui una lista di 500 voci
- * resta usabile.
- *
- * A più scelte, in più: `Backspace` **a campo vuoto toglie l'ultima pillola**,
- * e le frecce `←`/`→` si spostano fra le pillole per toglierne una in mezzo.
- * Non c'è nulla da aggiungere perché funzioni.
- *
- * ## Due requisiti d'uso, che si sbagliano una volta sola se qui c'è scritto
- *
- * 1. **A più scelte serve l'`anchor`.** `ComboboxChips` è il contenitore delle
- *    pillole e cresce di riga in riga: se il riquadro non viene ancorato a
- *    quello — `const anchor = useComboboxAnchor()`, `ref` sulle pillole,
- *    `anchor` sul contenuto — il riquadro resta ancorato al campo interno e
- *    scivola sotto la pillola su cui si stava scrivendo.
- * 2. **Le voci raggruppate vogliono `ComboboxCollection` dentro il gruppo**, e
- *    `ComboboxGroup` vuole a sua volta i propri `items`. È la stessa forma del
- *    `SelectGroup` di M2.2 e della trappola di `DropdownMenuLabel` in M2.3:
- *    l'etichetta di gruppo sta **dentro** il gruppo, mai accanto.
- *
- * ## Due difetti del preset, noti e **lasciati com'erano** (decisione del 2026-09-09)
- *
- * Due bottoni di questo componente portano **solo l'icona e nessun nome
- * accessibile**: la freccia che apre l'elenco (`ComboboxTrigger`, montata da
- * `ComboboxInput`) e la crocetta di ogni pillola (`ComboboxChipRemove`). axe
- * li segna `button-name`, gravità *critical*; un lettore di schermo annuncia
- * «pulsante» e basta. Non sono difetti nostri — la pagina d'esempio di shadcn
- * ha gli stessi.
- *
- * **Non si chiudono, per decisione di Francesco**: le app Tassullo sono
- * strumenti interni e i lettori di schermo non sono un requisito. La freccia
- * si sarebbe potuta chiudere in composizione (`showTrigger={false}` più un
- * `ComboboxTrigger` rimesso a mano con l'`aria-label`), ed era stato fatto:
- * **disfatto**, perché erano dodici righe di boilerplate che ogni app avrebbe
- * copiato per un beneficio che non ci serve. Qui si sta al **default shadcn
- * nudo**, che è anche la forma più corta. La crocetta non sarebbe stata
- * chiudibile comunque: `ComboboxChipRemove` non è fra gli export del file.
- * Vedi **D14**, chiusa.
- *
- * Da tastiera e col mouse non cambia niente: la crocetta ha `tabindex="-1"`,
- * quindi il fuoco non ci passa nemmeno, e le pillole si tolgono con
- * `Backspace`.
- *
- * ## La trappola di misura, che invece **resta e vale per M2.9**
- *
- * Alla prima scansione la violazione sulla freccia compariva su **una story
- * sola**, quella disabilitata. Non perché le altre fossero sane: l'imbracatura,
- * per misurare i popup, *apriva il combobox* — e a popup aperto Base UI rende
- * il grilletto inerte, quindi axe lo salta. È il **rovescio esatto**
- * dell'avvertenza di M2.3: lì un popup non aperto nascondeva le violazioni del
- * popup, qui un popup aperto nasconde quelle del campo. Chi accende axe in CI
- * deve misurare **tutt'e due gli stati**, o metà del set non viene guardato.
+ * **Tastiera e accessibilità.** `Tab` porta sul campo, si scrive per filtrare,
+ * `↓` e `↑` scorrono le voci rimaste, `Invio` sceglie, `Esc` chiude senza
+ * cambiare. Con `autoHighlight` bastano tre lettere e `Invio`. A più scelte,
+ * `Backspace` a campo vuoto toglie l'ultima pillola, e `←` `→` si spostano fra
+ * le pillole. La freccia del campo e la crocetta delle pillole sono bottoni di
+ * sola icona, senza un nome per il lettore di schermo; la crocetta non è un
+ * fermo di tabulazione, e da tastiera le pillole si tolgono con `Backspace`.
  */
 const meta = {
   title: 'Primitive/Combobox',
@@ -218,18 +176,9 @@ export const Predefinito: Story = {
 }
 
 /**
- * **Il criterio di accettazione: 500 voci, filtrabili da tastiera.** È la
- * misura della sessione, non una dimostrazione: le norme tecniche di una
- * scheda prodotto sono di quest'ordine di grandezza, e in un `<select>` nudo
- * si perdono.
- *
- * Da provare davvero: `Tab` sul campo, scrivere `412`, e leggere quante voci
- * restano. Con `autoHighlight` la prima è già evidenziata: `Invio` la sceglie
- * senza toccare le frecce.
- *
- * Il riquadro non rende 500 righe insieme — `ComboboxList` ha
- * `overflow-y-auto` e un tetto d'altezza legato allo spazio disponibile — ma
- * il filtro le attraversa tutte a ogni tasto.
+ * Cinquecento voci. Scrivendo `412` restano poche norme, la prima è già
+ * evidenziata e `Invio` la sceglie. Il riquadro scorre, e il filtro le
+ * attraversa tutte a ogni tasto.
  */
 export const CinquecentoVoci: Story = {
   name: 'Cinquecento voci',
@@ -261,13 +210,8 @@ export const CinquecentoVoci: Story = {
 }
 
 /**
- * **A più scelte, con le pillole — il `multi-select` del piano.** `Backspace` a
- * campo vuoto toglie l'ultima; la crocetta di ogni pillola toglie quella;
- * `←`/`→` si spostano fra le pillole.
- *
- * Le pillole **non sono badge**: stanno dentro un campo, si tolgono, e il
- * campo ha il proprio anello di fuoco. Sono il terzo membro della famiglia
- * `badge` / `toggle-group` / `chip`, e anche qui il nome dice la funzione.
+ * A più scelte, con le pillole: `Backspace` a campo vuoto toglie l'ultima, la
+ * crocetta toglie quella, `←` `→` si spostano fra le pillole.
  */
 export const PiuScelteConPillole: Story = {
   name: 'Più scelte, con pillole',
@@ -314,9 +258,8 @@ export const PiuScelteConPillole: Story = {
 }
 
 /**
- * **Il `tag-input`**: le stesse pillole senza elenco chiuso alle spalle — le
- * parole chiave di una scheda. Il piano lo elencava come componente a sé; è
- * questo con `items` che fa da suggerimento e non da vincolo.
+ * Le parole chiave di una scheda: le stesse pillole, scelte da un elenco di
+ * suggerimenti.
  */
 export const Etichette: Story = {
   render: function Render() {
@@ -355,10 +298,8 @@ export const Etichette: Story = {
 }
 
 /**
- * Raggruppato per zona, con separatore. Nota la forma: `ComboboxGroup` porta i
- * **propri** `items`, l'etichetta sta dentro il gruppo e le voci dentro
- * `ComboboxCollection`. Scritta diversamente, l'etichetta finisce fra le voci
- * filtrate.
+ * Voci raggruppate per zona, con separatore: ogni gruppo ha i suoi `items`, e
+ * l'etichetta sta dentro il gruppo.
  */
 export const ConGruppi: Story = {
   render: () => (
@@ -390,9 +331,8 @@ export const ConGruppi: Story = {
 }
 
 /**
- * Dentro un `Field`, con descrizione, errore e icona di ricerca: la forma in
- * cui il combobox comparirà davvero in un modulo. `showClear` mette la
- * crocetta che azzera la scelta, e prende il posto della freccia.
+ * Dentro un `Field`, con descrizione, errore e icona di ricerca: la forma che
+ * prende in un modulo. `showClear` aggiunge la crocetta che azzera la scelta.
  */
 export const InUnCampo: Story = {
   name: 'In un campo',

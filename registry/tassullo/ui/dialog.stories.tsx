@@ -18,30 +18,35 @@ import { Label } from '@/registry/tassullo/ui/label'
 import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
- * **Nessun ri-stile.** Il dialog del preset poggia già sui token del tema —
- * `bg-popover`, `text-popover-foreground`, `ring-foreground/10` — e le due
- * misure che lo compongono (`p-4`, `gap-4`) derivano da `--spacing`, quindi
- * seguono la densità da sé.
+ * Una finestra sopra la pagina, per un compito breve che si chiude e si torna
+ * dov'eri: un modulo, un dettaglio, un avviso da leggere.
  *
- * **Cosa fa il dialog che nessun altro overlay fa: intrappola il fuoco.**
- * Aperto, `Tab` gira dentro e non esce; `Esc` chiude; alla chiusura il fuoco
- * **torna sul grilletto**, non all'inizio della pagina. Sono tre requisiti
- * WCAG (2.1.2, 2.4.3, 2.4.11) che Base UI soddisfa senza che noi si scriva
- * nulla — e che qui si verificano invece di darli per buoni.
+ * **Quando sì, quando no.** È l'overlay di base su schermo largo. Se l'azione
+ * che si conferma non si può annullare, si usa `alert-dialog`, che non si
+ * chiude col clic fuori. Su telefono lo stesso contenuto va in un `drawer`,
+ * che si apre dal basso e si trascina: il blocco `Dialogo adattivo` sceglie
+ * fra i due secondo la larghezza, senza nulla da scrivere nella pagina. Un
+ * pannello di lavoro accostato a un lato, che lascia vedere la pagina accanto,
+ * è `sheet`.
  *
- * **`DialogTitle` non è decorativo**: è ciò che dà il nome accessibile alla
- * finestra. Un dialog senza titolo si annuncia «finestra di dialogo» e basta.
- * Se il titolo non deve vedersi — è il caso della palette comandi — si mette
- * lo stesso e si nasconde con `sr-only`, che è quel che fa `CommandDialog`.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/dialog
+ * ```
  *
- * **Quando NON usarlo.** Per una conferma distruttiva c'è `AlertDialog`, che
- * non si chiude cliccando fuori. Sotto la soglia mobile c'è `Drawer`: il
- * blocco `responsive-dialog` di M3.4 sceglie fra i due senza che la pagina
- * scriva un `if`.
+ * **Opzioni.** `showCloseButton` su `DialogContent` (acceso di base) mostra la
+ * crocetta in alto a destra; lo stesso prop su `DialogFooter` (spento di base)
+ * aggiunge un bottone «Chiudi» in fondo.
  *
- * `max-w-[calc(100%-2rem)]` resta il valore ereditato da shadcn: è un calcolo
- * geometrico, non un valore di tema — stessa famiglia del
- * `translate-x-[calc(100%-2px)]` dello `switch`, lasciato in M2.2.
+ * **Regole d'uso.** `DialogTitle` c'è sempre: è il nome con cui la finestra si
+ * annuncia. Se non deve vedersi, si mette lo stesso e si nasconde con
+ * `sr-only`. Una via d'uscita che non richieda il mouse ci dev'essere sempre:
+ * togliendo la crocetta, si mette la chiusura nel piè di pagina. I dialoghi
+ * annidati si evitano.
+ *
+ * **Tastiera e accessibilità.** All'apertura il fuoco entra nella finestra e
+ * `Tab` gira al suo interno senza uscire verso la pagina sotto; `Esc` chiude;
+ * alla chiusura il fuoco torna sul bottone che l'aveva aperta, non all'inizio
+ * della pagina.
  */
 const meta = {
   title: 'Primitive/Dialog',
@@ -81,10 +86,9 @@ export const Predefinito: Story = {
 }
 
 /**
- * Il percorso da tastiera, che è il criterio di accettazione di questo task.
- * Aperto il dialog, `Tab` passa fra i tre controlli e **ricomincia dal
- * primo**: non esce mai verso la pagina sotto. `Esc` chiude, e il fuoco
- * torna sul bottone che l'aveva aperto.
+ * Il percorso da tastiera: aperta la finestra, `Tab` passa fra i controlli e
+ * ricomincia dal primo. `Esc` chiude, e il fuoco torna sul bottone che l'aveva
+ * aperta.
  */
 export const FuocoIntrappolato: Story = {
   render: () => (
@@ -118,10 +122,8 @@ export const FuocoIntrappolato: Story = {
 }
 
 /**
- * Un form vero, con più campi: è la forma che il blocco `form-field` di M3.4
- * assemblerà. Il piè di pagina è `bg-muted/50` e sta a filo dei bordi — i
- * margini negativi del preset — quindi il contenuto non gli deve stare
- * accanto.
+ * Un modulo con più campi. Il piè di pagina ha un fondo tenue e sta a filo dei
+ * bordi della finestra.
  */
 export const ConForm: Story = {
   render: () => (
@@ -158,10 +160,9 @@ export const ConForm: Story = {
 }
 
 /**
- * Senza la X in alto a destra (`showCloseButton={false}`) e con la chiusura
- * nel piè di pagina (`showCloseButton` su `DialogFooter`). Restano `Esc` e il
- * clic fuori: **una via d'uscita che non richieda il mouse ci dev'essere
- * sempre**.
+ * Senza la crocetta (`showCloseButton={false}` sul contenuto) e con la
+ * chiusura nel piè di pagina (`showCloseButton` su `DialogFooter`). Restano
+ * `Esc` e il clic fuori.
  */
 export const SenzaCrocetta: Story = {
   render: () => (
@@ -184,9 +185,8 @@ export const SenzaCrocetta: Story = {
 }
 
 /**
- * Titolo lungo, descrizione lunga e contenuto che deborda: il dialog non
- * cresce oltre lo schermo e il testo va a capo. Le classi che lo tengono
- * insieme (`max-w-sm`, `text-balance` sulla descrizione) sono del preset.
+ * Titolo, descrizione e contenuto lunghi: la finestra non cresce oltre lo
+ * schermo e il testo va a capo.
  */
 export const TestoLungo: Story = {
   render: () => (
@@ -225,9 +225,9 @@ export const TestoLungo: Story = {
 }
 
 /**
- * Due dialog uno sopra l'altro. Il secondo prende il fuoco, `Esc` chiude solo
- * quello in cima. Non è un pattern da incoraggiare — è qui perché succede, e
- * perché è il caso in cui il fuoco si perde più facilmente.
+ * Due finestre una sopra l'altra: la seconda prende il fuoco e `Esc` chiude
+ * solo quella in cima. È il caso in cui il fuoco si perde più facilmente, e si
+ * evita quando si può.
  */
 export const Annidato: Story = {
   render: () => (
@@ -239,8 +239,8 @@ export const Annidato: Story = {
         <DialogHeader>
           <DialogTitle>Esporta la scheda tecnica</DialogTitle>
           <DialogDescription>
-            Il PDF usa il carattere Replica, non Inter: la stampa è l'unico
-            posto dove il carattere del v1 resta.
+            Il PDF usa il carattere Replica, non Inter: è il carattere delle
+            stampe.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
@@ -256,7 +256,7 @@ export const Annidato: Story = {
               <DialogHeader>
                 <DialogTitle>Anteprima non disponibile</DialogTitle>
                 <DialogDescription>
-                  L'anteprima PDF arriva col blocco `pdf-preview` di M3.7.
+                  L'anteprima del PDF sarà pronta al termine dell'esportazione.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter showCloseButton />

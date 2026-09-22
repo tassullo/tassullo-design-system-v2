@@ -8,35 +8,32 @@ import {
 } from '@/registry/tassullo/ui/accordion'
 
 /**
- * `accordion.tsx` è identico all'originale: nessuna stringa ri-stilata.
+ * Sezioni che si aprono e si chiudono una per una: tiene in pagina un testo
+ * lungo diviso in parti, e chi legge apre solo quelle che cerca.
  *
- * **Un avvertimento che vale per il prossimo aggiornamento di shadcn**: il
- * gate lo marca `◌`, perché l'originale è un **template a segnaposto d'icona**
- * (`<IconPlaceholder>`) che la CLI risolve a `add` sulla libreria dichiarata
- * in `components.json` — qui Lucide. Il confronto di forma non dice nulla su
- * questo file, quindi quando esce una versione nuova **va riletto a mano**.
- * È lo stesso caso di `checkbox`, `select`, `dialog` e degli altri sette.
+ * **Quando sì, quando no.** Per contenuti di consultazione — campo di impiego,
+ * modalità di posa, norme — in cui si cerca una parte e si saltano le altre.
+ * Se le parti sono viste alternative della stessa cosa e se ne guarda una alla
+ * volta, si usano le `tabs`. Per un solo blocco che si apre e si chiude,
+ * `collapsible`.
  *
- * Il chevron non è uno che ruota: sono **due icone**, `ChevronDown` e
- * `ChevronUp`, che si scambiano su `aria-expanded`. Non è un dettaglio
- * estetico — chi legge lo schermo da vicino distingue meglio due forme che
- * una forma ruotata a metà animazione.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/accordion
+ * ```
  *
- * **La stessa trappola d'uso delle `tabs`, e qui è più vistosa** (misurata
- * insieme, su segnalazione di Francesco): in un contenitore che si stringe
- * sul contenuto, aprire una sezione allarga il gruppo, perché il testo del
- * pannello è più lungo dell'intestazione. Misurato su questa story prima
- * della correzione: la radice passava da **201 a 576px** al primo clic e
- * l'accordion slittava di **188px** — un salto che si vede benissimo.
+ * **Opzioni.** Di base più sezioni possono stare aperte insieme; con
+ * `multiple={false}` aprirne una chiude l'altra. `defaultValue` dice quali
+ * sezioni sono aperte all'arrivo; `disabled` su un `AccordionItem` lo spegne.
  *
- * Non è un difetto del componente e **`w-full` non lo cura**: su un
- * contenitore a larghezza indefinita è circolare. Serve una larghezza
- * definita, qui `w-96`, che sta sulla scala di `--spacing` e segue la
- * densità. Con quella lo slittamento è **0px** su tutte le sezioni.
+ * **Regole d'uso.** L'accordion vuole una larghezza definita — `w-96`, oppure
+ * `w-full` dentro un contenitore che ce l'ha. In un contenitore che si stringe
+ * sul contenuto, aprire una sezione allarga il gruppo e fa slittare la pagina:
+ * `w-full` su un contenitore a larghezza indefinita non basta.
  *
- * Da tastiera: ogni intestazione è un bottone, `Tab` li attraversa tutti,
- * `Invio`/`Spazio` aprono. Base UI non aggiunge scorciatoie con le frecce, e
- * va bene così: sono sezioni indipendenti, non una lista da percorrere.
+ * **Tastiera.** Ogni intestazione è un bottone: `Tab` le attraversa tutte,
+ * `Invio` e `Spazio` aprono e chiudono. Le frecce non spostano il fuoco fra le
+ * sezioni, che sono indipendenti e non una lista. L'indicatore non ruota:
+ * cambia forma, freccia in giù da chiuso e in su da aperto.
  */
 const meta = {
   title: 'Primitive/Accordion',
@@ -78,8 +75,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Con `multiple={false}`: aprire una sezione chiude l'altra. È la forma
- * classica «a fisarmonica», e il predefinito di Base UI è invece il contrario.
+ * Con `multiple={false}`: aprire una sezione chiude quella aperta, la forma
+ * classica «a fisarmonica».
  */
 export const UnaAllaVolta: Story = {
   render: () => (
@@ -94,7 +91,9 @@ export const UnaAllaVolta: Story = {
   ),
 }
 
-/** Una sezione già aperta all'arrivo, con `defaultValue`. */
+/**
+ * Una sezione già aperta all'arrivo, con `defaultValue`.
+ */
 export const GiaAperta: Story = {
   render: () => (
     <Accordion defaultValue={['Modalità di posa']} className="w-96">
@@ -108,7 +107,9 @@ export const GiaAperta: Story = {
   ),
 }
 
-/** Una sezione disattivata: il grilletto non risponde e non prende il fuoco. */
+/**
+ * Una sezione disattivata: l'intestazione non risponde e non prende il fuoco.
+ */
 export const Disattivata: Story = {
   render: () => (
     <Accordion className="w-96">

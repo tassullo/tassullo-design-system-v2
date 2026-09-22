@@ -10,32 +10,39 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/registry/tas
 import { Button } from '@/registry/tassullo/ui/button'
 
 /**
- * **I quattro livelli semantici si fanno con `className`, non con quattro
- * varianti.** È la risposta di shadcn stesso, scritta nella pagina del
- * componente: «You can customize the alert colors by adding custom classes
- * such as `bg-amber-50 dark:bg-amber-950` to the `Alert` component». Quindi
- * la scala della regola 4bis si ferma al **gradino 1** — shadcn ce l'ha già
- * — e `alert.tsx` resta identico nella forma all'originale.
+ * Un avviso dentro la pagina: dice qualcosa che chi legge deve sapere adesso,
+ * senza interrompere quello che sta facendo.
  *
- * Provata anche la strada opposta, e **misurata**: aggiungere `info`,
- * `success` e `warning` come nomi di variante nel `cva` manda
- * `check:registry` in rosso — «diverge dall'originale FUORI dalle stringhe
- * di classi: nomi di varianti». Il gate ha fatto esattamente il suo mestiere.
+ * **Quando sì, quando no.** Per un messaggio che resta dov'è finché la
+ * condizione dura — un documento in scadenza, un dato mancante, un errore di
+ * caricamento. Un messaggio che passa e se ne va è un toast (`sonner`); una
+ * decisione da prendere prima di andare avanti è un `alert-dialog`. Per la
+ * pagina intera vuota o in errore ci sono i blocchi `Stato vuoto` e
+ * `Stato di errore`, che già lo usano.
  *
- * Quello che il design system mette di suo non è una variante: è la **terna
- * di token** `X-subtle` / `X-subtle-foreground` / `X-border`, dichiarata nel
- * tema per tutte e quattro le famiglie e verificata da `check:contrast`.
- * I quattro alert **pesano uguale** perché i tenui si specchiano a gradini
- * fissi, uguali per tutte le famiglie (`PIANO.md` §525): se una saltasse
- * all'occhio più delle altre, quell'avviso sembrerebbe più grave di quello
- * che è.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/alert
+ * ```
  *
- * L'unica cosa ri-stilata nel file è `destructive`, che il preset dava come
- * `bg-card text-destructive` — l'arancio-rosso pieno come **testo**, che è
- * la **quinta** volta che shadcn ripete la stessa trappola (le altre quattro
- * in M2.2 e M2.3). Misurato in M2.2: **4.46:1 in chiaro, 3.53:1 su card in
- * scuro**, cioè sotto soglia in entrambe. Ora usa la stessa terna tenue
- * delle altre tre.
+ * **Varianti.** `variant`: `default` (neutro, sul fondo della card) e
+ * `destructive`. I livelli `info`, `success` e `warning` non sono varianti: si
+ * applicano con `className`, prendendo la stringa pronta da `TONO_ALERT`
+ * dell'item `toni`, che tiene i quattro livelli in un posto solo.
+ *
+ * ```tsx
+ * import { TONO_ALERT } from '@/lib/toni'
+ *
+ * <Alert className={TONO_ALERT.warning}>…</Alert>
+ * ```
+ *
+ * **Regole d'uso.** I quattro livelli pesano uguale, in chiaro e in scuro: la
+ * gravità la dice il testo, non un colore più acceso degli altri. L'icona va
+ * messa: è ciò che distingue i livelli per chi non distingue i colori.
+ * `AlertAction` si mette in alto a destra da sé, e il testo gli fa spazio.
+ *
+ * **Accessibilità.** L'alert ha `role="alert"`: comparendo, viene letto subito
+ * dal lettore di schermo. Per un contenuto già presente al caricamento che non
+ * è un avviso, non si usa.
  */
 const meta = {
   title: 'Primitive/Alert',
@@ -62,10 +69,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * I quattro livelli, uno sotto l'altro, per vedere che **pesano uguale**.
- * Le tre righe di classi sono la ricetta del design system: si scrivono qui
- * una volta, e i blocchi di FASE 3 (`error-state`, `empty-state`) le
- * incorporano, così nessuna app se le reinventa in casa.
+ * I quattro livelli uno sotto l'altro: nessuno salta all'occhio più degli
+ * altri. Da guardare anche in scuro.
  */
 export const QuattroLivelli: Story = {
   render: () => (
@@ -105,7 +110,9 @@ export const QuattroLivelli: Story = {
   ),
 }
 
-/** Senza descrizione: una riga sola, che è la forma più usata in campo. */
+/**
+ * Senza descrizione: una riga sola, la forma più usata.
+ */
 export const SoloTitolo: Story = {
   render: () => (
     <div className="flex w-full max-w-2xl flex-col gap-3">
@@ -122,9 +129,8 @@ export const SoloTitolo: Story = {
 }
 
 /**
- * Con l'azione. `AlertAction` è posizionato in assoluto in alto a destra dal
- * componente: il contenuto gli fa spazio da sé (`has-data-[slot=alert-action]`),
- * senza che la pagina debba saperlo.
+ * Con un'azione (`AlertAction`), che sta in alto a destra; il contenuto le fa
+ * spazio da sé.
  */
 export const ConAzione: Story = {
   render: () => (
@@ -144,9 +150,8 @@ export const ConAzione: Story = {
 }
 
 /**
- * Senza icona: la griglia passa a una colonna sola e il testo parte a
- * sinistra. Vale la pena guardarla, perché è la forma che esce quando si
- * dimentica l'icona — e non deve sembrare rotta.
+ * Senza icona: il testo parte a sinistra su una colonna sola, e l'avviso resta
+ * composto.
  */
 export const SenzaIcona: Story = {
   render: () => (

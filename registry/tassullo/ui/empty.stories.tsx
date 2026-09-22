@@ -12,25 +12,25 @@ import {
 import { Button } from '@/registry/tassullo/ui/button'
 
 /**
- * La primitiva dello stato vuoto. **È il mattone, non il blocco**: il
- * blocco `empty-state` di M3.5 ci si appoggia sopra e fissa lo standard unico
- * di caricamento/errore/vuoto/successo richiesto da INTERFACCE.md §1 di
- * Anagrafe. Qui si guarda la forma nuda.
+ * Lo stato vuoto: ciò che si vede al posto di un contenuto che non c'è — un
+ * elenco senza righe, una ricerca senza risultati — con cosa fare adesso.
  *
- * Un ri-stile solo, e di nuovo la stessa trappola: `EmptyDescription` dava ai
- * link `hover:text-primary`, cioè l'arancio del brand come **testo**, che in
- * modalità chiara fa **1.79:1**. Ora è `text-accent-ink`, il token che esiste
- * proprio per questo e che è corretto in **entrambe** le modalità. È la sesta
- * volta che il preset ripete `text-primary`/`text-destructive` come testo:
- * conviene cercarla per prima cosa in ogni componente nuovo.
+ * **Quando sì, quando no.** È la primitiva da comporre. Per una pagina o una
+ * sezione vuota, o in errore, con testi e azioni già pronti, ci sono i blocchi
+ * `Stato vuoto` e `Stato di errore`, che la usano. Un avviso dentro una pagina
+ * che ha contenuto è un `alert`.
  *
- * **Una cosa del preset che non ho toccato, ma che va saputa**: la classe base
- * porta `border-dashed` senza `border`, quindi **il bordo tratteggiato non si
- * vede** finché non si passa `className="border"`. È così anche in shadcn — è
- * la loro forma, non un nostro difetto — e si vede in `ConBordo`. Aggiungere
- * `border` alla base cambierebbe la resa predefinita di ogni stato vuoto di
- * ogni app: è una scelta di sistema, non una correzione di passaggio, e
- * spetta a M3.5 che è il primo consumatore vero.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/empty
+ * ```
+ *
+ * **Parti e varianti.** `EmptyHeader` con `EmptyMedia`, `EmptyTitle` ed
+ * `EmptyDescription`; `EmptyContent` per le azioni. `EmptyMedia` ha `variant`:
+ * `default` (l'icona nuda) o `icon` (l'icona in un riquadro tenue).
+ *
+ * **Regole d'uso.** Lo stato vuoto dice anche cosa fare: se c'è un'azione
+ * possibile, la mostra. Il bordo tratteggiato non c'è di base: si ottiene
+ * aggiungendo `className="border"`.
  */
 const meta = {
   title: 'Primitive/Empty',
@@ -56,7 +56,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Con l'azione: lo stato vuoto dice anche **cosa fare adesso**. */
+/**
+ * Con l'azione: lo stato vuoto dice cosa fare adesso.
+ */
 export const ConAzione: Story = {
   render: () => (
     <Empty className="max-w-md border">
@@ -78,8 +80,7 @@ export const ConAzione: Story = {
 }
 
 /**
- * Col bordo tratteggiato, che è la forma che quasi tutti si aspettano: si
- * ottiene aggiungendo `border`, perché la base porta solo `border-dashed`.
+ * Col bordo tratteggiato, che si accende aggiungendo `border`.
  */
 export const ConBordo: Story = {
   render: () => (
@@ -100,7 +101,9 @@ export const ConBordo: Story = {
   ),
 }
 
-/** Uno stato d'errore, che è l'altro uso della stessa primitiva. */
+/**
+ * Uno stato d'errore, l'altro uso della stessa primitiva.
+ */
 export const Errore: Story = {
   render: () => (
     <Empty className="max-w-md border border-destructive-border bg-destructive-subtle text-destructive-subtle-foreground">

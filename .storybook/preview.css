@@ -53,3 +53,36 @@ body.sb-show-main[data-superficie='sidebar'] {
 body.sb-show-main.sb-main-centered #storybook-root {
   padding: 2rem;
 }
+
+/* ── Le scene delle pagine Docs prendono la Superficie ──────────────────
+   La prosa della pagina Docs segue la Modalità attraverso il tema di
+   Storybook (`docs.container` in `preview.tsx`). Le scene no: il riquadro
+   `.docs-story` ha fondo trasparente, e senza queste regole la Superficie
+   non cambierebbe niente in Docs — una story si guarderebbe sulla card
+   solo nel canvas. La pagina resta sulla superficie «Pagina»: è il foglio,
+   e la Superficie riguarda il componente, non il testo che lo spiega.
+   `body` e non `body.sb-show-main`: in Docs l'attributo lo mettono i
+   decorator delle scene sullo stesso `body`. */
+body[data-superficie='card'] .docs-story {
+  background: var(--card);
+  color: var(--card-foreground);
+}
+
+body[data-superficie='sidebar'] .docs-story {
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+}
+
+/* ── Il codice delle pagine Docs sta sulla card ─────────────────────────
+   Il riquadro del codice (`.docblock-source`, sia nei blocchi della prosa
+   sia sotto «Show code») prende dal tema di Storybook il fondo della
+   pagina, cioè `--background`. Ma la colorazione sintattica non è nostra:
+   è quella di Prism, coi suoi colori fissi, tarati sul bianco — e sul
+   `--background` chiaro tre di loro scendevano sotto soglia, **4.26:1**
+   il più basso (le costanti, verde acqua). Sulla card tornano sopra
+   4.5, ed è anche la superficie giusta: un riquadro che si stacca dalla
+   pagina. È l'unica regola su una classe interna di Storybook, perché il
+   tema non ha un campo per il fondo del codice. */
+.sbdocs .docblock-source {
+  background: var(--card);
+}

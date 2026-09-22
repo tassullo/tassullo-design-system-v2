@@ -11,14 +11,26 @@ import {
 } from '@/registry/tassullo/ui/avatar'
 
 /**
- * Non ri-stilato: usa `bg-muted` / `text-muted-foreground`, che è una coppia
- * verificata da `check:contrast`, e `after:border-border` per il filo attorno.
- * Il default shadcn ci sta dentro — primo gradino della scala, e ci si ferma.
+ * La faccia di una persona in un cerchio: una foto, oppure le sue iniziali.
  *
- * **Il ripiego è la regola, non l'eccezione.** Nelle app dello studio la foto
- * non c'è quasi mai: quello che si vede sono le iniziali. Vanno scelte da chi
- * chiama — due lettere, maiuscole — perché il componente non sa come si taglia
- * un nome, e in italiano un cognome composto non si taglia come un nome inglese.
+ * **Quando sì, quando no.** Per chi ha fatto, firmato o ha in carico qualcosa:
+ * autori, assegnatari, revisori. Per l'immagine di un prodotto o di una cosa
+ * c'è `entity-image`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/avatar
+ * ```
+ *
+ * **Taglie e parti.** `size` su `Avatar`: `sm`, `default`, `lg`; seguono la
+ * densità. `AvatarImage` è la foto, `AvatarFallback` il ripiego, `AvatarBadge`
+ * il pallino di stato, `AvatarGroup` e `AvatarGroupCount` il gruppo con il
+ * conteggio di chi non ci sta.
+ *
+ * **Regole d'uso.** Il ripiego è il caso normale, non l'eccezione: la foto
+ * spesso non c'è, e allora si leggono le iniziali. Le sceglie chi usa il
+ * componente — due lettere, maiuscole — perché il componente non sa dove si
+ * taglia un nome composto. Il pallino di stato è decorativo: se dice qualcosa,
+ * «in linea» o «verificato», quel qualcosa si scrive anche in testo.
  */
 const meta = {
   title: 'Primitive/Avatar',
@@ -28,6 +40,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Le iniziali, che sono la forma più frequente.
+ */
 export const Iniziali: Story = {
   render: () => (
     <Avatar>
@@ -36,7 +51,9 @@ export const Iniziali: Story = {
   ),
 }
 
-/** Le tre taglie. Come tutto il resto, seguono la densità: `size-*` viene da `--spacing`. */
+/**
+ * Le tre taglie, `sm`, `default` e `lg`.
+ */
 export const Taglie: Story = {
   render: () => (
     <div className="flex items-center gap-4">
@@ -48,9 +65,7 @@ export const Taglie: Story = {
 }
 
 /**
- * Con l'immagine, e col ripiego che si vede se l'immagine non arriva. Il
- * secondo `src` non esiste di proposito: è il caso da guardare, perché è
- * quello che capita in produzione.
+ * Con la foto, e accanto il ripiego che compare quando la foto non arriva.
  */
 export const ConImmagine: Story = {
   render: () => (
@@ -71,9 +86,8 @@ export const ConImmagine: Story = {
 }
 
 /**
- * Il pallino di stato. È decorativo: se vuol dire qualcosa — «in linea»,
- * «verificato» — quel qualcosa va scritto anche in testo, da qualche parte
- * nella pagina. Un colore da solo non è un'informazione accessibile.
+ * Il pallino di stato (`AvatarBadge`). Il suo significato va scritto anche in
+ * testo, altrove nella pagina.
  */
 export const ConPallino: Story = {
   render: () => (
@@ -90,7 +104,10 @@ export const ConPallino: Story = {
   ),
 }
 
-/** Il gruppo, col conteggio di chi non ci sta: firmatari, assegnatari, revisori. */
+/**
+ * Un gruppo con il conteggio di chi non ci sta: firmatari, assegnatari,
+ * revisori.
+ */
 export const Gruppo: Story = {
   render: () => (
     <AvatarGroup>

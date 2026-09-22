@@ -1,6 +1,9 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, type ComponentProps, type ReactNode } from 'react'
 
+import { DocsContainer } from '@storybook/addon-docs/blocks'
 import type { Decorator, Preview } from '@storybook/react-vite'
+
+import { temaStorybook } from './tema-storybook'
 
 // Tailwind + i token del tema, che `src/index.css` importa dal registry.
 import '../src/index.css'
@@ -113,6 +116,66 @@ const withSuperficie: Decorator = (Story, context) => (
     <Story />
   </ConSuperficie>
 )
+
+/**
+ * La pagina Docs segue la **Modalità** della barra.
+ *
+ * ── Il difetto che chiude ────────────────────────────────────────────────
+ *
+ * Il `dark` arrivava sull'`<html>` dell'iframe anche in Docs — lo mettono i
+ * decorator delle story che la pagina rende — ma la pagina di Storybook
+ * (`.sbdocs-wrapper`, i titoli, i blocchi di codice, la tabella delle prop)
+ * si colora col **suo** tema, che restava quello chiaro. Le scene hanno fondo
+ * trasparente e si rendono coi token scuri: tutto ciò che non si dipinge un
+ * fondo da sé scriveva chiaro su bianco. Misurato su `Primitive/Badge` →
+ * `Varianti`, dove `outline` e `ghost` quasi sparivano. `test:a11y` non lo
+ * poteva vedere: misura il canvas, non le pagine Docs (`docs/DECISIONI.md`
+ * §53).
+ *
+ * ── Perché il tema di Storybook e non regole CSS sulle sue classi ────────
+ *
+ * Perché la pagina Docs è fatta di componenti che si colorano **dal tema**:
+ * titoli, prosa, tabella delle prop, controlli, il riquadro del codice e la
+ * sua colorazione sintattica. Ripassarli uno per uno con `.sbdocs-*` e
+ * `.docblock-*` vuol dire inseguire classi interne di Storybook, e perdere la
+ * colorazione del codice, che non ha classi da prendere. Col tema passano
+ * tutti insieme, dalla stessa palette della cornice (`tema-storybook.ts`).
+ *
+ * ── Da dove si legge la modalità ─────────────────────────────────────────
+ *
+ * Dai **globals**, non dalla classe sull'`<html>`: la classe la mettono i
+ * decorator mentre le story si rendono, cioè *dopo* il contenitore, che la
+ * leggerebbe sfasata di un clic. Quando cambia un global Storybook rende di
+ * nuovo la pagina Docs, quindi basta leggerlo a ogni resa.
+ *
+ * Il contenitore **applica anche la classe**, come il decorator: una pagina
+ * Docs senza story — `Introduzione` — non passa da nessun decorator, e
+ * altrimenti resterebbe nella modalità della pagina aperta prima.
+ */
+const temiDocs = { chiaro: temaStorybook('light'), scuro: temaStorybook('dark') }
+
+function leggiModalita(context: ComponentProps<typeof DocsContainer>['context']) {
+  try {
+    // La via pubblica: il contesto della story principale della pagina.
+    return context.getStoryContext(context.storyById()).globals.modalita as string
+  } catch {
+    // Una pagina MDX senza story non ha una story principale, e `storyById()`
+    // lancia. Lì resta il negozio dei globals, che `DocsContextProps` non
+    // dichiara: si legge con prudenza, e se un giorno sparisce si ripiega sul
+    // valore iniziale invece di rompere la pagina.
+    const negozio = (context as { store?: { userGlobals?: { get?: () => Record<string, unknown> } } })
+      .store
+    return (negozio?.userGlobals?.get?.().modalita ??
+      context.projectAnnotations.initialGlobals?.modalita) as string
+  }
+}
+
+function ContenitoreDocs(props: ComponentProps<typeof DocsContainer>) {
+  const modalita = leggiModalita(props.context)
+  applicaModalita(modalita)
+
+  return <DocsContainer {...props} theme={temiDocs[modalita === 'scuro' ? 'scuro' : 'chiaro']} />
+}
 
 const preview: Preview = {
   decorators: [withModalita, withSuperficie, withDensity],
@@ -264,6 +327,8 @@ const preview: Preview = {
      * resta vivo e segue la modalità da sé.
      */
     backgrounds: { disable: true },
+
+    docs: { container: ContenitoreDocs },
 
     controls: {
       matchers: { color: /(background|color)$/i, date: /Date$/i },

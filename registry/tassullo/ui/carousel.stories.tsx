@@ -12,31 +12,32 @@ import { AspectRatio } from '@/registry/tassullo/ui/aspect-ratio'
 import { Card, CardContent } from '@/registry/tassullo/ui/card'
 
 /**
- * Serve alle foto di prodotto e agli asset REN/RES/IM1-9 della roadmap di
- * Anagrafe, in coppia con `aspect-ratio` — che tiene ferme le celle mentre le
- * immagini arrivano.
+ * Una fila di immagini che si sfoglia una alla volta: le foto di un prodotto,
+ * le viste di un dettaglio.
  *
- * **L'unico ri-stile è la lingua.** Le due frecce portavano un `sr-only` in
- * inglese («Previous slide», «Next slide») e i due `aria-roledescription`
- * dicevano «carousel» e «slide»: sono le **sole stringhe del componente che
- * arrivano a un utente**, e le sente solo chi usa uno screen reader — cioè
- * esattamente chi non può accorgersi da sé che sono nella lingua sbagliata.
- * Tradotte. Il gate non se ne accorge, ed è giusto così: confronta la forma
- * **azzerando il contenuto delle stringhe**, quindi tradurre resta dentro il
- * gradino 2 della regola 4bis.
+ * **Quando sì, quando no.** Per contenuti in cui il primo basta e gli altri
+ * sono un di più, come le foto. Mai per contenuto che deve essere letto tutto:
+ * ciò che sta oltre la prima diapositiva, in pratica, non lo vede quasi
+ * nessuno. I dati di una scheda vanno in pagina, non in un carosello. Le celle
+ * vanno in `aspect-ratio`, che le tiene ferme mentre le immagini arrivano.
  *
- * Sotto c'è `embla-carousel-react`, non Base UI: come per `resizable`, è la
- * scelta di shadcn a monte, non un'eccezione nostra a D9.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/carousel
+ * ```
  *
- * **Da tastiera**: le frecce ← → scorrono quando il fuoco è dentro la regione,
- * e i due bottoni sono fermi di tabulazione veri, con nome accessibile e stato
- * `disabled` agli estremi. Un carosello che si sfoglia solo con lo swipe è
- * inutilizzabile da scrivania, ed è il difetto più comune del componente.
+ * **Opzioni e parti.** `orientation`: `horizontal` (di base) o `vertical`, che
+ * sposta anche le frecce sopra e sotto. `opts` passa le opzioni della libreria
+ * di scorrimento (per esempio `loop`, `align`). Quante diapositive stanno in
+ * vista lo decide la classe `basis-*` su `CarouselItem`. `CarouselPrevious` e
+ * `CarouselNext` sono le due frecce.
  *
- * **Quando non usarlo**: mai per contenuto che deve essere letto tutto. Quello
- * che sta oltre la prima diapositiva, in pratica, non lo vede quasi nessuno.
- * Va bene per le foto — dove la prima basta e le altre sono un di più — non
- * per i dati di una scheda.
+ * **Regole d'uso.** Le frecce stanno fuori dal riquadro: attorno al carosello
+ * serve il margine per ospitarle.
+ *
+ * **Tastiera e accessibilità.** Con il fuoco dentro il carosello, le frecce ←
+ * → della tastiera scorrono; i due bottoni sono fermi di tabulazione con un
+ * nome in italiano e si disattivano agli estremi. Il carosello si annuncia
+ * come tale, e ogni elemento come diapositiva.
  */
 const meta = {
   title: 'Primitive/Carousel',
@@ -57,7 +58,9 @@ function Segnaposto({ etichetta }: { etichetta: string }) {
   )
 }
 
-/** Una foto alla volta. I bottoni stanno fuori dal riquadro: serve il margine. */
+/**
+ * Una foto alla volta, con le frecce fuori dal riquadro.
+ */
 export const Predefinito: Story = {
   render: () => (
     <div className="px-14">
@@ -78,7 +81,10 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Tre alla volta: `basis` sull'elemento decide quante ne stanno in vista. */
+/**
+ * Tre alla volta: la classe `basis-1/3` su ogni elemento decide quante ne
+ * stanno in vista.
+ */
 export const TreAllaVolta: Story = {
   render: () => (
     <div className="px-14">
@@ -99,7 +105,9 @@ export const TreAllaVolta: Story = {
   ),
 }
 
-/** Dentro una card, che è la forma con cui comparirà nella scheda prodotto. */
+/**
+ * Dentro una card, la forma che prende in una scheda prodotto.
+ */
 export const DentroUnaCard: Story = {
   render: () => (
     <div className="px-14">
@@ -124,7 +132,9 @@ export const DentroUnaCard: Story = {
   ),
 }
 
-/** In verticale: `orientation` sposta anche le frecce sopra e sotto. */
+/**
+ * In verticale, con `orientation="vertical"`: le frecce vanno sopra e sotto.
+ */
 export const Verticale: Story = {
   render: () => (
     <div className="py-14">

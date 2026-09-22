@@ -13,27 +13,29 @@ import {
 } from '@/registry/tassullo/ui/input-group'
 
 /**
- * Il campo con qualcosa **dentro il bordo**: un'icona, un'unità di misura, un
- * bottone, una scorciatoia. **Anagrafe lo ha già fatto a mano** in `.prd-cerca`,
- * ed è esattamente il caso per cui la regola permanente esiste: da qui in poi
- * quel pattern si installa, non si riscrive.
+ * Un campo con qualcosa dentro il bordo: un'icona, un'unità di misura, un
+ * bottone, una scorciatoia.
  *
- * **Sei ri-stili, tutti dello stesso tipo**: misure crude al posto dei token.
+ * **Quando sì, quando no.** Quando ciò che accompagna il valore fa parte del
+ * campo: la lente della ricerca, «mm» dopo uno spessore, il bottone che copia.
+ * Etichetta, descrizione ed errore stanno fuori, in `field`. Un campo nudo è
+ * `input`; bottoni accostati a un campo, ma fuori dal suo bordo, sono
+ * `button-group`.
  *
- * | prima | ora | perché |
- * |---|---|---|
- * | `[&>kbd]:rounded-[calc(var(--radius)-5px)]` | `[&>kbd]:rounded-sm` | 5px inventati → il gradino `sm` del tema |
- * | `rounded-[calc(var(--radius)-3px)]` (×2) | `rounded-md` | 7px inventati → il gradino `md`, che è già quello del bottone `xs` |
- * | `ml-[-0.3rem]` / `mr-[-0.3rem]` | `-ml-1` / `-mr-1` | un rientro in rem non segue la densità; in unità di `--spacing` sì |
- * | `ml-[-0.15rem]` / `mr-[-0.15rem]` | `-ml-0.5` / `-mr-0.5` | idem |
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/input-group
+ * ```
  *
- * I rientri negativi non sono decorazione: **tolgono il doppio margine** fra il
- * bordo del gruppo e il bottone che ci sta dentro. Se non seguissero la densità,
- * in touch il bottone si staccherebbe dal bordo di qualche pixel — il tipo di
- * difetto che non si nota su una story e si nota su una pagina intera.
+ * **Parti.** `InputGroupInput` o `InputGroupTextarea` è il campo.
+ * `InputGroupAddon` è ciò che gli sta accanto, con `align`: `inline-start` (di
+ * base, a sinistra), `inline-end` (a destra), `block-start` e `block-end`
+ * (sopra e sotto, per le barre di un campo lungo). Dentro l'addon vanno
+ * `InputGroupText`, `InputGroupButton` — `size`: `xs`, `sm`, `icon-xs`,
+ * `icon-sm` — o un `Kbd`.
  *
- * **L'`InputGroup` non è un `Field`.** Qui dentro sta il *campo*; l'etichetta,
- * la descrizione e l'errore stanno fuori, e li mette `Field`.
+ * **Regole d'uso.** L'unità di misura va nell'addon e non nel valore: il
+ * numero resta un numero, e l'unità non si cancella per sbaglio. Un bottone di
+ * sola icona ha la sua `aria-label`.
  */
 const meta = {
   title: 'Primitive/InputGroup',
@@ -43,7 +45,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** La barra di ricerca di Anagrafe: icona a sinistra, scorciatoia a destra. */
+/**
+ * La barra di ricerca: la lente a sinistra, la scorciatoia a destra.
+ */
 export const Ricerca: Story = {
   render: () => (
     <div className="flex w-96 flex-col gap-2">
@@ -62,7 +66,10 @@ export const Ricerca: Story = {
   ),
 }
 
-/** Unità di misura in coda: il numero resta un numero, l'unità non si può cancellare. */
+/**
+ * L'unità di misura in coda: il numero resta un numero, l'unità non si
+ * cancella.
+ */
 export const ConUnita: Story = {
   render: () => (
     <div className="flex w-64 flex-col gap-4">
@@ -88,7 +95,9 @@ export const ConUnita: Story = {
   ),
 }
 
-/** Con un bottone dentro: è il rientro negativo a farlo stare attaccato al bordo. */
+/**
+ * Con un bottone dentro, attaccato al bordo del campo.
+ */
 export const ConBottone: Story = {
   render: () => (
     <div className="flex w-96 flex-col gap-2">
@@ -108,7 +117,9 @@ export const ConBottone: Story = {
   ),
 }
 
-/** In blocco sopra e sotto: la barra di un campo lungo, con l'azione in fondo. */
+/**
+ * L'addon sopra e sotto un campo lungo, con l'azione in fondo.
+ */
 export const InBlocco: Story = {
   render: () => (
     <div className="flex w-96 flex-col gap-2">

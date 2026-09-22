@@ -22,153 +22,59 @@ import {
 } from '@/registry/tassullo/ui/popover'
 
 /**
- * **Il calendario di shadcn non è Base UI, e non è un'eccezione: è l'unica
- * implementazione che esiste.** Vale la pena dirlo subito perché il piano
- * prevedeva qui una decisione — D9 lasciava aperta la possibilità di passare a
- * React Aria (`@internationalized/date`) «se il calendario Base UI risultasse
- * debole su locale e intervalli». La decisione **non si pone**: Base UI non ha
- * un calendario, e shadcn ne spedisce uno solo, costruito su
- * **`react-day-picker` + `date-fns`**. Non c'è un secondo candidato da
- * valutare, quindi non c'è nessuna eccezione da motivare.
+ * Una griglia di giorni da cui si sceglie una data, o un intervallo fra due
+ * date.
  *
- * E il componente unico copre da sé tutt'e tre i criteri della sessione, senza
- * che si scriva una riga: italiano, settimana da lunedì, intervalli.
+ * **Quando sì, quando no.** Dentro un modulo, per scegliere una data si usa il
+ * *date picker*: una composizione di `popover`, `button` e `calendar`, non un
+ * componente a sé — le scene qui sotto sono il modello da copiare. Quando la
+ * data si conosce già e si batte a mano, la forma migliore è il campo da
+ * scrivere, con il calendario come seconda strada (`DatePickerDaScrivere`). Il
+ * calendario sempre aperto in pagina serve solo dove la data è il contenuto
+ * principale. Per un calendario di eventi, con mese, settimana e agenda, c'è
+ * il blocco `Calendario`.
  *
- * ## Il locale porta il lunedì con sé
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/calendar
+ * ```
  *
- * Si passa `locale={it}` — importato da `react-day-picker/locale`, che
- * ri-esporta i locale di `date-fns` — e **basta quello**. Il lunedì non si
- * chiede: `it.options.weekStartsOn` vale già `1`, misurato. Scrivere anche
- * `weekStartsOn={1}` sarebbe ripetere in italiano una cosa che l'italiano dice
- * già, e la ripetizione è il punto in cui più avanti una delle due si dimentica.
+ * **Opzioni.** `mode`: `single` per una data, `range` per un intervallo.
+ * `numberOfMonths` affianca più mesi. `captionLayout="dropdown"` mette mese e
+ * anno in due menu, con `startMonth` ed `endMonth` a limitare gli anni
+ * offerti. `disabled` toglie dei giorni dalla scelta; `modifiers` e
+ * `modifiersClassNames` li segnano senza toglierli.
  *
- * La riga da conoscere è quindi una: **`locale={it}` su ogni `Calendar`.** Non
- * è un valore predefinito del componente, e non lo abbiamo reso tale: sarebbe
- * stata una divergenza di forma dal preset (regola 4bis) per risparmiare nove
- * caratteri.
+ * **Regole d'uso.**
  *
- * ## `date-picker` non è un componente, ed è giusto così
+ * - Ogni `Calendar` prende `locale={it}`, da `react-day-picker/locale`: porta
+ *   i nomi italiani e la settimana che comincia di lunedì. `weekStartsOn` non
+ *   serve.
+ * - Per un intervallo si affiancano due mesi: inizio e fine cadono spesso in
+ *   mesi diversi.
+ * - Una data scritta a mano si legge con
+ *   `parse(valore, 'dd/MM/yyyy', …, { locale: it })` di `date-fns`, mai con
+ *   `new Date(stringa)`, che la legge all'americana e scambia giorno e mese.
+ *   Il segnaposto dice `gg/mm/aaaa`.
+ * - Nel date picker il `PopoverContent` ha un `aria-label`, perché contiene
+ *   solo la griglia e non un titolo; l'`id` va sul bottone reso da `render`,
+ *   collegato all'etichetta con `htmlFor`.
+ * - Il riquadro di una data sola si chiude alla scelta, chiudendolo in
+ *   `onSelect`; quello di un intervallo non si chiude da sé — il primo clic
+ *   arriva già come intervallo di un giorno — e si chiude con `Esc` o col clic
+ *   fuori.
+ * - Un giorno segnato da `modifiers` non si distingue solo per colore: qui
+ *   anche per il peso, `font-semibold`. L'arancio del testo è
+ *   `text-accent-ink`, mai `text-primary`. Il giorno segnato resta cliccabile.
+ * - Un giorno disabilitato è volutamente sbiadito: la soglia di contrasto non
+ *   si applica ai controlli inattivi.
  *
- * Il piano elencava due voci, `calendar` e `date-picker`. La seconda **ha una
- * sua pagina** nella documentazione shadcn, fra i componenti
- * (`/docs/components/base/date-picker`), ma **non è un item installabile**:
- * `view` e `add @shadcn/date-picker` danno 404 su `base-nova`, e
- * `shadcn docs date-picker` risponde «not found in the shadcn registry».
- *
- * Lo dice shadcn stesso, in quella pagina, con la riga che chiude la
- * questione: **«A date picker is built from Popover and Calendar (there is no
- * DatePicker root component)»**. È una *composizione* documentata, non un
- * componente.
- *
- * Avremmo potuto impacchettarla in un componente nostro. Non si è fatto, ed è
- * la stessa scelta di M2.6 sul «Grilletto» del combobox — disfatto per la
- * stessa ragione, e per indirizzo esplicito: **componenti shadcn standard,
- * senza personalizzazioni.** Un `DatePicker` nostro sarebbe il primo componente
- * in `componenti-propri.json`, cioè un file da mantenere per sempre, in cambio
- * di dodici righe che ogni app scriverebbe comunque una volta sola. Le tre
- * composizioni qui sotto — bottone, intervallo, campo da scrivere — sono il
- * modello da copiare, e sono verbale: si guarda la story, si copia il JSX.
- *
- * ## L'unico ri-stile, che è la quarta volta della stessa correzione
- *
- * `text-[0.8rem]` → `text-sm` sui nomi dei giorni e sui numeri di settimana.
- * Un valore arbitrario **non segue la densità**: in touch le celle crescono e
- * il testo resta fermo. È la stessa correzione presa su `button` (M2.1),
- * `select` (M2.2) e `toggle`/`toggle-group` (M2.6) — gradino 2 della scala,
- * solo stringhe di classi, `check:registry` resta verde.
- *
- * Il resto del preset la densità la segue già da sé, ed è la cosa fatta bene:
- * la cella è `--cell-size: --spacing(7)`, cioè **28px in normale e 42px in
- * touch**, perché deriva da `--spacing` invece di essere scritta in pixel.
- *
- * ## Il difetto grosso, che è di shadcn e non nostro: **le frecce non muovono**
- *
- * Provata la tastiera come impone il piano, e il calendario **non si naviga**.
- * Misurato in un browser vero, sul componente appena installato, senza
- * composizioni di mezzo:
- *
- * | | |
- * |---|---|
- * | giorni resi | **35** |
- * | giorni raggiungibili col `Tab` | **1** |
- * | tasti di navigazione che muovono il fuoco | **0 su 7** (`←` `→` `↑` `↓` `Home` `End` `PageDown`) |
- *
- * Il percorso di tabulazione è `mese precedente → mese successivo → il giorno
- * a fuoco → fuori`. La griglia ha un `tabindex` mobile — un solo giorno
- * tabbabile, ed è giusto così — ma le frecce, che dovrebbero spostarlo, non
- * spostano niente: **da tastiera si può scegliere una data sola**, quella già
- * selezionata. `PageDown` non viene nemmeno intercettato e scorre la pagina.
- *
- * **La causa è una riga mancante nel sorgente shadcn**, e sta nel nostro file
- * come nell'originale in `registry/.upstream/calendar.tsx` (verificato
- * identico). `CalendarDayButton` dichiara un ref e lo usa in un effetto —
- * `React.useEffect(() => { if (modifiers.focused) ref.current?.focus() },
- * [modifiers.focused])` — ma **il ref non è mai attaccato al `Button`**.
- * `ref.current` resta `null` per sempre, quindi `react-day-picker` sposta il
- * proprio giorno «a fuoco» e il fuoco del DOM non lo segue.
- *
- * Provata la correzione — **un solo attributo, `ref={ref}` sul `Button`** — e
- * misurata: tutti e sette i tasti tornano a muovere (`→` porta a giovedì 10,
- * `↓` a mercoledì 16, `Home` a lunedì 7, `End` a domenica 13, `PageDown` al
- * 13 ottobre). **Scartata**, ed è **D15, chiusa il 2026-09-09** con la stessa
- * motivazione di D14: si spedisce il preset intatto, e le personalizzazioni
- * le chiederanno le app, discusse e autorizzate prima. Scartate anche la
- * segnalazione a monte (tempi non nostri) e il rimedio in composizione — un
- * `components={{ DayButton }}` per ogni app sono trenta righe copiate, la
- * strada già disfatta sul «Grilletto» in M2.6.
- *
- * **In carico a M2.9**, insieme ai guardiani del fuoco. Da sapere prima di
- * riaprirla: il difetto si nota col mouse solo se si prova la tastiera, e
- * **axe non lo vede** — è il residuo manuale del gate a doverlo tenere a
- * registro, non la CI.
- *
- * ## E il gate non se ne accorgerebbe — nota che vale oltre il calendario
- *
- * Provato anche questo: con `ref={ref}` applicato, **`npm run check:registry`
- * resta verde**. Non è un guasto del gate, è la sua regola nota: l'originale
- * shadcn del calendario è un template a segnaposto d'icona (`◌`), e sui file
- * `◌` il confronto di forma **è saltato per costruzione**. Conseguenza da
- * sapere: sui file marcati `◌` una divergenza strutturale passa in silenzio,
- * e l'unico controllo è la rilettura a mano alla prossima versione di shadcn.
- *
- * ## Contrasto: **zero violazioni**, e le 14 *incomplete* misurate a mano
- *
- * axe dà 14 *incomplete* di `color-contrast` sulle story del calendario, tutte
- * col solito «il fondo non si può determinare perché sovrapposto». Misurate
- * sui colori risolti dal motore di resa (canvas 1×1, come impone la nota di
- * M2.1 sugli `oklch`), chiaro e scuro:
- *
- * | | chiaro | scuro |
- * |---|---|---|
- * | nome del giorno, giorno normale, fuori mese | 5.05 | 7.75 |
- * | mese e anno | 17.03 | 15.72 |
- * | giorno scelto (sull'arancio) | 9.49 | 9.49 |
- * | estremo dell'intervallo | 9.49 | 9.49 |
- * | dentro l'intervallo | 15.35 | 12.91 |
- * | scadenza marcata (`accent-ink`) | **4.77** | 9.49 |
- *
- * Minimo vero **4.77:1**, sopra soglia: tutte e 14 sono false.
- *
- * **Un'eccezione da dire, non da nascondere: il giorno disabilitato.** Il
- * preset lo fa con `opacity-50`, e l'opacità cambia il colore in composizione
- * senza che nessun token la dichiari — è la **terza volta** che sfugge a
- * `check:contrast` (M2.5 sull'etichetta della sidebar, M2.2 sul testo
- * d'errore). Composto: **2.00:1 in chiaro e 2.84:1 in scuro**. Resta com'è, e
- * non è una svista: la WCAG 1.4.3 esenta esplicitamente i controlli inattivi,
- * e un giorno disabilitato che si legge come uno attivo sarebbe il difetto
- * opposto. Scritto qui perché la prossima misura non lo riscopra come nuovo.
- *
- * ## Note per M2.9
- *
- * 1. **Il bersaglio touch.** La cella è 42px, **sotto i 44**: il secondo
- *    bersaglio più piccolo del set dopo la voce del riquadro combobox (31px).
- *    Non si chiude qui ri-stilando — `--spacing(8)` darebbe 48px in touch ma
- *    32 in normale, cioè un calendario più largo su ogni pagina desktop per un
- *    requisito che vale solo sul telefono. Va deciso con gli altri bersagli.
- * 2. **axe non vede il difetto della tastiera.** Zero violazioni su queste
- *    story, con la navigazione rotta: è il promemoria che il residuo manuale
- *    del gate — «navigazione da tastiera reale su ogni componente» — non è una
- *    formalità accanto ad axe, ed è l'unica cosa che qui ha trovato qualcosa.
+ * **Tastiera.** Il `Tab` passa per il mese precedente, il mese successivo e un
+ * solo giorno della griglia, quello selezionato o di oggi; `Invio` lo sceglie.
+ * **Le frecce non spostano il fuoco fra i giorni**: con la tastiera si
+ * raggiunge solo quel giorno. Per chi lavora da tastiera la data si scrive nel
+ * campo. Nel date picker, `Invio` sul bottone apre il riquadro, `Esc` lo
+ * chiude e il fuoco torna sul bottone; il riquadro non è modale, e un `Tab`
+ * oltre l'ultimo controllo ne esce.
  */
 const meta = {
   title: 'Primitive/Calendar',
@@ -182,9 +88,8 @@ type Story = StoryObj<typeof meta>
 const mese = new Date(2026, 8, 1)
 
 /**
- * **Il criterio di accettazione, per metà: italiano e lunedì.** Le intestazioni
- * dicono `lun mar mer gio ven sab dom` e la prima colonna è il lunedì. Nessuna
- * delle due cose è stata chiesta al componente: le porta `locale={it}`.
+ * Italiano e lunedì in prima colonna: li porta `locale={it}`, senza altre
+ * opzioni.
  */
 export const Predefinito: Story = {
   render: function Predefinito() {
@@ -202,13 +107,9 @@ export const Predefinito: Story = {
 }
 
 /**
- * **La prova che il locale sta facendo qualcosa**, affiancata. A sinistra il
- * componente senza `locale`: intestazioni inglesi e **domenica in prima
- * colonna**, che è il difetto vero — l'inglese si nota, la colonna spostata no,
- * e chi legge una data conta le colonne senza guardarle.
- *
- * A destra lo stesso componente con `locale={it}`. È la story da riaprire
- * quando qualcuno chiederà «serve anche `weekStartsOn`?»: no, e si vede.
+ * Lo stesso mese senza `locale` e con `locale={it}`, affiancati. Senza, le
+ * intestazioni sono in inglese e la domenica sta in prima colonna: è l'errore
+ * che non si nota, perché chi legge conta le colonne senza guardarle.
  */
 export const LocaleAConfronto: Story = {
   name: 'Il locale, a confronto',
@@ -239,13 +140,8 @@ export const LocaleAConfronto: Story = {
 }
 
 /**
- * **L'altra metà del criterio: gli intervalli.** `mode="range"` e due mesi
- * affiancati, che è la forma giusta per una scadenza ETA — l'inizio e la fine
- * cadono quasi sempre in mesi diversi, e con un mese solo si sceglie la prima
- * data, si cambia mese, e si è perso di vista da dove si era partiti.
- *
- * Il trascinamento non serve: si clicca l'inizio, si clicca la fine. Da
- * tastiera le frecce spostano il giorno, `Invio` fissa l'estremo.
+ * Un intervallo su due mesi affiancati, con `mode="range"`: si clicca
+ * l'inizio, poi la fine.
  */
 export const Intervallo: Story = {
   render: function Intervallo() {
@@ -267,10 +163,9 @@ export const Intervallo: Story = {
 }
 
 /**
- * **Le date di revisione stanno indietro di anni**, e a frecciate non ci si
- * arriva: `captionLayout="dropdown"` mette mese e anno a menù, così si salta.
- * Con `startMonth`/`endMonth` si limita l'intervallo degli anni offerti —
- * qui dal 2015 al 2030 — o il menù degli anni parte dal 1900.
+ * Mese e anno in due menu (`captionLayout="dropdown"`), per saltare indietro
+ * di anni senza scorrere mese per mese. `startMonth` ed `endMonth` limitano
+ * gli anni offerti, qui dal 2015 al 2030.
  */
 export const ConMenuMeseEAnno: Story = {
   name: 'Con menù di mese e anno',
@@ -292,48 +187,12 @@ export const ConMenuMeseEAnno: Story = {
 }
 
 /**
- * **Il date-picker: la composizione, non un componente.** Popover + Button +
- * Calendar. Il bottone porta la data formattata in italiano (`format(…, 'PPP',
- * { locale: it })` → `9 settembre 2026`) e un segnaposto quando non c'è scelta.
+ * Il date picker: un bottone che mostra la data in italiano, o un segnaposto,
+ * e apre il calendario in un `popover`. Scelta la data, il riquadro si chiude.
  *
- * Due dettagli che si sbagliano una volta sola:
- *
- * 1. **`id` sul bottone e `htmlFor` sull'etichetta.** Il grilletto del popover
- *    è il bottone: senza `id` l'etichetta non etichetta niente, e axe dà
- *    `label`. Si mette sul `Button` reso da `render`, non sul `PopoverTrigger`.
- * 2. **Il riquadro si chiude da sé alla scelta** solo se glielo si dice:
- *    `open` controllato e `setOpen(false)` dentro `onSelect`. Lasciato aperto
- *    dopo la scelta sembra rotto.
- * 3. **`aria-label` sul `PopoverContent`.** Il riquadro è un `role="dialog"`,
- *    e un dialogo senza nome è una violazione axe *serious* — `aria-dialog-name`,
- *    misurata qui, 4 volte su 2 story × 2 modalità. Non è un difetto del
- *    `popover`: un popover che contiene un titolo il nome ce l'ha, questo no
- *    perché contiene solo la griglia. Si chiude in composizione, con
- *    l'attributo, senza toccare nessun componente.
- *
- * ### Se il riquadro si apre **a destra del campo**, non è rotto
- *
- * È l'anti-collisione del `popover`, e conviene saperlo perché sembra un
- * difetto. Il riquadro è alto **257px**: finché sotto il campo ce n'è almeno
- * altrettanto si apre sotto, allineato a sinistra (`side=bottom align=start`).
- * Quando non ci sta né sotto né sopra — il caso tipico è il canvas di
- * Storybook col pannello degli addon aperto — Base UI ripiega sull'asse
- * perpendicolare e lo mette **a destra**. Misurato: `bottom` a 1440×640 (305px
- * sotto), `right` a 1440×560 (265px sotto).
- *
- * Non è stato vincolato: è il comportamento di ogni popup del set, `select` e
- * `dropdown-menu` compresi, e in una pagina vera — campo in cima a un form —
- * si apre sotto. Volendolo tenere sull'asse verticale c'è `collisionAvoidance`
- * di Base UI, che sta **in composizione** e non nel componente; il prezzo è
- * che quando davvero non ci sta il riquadro esce dallo schermo invece di
- * spostarsi.
- *
- * Da tastiera, misurato: `Tab` sul bottone, `Invio` apre. Il fuoco entra sul
- * **mese precedente**, non sul giorno: servono altri **due `Tab`** per
- * arrivare alla griglia. `Invio` sceglie, il riquadro si chiude e il fuoco
- * torna al grilletto; `Esc` chiude senza scegliere e il fuoco torna comunque.
- * Il popover **non intrappola il fuoco** — un terzo `Tab` esce dalla pagina —
- * ed è voluto, come già accertato in M2.3: non è un modale.
+ * Se il riquadro si apre a destra del campo invece che sotto, è perché sotto
+ * non c'è spazio: il `popover` si sposta per restare sullo schermo, come ogni
+ * popup del sistema.
  */
 export const DatePicker: Story = {
   name: 'Date picker (composizione)',
@@ -379,23 +238,8 @@ export const DatePicker: Story = {
 }
 
 /**
- * **Lo stesso, a intervallo: è la scadenza ETA.** E qui c'è una differenza che
- * si scopre solo provandola, quindi vale la pena averla scritta.
- *
- * La regola della composizione di sopra — «chiudi il riquadro appena `onSelect`
- * dà una data» — **qui non si può applicare**, e nemmeno nella forma che sembra
- * ovvia («chiudi quando arrivano sia `from` sia `to`»). Misurato: al **primo**
- * clic `react-day-picker` chiama `onSelect` con `{ from: X, to: X }`, non con
- * `to` vuoto. Chiudere su `from && to` chiude quindi dopo un clic solo, con un
- * intervallo di un giorno che nessuno ha chiesto — è successo, e il campo
- * diceva `6 set 2026 — 6 set 2026`.
- *
- * La risposta è quella di shadcn, ed è di non fare niente: **il riquadro
- * dell'intervallo non si chiude da sé.** Si chiude con `Esc` o cliccando
- * fuori, che è il comportamento del `popover` e non va insegnato. Confrontare
- * i due estremi per decidere se chiudere sarebbe stato scrivere una regola
- * nostra sopra un componente standard, per giunta sbagliata al primo caso
- * limite (un intervallo di un giorno solo è legittimo).
+ * Il date picker a intervallo. Il riquadro non si chiude da sé: si chiude con
+ * `Esc` o cliccando fuori, dopo aver scelto i due estremi.
  */
 export const DatePickerIntervallo: Story = {
   name: 'Date picker a intervallo',
@@ -442,22 +286,9 @@ export const DatePickerIntervallo: Story = {
 }
 
 /**
- * **La data si scrive, e il calendario è solo la seconda strada.** È la variante
- * `Input` della pagina shadcn, e per Anagrafe è probabilmente la forma da usare
- * di default: chi carica schede a giornata la data la **batte**, e aprire un
- * riquadro per cliccare un numero è più lento di scrivere sei cifre.
- *
- * È anche il rimedio pratico a **D15** — il calendario che da tastiera non si
- * naviga — senza divergere da niente: qui la tastiera basta e avanza, il
- * riquadro non serve aprirlo. `↓` nel campo lo apre per chi lo vuole.
- *
- * **Una differenza dall'esempio shadcn, ed è obbligata.** Loro fanno
- * `new Date(e.target.value)` sulla stringa scritta. In italiano non si può:
- * `new Date('09/09/2026')` la legge **all'americana**, mese prima del giorno,
- * quindi `03/09/2026` diventerebbe 9 marzo invece del 3 settembre — un errore
- * che non dà errore, e che su una data di revisione non si scopre mai. Si usa
- * `parse(valore, 'dd/MM/yyyy', ..., { locale: it })`, che il formato lo sa.
- * Il segnaposto dice `gg/mm/aaaa`, così il formato atteso è scritto.
+ * La data si scrive nel formato `gg/mm/aaaa`, e il calendario è la seconda
+ * strada: `↓` nel campo lo apre. È la forma più veloce per chi la data la sa,
+ * e la più comoda da tastiera.
  */
 export const DatePickerDaScrivere: Story = {
   name: 'Date picker con campo da scrivere',
@@ -528,14 +359,9 @@ export const DatePickerDaScrivere: Story = {
 }
 
 /**
- * **I giorni che non si possono scegliere, e quelli da far notare.** Due cose
- * diverse che si confondono: `disabled` toglie il giorno dalla scelta,
- * `modifiers` lo **colora senza toglierlo**.
- *
- * Qui il passato è disabilitato — una consegna non si programma indietro — e le
- * scadenze già fissate sono marcate col token del brand. Il colore non è
- * l'unico segnale: le scadenze restano cliccabili e il giorno scelto ha
- * comunque il suo fondo pieno.
+ * Il passato è disabilitato con `disabled` e non si sceglie; le scadenze già
+ * fissate sono segnate con `modifiers` — colore e peso insieme — e restano
+ * cliccabili.
  */
 export const GiorniDisabilitatiEMarcati: Story = {
   name: 'Giorni disabilitati e marcati',
@@ -560,10 +386,8 @@ export const GiorniDisabilitatiEMarcati: Story = {
 }
 
 /**
- * **Dentro una `Card`**, che è la forma in cui sta su una pagina invece che in
- * un riquadro. Il preset se ne accorge da sé — `in-data-[slot=card-content]:bg-transparent`
- * sulla radice — e toglie il proprio fondo per non fare un rettangolo dentro
- * il rettangolo. Vale lo stesso dentro un `PopoverContent`.
+ * Dentro una `Card`: il calendario toglie il proprio fondo e si posa su quello
+ * della card. Fa lo stesso dentro un `popover`.
  */
 export const InUnaCard: Story = {
   name: 'In una card',
