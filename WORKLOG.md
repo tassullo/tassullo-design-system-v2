@@ -12152,3 +12152,22 @@ Tre conseguenze scritte sul posto. **`facciaStretta` assente = comportamento di 
 
 **Prossimi passi**: **M5.0a**. Le due facce sono fatte su entrambe le pagine del mandato.
 
+## 2026-09-22 — Coda di giornata: la FASE 5 riletta contro quello che la giornata ha cambiato
+
+Non un task: la verifica che Francesco ha chiesto chiudendo la sessione — «verifica se manca qualcosa per la fase 5 che abbiamo ripianificato oggi». M5.0 è stata scritta **stamattina**, e le tre sessioni della giornata (M4ter.14/15/16) l'hanno superata su sei punti. Tutti corretti in `PIANO.md` e `CHECKLIST.md`; nessuno era un errore di piano, tutti erano numeri e inventari fermi a prima.
+
+1. **Il conto di `test:a11y` era in cinque punti come `1524/0`**, ed è il criterio d'accettazione di tutte e cinque le sessioni M5.0a–e. Oggi è **1540/0 su 385 story**: M4ter.15 e M4ter.16 hanno aggiunto quattro scene (le due facce strette e le due di soglia). Un criterio «invariato a 1524» avrebbe fatto fallire la prima sessione della FASE 5 su una differenza che non è sua. Corretto, **e scritto il perché accanto**: se altre scene arrivano prima della fase, il conto si **rilegge**, non si eredita.
+2. **I file di story sono 90, non 89**, e il `≈740` della ricognizione è una misura del mattino su file che il pomeriggio ha riscritto (quattro). Non l'ho sovrascritto con una misura mia più grossolana — l'ho marcato **«da rimisurare»** in M5.0a, che è la sessione che lo userà.
+3. **`IntestazioneColonnaMenu` non era nell'inventario di M5.0d.** È API pubblica nuova di M4ter.14 — la seconda forma di testata del blocco — e oggi il suo JSDoc sta nel **blocco**, non nella story: chi riscrive le story dei blocchi non l'avrebbe trovata guardando le story. Aggiunta al prompt col vincolo che la rende sicura (`meta.azioniProprie`, senza cui i grilletti di pin tornano due) e con l'avvertenza che va scritta come **alternativa opt-in**, non come il default.
+4. **Le tre prop delle due facce non erano nell'inventario di M5.0e.** `PaginaLista` ha ora `facciaStretta`/`soglia`/`faccia`, ed è l'item che le app **installano**: va documentata come si documenta una prop, non come il racconto di come ci si è arrivati. La regola da far passare è la divisione — il blocco sceglie *quando*, la pagina scrive *cosa*.
+5. **M5.1 diceva «96 item»**: sono **95**. `public/r/` ha 96 file perché uno è l'indice, ed è esattamente il genere di scarto che fa quadrare un conto sbagliato.
+6. **La FASE 4ter era dichiarata «10 sessioni più due di coda»**: le code sono **sei** (M4ter.11–16), tutte aperte da un rilievo a video e tutte chiuse fra il 21 e il 22.
+
+**Cosa invece non mancava**, controllato e lasciato stare: la nota su `altezza="ferma"` era già entrata in M5.0d nella sessione di M4ter.14; M5.0b/c contano ancora 26+26 file in `ui/`, che oggi non è stata toccata; M5.0e conta ancora 6+4 pagine, e le scene nuove stanno dentro file già in elenco; `check:storybook` non guarda `.storybook/preview.tsx`, quindi la funzione `storySort` scritta in M4ter.15 non lo riguarda.
+
+Sette gate verdi dopo le correzioni (sono documenti, ma `check` gira lo stesso): a11y **1540/0** su 385, `public/r/` allineato, **211 riferimenti** tutti risolti.
+
+**Stato a fine giornata**: FASE 4ter chiusa, 16 sessioni. PR #21 fusa su `main` con un **merge commit** e non uno squash, di proposito: porta quattro task distinti (M4ter.14, il cricchetto del riquadro, M4ter.15, M4ter.16) che `CHECKLIST.md` e questo diario nominano uno per uno, e schiacciarli avrebbe reso il `git log` inconciliabile con i documenti che lo descrivono.
+
+**Prossimi passi**: **M5.0a**, prima sessione della FASE 5.
+
