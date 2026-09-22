@@ -12080,5 +12080,23 @@ il totale da 69 a 74.
 
 **Scostamento dal piano, a verbale.** M4ter.14 non era a piano: la FASE 4ter era chiusa con M4ter.13. Sta qui e non in FASE 5 per la stessa ragione di M4ter.11–13 — è **forma**, non documentazione, e M5.0 riscriverà il testo di queste pagine dando per buona la forma che trova. Farlo dopo avrebbe significato riscrivere due volte le stesse pagine.
 
+### Coda di M4ter.14 — il riquadro che non tornava alto: **riprodotto e chiuso**
+
+Rilievo di Francesco, con screenshot e — questa volta — **la sequenza esatta**: filtro Stato = Superata (8 norme su 48), filtro tolto, e il riquadro resta alto come per otto righe mentre il piè dice «48 norme, pagina 1 di 2». È **lo stesso difetto segnalato su `PaginaProdotti` il 2026-09-18** e archiviato in questo diario come *non riprodotto* (coda di M3bis.11b, quater). Non era un falso allarme: era una prova incompleta, e la nota di allora chiedeva giustamente «lo screenshot **insieme** alla sequenza».
+
+**Perché allora non si riproduceva.** La prova del 18 filtrava fino a **un** prodotto. Con una riga il contenitore non può scorrere, `scrollTop` resta 0 e la misura è casualmente giusta. Il difetto vuole una **manciata** di righe: abbastanza da lasciare al browser una riga d'ancoraggio, non abbastanza da riempire la pagina.
+
+**La causa.** `ricalcola` (l'effetto di `altezzaMax`) scorreva le righe leggendo `riga.getBoundingClientRect().bottom - contenitoreTop`. `getBoundingClientRect` torna coordinate di **viewport**, e chi scorre non è `contenitore` ma `table-container`, un livello più dentro: a contenitore scorso le righe in cima danno un fondo **negativo** e l'ultima cade **esattamente sull'altezza corrente**. Misurato sulla sequenza di Francesco: `scrollTop` 696, tetto calcolato **370** contro i **586** realmente disponibili, e `setAltezzaMax` scartava il valore nuovo per la tolleranza di 4px (`|368,5 − 370| < 4`) — cioè riscriveva il tetto con quello che aveva già.
+
+È un **cricchetto**, il quarto di questa storia (i primi tre sono a verbale nel commento dell'effetto: misurare il riquadro stesso, scrivere dentro il proprio `ResizeObserver`, ricostruire `testata + N × riga`). E **peggiora da sé**: è il tetto basso a far ancorare il browser in fondo, che è ciò che falsa la misura successiva.
+
+**Il rimedio, e perché non è quello ovvio.** La prima stesura rimetteva `scrollTop` nella formula. Funziona su una tabella normale e **si rompe in virtualizzazione**, dove `scrollTop` vale centinaia di migliaia di pixel mentre le righe rese sono solo quelle a schermo: ogni riga uscirebbe subito dal disponibile, il ciclo romperebbe alla prima e il tetto non si scriverebbe più. Scartata. Si prende invece la cima della **prima riga resa** come zero — `altezzaTestata + (riga.bottom − primaRigaTop)`. Le distanze fra righe non dipendono da dove sta la barra di scorrimento, e le righe sono alte uguali, quindi «testata + k righe» è il tetto giusto in tutt'e due i casi.
+
+**Misure, prima → dopo.** `Pagine/Lista → Con Dati`: 573 → 367,5 (filtro) → **573** (filtro tolto); prima della correzione restava a 368,5 con `scrollHeight` 1065, cioè le righe c'erano tutte e il riquadro le tagliava. `Blocchi/Data Table → Virtualizzata`: **447px** sia a `scrollTop` 0 sia forzando `scrollTop` a 200.000 e provocando un ricalcolo — è la prova che la formula relativa regge dove quella con `scrollTop` non reggeva. `Pagine/Prodotti`: invariata, 574px, perché `perPagina="infinito"` carica a passi di 40 e il numero di righe non scende mai sotto l'altezza della pagina — ed è la seconda ragione per cui il 18 non si vedeva.
+
+Sette gate verdi dopo la correzione: a11y **1524/0** su 381 story, bersagli **3278**, 0 piccoli.
+
+**Messo a piano, su richiesta di Francesco**: `M5.0d` deve scrivere `altezza="ferma"` **in evidenza** nella story di `data-table`, per tutte e tre le paginazioni — cosa fa, che il tetto si misura **fra le righe** e mai contro il contenitore, e la sequenza che riproduce il cricchetto. Non è documentazione di manutenzione: è ciò che impedisce che la prossima pagina lista ci ricaschi, e la prova è che questo difetto è già costato due segnalazioni a quattro giorni di distanza. → `PIANO.md` §M5.0d, riga in `CHECKLIST.md`.
+
 **Prossimi passi**: **M5.0a**, invariata.
 

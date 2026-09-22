@@ -3801,9 +3801,35 @@ export function DataTable<TDato extends RowData>({
       )
       if (righeVere.length === 0) return
 
+      /**
+       * **Le righe si misurano fra loro, non contro il contenitore** —
+       * quarto bug di questa storia, preso da Francesco (M4ter.14): filtro
+       * messo, filtro tolto, e il riquadro restava basso come quando le
+       * righe erano otto.
+       *
+       * `getBoundingClientRect` torna coordinate di **viewport**, e chi
+       * scorre — `table-container`, un livello più dentro (v. il commento
+       * del riquadro, sotto) — le sposta tutte. A contenitore scorso le
+       * righe in cima danno un fondo **negativo** e l'ultima cade
+       * esattamente sull'altezza corrente: misurato 370 contro i 586
+       * disponibili, con `scrollTop` a 696. Il tetto si riscriveva quindi
+       * col valore che aveva già, ed è un **cricchetto** — il riquadro sa
+       * rimpicciolirsi e non sa più ricrescere. E peggiora da sé, perché è
+       * il tetto basso a far ancorare il browser in fondo.
+       *
+       * Il rimedio non è rimettere `scrollTop` (funzionerebbe qui e si
+       * romperebbe in virtualizzazione, dove `scrollTop` vale centinaia di
+       * migliaia di pixel e le righe rese sono solo quelle a schermo): si
+       * prende la cima della **prima riga resa** come zero. Le distanze fra
+       * righe non dipendono da dove sta la barra di scorrimento, e le righe
+       * sono alte uguali — quindi `testata + k righe` è il tetto giusto in
+       * tutt'e due i casi.
+       */
+      const primaRigaTop = righeVere[0].getBoundingClientRect().top
+
       let tetto = altezzaTestata
       for (const riga of righeVere) {
-        const fondoRiga = riga.getBoundingClientRect().bottom - contenitoreTop
+        const fondoRiga = altezzaTestata + (riga.getBoundingClientRect().bottom - primaRigaTop)
         if (fondoRiga > disponibileTotale) break
         tetto = fondoRiga
       }
