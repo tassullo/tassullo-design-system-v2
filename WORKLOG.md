@@ -12293,3 +12293,36 @@ La lezione vale per M5.0c–e: **la pagina si controlla renderizzata**, non sul 
 **In modalità Scuro le pagine Docs restano su fondo bianco.** Il `dark` arriva sull'`<html>` dell'iframe (fondo del `body` `oklch(0.1913 0 0)`), ma `.sbdocs-wrapper` di Storybook tiene il suo bianco e il suo testo scuro; le scene dentro `.docs-story` hanno fondo trasparente e si rendono coi token scuri. Risultato: ciò che non ha un fondo proprio scrive chiaro su bianco — in `Primitive/Badge` → `Varianti` le varianti `outline` e `ghost` **quasi spariscono**. Nasce con `autodocs` acceso per tutti in coda a M5.0a; `test:a11y` non lo vede perché misura il canvas, non le pagine Docs. Non corretto qui (è configurazione di `.storybook/`, non testo): proposto come task a parte. Da chiudere prima di M5.0e, che rilegge Pages dall'URL pubblico.
 
 **Prossimi passi**: **M5.0c** — le 24 story da `kbd` a `tooltip`, con il rovescio di `badge` su `toggle-group` e `sheet` nel confine degli overlay. E il rilievo delle pagine Docs in scuro.
+
+## 2026-09-22 — M5.0b, coda — Le pagine Docs seguono la Modalità
+
+Chiude il rilievo di M5.0b: in Scuro le pagine Docs restavano su fondo bianco, e ciò che non ha un fondo proprio scriveva chiaro su bianco (`Primitive/Badge` → `Varianti`: `outline` e `ghost` quasi invisibili). Preesistente da quando `autodocs` è acceso per tutti (coda di M5.0a). Ragionamento e misure in `docs/DECISIONI.md` **§53**.
+
+#### Cosa è cambiato
+
+- **`.storybook/tema-storybook.ts`** (nuovo): `temaStorybook('light' | 'dark')`, il tema di Storybook dalla palette generata `manager-palette.json`. Era scritto dentro `manager.ts`; ora lo usano la cornice e le pagine Docs, una definizione sola.
+- **`.storybook/preview.tsx`**: `parameters.docs.container` = `ContenitoreDocs`, un `DocsContainer` che a ogni resa legge il global `modalita` e passa il tema chiaro o scuro; applica anche la classe sull'`<html>`, per le pagine senza story (`Introduzione`).
+- **`.storybook/preview.css`**: due regole. Le scene (`.docs-story`) prendono la **Superficie** (card, sidebar) come il `body` del canvas; il riquadro del codice (`.docblock-source`) sta su `--card`, perché sul `--background` chiaro i colori fissi di Prism scendevano a **4.26:1**.
+- **`.storybook/manager.ts`**: usa `temaStorybook()`. Tolti i quattro campi `sidebar*`, che Storybook 10 **non ha** e scartava in silenzio (la colonna non è mai stata antracite: §53, in coda).
+
+#### Perché il tema e non CSS sulle classi di Storybook
+
+La pagina Docs è fatta di componenti di Storybook che si colorano dal suo tema — prosa, titoli, tabella delle prop, controlli, codice con la colorazione sintattica. Ripassarli con `.sbdocs-*`/`.docblock-*` vuol dire inseguire classi interne e lasciare fuori la sintassi. Il tema non accetta `var()` (lo passa da `polished`), quindi i colori sono gli esadecimali **generati**, come già nella cornice: nessun valore scritto a mano, regola 3 rispettata.
+
+#### Verifiche — in un Chromium vero (Playwright, dalla cartella temporanea), sullo Storybook costruito, **dal manager**
+
+- **Commutazione**: chiaro → scuro → chiaro → scuro → chiaro dalla barra, su `Badge`: `.sbdocs-wrapper` passa `246,246,244` ↔ `20,20,20` ogni volta.
+- **Contrasto della prosa, colori risolti su canvas 1×1** con la pila dei fondi: sei pagine (`Badge`, `Calendar`, `Dialog`, `Dropdown Menu`, `Combobox`, `Introduzione`) × cinque combinazioni (chiaro/pagina, scuro/pagina, scuro/card, scuro/sidebar, chiaro/sidebar), **con tutti i «Show code» aperti** — fino a 1702 nodi di testo per pagina: **0 sotto 4.5:1**. Minimo **4.53** in chiaro (costanti di Prism, sulla card), **5.26** in scuro. Senza la regola sul codice erano 5 nodi sotto soglia su `Badge`.
+- **axe `color-contrast` sulle pagine intere, scene comprese**, sulle stesse sei pagine: **Scuro 47 → 0** violazioni (Badge 5, Calendar 12, Dialog 5, Dropdown Menu 4, Combobox 21; minimo 1.17:1 prima). Chiaro 0 prima e dopo. *Incomplete* identiche prima e dopo (Calendar 11, Dropdown 5, Combobox 6), le stesse in entrambe le modalità.
+- **Superficie**: le scene prendono `28,28,28` su card e sidebar in scuro, `20,20,20` su sidebar in chiaro; la prosa resta sulla pagina.
+
+#### Uno strumento che mente, da sapere
+
+L'iframe **aperto da solo** (`iframe.html?id=…&viewMode=docs`) si **ricarica** quando gli si manda `updateGlobals` sul canale, e riparte dai globals iniziali: la prima misura diceva «la leva non commuta» su ogni pagina con story, e solo su `Introduzione` sì. Rifatta la stessa prova sulla build di partenza: stesso ricaricamento, quindi non è di questa modifica. Le pagine Docs si misurano **dal manager**.
+
+#### Gate
+
+- `npm run check`, i sette gate: verdi. `oxlint` a zero su `.storybook/`.
+- **`test:a11y`: 1540 scansioni su 385 story, 0 violazioni**, invariato — ma **alla seconda corsa**. La prima, dentro `npm run check`, ha stampato **✔ 1467** con la passata chiaro/chiuso a **312 story** invece di 385, e verde. Rilanciata da sola la passata dà 385, rilanciato il gate intero dà 1540: una prima passata instabile (probabilmente l'avvio a freddo di Vite dopo la build di Storybook), non questa modifica, che al canvas non arriva — `docs.container` agisce solo in Docs e le due regole CSS solo su `.docs-story` e `.docblock-source`. **Il rilievo vero è sul gate**: conta le asserzioni che trova, quindi una story che non viene raccolta **sparisce dal conto senza farlo fallire**. È la famiglia di §22 — «un popup non aperto non è un popup senza violazioni» — sul numero delle story. Proposto come task a parte: il gate dovrebbe confrontare il conto di ogni passata con quello delle story indicizzate e fallire se ne manca una.
+
+**Prossimi passi**: **M5.0c**, invariato. Se la cornice di Storybook deve davvero avere la colonna antracite, è un task a sé (§53, in coda).
