@@ -1671,7 +1671,8 @@
         "@tassullo/tassullo-error-state",
         "@tassullo/tassullo-page-header",
         "@tassullo/tassullo-page-skeleton",
-        "@tassullo/tema"
+        "@tassullo/tema",
+        "@tassullo/use-soglia"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaLista\n    percorso={[{ titolo: \"Prodotti\" }]}\n    azioni={[{ titolo: \"Nuovo prodotto\", icona: PlusIcon, ruolo: \"primaria\", onClick: apri }]}\n    colonne={COLONNE}\n    dati={prodotti}\n    stato={statoCaricamento}\n    vuotoIniziale={{ titolo: \"Nessun prodotto in anagrafica\", azione: <Button size=\"sm\">Nuovo prodotto</Button> }}\n    cerca=\"Cerca nome, variante, codice…\"\n    perPagina=\"infinito\"\n    barra={<BarraFiltri />}\n  />\n\nCompone i blocchi già nel registry — `page-header`, `data-table`,\n`empty-state`, `error-state`, `page-skeleton` — zero primitive nuove.\n`stato` sceglie fra `pronto` (default, l'unico in cui `dati` conta),\n`caricamento` e `errore`. `vuotoIniziale` è un caso distinto da `vuoto`:\nil primo è \"non esiste ancora nessuna riga\" (CTA che crea il primo\nrecord, EmptyState al posto della tabella); il secondo, passato a\n`DataTable`, è \"la ricerca non trova niente\" (CTA che pulisce i filtri).\nSenza `vuotoIniziale` una `dati` vuota passa comunque alla tabella —\nvoluto per un elenco che filtra a zero risultati."
     },

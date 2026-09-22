@@ -191,9 +191,53 @@ const preview: Preview = {
      *
      * L'ordine è quello del piano, cioè quello in cui le cose si costruiscono:
      * prima il tema, poi le primitive, poi i blocchi, poi le pagine.
+     *
+     * **Dentro ogni sezione l'ordine è alfabetico** (richiesta di Francesco,
+     * 2026-09-22). Con la sola `order` non lo era: Storybook mette in quel
+     * posto le voci nominate e lascia le altre **nell'ordine in cui i file
+     * sono stati raccolti**, quindi `Pagine` si leggeva in due blocchi
+     * alfabetici uno dietro l'altro — prima i sei file di
+     * `registry/tassullo/pages/`, poi i quattro di `stories/`. Due elenchi
+     * ordinati non fanno un elenco ordinato, e chi cerca «Prodotti» non ha
+     * modo di sapere in quale dei due guardare.
+     *
+     * **Funzione e non `method: 'alphabetical'`**, che è l'aggiunta di una
+     * parola e sarebbe sbagliata: quella ordina *ogni* livello, comprese le
+     * story dentro un componente — `Primitive/Button` passerebbe da
+     * «Predefinito, Varianti, Taglie…» a «Disabilitato, Icona, Predefinito…»,
+     * cioè l'ordine con cui si spiega un componente sostituito da quello del
+     * dizionario. Qui si ordina **solo il livello dei componenti**: a parità
+     * di `title` la funzione torna 0, e `Array.sort` essendo stabile lascia
+     * le story nell'ordine in cui il file le esporta.
      */
     options: {
-      storySort: { order: ['Introduzione', 'Tema', 'Primitive', 'Blocchi', 'Pagine'] },
+      storySort: (a, b) => {
+        // **Tutto dentro la funzione, e in JavaScript puro.** Storybook non
+        // importa questo modulo per leggere `storySort`: ne **estrae il
+        // sorgente** e lo passa a `eval`. Due conseguenze, entrambe pagate
+        // qui: una funzione dichiarata fuori fa fallire la build del preview
+        // («should be defined inline»), e un'annotazione di tipo la fa
+        // fallire lo stesso, con un `SyntaxError: Unexpected token ':'` che
+        // non nomina il file. I parametri restano quindi senza tipo — è
+        // l'unico punto del repo dove serve, ed è il motivo per cui è
+        // scritto.
+        const sezioni = ['Introduzione', 'Tema', 'Primitive', 'Blocchi', 'Pagine']
+        // Una sezione non prevista va **in fondo** e non in testa: `indexOf`
+        // torna -1, che ordinato come numero verrebbe prima di tutto.
+        const posto = (titolo) => {
+          const i = sezioni.indexOf(titolo.split('/')[0])
+          return i === -1 ? sezioni.length : i
+        }
+        // Stesso componente: le sue story restano nell'ordine in cui il file
+        // le esporta — `Array.sort` è stabile, quindi lo 0 le lascia dov'erano.
+        if (a.title === b.title) return 0
+        const sa = posto(a.title)
+        const sb = posto(b.title)
+        if (sa !== sb) return sa - sb
+        // `localeCompare` con la locale italiana, non `<`: le accentate si
+        // ordinerebbero altrimenti per punto di codice, dopo la «z».
+        return a.title.localeCompare(b.title, 'it')
+      },
     },
 
     /**

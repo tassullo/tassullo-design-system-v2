@@ -1,32 +1,27 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { Column, RowData } from '@tanstack/react-table'
+import type { RowData } from '@tanstack/react-table'
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   CheckIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   CopyIcon,
   EllipsisVerticalIcon,
   PencilIcon,
-  PinIcon,
-  PinOffIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react'
 import * as React from 'react'
 
-import { cn } from 'cn'
 import { apriCol, apriColDestro } from '@/prove/apri'
 import {
   CellaAlbero,
   DataTable,
   IntestazioneColonna,
+  IntestazioneColonnaMenu,
   RowMenuItem,
   RowMenuSeparator,
   creaColonne,
   useDataTableRow,
-  type CaratteristicheTabella,
   type IstanzaTabella,
   type MetaColonna,
 } from '@/registry/tassullo/blocks/data-table'
@@ -627,135 +622,20 @@ export const ColonneBloccabili: Story = {
  * lì il titolo torna testo semplice e un solo grilletto «⋮» — visibile
  * al passaggio del mouse o quando la colonna è già ordinata/bloccata,
  * altrimenti spento — apre un menu con **entrambe** le famiglie di azioni,
- * "Ordina" sopra e "Blocca" sotto (`DataTableColumnActions` +
- * `DataTableColumnSortOptions`/`DataTableColumnPinOptions`, lette dal
- * sorgente pubblico via `data-table.json`/`data-table-core.json`, non
- * indovinate).
+ * "Ordina" sopra e "Blocca" sotto.
  *
- * **Ricostruzione scritta per questa story**, con le nostre primitive
- * (`DropdownMenu`, non le loro) e la stessa forma di scelta di
- * `MenuBloccaColonna` nel blocco — un'opzione `disabled` per lo stato già
- * attivo, non un segno di spunta. **Resta qui, non in `CellaIntestazione`/
- * `IntestazioneColonna`**: l'ambito confermato per M3bis.11b la usa su
- * Prodotti (v. `WORKLOG.md`), portarla come forma di default del blocco —
- * se mai deciso — è un passo ulteriore, non compreso in questa conferma.
+ * **Da M4ter.14 la forma sta nel blocco**, esportata come
+ * `IntestazioneColonnaMenu`: era ricostruita a mano qui, in `Pagine/Prodotti`
+ * e in `Pagine/Lista` — tre copie della stessa forma da tenere allineate. Non
+ * è però diventata il **default** di `IntestazioneColonna`, che resta la
+ * testata normale: questa si sceglie colonna per colonna, insieme a
+ * `meta.azioniProprie`.
  */
-function MenuAzioniColonna<TValore>({
-  colonna,
-  titolo,
-}: {
-  colonna: Column<CaratteristicheTabella, Prodotto, TValore>
-  titolo: string
-}) {
-  const ordine = colonna.getIsSorted()
-  const posizionePin = colonna.getCanPin() ? colonna.getIsPinned() : false
-  const attiva = !!ordine || !!posizionePin
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              '-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
-              // `text-foreground`, lo stesso colore del titolo della colonna
-              // (`IntestazioneColonnaAzioni`, sotto) — non un colore
-              // "attivo" a parte: rilievo di Francesco, il grilletto acceso
-              // deve leggere come lo stesso testo, non come un accento.
-              // Prima era `text-accent-ink` (già corretto da `text-primary`,
-              // la trappola di `CLAUDE.md`), un passo ancora più vicino al
-              // sorgente niko invece che alla nostra pagina.
-              attiva && 'text-foreground opacity-100'
-            )}
-          />
-        }
-        aria-label={`Azioni sulla colonna «${titolo}»`}
-      >
-        <EllipsisVerticalIcon aria-hidden />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Ordina</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(false)}
-            disabled={ordine === 'asc'}
-          >
-            <ArrowUpIcon aria-hidden />
-            Crescente
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(true)}
-            disabled={ordine === 'desc'}
-          >
-            <ArrowDownIcon aria-hidden />
-            Decrescente
-          </DropdownMenuItem>
-          {ordine ? (
-            <DropdownMenuItem onClick={() => colonna.clearSorting()}>
-              <XIcon aria-hidden />
-              Rimuovi ordinamento
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuGroup>
-        {colonna.getCanPin() ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Blocca</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => colonna.pin('start')}
-                disabled={posizionePin === 'start'}
-              >
-                <PinIcon aria-hidden />
-                Blocca a sinistra
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => colonna.pin('end')}
-                disabled={posizionePin === 'end'}
-              >
-                <PinIcon aria-hidden className="-scale-x-100" />
-                Blocca a destra
-              </DropdownMenuItem>
-              {posizionePin ? (
-                <DropdownMenuItem onClick={() => colonna.pin(false)}>
-                  <PinOffIcon aria-hidden />
-                  Non bloccare
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-/**
- * Il titolo torna testo semplice — `TableColumnTitle` di niko non è un
- * bottone — e il `group` sta sul contenitore, non sulla `<th>`: è quello
- * che dice al grilletto quando diventare visibile.
- */
-function IntestazioneColonnaAzioni<TValore>({
-  colonna,
-  titolo,
-}: {
-  colonna: Column<CaratteristicheTabella, Prodotto, TValore>
-  titolo: string
-}) {
-  return (
-    <div className="group flex min-w-0 items-center justify-between gap-1">
-      <span className="min-w-0 truncate font-medium">{titolo}</span>
-      <MenuAzioniColonna colonna={colonna} titolo={titolo} />
-    </div>
-  )
-}
 
 const colMenuAzioni = creaColonne<Prodotto>()
 const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
   colMenuAzioni.accessor('codice', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Codice" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Codice" />,
     // `azioniProprie`: l'header sopra porta già il pin nel proprio menu —
     // senza, `colonneBloccabili` (sotto) aggiungerebbe anche il suo, due
     // grilletti di pin per la stessa colonna (rilievo di Francesco).
@@ -766,7 +646,7 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
     cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
   }),
   colMenuAzioni.accessor('nome', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Nome" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Nome" />,
     meta: { titolo: 'Nome', azioniProprie: true },
     sortFn: 'text',
     size: 220,
@@ -774,12 +654,12 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
     cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
   }),
   colMenuAzioni.accessor('famiglia', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Famiglia" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Famiglia" />,
     meta: { titolo: 'Famiglia', azioniProprie: true },
     sortFn: 'text',
   }),
   colMenuAzioni.accessor('stato', {
-    header: ({ column }) => <IntestazioneColonnaAzioni colonna={column} titolo="Stato" />,
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Stato" />,
     meta: { titolo: 'Stato', azioniProprie: true },
     sortFn: 'text',
     size: 130,

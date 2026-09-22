@@ -42,6 +42,7 @@ import { EmptyState } from "@/registry/tassullo/blocks/empty-state"
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
 import { PageHeader, type AzionePagina, type LivelloPercorso } from "@/registry/tassullo/blocks/page-header"
 import { PageSkeleton } from "@/registry/tassullo/blocks/page-skeleton"
+import { useSoglia } from "@/registry/tassullo/hooks/use-soglia"
 
 export type VuotoIniziale = {
   icona?: ReactNode
@@ -89,6 +90,43 @@ export type PaginaListaProps<TDato extends RowData> = {
   colonneBloccabili?: DataTableProps<TDato>["colonneBloccabili"]
   colonneRiordinabili?: DataTableProps<TDato>["colonneRiordinabili"]
   menuRiga?: DataTableProps<TDato>["menuRiga"]
+  /**
+   * **La seconda faccia, per quando la tabella non ci sta.**
+   *
+   * Passandola, sotto `soglia` il blocco rende **questo** al posto della
+   * `DataTable` — e con lei spariscono `cerca`, `barra` e la paginazione,
+   * che sono contorno della tabella: i comandi della faccia stretta li porta
+   * `facciaStretta` stessa. Testata, i tre `stato` e `vuotoIniziale` restano
+   * del blocco, perché non cambiano con la larghezza.
+   *
+   * **Il blocco sceglie *quando*, non *cosa***, ed è la divisione di
+   * `Pagine/Lista a due facce` (M4ter.6): `useSoglia` è il bivio e sta nel
+   * registry; la faccia stretta la scrive la pagina, perché le due facce non
+   * sono la stessa lista impaginata due volte — quante colonne diventano un
+   * raggruppamento, quale filtro sopravvive e cosa resta sulla scheda lo sa
+   * solo chi quella lista la conosce.
+   *
+   * Assente, la pagina resta a una faccia a ogni larghezza: è il
+   * comportamento di prima di M4ter.16, e nessuna pagina già scritta cambia.
+   */
+  facciaStretta?: ReactNode
+  /**
+   * La media query che decide. Default **1024px**, la soglia di Officina
+   * (`useDesktop()`); Studio RadarOpere usa 900. **Non si deriva da quante
+   * colonne ha la tabella**: se la tabella non ci sta, la risposta è
+   * scorrere — con `bloccaPrimaColonna` a tenere ferma la colonna
+   * d'identità — non alzare la soglia, che sposterebbe sul telefono una
+   * pagina che sulla scrivania funzionava.
+   */
+  soglia?: string
+  /**
+   * `"auto"` (default) lascia decidere a `soglia`. Le altre due rendono una
+   * faccia **in modo deterministico**, e servono alle story: `useSoglia`
+   * legge una media query sulla **finestra**, e la larghezza della finestra
+   * non si commuta dal canvas di Storybook (`docs/DECISIONI.md` §46) — una
+   * scena che dipendesse dall'hook renderebbe nel gate il ramo che capita.
+   */
+  faccia?: "auto" | "tabella" | "schede"
   className?: string
 }
 
@@ -112,8 +150,15 @@ export function PaginaLista<TDato extends RowData>({
   colonneBloccabili,
   colonneRiordinabili,
   menuRiga,
+  facciaStretta,
+  soglia = "(min-width: 1024px)",
+  faccia = "auto",
   className,
 }: PaginaListaProps<TDato>) {
+  const largoDavvero = useSoglia(soglia)
+  const largo = faccia === "auto" ? largoDavvero : faccia === "tabella"
+  const aSchede = !!facciaStretta && !largo
+
   return (
     // `pagina-lista` **è** la pagina — a differenza di una tabella imbarcata
     // dentro una `pagina-scheda` (una fra più sezioni) — quindi riempie
@@ -140,6 +185,14 @@ export function PaginaLista<TDato extends RowData>({
           azione={vuotoIniziale.azione}
           className="mx-auto max-w-md"
         />
+      ) : aSchede ? (
+        // Dopo `vuotoIniziale`, di proposito: «non esiste ancora niente» è
+        // vero a ogni larghezza, e la CTA che crea il primo record non ha una
+        // faccia stretta da sostituirle.
+        //
+        // `facciaStretta` **e non** la tabella: `cerca`, `barra` e la
+        // paginazione sono contorno della `DataTable`, e se ne vanno con lei.
+        facciaStretta
       ) : (
         <DataTable
           colonne={colonne}
