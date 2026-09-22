@@ -12171,3 +12171,65 @@ Sette gate verdi dopo le correzioni (sono documenti, ma `check` gira lo stesso):
 
 **Prossimi passi**: **M5.0a**, prima sessione della FASE 5.
 
+
+## 2026-09-22 — M5.0a Il canone, l'ingresso e il tema, lo scheletro del gate
+
+Prima sessione della FASE 5. Nell'ordine del mandato: il gate prima delle pagine, poi `Introduzione`, poi le sei pagine di prosa di `stories/`.
+
+#### Il gate: `scripts/check-storybook.ts`
+
+Il canone di pagina sta in testa allo script, com'era a piano: le sei sezioni della descrizione di componente, la descrizione di story, le sette famiglie di token vietati, cosa resta legittimo e cosa decide chi scrive. `package.json` ha lo script `check:storybook`, **fuori** da `check` fino a M5.0e.
+
+**Legge l'AST di TypeScript, non il testo con le espressioni regolari.** È la scelta che rende credibile la terza prova dell'autotest: se un commento è visibile dipende dalla sua *posizione*, e l'AST la conosce — TypeScript attacca a uno statement i soli `/** */` che lo precedono direttamente, che è la stessa regola con cui Storybook sceglie la descrizione. Un'espressione regolare avrebbe dovuto reinventarla. `typescript` è già fra le devDependency: nessun pacchetto nuovo. Costo **0,3 s** su 90 file.
+
+**Autotest 7/0/0**: un file finto con una violazione per famiglia → 7, e verifica anche che siano **sette tipi diversi** (senza, un file con due sigle `M` e nessuna data passerebbe); un file scritto secondo il canone → 0; un file con sigle, date e nomi in `//`, in un `/* */` staccato e nel JSDoc di una funzione d'appoggio → 0.
+
+**Due strette sulle espressioni, entrambe emerse misurando, entrambe scritte nel sorgente.**
+1. La fonte (d) del piano diceva «i nodi di testo JSX» delle pagine di `stories/`. Non bastava: `Tema/Palette` tiene i titoli dei gruppi in una tabella in testa al file e li rende con un `.map()` — «Stati semantici — livello tenue (gli alert di M2.4)» era **visibile** e il gate non lo vedeva. La (d) legge ora **ogni stringa** dei file di `stories/`, esclusi i percorsi degli `import`. È un allargamento, e l'ho misurato prima di tenerlo: **+7 segnalazioni, zero falsi positivi** (le tre sigle della Palette, una della Tipografia, la data e il nome d'esempio della Tipografia, il `nome: 'Francesco'` dell'avatar di `PaginaProdotti`, che M5.0e renderà fittizio comunque).
+2. Con quell'allargamento `D\d{1,2}` prendeva «Miscelatore M-Tec **D30**», un modello nei dati di `ListaDueFacce`. Le decisioni del repo arrivano a D25: il tetto è **D1–D29**, commentato («il giorno che arriva D30, si alza qui»). È la forma che il piano prescrive — si stringe l'espressione, non si apre un'esenzione.
+
+Le altre, a verbale perché sono il genere di cosa che si rompe senza rumore: `CI` resta maiuscolo e a sé, perché «ci» è una parola italiana; la sigla di task vuole la `M` maiuscola, perché «m2.5» è un'unità; «il gate» è preso con sei preposizioni articolate e non da solo, perché «gate» nudo compare in prosa legittima sugli strumenti.
+
+**Il conto di partenza è 568 segnalazioni su 85 file di 90**, non il ≈740 della ricognizione. Non è una misura migliore o peggiore: è un'altra misura. La ricognizione del mattino contava anche i nomi delle app (~135), «misurato», «per ora» e le frasi su cosa un'app fa oggi — tutte cose che il canone mette fra quelle che **decide chi scrive**, proprio perché a `grep` darebbero falsi positivi. Per famiglia: 235 sigle di task, 70 di decisione, 72 documenti interni, 35 date, 34 persone, 78 strumenti del repo, 37 «v1». I file puliti in partenza erano cinque: `hover-card`, `input-group`, `label`, `radio-group`, `Tema/Densità` (più `Tema/Palette`, che lo era solo finché la (d) guardava il solo JSX).
+
+#### Le sette pagine
+
+- **`Introduzione.mdx`** riscritta da capo per chi non conosce il repo: cos'è la style guide e cos'è un registry shadcn, le **quattro** sezioni (erano tre, mancava `Pagine`), le domande a cui risponde ogni pagina di componente, i **quattro** interruttori (il testo diceva «tre» e poi ne descriveva quattro), come si installa — tema per primo, poi un componente, poi il pin col tag, con rimando al README per i prerequisiti —, le quattro regole che valgono ovunque, l'accessibilità come garanzia. Sulla densità touch ho scritto «nessun bersaglio è piccolo in entrambe le direzioni», che è ciò che `misura:bersagli` verifica, e **non** «ogni bersaglio si colpisce col pollice», che era la prima stesura e non è vero: `misura:bersagli` conta sotto i 44px la maggior parte dei bersagli anche in touch (1541 su 1988 all'ultimo conto per tipo scritto in `CLAUDE.md`), e garantisce solo che nessuno sia piccolo su tutti e due i lati.
+- **`Tema/Carattere`**: il carattere come si spiega a chi deve usarlo — quattro pesi con le loro utility, sette gradini, le due famiglie e a cosa servono, Replica alle stampe. Il riquadro «Inter non è caricato» rimandava al `<link>` di `.storybook/preview-head.html`, che **non esiste più** da quando il carattere viaggia nel tema: ora rimanda all'item `tema-font`. E la scala era resa con `style={{ fontSize: '13px' }}`, cioè **non seguiva la densità** mentre il testo accanto diceva che la segue: ora è resa con la utility vera e il corpo è letto dal DOM con un `ResizeObserver`, così commutando la densità il numero cambia. Stessa correzione in `Tema/Cifre` dello stesso riquadro.
+- **`Tema/Cifre`**: tolte le date, Roberto, i §, le sigle, «la style guide del v1», il paragrafo «fino a quella data questa riga diceva…» e il «per ora». La sezione 4 **resta** — `DECISIONI.md` §48 la dà per il posto in cui si riapre la questione del mono — ma scritta come regola: codici nel carattere del testo, la coppia `I`/`l` come avvertenza sulle stringhe a cassa mista, «un caso da portare al design system prima di scrivere la pagina». Le due scatole sullo zero barrato, che dicevano la stessa cosa due volte, sono una. Aggiunto il comando `add` dell'item `numeri`, e la precisazione che `table` e `data-table` portano già `tabular-nums` (verificato su `ui/table.tsx`).
+- **`Tema/Palette`**: le regole d'uso della palette **in pagina** — per nome e mai col valore, `--primary` non per il testo, `--accent` è il grigio di hover, `--destructive` è un fondo, niente `opacity-*` sul testo. Le serie dei grafici erano ancora **cinque, «provvisorie»**: ora sono le dieci di `--chart-1..10`, con rimando alla Tavolozza.
+- **`Tema/Tavolozza categorica`**: il JSDoc del meta era il verbale di M4ter.11 (Okabe-Ito, Tol, il passo 1,4935, «a verbale»). Riscritto secondo il canone, e le quattro regole — categorie non stati, il colore mai unico mezzo, il bianco e nero non regge, 3:1 con le due tinte del brand sotto — **portate anche in pagina**, perché su `Tema/*` non c'è una pagina Docs e il JSDoc del meta nessuno lo vede.
+- **`Primitive/Tipografia`**: meta col canone, la story `DueDensita` senza il «v1», i dati d'esempio senza `M3.2` e con un nome fittizio al posto di Francesco Sartori.
+- **`Tema/Densità`**: era pulita per il gate e **muta per il lettore** — un titolo e due colonne di numeri, nessuna parola su come la densità si accende. Aggiunti in pagina `data-density="touch"` sulla radice, il ritorno alla normale in un sottoalbero, e che nessun componente ha una variante touch.
+
+I JSDoc **non attaccati** — la testa di `Carattere`, `Cifre`, `Palette`, `Tipografia`, attaccate a una costante o a un tipo — sono rimasti, come dice il piano: sono note di sviluppo e nessuno le vede. Unica eccezione, una riga stantia su `TabellaModello` («codici in mono») corretta perché diceva il contrario del codice sotto.
+
+#### Le misure portate in `DECISIONI.md`
+
+§13 descriveva la misura di `Tema/Cifre` fatta **con Replicall**; i numeri **di Inter** stavano solo in `WORKLOG.md` (2026-09-08) e in `CLAUDE.md`. Aggiunta la sottosezione «La stessa misura con Inter» con la tabella a confronto — 9 larghezze 7,15–11,52 contro una sola 11,66; scarto 2,69 → 0,04; separatori stabili; feature `pnum frac numr dnom`, niente `zero` né `onum` — e il perché della soglia di un quarto di pixel. **E una cosa che ho imparato riaprendo la pagina**: nel pannello del browser dell'app gli stessi numeri escono diversi (7,5–12,13, 12,3, 2,88/0,04). Il verdetto è identico, i valori assoluti dipendono dal motore di resa — scritto nella stessa sottosezione, perché è la ragione per cui la pagina misura invece di scrivere.
+
+Le misure della Tavolozza (ΔE 11,0 / 8,5, 1,91 e 2,85:1, Okabe-Ito 0,1, Tol 2,9, 1,4935⁹ ≈ 37:1) e quelle delle coppie di glifi (23,97/19,63, 7,44/6,59) erano **già** in §49 e §48: controllate una per una, niente da portare.
+
+#### Verifiche
+
+- `check:storybook -- --self-test`: **7/0/0**.
+- `check:storybook` sulle sette pagine: **0 segnalazioni**, uscita 0. Sul repo: **514 su 79 file di 90** (568 − 54, cioè esattamente la somma delle sette), uscita **1** senza `--avvisa` e **0** con. Restano: `ui/` 275 su 48 file, `blocks/` 129 su 21, `pages/` 49 su 6, `stories/` 61 sulle quattro pagine composte. I più pesanti: `PaginaProdotti` 36, `calendar` 28, `pagina-lista` 26, `sidebar` 24, `data-table` 22.
+- `build-storybook` verde. Le sette pagine aperte nel pannello del browser in chiaro e in scuro; in scuro la schermata restava quella del chiaro perché il pannello è nascosto (`visibilityState: hidden`, la trappola di `CLAUDE.md`) — il modo scuro l'ho verificato sui colori calcolati (`--foreground` risolto a `oklch(0.9455 …)` sul titolo) e lo garantisce la passata scura di axe.
+- **`test:a11y` 1540 scansioni su 385 story, 0 violazioni** in tutte e quattro le passate — invariato. (Il mandato della sessione diceva 1524: è il conto di prima di M4ter.15/16, corretto a 1540 nella coda di giornata.)
+- Gli altri sei gate verdi; `oxlint` a zero sui file toccati.
+- Un errore di tipo **preesistente** e non mio: `Densita.stories.tsx:207`, `useAltezza<SVGSVGElement>` contro il vincolo `HTMLElement`. `stories/` non è nell'`include` di `tsconfig.app.json`, quindi `tsc -b` non lo vede; l'ho trovato type-checkando la cartella a parte. Non corretto: non è testo, e M5.0 non tocca il codice delle story.
+
+#### Due rilievi per le sessioni che seguono
+
+1. **I conti di M5.0b/c sono 28 + 24, non 26 + 26.** In ordine alfabetico `accordion`…`item` sono 28 file (`input-group`, `input`, `item` stanno tutti prima di `kbd`). Corretto in `CHECKLIST.md` e annotato in `PIANO.md`.
+2. **`tags: ['autodocs']` è acceso su 3 file soli** (`calendario`, `data-grid`, `data-table`). Sulle altre primitive il JSDoc del meta — dove il canone mette «cos'è, quando, `add`» — non ha una pagina Docs su cui comparire: sta nel bundle, ed è per questo che il `grep` di M5.0e lo troverebbe, ma un visitatore non lo legge. Da decidere aprendo M5.0b; se si accende in `preview.tsx`, va provato che `test:a11y` resti a 1540.
+
+**Prossimi passi**: **M5.0b**.
+
+### Coda di M5.0a — `autodocs` per tutti
+
+Su indicazione di Francesco, il secondo rilievo è chiuso subito: `tags: ['autodocs']` in `.storybook/preview.tsx`, a livello globale, con un commento che dice perché e come si esclude una story (`'!autodocs'`). Le tre story di `calendario` che lo escludevano già restano escluse; i tre `tags: ['autodocs']` rimasti sui meta di `calendario`, `data-grid` e `data-table` ora sono ridondanti e innocui — si tolgono in M5.0d, che quei file li riscrive.
+
+**Misure.** `build-storybook` verde, `index.json` con **90 voci Docs** (89 componenti più `Introduzione`) e **385 story**, lo stesso numero di prima. **`test:a11y` 1540 scansioni su 385 story, 0 violazioni** in tutte e quattro le passate: le pagine Docs non sono story, e l'addon non le scansiona. Aperte nel pannello `Primitive/Dropdown Menu` e `Tema/Palette`: il JSDoc del meta in testa, sotto le scene; le story coi popup restano chiuse nella pagina Docs.
+
+**Conseguenza per M5.0b–e, ed è il motivo per cui conviene averlo fatto prima**: da adesso il JSDoc del meta **è** la pagina che un visitatore apre per prima su ogni componente, e oggi su 79 file è ancora il diario. Il testo da riscrivere si legge nel posto in cui verrà letto, non immaginandolo.

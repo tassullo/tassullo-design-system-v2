@@ -70,7 +70,7 @@ const PARTI = [
     ruolo: 'Titolo di pagina',
     classi: 'text-2xl font-bold tracking-tight',
     tag: 'h1',
-    dove: 'uno per pagina, nel page-header (M3.2)',
+    dove: 'uno per pagina, nell’intestazione della pagina',
     testo: 'Schede tecniche',
   },
   {
@@ -99,7 +99,7 @@ const PARTI = [
     classi: 'text-sm text-muted-foreground',
     tag: 'p',
     dove: 'date, autori, contatori, breadcrumb',
-    testo: 'Revisione 4 — 8 settembre 2026, Francesco Sartori',
+    testo: 'Revisione 4 — 12/03/2025, Chiara Moser',
   },
   {
     ruolo: 'Micro-etichetta',
@@ -173,6 +173,20 @@ function Scala({ densita }: { densita?: 'normale' | 'touch' }) {
   )
 }
 
+/**
+ * Le sei parti di testo di un'interfaccia — titolo di pagina, di sezione, di
+ * card, corpo, meta, micro-etichetta — e le classi con cui si scrivono.
+ *
+ * Non è un componente e non si installa: sono combinazioni di utility sui
+ * gradini del tema, che arrivano con `npx shadcn@latest add tassullo/tassullo-design-system-v2/tema`.
+ * Si applicano all'elemento con il tag giusto per la struttura del documento
+ * (`h1`, `h2`, `p`…), così la pagina dice quale gradino sta usando.
+ *
+ * Regole d'uso: sette gradini, da `text-xs` a `text-3xl`, e oltre non si sale —
+ * i gradini più grandi di Tailwind non sono tarati sul tema e non seguono la
+ * densità; i numeri da confrontare in colonna prendono `tabular-nums`; i codici
+ * si scrivono nel carattere del testo, con `text-sm text-muted-foreground`.
+ */
 const meta = {
   title: 'Primitive/Tipografia',
   parameters: { layout: 'padded' },
@@ -191,14 +205,10 @@ export const Parti: Story = {
 }
 
 /**
- * Le due densità affiancate, ciascuna con la propria fissata sulla colonna —
- * quindi questa pagina non risponde all'interruttore in barra, di proposito:
- * serve a **confrontarle**, e per confrontarle devono stare ferme.
- *
- * Il passo è ×1.08 arrotondato al pixel, che è quello che il v1 faceva a mano
- * alzando il testo di **un gradino** della scala. Non ×1.5 come i bersagli: un
- * bottone deve crescere del 50% per stare sotto un dito guantato, un testo a
- * 13px è già leggibile e portarlo a 20 rompe le colonne.
+ * Le due densità affiancate, ciascuna fissata sulla propria colonna: questa
+ * scena non segue l'interruttore in barra, serve a confrontarle. In touch ogni
+ * gradino cresce di circa l'8%, molto meno dei bersagli — il testo deve restare
+ * nelle sue colonne.
  */
 export const DueDensita: Story = {
   render: () => (

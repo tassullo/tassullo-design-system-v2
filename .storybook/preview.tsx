@@ -117,6 +117,14 @@ const withSuperficie: Decorator = (Story, context) => (
 const preview: Preview = {
   decorators: [withModalita, withSuperficie, withDensity],
 
+  /**
+   * Una pagina Docs per ogni componente. È lì che compare il JSDoc di `const
+   * meta` — cos'è, quando si usa, come si installa, le regole — e senza questa
+   * riga compariva su tre componenti soli. Una story che non deve finire nella
+   * pagina Docs si toglie con `tags: ['!autodocs']`.
+   */
+  tags: ['autodocs'],
+
 
   globalTypes: {
     /** Chiaro o scuro: le due palette del tema, e nient'altro. */
