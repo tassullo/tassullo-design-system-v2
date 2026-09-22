@@ -11531,3 +11531,104 @@ regola vive adesso.
 - `test:a11y` — **1520 scansioni su 380 story, 0 violazioni**.
 - `misura:bersagli` — **3283 su 380, 0 piccoli**.
 - `lint` **26 avvisi**, tutti preesistenti.
+
+---
+
+## M4ter.13 — Il picker d'inserimento voci: **si compone**, e l'esito è una ricetta (2026-09-22)
+
+**Ramo**: `claude/m4ter-13-picker-voci`, aperto da `claude/m4ter-12-computo`
+perché la PR #18 non è ancora fusa e i documenti di conduzione stanno lì.
+
+**Verdetto: nessun componente nuovo.** `registry.json` resta a **95 item**,
+`componenti-propri.json` a **1**. Il `SistemaPickerModal` di Studio si ricompone
+con quattro item che il registry ha già, e l'esito del task è una **ricetta**:
+`stories/SceltaDaCatalogo.stories.tsx` → `Pagine/Scelta da catalogo`.
+
+| pezzo | item |
+|---|---|
+| il contenitore | `tassullo-responsive-dialog` — dialogo sulla scrivania, **cassetto** sul telefono |
+| ricerca, gruppi, frecce, `Invio`, `aria-activedescendant` | `command` |
+| i chip di categoria | `toggle-group`, scelta singola deselezionabile |
+| «Voce standard», «N prodotti» | `badge` |
+
+**Gradino 1 chiuso a vuoto**: chiesto all'MCP, `command` **esiste già** nel
+registry Tassullo e la sua story `Cinquecento Voci` regge 500 voci — più del
+catalogo vero.
+
+#### I numeri del catalogo
+
+Misurati su `data/prodotti_kb.json` del clone: **6 categorie** — le stesse sei
+dello screenshot — con 146 nodi in RINFORZI STRUTTURALI, 109 FINITURE DI PREGIO,
+70 EDILIZIA CIVILE, 68 RESTAURO, 59 SOTTOFONDI E POSA PAVIMENTI, 38 RISANAMENTO
+E IMPERMEABILIZZAZIONI, e **124 codici categorizzati**. **I sistemi veri non sono
+nel repo**: arrivano da Business Central a runtime, quindi 124 è l'ordine di
+grandezza, non il conto. In ogni caso **nessuna virtualizzazione serve**.
+
+#### Le due cose che **non** si copiano dall'app
+
+**«Vedi strati» non può restare un bottone dentro la voce.** Nel picker di Studio
+ogni riga è un `<div role="option">` che contiene un `<button>`: è
+**`nested-interactive`**, la stessa violazione presa in M4ter.12 su una riga di
+azioni, e un `role="option"` con un comando dentro non è riparabile restando
+quella forma. Nella ricetta gli strati stanno in un **pannello accanto che segue
+l'elemento attivo** — uno solo, non uno per riga — e il guadagno supera la
+correzione: **scorrendo con le frecce gli strati si vedono senza premere
+niente**, mentre nell'app vanno aperti riga per riga col mouse. Misurato: **0
+bottoni dentro le opzioni**. Sotto `sm` il pannello si nasconde.
+
+**Il filtro di `command` si spegne** (`shouldFilter={false}`): quel componente
+cerca su **una stringa**, il catalogo Tassullo su sei campi più i **sinonimi
+dell'ufficio tecnico**, che non si mostrano mai. Misurato: **«etics» trova il
+cappotto**, e la parola non compare in nessun campo visibile.
+
+#### Tre difetti, tutti trovati misurando e nessuno rileggendo
+
+**(1) «calce» trovava «calcestruzzo».** Avevo scritto «a parola intera» nel
+commento e implementato un **prefisso**: `"calcestruzzo".startsWith("calce")` è
+vero. È esattamente il falso che l'ufficio tecnico di Studio ha già segnalato nel
+proprio codice. Corretto a uguaglianza di parola. **Il costo, dichiarato**: la
+ricerca si chiude solo a parola finita — «cal» non trova niente. È la regola che
+hanno chiesto, e sta nella **pagina** proprio perché è lì che si cambia.
+
+**(2) Lo slot del dialogo l'ho dedotto invece di guardarlo.** `apriCol(...,
+'dialog-content')`: lo slot vero è **`responsive-dialog-content`** — il blocco ne
+tiene uno proprio apposta, perché monta `Dialog` o `Drawer` e chi cerca il
+contenuto dovrebbe altrimenti sapere in che forma si sta rendendo. Il gate l'ha
+preso come **`imbracatura×1`** in entrambe le passate `aperto`: una story che
+fallisce **senza nessuna violazione axe**, che è il modo in cui si manifesta una
+`play` rotta. È la regola del `CLAUDE.md`, ripetuta: *lo slot si guarda nel DOM*.
+
+**(3) E appena l'imbracatura ha aperto il dialogo davvero, axe ha trovato quello
+che prima non poteva vedere**: `text-accent-ink` sulla variante dà **4,29:1** sul
+fondo di una voce **selezionata** (`--accent`, #ECEAE8). È §22 in diretta — *un
+popup non aperto non è un popup senza violazioni* — e ha un risvolto che vale
+oltre questa story: **`--accent-ink` è verificato contro `--background` e
+`--card`, non contro `--accent`**, e in un elenco la voce attiva ha *sempre*
+quel fondo. È una coppia che `check:contrast` **non copre** — non l'ho aggiunta
+di iniziativa, perché toccare le 48 coppie del gate è una decisione di sistema:
+**segnalata a Francesco**. Nella ricetta la variante si distingue col **peso**,
+che un contrasto da rispettare non ce l'ha.
+
+#### Verifiche
+
+- `npm run check` — sette gate, **uscita 0**.
+- `test:a11y` — **1524 scansioni su 381 story, 0 violazioni** (+4 sulla base di
+  M4ter.12: una scena nuova × 4 passate). Il popup è **dichiarato** con
+  `play: apriCol(...)`; `scripts/gate-a11y.ts` **non** è stato toccato, perché
+  `CON_POPUP` elenca i componenti di `ui/` e `blocks/` e questa è una ricetta di
+  `stories/`.
+- `misura:bersagli` — **3302 bersagli su 381 story, 0 piccoli**.
+- Tastiera in **Chromium vero**, strumento verificato: il fuoco resta **sempre**
+  nel campo di ricerca, `↑`/`↓` scorrono **attraversando i gruppi**, il pannello
+  degli strati segue l'attivo, `Invio` sceglie e chiude.
+- `registry.json` **95 item**, `componenti-propri.json` **1**, lint **26
+  avvisi** preesistenti.
+- Clone di Studio **cancellato**.
+
+#### Prossimi passi
+
+Per Francesco: il raggruppamento per famiglia con la **domanda** come
+sottotitolo («Stai costruendo un edificio in muratura tradizionale?») è il modo
+giusto di scegliere, o è un residuo del v1? La ricetta lo riproduce fedelmente,
+ma è l'unica scelta di forma che non ho messo in discussione. E la coppia
+`accent-ink`/`accent` in `check:contrast`.
