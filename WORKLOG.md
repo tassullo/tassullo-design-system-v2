@@ -12456,3 +12456,17 @@ Le pagine Docs dei blocchi hanno la tabella delle prop, e le prop booleane vi si
 - `data-table → Stretta`: il testo nel canvas dice «le soglie di una tabella guardano la tabella, non lo schermo», ma i salti a prima e ultima pagina si nascondono con `sm:`, cioè guardando lo schermo. Testo neutro, lasciato; la descrizione della story non lo ripete.
 
 **Prossimi passi**: **M5.0e** — le 6 pagine modello e le 4 pagine composte (110 segnalazioni), i nomi fittizi nei dati, il gate armato in `check` e in CI, e la tabella delle prop dei blocchi.
+
+### Coda di M5.0d — la `data-grid`: `Tab` e separatore delle migliaia
+
+Chiesto da Francesco a PR aperta («sistemiamo ora la data-grid, Tab e separatore»). Sono i due difetti aperti in `DECISIONI.md` §56.1 e §56.2, entrambi nel sorgente del blocco.
+
+- **`Tab` esce dalla griglia.** In `onKeyDownCella` il ramo `case "Tab"` a celle chiuse è tolto: la griglia ha già un fuoco mobile (una cella a `tabIndex={0}`, le altre a `-1`), quindi il `Tab` nativo porta al controllo successivo della pagina. In modifica `Tab` resta com'era, conferma e passa accanto; `Esc` esce sempre dalla modifica. Le celle casella e scelta passano i tasti allo stesso gestore, quindi valgono uguale. Commento nel codice sul perché.
+- **Il separatore.** `CellaNumericaGriglia` usava una `Intl.NumberFormat("it-IT")` propria: ora `formattatore()` (numeri, decimali come prima, fino a tre) e `valuta()` dell'item `numeri`. `registry.json`: `@tassullo/numeri` aggiunto alle `registryDependencies` di `tassullo-data-grid`; `registry:build` rilanciato, `public/r/` aggiornato. Aggiornati anche i due commenti del sorgente che citavano la `Intl.NumberFormat`.
+- **La pagina** `Blocchi/Data Grid`: tolto il «Da sapere» sulla trappola, la tastiera dice ora «un solo fermo di tabulazione: `Tab` entra sulla cella attiva e il seguente esce»; i numeri, «col separatore delle migliaia sempre scritto (`2.086,93 €`)».
+
+**Misurato in Chromium** sullo Storybook ricostruito: `Editabile`, da tastiera pura, `Tab` → «Colonne» → prima cella → fuori dalla griglia; dopo due frecce `Tab` esce da una cella interna e `Maiusc`+`Tab` torna su quella; in modifica `Tab` passa alla cella accanto. `Celle tipizzate`: scrivendo `12345` in Quantità si legge `12.345`, `2086.93` in Prezzo `2.086,93 €`.
+
+**Rilievo, sulla scena e non sul blocco**: in `Computo` i bottoni «Elimina» di riga stanno fuori da `colonneId`, quindi dopo la griglia `Tab` passa per quelli montati (19). È la composizione della scena; la pagina ora dice che un bottone di riga è un fermo di `Tab` per ogni riga in vista. Se si vorrà un'altra forma — un menu come i comandi di `foglio-gruppi` — è una scelta da fare a parte.
+
+**Verifiche**: `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story in ognuna delle quattro passate; `oxlint` e `tsc -b` a zero; pagina Docs di `data-grid` in Chiaro e Scuro pulita, axe `color-contrast` 0; `check:storybook` sui 21 ancora a 0.

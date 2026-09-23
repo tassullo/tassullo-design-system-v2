@@ -157,7 +157,8 @@ function ComputoFinto() {
  *   `colonnaDataGriglia` e `colonnaSelectGriglia`, che ricevono il costruttore
  *   di `creaColonne()`, l'`id`, il titolo e a scelta `size` e `validazione`.
  *   Una colonna qualsiasi di TanStack, fuori da `colonneId`, resta fuori dalla
- *   navigazione: è il posto per un bottone di riga.
+ *   navigazione con le frecce: è il posto per un bottone di riga, che però è
+ *   un fermo di `Tab` per ogni riga in vista.
  * - Dentro `<DataGrid>` si mettono, se servono, `<DataGridClipboard />` per
  *   copia e incolla e `<DataGridFillHandle />` per la maniglia di
  *   riempimento; `<DataGridUndo />` e `<DataGridRedo />` sono i bottoni di
@@ -176,13 +177,17 @@ function ComputoFinto() {
  * - Una cella non valida resta in modifica, con l'errore sotto, finché non si
  *   corregge o non si annulla.
  * - La data è un campo nativo `<input type="date">`, non il calendario.
- * - Le colonne numeriche e di valuta formattano da sé la vista, e in modifica
+ * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
+ *   `numeri`, quindi col separatore delle migliaia sempre scritto
+ *   (`2.086,93 €`), allineate a destra e con le cifre tabellari; in modifica
  *   tornano a un numero semplice: si scrive `12.5`, non `12,50 €`. In una
- *   cella scritta a mano, i numeri si formattano con le funzioni dell'item
- *   `numeri`, allineati a destra.
+ *   cella scritta a mano, i numeri si formattano con le stesse funzioni,
+ *   `intero()`, `decimale()`, `valuta()`.
  *
- * **Tastiera e accessibilità.** La tabella dichiara `role="grid"` e ogni cella
- * riceve il fuoco, una alla volta. Le frecce spostano la cella attiva, con
+ * **Tastiera e accessibilità.** La tabella dichiara `role="grid"` ed è un
+ * solo fermo di tabulazione: `Tab` entra sulla cella attiva — la prima,
+ * all'inizio — e il `Tab` seguente esce dalla griglia. Le frecce spostano la
+ * cella attiva, con
  * `Maiusc` estendono la selezione; `Home` e `Fine` vanno al principio e alla
  * fine della riga. `Invio`, `F2` o un carattere qualsiasi aprono la modifica;
  * in modifica `Invio` conferma e scende, `Tab` conferma e passa accanto, `Esc`
@@ -191,8 +196,6 @@ function ComputoFinto() {
  * quindi anche da e verso un foglio di calcolo; `Z` annulla, `Maiusc`+`Z` o `Y`
  * ripete, `A` seleziona tutto, `Invio` riempie la selezione col valore della
  * cella in alto a sinistra. La casella si spunta con `Spazio` o `Invio`.
- * **Da sapere**: dentro la griglia `Tab` e `Maiusc`+`Tab` passano di cella in
- * cella, anche da una riga all'altra, e non portano fuori dalla griglia.
  */
 const meta: Meta = {
   title: 'Blocchi/Data Grid',

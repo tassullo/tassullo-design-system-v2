@@ -105,8 +105,9 @@
  * porting da "Cell Types" di niko-table. Il confine fra motore e cella resta
  * quello di sessione 1: `useDataGrid` non sa cos'è un numero o una data,
  * conosce solo `leggiCella`/`scriviCella` come confine di **stringhe** — è
- * la cella tipizzata a formattare per la vista (`Intl.NumberFormat('it-IT')`
- * per numero/valuta, `toLocaleDateString('it-IT')` per la data) e a
+ * la cella tipizzata a formattare per la vista (`lib/numeri` per numero e
+ * valuta, col punto delle migliaia sempre; `toLocaleDateString('it-IT')`
+ * per la data) e a
  * interpretare ciò che l'utente scrive. Il checkbox e il select non passano
  * da `apriModifica`/`commitModifica` — un gesto solo (spuntare, scegliere)
  * si scrive subito con `impostaValore`, senza un testo intermedio da
@@ -165,6 +166,7 @@ import {
   type ColonnaTabella,
   type DataTableProps,
 } from "@/registry/tassullo/blocks/data-table"
+import { formattatore, valuta as valutaFormattata } from "@/registry/tassullo/lib/numeri"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Checkbox } from "@/registry/tassullo/ui/checkbox"
 import {
@@ -728,10 +730,16 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
         evento.stopPropagation()
         spostaA(ri, colonneId.length - 1, evento.shiftKey)
         return
-      case "Tab":
-        evento.preventDefault()
-        spostaOrizzontale(evento.shiftKey ? -1 : 1)
-        return
+      // **`Tab` a celle chiuse non si intercetta: esce dalla griglia.** La
+      // griglia è un fermo solo (una cella a `tabIndex={0}`, le altre a
+      // `-1`), quindi il `Tab` nativo porta al controllo successivo della
+      // pagina. Intercettarlo per passare di cella in cella — com'era fino al
+      // 2026-09-23 — rendeva la griglia una trappola: all'ultima cella il
+      // fuoco si fermava, e da tastiera non se ne usciva più (misurato: undici
+      // `Tab` di fila, tutti dentro la tabella; `docs/DECISIONI.md` §56). Fra
+      // le celle ci si muove con le frecce. `Tab` sposta di cella solo **in
+      // modifica**, sopra, dove conferma e passa accanto come in un foglio di
+      // calcolo, e `Esc` ne esce sempre.
       case "Enter":
       case "F2":
         evento.preventDefault()
@@ -1186,6 +1194,12 @@ export function colonnaTestoGriglia<TDato extends RowData>(
  * Numero e valuta — stessa cella, una differenza di formattazione
  * ──────────────────────────────────────────────────────────────────────── */
 
+/** Un numero nella vista della cella: i decimali che ha, fino a tre come
+ * `Intl.NumberFormat` di serie, e sempre il punto delle migliaia. */
+function numeroFormattato(numero: number): string {
+  return formattatore().format(numero)
+}
+
 function CellaNumericaGriglia<TDato extends RowData>({
   info,
   colonnaId,
@@ -1203,11 +1217,11 @@ function CellaNumericaGriglia<TDato extends RowData>({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
   const erroreId = React.useId()
-  const formattatore = React.useMemo(
-    () =>
-      new Intl.NumberFormat("it-IT", valuta ? { style: "currency", currency: "EUR" } : undefined),
-    [valuta]
-  )
+  // Da `lib/numeri` e non una `Intl.NumberFormat` scritta qui: in italiano
+  // quella raggruppa solo da cinque cifre (`2086,93` accanto a `12.345,00`),
+  // mentre la convenzione Tassullo il punto delle migliaia lo scrive sempre
+  // (`docs/DECISIONI.md` §47). Le istanze sono già memorizzate lì.
+  const formatta = valuta ? valutaFormattata : numeroFormattato
 
   useValidatoreCellaGriglia(motore, colonnaId, validazione)
   useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
@@ -1253,7 +1267,7 @@ function CellaNumericaGriglia<TDato extends RowData>({
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
       className={classiVistaCella(selezionata, inAnteprima, "text-right tabular-nums")}
     >
-      {numero === null || Number.isNaN(numero) ? raw : formattatore.format(numero)}
+      {numero === null || Number.isNaN(numero) ? raw : formatta(numero)}
     </div>
   )
 }
@@ -1277,9 +1291,8 @@ export function colonnaNumeroGriglia<TDato extends RowData>(
   })
 }
 
-/** Come `colonnaNumeroGriglia`, ma la vista formatta in euro (`Intl.
- * NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })`) — la
- * cella in modifica resta un numero semplice: si scrive "12.5", non "€
+/** Come `colonnaNumeroGriglia`, ma la vista formatta in euro (`valuta()`
+ * di `lib/numeri`) — la cella in modifica resta un numero semplice: si scrive "12.5", non "€
  * 12,50". */
 export function colonnaValutaGriglia<TDato extends RowData>(
   col: ReturnType<typeof creaColonne<TDato>>,
