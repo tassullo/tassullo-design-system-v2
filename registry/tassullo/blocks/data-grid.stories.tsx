@@ -195,10 +195,10 @@ function ComputoFinto() {
  * **Tastiera e accessibilità.** La tabella dichiara `role="grid"` ed è un
  * solo fermo di tabulazione: `Tab` entra sulla cella attiva — la prima,
  * all'inizio — e il `Tab` seguente esce dalla griglia. Le frecce spostano la
- * cella attiva, con
- * `Maiusc` estendono la selezione; `Home` e `Fine` vanno al principio e alla
- * fine della riga. `Invio`, `F2` o un carattere qualsiasi aprono la modifica;
- * in modifica `Invio` conferma e scende, `Tab` conferma e passa accanto, `Esc`
+ * cella attiva, con `Maiusc` estendono la selezione; `Home` e `Fine` vanno al
+ * principio e alla fine della riga. `Invio`, `F2` o un carattere qualsiasi
+ * aprono la modifica; col puntatore, il primo clic sceglie la cella e il
+ * secondo la apre, come il doppio clic. In modifica `Invio` conferma e scende, `Tab` conferma e passa accanto, `Esc`
  * annulla. `Canc` e `Backspace` svuotano la selezione. Con `Ctrl` o `⌘`: `C`,
  * `X` e `V` copiano, tagliano e incollano come testo separato da tabulazioni,
  * quindi anche da e verso un foglio di calcolo; `Z` annulla, `Maiusc`+`Z` o `Y`

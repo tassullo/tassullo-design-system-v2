@@ -12496,3 +12496,14 @@ Chiesto da Francesco dopo il cestino («facciamo anche la riga segnata a fuoco f
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build` rilanciato; pagina Docs di `data-grid` pulita in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
 
 **E in scuro un grigio più deciso** (Francesco, «sì, usa un grigio più deciso in scuro»). `bg-muted` in scuro è `#262626` su una card `#1C1C1C`, 1.13:1. Misurati i grigi del tema: `accent` 1.25, `border-strong` 1.78 ma col testo attenuato a 4.03:1, sotto soglia. Scelto `dark:bg-border-strong/70` (circa `#393939`): 1.48:1 dalla card, testo 9.85:1, testo attenuato 4.86:1. In chiaro resta `bg-muted`. Rimisurato in Chromium: axe `color-contrast` 0 in chiaro e in scuro a fuoco fuori; pagina Docs pulita; sette gate verdi, `test:a11y` 1540/0 con 385 story per passata. Dettagli in `DECISIONI.md` §56.9.
+
+### Coda di M5.0d, quarta — tre difetti della `data-grid` presi provandola
+
+Francesco, provando `Data Grid → Computo`: (1) «cliccando fuori la cella rimane selezionata con bordo arancio»; (2) «il testo del numero si sposta quando provo ad editarlo», con due schermate; (3) «per modificare non basta un secondo clic ma ci vuole un doppio click». Tutti e tre riprodotti in Chromium prima di correggere; cause e misure in `DECISIONI.md` §56.10.
+
+- **(1)** era un furto di fuoco già presente, reso visibile dal bordo arancione: la cella si riprendeva il fuoco quando lo trovava sul `body`, anche se l'aveva tolto un clic fuori. `fuoriRef` nel contesto della griglia.
+- **(2)** il riquadro della cella in vista finiva 16px prima del campo (`w-full` con `-m-2`), e la valuta perdeva il « €» in modifica. Tolto `w-full` — il riquadro, e quindi l'anello, ora coprono la cella intera, e i numeri stanno 8px più a destra di prima — e il simbolo resta accanto al campo.
+- **(3)** `alPremere` in `useStatoCellaGriglia`: secondo clic sulla cella scelta apre la modifica, con `preventDefault` sul `mousedown` o il campo si richiudeva da sé.
+- La pagina `Blocchi/Data Grid` dice il secondo clic.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` pulita in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
