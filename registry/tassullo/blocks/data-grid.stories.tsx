@@ -9,13 +9,13 @@ import {
   DataGridFillHandle,
   DataGridRedo,
   DataGridUndo,
+  colonnaAzioneGriglia,
   colonnaCheckboxGriglia,
   colonnaDataGriglia,
   colonnaNumeroGriglia,
   colonnaSelectGriglia,
   colonnaTestoGriglia,
   colonnaValutaGriglia,
-  useContestoDataGrid,
   useDataGrid,
   useGridChanges,
   validaConZod,
@@ -140,9 +140,9 @@ function ComputoFinto() {
  * **Come si compone.**
  *
  * - `useDataGrid(opzioni)` è il motore, con `righeIniziali`, `colonneId`,
- *   `idRiga`, `leggiCella`, `scriviCella` e `onModifica`. `colonneId` elenca
- *   le colonne modificabili
- *   nell'ordine in cui le percorrono `Tab` e l'incolla; `leggiCella` e
+ *   `colonneAzioneId`, `idRiga`, `leggiCella`, `scriviCella` e `onModifica`.
+ *   `colonneId` elenca le colonne modificabili nell'ordine in cui le
+ *   percorrono le frecce, `Tab` in modifica e l'incolla; `leggiCella` e
  *   `scriviCella` convertono una riga da e verso stringhe, e `scriviCella`
  *   restituisce una riga nuova. Il motore non è controllato: tiene le righe
  *   in uno stato suo, seminato una volta da `righeIniziali`, e si ascolta con
@@ -156,9 +156,12 @@ function ComputoFinto() {
  *   `colonnaNumeroGriglia`, `colonnaValutaGriglia`, `colonnaCheckboxGriglia`,
  *   `colonnaDataGriglia` e `colonnaSelectGriglia`, che ricevono il costruttore
  *   di `creaColonne()`, l'`id`, il titolo e a scelta `size` e `validazione`.
- *   Una colonna qualsiasi di TanStack, fuori da `colonneId`, resta fuori dalla
- *   navigazione con le frecce: è il posto per un bottone di riga, che però è
- *   un fermo di `Tab` per ogni riga in vista.
+ * - Un comando di riga — il cestino — è una colonna `colonnaAzioneGriglia`,
+ *   con `icona`, `etichetta` (il nome del bottone, riga per riga) e
+ *   `onAzione`, che riceve la riga e il motore. Il suo `id` va anche in
+ *   `colonneAzioneId` di `useDataGrid`. È una cella della griglia: si
+ *   raggiunge con le frecce dalla riga su cui si lavora, e copia, incolla,
+ *   riempimento e selezione la saltano.
  * - Dentro `<DataGrid>` si mettono, se servono, `<DataGridClipboard />` per
  *   copia e incolla e `<DataGridFillHandle />` per la maniglia di
  *   riempimento; `<DataGridUndo />` e `<DataGridRedo />` sono i bottoni di
@@ -196,6 +199,8 @@ function ComputoFinto() {
  * quindi anche da e verso un foglio di calcolo; `Z` annulla, `Maiusc`+`Z` o `Y`
  * ripete, `A` seleziona tutto, `Invio` riempie la selezione col valore della
  * cella in alto a sinistra. La casella si spunta con `Spazio` o `Invio`.
+ * Sulla cella di comando `Invio` o `Spazio` premono il bottone; dopo
+ * un'eliminazione il fuoco passa alla stessa cella della riga seguente.
  */
 const meta: Meta = {
   title: 'Blocchi/Data Grid',
@@ -369,35 +374,6 @@ function generaVociComputo(quante: number): VoceComputo[] {
 
 const VOCI_COMPUTO = generaVociComputo(500)
 
-/**
- * La sola colonna che non passa da `colonnaXGriglia`: un bottone «elimina»
- * per riga, non editabile e fuori da `colonneId` — la freccia non ci si
- * ferma mai, `Tab` sì (è un bottone vero, nell'ordine naturale del
- * documento). Usa `useContestoDataGrid` per arrivare al motore: la stessa
- * via che usano `CellaTestoGriglia` e le altre, non un accesso privato.
- */
-function CellaEliminaComputo({ riga }: { riga: VoceComputo }) {
-  const { motore } = useContestoDataGrid<VoceComputo>()
-  return (
-    // `flex ml-auto`, non solo `-my-1`: il bottone è `inline-flex` di suo
-    // (v. `ui/button.tsx`), e un `margin-left: auto` non allinea a destra
-    // un elemento inline — deve diventare lui stesso un box di blocco
-    // (`flex`) perché lo spazio in più della colonna vada a sinistra, non a
-    // destra. Lo stesso pattern già usato per il menu «azioni» di
-    // `data-table.stories.tsx`.
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className="-my-1 ml-auto flex"
-      aria-label={`Elimina ${riga.codice || 'la riga'}`}
-      onClick={() => motore.rimuoviRighe([riga.id])}
-    >
-      <Trash2Icon aria-hidden />
-    </Button>
-  )
-}
-
 const colC = creaColonne<VoceComputo>()
 const COLONNE_COMPUTO = colC.columns([
   colonnaTestoGriglia(colC, 'codice', 'Codice', {
@@ -414,14 +390,13 @@ const COLONNE_COMPUTO = colC.columns([
     size: 112,
     validazione: validaConZod(z.coerce.number('Dev\'essere un numero').positive('Dev\'essere maggiore di zero')),
   }),
-  colC.display({
-    id: 'azioni',
-    size: 48,
-    // Non ridimensionabile: 48px basta appena al bottone, una maniglia lì
-    // non avrebbe niente da restringere prima di sparire.
-    enableResizing: false,
-    header: () => <span className="sr-only">Azioni</span>,
-    cell: ({ row }) => <CellaEliminaComputo riga={row.original} />,
+  // Il cestino è una cella della griglia: le frecce ci arrivano dalla riga
+  // su cui si lavora, `Invio` lo preme, `Tab` non ci si ferma. L'`id` va
+  // anche in `colonneAzioneId`, sotto.
+  colonnaAzioneGriglia(colC, 'azioni', 'Azioni', {
+    icona: <Trash2Icon aria-hidden />,
+    etichetta: (v) => `Elimina ${v.codice || 'la riga'}`,
+    onAzione: (v, motore) => motore.rimuoviRighe([v.id]),
   }),
 ])
 
@@ -429,6 +404,7 @@ function ComputoEndToEnd() {
   const motore = useDataGrid<VoceComputo>({
     righeIniziali: VOCI_COMPUTO,
     colonneId: ['codice', 'descrizione', 'unita', 'quantita', 'prezzoUnitario'],
+    colonneAzioneId: ['azioni'],
     idRiga: (v) => v.id,
     leggiCella: (v, c) => String(v[c as keyof VoceComputo] ?? ''),
     scriviCella: (v, c, valore) => ({ ...v, [c]: valore }),
@@ -509,7 +485,8 @@ function ComputoEndToEnd() {
 /**
  * Cinquecento voci, con righe da aggiungere ed eliminare e i conteggi del
  * salvataggio in cima: quante righe nuove, modificate e cancellate rispetto
- * all'ultimo «Salva».
+ * all'ultimo «Salva». Il cestino in fondo a ogni riga si raggiunge con `→`
+ * dall'ultima colonna, e `Invio` elimina la riga.
  */
 export const Computo: Story = {
   render: () => <ComputoEndToEnd />,

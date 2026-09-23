@@ -211,6 +211,19 @@ export type OpzioniDataGrid<TDato> = {
   scriviCella: (riga: TDato, colonnaId: string, valore: string) => TDato
   /** Chiamato dopo ogni commit (modifica, incolla, riempimento, annulla, ripeti). */
   onModifica?: (righe: TDato[]) => void
+  /**
+   * Le colonne **di comando** — un cestino, un «duplica» — che seguono quelle
+   * di `colonneId`. Le frecce le raggiungono come ogni altra cella, così il
+   * comando agisce sulla riga su cui si sta già lavorando, e la riga resta
+   * segnata dal fuoco; copia, incolla, riempimento, svuotamento e selezione
+   * le saltano, e `Tab` non ci si ferma. Le celle si scrivono con
+   * `colonnaAzioneGriglia`, con lo stesso `id`.
+   *
+   * Nasce da un bottone di riga messo **fuori** dalla navigazione: a fuoco
+   * uscito dalla griglia la riga su cui si agiva non era più segnata, e ogni
+   * riga in vista aggiungeva un fermo di `Tab` (misurato: 19 sul Computo).
+   */
+  colonneAzioneId?: readonly string[]
 }
 
 const CRONOLOGIA_MAX = 100
@@ -271,7 +284,16 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
 }
 
 export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEngine<TDato> {
-  const { righeIniziali, colonneId, idRiga, leggiCella, scriviCella, onModifica } = opzioni
+  const { righeIniziali, colonneId, colonneAzioneId, idRiga, leggiCella, scriviCella, onModifica } =
+    opzioni
+  // Le colonne che le frecce percorrono: quelle dei dati, poi quelle di
+  // comando. Le operazioni sui valori (rettangolo, incolla, riempimento)
+  // restano sulle sole `colonneId`: un indice di colonna `>= colonneId.length`
+  // è sempre una cella di comando.
+  const colonneNavigabili = React.useMemo(
+    () => [...colonneId, ...(colonneAzioneId ?? [])],
+    [colonneId, colonneAzioneId]
+  )
 
   const [righe, setRighe] = React.useState(righeIniziali)
   const [passato, setPassato] = React.useState<TDato[][]>([])
@@ -309,9 +331,9 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   }, [righe, idRiga])
   const indiceColonna = React.useMemo(() => {
     const mappa = new Map<string, number>()
-    colonneId.forEach((c, i) => mappa.set(c, i))
+    colonneNavigabili.forEach((c, i) => mappa.set(c, i))
     return mappa
-  }, [colonneId])
+  }, [colonneNavigabili])
 
   const rettangolo = (a: CellaGrigliaId | null, b: CellaGrigliaId | null) => {
     if (!a || !b) return null
@@ -320,11 +342,16 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     const c1 = indiceColonna.get(a.colonnaId)
     const c2 = indiceColonna.get(b.colonnaId)
     if (r1 == null || r2 == null || c1 == null || c2 == null) return null
+    // Il rettangolo copre solo le colonne dei dati: una cella di comando non
+    // ha un valore da copiare, incollare o riempire.
+    const colMin = Math.min(c1, c2)
+    const colMax = Math.min(Math.max(c1, c2), colonneId.length - 1)
+    if (colMin > colMax) return null
     return {
       rigaMin: Math.min(r1, r2),
       rigaMax: Math.max(r1, r2),
-      colMin: Math.min(c1, c2),
-      colMax: Math.max(c1, c2),
+      colMin,
+      colMax,
     }
   }
   const dentroRettangolo = (
@@ -431,19 +458,22 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
    * tasto: `Delete`/`Backspace` da tastiera già significano "svuota le
    * celle selezionate" (v. `cancellaSelezione`), e sovrapporci "elimina la
    * riga" sullo stesso tasto sarebbe ambiguo, non un'estensione naturale.
-   * Se la cella attiva era su una riga tolta, si sposta sulla prima riga
-   * rimasta — o a `null` se non ne resta nessuna, lo stesso stato di una
-   * griglia appena creata senza dati.
+   * Se la cella attiva era su una riga tolta, passa alla **stessa colonna
+   * della riga che ne prende il posto** (o dell'ultima, se era in fondo): il
+   * cestino premuto da tastiera lascia il fuoco sul cestino della riga dopo,
+   * non in cima alla griglia. `null` se non resta nessuna riga, lo stesso
+   * stato di una griglia appena creata senza dati.
    */
   const rimuoviRighe = (ids: readonly string[]) => {
     const daTogliere = new Set(ids)
     const nuoveRighe = righe.filter((r) => !daTogliere.has(idRiga(r)))
     registraCommit(nuoveRighe, "cancellazione")
     if (cellaAttiva && daTogliere.has(cellaAttiva.rigaId)) {
-      const id =
-        nuoveRighe.length > 0 && colonneId.length > 0
-          ? { rigaId: idRiga(nuoveRighe[0]!), colonnaId: colonneId[0]! }
-          : null
+      const primaDella = righe
+        .slice(0, indiceRiga.get(cellaAttiva.rigaId) ?? 0)
+        .filter((r) => !daTogliere.has(idRiga(r))).length
+      const vicina = nuoveRighe[Math.min(primaDella, nuoveRighe.length - 1)]
+      const id = vicina ? { rigaId: idRiga(vicina), colonnaId: cellaAttiva.colonnaId } : null
       setCellaAttiva(id)
       setAncora(id)
     }
@@ -531,7 +561,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     if (!cellaAttiva) return
     const rigaBase = indiceRiga.get(cellaAttiva.rigaId)
     const colBase = indiceColonna.get(cellaAttiva.colonnaId)
-    if (rigaBase == null || colBase == null) return
+    if (rigaBase == null || colBase == null || colBase >= colonneId.length) return
     const righeIncollate = testo
       .replace(/\r/g, "")
       .split("\n")
@@ -572,6 +602,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     if (!rett) return
     const rSorgente = indiceRiga.get(cellaAttiva.rigaId)!
     const cSorgente = indiceColonna.get(cellaAttiva.colonnaId)!
+    if (cSorgente >= colonneId.length) return
     const sorgente = leggiCella(righe[rSorgente]!, colonneId[cSorgente]!)
     const nuoveRighe = righe.slice()
     for (let r = rett.rigaMin; r <= rett.rigaMax; r++) {
@@ -601,8 +632,13 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   const spostaA = (ri: number, ci: number, estendi: boolean) => {
     if (righe.length === 0 || colonneId.length === 0) return
     const riChiuso = Math.max(0, Math.min(righe.length - 1, ri))
-    const ciChiuso = Math.max(0, Math.min(colonneId.length - 1, ci))
-    vaiA({ rigaId: idRiga(righe[riChiuso]!), colonnaId: colonneId[ciChiuso]! }, { estendi })
+    const ciChiuso = Math.max(0, Math.min(colonneNavigabili.length - 1, ci))
+    // Su una cella di comando la selezione non si estende: `Maiusc`+`→`
+    // dall'ultima colonna dei dati porta al comando, e basta.
+    vaiA(
+      { rigaId: idRiga(righe[riChiuso]!), colonnaId: colonneNavigabili[ciChiuso]! },
+      { estendi: estendi && ciChiuso < colonneId.length }
+    )
     spostamentoVerticaleRef.current?.(riChiuso)
   }
   const posizioneAttiva = () => ({
@@ -763,6 +799,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   return {
     righeIniziali,
     colonneId,
+    colonneAzioneId,
     idRiga,
     leggiCella,
     scriviCella,
@@ -1398,6 +1435,101 @@ export function colonnaCheckboxGriglia<TDato extends RowData>(
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Comando di riga — un bottone che è una cella della griglia
+ * ──────────────────────────────────────────────────────────────────────── */
+
+function CellaAzioneGriglia<TDato extends RowData>({
+  info,
+  colonnaId,
+  icona,
+  etichetta,
+  onAzione,
+}: {
+  info: CellContext<any, TDato, unknown>
+  colonnaId: string
+  icona: React.ReactNode
+  etichetta: (riga: TDato) => string
+  onAzione: (riga: TDato, motore: DataGridEngine<TDato>) => void
+}) {
+  const riga = info.row.original
+  const { motore, interagitoRef, rigaId, id, attiva } = useStatoCellaGriglia<TDato>(riga, colonnaId)
+  const bottoneRef = React.useRef<HTMLButtonElement>(null)
+  useFuocoCellaGriglia(bottoneRef, attiva, false, interagitoRef)
+
+  return (
+    // Il bottone **è** la cella: niente contenitore focalizzabile attorno,
+    // che con un bottone dentro sarebbe `nested-interactive`.
+    <Button
+      ref={bottoneRef}
+      type="button"
+      variant="ghost"
+      size="icon"
+      data-riga-id={rigaId}
+      data-colonna-id={colonnaId}
+      tabIndex={attiva ? 0 : -1}
+      aria-label={etichetta(riga)}
+      onMouseDown={() => motore.vaiA(id)}
+      onClick={() => onAzione(riga, motore)}
+      onKeyDown={(evento) => {
+        // `Invio` e `Spazio` li gestisce il bottone da sé: premono il
+        // comando. Al motore vanno solo la navigazione e le combinazioni —
+        // un carattere qualunque non deve aprire una modifica che qui non c'è.
+        if (TASTI_NAVIGAZIONE_GRIGLIA.has(evento.key) || evento.metaKey || evento.ctrlKey) {
+          motore.onKeyDownCella(evento, id)
+        }
+      }}
+      className="-my-1 ml-auto flex"
+    >
+      {icona}
+    </Button>
+  )
+}
+
+/**
+ * Una colonna **di comando**: un bottone per riga — il cestino — che è una
+ * cella della griglia. Le frecce ci arrivano dalla riga su cui si lavora,
+ * `Invio` o `Spazio` lo premono, `Tab` non ci si ferma. Il suo `id` va anche
+ * in `colonneAzioneId` di `useDataGrid`, o le frecce non lo trovano.
+ *
+ * `onAzione` riceve la riga e il motore: per eliminare,
+ * `(riga, motore) => motore.rimuoviRighe([riga.id])`, annullabile come ogni
+ * altra modifica.
+ */
+export function colonnaAzioneGriglia<TDato extends RowData>(
+  col: ReturnType<typeof creaColonne<TDato>>,
+  id: string,
+  titolo: string,
+  opzioni: {
+    icona: React.ReactNode
+    /** Il nome del bottone per chi non vede l'icona: «Elimina C0042». */
+    etichetta: (riga: TDato) => string
+    onAzione: (riga: TDato, motore: DataGridEngine<TDato>) => void
+    size?: number
+  }
+): ColonnaTabella<TDato> {
+  return col.display({
+    id,
+    meta: { titolo },
+    size: opzioni.size ?? 48,
+    // Non si nasconde dal menu «Colonne» e non si ridimensiona: una colonna
+    // di comando nascosta lascerebbe le frecce senza bersaglio, e 48px
+    // bastano appena al bottone.
+    enableHiding: false,
+    enableResizing: false,
+    header: () => <span className="sr-only">{titolo}</span>,
+    cell: (info) => (
+      <CellaAzioneGriglia
+        info={info}
+        colonnaId={id}
+        icona={opzioni.icona}
+        etichetta={opzioni.etichetta}
+        onAzione={opzioni.onAzione}
+      />
+    ),
+  })
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Data — `<input type="date">`, v. il commento in testa al file
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -1689,7 +1821,7 @@ export function DataGrid<TDato extends RowData>({
           attributiTabella={{
             role: "grid",
             "aria-rowcount": motore.righe.length,
-            "aria-colcount": motore.colonneId.length,
+            "aria-colcount": motore.colonneId.length + (motore.colonneAzioneId?.length ?? 0),
           }}
           {...resto}
         />
@@ -1854,6 +1986,11 @@ export function DataGridFillHandle() {
         !(document.activeElement instanceof HTMLElement) ||
         !document.activeElement.hasAttribute("data-riga-id")
       ) {
+        setPosizione(null)
+        return
+      }
+      // Né su una cella di comando: lì non c'è un valore da trascinare.
+      if (motore.colonneAzioneId?.includes(motore.cellaAttiva.colonnaId)) {
         setPosizione(null)
         return
       }

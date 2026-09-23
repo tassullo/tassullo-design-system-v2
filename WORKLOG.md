@@ -12470,3 +12470,17 @@ Chiesto da Francesco a PR aperta («sistemiamo ora la data-grid, Tab e separator
 **Rilievo, sulla scena e non sul blocco**: in `Computo` i bottoni «Elimina» di riga stanno fuori da `colonneId`, quindi dopo la griglia `Tab` passa per quelli montati (19). È la composizione della scena; la pagina ora dice che un bottone di riga è un fermo di `Tab` per ogni riga in vista. Se si vorrà un'altra forma — un menu come i comandi di `foglio-gruppi` — è una scelta da fare a parte.
 
 **Verifiche**: `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story in ognuna delle quattro passate; `oxlint` e `tsc -b` a zero; pagina Docs di `data-grid` in Chiaro e Scuro pulita, axe `color-contrast` 0; `check:storybook` sui 21 ancora a 0.
+
+### Coda di M5.0d, seconda — il cestino della `data-grid` come cella della griglia
+
+Dopo la correzione del `Tab`, i cestini di `Data Grid → Computo` erano diventati 19 fermi di `Tab` dopo la griglia. Proposte tre strade (lasciare, `tabIndex={-1}`, un «Elimina riga» sopra la griglia); Francesco, provando la terza, ha notato che **a fuoco uscito la riga su cui si lavora non è più segnata**, quindi un bottone esterno non dice quale riga cancella. Domanda sua: «non si riesce a tenere il cestino nella riga?». Sì: il cestino diventa **una cella della griglia**, la stessa idea del «+ misurazione» di `foglio-gruppi`. Motivazione di Francesco: lavorando già su quella riga è immediato capire che l'azione riguarda proprio lei.
+
+- **Il blocco** (`data-grid.tsx`): `useDataGrid` accetta `colonneAzioneId`; le colonne navigabili sono `colonneId` più quelle di comando, mentre rettangolo di selezione, incolla, riempimento (anche la maniglia) restano sulle sole `colonneId`. `Maiusc`+freccia non estende la selezione su un comando. `rimuoviRighe` lascia la cella attiva nella stessa colonna della riga che prende il posto (prima tornava alla prima cella della griglia). Nuovo `colonnaAzioneGriglia(col, id, titolo, { icona, etichetta, onAzione })`: la cella è il bottone stesso, `Invio`/`Spazio` lo premono, al motore passano solo navigazione e combinazioni; colonna non nascondibile e non ridimensionabile. `aria-colcount` conta anche le colonne di comando.
+- **La scena**: `CellaEliminaComputo` scritta a mano con `useContestoDataGrid` sostituita da `colonnaAzioneGriglia`, più `colonneAzioneId: ['azioni']`.
+- **La pagina**: il comando di riga fra le parti, `colonneAzioneId` fra le opzioni, la tastiera sulla cella di comando, la descrizione di `Computo`.
+
+**Misurato in Chromium** (numeri in `DECISIONI.md` §56.1): `→` fino al cestino, `Invio` elimina e il fuoco passa al cestino della riga dopo, `Ctrl`+`Z` la riporta, il clic fa lo stesso col mouse, `Tab` esce dalla griglia al primo colpo, niente maniglia sul cestino.
+
+**Verifiche**: `tsc -b` e `oxlint` a zero; `registry:build` rilanciato (`public/r/tassullo-data-grid.json`); pagina Docs di `data-grid` pulita in Chiaro e Scuro, axe `color-contrast` 0; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0**, 385 story in ognuna delle quattro passate.
+
+**Resta per dopo**: la riga di lavoro segnata anche a fuoco fuori dalla griglia (proposta in questa coda, non fatta): serve a ogni bottone fuori dalla griglia, non più al cestino.
