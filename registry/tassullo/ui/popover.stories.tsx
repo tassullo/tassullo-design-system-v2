@@ -16,37 +16,49 @@ import {
 import { Slider } from '@/registry/tassullo/ui/slider'
 
 /**
- * **Nessun ri-stile.** Il popover del preset è già tutto sui token
- * (`bg-popover`, `text-popover-foreground`, `ring-foreground/10`) e le sue
- * misure derivano da `--spacing`.
+ * Un riquadro che si apre al clic accanto al bottone che lo apre, e contiene
+ * quello che serve: una spiegazione, qualche campo, un controllo.
  *
- * **Popover, tooltip o hover-card?** Si distinguono per **chi li apre e cosa
- * ci si può fare dentro**, non per come sono fatti.
+ * **Quando sì, quando no.** `popover`, `tooltip` e `hover-card` si
+ * distinguono per come si aprono e per cosa ci si fa dentro, non per come
+ * sono fatti.
  *
  * | | si apre con | contiene |
  * |---|---|---|
- * | `Tooltip` | passaggio **o fuoco** | una riga di testo, mai controlli |
- * | `HoverCard` | solo il passaggio | anteprima da leggere, mai controlli |
- * | `Popover` | **clic** | quello che serve, controlli compresi |
+ * | `tooltip` | passaggio del mouse o fuoco | una riga di testo, mai controlli |
+ * | `hover-card` | passaggio del mouse | un'anteprima da leggere, mai controlli |
+ * | `popover` | clic | ciò che serve, controlli compresi |
  *
- * La riga che conta è la terza: **se dentro c'è qualcosa da cliccare, è un
- * popover**. Un riquadro che si apre al passaggio e contiene un bottone è un
- * bersaglio che scappa quando ci si va col mouse, e che chi naviga da
- * tastiera non raggiunge mai.
+ * Se dentro c'è qualcosa da cliccare, è un popover: un riquadro che si apre
+ * al passaggio sfugge al mouse e da tastiera non si raggiunge. Se il compito
+ * chiede attenzione esclusiva e un «Salva», è un `dialog`. Una lista di
+ * azioni è `dropdown-menu`.
  *
- * **Da tastiera**: `Invio` o `Spazio` apre e porta il fuoco dentro, `Esc`
- * chiude e **riporta il fuoco sul grilletto**. `Tab`, invece, **esce** dal
- * riquadro e lo chiude: il popover non intrappola il fuoco, ed è giusto così
- * — non è modale, la pagina sotto resta viva. Il fuoco intrappolato è del
- * `dialog`, e il fatto che i due si somiglino non li rende la stessa cosa.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/popover
+ * ```
  *
- * **Un popup con `role="dialog"` vuole un nome accessibile**: `PopoverTitle`,
- * anche quando il riquadro contiene solo una frase. Senza, axe dà
- * `aria-dialog-name` — **misurato in M2.3 su due story di questa pagina**,
- * scritte all'inizio senza titolo perché «è solo testo». Il titolo si può
- * nascondere con `sr-only`, ma non si può omettere.
+ * **Parti e opzioni.** `Popover` la radice; `PopoverTrigger` il bottone che
+ * apre, di solito con `render={<Button … />}`; `PopoverContent` il riquadro,
+ * con `side` (`top`, `right`, `bottom` di base, `left`), `align` e
+ * `sideOffset`; `PopoverHeader`, `PopoverTitle`, `PopoverDescription` per
+ * l'intestazione.
  *
- * È la base del `combobox` di M2.6, composto da `command` dentro un `popover`.
+ * **Regole d'uso.**
+ *
+ * - `PopoverTitle` c'è sempre, anche quando il riquadro contiene una frase
+ *   sola: il riquadro si annuncia come finestra, e il titolo è il suo nome. Se
+ *   non deve vedersi, si nasconde con `sr-only`.
+ * - Un grilletto di sola icona ha il nome scritto per il lettore di schermo,
+ *   in uno `<span className="sr-only">`.
+ * - Uno `slider` dentro il riquadro prende il nome con `aria-labelledby`, non
+ *   con `htmlFor`.
+ *
+ * **Tastiera e accessibilità.** `Invio` o `Spazio` sul grilletto apre e porta
+ * il fuoco dentro il riquadro; `Esc` chiude e riporta il fuoco sul grilletto.
+ * Il riquadro non è modale: `Tab` ne esce verso la pagina e lo chiude, e la
+ * pagina sotto resta usabile. Se manca spazio sul lato scelto, il riquadro si
+ * ribalta sul lato opposto.
  */
 const meta = {
   title: 'Primitive/Popover',
@@ -87,10 +99,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Con uno `slider`, che è il controllo che in M2.2 si è scoperto **non
- * etichettabile con `htmlFor`**: il fuoco sta su un `input` nascosto dentro
- * la maniglia, e il nome arriva solo con `aria-labelledby`. Dentro un popover
- * vale identico, e vale la pena rivederlo qui.
+ * Un intervallo da regolare dentro il riquadro: lo `slider` prende il nome dal
+ * titolo con `aria-labelledby`.
  */
 export const ConControlli: Story = {
   render: () => (
@@ -121,8 +131,8 @@ export const ConControlli: Story = {
 }
 
 /**
- * Solo testo, aperto da un'icona. Il grilletto a sola icona vuole il nome
- * accessibile scritto a mano — è la stessa avvertenza del menu di riga.
+ * Una spiegazione aperta da un'icona accanto al dato. Il bottone ha il nome
+ * scritto per il lettore di schermo.
  */
 export const SoloTesto: Story = {
   render: () => (
@@ -148,7 +158,10 @@ export const SoloTesto: Story = {
   ),
 }
 
-/** I quattro lati d'ancoraggio. Se non c'è spazio, Base UI ribalta da sé. */
+/**
+ * I quattro lati d'ancoraggio, con `side`. Vicino al bordo dello schermo il
+ * riquadro si ribalta da sé.
+ */
 export const QuattroLati: Story = {
   render: () => (
     <div className="grid grid-cols-2 gap-2">

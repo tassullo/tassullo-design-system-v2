@@ -8,48 +8,40 @@ import {
 import { ScrollArea } from '@/registry/tassullo/ui/scroll-area'
 
 /**
- * `resizable.tsx` è identico all'originale: nessuna stringa ri-stilata. **È la
- * base dello `split-view` di M3.9**, dove servirà a mettere due testi di scheda
- * tecnica uno accanto all'altro.
+ * Due o più pannelli affiancati, con un divisorio che si trascina per dare
+ * più spazio all'uno o all'altro.
  *
- * Non è Base UI: sotto c'è `react-resizable-panels`, ed è l'unica dipendenza
- * nuova di questo task insieme a `embla-carousel-react` del carosello. Non è
- * un'eccezione a D9 — D9 riguarda le primitive, e qui shadcn non offre una
- * versione Base UI: è la sua scelta a monte, ereditata, non una nostra.
+ * **Quando sì, quando no.** Serve quando chi lavora deve decidere lui quanto
+ * spazio dare a ciascuna parte: due testi da confrontare, un elenco accanto
+ * al dettaglio. Per il confronto fra due versioni di un testo c'è già il
+ * blocco `split-view`, costruito sopra. Se le proporzioni sono fisse, basta
+ * una griglia. Il componente usa `react-resizable-panels`, non Base UI.
  *
- * **Da tastiera funziona, ed è la cosa da provare.** La maniglia è un
- * `separator` con `tabindex`: `Tab` ci si ferma, le **frecce** spostano il
- * divisorio, `Home`/`Fine` lo portano agli estremi. Senza questo un pannello
- * ridimensionabile è utilizzabile solo col mouse — che per uno `split-view` di
- * confronto testi sarebbe grave.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/resizable
+ * ```
  *
- * **Un pannello che si stringe è una regione che scorre**, e axe lo coglie: i
- * pannelli di `react-resizable-panels` portano `overflow: auto`, quindi appena
- * il contenuto sborda diventano una regione da scorrere — e senza un fermo di
- * tabulazione dentro, da tastiera non ci si arriva
- * (`scrollable-region-focusable`, misurato qui su `Verticale`). La risposta è
- * la `scroll-area` di questo stesso task, messa **dentro** il pannello: la
- * story `Verticale` la usa, ed è il modo in cui lo `split-view` di M3.9 dovrà
- * comporli.
+ * **Parti e opzioni.** `ResizablePanelGroup` con `orientation`
+ * (`horizontal` o `vertical`); `ResizablePanel` con `defaultSize` e
+ * `minSize`, in percentuale; `ResizableHandle` fra un pannello e l'altro, con
+ * `withHandle` per il grip visibile.
  *
- * **L'altezza si dà al contenitore, non al gruppo, e non è un dettaglio di
- * gusto.** `react-resizable-panels` scrive `height: 100%` **inline** sulla
- * radice del gruppo, e uno stile inline batte qualunque classe: un `h-72` sul
- * `ResizablePanelGroup` non fa niente. Se sopra non c'è un'altezza vera, quel
- * `100%` si risolve su un genitore alto `auto`, e il gruppo prende l'altezza
- * del proprio contenuto. Con dentro dei paragrafi si vede poco (`Predefinito`
- * rendeva **94px invece di 256**, e sembrava solo «stretta»); con dentro una
- * `ScrollArea` in `h-full` — cioè una percentuale di un genitore senza altezza
- * — **collassa a zero**: era `Verticale`, che si vedeva come una riga sola.
- * Il rimedio è quello che shadcn usa nei propri esempi senza spiegarlo: **un
- * contenitore con l'altezza**, e il gruppo in `h-full` dentro. Vale per lo
- * `split-view` di M3.9.
+ * **Regole d'uso.**
  *
- * La maniglia è un filo di 1px, ma la **zona sensibile è più larga** dello
- * spessore che si vede (lo pseudo-elemento `after:`): si afferra senza doverla
- * centrare al pixel. `withHandle` aggiunge il grip visibile, e conviene
- * metterlo: un filo che si può trascinare, e non lo dice, non lo trascina
- * nessuno.
+ * - L'altezza si dà a un contenitore, e il gruppo va dentro in `h-full`. Una
+ *   classe d'altezza sul gruppo stesso non ha effetto, perché la libreria gli
+ *   scrive `height: 100%` in linea; senza un'altezza sopra, il gruppo prende
+ *   quella del contenuto, e una `ScrollArea` in `h-full` collassa a zero.
+ * - Un pannello che si può stringere è un pannello che scorre: il contenuto
+ *   va dentro una `ScrollArea`, così la regione che scorre si raggiunge anche
+ *   da tastiera.
+ * - Si mette `withHandle`: un filo che si può trascinare, e non lo dice, non
+ *   lo trascina nessuno. La zona che si afferra è comunque più larga del filo.
+ * - `minSize` su ogni pannello, perché trascinando fino in fondo non se ne
+ *   perda uno.
+ *
+ * **Tastiera e accessibilità.** Il divisorio è un fermo di tabulazione: le
+ * frecce lo spostano, `Home` e `Fine` lo portano agli estremi.
  */
 const meta = {
   title: 'Primitive/Resizable',
@@ -68,6 +60,9 @@ function Riquadro({ titolo, testo }: { titolo: string; testo: string }) {
   )
 }
 
+/**
+ * Due revisioni di una scheda affiancate, con il grip sul divisorio.
+ */
 export const Predefinito: Story = {
   render: () => (
     <div className="h-64 w-full max-w-2xl">
@@ -90,7 +85,10 @@ export const Predefinito: Story = {
   ),
 }
 
-/** In verticale, e senza grip: si vede quanto sia meno invitante da afferrare. */
+/**
+ * In verticale e senza grip: il divisorio è solo un filo, e non dice di
+ * potersi trascinare. Il contenuto di ogni pannello sta in una `ScrollArea`.
+ */
 export const Verticale: Story = {
   render: () => (
     <div className="h-72 w-full max-w-lg">
@@ -117,8 +115,7 @@ export const Verticale: Story = {
 }
 
 /**
- * Tre pannelli con minimi: nessuno può essere schiacciato sotto il 15%, così
- * non si perde un pannello per sbaglio trascinando fino in fondo.
+ * Tre pannelli con `minSize`: nessuno si può schiacciare fino a sparire.
  */
 export const TrePannelli: Story = {
   render: () => (

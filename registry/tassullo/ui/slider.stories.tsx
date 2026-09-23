@@ -4,40 +4,41 @@ import { Label } from '@/registry/tassullo/ui/label'
 import { Slider } from '@/registry/tassullo/ui/slider'
 
 /**
- * **Due ri-stili, e il primo è una regola violata dal preset.**
+ * Un cursore per scegliere un valore, o un intervallo con due maniglie, su
+ * una scala continua.
  *
- * · `bg-white` sul pomello: un colore **fuori dal tema**, che la regola 3 del
- *   CLAUDE.md vieta. In chiaro non si notava; in scuro è un pomello bianco su
- *   antracite, l'unico bianco pieno di tutta l'interfaccia. Ora è
- *   `bg-background`, che è bianco in chiaro e antracite in scuro — cioè fa
- *   quello che il preset voleva dire, in entrambe le modalità.
- * · il pomello passa da `size-3` a `size-4`. Con `after:-inset-2` attorno, il
- *   bersaglio del dito va da **42px a 48px in touch** — sopra i 44 che M2.9
- *   chiederà, e non sotto per due pixel.
+ * **Quando sì, quando no.** Serve quando conta la posizione sulla scala più
+ * del numero esatto: un intervallo di tolleranza, una soglia. Se il valore
+ * va scritto preciso — una resa, uno spessore — si usa un campo numerico, o
+ * il cursore affiancato dal campo. Per poche scelte distinte si usano
+ * `radio-group` o `toggle-group`.
  *
- * Serve ai **range di conformità dell'FPC** (`range_ottimale`,
- * `range_conformita`), che è il motivo per cui sta in questa fase: due maniglie,
- * non una.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/slider
+ * ```
  *
- * **L'etichetta va agganciata con `aria-labelledby`, non con `htmlFor`.** È il
- * rilievo più utile emerso da questa fase, ed è invisibile a occhio: Base UI
- * non mette il fuoco sulla maniglia che si vede, ma su un **`<input type="range">`
- * nascosto che genera per ognuna**. L'`id` che si scrive sullo `<Slider>` finisce
- * sul `div` esterno, e un `<Label htmlFor>` che punta lì **non etichetta niente**:
- * il lettore di schermo annuncia «cursore, 5» senza dire di che cosa. Con
- * `aria-labelledby` la radice inoltra il nome a **tutte** le maniglie, e con due
- * maniglie l'annuncio diventa «Range di conformità, 5, inizio intervallo».
+ * **Opzioni.** `defaultValue` o `value` sono sempre un array: una voce per
+ * maniglia, due per un intervallo. `min`, `max`, `step` per la scala;
+ * `largeStep` per il salto con `PagSu` e `PagGiù`; `disabled`.
  *
- * È il tipo di difetto che axe non vede — l'`input` è nascosto — e che si trova
- * solo interrogando il DOM. Vale per ogni uso del cursore, anche a maniglia sola.
+ * **Regole d'uso.**
  *
- * **Da tastiera**: `Tab` porta sulla maniglia, **frecce** spostano di un passo,
- * `PagSu`/`PagGiù` di un salto, `Home`/`Fine` ai due estremi. Con due maniglie
- * si tabula da una all'altra.
+ * - Il nome si dà con `aria-labelledby`, puntato sull'`id` della `Label`, mai
+ *   con `htmlFor`: il fuoco sta su un campo nascosto dentro ogni maniglia, e
+ *   `htmlFor` non lo raggiunge. Con `aria-labelledby` il nome arriva a tutte
+ *   le maniglie.
+ * - Il valore si scrive accanto al cursore, in `tabular-nums`: un cursore
+ *   senza numero si può muovere ma non leggere.
+ * - `step` si dichiara quando il valore ha un passo naturale; i decimali si
+ *   scrivono con la virgola.
+ * - Da disabilitato si spegne il cursore, non l'etichetta, che resta
+ *   leggibile e dice che cosa è spento.
  *
- * Il valore **non si legge dal cursore**: un cursore senza il numero accanto è
- * un controllo che si può muovere ma non compilare. Va sempre accompagnato da
- * un campo o da un'etichetta che dice dove si è.
+ * **Tastiera e accessibilità.** `Tab` porta sulla maniglia, e con due
+ * maniglie passa dall'una all'altra; le frecce spostano di un passo, `PagSu`
+ * e `PagGiù` (o `Maiusc` con le frecce) di un salto, `Home` e `Fine` agli
+ * estremi. Il lettore di schermo annuncia il nome, il valore e, con due
+ * maniglie, se è l'inizio o la fine dell'intervallo.
  */
 const meta = {
   title: 'Primitive/Slider',
@@ -47,6 +48,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Una maniglia sola, con il nome dalla `Label` via `aria-labelledby`.
+ */
 export const Predefinito: Story = {
   render: () => (
     <div className="flex w-80 flex-col gap-3">
@@ -57,8 +61,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Il caso vero: un **intervallo**. Due maniglie sullo stesso cursore, e il
- * valore scritto accanto in `tabular-nums` perché le due cifre si confrontano.
+ * Due intervalli, due maniglie ciascuno, con i valori scritti accanto in cifre
+ * tabellari per confrontarli.
  */
 export const IntervalloDiConformita: Story = {
   render: () => (
@@ -81,7 +85,9 @@ export const IntervalloDiConformita: Story = {
   ),
 }
 
-/** Col passo dichiarato: `step` è quello che rende il cursore compilabile davvero. */
+/**
+ * Un valore decimale con `step={0.5}`, scritto accanto con la virgola.
+ */
 export const ConPasso: Story = {
   render: () => (
     <div className="flex w-80 flex-col gap-3">
@@ -95,10 +101,7 @@ export const ConPasso: Story = {
 }
 
 /**
- * Disabilitato. **L'etichetta non si spegne, il cursore sì**: è il `Control`
- * che porta `data-disabled:opacity-50`, e basta. Spegnere anche l'etichetta la
- * porterebbe sotto soglia di contrasto — misurato, axe lo segnala — e in
- * cambio si perderebbe la sola cosa che dice *che cosa* è disabilitato.
+ * Il cursore spento, l'etichetta leggibile.
  */
 export const Disabilitato: Story = {
   render: () => (

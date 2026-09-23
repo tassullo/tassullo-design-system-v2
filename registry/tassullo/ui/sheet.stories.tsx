@@ -17,23 +17,39 @@ import {
 import { Switch } from '@/registry/tassullo/ui/switch'
 
 /**
- * **Quattro ri-stili, tutti della stessa natura**: la distanza da cui il
- * pannello entra era scritta in `rem` crudi — `translate-y-[2.5rem]`,
- * `translate-x-[-2.5rem]` e i loro due speculari — ed è diventata
- * `translate-y-10` e `-translate-x-10`. Al gradino normale è lo stesso pixel
- * (2.5rem = 40px); la differenza è che ora deriva da `--spacing`, cioè è del
- * tema. Un'animazione d'ingresso non è un bersaglio da dito, quindi la
- * densità la può scalare senza conseguenze.
+ * Un pannello che entra da un lato dello schermo e resta accanto alla pagina,
+ * per un lavoro che chiede spazio ma non fa perdere il contesto: impostazioni,
+ * un dettaglio, un elenco da consultare.
  *
- * **`Sheet` o `Drawer`?** Non è una domanda di bordo: entrambi entrano dai
- * lati. `Sheet` è una finestra ancorata a un bordo — si apre e si chiude,
- * punto. `Drawer` si **trascina**, con inerzia e punti d'aggancio. Sul
- * telefono ci si aspetta il secondo; per un pannello di impostazioni sul
- * desktop, il primo. La sidebar di M2.5 usa `Sheet` sotto la soglia mobile,
- * e lo eredita dal preset senza riscriverlo.
+ * **Quando sì, quando no.** È il pannello laterale su schermo largo. Per un
+ * compito breve al centro dell'attenzione si usa `dialog`; per una conferma
+ * irreversibile `alert-dialog`. Su telefono lo stesso contenuto va in un
+ * `drawer`: la differenza non è il bordo da cui entra, ma il gesto — il
+ * drawer si tira col dito e ha i punti d'aggancio, lo sheet si apre e si
+ * chiude.
  *
- * **Il titolo serve anche qui**: `SheetTitle` dà il nome accessibile al
- * pannello. Se non deve vedersi, si mette con `sr-only`.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/sheet
+ * ```
+ *
+ * **Opzioni e parti.** `side` su `SheetContent`: `right` (di base), `left`,
+ * `top`, `bottom`. Sui lati il pannello è largo tre quarti dello schermo, fino
+ * a un massimo; sopra e sotto è alto quanto il contenuto. `showCloseButton`
+ * (acceso di base) mostra la crocetta. Le parti: `SheetTrigger`,
+ * `SheetHeader`, `SheetTitle`, `SheetDescription`, `SheetFooter`,
+ * `SheetClose`.
+ *
+ * **Regole d'uso.**
+ *
+ * - `SheetTitle` c'è sempre: è il nome con cui il pannello si annuncia. Se
+ *   non deve vedersi, si nasconde con `sr-only`.
+ * - Il piè di pagina resta in fondo al pannello, e il contenuto in mezzo
+ *   scorre. Se il contenuto è di sola lettura, va in una `ScrollArea`, così
+ *   la regione che scorre si raggiunge anche da tastiera.
+ *
+ * **Tastiera e accessibilità.** Come il `dialog`: all'apertura il fuoco entra
+ * nel pannello e `Tab` gira al suo interno; `Esc` o il clic fuori chiudono;
+ * alla chiusura il fuoco torna sul bottone che l'aveva aperto.
  */
 const meta = {
   title: 'Primitive/Sheet',
@@ -46,6 +62,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un pannello di impostazioni da destra, con i controlli e il piè di pagina.
+ */
 export const Predefinito: Story = {
   render: () => (
     <Sheet>
@@ -82,7 +101,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** I quattro bordi, uno per bottone. È l'unica prop che cambia. */
+/**
+ * I quattro lati da cui può entrare, con `side`.
+ */
 export const QuattroLati: Story = {
   render: () => (
     <div className="grid grid-cols-2 gap-2">
@@ -112,15 +133,8 @@ export const QuattroLati: Story = {
 }
 
 /**
- * Contenuto lungo: il pannello non cresce oltre lo schermo e la sua area
- * centrale scorre. Il piè di pagina resta in fondo (`mt-auto` del preset).
- *
- * **Una regione che scorre e non contiene controlli va resa raggiungibile dal
- * fuoco**, o chi naviga da tastiera non la può scorrere: `tabIndex={0}`, un
- * nome accessibile e un anello di fuoco. Qui l'elenco è di sola lettura,
- * quindi senza quel `tabIndex` non ci arriverebbe niente — axe lo dice con
- * `scrollable-region-focusable`, ed è stato misurato in M2.3 su questa
- * story. Dalla M2.4 la risposta pronta è la primitiva `scroll-area`.
+ * Un elenco lungo di sola lettura: il pannello non cresce oltre lo schermo,
+ * scorre solo la parte centrale, e il piè di pagina resta in fondo.
  */
 export const ContenutoLungo: Story = {
   render: () => (

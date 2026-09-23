@@ -3,13 +3,27 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Separator } from '@/registry/tassullo/ui/separator'
 
 /**
- * Un filo sul token `--border`, orizzontale o verticale. Non è stato
- * ri-stilato: il default shadcn usa già il token giusto e lo spessore giusto,
- * ed è il primo gradino della scala del CLAUDE.md — quello che si prende
- * quando basta.
+ * Un filo che separa due gruppi di contenuto, in orizzontale fra blocchi o in
+ * verticale fra voci di una riga.
  *
- * Base UI gli dà `role="separator"` da sé, quindi in verticale dentro una
- * barra di strumenti è annunciato correttamente.
+ * **Quando sì, quando no.** Separa gruppi che hanno già un senso loro; non
+ * serve fra ogni riga di un elenco né intorno a una `card`, che ha il suo
+ * bordo. Dentro un menu si usano i separatori del menu stesso
+ * (`DropdownMenuSeparator`, `SelectSeparator`).
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/separator
+ * ```
+ *
+ * **Opzioni.** `orientation`: `horizontal` (di base) o `vertical`.
+ *
+ * **Regole d'uso.** In verticale il filo si allunga su tutta l'altezza della
+ * riga. Per averlo più corto, centrato in una riga più alta, si scrive
+ * `className="data-vertical:h-4 data-vertical:self-auto"`: un `h-4` da solo
+ * accorcia il filo ma lo lascia incollato in cima.
+ *
+ * **Tastiera e accessibilità.** Non riceve il fuoco. Si annuncia come
+ * separatore, con il suo orientamento.
  */
 const meta = {
   title: 'Primitive/Separator',
@@ -30,23 +44,8 @@ export const Orizzontale: Story = {
 }
 
 /**
- * **Il separatore verticale porta `data-vertical:self-stretch`, e in una riga
- * più alta di lui questo lo incolla in cima.** `self-stretch` vince
- * sull'`items-center` del contenitore: se poi gli si dà un'altezza — il caso
- * tipico è `h-4` in una testata da 48px — il filo resta alto 16px ma
- * appoggiato al bordo superiore, e si legge come una barretta grigia
- * dimenticata lì. Misurato in una testata da 48: **1×16px a y=0**.
- *
- * Non è un difetto da ri-stilare: `self-stretch` è quello che si vuole nel
- * caso normale, cioè un separatore che prende tutta l'altezza della riga. Chi
- * lo vuole più corto deve restituire l'allineamento al contenitore, ed è la
- * forma che shadcn stesso usa nei suoi blocchi:
- * `className="data-vertical:h-4 data-vertical:self-auto"`. **Il `data-vertical:`
- * non è pignoleria**: un `h-4` semplice perde contro `data-vertical:self-stretch`
- * sull'allineamento, e cambia solo l'altezza.
- *
- * Qui sotto il caso normale — la riga è `h-6` e il separatore la riempie —
- * quindi il difetto non si vede: si presenta appena la riga cresce.
+ * Tre voci di una riga separate da fili verticali, che ne occupano tutta
+ * l'altezza.
  */
 export const Verticale: Story = {
   render: () => (

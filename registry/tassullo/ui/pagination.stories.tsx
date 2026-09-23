@@ -11,28 +11,41 @@ import {
 } from '@/registry/tassullo/ui/pagination'
 
 /**
- * `pagination.tsx` è **identico all'originale nella forma e nelle stringhe di
- * classi**. Anche qui l'unico intervento è la lingua, e stavolta metà è
- * visibile: «Previous»/«Next» sono i testi dei due bottoni — ora
- * «Precedente»/«Successiva», e restano `prop` con quel valore di default, così
- * un caso particolare li può ancora cambiare senza toccare il componente.
- * L'altra metà — `aria-label="pagination"`, «Go to previous page», «More
- * pages» — la sente solo chi usa uno screen reader.
+ * La navigazione fra le pagine di un elenco di risultati, quando ogni pagina
+ * ha il suo indirizzo.
  *
- * **La pagina corrente è un `aria-current="page"`, non solo un bordo.** Lo fa
- * `isActive`, che accende insieme la variante `outline` del bottone e
- * l'attributo: se si segnasse la pagina corrente col solo `className` sarebbe
- * corretta a vedersi e muta ad ascoltarsi.
+ * **Quando sì, quando no.** Le voci sono collegamenti: una pagina di
+ * risultati si apre in una nuova scheda, si salva, si torna indietro col
+ * browser. Se l'elenco cambia senza cambiare indirizzo, non è paginazione ma
+ * un filtro, e si usa `toggle-group` o un campo di ricerca. Le tabelle del
+ * blocco `data-table` hanno la loro paginazione già dentro.
  *
- * **Le voci sono `<a>`, non `<button>`.** Il preset le rende con
- * `nativeButton={false}` su un `<a>` proprio perché una pagina di risultati è
- * un indirizzo: deve funzionare col tasto centrale, col «apri in una nuova
- * scheda» e col tasto indietro. Se la lista si aggiorna senza cambiare
- * indirizzo, allora non è paginazione — è un filtro, e va in M2.6.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/pagination
+ * ```
  *
- * I due bottoni con testo nascondono l'etichetta sotto la soglia `sm`
- * (`hidden sm:block`) e restano le sole frecce: il nome accessibile però non
- * sparisce, perché sta nell'`aria-label` e non nel testo.
+ * **Parti.** `Pagination` è il `<nav>`; `PaginationContent` l'elenco;
+ * `PaginationItem` una voce; `PaginationLink` il numero di pagina, con
+ * `isActive` sulla pagina corrente; `PaginationPrevious` e `PaginationNext`,
+ * con `text` per cambiare «Precedente» e «Successiva»; `PaginationEllipsis`
+ * per le pagine lontane.
+ *
+ * **Regole d'uso.**
+ *
+ * - La pagina corrente si segna con `isActive`, mai con una classe: accende
+ *   insieme il bordo e `aria-current="page"`, che è ciò che il lettore di
+ *   schermo annuncia.
+ * - Agli estremi il bottone che non porta da nessuna parte resta visibile ma
+ *   spento: niente `href`, `aria-disabled` e
+ *   `className="pointer-events-none opacity-50"`.
+ * - Sotto la soglia `sm` «Precedente» e «Successiva» restano solo frecce; il
+ *   nome per il lettore di schermo non cambia.
+ *
+ * **Tastiera e accessibilità.** Ogni voce è un `<a>`: `Tab` passa da una
+ * all'altra, `Invio` segue il collegamento. Il `<nav>` si annuncia come
+ * «paginazione», le frecce come «Vai alla pagina precedente» e «Vai alla
+ * pagina successiva». L'ellissi è nascosta al lettore di schermo: le pagine
+ * che raccoglie si raggiungono con le frecce.
  */
 const meta = {
   title: 'Primitive/Pagination',
@@ -42,7 +55,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** Poche pagine: si mostrano tutte. */
+/**
+ * Poche pagine: si mostrano tutte, e la corrente ha il bordo.
+ */
 export const Base: Story = {
   render: () => (
     <Pagination>
@@ -70,10 +85,8 @@ export const Base: Story = {
 }
 
 /**
- * Molte pagine: le finestre lontane si raccolgono nell'ellissi, che qui è
- * `aria-hidden` e va bene — a differenza di quella del `breadcrumb` non
- * nasconde una destinazione, perché il numero di pagina si raggiunge lo stesso
- * con «Precedente» e «Successiva».
+ * Molte pagine: attorno alla corrente restano le vicine, le lontane si
+ * raccolgono nell'ellissi.
  */
 export const ConEllissi: Story = {
   render: () => (
@@ -114,9 +127,8 @@ export const ConEllissi: Story = {
 }
 
 /**
- * Primo e ultimo estremo. Il bottone che non porta da nessuna parte non si
- * nasconde e non resta cliccabile: prende `aria-disabled` e perde l'`href`,
- * così è ancora leggibile ma non promette un salto che non c'è.
+ * Sulla prima pagina «Precedente» è spento: visibile, senza collegamento, non
+ * cliccabile.
  */
 export const AgliEstremi: Story = {
   render: () => (
