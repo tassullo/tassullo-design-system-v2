@@ -92,7 +92,7 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 
 ## I gate
 
-`npm run check` esegue gli otto controlli che girano anche in CI:
+`npm run check` esegue i nove controlli che girano anche in CI:
 
 | Comando | Cosa verifica |
 |---|---|
@@ -103,6 +103,7 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 | `check:riferimenti` | che ogni `registryDependencies` di `registry.json` risolva a un item dichiarato, che i file dichiarati esistano e che non ci siano cicli — **212 riferimenti su 95 item**. È l'unico gate che vede un item ininstallabile: `registry validate` no |
 | `check:registry-build` | che `public/r/` — l'artefatto che le app installano davvero — corrisponda ai sorgenti, rilanciando `shadcn build` in una cartella temporanea e confrontando byte per byte |
 | `check:storybook` | che la style guide si legga da fuori: nel testo che un visitatore vede — le descrizioni delle story, le pagine `.mdx`, la prosa delle pagine in `stories/`, le descrizioni dei componenti e delle prop che la tabella delle prop mostra, i commenti dentro il codice delle scene che «Show code» mostra — niente sigle di lavoro, rimandi ai documenti interni, date, nomi di persona, comandi del repo. Il canone di pagina è in testa a `scripts/check-storybook.ts` |
+| `check:checklist` | che ogni riga di `CHECKLIST.md` stia entro **500 caratteri**: la checklist porta verdetto, numeri che contano e un rimando, il resto va in `WORKLOG.md` |
 
 Oggi sono tutti verdi, **0 violazioni**. C'è anche `npm run misura:bersagli`, che misura quanto sono grandi i bersagli in densità touch — una cosa che axe non guarda e che col guanto si sente.
 
@@ -129,4 +130,3 @@ Fa eccezione il carattere **Inter**, distribuito con l'item `tema-font` sotto **
 Il carattere **Replica LL** (Lineto), usato nelle stampe, **non è in questo repo** e non si distribuisce col registry.
 
 Fanno eccezione anche le fotografie dei macchinari in `public/esempi/macchina-*.jpg`, da Wikimedia Commons con le loro licenze (CC BY-SA, CC0, uso libero): autori e licenze in [`public/esempi/LEGGIMI.md`](public/esempi/LEGGIMI.md). Servono solo alla style guide, e nessun item del registry le spedisce.
-
