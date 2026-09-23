@@ -12507,3 +12507,11 @@ Francesco, provando `Data Grid → Computo`: (1) «cliccando fuori la cella rima
 - La pagina `Blocchi/Data Grid` dice il secondo clic.
 
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` pulita in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+### Coda di M5.0d, quinta — la virgola anche in modifica
+
+Francesco: «fai scrivere con la virgola anche in modifica». Nella `data-grid` il campo numerico si apre ora con `20,78`, accetta la virgola, e copia e incolla parlano la virgola come un foglio di calcolo italiano; il dato resta col punto. Nel motore, `FormatoCellaGriglia` e `registraFormato` accanto ai validatori; nelle celle numeriche, `leggiNumero`/`scriviNumero` e l'errore calcolato sul testo interpretato. La regola sul punto ambiguo (migliaia se raggruppa tre cifre, altrimenti decimale) e le misure in `DECISIONI.md` §56.11. La pagina `Blocchi/Data Grid` dice la regola.
+
+**Da sapere sullo strumento**: nei test da tastiera sul Mac `Control`+`A` in un campo porta il cursore a inizio riga (è la scorciatoia di sistema) e `Control`+`C` non copia; la prima passata di misura sembrava dire che la virgola non funzionava. Si scrive `ControlOrMeta`.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` pulita in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.

@@ -198,6 +198,14 @@ export type CommitGriglia = {
   sequenza: number
 }
 
+/** Come una colonna si scrive e si legge: v. `registraFormato`. */
+export type FormatoCellaGriglia = {
+  /** Dal valore del dato a ciò che si vede nel campo in modifica e si copia. */
+  perScrivere: (valore: string) => string
+  /** Da ciò che si è scritto o incollato al valore del dato. */
+  interpreta: (testo: string) => string
+}
+
 export type OpzioniDataGrid<TDato> = {
   /** Seminano lo stato interno una volta sola — v. il commento in testa al file. */
   righeIniziali: TDato[]
@@ -279,6 +287,15 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
    * è un no-op.
    */
   registraValidatore: (colonnaId: string, f: ((valore: string) => string | undefined) | null) => void
+  /**
+   * Registra il **formato di scrittura** di una colonna — `colonnaNumeroGriglia`
+   * e `colonnaValutaGriglia` lo fanno da sé, come per il validatore. Dice come
+   * si mostra il valore nel campo in modifica e nella copia (`perScrivere`), e
+   * come si legge ciò che si è scritto o incollato (`interpreta`): per i
+   * numeri, la virgola decimale di chi scrive in italiano contro il punto del
+   * dato. Senza formato, il valore passa com'è.
+   */
+  registraFormato: (colonnaId: string, formato: FormatoCellaGriglia | null) => void
   /** Wiring privata per `<DataGrid>`: v. il commento in testa al file. */
   registraSpostamentoVerticale: (f: ((indiceRiga: number) => void) | null) => void
 }
@@ -388,6 +405,20 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     []
   )
 
+  // Come i validatori: una `Map` in una `ref`, letta solo nei gestori.
+  const formatiRef = React.useRef(new Map<string, FormatoCellaGriglia>())
+  const registraFormato = React.useCallback(
+    (colonnaId: string, formato: FormatoCellaGriglia | null) => {
+      if (formato) formatiRef.current.set(colonnaId, formato)
+      else formatiRef.current.delete(colonnaId)
+    },
+    []
+  )
+  const interpreta = (colonnaId: string, testo: string) =>
+    formatiRef.current.get(colonnaId)?.interpreta(testo) ?? testo
+  const perScrivere = (colonnaId: string, valore: string) =>
+    formatiRef.current.get(colonnaId)?.perScrivere(valore) ?? valore
+
   const eAttiva = (id: CellaGrigliaId) =>
     cellaAttiva?.rigaId === id.rigaId && cellaAttiva?.colonnaId === id.colonnaId
   const eInModifica = (id: CellaGrigliaId) =>
@@ -413,20 +444,22 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
    */
   const commitModificaInterno = (): boolean => {
     if (!cellaInModifica) return false
-    if (validatoriRef.current.get(cellaInModifica.colonnaId)?.(draftModifica)) return false
+    const valore = interpreta(cellaInModifica.colonnaId, draftModifica)
+    if (validatoriRef.current.get(cellaInModifica.colonnaId)?.(valore)) return false
     const idx = indiceRiga.get(cellaInModifica.rigaId)
     if (idx == null) {
       setCellaInModifica(null)
       return true
     }
     const nuoveRighe = righe.slice()
-    nuoveRighe[idx] = scriviCella(nuoveRighe[idx]!, cellaInModifica.colonnaId, draftModifica)
+    nuoveRighe[idx] = scriviCella(nuoveRighe[idx]!, cellaInModifica.colonnaId, valore)
     registraCommit(nuoveRighe, "modifica")
     setCellaInModifica(null)
     return true
   }
 
-  const impostaValore = (id: CellaGrigliaId, valore: string): boolean => {
+  const impostaValore = (id: CellaGrigliaId, testo: string): boolean => {
+    const valore = interpreta(id.colonnaId, testo)
     if (validatoriRef.current.get(id.colonnaId)?.(valore)) return false
     const idx = indiceRiga.get(id.rigaId)
     if (idx == null) return false
@@ -497,7 +530,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     setCellaAttiva(id)
     setAncora(id)
     setCellaInModifica(id)
-    setDraftModifica(valoreIniziale ?? leggiCella(riga, id.colonnaId))
+    setDraftModifica(valoreIniziale ?? perScrivere(id.colonnaId, leggiCella(riga, id.colonnaId)))
   }
 
   const annullaModifica = () => setCellaInModifica(null)
@@ -542,7 +575,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     for (let r = rigaMin; r <= rigaMax; r++) {
       const valori: string[] = []
       for (let c = colMin; c <= colMax; c++) {
-        valori.push(leggiCella(righe[r]!, colonneId[c]!))
+        valori.push(perScrivere(colonneId[c]!, leggiCella(righe[r]!, colonneId[c]!)))
       }
       righeTsv.push(valori.join("\t"))
     }
@@ -574,7 +607,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
       riga.split("\t").forEach((valore, dc) => {
         const indiceC = colBase + dc
         if (indiceC >= colonneId.length) return
-        nuoveRighe[indiceR] = scriviCella(nuoveRighe[indiceR]!, colonneId[indiceC]!, valore)
+        const colonna = colonneId[indiceC]!
+        nuoveRighe[indiceR] = scriviCella(nuoveRighe[indiceR]!, colonna, interpreta(colonna, valore))
       })
     })
     registraCommit(nuoveRighe, "incolla")
@@ -831,6 +865,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     incolla,
     serializzaSelezione,
     registraValidatore,
+    registraFormato,
     registraSpostamentoVerticale,
   }
 }
@@ -1267,6 +1302,38 @@ export function colonnaTestoGriglia<TDato extends RowData>(
  * Numero e valuta — stessa cella, una differenza di formattazione
  * ──────────────────────────────────────────────────────────────────────── */
 
+/**
+ * **Si scrive con la virgola, come si legge.** La vista mostra `20,78 €`, e il
+ * campo in modifica mostra e accetta `20,78`; il dato resta `20.78`, il
+ * formato che `Number()` e Zod capiscono. Vale anche per copia e incolla: un
+ * foglio di calcolo in italiano dà e riceve la virgola.
+ *
+ * Il punto, in italiano, separa le migliaia: `1.234,5` è milleduecento. Senza
+ * virgola il punto è ambiguo, e si decide così: se raggruppa esattamente tre
+ * cifre (`1.234`, `12.345.678`) sono migliaia, altrimenti è il decimale di chi
+ * scrive o incolla all'inglese (`20.78`, `1.5`). Spazi e `€` si ignorano.
+ */
+function leggiNumero(testo: string): string {
+  const t = testo.replace(/[\s€]/g, "")
+  if (t === "") return ""
+  const grezzo = t.includes(",")
+    ? t.replace(/\./g, "").replace(",", ".")
+    : /^-?\d{1,3}(\.\d{3})+$/.test(t)
+      ? t.replace(/\./g, "")
+      : t
+  // Un numero si riscrive nella forma canonica (`3,` → `3`, `20,780` →
+  // `20.78`); un testo che numero non è resta com'è, e lo rifiuta il validatore.
+  const numero = Number(grezzo)
+  return Number.isNaN(numero) ? grezzo : String(numero)
+}
+
+/** Dal dato al campo: il punto decimale diventa la virgola, senza migliaia. */
+function scriviNumero(valore: string): string {
+  return valore === "" || Number.isNaN(Number(valore)) ? valore : valore.replace(".", ",")
+}
+
+const FORMATO_NUMERO: FormatoCellaGriglia = { perScrivere: scriviNumero, interpreta: leggiNumero }
+
 /** Un numero nella vista della cella: i decimali che ha, fino a tre come
  * `Intl.NumberFormat` di serie, e sempre il punto delle migliaia. */
 function numeroFormattato(numero: number): string {
@@ -1285,8 +1352,11 @@ function CellaNumericaGriglia<TDato extends RowData>({
   valuta?: boolean
 }) {
   const riga = info.row.original
+  // L'errore a schermo si calcola su ciò che il motore scriverà, non sul testo
+  // grezzo: `20,78` è valido, e `z.coerce.number()` da solo lo rifiuterebbe.
+  const validazioneScritta = validazione && ((testo: string) => validazione(leggiNumero(testo)))
   const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
-    useStatoCellaGriglia(riga, colonnaId, validazione)
+    useStatoCellaGriglia(riga, colonnaId, validazioneScritta)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
   const erroreId = React.useId()
@@ -1297,6 +1367,9 @@ function CellaNumericaGriglia<TDato extends RowData>({
   const formatta = valuta ? valutaFormattata : numeroFormattato
 
   useValidatoreCellaGriglia(motore, colonnaId, validazione)
+  React.useEffect(() => {
+    motore.registraFormato(colonnaId, FORMATO_NUMERO)
+  }, [motore, colonnaId])
   useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
   React.useEffect(() => {
     if (inModifica) inputRef.current?.focus()
@@ -1385,8 +1458,8 @@ export function colonnaNumeroGriglia<TDato extends RowData>(
 }
 
 /** Come `colonnaNumeroGriglia`, ma la vista formatta in euro (`valuta()`
- * di `lib/numeri`) — la cella in modifica resta un numero semplice: si scrive "12.5", non "€
- * 12,50". */
+ * di `lib/numeri`) — in modifica si scrive il numero con la virgola, `12,5`,
+ * e il simbolo resta accanto al campo. */
 export function colonnaValutaGriglia<TDato extends RowData>(
   col: ReturnType<typeof creaColonne<TDato>>,
   id: Extract<keyof TDato, string>,

@@ -187,8 +187,12 @@ function ComputoFinto() {
  * - La data è un campo nativo `<input type="date">`, non il calendario.
  * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
  *   `numeri`, quindi col separatore delle migliaia sempre scritto
- *   (`2.086,93 €`), allineate a destra e con le cifre tabellari; in modifica
- *   tornano a un numero semplice: si scrive `12.5`, non `12,50 €`. In una
+ *   (`2.086,93 €`), allineate a destra e con le cifre tabellari. In modifica
+ *   si scrive con la virgola, come si legge — `12,5` — senza migliaia, e il
+ *   simbolo dell'euro resta accanto al campo; il punto vale come separatore
+ *   delle migliaia se raggruppa tre cifre (`1.234`), altrimenti come
+ *   decimale. Copia e incolla usano la virgola, quindi un foglio di calcolo
+ *   in italiano li legge com'è. Il dato resta un numero col punto. In una
  *   cella scritta a mano, i numeri si formattano con le stesse funzioni,
  *   `intero()`, `decimale()`, `valuta()`.
  *
