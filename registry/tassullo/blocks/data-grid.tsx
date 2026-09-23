@@ -1871,10 +1871,15 @@ export function DataGrid<TDato extends RowData>({
             // La cella attiva ha sempre il suo bordo, anche dopo un clic col
             // puntatore (dove `focus-visible` non si accende); a fuoco fuori
             // il bordo si attenua e la riga intera prende il fondo tenue.
+            //
+            // In scuro `bg-muted` si stacca appena dalla card (1.13:1, si
+            // vedeva poco): lì il fondo è `border-strong` al 70%, 1.48:1 dalla
+            // card, l'unico grigio del tema più deciso che tenga il testo
+            // attenuato sopra soglia (4.86:1; al 100% scenderebbe a 4.03).
             fuoco === "dentro" &&
               "[&_[data-attiva]]:ring-2 [&_[data-attiva]]:ring-ring [&_[data-attiva]]:ring-inset",
             fuoco === "fuori" &&
-              "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted"
+              "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted dark:[&_tr:has([data-attiva])]:bg-border-strong/70"
           )}
         />
       </div>
