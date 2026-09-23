@@ -140,7 +140,7 @@ type ProprietaComuni = {
   applicazione: string
   /** Sottotitolo facoltativo — a cosa serve l'app, in una riga. */
   descrizione?: ReactNode
-  /** Uno dei tre stati che Anagrafe già distingue. `inattivo` di default. */
+  /** Uno dei tre stati: `inattivo` di default. */
   stato?: "inattivo" | "in-corso" | "errore"
   /**
    * A quale **via** si riferisce `stato`: l'indicatore va sul bottone
@@ -158,9 +158,9 @@ type ProprietaComuni = {
    */
   configurato?: boolean
   /**
-   * `false` quando l'accesso con email e password non è ancora attivo — in
-   * Studio è `accessoLocale`, spento finché il backend non ha il segreto. I
-   * campi restano disabilitati e compare l'avviso. `true` di default.
+   * `false` quando l'accesso con email e password non è ancora attivo, per
+   * esempio finché il backend non è pronto. I campi restano disabilitati e
+   * compare l'avviso. `true` di default.
    */
   credenzialiAbilitate?: boolean
   /**

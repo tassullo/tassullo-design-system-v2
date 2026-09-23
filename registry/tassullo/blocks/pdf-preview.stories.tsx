@@ -51,7 +51,7 @@ type Story = StoryObj<typeof meta>
  */
 export const SchedaTecnica: Story = {
   args: {
-    file: '/esempi/scheda-tecnica-esempio.pdf',
+    file: 'esempi/scheda-tecnica-esempio.pdf',
   },
   render: (args) => (
     <div className="max-w-lg">
@@ -65,7 +65,7 @@ export const SchedaTecnica: Story = {
  */
 export const Errore: Story = {
   args: {
-    file: '/esempi/non-esiste.pdf',
+    file: 'esempi/non-esiste.pdf',
     messaggioErrore: 'Il documento non è più disponibile sul server.',
     onRiprova: () => {},
   },

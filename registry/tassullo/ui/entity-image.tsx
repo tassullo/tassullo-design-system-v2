@@ -39,27 +39,34 @@ const RAPPORTI = {
 
 type Rapporto = keyof typeof RAPPORTI
 
+// La foto di un'entità — una macchina, un impianto, un articolo di catalogo —
+// ritagliata a un rapporto dichiarato, col **segnaposto** quando la foto non
+// c'è. Nelle app dello studio la foto manca quasi sempre: il segnaposto è la
+// regola, non l'eccezione.
+//
+// **Il ramo condizionale non è nostro.** `AvatarImage`/`AvatarFallback` di
+// Base UI *è già* «mostra l'immagine, altrimenti mostra l'altro», e gestisce
+// anche il caso che conta davvero in produzione — la `src` che c'è ma non
+// arriva. Qui quel meccanismo viene messo in un riquadro **non tondo** insieme
+// ad `AspectRatio`, e le cinque classi tonde della primitiva si annullano **una
+// volta sola, qui dentro**, invece che in ogni pagina che mostra una foto.
+//
+// **`alt` è obbligatorio, e il tipo è l'unico controllo che lo vede.**
+// Verificato il 2026-09-19, non assunto: Base UI scrive `alt=""` su **ogni**
+// `<img>` che renda senza alt (`internals/useRenderElement.js:183`), quindi una
+// foto senza alternativa testuale non è un errore — diventa in silenzio una
+// foto *decorativa*, axe la promuove e `test:a11y` resta a zero violazioni.
+// Chi scrivesse `alt` opzionale qui dentro non avrebbe nessun gate a coprirlo.
+// Per una foto davvero decorativa si passa `alt=""`: una scelta scritta, non
+// una dimenticanza.
 /**
  * La foto di un'entità — una macchina, un impianto, un articolo di catalogo —
- * ritagliata a un rapporto dichiarato, col **segnaposto** quando la foto non
- * c'è. Nelle app dello studio la foto manca quasi sempre: il segnaposto è la
- * regola, non l'eccezione.
+ * ritagliata a un rapporto dichiarato, col segnaposto quando la foto non c'è
+ * o non arriva. Nelle app la foto manca spesso: il segnaposto è il caso
+ * normale.
  *
- * **Il ramo condizionale non è nostro.** `AvatarImage`/`AvatarFallback` di
- * Base UI *è già* «mostra l'immagine, altrimenti mostra l'altro», e gestisce
- * anche il caso che conta davvero in produzione — la `src` che c'è ma non
- * arriva. Qui quel meccanismo viene messo in un riquadro **non tondo** insieme
- * ad `AspectRatio`, e le cinque classi tonde della primitiva si annullano **una
- * volta sola, qui dentro**, invece che in ogni pagina che mostra una foto.
- *
- * **`alt` è obbligatorio, e il tipo è l'unico controllo che lo vede.**
- * Verificato il 2026-09-19, non assunto: Base UI scrive `alt=""` su **ogni**
- * `<img>` che renda senza alt (`internals/useRenderElement.js:183`), quindi una
- * foto senza alternativa testuale non è un errore — diventa in silenzio una
- * foto *decorativa*, axe la promuove e `test:a11y` resta a zero violazioni.
- * Chi scrivesse `alt` opzionale qui dentro non avrebbe nessun gate a coprirlo.
- * Per una foto davvero decorativa si passa `alt=""`: una scelta scritta, non
- * una dimenticanza.
+ * `alt` è obbligatorio. Per una foto davvero decorativa si passa `alt=""`,
+ * come scelta scritta.
  */
 function EntityImage({
   src,

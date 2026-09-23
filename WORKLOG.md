@@ -12563,3 +12563,65 @@ Francesco, provato in Chrome e Safari: da «Aggiungi riga» il `Tab` passava per
 Francesco: «le maniglie le togliamo ovunque dal ciclo dei tab». `ManigliaRidimensiona` a `tabIndex={-1}` in ogni tabella; la via da tastiera passa dall'intestazione (`Alt`+`←`/`→` su `CellaIntestazione`) e, nella griglia, dalla cella. Tolta l'opzione `maniglieFuoriDalTab` introdotta un'ora prima. Pagine `Data Table` (tastiera, scena `Ridimensionabile`) e `Data Grid` coerenti. Misure in `DECISIONI.md` §56.17.
 
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-table` e `data-grid` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+---
+
+## 2026-09-23 — M5.0e Pagine, nomi fittizi, il gate armato, il documento pubblicato
+
+Le dieci pagine di `Pagine/` riscritte secondo il canone, i nomi di persona nei dati resi inventati, `check:storybook` dentro `npm run check` e in CI, e il sito costruito letto col `grep`. Il `grep` ha trovato tre fonti di testo visibile che il gate non leggeva e due guasti del sito pubblicato: le prime ora le legge il gate, i secondi sono corretti. Fatti e misure in `docs/DECISIONI.md` **§57**; qui il sunto.
+
+#### Il conto
+
+**110 segnalazioni su 10 file** aprendo la sessione (`pages/` 49, `stories/` 61), come nel mandato; a fine sessione **0**. Con le due fonti nuove del gate la versione di partenza conta **204** (110 + 94 nelle descrizioni che react-docgen estrae dai sorgenti); oggi **0 su 186 file**, in 2,3 secondi, in modalità errore.
+
+#### Le pagine
+
+- **`Pagine/Lista`**: `facciaStretta`, `soglia` e `faccia` scritte come prop, in una sezione «La faccia stretta» con la regola in evidenza — **il blocco sceglie quando, la pagina scrive cosa** — e ciò che se ne va con la tabella (ricerca, `barra`, paginazione) e ciò che resta del blocco. Le quattro scene nuove coperte: `Faccia stretta` e `Soglia della pagina` qui e su `Pagine/Prodotti`; `Pagine/Lista a due facce` è la ricetta a cui rimandano, e ora apre dicendo che `tassullo-pagina-lista` ha già il bivio dentro. Da sapere, scritto su tutte e tre: passando la soglia i filtri non passano da una faccia all'altra.
+- **Ogni pagina dice i blocchi che la compongono e il comando `add`**: l'item di `registry.json` per le sei pagine modello; per le tre pagine composte (Prodotti, Scelta da catalogo, Schermate d'accesso) **un solo comando** con gli item uno per riga, calcolati dalla chiusura delle `registryDependencies` perché non manchi niente (a Prodotti servivano anche `card`, `toggle-group`, `toni`); per la ricetta a due facce `use-soglia`.
+- Scritte sul sorgente, non sulla vecchia prosa: `Pagine/Scheda` non ha più un'intestazione propria (la vecchia descrizione diceva il contrario della sua scena), l'`azione` di `Pagine/Errore` è consigliata e non obbligatoria, il login ha le tre vie di `modo` e l'unione discriminata detta come garanzia. Due frasi su cosa fa un'app *oggi* tolte anche dalla tabella delle prop di `pagina-login` («che Anagrafe già distingue», «in Studio è `accessoLocale`»).
+- **La scena di `Pagine/Prodotti` si contraddiceva**: «Elimina» chiedeva conferma («non si possono recuperare») e poi offriva «Annulla». Deciso con Francesco: **solo la conferma**. Tolti `toastConAnnullo` e `<Toaster />` dalla scena.
+
+#### I nomi
+
+Uno fisso per persona, nei dati e non nei commenti: Francesco Sartori → **Stefano Bertolini** (`sbertolini@esempio.it`, SB), Roberto Zanetti → **Giorgio Pedrotti**, e — su indicazione di Francesco, perché possono essere persone vere — Michela Bort → Elisa Fontana, Luca Menegatti → Davide Tomasi, Marta Rossi → Anna Moretti, Luca Boni → Nicola Ferrari, Marta Conci → Laura Zeni. Dominio `esempio.it` (quello che `pagina-login` usava già), «Covi Costruzioni S.r.l.» → «Impresa Esempio S.r.l.». Diciassette file fra `ui/`, `blocks/`, `pages/` e `stories/`; gli `id` degli assegnatari del calendario seguono le iniziali. Restano Mario e Maria Rossi, segnaposto per antonomasia.
+
+#### La tabella delle prop: strada (c), separare
+
+Chiesto a Francesco prima di toccare niente, con la misura in mano: **94** occorrenze in 14 sorgenti (55 in `data-table.tsx`), 75 nelle prop e 19 nelle descrizioni di componente, e tutte nel JavaScript pubblicato anche dove la tabella non c'è — quindi nasconderle non bastava. Scelta: il `/** */` resta la frase per chi usa la prop, la nota interna diventa `//` sopra, **parola per parola**, con uno script d'appoggio (cartella temporanea) che trasforma il JSDoc originale in commenti e scrive sotto quello nuovo. 43 JSDoc in 14 file, più tre note spostate fuori dal corpo di un tipo (sotto). `registry:build` rilanciato: 16 file di `public/r/`.
+
+#### Quello che il sito costruito ha fatto vedere (→ §57)
+
+- **I commenti dentro l'oggetto di una story** si leggono sotto «Show code»: 18 occorrenze in 8 file (`chart`, `app-shell`, `barra-contesto`, `calendario`, `form-field`, `pagina-lista`, `PaginaProdotti`, `SceltaDaCatalogo`). Riscritti i commenti, il codice e le `play` no.
+- **Il tipo di una prop arriva nella tabella col testo del suo corpo**, `//` compresi: la nota su `RuoloAssegnabile.etichetta` separata un'ora prima ricompariva nel bundle di `pagina-admin`. Dentro un tipo annidato la nota va sopra la dichiarazione del tipo (`LivelloPercorso`, `MotoreFoglioGruppi`, `RuoloAssegnabile`).
+- **Anche `.storybook/prove/`** passa da react-docgen (`LogoMicrosoft`).
+- **`public/` finiva per intero in `storybook-static/`**, per la `publicDir` di Vite: una terza copia del registry su Pages (`/r/registry.json` risponde 200) e, in locale, i `.otf` di fonderia. `viteFinal: publicDir: false`; `tema/` serve il solo `inter.css`.
+- **Sul sito pubblicato `/tema/inter.css` e le immagini `/esempi/…` danno 404**, perché la style guide sta sotto `/tassullo-design-system-v2/`: misurato con `curl` e in Chromium sul sito di oggi. Resi relativi; provati sulla build nuova servita **sotto lo stesso sottopercorso**: immagini caricate, PDF d'esempio reso, nessuna risposta ≥ 400.
+- **Il `grep`** va ristretto sui tracciati SVG (`M3.59 3.59…`, `M11.5.003…`) e si scrive in `perl`, che ha i lookahead. Guarda tutto `storybook-static/` tranne `tema/` ed `esempi/`, che sono risorse (il CSS del carattere, identico al file del registry; le immagini col loro `LEGGIMI.md`) e non pagine.
+
+#### Il gate armato
+
+`check:storybook` in `npm run check` e, attraverso quello, in `.github/workflows/gate.yml` (commento aggiornato); descritto in `README.md` §I gate e `CLAUDE.md` §Comandi, con la regola pratica dei sorgenti (`//` sopra il JSDoc, e fuori dalle graffe nei tipi annidati). Due fonti nuove: **(e)** le descrizioni e i tipi che react-docgen estrae da `registry/tassullo/` e `.storybook/prove/`, con react-docgen stesso — `devDependency`, 8.0.4, che il lockfile ha deduplicato anche per Storybook (era 8.0.3) —; **(f)** i commenti dentro le story. Autotest a **sei** prove (7/0/0 di prima, più: nota dentro una story → 2, nota nel JSDoc di una prop → 3, la stessa in `//` → 0).
+
+**Un guasto preso scrivendolo, ed è la lezione della sessione**: la prima versione dell'importatore lanciava un errore generico sui pacchetti esterni, react-docgen falliva su ogni file e il `catch` lo trasformava in «nessun componente» — il gate diceva **0 su tutto, e sembrava pulito**. Preso rimettendo nel repo il `data-table.tsx` di partenza e vedendo 0 invece di 55. Ora un modulo non risolto lancia con `MODULE_NOT_FOUND` (che react-docgen salta), il `catch` inghiotte solo `MISSING_DEFINITION`, e l'autotest ha la prova che un sorgente si legge davvero.
+
+#### Il testo reso nel canvas
+
+Nelle dieci pagine nessun testo JSX con note interne (letti i nodi di testo dei quattro file di `stories/` e dei sei di `pages/`). Cambiati nel canvas: i nomi, la scena di «Elimina» di Prodotti, i percorsi delle immagini.
+
+#### Verifiche
+
+- `check:storybook` **0** sul repo intero, in modalità errore; autotest 6/6.
+- `npm run check` **verde**: gli otto gate di questa sessione, più `check:checklist` dell'altra sessione, presente nella cartella (v. i rilievi). `test:a11y` **1540 scansioni, 0 violazioni, 385 story in ognuna delle quattro passate**, letto riga per riga, lanciato dopo l'ultima modifica ai sorgenti.
+- `build-storybook` verde; `tsc -b` a zero; `oxlint` sui file toccati **0 errori**, un avviso già presente prima (`react(incompatible-library)` in `data-table.tsx`, spostato di riga dai commenti).
+- **Pagine Docs renderizzate dal manager, in Chiaro e Scuro, Chromium**: le 10 pagine di `Pagine/` e 20 pagine di blocchi e primitive toccati (tabella delle prop, nomi, immagini) — **60 aperture**, ognuna con un solo blocco `add` ed è quello giusto, nessun `**`/```` ``` ````/entità letterale fuori dal codice dei tipi, nessun token vietato né `Sartori`/`covicostruzioni` nel testo fuori dalle scene, `dark` giusto, **axe `color-contrast` 0**. *Incomplete* invariate nelle due modalità (le celle delle scene: `data-table` 440, `dashboard` 96, `chart` 86).
+- **Comportamento, in Chromium e WebKit**: `Soglia della pagina` (Lista, Prodotti, Due facce) tabella a 1440 e schede a 800, e schede col Viewport «Telefono» dal manager; nelle schede `Invio` e `Spazio` aprono il pannello; «220 prodotti» scritto dalla tabella; nel catalogo il fuoco resta nel campo, `aria-activedescendant` si sposta, le frecce non si fermano mai su un'intestazione di gruppo, «ETICS» trova il cappotto, gli strati compaiono sotto la sola voce attiva, `Esc` chiude; nel login `Invio` dal campo password invia e «Mostra» porta `aria-pressed`. La prima passata aveva 20 «fallite» ed erano dello strumento: il contatore prendeva anche il ramo «Riferimenti» della colonna, che è un collapsible.
+- **`grep` sul sito costruito, espressione ristretta**: 0 file fuori da `tema/` ed `esempi/`. Una passata con tutte le regole del gate sul JavaScript trova solo falsi positivi e la chiave `_nota` di `manager-palette.json`, che non si mostra.
+- **Rilettura come un esterno**, sulla build servita sotto il sottopercorso di Pages: Introduzione, `Tema/Carattere`, `Tema/Palette`, `Tema/Densità`, `Button`, `Badge`, `Select`, `Data Table`, `App Shell`, `Pagine/Lista` rispondono a «cos'è, quando, come si installa» (le pagine `Tema/` col comando del tema nella descrizione). **La rilettura dall'URL pubblico si fa dopo il merge**: per questo la riga è in REVIEW.
+- **Le misure tolte** dalle pagine, estratte dal `diff` e cercate nei due documenti: tutte in `WORKLOG.md` tranne 1450px e 1242px di `Lista a due facce`, portate in §57.9.
+
+#### Rilievi
+
+- **Un'altra sessione ha lavorato nella stessa cartella mentre questa girava** («Claude API prompt audit»): ha ripulito `CHECKLIST.md`, aggiunto `check:checklist` come **nono** gate e aggiornato `README.md`, `CLAUDE.md`, `PIANO.md` e `gate.yml` partendo dalle modifiche di questa sessione. **Deciso con Francesco: il commit di M5.0e porta solo il lavoro di questa sessione.** Nei file toccati da tutte e due (`README.md`, `CLAUDE.md`, `gate.yml`, `package.json`, `CHECKLIST.md`, questo diario) il commit ha la versione con otto gate e senza le modifiche dell'altra sessione; la cartella di lavoro resta con quella a nove, non committata, per il commit dell'altra sessione.
+- **Per M5.1**: le `description` di `registry.json` («Seconda pagina modello della FASE 4», «ROADMAP») e i commenti dei file spediti (`inter.css`: «D3, chiusa il 2026-09-08») parlano di documenti che un'app non ha. Non è testo della style guide; è testo che arriva a chi installa. Annotato sulla riga di M5.1.
+
+**Prossimi passi**: dopo il merge, Pages riletto dall'URL pubblico e la riga di M5.0e a DONE; poi **M5.1**.

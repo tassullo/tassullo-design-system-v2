@@ -131,17 +131,17 @@ export const AnteprimaPersona: Story = {
             />
           }
         >
-          Francesco Sartori
+          Stefano Bertolini
         </HoverCardTrigger>
         <HoverCardContent>
           <div className="flex gap-3">
             <Avatar>
-              <AvatarFallback>FS</AvatarFallback>
+              <AvatarFallback>SB</AvatarFallback>
             </Avatar>
             <div className="flex flex-col gap-0.5">
-              <span className="font-medium">Francesco Sartori</span>
+              <span className="font-medium">Stefano Bertolini</span>
               <span className="text-xs text-muted-foreground">
-                Ufficio tecnico — Covi Costruzioni S.r.l.
+                Ufficio tecnico — Impresa Esempio S.r.l.
               </span>
               <span className="text-xs tabular-nums text-muted-foreground">
                 14 revisioni firmate

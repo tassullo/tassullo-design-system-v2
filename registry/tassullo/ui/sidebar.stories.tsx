@@ -231,19 +231,19 @@ function Utente() {
             render={
               <SidebarMenuButton
                 size="lg"
-                aria-label="fsartori@covicostruzioni.it — opzioni dell'utente"
+                aria-label="sbertolini@esempio.it — opzioni dell'utente"
                 className="group-data-[collapsible=icon]:justify-center data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
               />
             }
           >
             <Avatar className="size-8">
               <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                FS
+                SB
               </AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
               <span className="truncate text-sm font-medium text-sidebar-accent-foreground">
-                fsartori@covicostruzioni.it
+                sbertolini@esempio.it
               </span>
               <span className="truncate text-xs">Sola lettura</span>
             </div>
@@ -257,7 +257,7 @@ function Utente() {
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                fsartori@covicostruzioni.it
+                sbertolini@esempio.it
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

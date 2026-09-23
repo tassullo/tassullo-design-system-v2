@@ -18,42 +18,63 @@ import {
 } from '@/registry/tassullo/ui/table'
 
 /**
- * **M4.5 — quinta pagina modello.** Anagrafe (`Admin.tsx`, 212 righe di CSS)
- * e SuperTM condividono la stessa amministrazione a tab.
+ * La pagina di amministrazione: una fila di schede per le sezioni, e in
+ * testa la gestione degli utenti con i loro ruoli. Chi non ha il ruolo di
+ * amministrazione la vede lo stesso, in sola lettura.
  *
- * ## Seconda passata (decisione di Francesco): la tabella utenti è del blocco
+ * **Quando sì, quando no.** Per l'amministrazione di un applicativo: chi
+ * entra e con quali ruoli, più le sezioni proprie dell'app. Un elenco di
+ * dati qualunque è `tassullo-pagina-lista`.
  *
- * Prima versione di questa story: `SezioneUtenti`/`MenuAzioniUtente`/
- * `RuoliUtente` erano scritti qui, come un tab qualunque passato a `sezioni`.
- * **Corretto**: un utente (nome, email, ruoli multipli, stato) è la stessa
- * forma in ogni app dello studio — lo stesso argomento per cui
- * `tassullo-pagina-scheda` monta sempre `VersionTimeline` per `storico`, non
- * lo lascia libero come `documenti`. Quel codice è quindi migrato dentro
- * `pagina-admin.tsx` (v. il suo commento di testa): questa story passa solo
- * i **dati** e le **callback** — `utenti={{ dati, ruoli, onRimuovi,
- * onCambiaRuoli }}` — e tiene lo `useState` che le rende vere.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-admin
+ * ```
  *
- * Resta qui, in `sezioni`, solo **Ruoli**: una tabella statica di sola
- * consultazione (regola 4bis, gradino 1: la primitiva `table` basta, stessa
- * ragione per cui «Attività recenti» di `tassullo-pagina-dashboard` non usa
- * `tassullo-data-table`), perché il suo vocabolario — quali ruoli esistono,
- * cosa fanno — è specifico di questa app, mentre la sua *forma* (poche righe,
- * niente ricerca) non è la stessa forma della tabella utenti.
+ * **I blocchi che la compongono**, e che arrivano con lei:
+ * `tassullo-page-header`, `tabs`, `tassullo-data-table` per la tabella degli
+ * utenti, `tassullo-responsive-dialog` con `toggle-group` per cambiare i
+ * ruoli, `tassullo-confirm-dialog` per togliere un utente, `badge` e `toni`
+ * per i ruoli, `alert` per l'avviso di sola lettura, `tassullo-page-skeleton`
+ * e `tassullo-error-state` per gli stati.
  *
- * ## Le azioni sono vere
+ * **Le prop.**
  *
- * «Ruoli…» apre il dialogo con `ToggleGroup multiple` e chiama
- * `onCambiaRuoli`, che scrive davvero sull'utente nello stato della story.
- * «Rimuovi» apre `ConfirmDialog` (controllato, com'è sempre nella tendina di
- * riga: cliccare la voce chiude il menu e smonterebbe un dialogo montato
- * dentro) e alla conferma toglie davvero la riga.
+ * - `percorso` e `azioni` passano a `tassullo-page-header`.
+ * - `utenti`: la gestione degli utenti, montata come prima scheda. Porta
+ *   `dati` (ogni utente ha `id`, `nome`, `email`, `ruoli` — più di uno — e
+ *   `attivo`), `ruoli` (quelli assegnabili: `valore`, `etichetta` e un
+ *   `tono` facoltativo), e le due chiamate `onCambiaRuoli(id, ruoli)` e
+ *   `onRimuovi(id)`. `titolo` e `cerca` cambiano l'etichetta della scheda e
+ *   il testo della ricerca. Assente, la scheda utenti non c'è.
+ * - `sezioni`: le altre schede, dopo quella degli utenti. Ognuna ha `value`,
+ *   `titolo`, `icona` facoltativa e `contenuto`, una funzione che riceve
+ *   `soloLettura`.
+ * - `sezioneIniziale`: la scheda aperta all'avvio. Assente, quella degli
+ *   utenti, o la prima delle `sezioni`.
+ * - `soloLettura` e `messaggioSoloLettura`: la pagina per chi non ha il
+ *   ruolo di amministrazione.
+ * - `stato`: `"pronto"`, `"caricamento"` o `"errore"`, con
+ *   `messaggioErrore` e `onRiprovaErrore`.
  *
- * ## Il banner degrada, non blocca
+ * **Regole d'uso.**
  *
- * `soloLettura` (story `SenzaPermessi`) mostra il banner fisso e passa `true`
- * a ogni tab: la tabella Utenti — ora del blocco — perde `menuRiga` (nessuna
- * tendina «⋯», nessun tasto destro) e il tab Ruoli non mostra «Nuovo ruolo»,
- * ma **resta leggibile**: non un vicolo cieco muto.
+ * - La tabella degli utenti è del blocco, perché un utente ha la stessa
+ *   forma in ogni app. Le altre sezioni sono dell'app, perché il loro
+ *   contenuto cambia da un'app all'altra.
+ * - I dati li tiene l'app. Il blocco chiama `onCambiaRuoli` al «Salva» del
+ *   dialogo, con l'elenco intero dei ruoli, e `onRimuovi` dopo la conferma;
+ *   cosa scrivere sul server lo decide l'app.
+ * - Ogni ruolo ha la sua `etichetta` in italiano: senza, la tabella
+ *   mostrerebbe la chiave grezza.
+ * - Con `soloLettura` la pagina resta leggibile: l'avviso in cima, la
+ *   tabella degli utenti senza menu di riga, e ogni sezione riceve `true` e
+ *   decide da sé cosa togliere. Le `azioni` il blocco non le filtra: chi non
+ *   amministra non deve riceverle.
+ *
+ * **Tastiera e accessibilità.** Le schede si scorrono con le frecce, come
+ * in `tabs`. Sulla tabella degli utenti il menu di riga si apre dalla
+ * tendina «⋯» o col tasto destro; i due dialoghi tengono il fuoco al loro
+ * interno finché sono aperti.
  */
 const meta = {
   title: 'Pagine/Admin',
@@ -72,9 +93,9 @@ const SEZIONI_NAV: SezioneNav[] = [
 ]
 
 const UTENTE_CORRENTE = {
-  nome: 'Francesco',
-  cognome: 'Sartori',
-  email: 'fsartori@covicostruzioni.it',
+  nome: 'Stefano',
+  cognome: 'Bertolini',
+  email: 'sbertolini@esempio.it',
   ruolo: 'Admin',
 }
 
@@ -92,29 +113,29 @@ const RUOLI: RuoloAssegnabile[] = [
 const UTENTI_INIZIALI: UtenteAdmin[] = [
   {
     id: '1',
-    nome: 'Francesco Sartori',
-    email: 'fsartori@covicostruzioni.it',
+    nome: 'Stefano Bertolini',
+    email: 'sbertolini@esempio.it',
     ruoli: ['amministratore', 'editor'],
     attivo: true,
   },
   {
     id: '2',
-    nome: 'Roberto Zanetti',
-    email: 'rzanetti@covicostruzioni.it',
+    nome: 'Giorgio Pedrotti',
+    email: 'gpedrotti@esempio.it',
     ruoli: ['editor'],
     attivo: true,
   },
   {
     id: '3',
-    nome: 'Michela Bort',
-    email: 'mbort@covicostruzioni.it',
+    nome: 'Elisa Fontana',
+    email: 'efontana@esempio.it',
     ruoli: ['lettore', 'supervisore'],
     attivo: true,
   },
   {
     id: '4',
-    nome: 'Luca Menegatti',
-    email: 'lmenegatti@covicostruzioni.it',
+    nome: 'Davide Tomasi',
+    email: 'dtomasi@esempio.it',
     ruoli: ['lettore'],
     attivo: false,
   },
@@ -217,8 +238,9 @@ function Guscio({
 }
 
 /**
- * Il caso comune: tab Utenti (del blocco) con menu di riga e azioni vere
- * (Ruoli…, Rimuovi), tab Ruoli come elenco di sola consultazione.
+ * Il caso comune: la scheda Utenti con il menu di riga — «Ruoli…» apre il
+ * dialogo dei ruoli, «Rimuovi» chiede conferma, e tutte e due cambiano
+ * davvero la tabella — e la scheda Ruoli, un elenco da consultare.
  */
 export const ConDati: Story = {
   render: () => <Guscio />,
@@ -229,16 +251,15 @@ export const ConDati: Story = {
 }
 
 /**
- * **Senza il ruolo di amministrazione**: il banner fisso in cima, «Nuovo
- * ruolo» assente, la tabella Utenti senza `menuRiga` — nessuna tendina «⋯»,
- * nessun tasto destro. La pagina resta leggibile: non un vicolo cieco muto,
- * chi la apre può ancora vedere chi ha quale ruolo.
+ * `soloLettura`: l'avviso fisso in cima, niente «Nuovo ruolo», la tabella
+ * degli utenti senza menu di riga. La pagina resta leggibile: si vede
+ * ancora chi ha quale ruolo.
  */
 export const SenzaPermessi: Story = {
   render: () => <Guscio soloLettura />,
 }
 
-/** `stato="caricamento"`: uno scheletro di tabella, PageHeader già montato. */
+/** `stato="caricamento"`: lo scheletro di una tabella, con la fascia già montata. */
 export const Caricamento: Story = {
   render: () => <Guscio stato="caricamento" />,
 }

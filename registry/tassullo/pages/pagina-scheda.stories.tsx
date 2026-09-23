@@ -31,35 +31,56 @@ import { Input } from '@/registry/tassullo/ui/input'
 import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
- * **M4.3 — terza pagina modello.** `PaginaScheda` compone ciò che il
- * registry ha già — `page-header`, `tabs`, `card`, `version-timeline`,
- * `page-skeleton`, `error-state` — nella forma che si ripete quattro volte
- * in Anagrafe: Prodotto, Famiglia, Sistema, Norma. È il file CSS più grande
- * del progetto (`Prodotto.css`, 201 righe), qui senza una riga di CSS di
- * pagina.
+ * La scheda di un'entità: il suo nome nel percorso, le azioni nella fascia,
+ * e sotto tre schede — i dati, i documenti, lo storico delle revisioni.
+ * Il modulo dei dati è sempre lo stesso, e si abilita per la modifica.
  *
- * Il caso qui è **Norma**, la stessa entità di `Pagine/Lista` (M4.2): il
- * codice della colonna "Codice" è il varco a questa scheda, la stessa
- * story dimostra il ritorno.
+ * **Quando sì, quando no.** Per il dettaglio di un record che si consulta e
+ * si corregge: una norma, un prodotto, un sistema. L'elenco da cui ci si
+ * arriva è `tassullo-pagina-lista`; un modulo da compilare una volta sola,
+ * senza storico, è un dialogo.
  *
- * ## Le due sostanze di "intestazione"
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-scheda
+ * ```
  *
- * `PageHeader` (M3.2) porta il `percorso` nella fascia in alto — **senza**
- * titolo visibile, perché lì comparirebbe tre volte in 80px. Il titolo
- * dell'entità, il suo distintivo di stato e le azioni **si vedono**, ma
- * dentro il contenuto della pagina: sono due intestazioni diverse, non la
- * stessa spostata.
+ * **I blocchi che la compongono**, e che arrivano con lei:
+ * `tassullo-page-header`, `tabs`, `card`, `tassullo-version-timeline` per
+ * lo storico, `tassullo-page-skeleton` e `tassullo-error-state` per gli
+ * stati.
  *
- * ## Un solo form, disabilitato — non due viste
+ * **Le prop.**
  *
- * Rilievo di Francesco sulla prima versione (che aveva `lettura` e
- * `modifica` come due alberi distinti): un campo che cambia forma da testo
- * a riquadro al clic su "Modifica" fa muovere l'intera scheda, ed è un
- * salto che un form vero non fa. Qui è **un solo `<form>`**, sempre montato
- * con gli stessi `tassullo-form-field`: gli `Input` restano `disabled`
- * finché la scheda non è in modifica. Confrontato anche con `Prodotto.tsx`
- * di Anagrafe: il contenuto sta dentro un riquadro bianco (`Card`), non a
- * contatto diretto con lo sfondo grigio della pagina.
+ * - `percorso`: il suo ultimo livello è il nome dell'entità, ed è lì che si
+ *   legge. La pagina non ha un titolo proprio.
+ * - `azioni`: le azioni della pagina, nella fascia. Il blocco aggiunge in
+ *   coda «Modifica», che in modifica diventa «Annulla».
+ * - `anagrafica`: una funzione che riceve `modifica` e rende il modulo. È
+ *   sempre lo stesso modulo: i campi sono disabilitati quando `modifica` è
+ *   falso, `<Input {...campo} disabled={!modifica} />`.
+ * - `modifica` e `onModificaChange`: la modifica controllata dall'app, per
+ *   tornare alla lettura quando il salvataggio riesce. Assenti, il blocco la
+ *   tiene da sé.
+ * - `documenti`: un nodo libero, perché un allegato può essere un PDF, una
+ *   foto, un disegno.
+ * - `storico`: `revisioni` dalla più recente alla più vecchia, e
+ *   `confrontabile` con `onConfronta` per sceglierne due. Il blocco lo rende
+ *   con `tassullo-version-timeline`.
+ * - `etichetteTab`: i nomi delle tre schede, se l'entità ne vuole altri.
+ * - `stato`: `"pronto"`, `"caricamento"` o `"errore"`, con
+ *   `messaggioErrore` e `onRiprovaErrore`.
+ *
+ * **Regole d'uso.**
+ *
+ * - Il nome dell'entità si scrive una volta, nel percorso. Lo stato
+ *   dell'entità è un campo del modulo come gli altri, con la sua etichetta.
+ * - Un modulo solo, che si abilita: un campo che cambia forma passando alla
+ *   modifica fa saltare la scheda intera.
+ * - Il contenuto di ogni scheda sta dentro una `Card`, staccato dal fondo
+ *   della pagina.
+ *
+ * **Tastiera e accessibilità.** Le schede si scorrono con le frecce, come in
+ * `tabs`. I campi disabilitati si leggono ma non prendono il fuoco.
  */
 const meta = {
   title: 'Pagine/Scheda',
@@ -87,9 +108,9 @@ const SEZIONI: SezioneNav[] = [
 ]
 
 const UTENTE = {
-  nome: 'Francesco',
-  cognome: 'Sartori',
-  email: 'fsartori@covicostruzioni.it',
+  nome: 'Stefano',
+  cognome: 'Bertolini',
+  email: 'sbertolini@esempio.it',
   ruolo: 'Admin',
 }
 
@@ -134,7 +155,7 @@ const REVISIONI: VersionTimelineEntry[] = [
     id: '5',
     versione: 'Rev. 5',
     stato: 'in-revisione',
-    autore: 'Francesco Sartori',
+    autore: 'Stefano Bertolini',
     data: new Date('2026-09-14'),
     descrizione: 'Aggiornato il riferimento alla marcatura CE dopo il regolamento prodotti da costruzione.',
   },
@@ -142,7 +163,7 @@ const REVISIONI: VersionTimelineEntry[] = [
     id: '4',
     versione: 'Rev. 4',
     stato: 'approvato',
-    autore: 'Roberto Zanetti',
+    autore: 'Giorgio Pedrotti',
     data: new Date('2026-07-02'),
     descrizione: 'Aggiunta la classe di esecuzione EXC3 per le strutture sismiche.',
   },
@@ -150,7 +171,7 @@ const REVISIONI: VersionTimelineEntry[] = [
     id: '3',
     versione: 'Rev. 3',
     stato: 'superato',
-    autore: 'Francesco Sartori',
+    autore: 'Stefano Bertolini',
     data: new Date('2026-02-18'),
   },
 ]
@@ -359,12 +380,9 @@ function Guscio({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
 }
 
 /**
- * Il caso comune: campi disabilitati e storico su tre revisioni.
- *
- * **La pagina non ha un'intestazione propria** (2026-09-21): il nome della
- * norma si legge nel percorso della fascia, «Elimina» e «Modifica» stanno
- * accanto a lui, e lo stato è un campo della scheda Anagrafica come gli altri.
- * Il perché delle tre cose sta in testa a `pagina-scheda.tsx`.
+ * Il caso comune: il nome della norma nell'ultimo livello del percorso,
+ * «Elimina» e «Modifica» accanto, i campi disabilitati — lo stato è uno di
+ * loro — e uno storico di tre revisioni.
  */
 export const ConDati: Story = {
   render: () => <Guscio />,
@@ -381,9 +399,8 @@ export const Errore: Story = {
 }
 
 /**
- * Storico confrontabile: due revisioni si selezionano e "Confronta" si
- * abilita — la diff vera è compito di `diff-view` (M3.9), qui il blocco si
- * ferma alla scelta, come documenta `version-timeline.stories.tsx`.
+ * Lo storico con `confrontabile`: si scelgono due revisioni e «Confronta» si
+ * abilita. Il confronto vero e proprio lo mostra `tassullo-diff-view`.
  */
 export const StoricoConfrontabile: Story = {
   render: () => (

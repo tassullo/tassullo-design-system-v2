@@ -92,16 +92,17 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 
 ## I gate
 
-`npm run check` esegue i sette controlli che girano anche in CI:
+`npm run check` esegue gli otto controlli che girano anche in CI:
 
 | Comando | Cosa verifica |
 |---|---|
 | `check:contrast` | il rapporto di contrasto delle **48 coppie di token** (24 per modalità), fallendo sotto 4.5:1 |
 | `check:registry` | che i componenti divergano dall'originale shadcn **solo nelle stringhe di classi** — cioè che restino aggiornabili |
 | `check:font` / `check:logo` | che i CSS generati siano allineati ai `.woff2` e agli `.svg` di partenza |
-| `test:a11y` | axe-core su ogni story: **4 passate** (chiaro/scuro × popup chiuso/aperto), 1496 scansioni su 374 story |
-| `check:riferimenti` | che ogni `registryDependencies` di `registry.json` risolva a un item dichiarato, che i file dichiarati esistano e che non ci siano cicli — **206 riferimenti su 94 item**. È l'unico gate che vede un item ininstallabile: `registry validate` no |
+| `test:a11y` | axe-core su ogni story: **4 passate** (chiaro/scuro × popup chiuso/aperto), 1540 scansioni su 385 story |
+| `check:riferimenti` | che ogni `registryDependencies` di `registry.json` risolva a un item dichiarato, che i file dichiarati esistano e che non ci siano cicli — **212 riferimenti su 95 item**. È l'unico gate che vede un item ininstallabile: `registry validate` no |
 | `check:registry-build` | che `public/r/` — l'artefatto che le app installano davvero — corrisponda ai sorgenti, rilanciando `shadcn build` in una cartella temporanea e confrontando byte per byte |
+| `check:storybook` | che la style guide si legga da fuori: nel testo che un visitatore vede — le descrizioni delle story, le pagine `.mdx`, la prosa delle pagine in `stories/`, le descrizioni dei componenti e delle prop che la tabella delle prop mostra, i commenti dentro il codice delle scene che «Show code» mostra — niente sigle di lavoro, rimandi ai documenti interni, date, nomi di persona, comandi del repo. Il canone di pagina è in testa a `scripts/check-storybook.ts` |
 
 Oggi sono tutti verdi, **0 violazioni**. C'è anche `npm run misura:bersagli`, che misura quanto sono grandi i bersagli in densità touch — una cosa che axe non guarda e che col guanto si sente.
 

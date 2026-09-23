@@ -108,12 +108,16 @@ export type FormFieldProps<
    * obbligato, una conseguenza non reversibile.
    */
   descrizione?: ReactNode
+  // Come stanno etichetta e controllo. `verticale` è il modulo normale;
+  // `orizzontale` è la riga di un pannello di impostazioni; `adattiva` è
+  // `orizzontale` sopra `@md` del `FieldGroup` che la contiene e `verticale`
+  // sotto — è una **container query**, quindi guarda il gruppo e non lo
+  // schermo, che è la regola di `docs/DECISIONI.md` §31.
   /**
-   * Come stanno etichetta e controllo. `verticale` è il modulo normale;
-   * `orizzontale` è la riga di un pannello di impostazioni; `adattiva` è
-   * `orizzontale` sopra `@md` del `FieldGroup` che la contiene e `verticale`
-   * sotto — è una **container query**, quindi guarda il gruppo e non lo
-   * schermo, che è la regola di `docs/DECISIONI.md` §31.
+   * Come stanno etichetta e controllo. `"verticale"` è il modulo normale;
+   * `"orizzontale"` è la riga di un pannello di impostazioni; `"adattiva"` è
+   * orizzontale quando il `FieldGroup` che la contiene è largo, verticale
+   * quando è stretto. Guarda il gruppo, non la finestra.
    */
   orientamento?: "verticale" | "orizzontale" | "adattiva"
   /**

@@ -81,16 +81,16 @@ type Story = StoryObj<typeof meta>
  * `public/esempi/LEGGIMI.md`.
  */
 const FOTO = {
-  cappotto: '/esempi/sistema-cappotto.png',
-  seta: '/esempi/sistema-effetto-seta.png',
-  ripristino: '/esempi/sistema-ripristino-storico.png',
-  crm: '/esempi/sistema-crm.png',
-  risanamento: '/esempi/sistema-risanamento.png',
-  radiante: '/esempi/sistema-radiante.png',
-  intocalx: '/esempi/prodotto-intocalx.png',
-  opus: '/esempi/prodotto-opus.png',
-  t300: '/esempi/prodotto-t300.png',
-  cantiere: '/esempi/cantiere.jpg',
+  cappotto: 'esempi/sistema-cappotto.png',
+  seta: 'esempi/sistema-effetto-seta.png',
+  ripristino: 'esempi/sistema-ripristino-storico.png',
+  crm: 'esempi/sistema-crm.png',
+  risanamento: 'esempi/sistema-risanamento.png',
+  radiante: 'esempi/sistema-radiante.png',
+  intocalx: 'esempi/prodotto-intocalx.png',
+  opus: 'esempi/prodotto-opus.png',
+  t300: 'esempi/prodotto-t300.png',
+  cantiere: 'esempi/cantiere.jpg',
 }
 
 /**

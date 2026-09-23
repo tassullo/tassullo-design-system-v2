@@ -185,15 +185,18 @@ export type PaginaDashboardProps = {
   avvisi?: AvvisoDashboard[]
   /** Assente, `chiudibile` non mostra il bottone anche se richiesto dall'avviso. */
   onChiudiAvviso?: (id: string) => void
+  // Quale faccia rende la tabella delle attività.
+  //
+  // `auto` (default) la sceglie `useSoglia` sulla larghezza della finestra;
+  // `larga` e `stretta` la impongono. Le due forzate non sono comodità: una
+  // media query sulla finestra **non si commuta dal canvas**
+  // (`docs/DECISIONI.md` §46), quindi senza di esse il gate renderebbe sempre
+  // il ramo che tocca a 1440 e «0 violazioni» direbbe meno di quello che
+  // sembra. È la stessa forma di `faccia` in `Pagine/Lista a due facce`.
   /**
-   * Quale faccia rende la tabella delle attività.
-   *
-   * `auto` (default) la sceglie `useSoglia` sulla larghezza della finestra;
-   * `larga` e `stretta` la impongono. Le due forzate non sono comodità: una
-   * media query sulla finestra **non si commuta dal canvas**
-   * (`docs/DECISIONI.md` §46), quindi senza di esse il gate renderebbe sempre
-   * il ramo che tocca a 1440 e «0 violazioni» direbbe meno di quello che
-   * sembra. È la stessa forma di `faccia` in `Pagine/Lista a due facce`.
+   * La forma delle attività recenti. `"auto"`, il predefinito, la sceglie
+   * dalla larghezza della finestra: tabella dai 768px in su, elenco sotto.
+   * `"larga"` e `"stretta"` la fissano a ogni larghezza.
    */
   faccia?: "auto" | "larga" | "stretta"
   /** Uno dei tre stati. `pronto` di default: solo lì il resto delle prop conta. */

@@ -74,7 +74,7 @@ export const Tipi: Story = {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="t-email">Posta elettronica</Label>
-        <Input id="t-email" type="email" placeholder="nome@covicostruzioni.it" />
+        <Input id="t-email" type="email" placeholder="nome@esempio.it" />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="t-numero">Resa (kg/m²)</Label>

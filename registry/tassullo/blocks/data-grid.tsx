@@ -2113,34 +2113,38 @@ export function DataGrid<TDato extends RowData>({
  * I componenti opt-in
  * ──────────────────────────────────────────────────────────────────────── */
 
+// Il copia/incolla vero: un componente opt-in — montato solo se una pagina
+// lo mette dentro `<DataGrid>` — che aggiunge **una** `<textarea>` nascosta
+// e un solo `addEventListener` in cattura sul contenitore. Non montarlo
+// lascia la griglia senza clipboard, zero costo, come da architettura (v.
+// il commento in testa al file).
+//
+// ── Perché non `navigator.clipboard` ─────────────────────────────────────
+//
+// La prima stesura usava `navigator.clipboard.writeText`/`readText` da
+// dentro `onKeyDownCella`. **Safari non implementa `readText()`** — non è
+// un bug di questa sessione, è WebKit che non la espone affatto — e il
+// tentativo falliva in silenzio dietro un `.catch(() => {})`: da Safari,
+// incollare un foglio copiato da un'altra app non faceva **niente**,
+// rilievo di Francesco su questa storia. `writeText()` invece esiste in
+// Safari, ma solo `readText()` era il problema — asimmetria che avrebbe
+// reso il difetto ancora più difficile da sospettare guardando solo la
+// copia, che funzionava.
+//
+// La tecnica che funziona ovunque è la stessa di prima dei permessi
+// asincroni: una `<textarea>` vera, **reindirizzata a fuoco** appena si
+// preme Ctrl/Cmd+C/X/V — non con `preventDefault()` sul tasto (che
+// sopprimerebbe il comando di sistema prima che la textarea possa
+// riceverlo), ma spostando il fuoco *prima* che il browser esegua l'azione
+// predefinita del tasto. Il comando copia/incolla del sistema operativo
+// scatta quindi **sulla textarea**, che è un campo di testo vero — gli
+// eventi nativi `copy`/`cut`/`paste` funzionano lì in ogni browser, senza
+// nessun permesso da chiedere.
 /**
- * Il copia/incolla vero: un componente opt-in — montato solo se una pagina
- * lo mette dentro `<DataGrid>` — che aggiunge **una** `<textarea>` nascosta
- * e un solo `addEventListener` in cattura sul contenitore. Non montarlo
- * lascia la griglia senza clipboard, zero costo, come da architettura (v.
- * il commento in testa al file).
- *
- * ── Perché non `navigator.clipboard` ─────────────────────────────────────
- *
- * La prima stesura usava `navigator.clipboard.writeText`/`readText` da
- * dentro `onKeyDownCella`. **Safari non implementa `readText()`** — non è
- * un bug di questa sessione, è WebKit che non la espone affatto — e il
- * tentativo falliva in silenzio dietro un `.catch(() => {})`: da Safari,
- * incollare un foglio copiato da un'altra app non faceva **niente**,
- * rilievo di Francesco su questa storia. `writeText()` invece esiste in
- * Safari, ma solo `readText()` era il problema — asimmetria che avrebbe
- * reso il difetto ancora più difficile da sospettare guardando solo la
- * copia, che funzionava.
- *
- * La tecnica che funziona ovunque è la stessa di prima dei permessi
- * asincroni: una `<textarea>` vera, **reindirizzata a fuoco** appena si
- * preme Ctrl/Cmd+C/X/V — non con `preventDefault()` sul tasto (che
- * sopprimerebbe il comando di sistema prima che la textarea possa
- * riceverlo), ma spostando il fuoco *prima* che il browser esegua l'azione
- * predefinita del tasto. Il comando copia/incolla del sistema operativo
- * scatta quindi **sulla textarea**, che è un campo di testo vero — gli
- * eventi nativi `copy`/`cut`/`paste` funzionano lì in ogni browser, senza
- * nessun permesso da chiedere.
+ * Copia, taglia e incolla con la tastiera, fra la griglia e un foglio di
+ * calcolo. Si monta dentro `<DataGrid>` solo dove serve: senza, la griglia
+ * non ha appunti. Funziona in tutti i browser, Safari compreso, senza
+ * chiedere permessi.
  */
 export function DataGridClipboard({ className }: { className?: string }) {
   const { motore, contenitoreRef } = useContestoDataGrid()
@@ -2222,13 +2226,16 @@ export function DataGridClipboard({ className }: { className?: string }) {
   )
 }
 
+// La maniglia di riempimento: un quadratino sull'angolo in basso a destra
+// della cella attiva, trascinabile per riempire le celle sotto/accanto col
+// valore della cella di partenza. **Non l'unica via**: Ctrl/Cmd+Invio fa la
+// stessa cosa sulla selezione corrente, da tastiera, senza puntatore — la
+// via primaria per chi non usa il mouse (lo stesso principio già scritto per
+// la maniglia di ridimensionamento in M3bis.3).
 /**
- * La maniglia di riempimento: un quadratino sull'angolo in basso a destra
- * della cella attiva, trascinabile per riempire le celle sotto/accanto col
- * valore della cella di partenza. **Non l'unica via**: Ctrl/Cmd+Invio fa la
- * stessa cosa sulla selezione corrente, da tastiera, senza puntatore — la
- * via primaria per chi non usa il mouse (lo stesso principio già scritto per
- * la maniglia di ridimensionamento in M3bis.3).
+ * La maniglia di riempimento: il quadratino nell'angolo della cella attiva,
+ * che trascinato copia il valore nelle celle accanto. Da tastiera fa lo
+ * stesso `Ctrl`+`Invio` (`⌘`+`Invio` su Mac) sulla selezione.
  */
 export function DataGridFillHandle() {
   const { motore, contenitoreRef } = useContestoDataGrid()

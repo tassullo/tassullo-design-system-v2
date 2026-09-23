@@ -46,7 +46,7 @@ type Story = StoryObj<typeof meta>
 export const Iniziali: Story = {
   render: () => (
     <Avatar>
-      <AvatarFallback>FS</AvatarFallback>
+      <AvatarFallback>SB</AvatarFallback>
     </Avatar>
   ),
 }
@@ -57,9 +57,9 @@ export const Iniziali: Story = {
 export const Taglie: Story = {
   render: () => (
     <div className="flex items-center gap-4">
-      <Avatar size="sm"><AvatarFallback>FS</AvatarFallback></Avatar>
-      <Avatar><AvatarFallback>FS</AvatarFallback></Avatar>
-      <Avatar size="lg"><AvatarFallback>FS</AvatarFallback></Avatar>
+      <Avatar size="sm"><AvatarFallback>SB</AvatarFallback></Avatar>
+      <Avatar><AvatarFallback>SB</AvatarFallback></Avatar>
+      <Avatar size="lg"><AvatarFallback>SB</AvatarFallback></Avatar>
     </div>
   ),
 }
@@ -73,9 +73,9 @@ export const ConImmagine: Story = {
       <Avatar>
         <AvatarImage
           src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F4AC3D'/%3E%3Ccircle cx='32' cy='26' r='11' fill='%23141414'/%3E%3Cpath d='M8 64c0-13 11-21 24-21s24 8 24 21z' fill='%23141414'/%3E%3C/svg%3E"
-          alt="Francesco Sartori"
+          alt="Stefano Bertolini"
         />
-        <AvatarFallback>FS</AvatarFallback>
+        <AvatarFallback>SB</AvatarFallback>
       </Avatar>
       <Avatar>
         <AvatarImage src="/questa-immagine-non-esiste.png" alt="Maria Rossi" />
@@ -93,7 +93,7 @@ export const ConPallino: Story = {
   render: () => (
     <div className="flex items-center gap-4">
       <Avatar>
-        <AvatarFallback>FS</AvatarFallback>
+        <AvatarFallback>SB</AvatarFallback>
         <AvatarBadge />
       </Avatar>
       <Avatar size="lg">
@@ -111,7 +111,7 @@ export const ConPallino: Story = {
 export const Gruppo: Story = {
   render: () => (
     <AvatarGroup>
-      <Avatar><AvatarFallback>FS</AvatarFallback></Avatar>
+      <Avatar><AvatarFallback>SB</AvatarFallback></Avatar>
       <Avatar><AvatarFallback>MR</AvatarFallback></Avatar>
       <Avatar><AvatarFallback>GB</AvatarFallback></Avatar>
       <AvatarGroupCount>+4</AvatarGroupCount>

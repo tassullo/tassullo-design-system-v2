@@ -54,52 +54,59 @@ import {
 /**
  * # Le schermate d'accesso, composte
  *
- * `Pagine/Login` mostra il **componente** `pagina-login` e le sue tre vie.
- * Queste sette scene mostrano le **altre cinque schermate** che stanno intorno
- * a quella — registrazione in tre passi, esito, password dimenticata,
- * reimposta, verifica email — e la ragione per cui esistono è una sola:
- * **non c'è niente da installare**, e senza vederlo nessuno lo saprebbe.
+ * Le cinque schermate che stanno intorno all'accesso: la registrazione in
+ * tre passi e il suo esito, la password dimenticata, la password da
+ * reimpostare, la verifica dell'email. Non c'è niente da installare come
+ * pagina: sono composte con le primitive del registry, e questa pagina
+ * mostra come.
  *
- * Stanno qui e non in `Pagine/Login` perché **non sono scene di
- * `PaginaLogin`**: non ne usano una prop, non ne esercitano un ramo. Sono
- * composizione, scritta con le primitive che il registry ha già, e metterle
- * sotto il titolo del componente direbbe il falso.
+ * ```bash
+ * npx shadcn@latest add \
+ *   tassullo/tassullo-design-system-v2/card \
+ *   tassullo/tassullo-design-system-v2/field \
+ *   tassullo/tassullo-design-system-v2/input \
+ *   tassullo/tassullo-design-system-v2/input-group \
+ *   tassullo/tassullo-design-system-v2/radio-group \
+ *   tassullo/tassullo-design-system-v2/checkbox \
+ *   tassullo/tassullo-design-system-v2/stepper \
+ *   tassullo/tassullo-design-system-v2/alert \
+ *   tassullo/tassullo-design-system-v2/empty \
+ *   tassullo/tassullo-design-system-v2/spinner \
+ *   tassullo/tassullo-design-system-v2/button
+ * ```
  *
- * ## Il guscio si ricompone, non si riusa — ed è un fatto da sapere
+ * **Quando sì, quando no.** La schermata d'accesso vera e propria è
+ * `tassullo-pagina-login`, in `Pagine/Login`, con le sue tre vie. Queste
+ * altre non ne sono scene: non ne usano le prop, e si scrivono a parte.
  *
- * `docs/SPEC-AUTH.md` §1.3 dice «il guscio resta di `pagina-login` e non
- * cambia». È vero come **forma** — schermo centrato, `Card`, marchio, titolo,
- * descrizione, contenuto — e falso come **codice**: `PaginaLogin` non accetta
- * `children` e non esporta il guscio, quindi una pagina che non sia il login
- * lo riscrive. Sono le dieci righe di `GuscioAccesso` qui sotto, che è codice
- * di pagina come lo sarebbe in Studio.
+ * **Il guscio si riscrive.** Tutte hanno la forma di `tassullo-pagina-login`
+ * — schermo centrato, `Card`, marchio, titolo, descrizione, contenuto — ma
+ * `PaginaLogin` non accetta figli e non esporta il suo guscio. Una pagina
+ * che non sia l'accesso lo ricompone: sono le poche righe di `GuscioAccesso`
+ * in questo file.
  *
- * Non si è aggiunto `children` a `PaginaLogin` perché sarebbe un cambio d'API
- * in un task che dichiara **zero componenti nuovi**: è una decisione da
- * prendere apposta, non di passaggio.
+ * **Cosa resta alla pagina.**
  *
- * ## Quello che resta alla pagina, e non al design system
+ * - Il controllo che impedisce di passare al passo seguente finché quello
+ *   corrente non è valido. Dipende dai campi di ogni passo: qui «Avanti»
+ *   valida e non avanza, e i passi non ancora raggiunti sono disabilitati.
+ * - Il misuratore di robustezza della password. Somiglia alla barra dei
+ *   passi e non lo è: `stepper` è un elenco di passi che si cliccano, il
+ *   misuratore non si naviga e non si seleziona.
+ * - Il campo nascosto contro i bot delle schermate pubbliche. Non è in
+ *   scena di proposito: funziona finché il suo nome non si può indovinare.
  *
- * - **Il gating** — «non passare al passo 2 finché non valida». Dipende da
- *   quali campi ha quel passo, e nessun blocco può saperlo: qui è scritto
- *   come codice di pagina, in `Registrazione`, ed è vero — «Avanti» valida e
- *   non avanza, i passi non ancora raggiunti sono schede disabilitate.
- * - **Il misuratore di robustezza della password**. Somiglia alla barra dei
- *   passi e non lo è: lo stepper è un `tablist` di schede che si cliccano, il
- *   misuratore non si naviga e non si seleziona. Deciso il 2026-09-19 che
- *   resta dell'app, e qui non è in scena apposta.
- * - **Il campo nascosto anti-bot** delle schermate pubbliche
- *   (`docs/SPEC-AUTH.md` §3.4). Non è reso in nessuna di queste scene, ed è
- *   una scelta: un honeypot è utile finché il suo nome non è prevedibile, e
- *   questo repo è pubblico. Dirlo serve, mostrarlo lo indebolisce.
+ * **Regole d'uso.**
  *
- * ## La soglia che decide se i campi si affiancano
- *
- * `Field orientation="responsive"` guarda il **contenitore**, non la finestra:
- * è `@md/field-group`, cioè **448px** di `FieldGroup`. Dentro `Card max-w-sm`
- * il `FieldGroup` misura **352px** e non ci arriva mai — misurato in Chromium
- * il 2026-09-20. La prima larghezza che lo fa scattare è `max-w-lg` (card
- * 512px → contenuto 480px); `max-w-md` non basta (448 → 416).
+ * - `Field orientation="responsive"` affianca i campi guardando il
+ *   contenitore, non la finestra: succede quando `FieldGroup` è largo almeno
+ *   448px. Dentro una `Card` `max-w-sm` non succede mai, e nemmeno con
+ *   `max-w-md`; la prima larghezza che basta è `max-w-lg`, ed è quella delle
+ *   schermate con campi affiancati.
+ * - Le parole dicono un'azione che esiste. Da una mail non c'è un
+ *   «indietro», e un avviso che lo proponesse sarebbe falso.
+ * - Gli errori stanno sul campo che li ha prodotti, con `FieldError`, e il
+ *   campo è `aria-invalid`.
  */
 const meta = {
   title: "Pagine/Schermate d'accesso",
@@ -1081,7 +1088,7 @@ function Registrazione({ passoIniziale = 1 }: { passoIniziale?: number }) {
  * dentro il campo, `FieldDescription` per la riga di spiegazione e
  * `FieldError` per il rifiuto.
  *
- * **Il gating si prova**: lasciare l'email vuota e premere «Avanti» non porta
+ * **Il controllo si prova**: lasciare l'email vuota e premere «Avanti» non porta
  * al passo 2 — escono gli errori e il passo resta questo.
  */
 export const RegistrazionePasso1: Story = {
@@ -1109,13 +1116,12 @@ export const RegistrazionePasso2: Story = {
 }
 
 /**
- * **Passo 3 — Privacy e consensi.** `Field orientation="horizontal"` +
- * `Checkbox` + `FieldContent`: `field.tsx:58` allinea la casella **in cima**
- * quando il testo va a capo, che è la ragione per cui i consensi non hanno
- * bisogno di niente di scritto a mano.
+ * **Passo 3 — Privacy e consensi.** `Field orientation="horizontal"` con
+ * `Checkbox` e `FieldContent`: quando il testo va a capo la casella resta
+ * allineata in cima alla prima riga, senza niente di scritto a mano.
  *
- * Le parole dicono **cosa comporta**, non «accetto i termini»: obbligatorio o
- * facoltativo sta scritto, e il terzo dice quante mail sono.
+ * Le parole dicono cosa comporta ogni consenso, non «accetto i termini»:
+ * obbligatorio o facoltativo sta scritto, e il terzo dice quante mail sono.
  */
 export const RegistrazionePasso3: Story = {
   name: 'Registrati — 3. Consensi',
@@ -1296,6 +1302,11 @@ function ModuloNuovaPassword() {
   )
 }
 
+/**
+ * **Reimposta la password.** È l'approdo del link che arriva per mail:
+ * l'avviso dice quanto vale il link, poi il campo della password nuova con
+ * «Mostra» dentro e l'elenco dei requisiti sotto, legato al campo.
+ */
 export const ReimpostaPassword: Story = {
   name: 'Reimposta la password',
   render: () => (

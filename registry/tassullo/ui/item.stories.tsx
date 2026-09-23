@@ -245,9 +245,9 @@ export const Gruppo: Story = {
   render: () => (
     <ItemGroup className="max-w-lg">
       {[
-        { nome: 'Francesco Sartori', ruolo: 'Amministratore', iniziali: 'FS' },
-        { nome: 'Roberto Zanetti', ruolo: 'Editor', iniziali: 'RZ' },
-        { nome: 'Michela Bort', ruolo: 'Lettore', iniziali: 'MB' },
+        { nome: 'Stefano Bertolini', ruolo: 'Amministratore', iniziali: 'SB' },
+        { nome: 'Giorgio Pedrotti', ruolo: 'Editor', iniziali: 'GP' },
+        { nome: 'Elisa Fontana', ruolo: 'Lettore', iniziali: 'EF' },
       ].map((p, i, tutti) => (
         <Fragment key={p.nome}>
           <Item role="listitem" variant="outline">

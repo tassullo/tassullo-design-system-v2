@@ -175,11 +175,15 @@ export function useFormaDialogo(): Forma {
 }
 
 export type ResponsiveDialogProps = ComponentProps<typeof Dialog> & {
+  // `auto` sceglie con la larghezza. `dialog` e `drawer` la forzano — servono
+  // a mettere in scena le due forme senza cambiare viewport, che è l'unico modo
+  // di **misurarle tutte e due** (l'imbracatura del gate la viewport non la
+  // cambia), e a quelle pagine che una forma la vogliono sempre.
   /**
-   * `auto` sceglie con la larghezza. `dialog` e `drawer` la forzano — servono
-   * a mettere in scena le due forme senza cambiare viewport, che è l'unico modo
-   * di **misurarle tutte e due** (l'imbracatura del gate la viewport non la
-   * cambia), e a quelle pagine che una forma la vogliono sempre.
+   * `"auto"`, il predefinito, sceglie dalla larghezza della finestra: dialogo
+   * sulla scrivania, cassetto sul telefono. `"dialog"` e `"drawer"` fissano
+   * una forma, per una pagina che ne vuole sempre una o per mostrarle tutte e
+   * due.
    */
   forma?: "auto" | Forma
 }
@@ -203,14 +207,16 @@ export function ResponsiveDialog({
   )
 }
 
+// Il grilletto.
+//
+// Il `data-slot` è **nostro** e non quello della primitiva sottostante, e non è
+// un vezzo: `dialog-trigger` e `drawer-trigger` sono due selettori diversi per
+// la stessa cosa, quindi un test — o l'imbracatura del gate, che i popup li
+// apre per selettore — dovrebbe sapere in che forma si sta rendendo prima di
+// poter cercare il grilletto. Con un nome solo non deve saperlo.
 /**
- * Il grilletto.
- *
- * Il `data-slot` è **nostro** e non quello della primitiva sottostante, e non è
- * un vezzo: `dialog-trigger` e `drawer-trigger` sono due selettori diversi per
- * la stessa cosa, quindi un test — o l'imbracatura del gate, che i popup li
- * apre per selettore — dovrebbe sapere in che forma si sta rendendo prima di
- * poter cercare il grilletto. Con un nome solo non deve saperlo.
+ * Il grilletto. Ha `data-slot="responsive-dialog-trigger"` in tutte e due
+ * le forme, così un test lo trova senza sapere quale forma si sta rendendo.
  */
 export function ResponsiveDialogTrigger(
   props: ComponentProps<typeof DialogTrigger>,

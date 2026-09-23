@@ -39,106 +39,68 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
 /**
  * # La lista a due facce
  *
- * Una lista a **nove colonne** che su schermo largo è una tabella e su schermo
- * stretto è un elenco di schede. È il bivio che oggi **sei pagine in due app**
- * fanno in due modi diversi, e di cui mancavano due pezzi: il **bivio**, che
- * adesso è `useSoglia`, e la **ricetta**, che è questa pagina.
+ * Una ricetta, non un componente: una lista a nove colonne che sulla
+ * scrivania è una tabella e sul telefono è un elenco di schede. Dal registry
+ * servono due pezzi: `use-soglia`, il bivio, e `tassullo-data-table`, la
+ * faccia larga. La faccia stretta la scrive la pagina.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/use-soglia
+ * ```
  *
  * ```tsx
  * const largo = useSoglia('(min-width: 1024px)')
  * return largo ? <FacciaLarga … /> : <FacciaStretta … />
  * ```
  *
- * ## La query la dichiara la pagina, e il registry dà solo il bivio
+ * Una pagina elenco completa ha già il bivio dentro: `tassullo-pagina-lista`
+ * lo offre con `facciaStretta` e `soglia`, e questa pagina è la ricetta a cui
+ * rimanda.
  *
- * `useSoglia` **non sa cosa sia una lista**: sa solo se una media query è
- * vera. Quante colonne ha *questa* lista lo sa soltanto la pagina che la
- * scrive, e nove colonne stanno strette dove tre stanno larghe — una soglia
- * cotta dentro l'hook sarebbe giusta per una lista e sbagliata per le altre
- * cinque.
+ * ## Il registry dà il bivio, la pagina scrive il resto
  *
- * E la **faccia stretta la scrive la pagina**, non un blocco. Le due facce
- * non sono la stessa lista impaginata due volte: la tendina dello stato
- * diventa una fila di chip, la miniatura sparisce, il bottone cambia taglia.
- * Nessun blocco può indovinarlo dall'elenco delle `colonne` — quello che può
- * fare il registry è dare il bivio e un esemplare da copiare.
+ * `useSoglia` non sa cosa sia una lista: dice solo se una media query sulla
+ * finestra è vera. La query la dichiara la pagina, perché quante colonne ha
+ * la sua lista lo sa solo lei — nove colonne stanno strette dove tre stanno
+ * larghe.
  *
- * ## Perché non `useIsMobile`, che pure esiste
+ * E la faccia stretta non è la stessa lista impaginata due volte. Qui la
+ * tendina dello stato diventa una fila di chip, la miniatura sparisce, il
+ * bottone prende tutta la larghezza, il dettaglio si apre toccando la scheda
+ * invece del chevron. Nessun blocco lo può ricavare dall'elenco delle
+ * colonne.
  *
- * Due ragioni, entrambe misurate. I 768px di `useIsMobile` governano
- * l'**arredamento** — sidebar e dialogo cambiano allo stesso pixel, ed è una
- * cosa sola; questo bivio è **contenuto**. E `useIsMobile` legge `matchMedia`
- * dentro un `useEffect` che chiama `setState`, quindi **il primo render torna
- * sempre scrivania**: su un dialogo non morde, su una lista sì — sul telefono
- * disegnerebbe la tabella a nove colonne e la sostituirebbe un fotogramma
- * dopo.
+ * **Regole d'uso.**
  *
- * ## Quello che il gate di questa pagina misura davvero
+ * - Per scegliere fra due forme dello stesso contenuto si usa `useSoglia`,
+ *   non `useIsMobile`. I 768px di `useIsMobile` sono quelli dell'arredamento
+ *   — la colonna del guscio, il dialogo che diventa cassetto —, e il suo
+ *   primo render dà sempre la scrivania: sul telefono la tabella
+ *   comparirebbe per un fotogramma. `useSoglia` legge la finestra già al
+ *   primo render.
+ * - La soglia la sceglie l'app, ed è la larghezza a cui l'interfaccia cambia
+ *   modo di mostrare il contenuto. Non si ricava da quanto spazio vuole la
+ *   tabella: una tabella che non ci sta scorre in orizzontale.
+ * - Ogni colonna della tabella dichiara la sua larghezza. In una tabella a
+ *   larghezze fisse una colonna senza larghezza non allarga mai la tabella:
+ *   prende l'avanzo, e quando l'avanzo manca scende a zero, con
+ *   l'intestazione che finisce sopra quella accanto. Lo scorrimento funziona
+ *   solo se la somma delle larghezze è un minimo vero.
+ * - Con `pannelloRiga` la prima colonna è quella del chevron, che la tabella
+ *   aggiunge da sé: `bloccaPrimaColonna` bloccherebbe il chevron, non la
+ *   colonna che identifica la riga. Qui non si usa.
+ * - Se la pagina ha scene di documentazione o prove automatiche, conviene
+ *   una prop che renda una faccia fissa — qui `faccia`, come in
+ *   `tassullo-pagina-lista`. La larghezza della finestra non si comanda da
+ *   una prova, e stringere un contenitore non sposta una media query sulla
+ *   finestra.
+ * - Da sapere: i filtri non passano da una faccia all'altra. Sulla faccia
+ *   larga li tiene la tabella, su quella stretta la pagina.
  *
- * `useSoglia` è una media query **sulla finestra**, e la larghezza della
- * finestra **non si commuta dal canvas**: il global `viewport` di Storybook
- * ridimensiona l'iframe nella cornice del manager, e nel canvas aperto per
- * URL — che è come lo aprono `test:a11y` e `misura:bersagli` —
- * `window.innerWidth` resta quello della finestra vera, senza errore
- * (`docs/DECISIONI.md` §46).
- *
- * Da cui la scelta, presa prima di scrivere una riga e scritta qui perché si
- * possa contestare: **le due facce si rendono in modo deterministico**, con
- * una prop `faccia` della pagina, e **non** passando dall'hook. Il gate vede
- * markup largo vero *e* markup stretto vero, e «0 violazioni» vuol dire
- * quello che dice.
- *
- * **Quale faccia rende ogni scena nel gate, misurato dentro l'imbracatura
- * vitest** (finestra **1440**, letta e non presunta):
- *
- * | scena | `table.table-fixed` | schede | faccia |
- * |---|---|---|---|
- * | Faccia larga | **1** | 0 | larga, per la prop |
- * | Faccia stretta | 0 | **12** | stretta, per la prop |
- * | Soglia della pagina | 1 | 0 | **larga, per l'hook** — 1440 ≥ 900 |
- *
- * La terza riga è l'unica che dipende dalla finestra, e **va rimisurata ogni
- * volta che la soglia cambia**. Provato in questa stessa sessione: portando
- * la soglia a 1536 quella scena è passata alla faccia stretta, e il gate ha
- * continuato a dire «1416 scansioni, 0 violazioni» senza segnalare niente.
- * È §46 applicata alla story che la cita.
- *
- * L'alternativa era dare a `useSoglia` un valore iniziale iniettabile e
- * forzarlo dalla story. È stata scartata: sarebbe API pubblica aggiunta per
- * comodità di prova, cioè il genere di cosa che poi resta — e una prop in
- * più in una story costa meno di una prop in più in un hook che ogni app
- * copia.
- *
- * **E non si ottiene stringendo il riquadro.** `data-table.stories.tsx` fa
- * così per la sua scena a 320px, e lì è giusto, perché quel caso stretto è
- * una conseguenza del CSS. Una media query sulla finestra non si sposta
- * stringendo un contenitore: sono due meccanismi con la stessa faccia.
- *
- * ## Due cose da sapere guardandola
- *
- * **La soglia la sceglie l'app, e non si deriva da quante colonne ha la
- * tabella.** Qui il default è **1024**, che è la soglia di Officina
- * (`useDesktop()`); Studio RadarOpere usa **900**. Se la tabella non ci sta
- * nello spazio che ha, la risposta non è alzare la soglia — è **scorrere**,
- * con `bloccaPrimaColonna` che tiene ferme le colonne d'identità. Il
- * ragionamento per esteso, e l'errore in cui si cade derivando la soglia
- * dalla tabella, stanno sulla scena `Soglia della pagina`.
- *
- * **Le foto sono la libreria d'esempio del repo**, cioè i render dei sistemi
- * Tassullo: non sono foto di macchine. Servono a far vedere `entity-image`
- * con e senza sorgente — due righe su dodici portano il segnaposto — e
- * `alt=""` dice che nella tabella sono decorative, perché la riga il suo nome
- * ce l'ha già scritto accanto.
- *
- * ## Un attrito, detto prima e non scoperto dopo
- *
- * **Il dettaglio si apre da un posto diverso sulle due facce.** In Officina si
- * clicca la foto della macchina; `data-table` con `pannelloRiga` antepone da
- * sé una colonna col chevron (`data-table.tsx:3157`) e non si sostituisce.
- * Sulla faccia stretta la miniatura non c'è affatto, e il grilletto è la
- * **scheda intera** — che è anche il bersaglio più grande possibile, cioè la
- * cosa giusta col pollice. Adattamento accettabile: la stessa azione, due
- * gesti che stanno ognuno a casa propria.
+ * **Le immagini** sono le illustrazioni d'esempio dei sistemi Tassullo, non
+ * foto di macchine: servono a mostrare `entity-image` con e senza
+ * sorgente — due righe su dodici hanno il segnaposto. `alt=""` le dichiara
+ * decorative, perché accanto c'è già il nome della riga.
  */
 const meta = {
   title: 'Pagine/Lista a due facce',
@@ -173,12 +135,12 @@ type Macchina = {
 }
 
 const FOTO = {
-  cappotto: '/esempi/sistema-cappotto.png',
-  radiante: '/esempi/sistema-radiante.png',
-  risanamento: '/esempi/sistema-risanamento.png',
-  crm: '/esempi/sistema-crm.png',
-  ripristino: '/esempi/sistema-ripristino-storico.png',
-  seta: '/esempi/sistema-effetto-seta.png',
+  cappotto: 'esempi/sistema-cappotto.png',
+  radiante: 'esempi/sistema-radiante.png',
+  risanamento: 'esempi/sistema-risanamento.png',
+  crm: 'esempi/sistema-crm.png',
+  ripristino: 'esempi/sistema-ripristino-storico.png',
+  seta: 'esempi/sistema-effetto-seta.png',
 }
 
 const MACCHINE: Macchina[] = [
@@ -806,11 +768,9 @@ function ListaMacchine({
  * ──────────────────────────────────────────────────────────────────────── */
 
 /**
- * **La faccia larga**, resa in modo deterministico: nove colonne più quella
- * del chevron, la miniatura, la tendina dello stato, il bottone `size="sm"`.
- *
- * Il dettaglio si apre dal chevron in testa alla riga — la colonna che
- * `pannelloRiga` antepone da sé.
+ * La faccia larga, fissata con `faccia="tabella"`: nove colonne più quella
+ * del chevron, la miniatura, la tendina dello stato, il bottone
+ * `size="sm"`. Il dettaglio si apre dal chevron in testa alla riga.
  */
 export const FacciaLargaScena: Story = {
   name: 'Faccia larga',
@@ -818,19 +778,10 @@ export const FacciaLargaScena: Story = {
 }
 
 /**
- * **La faccia stretta**, resa in modo deterministico dentro un riquadro da
- * 360px — la larghezza utile di uno schermo da 375px meno il padding di
- * pagina.
- *
- * Il riquadro serve a **guardarla**; a renderla è la prop `faccia`, non la
- * sua larghezza. È la distinzione di §46: una media query sulla finestra non
- * si sposta stringendo un contenitore, e una scena che ci contasse
- * renderebbe la faccia larga mentre il gate conta «0 violazioni».
- *
- * Quello che cambia rispetto alla larga, e che nessun blocco poteva
- * indovinare dalle `colonne`: la tendina è diventata una fila di chip, la
- * miniatura non c'è, il bottone ha preso la larghezza intera e la taglia di
- * default, e il dettaglio si apre toccando la scheda.
+ * La faccia stretta, fissata con `faccia="schede"` e mostrata in un
+ * riquadro da 360px, la larghezza utile di un telefono. La tendina dello
+ * stato è diventata una fila di chip, la miniatura non c'è, il bottone
+ * prende tutta la larghezza, e il dettaglio si apre toccando la scheda.
  */
 export const FacciaStrettaScena: Story = {
   name: 'Faccia stretta',
@@ -849,86 +800,14 @@ export const FacciaStrettaScena: Story = {
 }
 
 /**
- * **La soglia la dichiara la pagina**, ed è l'unica delle tre scene che passa
- * davvero da `useSoglia`.
+ * La sola scena che passa davvero da `useSoglia`, con una soglia diversa
+ * dal default: `(min-width: 900px)`. Due app possono scegliere due numeri
+ * diversi, e ognuna lo dichiara nella sua pagina. Si vede aprendo la scena
+ * da sola e stringendo la finestra, o con l'interruttore Viewport: sotto i
+ * 900px la tabella lascia il posto alle schede.
  *
- * Qui la soglia è **`(min-width: 900px)`**, e la scena esiste per far vedere
- * che è **un numero diverso** da quello che usano le due scene di sopra: il
- * default della pagina è 1024, questa lo cambia.
- *
- * ## Da dove vengono i numeri: dalle app, non dalla tabella
- *
- * **1024 è la soglia di Officina** (`useDesktop()`, cinque pagine — Triage,
- * Piani, Procedure, Ricambi, Admin); **900 è quella di Studio RadarOpere**
- * (`@media 900px`). Sono i due numeri che esistono già in produzione, e
- * `useSoglia` serve a smettere di riscriverli a mano, non a sostituirli.
- *
- * **La soglia non si deriva dal fabbisogno della tabella.** Misurando quanto
- * spazio vogliono nove colonne si arriva a 1280; contando anche i 256px della
- * colonna del guscio si arriva a 1536, cioè **più della risoluzione di un
- * portatile da 13"** — una tabella che su quelle macchine non comparirebbe
- * mai. Il ragionamento è sbagliato alla radice: la soglia dice **quando
- * l'interfaccia cambia grammatica**, ed è una scelta ergonomica dell'app.
- * `docs/ANALISI-COPERTURA-APP.md` §6.3 la chiude così — «la soglia si decide
- * app per app, non si forza» — e §11 aggiunge che la guida deve dire **come
- * si sceglie**, non quale numero usare.
- *
- * ## E la tabella che non ci sta? Scorre
- *
- * È la risposta che c'era già, e non costa nessuna soglia: `data-table` sta
- * dentro un `overflow-x-auto`. È quello che fa `dashboard-01` di shadcn —
- * che sotto una soglia non nasconde nessuna colonna, lascia scorrere.
- *
- * **`bloccaPrimaColonna` qui non si usa, ed è una scelta.** Era stata messa e
- * poi tolta: il suo prop dice di bloccare «la colonna che **identifica la
- * riga**», ma con `pannelloRiga` la prima colonna è quella del chevron, che
- * `data-table` antepone da sé — quindi blocca un chevron, e ci disegna
- * accanto il bordo e il fondo opaco dello sticky, cioè **un separatore
- * verticale fra il chevron e la miniatura** che non significa niente.
- * Misurato: `position: sticky`, `left: 0`, `border-right: 1px` sulla sola
- * colonna del chevron. Dove serve davvero — `Blocchi/Data Table → Stretta`,
- * a 320px, senza pannello di riga — la prima colonna **è** il codice, e lì
- * fa il suo mestiere.
- *
- * Le misure della tabella restano utili, ma come **fatto sulla tabella**, non
- * come soglia — lette dal DOM a pagina ferma, con ogni colonna stretta alla
- * misura che il contenuto chiede:
- *
- * | riquadro per la lista | cosa succede |
- * |---|---|
- * | **≥ 1160px** | tutte e nove intere, niente troncato |
- * | **< 1160px** | la tabella **scorre**, con le prime colonne ferme |
- *
- * Due fasce e non tre, ed è la conseguenza di una regola che vale per
- * chiunque scriva una lista: **ogni colonna dichiara la sua larghezza, nessuna
- * resta elastica.** Con `table-layout: fixed` una colonna senza larghezza
- * **non allarga mai la tabella** — assorbe l'avanzo, e quando l'avanzo è
- * negativo va a **zero**: la colonna sparisce e la sua intestazione finisce
- * sopra quella accanto. Misurato qui a 917px di riquadro: `Macchina` a 0px,
- * «Macchina» e «Tipo» sovrapposti nella testata. Lo scorrimento funziona
- * **solo** se la somma delle larghezze dichiarate è un minimo vero.
- *
- * 1160px di riquadro sono **1450px di finestra** col guscio aperto (256px di
- * colonna + 34 di padding e bordi) e **1242px** col guscio collassato: su un
- * portatile da 1440 la tabella scorre di una decina di pixel, e collassando la
- * sidebar è intera. Nessuna colonna sparisce in nessuno dei due casi, che è
- * la cosa che conta.
- *
- * **Due sonde sbagliate, corrette.** Il primo conto dei troncamenti confrontava
- * `scrollWidth` con `clientWidth`, e su una cella con `text-overflow: ellipsis`
- * quei due valori **coincidono** — dava 0 troncamenti su una tabella in cui si
- * leggeva «Intonacat…» a occhio nudo; il conto giusto misura il **testo**, con
- * un `Range` sul contenuto della cella. E la colonna a zero **non l'ha trovata
- * nessuna misura**: l'ha vista Francesco a video, dalle due intestazioni
- * sovrapposte. Adesso il conto delle colonne a larghezza zero è fra le
- * misure.
- *
- * **Cosa rende questa scena nel gate**, misurato: la finestra è a 1440 e la
- * soglia è 900, quindi la media query è vera e si vede la **faccia larga** —
- * 1 tabella, 0 schede. Dichiarato, non nascosto: `test:a11y` e
- * `misura:bersagli` aprono il canvas per URL, dove il global `viewport` non
- * cambia `window.innerWidth` (§46). La faccia stretta la misura la scena qui
- * sopra, che non dipende dalla finestra.
+ * Con nove colonne alle larghezze dichiarate, la tabella è intera da 1160px
+ * di riquadro in su; sotto scorre in orizzontale, e nessuna colonna sparisce.
  */
 export const SogliaDellaPagina: Story = {
   name: 'Soglia della pagina',

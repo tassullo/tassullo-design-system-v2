@@ -147,9 +147,9 @@ const SEZIONI: SezioneNav[] = [
  * solo se l'app ne vuole di diverse.
  */
 const UTENTE = {
-  nome: 'Francesco',
-  cognome: 'Sartori',
-  email: 'fsartori@covicostruzioni.it',
+  nome: 'Stefano',
+  cognome: 'Bertolini',
+  email: 'sbertolini@esempio.it',
   ruolo: 'Sola lettura',
 }
 
@@ -239,8 +239,6 @@ export const Predefinito: Story = {
    * la stessa forma dà il risultato opposto — lì `InputGroupButton` si riprende
    * lo slot. Le due composizioni si somigliano e finiscono in modo diverso: è
    * la ragione per cui `apri.ts` vuole un **selettore** e non un nome di slot.
-   *
-   * Il gate ha preso la prima stesura sbagliata al primo colpo, e per come deve:
    * `grilletto()` lancia quando il selettore non trova niente, invece di
    * lasciar passare la story per «senza popup».
    */

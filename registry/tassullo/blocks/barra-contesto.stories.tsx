@@ -205,9 +205,8 @@ export const NelGuscio: Story = {
         contesto={
           <SelettoreContesto
             etichetta="Commessa attiva"
-            // **Solo il nome**, senza il codice (scelta di Francesco il
-            // 2026-09-21): sta su una riga sola e resta quello che si
-            // riconosce a colpo d'occhio. Il codice non sparisce — è nella
+            // **Solo il nome**, senza il codice: sta su una riga sola e
+            // resta quello che si riconosce a colpo d'occhio. Il codice non sparisce — è nella
             // fascia della pagina, quaranta pixel più a destra, e nel menu.
             titolo={nomeDi(voce.titolo)}
             icona={HardHatIcon}
@@ -227,7 +226,7 @@ export const NelGuscio: Story = {
             ],
           },
         ]}
-        utente={{ nome: 'Francesco', cognome: 'Sartori', ruolo: 'Progettista' }}
+        utente={{ nome: 'Stefano', cognome: 'Bertolini', ruolo: 'Progettista' }}
       >
         <div className="flex flex-col gap-4">
           <PageHeader

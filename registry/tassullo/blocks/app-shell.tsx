@@ -444,23 +444,30 @@ export type AppShellProps = {
   utente?: UtenteShell
   /** Le voci del menù utente: `<DropdownMenuItem>` e separatori. */
   azioniUtente?: ReactNode
+  // **Lo slot della testata della colonna, sotto il marchio** — tipicamente
+  // il `<SelettoreContesto>` di `tassullo-barra-contesto` (2026-09-21).
+  //
+  // È uno slot e non delle prop tipizzate, per la stessa ragione per cui la
+  // fascia non riceve il percorso da qui: il guscio non sa che cosa sia una
+  // commessa, e non deve impararlo. Riceve un nodo e gli fa posto.
+  //
+  // **È una variante, non il nuovo normale.** Serve alle app che hanno
+  // un'entità attiva che attraversa tutte le pagine — oggi **solo Studio**, e
+  // il bisogno è stato accertato guardando l'app vera in M4ter.11: ne ha due,
+  // una qui e una in pagina. Le altre non passano niente e la testata resta
+  // quella di prima, marchio e nome dell'applicativo.
+  //
+  // Con `collassa="icona"` la colonna stretta riduce il selettore al suo
+  // quadrato, come fa con le voci di navigazione: è `SidebarMenuButton` a
+  // saperlo fare, non una regola nostra.
   /**
-   * **Lo slot della testata della colonna, sotto il marchio** — tipicamente
-   * il `<SelettoreContesto>` di `tassullo-barra-contesto` (2026-09-21).
+   * Lo spazio sotto il marchio, in cima alla colonna, per l'entità su cui si
+   * lavora in tutte le pagine: di solito il `<SelettoreContesto>` di
+   * `tassullo-barra-contesto`. Serve solo alle app che hanno un'entità attiva
+   * di questo tipo; le altre non lo passano.
    *
-   * È uno slot e non delle prop tipizzate, per la stessa ragione per cui la
-   * fascia non riceve il percorso da qui: il guscio non sa che cosa sia una
-   * commessa, e non deve impararlo. Riceve un nodo e gli fa posto.
-   *
-   * **È una variante, non il nuovo normale.** Serve alle app che hanno
-   * un'entità attiva che attraversa tutte le pagine — oggi **solo Studio**, e
-   * il bisogno è stato accertato guardando l'app vera in M4ter.11: ne ha due,
-   * una qui e una in pagina. Le altre non passano niente e la testata resta
-   * quella di prima, marchio e nome dell'applicativo.
-   *
-   * Con `collassa="icona"` la colonna stretta riduce il selettore al suo
-   * quadrato, come fa con le voci di navigazione: è `SidebarMenuButton` a
-   * saperlo fare, non una regola nostra.
+   * Con `collassa="icona"` la colonna chiusa riduce il selettore al suo
+   * quadrato, come fa con le voci.
    */
   contesto?: ReactNode
   /**
@@ -480,37 +487,51 @@ export type AppShellProps = {
    */
   collassa?: "icona" | "fuori"
   defaultAperta?: boolean
+  // La larghezza del contenuto.
+  //
+  // **`piena` è il predefinito**, e il contenuto si adatta alla larghezza della
+  // pagina. Scelta di Francesco il 2026-09-10, guardando la story col tetto
+  // attivo: collassare la colonna **non dava un pixel di contenuto in più** —
+  // misurato a 1440, la card restava 1148px e si limitava a scivolare a
+  // sinistra di 104, perché i 208px liberati andavano ai margini. Collassare la
+  // colonna deve dare spazio al contenuto, o il grilletto non serve a niente.
+  //
+  // `pagina` tiene il contenuto entro `--container-page` (1180px) e lo centra:
+  // è la misura del v1, e resta la scelta giusta dove una riga lunga si legge
+  // male — un form, un testo. Si chiede, non si subisce.
   /**
-   * La larghezza del contenuto.
-   *
-   * **`piena` è il predefinito**, e il contenuto si adatta alla larghezza della
-   * pagina. Scelta di Francesco il 2026-09-10, guardando la story col tetto
-   * attivo: collassare la colonna **non dava un pixel di contenuto in più** —
-   * misurato a 1440, la card restava 1148px e si limitava a scivolare a
-   * sinistra di 104, perché i 208px liberati andavano ai margini. Collassare la
-   * colonna deve dare spazio al contenuto, o il grilletto non serve a niente.
-   *
-   * `pagina` tiene il contenuto entro `--container-page` (1180px) e lo centra:
-   * è la misura del v1, e resta la scelta giusta dove una riga lunga si legge
-   * male — un form, un testo. Si chiede, non si subisce.
+   * La larghezza del contenuto. `"piena"`, il predefinito, gli dà tutta la
+   * larghezza che resta, così chiudere la colonna gli lascia più spazio.
+   * `"pagina"` lo tiene entro `--container-page` (1180px) e lo centra: per
+   * un modulo o un testo lungo, dove una riga troppo larga si legge male.
    */
   larghezza?: "pagina" | "piena"
+  // Se la pagina **scorre** (il predefinito) o **riempie** esattamente lo
+  // schermo.
+  //
+  // `scorre` è la forma di sempre: il guscio ha un'altezza minima — una
+  // pagina più corta dello schermo non lascia un vuoto sotto il piede — ma
+  // cresce con un form lungo o una scheda con molte sezioni.
+  //
+  // `riempie` blocca il guscio all'altezza esatta della finestra
+  // (`h-svh` invece di `min-h-svh`): serve alle pagine **sola lista** —
+  // Prodotti, Norme, Certificazioni — il cui contenuto è `<DataTable
+  // perPagina="auto">` (M3.10, coda): senza un'altezza *ferma* a cui
+  // appoggiarsi, `flex-1` non avrebbe un numero a cui arrivare e la tabella
+  // non saprebbe quante righe entrano. La pagina che lo chiede deve rendere
+  // a sua volta una colonna flex alta quanto il contenuto (`flex h-full
+  // min-h-0 flex-col`), con la tabella come solo figlio `flex-1 min-h-0`.
   /**
-   * Se la pagina **scorre** (il predefinito) o **riempie** esattamente lo
-   * schermo.
+   * Se la pagina scorre o riempie la finestra.
    *
-   * `scorre` è la forma di sempre: il guscio ha un'altezza minima — una
-   * pagina più corta dello schermo non lascia un vuoto sotto il piede — ma
-   * cresce con un form lungo o una scheda con molte sezioni.
+   * `"scorre"`, il predefinito: il guscio è alto almeno quanto la finestra e
+   * cresce col contenuto.
    *
-   * `riempie` blocca il guscio all'altezza esatta della finestra
-   * (`h-svh` invece di `min-h-svh`): serve alle pagine **sola lista** —
-   * Prodotti, Norme, Certificazioni — il cui contenuto è `<DataTable
-   * perPagina="auto">` (M3.10, coda): senza un'altezza *ferma* a cui
-   * appoggiarsi, `flex-1` non avrebbe un numero a cui arrivare e la tabella
-   * non saprebbe quante righe entrano. La pagina che lo chiede deve rendere
-   * a sua volta una colonna flex alta quanto il contenuto (`flex h-full
-   * min-h-0 flex-col`), con la tabella come solo figlio `flex-1 min-h-0`.
+   * `"riempie"`: il guscio è alto esattamente quanto la finestra. Serve a una
+   * pagina che è una lista con lo scorrimento interno, cioè una
+   * `tassullo-data-table` con `altezza="ferma"`. La pagina rende una colonna
+   * `flex h-full min-h-0 flex-col`, con la tabella come figlio
+   * `min-h-0 flex-1`.
    */
   contenuto?: "scorre" | "riempie"
   className?: string

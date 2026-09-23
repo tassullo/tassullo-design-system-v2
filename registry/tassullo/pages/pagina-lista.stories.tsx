@@ -42,50 +42,108 @@ import { Label } from '@/registry/tassullo/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-group'
 
 /**
- * **M4.2 — seconda pagina modello.** `PaginaLista` compone quattro blocchi
- * già nel registry — `page-header`, `data-table`, `empty-state`,
- * `error-state`, `page-skeleton` — nella forma che si ripete sei volte in
- * Anagrafe: Prodotti, Famiglie, Norme, Sistemi, Pubblicazioni, ChangeSets.
+ * La pagina elenco: l'intestazione con l'azione primaria, i filtri, la tabella
+ * paginata e i tre stati — caricamento, errore, nessun record. È la pagina
+ * che un applicativo ripete più spesso, già composta.
  *
- * Il caso qui non è Prodotti — quello è già in `Pagine/Prodotti (Anagrafe)`
- * (M3.10, gate di fase, blocchi assemblati a mano) — ma **Norme**, la stessa
- * forma con dati diversi: la prova che il blocco è generico e non "Prodotti
- * con un altro nome". A differenza di quella story, qui ci sono anche i due
- * stati che Prodotti non aveva ancora: `caricamento` ed `errore`.
+ * **Quando sì, quando no.** Quando l'elenco è la pagina intera: si cerca, si
+ * filtra, si apre una riga. Una tabella che è una sezione fra altre — dentro
+ * una scheda, in un cruscotto — si monta direttamente con
+ * `tassullo-data-table`; per correggere i dati cella per cella c'è
+ * `tassullo-data-grid`.
  *
- * **Da M3bis.11a**, la pagina porta anche le capacità di FASE 3bis che una
- * pagina sola lista usa davvero: colonne ridimensionabili, bloccabili
- * (M3bis.3) e un menu di riga condiviso fra tendina e tasto destro
- * (M3bis.9) — sul caso comune (`Con Dati`, `Poche Righe`), non in una story
- * isolata a parte. Tree/subtotale, espansione, virtualizzazione e la Data
- * Grid editabile (M3bis.1, 2, 4, 5) restano fuori: sono il pattern del caso
- * reale "Computo" (già mostrato in `Blocchi/Data Table` e
- * `Blocchi/Data Grid`, story `Computo`), non di un elenco — non si sono
- * voluti forzare qui solo per completezza.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-lista
+ * ```
  *
- * ## M4ter.14 — la stessa testata e gli stessi filtri di Prodotti
+ * **I blocchi che la compongono**, e che arrivano con lei:
+ * `tassullo-page-header` per il percorso e le azioni nella fascia,
+ * `tassullo-data-table` per la tabella, `tassullo-empty-state`,
+ * `tassullo-error-state` e `tassullo-page-skeleton` per i tre stati, e
+ * `use-soglia` per la faccia stretta. La pagina non aggiunge CSS suo.
  *
- * Rilievo di Francesco guardando questa pagina accanto a
- * `Pagine/Prodotti (Anagrafe)`: le due pagine modello dello stesso elenco
- * mostravano tre forme diverse della stessa cosa. Allineate qui, e la
- * pagina modello segue la pagina reale, non il contrario.
+ * ```tsx
+ * <AppShell contenuto="riempie" …>
+ *   <PaginaLista
+ *     percorso={[{ titolo: 'Norme' }]}
+ *     azioni={[{ titolo: 'Nuova norma', icona: PlusIcon, ruolo: 'primaria' }]}
+ *     colonne={colonne}
+ *     dati={norme}
+ *     cerca="Cerca codice, titolo…"
+ *     perPagina={25}
+ *   />
+ * </AppShell>
+ * ```
  *
- * - **La testata è `IntestazioneColonnaMenu`** — un solo grilletto «⋮» che
- *   si rivela al passaggio e porta Ordina + Blocca. Prima erano tre
- *   controlli sempre accesi per colonna: freccia d'ordinamento, puntina,
- *   maniglia di trascinamento.
- * - **`colonneRiordinabili` è caduto**, come su Prodotti (M3bis.11b lo
- *   aveva già escluso lì). Il riordino per trascinamento resta dimostrato
- *   in `Blocchi/Data Table` → `Colonne Riordinabili`.
- * - **I filtri sono sfaccettati** (M3bis.6) su Categoria e Stato, col
- *   conteggio per opzione, al posto del `Select` «Tutti gli enti» — v. la
- *   nota su `BarraFiltri`, sotto, per perché l'ente non poteva restare.
+ * **Le prop.**
  *
- * ## D10 — la cella `375px × touch`
+ * - `percorso` e `azioni` passano a `tassullo-page-header`: il nome della
+ *   pagina è l'ultimo livello del percorso, e fra le azioni una sola è
+ *   `primaria`.
+ * - `colonne`, `dati` e le opzioni della tabella — `cerca`, `vuoto`,
+ *   `nomeRighe`, `perPagina`, `bloccaPrimaColonna`, `barra`, `idRiga`,
+ *   `ridimensionabile`, `colonneBloccabili`, `colonneRiordinabili`,
+ *   `menuRiga` — passano a `tassullo-data-table` così come sono. La tabella
+ *   ha sempre `altezza="ferma"`: riempie lo spazio che il guscio le lascia e
+ *   scorre al suo interno, con qualunque paginazione.
+ * - `stato`: `"pronto"`, il predefinito, `"caricamento"` o `"errore"`, uno
+ *   alla volta. Solo in `"pronto"` contano i `dati`; `messaggioErrore` e
+ *   `onRiprovaErrore` servono all'errore.
+ * - `vuotoIniziale` (`icona`, `titolo`, `descrizione`, `azione`): la pagina
+ *   quando non esiste ancora nessun record. Prende il posto della tabella,
+ *   con l'azione che crea il primo. È un'altra cosa dal `vuoto` della
+ *   tabella, che è la ricerca o il filtro che non trovano niente e si
+ *   risolve togliendo il filtro.
+ * - `facciaStretta`, `soglia` e `faccia`: la seconda forma della pagina, per
+ *   quando la tabella non ci sta. Qui sotto.
  *
- * `docs/DECISIONI.md` §29 e `PIANO.md` §M4.2 chiedono la misura su questa
- * pagina, la più densa del registry, nelle quattro combinazioni viewport ×
- * densità. Verdetto e misure in `WORKLOG.md`, voce **M4.2**.
+ * ## La faccia stretta
+ *
+ * Sotto una certa larghezza della finestra una tabella a molte colonne non
+ * si legge più, e la pagina diventa un elenco di schede.
+ * **Il blocco sceglie quando, la pagina scrive cosa.**
+ *
+ * - `facciaStretta`: il nodo che la pagina rende al posto della tabella — le
+ *   schede e i comandi che servono loro. Assente, la pagina ha una forma sola
+ *   a ogni larghezza.
+ * - `soglia`: la media query sulla finestra che decide,
+ *   `"(min-width: 1024px)"` di default. Vera, la tabella; falsa,
+ *   `facciaStretta`.
+ * - `faccia`: `"auto"`, il predefinito, lascia decidere a `soglia`;
+ *   `"tabella"` e `"schede"` rendono una faccia fissa a ogni larghezza. Si
+ *   usano dove la forma non deve dipendere dalla finestra: una scena di
+ *   documentazione, una prova automatica.
+ *
+ * Con la tabella se ne vanno anche la ricerca, la barra dei filtri e la
+ * paginazione, che sono sue: i comandi della faccia stretta la pagina li
+ * scrive dentro `facciaStretta`. Restano del blocco la fascia, i tre `stato`
+ * e `vuotoIniziale`, che non cambiano con la larghezza.
+ *
+ * La faccia stretta la scrive la pagina perché le due facce non sono la
+ * stessa lista impaginata due volte: quale colonna diventa un
+ * raggruppamento, quale filtro resta, cosa entra nella scheda lo sa solo chi
+ * conosce quella lista. La ricetta completa, con un esempio a nove colonne,
+ * è `Pagine/Lista a due facce`.
+ *
+ * **Regole d'uso.**
+ *
+ * - La pagina riempie lo spazio del guscio: si monta dentro
+ *   `<AppShell contenuto="riempie">`.
+ * - La soglia la sceglie l'app, e non si ricava da quante colonne ha la
+ *   tabella. Se la tabella non ci sta, scorre in orizzontale, con
+ *   `bloccaPrimaColonna` a tenere ferma la colonna che identifica la riga:
+ *   alzare la soglia manderebbe sul telefono una pagina che sulla scrivania
+ *   funziona.
+ * - Lo stato dei filtri delle schede lo tiene la pagina, fuori da
+ *   `facciaStretta`: così passare la soglia avanti e indietro non lo perde.
+ * - Da sapere: passando la soglia i filtri non vanno da una faccia
+ *   all'altra. Sopra li tiene la tabella, sotto la pagina.
+ *
+ * **Tastiera e accessibilità.** Quelle dei blocchi che la compongono: il
+ * titolo per chi non vede lo scrive `tassullo-page-header`, e la tabella si
+ * usa da tastiera come descritto in `Blocchi/Data Table`. Nella faccia
+ * stretta la tastiera è quella delle schede che scrive la pagina: in queste
+ * scene ogni scheda è un bottone, e `Invio` o `Spazio` aprono il pannello.
  */
 const meta = {
   title: 'Pagine/Lista',
@@ -113,9 +171,9 @@ const SEZIONI: SezioneNav[] = [
 ]
 
 const UTENTE = {
-  nome: 'Francesco',
-  cognome: 'Sartori',
-  email: 'fsartori@covicostruzioni.it',
+  nome: 'Stefano',
+  cognome: 'Bertolini',
+  email: 'sbertolini@esempio.it',
   ruolo: 'Admin',
 }
 
@@ -646,17 +704,15 @@ function Guscio({
 }
 
 /**
- * Il caso comune: 48 norme finte, ricerca, due filtri sfaccettati,
- * paginazione a 25 — più le capacità di FASE 3bis (M3bis.11a): colonne
- * ridimensionabili e bloccabili, il menu di testata «⋮» che porta
- * ordinamento e blocco, e il menu di riga condiviso (tendina «⋯» e tasto
- * destro) sulla stessa `<MenuAzioniNorma />`.
+ * Il caso comune: 48 norme, la ricerca, due filtri sfaccettati e la
+ * paginazione a 25. Le colonne si ridimensionano e si bloccano dal menu «⋮»
+ * delle intestazioni; il menu di riga si apre dalla tendina «⋯» o col tasto
+ * destro. La scena passa `faccia="tabella"`.
  */
 export const ConDati: Story = {
-  // `faccia="tabella"`, non `'auto'`: il gate deve vedere il markup largo
-  // **vero**, non quello che capita alla larghezza con cui la finestra del
-  // test è stata aperta (`docs/DECISIONI.md` §46). La scena che dipende
-  // davvero dall'hook è `Soglia della pagina`, sotto.
+  // `faccia="tabella"`, non `'auto'`: la faccia larga a ogni larghezza della
+  // finestra, anche in una prova automatica. La scena che dipende davvero
+  // dalla finestra è `Soglia della pagina`, sotto.
   render: () => <Guscio dati={NORME} faccia="tabella" />,
   // Non il primo `dropdown-menu-trigger` della pagina: quello è il menu
   // utente della sidebar (`AppShell`), montato prima della tabella nel DOM.
@@ -665,16 +721,10 @@ export const ConDati: Story = {
 }
 
 /**
- * **La faccia stretta** (M4ter.16), resa in modo deterministico: una scheda
- * per norma, raggruppate per categoria, il pannello con ente e le tre azioni.
- * Un solo filtro — lo Stato, a chip — e **nessun popover** da aprire col
- * pollice: la Categoria è diventata il raggruppamento, e l'Ente è la testa
- * del codice, quindi la ricerca ci arriva già.
- *
- * Da guardare **restringendo la finestra del browser**, non con
- * l'interruttore Viewport: quello ridimensiona l'iframe nella cornice del
- * manager e `window.innerWidth` non si muove (`docs/DECISIONI.md` §46).
- * Questa scena non ne ha bisogno, perché rende la faccia per la prop.
+ * La faccia stretta, fissata con `faccia="schede"`: una scheda per norma,
+ * raggruppate per categoria col conteggio accanto al nome. In cima la
+ * ricerca e lo stato a chip; toccando una scheda si apre il pannello con
+ * l'ente e le tre azioni. È ciò che la scena passa a `facciaStretta`.
  */
 export const FacciaStretta: Story = {
   name: 'Faccia stretta',
@@ -682,16 +732,10 @@ export const FacciaStretta: Story = {
 }
 
 /**
- * **La scena che dipende davvero dalla finestra.** `faccia="auto"`: la sceglie
- * `useSoglia` dentro `PaginaLista`, col default di **1024px** — quindi questa
- * story cambia forma restringendo la finestra del browser, ed è l'unica delle
- * tre che lo fa.
- *
- * Nel gate rende **la faccia larga**, perché la finestra dell'imbracatura è
- * 1440. È un numero da rimisurare ogni volta che la soglia cambia: portandola
- * sopra 1440 questa scena passerebbe alle schede e il gate continuerebbe a
- * dire «0 violazioni» senza segnalare niente — è §46 applicata alla story che
- * la cita.
+ * `faccia="auto"`: decide `soglia`, col valore di default. È la sola scena
+ * che cambia forma con la larghezza della finestra — la tabella sopra i
+ * 1024px, le schede sotto. Si vede aprendo la scena da sola e stringendo la
+ * finestra, o con l'interruttore Viewport.
  */
 export const SogliaDellaPagina: Story = {
   name: 'Soglia della pagina',
@@ -699,11 +743,8 @@ export const SogliaDellaPagina: Story = {
 }
 
 /**
- * **Poche righe, `altezza="ferma"`**: il riquadro non cresce forzato — resta
- * alto quanto il contenuto, senza vuoto sotto — ma il piè (conteggio,
- * paginazione) è comunque sempre visibile senza scorrere niente. È il
- * rovescio di `ConDati`: lì il riquadro si ferma e la tabella scorre al suo
- * interno, qui non c'è niente da far scorrere.
+ * Sei norme: il riquadro resta alto quanto il contenuto, e il piè —
+ * conteggio e paginazione — sta subito sotto l'ultima riga.
  */
 export const PocheRighe: Story = {
   // `faccia="tabella"`: la tesi di questa scena è sul **riquadro** — che si
@@ -724,10 +765,9 @@ export const Errore: Story = {
 }
 
 /**
- * **Nessuna norma esiste ancora** — non "la ricerca non trova niente", che
- * `DataTable` gestisce da sé (story `ConDati`, i filtri sfaccettati). Qui la
- * tabella non compare affatto: `vuotoIniziale` la sostituisce con la CTA che
- * crea la prima norma.
+ * Non esiste ancora nessuna norma: al posto della tabella, `vuotoIniziale`
+ * con l'azione che crea la prima. La ricerca che non trova niente è un'altra
+ * cosa, e la rende la tabella.
  */
 export const VuotoIniziale: Story = {
   render: () => <Guscio dati={[]} />,
