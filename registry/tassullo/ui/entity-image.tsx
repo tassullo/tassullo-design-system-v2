@@ -123,7 +123,15 @@ function EntityImage({
        * che non gli è stato chiesto: il grigio resta dov'è informazione, cioè
        * sul solo segnaposto.
        */}
-      <Avatar className="size-full rounded-none after:hidden">
+      {/*
+       * `absolute inset-0` e non `size-full`: il riquadro prende l'altezza da
+       * `aspect-ratio`, e WebKit dentro una cella di tabella non risolve su
+       * quell'altezza l'`height: 100%` dei figli — la foto restava alta
+       * quanto il file (640px in un riquadro da 48) e se ne vedeva la striscia
+       * in cima (M5.0e, coda). Un figlio assoluto ha l'altezza del riquadro in
+       * ogni motore.
+       */}
+      <Avatar className="absolute inset-0 size-auto rounded-none after:hidden">
         {src ? (
           <AvatarImage
             src={src}
