@@ -12525,3 +12525,12 @@ Francesco: «facciamo la stessa cosa nel foglio a gruppi». Misurato prima: la v
 - **La pagina** `Blocchi/Foglio a gruppi`: `formato` e `suffisso` fra le parti, e due regole d'uso.
 
 Misure in `DECISIONI.md` §56.12. **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+### Coda di M5.0d, settima — la riga segnata anche nel foglio, e due difetti presi facendolo
+
+Francesco ha detto sì alla proposta di portare nel foglio a gruppi la riga di lavoro segnata a fuoco fuori. Fatto, e misurando sono usciti due difetti che valevano per **tutti e due** i blocchi (`DECISIONI.md` §56.13):
+- **clic fuori mentre si scrive** → il fuoco tornava nella cella. Il `focusout` del campo non distingue un clic fuori da `Invio`/`Esc` in Chrome (è identico nei due casi, misurato), quindi il segnale è il `pointerdown` fuori dalla tabella, in cattura;
+- **`Home`/`Fine` in modifica** facevano scorrere il contenitore — nella `data-grid` fino in fondo all'elenco, con la modifica persa. `capoDelCampo` in tutti e due i blocchi.
+- La pagina `Blocchi/Foglio a gruppi` ha la regola della riga segnata.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.

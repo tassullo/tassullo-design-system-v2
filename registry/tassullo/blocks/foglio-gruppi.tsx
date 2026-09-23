@@ -227,6 +227,30 @@ export type MotoreFoglioGruppi<TTestata, TRiga> = {
   scriviGruppi: (g: GruppoFoglio<TTestata, TRiga>[]) => void
 }
 
+/**
+ * `Home` e `Fine` dentro un campo in modifica, fatti a mano. Il browser li
+ * fa da sé — cursore all'inizio o alla fine — ma quando il testo sta tutto
+ * nel campo lascia passare il tasto anche alla pagina, che scorre (misurato:
+ * 103px con `Home` e `Fine`, e il cursore restava all'inizio). Con `Maiusc`
+ * la selezione si estende fino al capo. La stessa funzione di `data-grid`:
+ * i due blocchi si installano separati, e non si importano a vicenda.
+ */
+function capoDelCampo(evento: React.KeyboardEvent): boolean {
+  if (evento.key !== "Home" && evento.key !== "End") return false
+  const campo = evento.target
+  if (!(campo instanceof HTMLInputElement)) return false
+  evento.preventDefault()
+  const capo = evento.key === "End" ? campo.value.length : 0
+  if (evento.shiftKey) {
+    const fermo = evento.key === "End" ? (campo.selectionStart ?? 0) : (campo.selectionEnd ?? 0)
+    const verso = evento.key === "End" ? "forward" : "backward"
+    campo.setSelectionRange(Math.min(fermo, capo), Math.max(fermo, capo), verso)
+  } else {
+    campo.setSelectionRange(capo, capo)
+  }
+  return true
+}
+
 export function useFoglioGruppi<TTestata, TRiga>({
   gruppiIniziali,
   colonne,
@@ -487,6 +511,7 @@ export function useFoglioGruppi<TTestata, TRiga>({
         }
         return
       }
+      capoDelCampo(evento)
       return
     }
 
@@ -593,6 +618,7 @@ function CellaFoglio<TTestata, TRiga>({
   dato,
   extra,
   etichettaColonna,
+  fuoriRef,
 }: {
   motore: MotoreFoglioGruppi<TTestata, TRiga>
   posizione: PosizioneFoglio
@@ -600,6 +626,8 @@ function CellaFoglio<TTestata, TRiga>({
   dato: TTestata | TRiga
   extra?: TRiga[]
   etichettaColonna: string
+  /** `true` quando il fuoco ha lasciato le celle: v. `FoglioGruppi`. */
+  fuoriRef: React.RefObject<boolean>
 }) {
   const zona = posizione.zona
   const cella = zona === "testata" ? colonna.testata : zona === "corpo" ? colonna.corpo : colonna.piede
@@ -615,8 +643,10 @@ function CellaFoglio<TTestata, TRiga>({
     // Solo quando il fuoco è **già** su questa cella per volontà di qualcuno:
     // non al montaggio sulla prima, o il foglio se lo prenderebbe da sé
     // appena la pagina apre.
-    if (aFuoco && !inModifica) riferimento.current?.focus()
-  }, [aFuoco, inModifica])
+    // E non quando il fuoco se n'è andato fuori dal foglio: un campo che si
+    // chiude per un clic altrove non deve riportarlo qui.
+    if (aFuoco && !inModifica && !fuoriRef.current) riferimento.current?.focus()
+  }, [aFuoco, inModifica, fuoriRef])
 
   if (!cella) return <TableCell />
 
@@ -686,6 +716,7 @@ function CellaFoglio<TTestata, TRiga>({
     <TableCell className="p-0">
       <div
         ref={riferimento}
+        data-attiva={aFuoco ? "" : undefined}
         // Fuoco mobile (roving tabindex): una sola cella tabbabile per volta,
         // così `Tab` esce dal foglio in una fermata invece di attraversarlo.
         tabIndex={tabbabile ? 0 : -1}
@@ -821,6 +852,58 @@ export function FoglioGruppi<TTestata, TRiga>({
 }: FoglioGruppiProps<TTestata, TRiga>) {
   const { gruppi, colonne, posizione } = motore
   const apreComandi = React.useRef<(() => void) | null>(null)
+  const radiceRef = React.useRef<HTMLDivElement>(null)
+
+  /**
+   * **Dove sta il fuoco rispetto alle celle**, come nella `data-grid`:
+   * `"mai"` finché nessuno ha toccato il foglio, poi `"dentro"` o `"fuori"`.
+   * A fuoco fuori — «Salva», un filtro, un clic altrove — la cella su cui si
+   * lavorava tiene un bordo sottile e la sua riga un fondo tenue: la
+   * posizione il motore la ricorda sempre (è lì che `Tab` rientra), ma senza
+   * un segno chi ha cliccato fuori non sa più su quale riga era. `"mai"` non
+   * segna niente, o la prima cella comparirebbe scelta a pagina appena aperta.
+   *
+   * `focusout` arriva prima che il fuoco sia atterrato altrove, quindi si
+   * rilegge al giro dopo; `focusin` non arriva quando il fuoco finisce sul
+   * `body`. `fuoriRef` porta lo stesso fatto al bottone della riga delle
+   * azioni, che si riprende il fuoco a ogni render e non deve farlo a fuoco
+   * uscito.
+   */
+  const [fuoco, setFuoco] = React.useState<"mai" | "dentro" | "fuori">("mai")
+  const fuoriRef = React.useRef(false)
+  React.useEffect(() => {
+    let attesa: ReturnType<typeof setTimeout> | undefined
+    const aggiorna = () => {
+      const tabella = radiceRef.current?.querySelector("table")
+      const dentro = !!tabella && tabella.contains(document.activeElement)
+      fuoriRef.current = !dentro
+      setFuoco((prima) => (dentro ? "dentro" : prima === "mai" ? "mai" : "fuori"))
+    }
+    const dopo = () => {
+      clearTimeout(attesa)
+      attesa = setTimeout(aggiorna, 0)
+    }
+    // **Un clic fuori dalle celle si sa subito, prima del `blur`**: il campo
+    // in modifica che si chiude per quel `blur` ridarebbe il fuoco alla cella
+    // nel render stesso, prima che `focusout` sia riletto al giro dopo. Non si
+    // può leggere dal `focusout` del campo: Chrome lo manda identico — nodo
+    // ancora attaccato, nessuna destinazione — anche quando il campo si
+    // chiude da sé con `Invio` o `Esc`, e lì il fuoco deve tornare alla cella.
+    // In cattura, per arrivare prima dei gestori di React.
+    const premuto = (evento: PointerEvent) => {
+      const tabella = radiceRef.current?.querySelector("table")
+      if (tabella && !tabella.contains(evento.target as Node)) fuoriRef.current = true
+    }
+    document.addEventListener("focusin", aggiorna)
+    document.addEventListener("focusout", dopo)
+    document.addEventListener("pointerdown", premuto, true)
+    return () => {
+      clearTimeout(attesa)
+      document.removeEventListener("focusin", aggiorna)
+      document.removeEventListener("focusout", dopo)
+      document.removeEventListener("pointerdown", premuto, true)
+    }
+  }, [])
 
   // `Shift+F10` e il tasto Menu aprono i comandi del gruppo a fuoco: è la
   // scorciatoia di sistema per il menu contestuale, la stessa che il browser
@@ -835,7 +918,19 @@ export function FoglioGruppi<TTestata, TRiga>({
   }
 
   return (
-    <div className={cn("overflow-x-auto", className)} onKeyDown={onKeyDown}>
+    <div
+      ref={radiceRef}
+      className={cn(
+        "overflow-x-auto",
+        // In scuro il fondo è `border-strong` al 70%: `bg-muted` si staccava
+        // appena dalla card, lo stesso rimedio della `data-grid`
+        // (`docs/DECISIONI.md` §56.9).
+        fuoco === "fuori" &&
+          "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted dark:[&_tr:has([data-attiva])]:bg-border-strong/70",
+        className
+      )}
+      onKeyDown={onKeyDown}
+    >
       <Table
         // `role="grid"` è ciò che dice a un lettore di schermo che qui le
         // frecce navigano: senza, la tabella è un documento e la tastiera che
@@ -911,6 +1006,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                   }
                   return (
                     <CellaFoglio
+                      fuoriRef={fuoriRef}
                       key={col.id}
                       motore={motore}
                       posizione={posizioneCella}
@@ -927,6 +1023,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                 <TableRow key={`${gruppo.id}-${ri}`}>
                   {colonne.map((col, ci) => (
                     <CellaFoglio
+                      fuoriRef={fuoriRef}
                       key={col.id}
                       motore={motore}
                       posizione={{ gruppo: gi, zona: "corpo", riga: ri, colonna: ci }}
@@ -959,8 +1056,9 @@ export function FoglioGruppi<TTestata, TRiga>({
                         <button
                           type="button"
                           ref={(nodo) => {
-                            if (aFuocoAzione) nodo?.focus()
+                            if (aFuocoAzione && !fuoriRef.current) nodo?.focus()
                           }}
+                          data-attiva={aFuocoAzione ? "" : undefined}
                           tabIndex={aFuocoAzione ? 0 : -1}
                           disabled={comando.disabilitato}
                           className={cn(
@@ -991,6 +1089,7 @@ export function FoglioGruppi<TTestata, TRiga>({
               <TableRow className="border-t font-medium">
                 {colonne.map((col, ci) => (
                   <CellaFoglio
+                    fuoriRef={fuoriRef}
                     key={col.id}
                     motore={motore}
                     posizione={{ gruppo: gi, zona: "piede", riga: 0, colonna: ci }}

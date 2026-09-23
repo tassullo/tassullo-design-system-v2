@@ -305,6 +305,31 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
   registraSpostamentoVerticale: (f: ((indiceRiga: number) => void) | null) => void
 }
 
+/**
+ * `Home` e `Fine` dentro un campo in modifica, fatti a mano. Il browser li
+ * fa da sé — cursore all'inizio o alla fine — ma quando il testo sta tutto
+ * nel campo lascia anche passare il tasto al contenitore che scorre, e la
+ * griglia virtualizzata saltava in fondo all'elenco: la riga in modifica
+ * usciva dalla finestra, veniva smontata col suo campo, e il fuoco finiva
+ * sul `body` (misurato: `scrollTop` da 0 a 21.601 con un `Fine`). Con
+ * `Maiusc` la selezione si estende fino al capo.
+ */
+function capoDelCampo(evento: React.KeyboardEvent): boolean {
+  if (evento.key !== "Home" && evento.key !== "End") return false
+  const campo = evento.target
+  if (!(campo instanceof HTMLInputElement) || campo.type === "date") return false
+  evento.preventDefault()
+  const capo = evento.key === "End" ? campo.value.length : 0
+  if (evento.shiftKey) {
+    const fermo = evento.key === "End" ? (campo.selectionStart ?? 0) : (campo.selectionEnd ?? 0)
+    const verso = evento.key === "End" ? "forward" : "backward"
+    campo.setSelectionRange(Math.min(fermo, capo), Math.max(fermo, capo), verso)
+  } else {
+    campo.setSelectionRange(capo, capo)
+  }
+  return true
+}
+
 export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEngine<TDato> {
   const { righeIniziali, colonneId, colonneAzioneId, idRiga, leggiCella, scriviCella, onModifica } =
     opzioni
@@ -728,6 +753,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
       } else if (evento.key === "Tab") {
         evento.preventDefault()
         if (commitModificaInterno()) spostaOrizzontale(evento.shiftKey ? -1 : 1)
+      } else {
+        capoDelCampo(evento)
       }
       return
     }
@@ -1922,12 +1949,25 @@ export function DataGrid<TDato extends RowData>({
       clearTimeout(attesa)
       attesa = setTimeout(aggiorna, 0)
     }
+    // **Un clic fuori dalle celle si sa subito, prima del `blur`**: il campo
+    // in modifica che si chiude per quel `blur` ridarebbe il fuoco alla cella
+    // nel render stesso, prima che `focusout` sia riletto al giro dopo. Non si
+    // può leggere dal `focusout` del campo: Chrome lo manda identico — nodo
+    // ancora attaccato, nessuna destinazione — anche quando il campo si
+    // chiude da sé con `Invio` o `Esc`, e lì il fuoco deve tornare alla cella.
+    // In cattura, per arrivare prima dei gestori di React.
+    const premuto = (evento: PointerEvent) => {
+      const tabella = contenitoreRef.current?.querySelector("table")
+      if (tabella && !tabella.contains(evento.target as Node)) fuoriRef.current = true
+    }
     document.addEventListener("focusin", aggiorna)
     document.addEventListener("focusout", dopo)
+    document.addEventListener("pointerdown", premuto, true)
     return () => {
       clearTimeout(attesa)
       document.removeEventListener("focusin", aggiorna)
       document.removeEventListener("focusout", dopo)
+      document.removeEventListener("pointerdown", premuto, true)
     }
   }, [])
 
