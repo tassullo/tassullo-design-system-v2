@@ -60,12 +60,15 @@ function numeroDiRiga(
  * **quattro** non prenderebbe il punto (`2086` invece di `2.086`) mentre una
  * di cinque sì. Su un filtro a intervallo i due estremi si leggono
  * affiancati, e un separatore che c'è su uno e non sull'altro fa sembrare i
- * due numeri di ordini di grandezza diversi. `docs/DECISIONI.md` §47.
+ * due numeri di ordini di grandezza diversi.
  */
 const formattaNumero = intero
 
 export type FiltroIntervalloProps<TDato extends RowData> = {
-  /** L'istanza viva della tabella — da `<DataTable onTabellaPronta>`. */
+  /**
+   * L'istanza della tabella: il secondo argomento di `barra` nella forma a
+   * funzione. Non da `onTabellaPronta`, che la consegna un render indietro.
+   */
   tabella: IstanzaTabella<TDato>
   /** La colonna su cui filtrare. Deve dichiarare `filterFn: "inNumberRange"`. */
   accessore: string
@@ -140,9 +143,8 @@ export function FiltroIntervallo<TDato extends RowData>({
 
   if (!colonna) {
     // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
-    // esiste in un'app Vite appena creata, e il typecheck del consumatore si
-    // ferma su «Cannot find name 'process'» benché a runtime funzioni
-    // (misurato nel gate di fine FASE 4, M4.6).
+    // esiste in un'app Vite appena creata, e il typecheck dell'app si
+    // fermerebbe su «Cannot find name 'process'» benché a runtime funzioni.
     if (import.meta.env.DEV) {
       console.warn(`FiltroIntervallo: nessuna colonna "${accessore}" in questa tabella.`)
     }

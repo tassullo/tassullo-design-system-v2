@@ -16,7 +16,8 @@
  * un difetto di questa sessione, è il limite già accertato della primitiva.
  *
  * Stesso grilletto (icona che diventa una X cliccabile, mouse-only, v. il
- * commento in `data-table-filtro-sfaccettato.tsx`) e stessa idea di
+ * commento in `data-table-filtro-sfaccettato.tsx`; da tastiera c'è
+ * «Cancella» in fondo al riquadro, aggiunto in M5.1b) e stessa idea di
  * "riquadro d'appoggio" del filtro a intervallo numerico — qui senza
  * conteggio: niko-table non lo mostra per le date, e un conteggio su un
  * intervallo che può restare aperto a un solo capo darebbe un numero che
@@ -41,7 +42,10 @@ import { BORDO_FILTRO, PopoverContentFerma } from "./data-table-filtro-sfaccetta
 type IntervalloData = [number | undefined, number | undefined] | undefined
 
 export type FiltroDataProps<TDato extends RowData> = {
-  /** L'istanza viva della tabella — da `<DataTable onTabellaPronta>`. */
+  /**
+   * L'istanza della tabella: il secondo argomento di `barra` nella forma a
+   * funzione. Non da `onTabellaPronta`, che la consegna un render indietro.
+   */
   tabella: IstanzaTabella<TDato>
   /** La colonna su cui filtrare. Deve dichiarare `filterFn: "inDateRange"`. */
   accessore: string
@@ -72,9 +76,8 @@ export function FiltroData<TDato extends RowData>({
 
   if (!colonna) {
     // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
-    // esiste in un'app Vite appena creata, e il typecheck del consumatore si
-    // ferma su «Cannot find name 'process'» benché a runtime funzioni
-    // (misurato nel gate di fine FASE 4, M4.6).
+    // esiste in un'app Vite appena creata, e il typecheck dell'app si
+    // fermerebbe su «Cannot find name 'process'» benché a runtime funzioni.
     if (import.meta.env.DEV) {
       console.warn(`FiltroData: nessuna colonna "${accessore}" in questa tabella.`)
     }
@@ -133,6 +136,13 @@ export function FiltroData<TDato extends RowData>({
       </PopoverTrigger>
       <PopoverContentFerma className="w-auto p-0" align="start" aria-label={`Calendario, filtro ${titolo}`}>
         <Calendar mode="range" locale={it} captionLayout="dropdown" selected={intervallo} onSelect={applica} />
+        {/* La via da tastiera per togliere il filtro: la X sul grilletto è
+            solo per il mouse. Come «Cancella» del filtro a intervallo. */}
+        <div className="border-t border-border p-3">
+          <Button type="button" variant="outline" size="sm" className="w-full" onClick={azzera} disabled={!haValore}>
+            Cancella
+          </Button>
+        </div>
       </PopoverContentFerma>
     </Popover>
   )

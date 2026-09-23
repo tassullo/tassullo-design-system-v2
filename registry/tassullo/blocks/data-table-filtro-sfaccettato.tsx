@@ -118,9 +118,9 @@ export const BORDO_FILTRO = "border-dashed"
 
 // Come `PopoverContent` di `ui/popover.tsx`, con una sola differenza:
 // `collisionAvoidance={{ side: "shift", fallbackAxisSide: "none" }}`, che
-// quella primitiva non espone (aggiungerlo lì è un cambio di forma, non di
-// classi — il gradino che `CLAUDE.md` §4bis riserva a una conferma
-// esplicita, non a questa sessione). Qui la tendina resta **sempre sotto**
+// quella primitiva non espone (aggiungerlo lì cambierebbe la forma della
+// primitiva, che resta identica all'originale shadcn per poterla
+// aggiornare). Qui la tendina resta **sempre sotto**
 // il grilletto, spostata in orizzontale se lo spazio manca, mai su un
 // fianco — i grilletti di questi filtri stanno in una riga di bottoni
 // affiancati che crescono in larghezza a ogni scelta (v. `barra` in
@@ -267,7 +267,10 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
 }
 
 export type FiltroSfaccettatoProps<TDato extends RowData> = {
-  /** L'istanza viva della tabella — da `<DataTable onTabellaPronta>`. */
+  /**
+   * L'istanza della tabella: il secondo argomento di `barra` nella forma a
+   * funzione. Non da `onTabellaPronta`, che la consegna un render indietro.
+   */
   tabella: IstanzaTabella<TDato>
   /** La colonna su cui filtrare. Deve dichiarare `filterFn: "arrHas"`. */
   accessore: string
@@ -309,9 +312,8 @@ export function FiltroSfaccettato<TDato extends RowData>({
 
   if (!colonna) {
     // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
-    // esiste in un'app Vite appena creata, e il typecheck del consumatore si
-    // ferma su «Cannot find name 'process'» benché a runtime funzioni
-    // (misurato nel gate di fine FASE 4, M4.6).
+    // esiste in un'app Vite appena creata, e il typecheck dell'app si
+    // fermerebbe su «Cannot find name 'process'» benché a runtime funzioni.
     if (import.meta.env.DEV) {
       console.warn(`FiltroSfaccettato: nessuna colonna "${accessore}" in questa tabella.`)
     }
@@ -339,14 +341,14 @@ export function FiltroSfaccettato<TDato extends RowData>({
         {selezionate.size > 0 ? (
           // Sostituisce il «+»: un clic cancella il filtro senza aprire la
           // tendina. Non è un controllo separato (niente `role`/fuoco
-          // proprio) — un bottone vero qui dentro sarebbe `nested-interactive`
-          // per axe (v. il commento in testa al file sul segno di spunta) —
+          // proprio) — un bottone vero dentro il grilletto sarebbe un
+          // controllo annidato in un altro, che axe segnala anche con
+          // `tabIndex={-1}` —
           // quindi resta **solo** un'accortezza per il mouse: l'equivalente
           // da tastiera è "Cancella i filtri" nella tendina, sempre
-          // raggiungibile con Invio dopo aver aperto il grilletto. Stesso
-          // compromesso già scritto per il `combobox` in D14
-          // (`CLAUDE.md`): l'azione resta disponibile in una forma
-          // accessibile, non sparisce.
+          // raggiungibile con Invio dopo aver aperto il grilletto. È lo
+          // stesso compromesso della crocetta delle pillole del `combobox`:
+          // l'azione resta disponibile in una forma accessibile, non sparisce.
           <span
             aria-hidden
             onPointerDown={(evento) => evento.stopPropagation()}
@@ -366,7 +368,7 @@ export function FiltroSfaccettato<TDato extends RowData>({
           <>
             {/* Nessuna altezza propria: `data-vertical:self-stretch` (di
                 default su `Separator`) la fa alta quanto il bottone — un
-                `h-4` fisso la fermava a metà, rilievo di Francesco. */}
+                `h-4` fisso la fermerebbe a metà. */}
             <Separator orientation="vertical" />
             {selezionate.size > 2 ? (
               <Badge variant="secondary" className="rounded-sm px-1 font-normal tabular-nums">
@@ -407,11 +409,16 @@ export function FiltroSfaccettato<TDato extends RowData>({
                     value={opzione.label}
                     onSelect={() => alternaOpzione(opzione.value)}
                     // Il segno di spunta incorporato di `CommandItem` va a
-                    // destra (`ml-auto`, v. il commento in testa al file):
-                    // qui il segno sta a sinistra, e lasciarlo acceso
-                    // conteso lo spazio col conteggio.
+                    // destra (`ml-auto`): qui il segno sta a sinistra, e
+                    // lasciarlo acceso dividerebbe lo spazio col conteggio,
+                    // che non arriverebbe più al bordo della riga.
                     className="[&>svg:last-child]:hidden"
                   >
+                    {/* Un riquadro disegnato, non la primitiva `Checkbox`:
+                        quella rende un `<button>`, e un bottone dentro
+                        un'opzione (`role="option"`) è un controllo annidato
+                        per axe anche con `aria-hidden`. Le classi di stato
+                        sono quelle di `Checkbox`. */}
                     <span
                       aria-hidden
                       data-checked={scelta || undefined}

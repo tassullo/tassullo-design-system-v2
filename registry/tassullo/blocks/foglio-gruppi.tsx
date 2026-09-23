@@ -106,11 +106,11 @@ export type GruppoFoglio<TTestata, TRiga> = {
 /**
  * Le zone di un gruppo. `azioni` è la riga dei comandi frequenti — nel computo
  * il «+ misurazione» — ed è una **riga vera del foglio**, non una voce di menu:
- * rilievo di Francesco il 2026-09-21, «molto più veloce posizionato fuori dal
- * menù ⋯». Ci si arriva con le frecce come a qualunque altra riga e si attiva
+ * un'azione che si ripete per ogni gruppo è molto più veloce fuori dal menu
+ * `⋯`. Ci si arriva con le frecce come a qualunque altra riga e si attiva
  * con `Invio`, quindi resta veloce anche da tastiera **senza** entrare
- * nell'ordine di `Tab` — che è il difetto misurato sul Computo vero, dove per
- * cambiare riga si tabulava sul bottone che cancella.
+ * nell'ordine di `Tab`: un bottone per riga nell'ordine di `Tab` vuol dire,
+ * per cambiare riga, tabulare anche sul bottone che cancella.
  */
 export type ZonaFoglio = "testata" | "corpo" | "azioni" | "piede"
 
@@ -219,11 +219,10 @@ export type OpzioniFoglioGruppi<TTestata, TRiga> = {
 // La prima cella scrivibile del foglio. Serve al fuoco mobile: finché
 // `posizione` è `null` — cioè prima che si sia cliccato o tabulato — è
 // **questa** a portare `tabIndex={0}`, o `Tab` non avrebbe dove entrare e
-// il foglio sarebbe irraggiungibile da tastiera pura. Preso misurando in
-// Chromium vero: `[tabindex="0"]` valeva **0** e `Tab` scavalcava la
-// tabella intera, con le frecce perfettamente funzionanti dietro. È D15
-// in casa: axe non vede niente, perché non c'è niente di sbagliato da
-// vedere — c'è una porta che non si apre.
+// il foglio sarebbe irraggiungibile da tastiera pura: `Tab` scavalcherebbe
+// la tabella intera, con le frecce perfettamente funzionanti dietro. axe
+// non vede niente, perché non c'è niente di sbagliato da vedere — c'è una
+// porta che non si apre.
 export type MotoreFoglioGruppi<TTestata, TRiga> = {
   gruppi: GruppoFoglio<TTestata, TRiga>[]
   colonne: ColonnaFoglio<TTestata, TRiga>[]
@@ -600,7 +599,7 @@ const classiAllineamento = (col: { allineamento?: "sinistra" | "destra" }) =>
  * L'altezza di **una riga**, uguale per le celle e per il bottone della riga
  * azioni. Senza, il «+ misurazione» è più basso delle misure — il bottone è
  * `text-sm`, le celle no — e il passo del foglio si spezza proprio dove
- * l'occhio scende (rilievo di Francesco, 2026-09-22). Sta su `--spacing`,
+ * l'occhio scende. Sta su `--spacing`,
  * quindi segue la densità: **32px** in normale, **48** in touch.
  */
 const RIGA = "flex min-h-8 items-center"
@@ -621,7 +620,7 @@ const RIGA = "flex min-h-8 items-center"
  * la superficie può essere `card` o `sidebar` (la style guide le commuta su
  * `body[data-superficie]`, e il tema le definisce come `--card`/`--sidebar`).
  * Su due superfici su tre le tre colonne del risultato restavano di un fondo
- * diverso da tutto il resto — rilievo di Francesco a video, in modalità Card.
+ * diverso da tutto il resto.
  * Un fondo opaco **serve** a una colonna ancorata, o si legge il contenuto che
  * le scorre sotto: il difetto non era la classe sbagliata, era che
  * l'ancoraggio ha bisogno di sapere su che superficie poggia, e una classe
@@ -693,8 +692,8 @@ function CellaFoglio<TTestata, TRiga>({
    * **Cella chiusa e cella aperta hanno lo stesso riquadro e lo stesso testo.**
    * Stesso contenitore (`riquadro`), stesso prefisso, e sul valore le stesse
    * classi (`classiTesto`, l'allineamento): aprendo la modifica il testo non
-   * cambia né posto né aspetto — prima il corsivo e il rientro delle misure
-   * sparivano e il testo saltava di 16px a sinistra (rilievo di Francesco).
+   * cambia né posto né aspetto: senza, il corsivo e il rientro delle misure
+   * sparirebbero e il testo salterebbe di 16px a sinistra.
    */
   const destra = (cella.allineamento ?? colonna.allineamento) === "destra"
   const riquadro = cn("px-2 py-1", RIGA, destra && "justify-end")
@@ -761,10 +760,9 @@ function CellaFoglio<TTestata, TRiga>({
           !valore && "text-muted-foreground"
         )}
         onFocus={() => motore.vaiA(posizione)}
-        // **Un clic solo apre**, non due: rilievo di Francesco il 2026-09-21,
-        // «in studio basta cliccare sulla cella per entrare nella modalità
-        // modifica, qua serve doppio click, troppo lento». Nel Computo vero le
-        // celle *sono* campi di testo sempre attivi, quindi cliccare **è**
+        // **Un clic solo apre**, non due: nei fogli di computo che questo
+        // blocco sostituisce le celle *sono* campi di testo sempre attivi,
+        // quindi cliccare **è**
         // modificare: un foglio che chiede due gesti per la stessa cosa è più
         // lento di quello che sostituisce, e non c'è niente da guadagnarci —
         // le frecce restano la via per attraversare senza toccare i valori.
@@ -859,11 +857,10 @@ export type FoglioGruppiProps<TTestata, TRiga> = {
   // per ogni riga non va nascosta dietro due gesti. Il motore va costruito con
   // `conRigaAzioni: true`, o la riga si rende e le frecce non la trovano.
   //
-  // **Una sola, e il tipo lo impone.** La prima stesura ne accettava un
-  // elenco, dentro un contenitore focalizzabile: `role="button"` su un `<div>`
-  // che contiene dei `<button>` è **`nested-interactive`**, e il gate l'ha
-  // preso — 4 violazioni per passata, 16 in tutto. La correzione non è stata
-  // cambiare il ruolo ma il **numero**: il bottone stesso è la cella, così non
+  // **Una sola, e il tipo lo impone.** Un elenco di azioni vorrebbe un
+  // contenitore focalizzabile, e `role="button"` su un `<div>` che contiene
+  // dei `<button>` è **`nested-interactive`** per axe. Con un'azione sola il
+  // bottone stesso è la cella, così non
   // c'è niente da annidare. Ed è anche la forma giusta — una riga di azioni
   // con cinque collegamenti è un menu travestito, e il menu c'è già.
   /**
@@ -961,8 +958,7 @@ export function FoglioGruppi<TTestata, TRiga>({
       className={cn(
         "overflow-x-auto",
         // In scuro il fondo è `border-strong` al 70%: `bg-muted` si staccava
-        // appena dalla card, lo stesso rimedio della `data-grid`
-        // (`docs/DECISIONI.md` §56.9).
+        // appena dalla card, lo stesso rimedio della `data-grid`.
         fuoco === "fuori" &&
           "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted dark:[&_tr:has([data-attiva])]:bg-border-strong/70",
         className
@@ -980,9 +976,8 @@ export function FoglioGruppi<TTestata, TRiga>({
         // Le linee verticali e il bordo esterno: un foglio di computo si legge
         // **per colonne** — la lunghezza sotto la lunghezza, l'importo sotto
         // l'importo — e senza i separatori l'occhio perde la colonna a metà
-        // riga. Rilievo di Francesco il 2026-09-21, e la stessa ragione per cui
-        // ogni foglio di calcolo li ha: qui non sono una prop, sono la forma
-        // del blocco.
+        // riga. È la ragione per cui ogni foglio di calcolo li ha: qui non sono
+        // una prop, sono la forma del blocco.
         // `min-w-240` è la soglia sotto la quale il foglio **scorre** invece di
         // comprimersi. Senza, `table-fixed` stringe la colonna elastica fino a
         // zero e oltre: a finestra stretta «Designazione dei lavori» e
