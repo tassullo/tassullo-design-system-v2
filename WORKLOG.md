@@ -12639,3 +12639,19 @@ Nelle dieci pagine nessun testo JSX con note interne (letti i nodi di testo dei 
 ### Chiusura di M5.0e — Pages riletto dall'URL pubblico
 
 PR #26 unita dopo la CI verde, e Pages ripubblicato. Riletto da <https://tassullo.github.io/tassullo-design-system-v2> come chi non conosce il repo: `Introduzione`, `Tema/Carattere`, `Tema/Palette`, `Tema/Densità`, `Button`, `Badge`, `Select`, `Data Table`, `App Shell`, `Pagine/Lista` rispondono a «cos'è, quando, come si installa». Sul sito pubblico: `tema/inter.css` e le foto d'esempio **200** (prima 404), `r/`, `fonts/` e il CSS del tema **404**, cioè non più pubblicati; 47 riquadri di `entity-image` della misura giusta in WebKit; `Lista`, `Prodotti`, `Data Table`, `EntityImage` pulite in Chiaro e Scuro, axe `color-contrast` 0. Riga a DONE.
+
+---
+
+## 2026-09-23 — La checklist torna una sintesi, e adesso c'è un gate che la tiene tale
+
+Rilievo nato dal controllo dei testi che Claude legge a inizio sessione: la regola «la riga in `CHECKLIST.md` è una sintesi di due o tre righe» era scritta in due posti, ma nessun controllo la verificava, e non era più rispettata. Dopo la ripulitura del 2026-09-10 (48 → 20 KB) il file era risalito a **84 KB**, con 61 righe oltre i 500 caratteri e la più lunga a 2.826.
+
+**Il gate.** `scripts/check-checklist.ts`, `npm run check:checklist`: ogni riga del file, di tabella o di prosa, sta entro **500 caratteri**. Conta i caratteri e non i byte (gli accenti contano uno), markdown compreso. Autotest a quattro prove. È il **nono** gate, dentro `npm run check` e quindi in CI; aggiornati `README.md` §I gate, `CLAUDE.md` §Conduzione e §Comandi, il commento di `gate.yml`. Il tetto a 500 è una scelta: la riga più lunga dopo la ripulitura del 2026-09-10 era 426 caratteri.
+
+**La pulizia.** Stesso metodo del 2026-09-10: prima di tagliare si è verificato che ogni task avesse la sua voce qui nel diario (tutti, da M3.2 a M5.0d) e ogni decisione la sua sezione in `docs/DECISIONI.md`. Ogni riga tiene verdetto, numeri che contano e rimando; il racconto resta qui. **Gli impegni aperti restano in checklist**: il fondo di sorvolo translucido sulla colonna bloccata (M3bis.11b), `accent-ink` su `--accent` a 4,29:1 fuori da `check:contrast` (M4ter.13), D18 da rivedere con Roberto, la divisione M5.5a/b, l'innesco dello slot in `app-shell`. Corretta una frase non più vera: la prosa di FASE 4ter diceva «resta aperta M4ter.12», che è chiusa, e che M5.5 avrebbe nominato il Computo fra le pagine che non migrano — oggi ha il suo blocco e può migrare (`docs/ANALISI-COPERTURA-APP.md`).
+
+**Il numero: da 83.571 a circa 42.000 byte**, 61 righe riscritte, 0 oltre il tetto. Le 117 righe di tabella sono tutte al loro posto, con nome, stato e dipendenze invariati salvo tre stati e tre dipendenze troppo lunghe fra decisioni e candidati, accorciati senza cambiarne il senso (confronto riga per riga con `HEAD`).
+
+**Nello stesso giro, i testi che Claude legge** (`/claude-api prompt-audit`): da `CLAUDE.md` tolti i numeri scaduti (868 scansioni, 217 story, 212 riferimenti), la cronaca degli incidenti al posto della regola e la nota per le prime sessioni; chiarito che di `PIANO.md` si legge la sola sezione del task. In `PIANO.md` corretti tre prompt di task aperti che contraddicevano decisioni chiuse: M5.2 (il tema non viaggia come `cssVars`), M5.4 (Inter *si* distribuisce), M5.5 (niente percorso locale, D4 è chiusa).
+
+**Incidente di conduzione**, da sapere: questa sessione e M5.0e hanno lavorato nella stessa cartella. Alla chiusura di M5.0e la copia di lavoro di `WORKLOG.md` era ridotta al solo ultimo paragrafo — il commit era integro, 12.641 righe — e questa voce era andata persa. Ripristinato da `HEAD` e voce riscritta. Due sessioni sulla stessa cartella vanno evitate: una delle due in un worktree.
