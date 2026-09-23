@@ -45,7 +45,7 @@ const itemVariants = cva(
       },
       size: {
         default: "gap-2.5 px-3 py-2.5",
-        // Ri-stile Tassullo (M4.7, 2026-09-19): nell'originale shadcn `sm`
+        // Ri-stile Tassullo: nell'originale shadcn `sm`
         // ha le **stesse identiche classi** di `default` — verificato anche
         // sulla loro pagina di documentazione, dove le due righe della
         // sezione "Size" misurano entrambe 66.3px — mentre il testo accanto

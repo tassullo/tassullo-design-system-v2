@@ -1,45 +1,45 @@
 /* ── NOTA DI REPO — questo commento NON arriva alle app ───────────────
-   `shadcn build` scarta il PRIMO commento di un file del registry (M1.5,
-   verificato: 379 righe in casa, 357 nell'app, e la differenza è tutta qui).
-   Sta qui di proposito ciò che vale solo dentro questo repo, e nel commento
-   successivo — che invece viaggia — ciò che deve leggere chi installa.
+   `shadcn add` toglie TUTTI i commenti di testa di un CSS `registry:theme`
+   (misurato il 2026-09-23 con la CLI 4.21.0; in M1.5 si era visto sparire
+   il solo primo, ed era una misura parziale — docs/DECISIONI.md §58).
+   `npm run check:spedito` lo rimisura a ogni giro. Per questo qui stanno
+   solo le note di repo, e ciò che deve leggere chi installa sta DENTRO la
+   prima regola, qui sotto, dove arriva.
 
    GENERATO da scripts/hex-to-oklch.ts. Non modificare a mano: la fonte
    unica della palette è quello script, e `npm run check:contrast` fallisce
-   se questo file diverge da ciò che lo script produce.
+   se questo file diverge da ciò che lo script produce. La mappa ragionata
+   token per token rispetto al v1 è in PIANO.md §2bis.
 
      npm run theme:build       rigenera questo file
      npm run check:contrast    verifica contrasti e allineamento
    ────────────────────────────────────────────────────────────────────── */
 
-/* ══════════════════════════════════════════════════════════════════════
-   TASSULLO DESIGN SYSTEM 2.0 — tassullo-theme.css
-
-   Identità visiva ereditata da @tassullo/theme v1.2.2, tradotta nella
-   convenzione shadcn. La mappa ragionata token per token, con i rilievi e
-   le divergenze deliberate dal v1, è in PIANO.md §2bis del design system.
-
-   Installato con:  npx shadcn@latest add @tassullo/tema
-
-   Questo file è il tema INTERO: palette chiara e scura, raggi, tipografia,
-   ombre e le due densità. Non si modifica nell'app — un token nuovo o una
-   variante si chiedono al registry (regola permanente del design system).
-   Per aggiornarlo: lo stesso comando con `--overwrite`.
-
-   ⚠ Se l'app viene da `shadcn init`, il suo CSS globale contiene ancora il
-   blocco `:root`/`.dark` della palette di partenza. Sta DOPO questo
-   `@import` e quindi VINCE: va tolto, o i colori Tassullo non si vedono.
-
-   Due trappole, se stai per usare un token:
-   · --primary è l'ARANCIO DEL BRAND; --accent è il grigio di hover dei menu.
-     Nel v1 --color-accent era il brand: confonderli tinge di arancione metà
-     degli hover dell'interfaccia.
-   · --primary NON è mai usabile per il testo. L'arancio leggibile su fondo
-     chiaro è --accent-ink.
-   ══════════════════════════════════════════════════════════════════════ */
-
 :root,
 .light {
+  /* ════════════════════════════════════════════════════════════════════
+     TASSULLO DESIGN SYSTEM 2.0 — tassullo-theme.css
+
+     Il tema Tassullo nella convenzione shadcn. Installato con:
+
+       npx shadcn@latest add @tassullo/tema
+
+     Questo file è il tema INTERO: palette chiara e scura, raggi, tipografia,
+     ombre e le due densità. Non si modifica nell'app — un token nuovo o una
+     variante si chiedono al registry (regola permanente del design system).
+     Per aggiornarlo: lo stesso comando con `--overwrite`.
+
+     ⚠ Se l'app viene da `shadcn init`, il suo CSS globale contiene ancora
+     il blocco `:root`/`.dark` della palette di partenza. Sta DOPO questo
+     `@import` e quindi VINCE: va tolto, o i colori Tassullo non si vedono.
+
+     Due trappole, se stai per usare un token:
+     · --primary è l'ARANCIO DEL BRAND; --accent è il grigio di hover dei
+       menu. Usare --accent come brand tinge di arancione metà degli hover
+       dell'interfaccia.
+     · --primary NON è mai usabile per il testo. L'arancio leggibile come
+       testo è --accent-ink, in chiaro e in scuro.
+     ════════════════════════════════════════════════════════════════════ */
   --background:                     oklch(0.9726 0.0026 106.45); /* #F6F6F4 */
   --foreground:                     oklch(0.1913 0 0); /* #141414 */
   --card:                           oklch(0.994 0 0); /* #FDFDFD */
@@ -105,8 +105,7 @@
 
 :root {
   /* Raggio base. In shadcn --radius È il gradino `lg`, non `md`: vale quindi
-     i 10px delle card del v1, e sm/md scendono ai 4px e 6px del v1 qui sotto.
-     (PIANO.md §2bis rilievo 3 mappava --radius su --radius-md del v1: rettificato.) */
+     i 10px delle card, e sm/md scendono a 4px e 6px qui sotto. */
   --radius: 0.625rem;
 }
 
@@ -116,12 +115,11 @@
    della style guide). Senza, in una pagina con `.dark` sulla radice non
    esisterebbe modo di tornare chiari su un sottoalbero. */
 
-/* Modalità scura — M1.3, D2 chiusa. Il v1 non ha una palette scura: questa è
-   progettata, e le tre regole con cui è costruita stanno nello script accanto
-   alla palette. Il selettore è `.dark` sull'elemento radice, che è ciò che
-   `@custom-variant dark` di src/index.css e l'interruttore di Storybook
-   commutano. Qui si ridichiarano SOLO i token: raggi, font, scala tipografica
-   e ombre non cambiano fra le due modalità. */
+/* Modalità scura. È progettata, non derivata: i tenui si specchiano a gradini
+   fissi, uguali per tutte le famiglie, così nessuno stato sembra più grave
+   degli altri. Il selettore è `.dark` sull'elemento radice, che è ciò che
+   commuta `@custom-variant dark`. Qui si ridichiarano SOLO i token: raggi,
+   font, scala tipografica e ombre non cambiano fra le due modalità. */
 
 .dark {
   --background:                     oklch(0.1913 0 0); /* #141414 */
@@ -254,23 +252,23 @@
   --color-chart-10: var(--chart-10);
 
   /* ── Raggi ───────────────────────────────────────────────────────────
-     sm e md sono i valori del v1, NON la derivazione shadcn: con i fattori
-     0.6/0.8 i bottoni verrebbero a 4.8px invece dei 6px del v1, e le
-     primitive usano rounded-md. Da xl in su la derivazione shadcn resta. */
-  --radius-sm: 0.25rem; /* 4px — badge, tag (v1 --radius-sm) */
-  --radius-md: 0.375rem; /* 6px — bottoni, input (v1 --radius-md) */
-  --radius-lg: var(--radius); /* 10px — card, pannelli, modali (v1 --radius-lg) */
+     sm e md sono valori Tassullo, NON la derivazione shadcn: con i fattori
+     0.6/0.8 i bottoni verrebbero a 4.8px invece di 6px, e le primitive
+     usano rounded-md. Da xl in su la derivazione shadcn resta. */
+  --radius-sm: 0.25rem; /* 4px — badge, tag */
+  --radius-md: 0.375rem; /* 6px — bottoni, input */
+  --radius-lg: var(--radius); /* 10px — card, pannelli, modali */
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* ── Tipografia ──────────────────────────────────────────────────────
-     **Inter** è il carattere delle interfacce, deciso l'8 settembre 2026 dopo
-     il confronto misurato di cinque candidati (docs/DECISIONI.md §14). Ha i
-     quattro pesi che il design system usa — 400/500/600/700 — le cifre
-     tabellari, e i corsivi; è SIL Open Font, quindi gratuito e
-     ridistribuibile. Lo carica l'app, come sempre (D3).
+     **Inter** è il carattere delle interfacce, scelto su un confronto
+     misurato di cinque candidati. Ha i quattro pesi che il design system
+     usa — 400/500/600/700 — le cifre tabellari, e i corsivi; è SIL Open
+     Font, quindi gratuito e ridistribuibile. Arriva col tema, in
+     tassullo-inter.css, senza nessuna richiesta di rete.
 
      **Replicall NON è più nello stack.** Resta il carattere del marchio e
      resta nelle stampe PDF, ma per lo schermo non si usa più: tenerlo qui
@@ -291,7 +289,7 @@
   --shadow-lg: 0 8px 24px oklch(0.1913 0 0 / 0.122);
   --shadow-modal: 0 20px 60px oklch(0.1913 0 0 / 0.251);
 
-  /* ── Larghezza massima del contenuto di pagina (v1 --page-max-width).
+  /* ── Larghezza massima del contenuto di pagina.
      Esposta come container per poter scrivere max-w-page e non un
      valore arbitrario. */
   --container-page: 1180px;
@@ -307,11 +305,11 @@
    I colori restano `inline` perché lì l'indirezione serve al contrario
    (--color-primary: var(--primary)) e la densità non li tocca. */
 @theme {
-  /* Sette gradini, tutti con nomi Tailwind: dopo M1.6 non ci sono più
-     gradini nostri (`md` è fuso in `sm`, `title` è diventato `2xl`). Sono
-     i soli che i blocchi devono usare: i gradini Tailwind oltre questi
+  /* Sette gradini, tutti con nomi Tailwind: `text-md` e `text-title` non
+     esistono, e scriverli non dà errore — l'utility semplicemente non emette
+     niente. Sono i soli da usare: i gradini Tailwind oltre questi
      (`text-4xl` in su) NON sono tarati su Tassullo, quindi non scalano con
-     la densità — `check:registry` li segnala. */
+     la densità. */
   --text-xs: 12px; /* micro-etichette, etichette di gruppo della sidebar */
   --text-sm: 13px; /* il gradino che regge il 69% dell'interfaccia: voci sidebar, breadcrumb, menu, bottoni */
   --text-base: 15px; /* corpo standard, input */
@@ -321,23 +319,22 @@
   --text-3xl: 31px; /* numeroni del cruscotto */
 }
 
-/* Non portati dal v1, di proposito:
+/* Token che qui non esistono, di proposito:
    · --space-1…6 e --space-page: in Tailwind v4 le spaziature derivano da
-     --spacing, che è anche il meccanismo della densità (M1.4). Il padding di
-     pagina del v1 (32px 40px) si scrive py-8 px-10.
+     --spacing, che è anche il meccanismo della densità (qui sotto). Un
+     padding di pagina di 32px 40px si scrive py-8 px-10.
    · --transition-fast (0.15s): è già il default di Tailwind.
-   · --color-text-hint: eliminato. A 4.5:1 collassa su --muted-foreground, che
-     è il token da usare per placeholder e meta (PIANO.md §2bis rilievo 2). */
+   · --color-text-hint: un terzo livello di testo, a 4.5:1 collasserebbe su
+     --muted-foreground, che è il token da usare per placeholder e meta. */
 
 /* ══════════════════════════════════════════════════════════════════════
-   DENSITÀ TOUCH — M1.4
+   DENSITÀ TOUCH
 
    Opt-in dell'app, con una riga sola nell'HTML:
 
      <html data-density="touch">
 
-   È la stessa interfaccia del v1, di proposito: Officina non deve cambiare
-   niente per passare al v2. La scelta è l'attributo esplicito e NON
+   La scelta è l'attributo esplicito e NON
    `@media (pointer: coarse)`, perché è l'app a sapere se si usa in campo —
    un tablet in ufficio non deve prendere la densità da guanti.
 
@@ -349,27 +346,26 @@
    1. `--spacing` scala i BERSAGLI. In Tailwind v4 ogni utility numerica di
       dimensione è `calc(var(--spacing) * n)` — `h-*`, `w-*`, `size-*`,
       `p-*`, `m-*`, `gap-*`, `space-*`. Una riga scala insieme altezze,
-      padding, gap e icone, senza patchare nessuna primitiva: è la ragione
-      per cui la densità nel v2 costa due dichiarazioni invece delle nove
-      regole per-componente che il v1 doveva scrivere a mano.
+      padding, gap e icone, senza patchare nessuna primitiva: la densità
+      costa due dichiarazioni, non una regola per componente.
 
       `0.375rem` = 6px, cioè ×1.5 sul default di 4px. Il bottone di default
-      di questo preset è `h-8` (32px, NON `h-9` come stimava il piano) e
-      arriva così a **48px**: la stessa altezza che il v1 dà a `.btn` in
-      touch, collaudata in cantiere, e il minimo di Material. Il fattore
+      di questo preset è `h-8` (32px) e arriva così a **48px**: l'altezza
+      del bottone touch Tassullo, collaudata in cantiere, e il minimo di
+      Material. Il fattore
       1.375 basterebbe per i 44px di Apple, ma lascia mezzi pixel su ogni
       gradino dispari (`h-7` → 38,5px); a 6px tondi ogni gradino della scala
       cade su un intero.
 
    2. `--text-*` scala la LEGGIBILITÀ, e molto meno: **×1.08**, arrotondato
-      al pixel. Non è un fattore scelto a occhio: è quello che riproduce il
-      passo del v1, che in touch alzava il testo del bottone di UN gradino
-      della scala (13px → 14px). Applicato alla scala di M1.6 dà 12→13,
+      al pixel. Non è un fattore scelto a occhio: riproduce il passo del
+      bottone touch Tassullo, che alza il testo di UN gradino della scala
+      (13px → 14px). Applicato alla scala qui sopra dà 12→13,
       13→14, 15→16, 16→17 — cioè ancora "il gradino successivo" dove i
       gradini distano 1px — e prosegue con la stessa proporzione sui titoli
       (19→21, 27→29, 31→33), che è ciò che tiene la gerarchia senza
       collisioni. I valori touch sono DERIVATI dalla scala normale, non
-      scritti a mano: erano l'unico dato del tema con due fonti.
+      scritti a mano.
 
       Perché non ×1.5 come i bersagli: un bersaglio deve crescere del 50%
       per stare sotto un dito guantato; un testo a 13px è già leggibile, e
@@ -390,15 +386,12 @@
    crescere. Con `[data-density="normale"]` si può rimettere la densità
    normale DENTRO un sottoalbero touch, che è la sola forma in cui le due si
    guardano affiancate — pagina `Tema/Densità` della style guide. È lo stesso
-   motivo per cui il chiaro si emette anche su `.light` (M1.3). I due blocchi
-   escono dalla stessa costante nello script: due elenchi scritti a mano
-   divergerebbero al primo ritocco.
+   motivo per cui il chiaro si emette anche su `.light`. I due blocchi
+   escono dalla stessa costante: due elenchi scritti a mano divergerebbero
+   al primo ritocco.
 
    L'attributo vale su qualunque elemento, non solo su `<html>`: i due token
-   si ereditano. Verificato che `<body data-density="touch">` — la forma
-   letterale del v1 — funziona identico.
-
-   Le eccezioni accertate a mano sono annotate in WORKLOG.md, M1.4.
+   si ereditano: anche `<body data-density="touch">` funziona identico.
    ══════════════════════════════════════════════════════════════════════ */
 [data-density="touch"] {
   --spacing: 0.375rem;

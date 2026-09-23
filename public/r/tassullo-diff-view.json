@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tassullo-diff-view",
   "title": "Confronto testi",
-  "description": "Confronto prima/dopo evidenziato parola per parola (D8: `diff`/jsdiff, zero dipendenze), in un paragrafo unico o affiancato in due colonne sincronizzate via split-view.",
+  "description": "Confronto prima/dopo evidenziato parola per parola (`diff`/jsdiff, zero dipendenze), in un paragrafo unico o affiancato in due colonne sincronizzate via split-view.",
   "dependencies": [
     "cn",
     "diff"
@@ -19,6 +19,6 @@
       "target": "components/blocks/diff-view.tsx"
     }
   ],
-  "docs": "Un blocco, due modalità:\n\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} />\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} modo=\"affiancato\" />\n\n`diffWords` (non diffLines né diffChars) è il livello giusto per prosa:\nisola \"100\" da \"80\" dentro la stessa frase senza spezzare le parole.\n`inline` (default) fonde il confronto in un paragrafo solo — `<del>`\nbarrato per il tolto, `<ins>` colorato per l'aggiunto, i tag semantici\nHTML5 di una modifica. `affiancato` compone `SplitView` (M3.9, stessa\nsessione): tolto a sinistra, aggiunto a destra, scorrimento sincronizzato.\n\nChiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha\nun `diff` o un confronto testi già pronto. `diffWords` è una funzione pura, non un widget:\nil rendering resta interamente nostro, come per react-dropzone e react-pdf.\nResta un blocco, non un componente proprio: nessuna riga in\ncomponenti-propri.json.",
+  "docs": "Un blocco, due modalità:\n\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} />\n  <DiffView prima={revisione3.testo} dopo={revisione4.testo} modo=\"affiancato\" />\n\n`diffWords` (non diffLines né diffChars) è il livello giusto per prosa:\nisola \"100\" da \"80\" dentro la stessa frase senza spezzare le parole.\n`inline` (default) fonde il confronto in un paragrafo solo — `<del>`\nbarrato per il tolto, `<ins>` colorato per l'aggiunto, i tag semantici\nHTML5 di una modifica. `affiancato` compone `SplitView`: tolto a sinistra, aggiunto a destra, scorrimento sincronizzato.\n\nshadcn non ha un confronto testi già pronto. `diffWords` è una funzione\npura, non un widget: il rendering resta interamente nostro, come per\nreact-dropzone e react-pdf.",
   "type": "registry:block"
 }

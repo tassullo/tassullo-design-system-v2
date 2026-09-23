@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "sheet",
   "title": "Sheet",
-  "description": "Pannello laterale ancorato a un bordo. Lo usa la sidebar sotto la soglia mobile (M2.5).",
+  "description": "Pannello laterale ancorato a un bordo. Lo usa la sidebar sotto la soglia mobile.",
   "dependencies": [
     "@base-ui/react",
     "cn",

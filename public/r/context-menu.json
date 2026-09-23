@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "context-menu",
   "title": "Context Menu",
-  "description": "Le stesse azioni, col tasto destro. Serve alle righe delle tabelle di M3.3.",
+  "description": "Le stesse azioni, col tasto destro. Serve al menu di riga di tassullo-data-table.",
   "dependencies": [
     "@base-ui/react",
     "cn",

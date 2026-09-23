@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tassullo-error-state",
   "title": "Stato di errore",
-  "description": "L'«errore» dello standard unico di M3.5: un messaggio già tradotto per chi legge, mai uno stack trace, mai un codice HTTP nudo in UI. La stessa primitiva del vuoto, tinta di destructive-subtle — non alert, perché sostituisce un'intera sezione, non una riga accanto al contenuto.",
+  "description": "L'«errore» dello standard unico degli stati: un messaggio già tradotto per chi legge, mai uno stack trace, mai un codice HTTP nudo in UI. La stessa primitiva del vuoto, tinta di destructive-subtle — non alert, perché sostituisce un'intera sezione, non una riga accanto al contenuto.",
   "dependencies": [
     "cn",
     "lucide-react"
@@ -20,6 +20,6 @@
       "target": "components/blocks/error-state.tsx"
     }
   ],
-  "docs": "L'errore, in una forma sola:\n\n  <ErrorState\n    messaggio=\"Il servizio schede non risponde. Riprova fra qualche minuto.\"\n    onRiprova={() => ricarica()}\n  />\n\nÈ lo standard unico che INTERFACCE.md §1.1 di Anagrafe impone per l'errore:\nun messaggio del server quando è in italiano e specifico, uno generico\naltrimenti; mai uno stack trace, mai un codice HTTP nudo in UI; un 403\ndiventa sempre «Non hai i permessi per questa azione», mai il messaggio\ngrezzo del backend. Quella traduzione resta dell'app, che sa cosa il server\nha davvero risposto — questo blocco dà solo la forma in cui il messaggio,\ngià tradotto, si mostra.\n\nÈ la stessa primitiva del vuoto (empty), non alert: un errore che sostituisce\nun'intera sezione — la tabella non si è caricata, la scheda non si è aperta —\nè uno stato della pagina, non una riga di testo accanto al contenuto.",
+  "docs": "L'errore, in una forma sola:\n\n  <ErrorState\n    messaggio=\"Il servizio schede non risponde. Riprova fra qualche minuto.\"\n    onRiprova={() => ricarica()}\n  />\n\nÈ lo standard unico delle app Tassullo per l'errore:\nun messaggio del server quando è in italiano e specifico, uno generico\naltrimenti; mai uno stack trace, mai un codice HTTP nudo in UI; un 403\ndiventa sempre «Non hai i permessi per questa azione», mai il messaggio\ngrezzo del backend. Quella traduzione resta dell'app, che sa cosa il server\nha davvero risposto — questo blocco dà solo la forma in cui il messaggio,\ngià tradotto, si mostra.\n\nÈ la stessa primitiva del vuoto (empty), non alert: un errore che sostituisce\nun'intera sezione — la tabella non si è caricata, la scheda non si è aperta —\nè uno stato della pagina, non una riga di testo accanto al contenuto.",
   "type": "registry:block"
 }

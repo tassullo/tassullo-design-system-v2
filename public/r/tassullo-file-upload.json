@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tassullo-file-upload",
   "title": "Caricamento file",
-  "description": "Dropzone con trascinamento e selezione multipla, validazione di tipo e dimensione con errori tradotti per riga, ed elenco degli allegati — in coda, in corso con barra di avanzamento, riusciti o falliti. Utilizzabile da tastiera senza trascinamento (D8: react-dropzone).",
+  "description": "Dropzone con trascinamento e selezione multipla, validazione di tipo e dimensione con errori tradotti per riga, ed elenco degli allegati — in coda, in corso con barra di avanzamento, riusciti o falliti. Utilizzabile da tastiera senza trascinamento (react-dropzone).",
   "dependencies": [
     "cn",
     "lucide-react",
@@ -22,6 +22,6 @@
       "target": "components/blocks/file-upload.tsx"
     }
   ],
-  "docs": "Due componenti che si usano insieme:\n\n  <FileUpload\n    onFile={(file) => avviaCaricamento(file)}\n    onRifiutati={(rifiutati) => mostraErrori(rifiutati)}\n    accetta={{ 'application/pdf': ['.pdf'], 'image/*': [] }}\n    dimensioneMassima={5 * 1024 * 1024}\n  />\n  <FileUploadList file={file} onRimuovi={rimuovi} />\n\n`FileUpload` valida e seleziona — tipo e dimensione, errore già tradotto —\nma non carica niente da sé: l'upload vero (endpoint, retry) resta dell'app.\n`FileUploadList` renderizza la coda che l'app tiene in stato\n(`FileUploadItem[]`: in-coda | in-corso | riuscito | fallito, con\n`progresso` 0-100); la stessa forma serve per l'elenco degli allegati già\ncaricati in precedenza, passati come `riuscito` e senza `onRimuovi`.\n\nD8 (PIANO.md, M3.6): react-dropzone è un hook puro — solo\n`getRootProps`/`getInputProps`, niente markup proprio — quindi la forma resta\nnostra e sostituibile senza toccare l'API del blocco. `getRootProps` dà già\ntastiera e apertura del selettore nativo con Invio/Spazio, senza\ntrascinamento; `getErrorMessage` traduce i codici di rifiuto una volta sola.",
+  "docs": "Due componenti che si usano insieme:\n\n  <FileUpload\n    onFile={(file) => avviaCaricamento(file)}\n    onRifiutati={(rifiutati) => mostraErrori(rifiutati)}\n    accetta={{ 'application/pdf': ['.pdf'], 'image/*': [] }}\n    dimensioneMassima={5 * 1024 * 1024}\n  />\n  <FileUploadList file={file} onRimuovi={rimuovi} />\n\n`FileUpload` valida e seleziona — tipo e dimensione, errore già tradotto —\nma non carica niente da sé: l'upload vero (endpoint, retry) resta dell'app.\n`FileUploadList` renderizza la coda che l'app tiene in stato\n(`FileUploadItem[]`: in-coda | in-corso | riuscito | fallito, con\n`progresso` 0-100); la stessa forma serve per l'elenco degli allegati già\ncaricati in precedenza, passati come `riuscito` e senza `onRimuovi`.\n\nreact-dropzone è un hook puro — solo\n`getRootProps`/`getInputProps`, niente markup proprio — quindi la forma resta\nnostra e sostituibile senza toccare l'API del blocco. `getRootProps` dà già\ntastiera e apertura del selettore nativo con Invio/Spazio, senza\ntrascinamento; `getErrorMessage` traduce i codici di rifiuto una volta sola.",
   "type": "registry:block"
 }

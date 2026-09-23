@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "field",
   "title": "Field",
-  "description": "La riga etichetta + campo + descrizione + errore. Primitiva ufficiale shadcn per il compito: non si reinventa, e form-field (M3.4) ci si appoggia sopra.",
+  "description": "La riga etichetta + campo + descrizione + errore. Primitiva ufficiale shadcn per il compito: non si reinventa, e tassullo-form-field ci si appoggia sopra.",
   "dependencies": [
     "class-variance-authority",
     "cn"

@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "drawer",
   "title": "Drawer",
-  "description": "Pannello che entra dal bordo con trascinamento e punti d'aggancio. Il mattone mobile del responsive-dialog di M3.4.",
+  "description": "Pannello che entra dal bordo con trascinamento e punti d'aggancio. Il mattone mobile di tassullo-responsive-dialog.",
   "dependencies": [
     "@base-ui/react",
     "cn"

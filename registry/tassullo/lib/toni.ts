@@ -116,11 +116,11 @@ export const TONO_ALERT = {
  * ## Perché in questa forma e non in un'altra
  *
  * Le alternative erano un'opacità al punto d'uso (`hover:bg-current/10`) o una
- * variante nuova del bottone. La seconda è esclusa e **misurata**: aggiungere
- * nomi di variante al `cva` manda `check:registry` in rosso (M2.4). La prima
- * funziona ma introduce un colore che **nessun token dichiara** — e
- * `check:contrast` verifica le coppie di token, non le opacità in
- * composizione, quindi sarebbe un colore che nessun gate guarda più.
+ * variante nuova del bottone. La seconda è esclusa per la ragione detta in
+ * testa: un nome di variante in più rende il bottone non più aggiornabile da
+ * shadcn. La prima funziona ma introduce un colore che **nessun token
+ * dichiara** — e il contrasto si verifica sulle coppie di token, non sulle
+ * opacità in composizione, quindi sarebbe un colore che nessuno misura più.
  *
  * Qui invece il fondo di hover è il **bordo** della stessa famiglia
  * (`--*-border`), che è già il gradino più scuro del tono: l'hover si legge

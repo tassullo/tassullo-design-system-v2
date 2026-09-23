@@ -2,14 +2,15 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tassullo-pagina-errore",
   "title": "Pagina errore",
-  "description": "Gli stati di sistema: 404, accesso negato, errore del server, manutenzione — un tono per variante (lib/toni), un'icona per variante, e la stessa composizione della primitiva empty di tassullo-empty-state/tassullo-error-state. 404 e accesso-negato si montano dentro il guscio (la navigazione resta); errore-server e manutenzione sono schermo intero, sul modello di tassullo-pagina-login. Sesta e ultima pagina modello della FASE 4.",
+  "description": "Gli stati di sistema: 404, accesso negato, errore del server, manutenzione — un tono per variante (lib/toni), un'icona per variante, e la stessa composizione della primitiva empty di tassullo-empty-state/tassullo-error-state. 404 e accesso-negato si montano dentro il guscio (la navigazione resta); errore-server e manutenzione sono schermo intero, sul modello di tassullo-pagina-login. Pagina modello: si installa e si adatta.",
   "dependencies": [
     "cn",
     "lucide-react"
   ],
   "registryDependencies": [
     "@tassullo/empty",
-    "@tassullo/tema"
+    "@tassullo/tema",
+    "@tassullo/toni"
   ],
   "files": [
     {

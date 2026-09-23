@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "empty",
   "title": "Empty",
-  "description": "Stato vuoto. Mattone del blocco empty-state di M3.5.",
+  "description": "Stato vuoto. Mattone di tassullo-empty-state e tassullo-error-state.",
   "dependencies": [
     "class-variance-authority",
     "cn"

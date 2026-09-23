@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "dialog",
   "title": "Dialog",
-  "description": "Finestra modale: fuoco intrappolato, chiusura con Esc e clic fuori. Il mattone desktop del responsive-dialog di M3.4.",
+  "description": "Finestra modale: fuoco intrappolato, chiusura con Esc e clic fuori. Il mattone desktop di tassullo-responsive-dialog.",
   "dependencies": [
     "@base-ui/react",
     "cn",

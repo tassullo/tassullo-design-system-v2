@@ -20,8 +20,7 @@ import {
  * prop*, non un componente — quindi la regola del secondo consumatore non si
  * applica, ed è l'insieme chiuso a impedire che la diciassettesima soglia nasca.
  *
- * `1:1` è entrato su rilievo di Francesco il 2026-09-19, e con un consumatore
- * che c'è già: **i render dei sistemi Tassullo sono 1080×1080**. Su una
+ * `1:1` ha un consumatore che c'è già: **i render dei sistemi Tassullo sono 1080×1080**. Su una
  * sorgente quadrata `object-cover` a `4:3` taglia il **25%** dell'altezza e a
  * `16:9` il **43,75%** — e sul render del cappotto è misurato che a `16:9` il
  * taglio arriva sul soggetto, non solo sul fondo bianco. Senza `1:1` quel
@@ -52,7 +51,7 @@ type Rapporto = keyof typeof RAPPORTI
 // volta sola, qui dentro**, invece che in ogni pagina che mostra una foto.
 //
 // **`alt` è obbligatorio, e il tipo è l'unico controllo che lo vede.**
-// Verificato il 2026-09-19, non assunto: Base UI scrive `alt=""` su **ogni**
+// Verificato, non assunto: Base UI scrive `alt=""` su **ogni**
 // `<img>` che renda senza alt (`internals/useRenderElement.js:183`), quindi una
 // foto senza alternativa testuale non è un errore — diventa in silenzio una
 // foto *decorativa*, axe la promuove e `test:a11y` resta a zero violazioni.
@@ -82,9 +81,8 @@ function EntityImage({
   ratio?: Rapporto
   // Il default è `intera` perché la libreria di immagini di Tassullo è fatta
   // di soggetti scontornati e quadrati — sacchi, render di sistema — e un
-  // ritaglio toglie prodotto, non fondo (rilievo di Francesco in M5.0e,
-  // guardando `Primitive/EntityImage → Rapporti`: a 16:9 il sacco perdeva il
-  // nome). `riempi` resta per le fotografie con uno sfondo proprio.
+  // ritaglio toglie prodotto, non fondo (in `Primitive/EntityImage →
+  // Rapporti`, a 16:9 il sacco perdeva il nome). `riempi` resta per le fotografie con uno sfondo proprio.
   /**
    * Come l'immagine sta nel riquadro. `"intera"`, il predefinito, la scala
    * finché ci sta tutta, senza deformarla: per i soggetti scontornati, come

@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "popover",
   "title": "Popover",
-  "description": "Riquadro ancorato a un elemento, con fuoco e contenuto interattivo. Base del combobox di M2.6.",
+  "description": "Riquadro ancorato a un elemento, con fuoco e contenuto interattivo. Base del combobox.",
   "dependencies": [
     "@base-ui/react",
     "cn"
