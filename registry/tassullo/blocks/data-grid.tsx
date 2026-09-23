@@ -166,7 +166,12 @@ import {
   type ColonnaTabella,
   type DataTableProps,
 } from "@/registry/tassullo/blocks/data-table"
-import { formattatore, valuta as valutaFormattata } from "@/registry/tassullo/lib/numeri"
+import {
+  formattatore,
+  leggiNumero,
+  scriviNumero,
+  valuta as valutaFormattata,
+} from "@/registry/tassullo/lib/numeri"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Checkbox } from "@/registry/tassullo/ui/checkbox"
 import {
@@ -1302,36 +1307,8 @@ export function colonnaTestoGriglia<TDato extends RowData>(
  * Numero e valuta — stessa cella, una differenza di formattazione
  * ──────────────────────────────────────────────────────────────────────── */
 
-/**
- * **Si scrive con la virgola, come si legge.** La vista mostra `20,78 €`, e il
- * campo in modifica mostra e accetta `20,78`; il dato resta `20.78`, il
- * formato che `Number()` e Zod capiscono. Vale anche per copia e incolla: un
- * foglio di calcolo in italiano dà e riceve la virgola.
- *
- * Il punto, in italiano, separa le migliaia: `1.234,5` è milleduecento. Senza
- * virgola il punto è ambiguo, e si decide così: se raggruppa esattamente tre
- * cifre (`1.234`, `12.345.678`) sono migliaia, altrimenti è il decimale di chi
- * scrive o incolla all'inglese (`20.78`, `1.5`). Spazi e `€` si ignorano.
- */
-function leggiNumero(testo: string): string {
-  const t = testo.replace(/[\s€]/g, "")
-  if (t === "") return ""
-  const grezzo = t.includes(",")
-    ? t.replace(/\./g, "").replace(",", ".")
-    : /^-?\d{1,3}(\.\d{3})+$/.test(t)
-      ? t.replace(/\./g, "")
-      : t
-  // Un numero si riscrive nella forma canonica (`3,` → `3`, `20,780` →
-  // `20.78`); un testo che numero non è resta com'è, e lo rifiuta il validatore.
-  const numero = Number(grezzo)
-  return Number.isNaN(numero) ? grezzo : String(numero)
-}
-
-/** Dal dato al campo: il punto decimale diventa la virgola, senza migliaia. */
-function scriviNumero(valore: string): string {
-  return valore === "" || Number.isNaN(Number(valore)) ? valore : valore.replace(".", ",")
-}
-
+// Si scrive con la virgola, come si legge: la regola è di `lib/numeri`
+// (`leggiNumero`, `scriviNumero`), condivisa con `tassullo-foglio-gruppi`.
 const FORMATO_NUMERO: FormatoCellaGriglia = { perScrivere: scriviNumero, interpreta: leggiNumero }
 
 /** Un numero nella vista della cella: i decimali che ha, fino a tre come

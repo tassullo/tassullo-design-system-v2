@@ -10,7 +10,13 @@ import {
   type GruppoFoglio,
 } from '@/registry/tassullo/blocks/foglio-gruppi'
 import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
-import { decimale, valuta } from '@/registry/tassullo/lib/numeri'
+import {
+  decimale,
+  formattatore,
+  leggiNumero,
+  scriviNumero,
+  valuta,
+} from '@/registry/tassullo/lib/numeri'
 import {
   ResponsiveDialog,
   ResponsiveDialogBody,
@@ -43,10 +49,24 @@ type Misurazione = {
   altezza: string
 }
 
+/**
+ * I numeri del dato sono stringhe col punto (`'0.5'`), la forma che `Number()`
+ * legge; si scrivono con la virgola (`0,5`), e `leggiNumero` accetta tutte e
+ * due — serve anche al cassetto, dove il parziale si ricalcola su ciò che si
+ * sta scrivendo.
+ */
 const numero = (v: string) => {
-  const n = parseFloat(v.trim().replace(',', '.'))
+  if (v.trim() === '') return null
+  const n = Number(leggiNumero(v))
   return Number.isNaN(n) ? null : n
 }
+
+/** Si scrive `20,78`, il dato resta `20.78`: v. `formato` in `CellaScrivibile`. */
+const SCRITTURA_NUMERO = { perScrivere: scriviNumero, interpreta: leggiNumero }
+
+/** Una misura nella vista: la virgola, i decimali che ha, il punto delle migliaia. */
+const mostraMisura = (valore: string) =>
+  valore === '' ? ' ' : formattatore().format(Number(valore))
 
 /** Σ parti × Π(fattori non nulli) — la formula di Primus. */
 const parziale = (m: Misurazione) => {
@@ -73,26 +93,26 @@ const soloNumero = (valore: string) =>
 const COMPUTO: GruppoFoglio<Voce, Misurazione>[] = [
   {
     id: 'v1',
-    testata: { designazione: 'RASATURA ARMATA — Tradizionale', unita: 'm²', prezzo: '28,82' },
+    testata: { designazione: 'RASATURA ARMATA — Tradizionale', unita: 'm²', prezzo: '28.82' },
     righe: [
-      { descrizione: 'Piano terra — ambiente 1', parti: '1', lunghezza: '10', larghezza: '1', altezza: '0,5' },
-      { descrizione: 'Piano terra — ambiente 2', parti: '1', lunghezza: '5', larghezza: '3,5', altezza: '' },
-      { descrizione: 'detrazione porta', parti: '-1', lunghezza: '0,9', larghezza: '2,1', altezza: '' },
+      { descrizione: 'Piano terra — ambiente 1', parti: '1', lunghezza: '10', larghezza: '1', altezza: '0.5' },
+      { descrizione: 'Piano terra — ambiente 2', parti: '1', lunghezza: '5', larghezza: '3.5', altezza: '' },
+      { descrizione: 'detrazione porta', parti: '-1', lunghezza: '0.9', larghezza: '2.1', altezza: '' },
     ],
   },
   {
     id: 'v2',
-    testata: { designazione: 'EFFETTO CALCE — Grana fine grandi metrature', unita: 'm²', prezzo: '35,03' },
+    testata: { designazione: 'EFFETTO CALCE — Grana fine grandi metrature', unita: 'm²', prezzo: '35.03' },
     righe: [
-      { descrizione: 'Piano primo — corridoio', parti: '1', lunghezza: '12', larghezza: '2,7', altezza: '' },
+      { descrizione: 'Piano primo — corridoio', parti: '1', lunghezza: '12', larghezza: '2.7', altezza: '' },
     ],
   },
   {
     id: 'v3',
-    testata: { designazione: 'MURO — Bioedilizia', unita: 'm³', prezzo: '14,48' },
+    testata: { designazione: 'MURO — Bioedilizia', unita: 'm³', prezzo: '14.48' },
     righe: [
-      { descrizione: 'Piano secondo — ambiente 1', parti: '2', lunghezza: '4', larghezza: '0,3', altezza: '2,7' },
-      { descrizione: 'Piano secondo — ambiente 2', parti: '1', lunghezza: '6,5', larghezza: '0,3', altezza: '2,7' },
+      { descrizione: 'Piano secondo — ambiente 1', parti: '2', lunghezza: '4', larghezza: '0.3', altezza: '2.7' },
+      { descrizione: 'Piano secondo — ambiente 2', parti: '1', lunghezza: '6.5', larghezza: '0.3', altezza: '2.7' },
     ],
   },
 ]
@@ -131,13 +151,17 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
     },
   },
   { id: 'parti', titolo: 'Par.ug.', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.parti, scrivi: (m, v) => ({ ...m, parti: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.parti, scrivi: (m, v) => ({ ...m, parti: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   { id: 'lunghezza', titolo: 'Lung.', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.lunghezza, scrivi: (m, v) => ({ ...m, lunghezza: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.lunghezza, scrivi: (m, v) => ({ ...m, lunghezza: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   { id: 'larghezza', titolo: 'Larg.', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.larghezza, scrivi: (m, v) => ({ ...m, larghezza: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.larghezza, scrivi: (m, v) => ({ ...m, larghezza: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   { id: 'altezza', titolo: 'H/Peso', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.altezza, scrivi: (m, v) => ({ ...m, altezza: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.altezza, scrivi: (m, v) => ({ ...m, altezza: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   {
     id: 'quantita',
     titolo: 'Quantità',
@@ -160,6 +184,10 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
       scrivi: (v, valore) => ({ ...v, prezzo: valore }),
       segnaposto: 'da prezzare',
       valida: soloNumero,
+      formato: SCRITTURA_NUMERO,
+      // La coda di ciò che `valuta()` scrive: in modifica il simbolo resta
+      // accanto al campo, e le cifre non si spostano.
+      suffisso: '\u00a0€',
       mostra: (valore) => (valore ? valuta(numero(valore) ?? 0) : 'da prezzare'),
     },
   },
@@ -280,7 +308,8 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   vuole sapere cosa è cambiato ascolta `onModifica`.
  * - Ogni colonna dichiara `id`, `titolo`, `larghezza`, `allineamento` e una
  *   cella per zona: `testata`, `corpo`, `piede`. Una cella è `scrivibile` —
- *   `leggi`, `scrivi`, e a scelta `mostra`, `valida`, `segnaposto` — oppure
+ *   `leggi`, `scrivi`, e a scelta `mostra`, `valida`, `segnaposto`,
+ *   `formato`, `suffisso` — oppure
  *   `calcolata`, con `rendi`, oppure `fissa`. Una zona senza cella resta
  *   vuota.
  * - `azione` è il comando frequente del gruppo, su una riga propria fra corpo
@@ -298,8 +327,18 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *
  * - Il foglio conosce solo stringhe: `leggi` e `scrivi` convertono, e `mostra`
  *   formatta per la vista con le funzioni dell'item `numeri` — `decimale()`,
- *   `valuta()` — che scrivono sempre il separatore delle migliaia. Le colonne
- *   con `allineamento: 'destra'` hanno già le cifre tabellari.
+ *   `valuta()`, `formattatore()` — che scrivono sempre il separatore delle
+ *   migliaia. Le colonne con `allineamento: 'destra'` hanno già le cifre
+ *   tabellari.
+ * - Un numero si scrive con la virgola, come si legge: la cella riceve
+ *   `formato: { perScrivere: scriviNumero, interpreta: leggiNumero }`, con le
+ *   due funzioni dell'item `numeri`. Il campo si apre con `20,78`, e ciò che
+ *   si scrive arriva a `valida` e a `scrivi` già col punto, `20.78`. Il punto
+ *   vale come separatore delle migliaia se raggruppa tre cifre (`1.234`),
+ *   altrimenti come decimale.
+ * - `suffisso` resta accanto al campo in modifica, fuori da ciò che si scrive:
+ *   per un prezzo, `'\u00a0€'`, la coda di ciò che `valuta()` mostra. Senza,
+ *   le cifre allineate a destra si spostano aprendo la modifica.
  * - `valida` restituisce il messaggio d'errore, o `undefined` se il valore va
  *   bene.
  * - Un gruppo senza righe mostra comunque testata e piede: è la voce appena
@@ -519,7 +558,7 @@ function SchedeComputo({
   }
 
   const fattori = (m: Misurazione) =>
-    [m.parti, m.lunghezza, m.larghezza, m.altezza].filter(Boolean).join(' × ')
+    [m.parti, m.lunghezza, m.larghezza, m.altezza].filter(Boolean).map(scriviNumero).join(' × ')
 
   const voceCorrente = voceAperta != null ? gruppi[voceAperta]?.testata : undefined
   const misuraCorrente =
@@ -612,8 +651,10 @@ function SchedeComputo({
           aperto={voceAperta != null}
           onApertoCambia={(v) => setVoceAperta(v ? voceAperta : null)}
           titolo="Voce di computo"
-          valoreIniziale={voceCorrente}
-          onConferma={(v) => aggiornaVoce(voceAperta!, v)}
+          // Nel cassetto si scrive come nel foglio: con la virgola all'apertura,
+          // interpretato alla conferma.
+          valoreIniziale={{ ...voceCorrente, prezzo: scriviNumero(voceCorrente.prezzo) }}
+          onConferma={(v) => aggiornaVoce(voceAperta!, { ...v, prezzo: leggiNumero(v.prezzo) })}
           campi={(bozza, scriviBozza) => (
             <>
               <CampoCassetto
@@ -645,8 +686,22 @@ function SchedeComputo({
           aperto={misuraAperta != null}
           onApertoCambia={(v) => setMisuraAperta(v ? misuraAperta : null)}
           titolo="Misurazione"
-          valoreIniziale={misuraCorrente}
-          onConferma={(m) => aggiornaMisura(misuraAperta!.g, misuraAperta!.m, m)}
+          valoreIniziale={{
+            ...misuraCorrente,
+            parti: scriviNumero(misuraCorrente.parti),
+            lunghezza: scriviNumero(misuraCorrente.lunghezza),
+            larghezza: scriviNumero(misuraCorrente.larghezza),
+            altezza: scriviNumero(misuraCorrente.altezza),
+          }}
+          onConferma={(m) =>
+            aggiornaMisura(misuraAperta!.g, misuraAperta!.m, {
+              ...m,
+              parti: leggiNumero(m.parti),
+              lunghezza: leggiNumero(m.lunghezza),
+              larghezza: leggiNumero(m.larghezza),
+              altezza: leggiNumero(m.altezza),
+            })
+          }
           campi={(bozza, scriviBozza) => (
             <>
               <CampoCassetto

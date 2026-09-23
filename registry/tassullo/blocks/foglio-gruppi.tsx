@@ -124,6 +124,19 @@ export type CellaScrivibile<TDato> = {
   segnaposto?: string
   /** Messaggio d'errore, o `undefined` se il valore va bene. */
   valida?: (valore: string) => string | undefined
+  /**
+   * Come si scrive il valore, se non com'è: `perScrivere` va dal valore al
+   * campo in modifica, `interpreta` da ciò che si è scritto al valore, prima
+   * di `valida` e di `scrivi`. Per i numeri, `leggiNumero` e `scriviNumero`
+   * dell'item `numeri`: si scrive `20,78`, il valore resta `20.78`.
+   */
+  formato?: { perScrivere: (valore: string) => string; interpreta: (testo: string) => string }
+  /**
+   * Testo fisso accanto al campo in modifica, fuori da ciò che si scrive —
+   * « €» per un prezzo. Deve essere la coda di ciò che `mostra` scrive, o le
+   * cifre si spostano aprendo la modifica.
+   */
+  suffisso?: string
 }
 
 export type CellaCalcolata<TDato, TAltro = never> = {
@@ -314,7 +327,14 @@ export function useFoglioGruppi<TTestata, TRiga>({
     return null
   }, [matrice])
 
-  const errore = inModifica ? cellaScrivibile(inModifica)?.valida?.(bozza) : undefined
+  const interpreta = (p: PosizioneFoglio, testo: string) =>
+    cellaScrivibile(p)?.formato?.interpreta(testo) ?? testo
+  const perScrivere = (p: PosizioneFoglio, valore: string) =>
+    cellaScrivibile(p)?.formato?.perScrivere(valore) ?? valore
+
+  // L'errore si calcola su ciò che si scriverà nel dato, non sul testo grezzo:
+  // `20,78` è valido anche se `valida` si aspetta `20.78`.
+  const errore = inModifica ? cellaScrivibile(inModifica)?.valida?.(interpreta(inModifica, bozza)) : undefined
 
   const vaiA = (p: PosizioneFoglio) => {
     if (inModifica && !stessaPosizione(inModifica, p)) {
@@ -359,7 +379,7 @@ export function useFoglioGruppi<TTestata, TRiga>({
     if (!p || !cellaScrivibile(p)) return
     setPosizione(p)
     setInModifica(p)
-    setBozza(valoreIniziale ?? valoreDi(p))
+    setBozza(valoreIniziale ?? perScrivere(p, valoreDi(p)))
   }
 
   const annullaModifica = () => setInModifica(null)
@@ -368,21 +388,22 @@ export function useFoglioGruppi<TTestata, TRiga>({
     if (!inModifica) return true
     const cella = cellaScrivibile(inModifica)
     if (!cella) return true
-    if (cella.valida?.(bozza)) return false
     const p = inModifica
+    const valore = interpreta(p, bozza)
+    if (cella.valida?.(valore)) return false
     const nuovi = gruppi.map((gruppo, gi) => {
       if (gi !== p.gruppo) return gruppo
       if (p.zona === "corpo") {
         return {
           ...gruppo,
           righe: gruppo.righe.map((riga, ri) =>
-            ri === p.riga ? (cella.scrivi as (d: unknown, v: string) => TRiga)(riga, bozza) : riga
+            ri === p.riga ? (cella.scrivi as (d: unknown, v: string) => TRiga)(riga, valore) : riga
           ),
         }
       }
       return {
         ...gruppo,
-        testata: (cella.scrivi as (d: unknown, v: string) => TTestata)(gruppo.testata, bozza),
+        testata: (cella.scrivi as (d: unknown, v: string) => TTestata)(gruppo.testata, valore),
       }
     })
     scriviGruppi(nuovi)
@@ -621,23 +642,37 @@ function CellaFoglio<TTestata, TRiga>({
     const errore = motore.errore
     return (
       <TableCell className="p-0">
-        <input
-          autoFocus
+        <div
           className={cn(
-            "w-full bg-transparent px-2 py-1 outline-none ring-2 ring-ring ring-inset",
-            colonna.allineamento === "destra" && "text-right tabular-nums",
+            "flex items-center ring-2 ring-ring ring-inset",
             errore && "ring-destructive"
           )}
-          value={motore.bozza}
-          aria-label={etichettaColonna}
-          aria-invalid={errore ? true : undefined}
-          aria-describedby={errore ? `errore-${colonna.id}` : undefined}
-          onChange={(e) => motore.aggiornaBozza(e.target.value)}
-          onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
-          onBlur={() => {
-            if (!motore.confermaModifica()) motore.annullaModifica()
-          }}
-        />
+        >
+          <input
+            autoFocus
+            className={cn(
+              "min-w-0 flex-1 bg-transparent px-2 py-1 outline-none",
+              colonna.allineamento === "destra" && "text-right tabular-nums",
+              cella.suffisso && "pr-0"
+            )}
+            value={motore.bozza}
+            aria-label={etichettaColonna}
+            aria-invalid={errore ? true : undefined}
+            aria-describedby={errore ? `errore-${colonna.id}` : undefined}
+            onChange={(e) => motore.aggiornaBozza(e.target.value)}
+            onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
+            onBlur={() => {
+              if (!motore.confermaModifica()) motore.annullaModifica()
+            }}
+          />
+          {/* Il suffisso resta dov'era nella vista: senza, le cifre di un
+              prezzo allineato a destra saltavano della larghezza di « €». */}
+          {cella.suffisso ? (
+            <span aria-hidden className="shrink-0 py-1 pr-2">
+              {cella.suffisso}
+            </span>
+          ) : null}
+        </div>
         {errore ? (
           <span id={`errore-${colonna.id}`} className="sr-only">
             {errore}
@@ -655,7 +690,7 @@ function CellaFoglio<TTestata, TRiga>({
         // così `Tab` esce dal foglio in una fermata invece di attraversarlo.
         tabIndex={tabbabile ? 0 : -1}
         role="button"
-        aria-label={`${etichettaColonna}: ${valore || "vuoto"}`}
+        aria-label={`${etichettaColonna}: ${(cella.formato?.perScrivere(valore) ?? valore) || "vuoto"}`}
         className={cn(
           // `truncate` è il prezzo di `table-fixed`, la stessa scelta già presa
           // in `data-table`: con le larghezze decise dalle colonne, un testo

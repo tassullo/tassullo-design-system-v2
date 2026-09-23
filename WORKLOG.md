@@ -12515,3 +12515,13 @@ Francesco: «fai scrivere con la virgola anche in modifica». Nella `data-grid` 
 **Da sapere sullo strumento**: nei test da tastiera sul Mac `Control`+`A` in un campo porta il cursore a inizio riga (è la scorciatoia di sistema) e `Control`+`C` non copia; la prima passata di misura sembrava dire che la virgola non funzionava. Si scrive `ControlOrMeta`.
 
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` pulita in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+### Coda di M5.0d, sesta — la virgola anche nel foglio a gruppi
+
+Francesco: «facciamo la stessa cosa nel foglio a gruppi». Misurato prima: la virgola c'era già, ma `1.234,5` diventava `1,23 €` e il prezzo in modifica perdeva « €». Ora:
+- **`lib/numeri`**: `leggiNumero` e `scriviNumero` esportate, con la regola del punto ambiguo; la `data-grid` usa queste invece delle sue copie. `public/r/numeri.json` rigenerato.
+- **`foglio-gruppi.tsx`**: `CellaScrivibile` ha `formato` e `suffisso`; apertura, conferma, errore a schermo e nome accessibile della cella passano dal formato; il campo in modifica sta in un contenitore con l'anello e il suffisso accanto.
+- **La scena**: dati col punto, `SCRITTURA_NUMERO` sulle cinque colonne di numeri, `mostraMisura` per le misure, `suffisso` sul prezzo; il cassetto della faccia stretta converte all'apertura e alla conferma.
+- **La pagina** `Blocchi/Foglio a gruppi`: `formato` e `suffisso` fra le parti, e due regole d'uso.
+
+Misure in `DECISIONI.md` §56.12. **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
