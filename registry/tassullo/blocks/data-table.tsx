@@ -1653,11 +1653,13 @@ function ManigliaRidimensiona<TDato extends RowData>({
   tabellaRef,
   header,
   titolo,
+  fuoriDalTab = false,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
   header: Header<CaratteristicheTabella, TDato, unknown>
   titolo: string
+  fuoriDalTab?: boolean
 }) {
   const colonna = header.column
   const min = colonna.columnDef.minSize ?? 20
@@ -1690,7 +1692,7 @@ function ManigliaRidimensiona<TDato extends RowData>({
       aria-valuenow={Math.round(colonna.getSize())}
       aria-valuemin={min}
       aria-valuemax={max === Number.MAX_SAFE_INTEGER ? undefined : max}
-      tabIndex={0}
+      tabIndex={fuoriDalTab ? -1 : 0}
       // `preventDefault()` prima di delegare a TanStack, non dopo: in
       // Safari (non in Chrome, preso da Francesco) un `mousedown` non
       // impedito fa scattare anche la selezione di testo nativa mentre si
@@ -1838,6 +1840,7 @@ function CellaIntestazione<TDato extends RowData>({
   bloccoLegacy,
   conDimensioni,
   selezione,
+  manigliaFuoriDalTab,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
@@ -1849,6 +1852,7 @@ function CellaIntestazione<TDato extends RowData>({
   bloccoLegacy: boolean
   conDimensioni: boolean
   selezione: boolean
+  manigliaFuoriDalTab?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: intestazione.column.id,
@@ -1942,6 +1946,7 @@ function CellaIntestazione<TDato extends RowData>({
             tabellaRef={tabellaRef}
             header={intestazione}
             titolo={titoloColonna}
+            fuoriDalTab={manigliaFuoriDalTab}
           />
         ) : null}
       </TableHead>
@@ -3258,6 +3263,13 @@ export type DataTableProps<TDato extends RowData> = {
   internoGriglia?: {
     senzaFocoRiga: boolean
     alVirtualizzatore: (vaiA: (indice: number) => void) => void
+    /**
+     * Le maniglie di ridimensionamento fuori dall'ordine di `Tab`: nella Data
+     * Grid la tabella è un fermo solo, e passare per una maniglia per colonna
+     * prima di arrivare alle celle non serve (rilievo di Francesco). La
+     * tastiera le raggiunge dalla cella, con `Alt` e le frecce.
+     */
+    maniglieFuoriDalTab?: boolean
   }
   /**
    * @internal Attributi passati al `<table>` così com'è (`role`,
@@ -4104,6 +4116,7 @@ export function DataTable<TDato extends RowData>({
                   bloccoLegacy={bloccoLegacy}
                   conDimensioni={conDimensioni}
                   selezione={selezione}
+                  manigliaFuoriDalTab={internoGriglia?.maniglieFuoriDalTab}
                 />
               ))}
             </TableRow>

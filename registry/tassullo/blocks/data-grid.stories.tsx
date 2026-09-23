@@ -184,8 +184,8 @@ function ComputoFinto() {
  *   il bordo si attenua e la riga intera prende un fondo tenue: resta chiaro
  *   su quale riga si stava lavorando. Un comando fuori dalla griglia che
  *   agisce sulla riga attiva si legge così. Il `Tab` segue l'ordine della
- *   pagina: arriva alla griglia dopo i controlli che la precedono — la barra,
- *   le maniglie delle colonne — ed entra proprio sulla cella segnata.
+ *   pagina: arriva alla griglia dopo i controlli che la precedono, come la
+ *   barra, ed entra proprio sulla cella segnata.
  * - La data è un campo nativo `<input type="date">`, non il calendario.
  * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
  *   `numeri`, quindi col separatore delle migliaia sempre scritto
@@ -209,7 +209,10 @@ function ComputoFinto() {
  * `X` e `V` copiano, tagliano e incollano come testo separato da tabulazioni,
  * quindi anche da e verso un foglio di calcolo; `Z` annulla, `Maiusc`+`Z` o `Y`
  * ripete, `A` seleziona tutto, `Invio` riempie la selezione col valore della
- * cella in alto a sinistra. La casella si spunta con `Spazio` o `Invio`.
+ * cella in alto a sinistra. `Alt` con `←` o `→` restringe o allarga di 16px
+ * la colonna della cella attiva: le maniglie sul bordo delle intestazioni si
+ * trascinano col puntatore, ma non sono fermi di `Tab`. La casella si spunta
+ * con `Spazio` o `Invio`.
  * Sulla cella di comando `Invio` o `Spazio` premono il bottone; dopo
  * un'eliminazione il fuoco passa alla stessa cella della riga seguente.
  */

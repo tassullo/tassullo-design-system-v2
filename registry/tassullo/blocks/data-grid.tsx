@@ -165,6 +165,7 @@ import {
   creaColonne,
   type ColonnaTabella,
   type DataTableProps,
+  type IstanzaTabella,
 } from "@/registry/tassullo/blocks/data-table"
 import {
   formattatore,
@@ -303,6 +304,8 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
   registraFormato: (colonnaId: string, formato: FormatoCellaGriglia | null) => void
   /** Wiring privata per `<DataGrid>`: v. il commento in testa al file. */
   registraSpostamentoVerticale: (f: ((indiceRiga: number) => void) | null) => void
+  /** Wiring privata per `<DataGrid>`: allarga o restringe una colonna da tastiera. */
+  registraRidimensiona: (f: ((colonnaId: string, delta: number) => void) | null) => void
 }
 
 /**
@@ -685,6 +688,14 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     setObiettivoRiempimento(null)
   }
 
+  const ridimensionaRef = React.useRef<((colonnaId: string, delta: number) => void) | null>(null)
+  const registraRidimensiona = React.useCallback(
+    (f: ((colonnaId: string, delta: number) => void) | null) => {
+      ridimensionaRef.current = f
+    },
+    []
+  )
+
   const spostamentoVerticaleRef = React.useRef<((indice: number) => void) | null>(null)
   const registraSpostamentoVerticale = React.useCallback(
     (f: ((indice: number) => void) | null) => {
@@ -778,6 +789,16 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     // (l'errore veniva inghiottito da un `.catch(() => {})`). Rilievo di
     // Francesco: "ho provato a incollare e non succede nulla", provato solo
     // in Safari. V. `DataGridClipboard`, sotto.
+    // **`Alt` e le frecce laterali allargano o restringono la colonna** della
+    // cella attiva, di 16px — lo stesso passo della maniglia. Le maniglie
+    // nella griglia sono fuori dall'ordine di `Tab` (la griglia è un fermo
+    // solo), e questa è la loro via da tastiera.
+    if (evento.altKey && !mod && (evento.key === "ArrowLeft" || evento.key === "ArrowRight")) {
+      evento.preventDefault()
+      ridimensionaRef.current?.(id.colonnaId, evento.key === "ArrowRight" ? 16 : -16)
+      return
+    }
+
     if (mod) {
       const tasto = evento.key.toLowerCase()
       if (evento.key === "Enter") {
@@ -899,6 +920,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     registraValidatore,
     registraFormato,
     registraSpostamentoVerticale,
+    registraRidimensiona,
   }
 }
 
@@ -1939,6 +1961,23 @@ export function DataGrid<TDato extends RowData>({
     return () => motore.registraSpostamentoVerticale(null)
   }, [motore])
 
+  // L'istanza della tabella, per allargare una colonna da tastiera: stessa
+  // misura e stessi limiti della maniglia (`minSize`, `maxSize`).
+  const tabellaGrigliaRef = React.useRef<IstanzaTabella<TDato> | null>(null)
+  React.useEffect(() => {
+    motore.registraRidimensiona((colonnaId, delta) => {
+      const colonna = tabellaGrigliaRef.current?.getColumn(colonnaId)
+      if (!colonna || !colonna.getCanResize()) return
+      const min = colonna.columnDef.minSize ?? 20
+      const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
+      tabellaGrigliaRef.current?.setColumnSizing((prima) => {
+        const attuale = prima[colonnaId] ?? colonna.getSize()
+        return { ...prima, [colonnaId]: Math.min(max, Math.max(min, attuale + delta)) }
+      })
+    })
+    return () => motore.registraRidimensiona(null)
+  }, [motore])
+
   /**
    * **Dove sta il fuoco, rispetto alle celle**: `"mai"` finché nessuno ha
    * toccato la griglia, poi `"dentro"` o `"fuori"`. Serve a segnare la cella
@@ -2030,13 +2069,17 @@ export function DataGrid<TDato extends RowData>({
           perPagina="virtuale"
           altezza="ferma"
           barra={barra}
-          internoGriglia={{ senzaFocoRiga: true, alVirtualizzatore }}
+          internoGriglia={{ senzaFocoRiga: true, alVirtualizzatore, maniglieFuoriDalTab: true }}
           attributiTabella={{
             role: "grid",
             "aria-rowcount": motore.righe.length,
             "aria-colcount": motore.colonneId.length + (motore.colonneAzioneId?.length ?? 0),
           }}
           {...resto}
+          onTabellaPronta={(tabella) => {
+            tabellaGrigliaRef.current = tabella
+            resto.onTabellaPronta?.(tabella)
+          }}
           className={cn(
             resto.className,
             // Il riquadro della tabella ha gli angoli arrotondati e taglia ciò

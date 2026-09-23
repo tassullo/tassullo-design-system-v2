@@ -12551,3 +12551,9 @@ Francesco: il testo in modifica deve essere uguale a quello chiuso, stile e posi
 Sulla prova del `Tab` (§56.14), Francesco in Safari: dopo «Colonne», «Aggiungi riga» e la maniglia di Codice, il fuoco va direttamente alla cella segnata, senza le maniglie delle altre colonne. La cella segnata è raggiunta: è l'esito atteso.
 
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `Esc`/`Invio` nel foglio tengono il fuoco; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+### Coda di M5.0d, decima — le maniglie della `data-grid` fuori dal `Tab`
+
+Francesco, provato in Chrome e Safari: da «Aggiungi riga» il `Tab` passava per le cinque maniglie delle colonne prima della cella, e non gli serve. Tolte dall'ordine di `Tab` nella sola griglia (`internoGriglia.maniglieFuoriDalTab` in `data-table.tsx`, `tabIndex={-1}` sulla maniglia), e aggiunta la loro via da tastiera dalla cella: `Alt`+`←`/`→`. Misure in `DECISIONI.md` §56.16; pagina `Blocchi/Data Grid` aggiornata (tastiera e regola sul `Tab`). Nel `data-table` le maniglie restano come sono.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build` (`tassullo-data-table` e `tassullo-data-grid`); Docs pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
