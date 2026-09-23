@@ -12534,3 +12534,12 @@ Francesco ha detto sì alla proposta di portare nel foglio a gruppi la riga di l
 - La pagina `Blocchi/Foglio a gruppi` ha la regola della riga segnata.
 
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+### Coda di M5.0d, ottava — le prove in Safari
+
+Francesco ha provato la lista di verifica in Safari: sette su sette buone tranne il rientro col `Tab`, più due rilievi con schermata. Corretti o riscritti, e misurati in Chromium **e in WebKit** (Playwright, dalla cartella temporanea) — WebKit è quello di Safari, e da qui in poi le prove di comportamento sui blocchi editabili si fanno in tutti e due. Dettagli in `DECISIONI.md` §56.14.
+- **`Tab` dopo un clic fuori**: la promessa era sbagliata, non il blocco. Pagine riscritte.
+- **Il testo che scende di un pixel aprendo la modifica** (e la tendina U.M. che si spostava di 8px): `RiquadroModifica` nella griglia, stessa misura della cella chiusa. Vista e modifica ora coincidono.
+- **L'anello tagliato nell'angolo dell'ultima riga**: curva del riquadro sugli angoli.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.

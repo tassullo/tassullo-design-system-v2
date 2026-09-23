@@ -345,8 +345,9 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   aggiunta, che ha un prezzo e non ha ancora misure.
  * - Quando il fuoco lascia il foglio — un clic su «Salva», su un filtro,
  *   altrove nella pagina — la cella su cui si lavorava tiene un bordo sottile
- *   e la sua riga un fondo tenue: resta chiaro dove si era, e `Tab` rientra
- *   proprio lì. Un campo aperto si conferma, come per ogni uscita.
+ *   e la sua riga un fondo tenue: resta chiaro dove si era. Un campo aperto si
+ *   conferma, come per ogni uscita. Il `Tab` segue l'ordine della pagina, e
+ *   quando arriva al foglio entra proprio sulla cella segnata.
  * - Su uno schermo stretto il foglio non si comprime: la pagina sceglie una
  *   seconda faccia, una lista in sola lettura che apre la modifica in un
  *   cassetto (`tassullo-responsive-dialog`). La scena «Due Facce» è la

@@ -182,8 +182,10 @@ function ComputoFinto() {
  * - La cella attiva ha sempre il suo bordo, anche dopo un clic. Quando il
  *   fuoco lascia la griglia — per «Salva», un filtro, un bottone della barra —
  *   il bordo si attenua e la riga intera prende un fondo tenue: resta chiaro
- *   su quale riga si stava lavorando, e `Tab` rientra proprio lì. Un comando
- *   fuori dalla griglia che agisce sulla riga attiva si legge così.
+ *   su quale riga si stava lavorando. Un comando fuori dalla griglia che
+ *   agisce sulla riga attiva si legge così. Il `Tab` segue l'ordine della
+ *   pagina: arriva alla griglia dopo i controlli che la precedono — la barra,
+ *   le maniglie delle colonne — ed entra proprio sulla cella segnata.
  * - La data è un campo nativo `<input type="date">`, non il calendario.
  * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
  *   `numeri`, quindi col separatore delle migliaia sempre scritto

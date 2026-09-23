@@ -1251,7 +1251,7 @@ function CellaTestoGriglia<TDato extends RowData>({
 
   if (inModifica) {
     return (
-      <>
+      <RiquadroModifica erroreId={erroreId} errore={errore}>
         <input
           ref={inputRef}
           value={motore.draftModifica}
@@ -1263,13 +1263,12 @@ function CellaTestoGriglia<TDato extends RowData>({
           aria-invalid={!!errore}
           aria-describedby={errore ? erroreId : undefined}
           className={cn(
-            "block h-full w-full truncate bg-transparent outline-none",
+            "block w-full truncate bg-transparent outline-none",
             errore && "text-destructive"
           )}
           aria-label={colonnaId}
         />
-        {nodoErroreCella(erroreId, errore)}
-      </>
+      </RiquadroModifica>
     )
   }
 
@@ -1393,33 +1392,28 @@ function CellaNumericaGriglia<TDato extends RowData>({
         aria-describedby={errore ? erroreId : undefined}
         inputMode="decimal"
         className={cn(
-          "block h-full truncate bg-transparent text-right tabular-nums outline-none",
-          valuta ? "min-w-0 flex-1" : "w-full",
+          "block truncate bg-transparent text-right tabular-nums outline-none",
+          "min-w-0 flex-1",
           errore && "text-destructive"
         )}
         aria-label={colonnaId}
       />
     )
     return (
-      <>
+      <RiquadroModifica erroreId={erroreId} errore={errore}>
+        {campo}
+        {/* **Il simbolo resta dov'era.** La vista scrive `20,78 €`, il campo
+            `20,78`: senza il simbolo le cifre, allineate a destra, saltavano
+            della larghezza di « €» appena si apriva la modifica (rilievo di
+            Francesco). Resta fuori dal campo — non si scrive e non si
+            cancella — con lo stesso spazio non divisibile che mette
+            `valuta()`, quindi con la stessa larghezza. */}
         {valuta ? (
-          // **Il simbolo resta dov'era.** La vista scrive `20,78 €`, il campo
-          // `20.78`: senza il simbolo le cifre, allineate a destra, saltavano
-          // verso destra della larghezza di « €» appena si apriva la modifica
-          // (rilievo di Francesco). Il simbolo resta fuori dal campo — non si
-          // scrive e non si cancella — con lo stesso spazio non divisibile che
-          // mette `valuta()`, quindi con la stessa larghezza.
-          <div className="flex h-full w-full items-center">
-            {campo}
-            <span aria-hidden className="shrink-0">
-              {"\u00a0€"}
-            </span>
-          </div>
-        ) : (
-          campo
-        )}
-        {nodoErroreCella(erroreId, errore)}
-      </>
+          <span aria-hidden className="shrink-0">
+            {"\u00a0€"}
+          </span>
+        ) : null}
+      </RiquadroModifica>
     )
   }
 
@@ -1481,6 +1475,32 @@ export function colonnaValutaGriglia<TDato extends RowData>(
       <CellaNumericaGriglia info={info} colonnaId={id} validazione={opzioni?.validazione} valuta />
     ),
   })
+}
+
+/**
+ * Il riquadro di un campo in modifica: **lo stesso** della cella chiusa
+ * (`-m-2 min-h-9 p-2`, v. `classiVistaCella`), così il testo non si sposta
+ * aprendo la modifica. Prima il campo stava direttamente nel `<td>`,
+ * centrato in altezza, e il testo scendeva di un pixel (misurato su tutte le
+ * colonne del Computo, rilievo di Francesco). `flex` per il simbolo accanto
+ * al campo di valuta; il campo, alto quanto la sua riga di testo, resta in
+ * cima come il testo della cella chiusa.
+ */
+function RiquadroModifica({
+  erroreId,
+  errore,
+  children,
+}: {
+  erroreId: string
+  errore: string | undefined
+  children: React.ReactNode
+}) {
+  return (
+    <>
+      <div className="-m-2 flex min-h-9 items-start p-2">{children}</div>
+      {nodoErroreCella(erroreId, errore)}
+    </>
+  )
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1692,7 +1712,7 @@ function CellaDataGriglia<TDato extends RowData>({
 
   if (inModifica) {
     return (
-      <>
+      <RiquadroModifica erroreId={erroreId} errore={errore}>
         <input
           ref={inputRef}
           type="date"
@@ -1705,13 +1725,12 @@ function CellaDataGriglia<TDato extends RowData>({
           aria-invalid={!!errore}
           aria-describedby={errore ? erroreId : undefined}
           className={cn(
-            "block h-full w-full bg-transparent outline-none",
+            "block w-full bg-transparent outline-none",
             errore && "text-destructive"
           )}
           aria-label={colonnaId}
         />
-        {nodoErroreCella(erroreId, errore)}
-      </>
+      </RiquadroModifica>
     )
   }
 
@@ -1812,7 +1831,10 @@ function CellaSelectGriglia<TDato extends RowData>({
           // riga: 41.56px chiusa, 49px con la select aperta — quella cella
           // sola, non l'intera griglia, perché solo lì cresceva il
           // contenuto oltre l'altezza delle altre.
-          className="h-full w-full min-w-0 rounded-none border-0 px-2 py-0 data-[size=default]:h-full"
+          // Lo stesso riquadro della cella chiusa (`-my-2 py-2 min-h-9`, testo
+          // in cima e al bordo del contenuto): prima il testo scendeva di un
+          // pixel e si spostava di 8px a destra aprendo la tendina.
+          className="-my-2 h-auto min-h-9 w-full min-w-0 items-start rounded-none border-0 px-0 py-2 data-[size=default]:h-auto"
           aria-label={colonnaId}
         >
           <SelectValue />
@@ -2017,6 +2039,14 @@ export function DataGrid<TDato extends RowData>({
           {...resto}
           className={cn(
             resto.className,
+            // Il riquadro della tabella ha gli angoli arrotondati e taglia ciò
+            // che sborda: l'anello della cella attiva nell'ultima riga, sulla
+            // prima e sull'ultima colonna, restava tagliato nell'angolo
+            // (rilievo di Francesco, con la schermata). Lì l'anello prende la
+            // stessa curva del riquadro. Solo l'ultima riga vera: le righe
+            // virtualizzate in fondo hanno un distanziatore dopo di sé, che è
+            // l'ultima `tr` finché non si arriva in fondo all'elenco.
+            "[&_tbody>tr:last-child>td:first-child>[data-attiva]]:rounded-bl-lg [&_tbody>tr:last-child>td:last-child>[data-attiva]]:rounded-br-lg",
             // La cella attiva ha sempre il suo bordo, anche dopo un clic col
             // puntatore (dove `focus-visible` non si accende); a fuoco fuori
             // il bordo si attenua e la riga intera prende il fondo tenue.
