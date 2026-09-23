@@ -2069,7 +2069,7 @@ export function DataGrid<TDato extends RowData>({
           perPagina="virtuale"
           altezza="ferma"
           barra={barra}
-          internoGriglia={{ senzaFocoRiga: true, alVirtualizzatore, maniglieFuoriDalTab: true }}
+          internoGriglia={{ senzaFocoRiga: true, alVirtualizzatore }}
           attributiTabella={{
             role: "grid",
             "aria-rowcount": motore.righe.length,

@@ -521,9 +521,10 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * L'intestazione ordinabile è un bottone: `Tab` la raggiunge, e `Invio` passa
  * da crescente a decrescente a nessun ordine. Il `<th>` dichiara `aria-sort`.
  * Caselle, menu e filtri si raggiungono col `Tab`, e i menu si chiudono con
- * `Esc`. La maniglia di ridimensionamento è un separatore: le frecce sinistra
- * e destra allargano e restringono di 16px, `Home` torna alla larghezza di
- * partenza. Sulle maniglie di riordino, di righe e di colonne, `Spazio`
+ * `Esc`. Le maniglie di ridimensionamento non sono fermi di `Tab`: si
+ * trascinano col puntatore, e da tastiera `Alt` con `←` o `→` sul bottone
+ * dell'intestazione restringe o allarga la colonna di 16px. Sulle maniglie
+ * di riordino, di righe e di colonne, `Spazio`
  * afferra, le frecce spostano, `Spazio` rilascia ed `Esc` annulla. In
  * virtualizzazione le righe ricevono il fuoco: frecce su e giù, `Home` e
  * `Fine` al principio e alla fine dell'elenco intero, `Pagina su` e
@@ -620,8 +621,8 @@ export const MenuDelleColonne: Story = {
 
 /**
  * Colonne ridimensionabili: il filo sul bordo destro di ogni intestazione si
- * trascina, o si comanda con le frecce. «Famiglia» non dichiara `size` e prende
- * lo spazio che resta.
+ * trascina, o si comanda con `Alt`+`←`/`→` dall'intestazione. «Famiglia»
+ * non dichiara `size` e prende lo spazio che resta.
  */
 export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
   args: {

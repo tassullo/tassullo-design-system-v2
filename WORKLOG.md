@@ -12557,3 +12557,9 @@ Sulla prova del `Tab` (§56.14), Francesco in Safari: dopo «Colonne», «Aggiun
 Francesco, provato in Chrome e Safari: da «Aggiungi riga» il `Tab` passava per le cinque maniglie delle colonne prima della cella, e non gli serve. Tolte dall'ordine di `Tab` nella sola griglia (`internoGriglia.maniglieFuoriDalTab` in `data-table.tsx`, `tabIndex={-1}` sulla maniglia), e aggiunta la loro via da tastiera dalla cella: `Alt`+`←`/`→`. Misure in `DECISIONI.md` §56.16; pagina `Blocchi/Data Grid` aggiornata (tastiera e regola sul `Tab`). Nel `data-table` le maniglie restano come sono.
 
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build` (`tassullo-data-table` e `tassullo-data-grid`); Docs pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+### Coda di M5.0d, undicesima — maniglie fuori dal `Tab` ovunque
+
+Francesco: «le maniglie le togliamo ovunque dal ciclo dei tab». `ManigliaRidimensiona` a `tabIndex={-1}` in ogni tabella; la via da tastiera passa dall'intestazione (`Alt`+`←`/`→` su `CellaIntestazione`) e, nella griglia, dalla cella. Tolta l'opzione `maniglieFuoriDalTab` introdotta un'ora prima. Pagine `Data Table` (tastiera, scena `Ridimensionabile`) e `Data Grid` coerenti. Misure in `DECISIONI.md` §56.17.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-table` e `data-grid` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
