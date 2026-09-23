@@ -3,15 +3,19 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { SplitView } from '@/registry/tassullo/blocks/split-view'
 
 /**
- * Due colonne affiancate — la base di `diff-view` (M3.9), ma riusabile da
- * sola ovunque serva un confronto: le traduzioni IT/EN (`affiancato` ×3
- * nella roadmap di Anagrafe), una scheda accanto alle sue note interne.
+ * Due contenuti affiancati in due colonne, con una maniglia per spostare il
+ * confine e, a scelta, lo scorrimento legato.
  *
- * Sotto 448px di **contenitore** — non di schermo, misurato con un
- * `ResizeObserver` come la fascia di `page-header` — le due colonne si
- * impilano. `sincronizzato` lega lo scorrimento delle due colonne per
- * frazione percorsa, non per pixel: utile quando le due lunghezze
- * differiscono, come in un confronto di revisioni.
+ * **Quando sì, quando no.** Si usa per un confronto a vista: una traduzione
+ * accanto al testo originale, una scheda accanto alle sue note, due revisioni.
+ * Quando le differenze vanno segnate parola per parola si usa
+ * `tassullo-diff-view`, che in modo affiancato è costruito su questo blocco.
+ * Per dividere lo schermo di un'applicazione in pannelli liberi c'è la
+ * primitiva `resizable`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-split-view
+ * ```
  *
  * ```tsx
  * <SplitView
@@ -22,6 +26,22 @@ import { SplitView } from '@/registry/tassullo/blocks/split-view'
  *   sincronizzato
  * />
  * ```
+ *
+ * **Le prop.** `sinistra` e `destra`, i due contenuti; `etichettaSinistra`
+ * ed `etichettaDestra`, i titoli delle colonne; `sincronizzato`, lo
+ * scorrimento di una colonna trascina l'altra.
+ *
+ * **Regole d'uso.**
+ *
+ * - In un contenitore più stretto di 448px le colonne si impilano: la soglia
+ *   guarda il contenitore, non lo schermo.
+ * - Con `sincronizzato` le colonne scorrono per la stessa frazione della loro
+ *   lunghezza, non per gli stessi pixel: due testi di lunghezza diversa
+ *   restano allineati dall'inizio alla fine.
+ *
+ * **Tastiera e accessibilità.** Ogni colonna è una regione con il nome della
+ * sua etichetta, e riceve il fuoco per scorrere con la tastiera. La maniglia
+ * fra le colonne si sposta con le frecce.
  */
 const meta = {
   title: 'Blocchi/Vista affiancata',
@@ -37,7 +57,9 @@ const testoLungo = Array.from(
   (_, i) => `Riga ${i + 1} — membrana armata in poliestere, spessore 4 mm, posa a doppio strato.`
 ).join('\n')
 
-/** Trascinabile dalla maniglia, come `resizable`; a tastiera la maniglia risponde alle frecce. */
+/**
+ * Due colonne con la maniglia: si trascina, o si sposta con le frecce.
+ */
 export const Predefinito: Story = {
   args: {
     sinistra: <p className="text-sm">Membrana armata in poliestere, spessore 4 mm. Sovrapposizione 80 mm.</p>,
@@ -52,7 +74,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Le due colonne scorrono insieme, per frazione percorsa — non allo stesso pixel, perché non hanno la stessa lunghezza. */
+/**
+ * Due testi di lunghezza diversa che scorrono insieme.
+ */
 export const Sincronizzata: Story = {
   args: {
     sinistra: <p className="text-sm whitespace-pre-line">{testoLungo}</p>,
@@ -73,7 +97,9 @@ export const Sincronizzata: Story = {
   ),
 }
 
-/** Sotto 448px di contenitore le colonne si impilano — l'accettazione di M3.9, provata qui a 375px. */
+/**
+ * Un contenitore da 375px: le due colonne si impilano.
+ */
 export const ContenitoreStretto: Story = {
   args: {
     sinistra: <p className="text-sm">Membrana armata in poliestere, spessore 4 mm. Sovrapposizione 80 mm.</p>,

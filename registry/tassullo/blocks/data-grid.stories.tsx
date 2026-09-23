@@ -116,6 +116,84 @@ function ComputoFinto() {
   )
 }
 
+/**
+ * La tabella da modificare cella per cella, come un foglio di calcolo: la
+ * cella attiva si sposta con le frecce, si scrive, si copia e si incolla un
+ * blocco di celle, si annulla e si ripete.
+ *
+ * **Quando sì, quando no.** Si usa quando le righe sono tante e omogenee — ogni
+ * colonna vuol dire la stessa cosa su ogni riga — e il lavoro è correggerle o
+ * compilarle in fila: un listino, un computo piatto, un elenco di voci. Per
+ * leggere, cercare, filtrare e ordinare un elenco si usa `tassullo-data-table`,
+ * su cui questo blocco è costruito; per cambiare un campo alla volta basta
+ * l'editing in riga di quel blocco. Quando le colonne cambiano significato da
+ * una zona all'altra — una voce con le sue misure e il totale sotto — il
+ * foglio giusto è `tassullo-foglio-gruppi`. La griglia non ha ricerca,
+ * ordinamento, filtri né righe annidate: la tastiera conta le celle
+ * nell'ordine dei dati, e un ordine visibile diverso la porterebbe sulla riga
+ * sbagliata.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-data-grid
+ * ```
+ *
+ * **Come si compone.**
+ *
+ * - `useDataGrid(opzioni)` è il motore, con `righeIniziali`, `colonneId`,
+ *   `idRiga`, `leggiCella`, `scriviCella` e `onModifica`. `colonneId` elenca
+ *   le colonne modificabili
+ *   nell'ordine in cui le percorrono `Tab` e l'incolla; `leggiCella` e
+ *   `scriviCella` convertono una riga da e verso stringhe, e `scriviCella`
+ *   restituisce una riga nuova. Il motore non è controllato: tiene le righe
+ *   in uno stato suo, seminato una volta da `righeIniziali`, e si ascolta con
+ *   `onModifica`.
+ * - `<DataGrid motore={…} colonne={…} />` monta la tabella, sempre con un
+ *   riquadro fermo e le righe virtualizzate: il genitore deve avere
+ *   un'altezza, e la griglia riceve `className="min-h-0 flex-1"`. Accetta le
+ *   prop di `tassullo-data-table` per il contorno — `barra`, `nomeRighe`,
+ *   `selezione` — ma non `cerca`, `perPagina` e `altezza`.
+ * - Le colonne si dichiarano con `colonnaTestoGriglia`,
+ *   `colonnaNumeroGriglia`, `colonnaValutaGriglia`, `colonnaCheckboxGriglia`,
+ *   `colonnaDataGriglia` e `colonnaSelectGriglia`, che ricevono il costruttore
+ *   di `creaColonne()`, l'`id`, il titolo e a scelta `size` e `validazione`.
+ *   Una colonna qualsiasi di TanStack, fuori da `colonneId`, resta fuori dalla
+ *   navigazione: è il posto per un bottone di riga.
+ * - Dentro `<DataGrid>` si mettono, se servono, `<DataGridClipboard />` per
+ *   copia e incolla e `<DataGridFillHandle />` per la maniglia di
+ *   riempimento; `<DataGridUndo />` e `<DataGridRedo />` sono i bottoni di
+ *   annulla e ripeti, da mettere in `barra`.
+ * - `validaConZod(schema)` trasforma uno schema Zod in una `validazione`.
+ * - `useGridChanges(motore.righe, righeSalvate, idRiga)` confronta le righe
+ *   con l'ultimo salvataggio e dice `creati`, `aggiornati`, `cancellati` e
+ *   `cePendente`, per un bottone «Salva». Il motore offre `aggiungiRiga` e
+ *   `rimuoviRighe`, annullabili come ogni altra modifica.
+ * - `useContestoDataGrid()` dà il motore a una cella scritta a mano.
+ *
+ * **Regole d'uso.**
+ *
+ * - `idRiga` dev'essere un identificativo stabile, non l'indice: annulla e
+ *   ripeti spostano le righe.
+ * - Una cella non valida resta in modifica, con l'errore sotto, finché non si
+ *   corregge o non si annulla.
+ * - La data è un campo nativo `<input type="date">`, non il calendario.
+ * - Le colonne numeriche e di valuta formattano da sé la vista, e in modifica
+ *   tornano a un numero semplice: si scrive `12.5`, non `12,50 €`. In una
+ *   cella scritta a mano, i numeri si formattano con le funzioni dell'item
+ *   `numeri`, allineati a destra.
+ *
+ * **Tastiera e accessibilità.** La tabella dichiara `role="grid"` e ogni cella
+ * riceve il fuoco, una alla volta. Le frecce spostano la cella attiva, con
+ * `Maiusc` estendono la selezione; `Home` e `Fine` vanno al principio e alla
+ * fine della riga. `Invio`, `F2` o un carattere qualsiasi aprono la modifica;
+ * in modifica `Invio` conferma e scende, `Tab` conferma e passa accanto, `Esc`
+ * annulla. `Canc` e `Backspace` svuotano la selezione. Con `Ctrl` o `⌘`: `C`,
+ * `X` e `V` copiano, tagliano e incollano come testo separato da tabulazioni,
+ * quindi anche da e verso un foglio di calcolo; `Z` annulla, `Maiusc`+`Z` o `Y`
+ * ripete, `A` seleziona tutto, `Invio` riempie la selezione col valore della
+ * cella in alto a sinistra. La casella si spunta con `Spazio` o `Invio`.
+ * **Da sapere**: dentro la griglia `Tab` e `Maiusc`+`Tab` passano di cella in
+ * cella, anche da una riga all'altra, e non portano fuori dalla griglia.
+ */
 const meta: Meta = {
   title: 'Blocchi/Data Grid',
   parameters: { layout: 'padded' },
@@ -126,14 +204,8 @@ export default meta
 type Story = StoryObj
 
 /**
- * Il motore su un elenco piatto di 60 voci — sessione 1 di 3 (M3bis.5): solo
- * `CellaTestoGriglia`, niente celle tipizzate/Zod (sessione 2) né
- * `useGridChanges` (sessione 3). Prova da tastiera: frecce spostano la cella
- * attiva, Invio/F2 apre la modifica (o un carattere qualunque, che la apre
- * scrivendolo), Escape annulla, Tab conferma e passa alla cella accanto.
- * Ctrl/Cmd+C copia la selezione come TSV, Ctrl/Cmd+V la incolla, Ctrl/Cmd+Z
- * e Ctrl/Cmd+Shift+Z annullano/ripetono, Ctrl/Cmd+Invio riempie la
- * selezione col valore della cella in alto a sinistra.
+ * Sessanta voci con sole colonne di testo: la navigazione, la modifica, copia
+ * e incolla, annulla e ripeti, la maniglia di riempimento.
  */
 export const Editabile: Story = {
   render: () => <ComputoFinto />,
@@ -229,15 +301,9 @@ function ComputoTipizzato() {
 }
 
 /**
- * Le sei celle tipizzate. `Quantità` e `Prezzo unitario`
- * validano con `validaConZod` (`z.coerce.number()`, negativo/zero
- * rifiutati) — scrivere un valore non valido e premere Invio o Tab non
- * chiude la modifica: l'anello rosso resta finché non si corregge, Escape
- * annulla comunque. `Disp.` si spunta con un clic o Spazio/Invio da
- * tastiera, senza un passo di modifica intermedio. `U.M.` apre il `Select`
- * del registry, non un elenco a parte. `Scadenza` usa `<input type="date">`
- * nativo — non il `Calendar` del registry, v. il commento in testa a
- * `data-grid.tsx` sul perché.
+ * Le sei celle tipizzate. «Quantità» e «Prezzo unitario» rifiutano un valore
+ * non valido e restano in modifica; «Disp.» si spunta con un clic o con
+ * `Spazio`; «U.M.» apre un `select`; «Scadenza» è un campo data nativo.
  */
 export const CelleTipizzate: Story = {
   render: () => <ComputoTipizzato />,
@@ -438,14 +504,9 @@ function ComputoEndToEnd() {
 }
 
 /**
- * Sessione 3 di 3 — il criterio di accettazione di `PIANO.md` per intero:
- * 500 voci finte, editing/incolla/annulla-ripeti già provati sulle story
- * precedenti, qui su una mole vera (virtualizzata, mai più di una finestra
- * di righe montate). `Codice` e `Prezzo unitario` validano con Zod. "Aggiungi
- * riga" e la crocetta di ogni riga esercitano `aggiungiRiga`/`rimuoviRighe`
- * — annullabili come qualunque altro commit. I contatori sopra vengono da
- * `useGridChanges`, confrontato contro l'ultimo "Salva" (finto: aggiorna
- * solo lo stato locale, non c'è un server dietro questa story).
+ * Cinquecento voci, con righe da aggiungere ed eliminare e i conteggi del
+ * salvataggio in cima: quante righe nuove, modificate e cancellate rispetto
+ * all'ultimo «Salva».
  */
 export const Computo: Story = {
   render: () => <ComputoEndToEnd />,

@@ -22,9 +22,19 @@ import { Input } from '@/registry/tassullo/ui/input'
 import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
- * **Una chiamata sola**: sulla scrivania è un dialogo, sul telefono è un
- * cassetto che sale dal basso. Nessuna `if` nella pagina, e il contenuto scritto
- * in un posto solo.
+ * Un dialogo che sulla scrivania è una finestra al centro e sul telefono un
+ * cassetto che sale dal basso, scritto una volta sola.
+ *
+ * **Quando sì, quando no.** Si usa per un modulo o un contenuto che si apre
+ * sopra la pagina e deve stare bene su tutti e due gli schermi: una modifica,
+ * un filtro avanzato. Sulla sola scrivania basta `dialog`; un pannello
+ * laterale che resta accanto al contenuto è `sheet`; un cassetto per il solo
+ * telefono è `drawer`. Una domanda di conferma prima di un'azione che non si
+ * disfa è `tassullo-confirm-dialog`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-responsive-dialog
+ * ```
  *
  * ```tsx
  * <ResponsiveDialog>
@@ -43,74 +53,35 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * </ResponsiveDialog>
  * ```
  *
- * ## Il pattern è di shadcn; qui è impacchettato
+ * **Parti e opzioni.** `ResponsiveDialog` è la radice, con le prop di
+ * `dialog` (`open`, `onOpenChange`, `defaultOpen`) e `forma`: `"auto"`, il
+ * predefinito, sceglie da sé; `"dialog"` e `"drawer"` fissano una forma. Poi
+ * `ResponsiveDialogTrigger`, `ResponsiveDialogContent`,
+ * `ResponsiveDialogHeader`, `ResponsiveDialogTitle`,
+ * `ResponsiveDialogDescription`, `ResponsiveDialogBody`,
+ * `ResponsiveDialogFooter`, `ResponsiveDialogClose`: ognuna prende la parte
+ * giusta della forma in uso. `useFormaDialogo()` dice ai figli quale forma è
+ * montata.
  *
- * shadcn lo documenta nell&apos;esempio `drawer-dialog`, e la sua forma è
- * `const isDesktop = useMediaQuery('(min-width: 768px)')`, poi `if (isDesktop)
- * return <Dialog>…</Dialog>`, poi `return <Drawer>…</Drawer>`. È corretto, e non
- * è riusabile: **duplica il contenuto** — titolo, descrizione, corpo, piedini,
- * due volte — quindi ogni modifica va fatta in due posti e la seconda si
- * dimentica; e vive nella pagina, quindi ogni pagina di ogni app si riscrive la
- * stessa `if`. Con undici pagine e tre applicazioni la soglia finisce scritta in
- * trenta punti, e il giorno in cui va spostata si sposta in ventinove.
+ * **Regole d'uso.**
  *
- * Qui la scelta la fa un **contesto**: la radice monta `Dialog` o `Drawer` e lo
- * dice ai figli, che scelgono la propria controparte. I figli si scrivono una
- * volta sola.
+ * - La soglia è quella del guscio, 768px di finestra: il dialogo diventa
+ *   cassetto nello stesso punto in cui la colonna di navigazione diventa un
+ *   pannello. Non si sposta per un singolo dialogo.
+ * - Il contenuto va in `ResponsiveDialogBody`, che gli dà il margine laterale
+ *   anche nel cassetto.
+ * - Nel cassetto l'intestazione resta allineata a sinistra come nel dialogo,
+ *   e i bottoni del piede si impilano a tutta larghezza con la conferma in
+ *   cima, più vicina al pollice.
+ * - Passando la soglia con il dialogo aperto, la forma cambia e il contenuto
+ *   si rimonta: i campi del modulo tengano il loro stato fuori dal dialogo,
+ *   per esempio con react-hook-form.
+ * - `forma="dialog"` serve anche dove un cassetto a tutta larghezza farebbe
+ *   sembrare il contenuto più importante di quello che è.
  *
- * ## Perché qui la soglia è sulla viewport — e non è una smentita
- *
- * `docs/DECISIONI.md` §31 dice il contrario per il guscio, per la fascia e per
- * la tabella: le soglie guardano l&apos;**elemento**, perché sotto i 768px la
- * colonna esce dal DOM e lo schermo che si allarga di 1px restringe l&apos;area
- * utile di 255. Quel ragionamento vale per ciò che sta **dentro** il guscio.
- *
- * Un dialogo non ci sta dentro: è reso in un **portale** appeso alla radice del
- * documento, `position: fixed`, fuori dal flusso. La colonna non gli toglie
- * niente, e il suo contenitore *è* la viewport — la discontinuità che rendeva
- * sbagliata la media query negli altri tre casi qui non esiste. Una container
- * query, per di più, non avrebbe su cosa appoggiarsi: il contenitore da
- * interrogare non è ancora montato nel momento in cui si decide.
- *
- * E c&apos;è una ragione di sostanza sopra quella tecnica: la scelta fra dialogo
- * e cassetto non è «quanto spazio ho», è «che forma ha il dispositivo». Si è
- * valutato di leggere il **puntatore** (`(pointer: coarse)`), che è più vicino
- * alla domanda vera, ma sbaglia i due casi che contano per noi: il portatile col
- * touch screen in cantiere, che riceverebbe un cassetto su quindici pollici, e
- * il telefono collegato a una tastiera. La larghezza è un&apos;approssimazione,
- * ed è quella che shadcn documenta.
- *
- * ## La soglia non è scritta nel blocco
- *
- * È `useIsMobile()`, l&apos;hook che shadcn installa insieme a `sidebar` e che il
- * registry ha già, a **768px**. Non se ne scrive un secondo: è la prima domanda
- * della scala di `CLAUDE.md` §4bis — quello che serve, shadcn ce l&apos;ha già?
- *
- * Il vantaggio non è risparmiare dieci righe. È che **il dialogo cambia forma
- * allo stesso pixel in cui la cambia il guscio**: sotto i 768 la colonna esce dal
- * DOM e diventa un pannello che scorre da un lato, e nello stesso momento il
- * dialogo diventa un cassetto. Due soglie in due posti sarebbero rimaste uguali
- * per un po&apos; e poi si sarebbero staccate, e un&apos;interfaccia che cambia
- * grammatica a 40px di distanza si legge come un guasto. Per la stessa ragione
- * **non c&apos;è una prop `soglia`**: una soglia che ogni app può spostare è una
- * soglia che in tre app vale tre numeri.
- *
- * L&apos;hook di shadcn ha un difetto noto — legge `matchMedia` in un `useEffect`
- * che chiama `setState`, quindi il primo render torna sempre «scrivania» e il
- * valore vero arriva un fotogramma dopo. Qui non morde, perché il primo
- * fotogramma è quello del pannello **chiuso**: non c&apos;è niente da vedere.
- * Morde in un caso solo, un dialogo già aperto al montaggio, e lì il rimedio non
- * è una copia locale dell&apos;hook — è correggerlo in `use-mobile.ts`, dove
- * `sidebar` ne beneficia insieme a noi.
- *
- * ## Il prezzo, dichiarato
- *
- * Attraversare la soglia con il dialogo **aperto** smonta un albero e ne monta
- * un altro — `Dialog` e `Drawer` sono due componenti diversi — e ciò che è stato
- * scritto in un campo non controllato si perde. Non è aggirabile senza tenere lo
- * stato del modulo fuori dal dialogo, che è comunque la forma giusta: con
- * react-hook-form lo stato sta in `useForm()` e non nel DOM. Succede solo
- * trascinando il bordo della finestra attraverso i 768px mentre si compila.
+ * **Tastiera e accessibilità.** In tutte e due le forme il fuoco entra nel
+ * pannello e ci resta, `Esc` chiude e il fuoco torna al grilletto. Titolo e
+ * descrizione sono il nome e la descrizione del pannello.
  */
 const meta = {
   title: 'Blocchi/Dialogo adattivo',
@@ -163,13 +134,8 @@ function Contenuto({ didascalia }: { didascalia: string }) {
 }
 
 /**
- * **`forma="auto"`** — il comportamento vero. Stringendo la finestra sotto la
- * soglia il dialogo diventa cassetto, e sopra torna dialogo, senza che qui cambi
- * una riga.
- *
- * È anche la story che **non** si può misurare in tutte e due le forme: il
- * runner del gate la viewport non la cambia. Per quello ci sono le due che
- * seguono.
+ * `forma="auto"`: stringendo la finestra sotto i 768px il dialogo diventa un
+ * cassetto, e sopra torna dialogo.
  */
 export const Automatico: Story = {
   args: {},
@@ -182,15 +148,7 @@ export const Automatico: Story = {
 }
 
 /**
- * **La forma a dialogo, forzata.** `forma="dialog"` non serve solo alla
- * dimostrazione: serve al **gate**. L&apos;imbracatura di misura non sa cambiare
- * viewport, quindi una forma che esistesse solo sotto una media query sarebbe
- * una forma che nessuno misura mai — è la stessa ragione per cui `page-header` e
- * `data-table` hanno una story con il contenitore stretto.
- *
- * E serve anche alle pagine che una forma la vogliono sempre: un dialogo di
- * conferma tecnico, che su un telefono come cassetto a tutta larghezza
- * sembrerebbe più importante di quello che è.
+ * La forma a dialogo, fissata con `forma="dialog"`.
  */
 export const Dialogo: Story = {
   args: { forma: 'dialog' },
@@ -207,25 +165,8 @@ export const Dialogo: Story = {
 }
 
 /**
- * **La forma a cassetto, forzata.** Gli stessi identici figli della story
- * precedente: cambia solo la radice, e con lei intestazione, corpo e piedini
- * scelgono la propria controparte.
- *
- * Tre differenze che non sono uniformate ma **scelte**, e vale la pena
- * guardarle affiancate:
- *
- * - l&apos;intestazione torna **a sinistra** — nel cassetto la primitiva la
- *   centra, ma un dialogo e un cassetto che dicono la stessa cosa devono
- *   leggersi nello stesso modo, ed è la stessa correzione che fa
- *   l&apos;esempio `drawer-dialog` di shadcn;
- * - il **corpo** ha il respiro orizzontale, che nel dialogo arriva dal `p-4`
- *   del pannello e nel cassetto non c&apos;è. È l&apos;unica ragione per cui
- *   `ResponsiveDialogBody` esiste: senza, il corpo starebbe incollato ai bordi
- *   nella sola forma a cassetto, che è il difetto che shadcn corregge a mano
- *   scrivendo `className="px-4"` sul modulo;
- * - i **piedini** sono bottoni impilati a tutta larghezza invece di una fascia
- *   con il fondo, e la conferma sta in cima alla pila — cioè più vicina al
- *   pollice.
+ * La forma a cassetto, fissata con `forma="drawer"`, con gli stessi figli: a
+ * cambiare sono intestazione, corpo e piede.
  */
 export const Cassetto: Story = {
   args: { forma: 'drawer' },

@@ -12400,3 +12400,59 @@ Chiesto da Francesco a PR aperta («sistemiamo ora»), con due scelte («1A, 2 s
 - **Stepper: la composizione resta, il componente non si tocca** (scelta 1A). Il perché — l'eccezione costava infrastruttura nuova in `check:registry`, una seconda divergenza sulle props di `StepperNav` e un riporto a mano a ogni versione di reui — in `DECISIONI.md` **§55**. La questione aperta da M4ter.1 è chiusa.
 
 **Verifiche**: `npm run check`, i sette gate verdi; `test:a11y` **1540 scansioni, 0 violazioni**, 385 story in ognuna delle quattro passate — invariato anche col grigio attenuato sulla riga selezionata e sulle tessere grigie; `public/r/` allineato ai sorgenti.
+
+## 2026-09-23 — M5.0d Blocchi
+
+Le 21 story di `registry/tassullo/blocks/`, riscritte secondo il canone di M5.0a per chi deve **comporre** una pagina: cos'è, quando sì e quando no col confine verso il vicino, il comando `add`, le prop e gli slot coi loro nomi, le regole d'uso, la tastiera come comportamento garantito. Scheletro e tono di M5.0b/M5.0c; testo scritto a mano file per file, già andato a capo, e messo al posto dei JSDoc attaccati a `meta` e a ogni `export const` con lo script d'appoggio della sessione scorsa (nella cartella temporanea). Nessun sorgente di blocco, nessuna `play`, nessun dato d'esempio toccati; i JSDoc staccati e i commenti `//` sono rimasti dov'erano. Dove una story non aveva descrizione, ora ne ha una di una o due frasi (22 su `data-table`, tutte quelle del calendario).
+
+#### Il conto
+
+**129 segnalazioni su 21 file**, rimisurato aprendo la sessione: lo stesso numero del mandato. A fine sessione **0 sui 21** (accettazione del piano); sul repo **239 → 110**, `pages/` 49 e `stories/` 61 — tutto M5.0e.
+
+#### Il nome dell'item
+
+Per i blocchi il nome in `registry.json` è `tassullo-<nome>`, preso da lì per tutti e 21. Il `data-table` nomina anche i quattro item dei filtri (`tassullo-data-table-filtro-sfaccettato`, `-intervallo`, `-data`, `-reset`) in un elenco con cosa fa ciascuno, senza un secondo blocco `bash`: la pagina ne ha uno solo, quello del blocco.
+
+#### Gli obblighi del piano
+
+- **`altezza="ferma"`**, sezione propria in `data-table` (con titolo `##`, l'unica pagina che ne ha): (a) cosa fa, e la differenza con `"naturale"`; le **tre** paginazioni nominate una per una, con il perché ciascuna lo vuole; il genitore (`min-h-0 flex-1` dentro `<AppShell contenuto="riempie">`, e `tassullo-pagina-lista` che è già composta così); (b) **il tetto si misura fra le righe, mai contro il contenitore**, con il perché — `getBoundingClientRect` dà coordinate della finestra e porta dentro lo scorrimento — e perché la misura relativa regge anche in virtualizzazione; (c) **la sequenza del cricchetto**: filtrare a una **manciata** di righe, poi togliere il filtro; con una riga sola non si vede. Verificato sulla pagina costruita: la story nomina `altezza="ferma"` cinque volte, la regola e la sequenza ci sono. Scritto sul sorgente (`ricalcola` in `data-table.tsx`), non ricopiato dal diario.
+- **`IntestazioneColonnaMenu`**: sezione «La testata a menu, come alternativa», scritta come alternativa colonna per colonna e non come default, con `meta.azioniProprie: true` e il perché (senza, `colonneBloccabili` aggiunge la sua puntina e i grilletti tornano due), un esempio `tsx` e il comportamento del grilletto (visibile al passaggio e al fuoco, fermo quando la colonna è ordinata o bloccata). Il JSDoc nel sorgente resta dov'è.
+- **Le note per un backend**, senza il nome dell'app: `end` esclusivo del calendario («il backend deve usare la stessa convenzione»), l'`id` stabile degli eventi — e in più, trovato leggendo il sorgente, l'`id` **provvisorio** che il dialogo dà a un evento nuovo, da sostituire con quello del backend. `idRiga` stabile per `data-grid` e `data-table` riordinabile, `id` stabile delle revisioni.
+- **I confini**: `data-table` ↔ `data-grid` ↔ `foglio-gruppi` (leggere; modificare cella per cella su colonne omogenee; colonne che cambiano significato da una zona all'altra), scritti in tutte e tre le pagine ciascuna dal suo lato; `confirm-dialog` ↔ `responsive-dialog` ↔ `dialog`/`alert-dialog`/`drawer`/`sheet`; i tre stati `empty-state` ↔ `error-state` ↔ `page-skeleton`, con la stessa frase d'apertura nelle tre pagine, e il «nessun risultato» che è della `data-table` e non dello stato vuoto; `toast-con-annullo` ↔ `sonner` e ↔ `confirm-dialog` («mai tutti e due per la stessa azione»); `app-shell` ↔ `sidebar` — la pagina del guscio dice che ogni applicativo parte da lì e la primitiva serve solo dove il guscio non basta, che combacia con la frase della pagina di `sidebar` di M5.0c. In più `page-header` ↔ `barra-contesto` ↔ `app-shell.contesto`, e `diff-view` ↔ `split-view` ↔ `version-timeline`.
+- **Numeri in colonna**: `data-table`, `foglio-gruppi`, `indicatori` scrivono `tabular-nums` e le funzioni dell'item `numeri`. `data-grid` **no**, e non per dimenticanza: vedi i rilievi.
+
+#### Cose verificate invece che copiate
+
+Letto il sorgente di ogni blocco per le prop e i tasti; le affermazioni di comportamento controllate in Chromium (Playwright dalla cartella temporanea, sullo Storybook costruito). Le correzioni alla vecchia prosa e i fatti nuovi in `DECISIONI.md` **§56**; qui il sunto.
+- **`data-grid`, `Tab`**: la vecchia pagina diceva «Tab conferma e passa alla cella accanto» solo per la modifica; misurato, `Tab` è intercettato **sempre** e non esce mai dalla griglia (undici `Tab` di fila, tutti dentro la tabella; `Maiusc`+`Tab` dalla prima cella va all'ultima colonna). La pagina lo scrive come «da sapere». `foglio-gruppi` invece esce al secondo `Tab`, misurato, e la pagina lo scrive come garanzia.
+- **`file-upload`**: il fuoco va sul bottone dentro la cornice, non sulla cornice, che non è interattiva. Corretto.
+- **`rich-text-editor`**: la barra ha anche pedice e «Rimuovi formattazione»; il contatore cambia colore a 50 caratteri dal limite, e oltre non si scrive.
+- **`calendario`, `Altezza variabile`**: la descrizione diceva che il mese non scorre mai e che il pavimento è una corsia; il blocco ha il pavimento a tre eventi e sotto quella misura scorre. Riscritta sul sorgente. La griglia del mese: niente frecce, `Tab` evento per evento e, con `modifica`, sul «+» di ogni giorno (contato nel DOM).
+- **`foglio-gruppi`, i comandi**: sono «Sposta su», «Sposta giù», «Elimina voce» (la prima stesura diceva «duplicare»: corretto prima di applicare).
+- **Il Viewport**: `app-shell → Telefono` aperta dal manager rende a 375 senza colonna, nella pagina Docs a 1140 con la colonna. La vecchia `foglio-gruppi → Due Facce` diceva «stringendo la finestra, non col Viewport»; ora entrambe le pagine dicono «si vede aprendo la scena da sola».
+- `barra-contesto` (`Esc` riporta il fuoco al grilletto, `Invio` apre sulla prima voce): misurato in M4ter.9, confermato che il menu è `DropdownMenuRadioGroup` di Base UI. `app-shell` (`Ctrl`/`⌘`+`B`, pannello col fuoco intrappolato): primitiva `sidebar`, già verificata in M5.0c. `toast-con-annullo` (`Alt`+`T`, durata 5000): `sonner` di M5.0c e `DURATA_DEFAULT` nel sorgente.
+- **Le misure**: estratti da ogni JSDoc i numeri con unità e cercati in `DECISIONI.md` e `WORKLOG.md`. Tre «mancanti» per lo script, nessuno davvero: 214px sta nella tabella del commento di `monthRow`, 343px nella tabella di M4ter.7 (scritto «343» senza unità), 576 in §50. Cercati anche i fatti senza numero che servono a M5.5 (190 righe di `Sidebar.css`, `CantiereContextBar.css`, AdminBC e RadarOpere, `window.prompt` nei ChangeSets, «Famiglie EPD», le voci senza icona di Anagrafe): tutti già in questo diario. Niente da spostare; §56 raccoglie ciò che si è accertato oggi.
+
+#### Il testo reso nel canvas
+
+Per i blocchi il gate legge solo i JSDoc; il `grep` di M5.0e leggerà tutto. Cercate con le espressioni del gate le righe non di commento dei 21 file: un solo caso nel testo reso, in `page-header → Contatore`, la didascalia «… — la forma scelta il 2026-09-21.» → «…, sull'ultimo livello del percorso.». Il resto sono dati d'esempio (i nomi di persona sono M5.0e).
+
+#### Una regola in `.storybook/preview.css`
+
+Le pagine Docs dei blocchi hanno la tabella delle prop, e le prop booleane vi si comandano con un interruttore «False / True». Axe `color-contrast` in chiaro: **3.37:1** sulla voce spenta, 2 nodi su `data-table` e 1 su `calendario` — testo al 50% di opacità, fisso in `addon-docs`, che il tema non espone (si possono cambiare i fondi, `booleanBg`, non il colore). Nelle primitive non c'erano prop booleane nella tabella, quindi M5.0b/c non l'avevano visto. Regola sulla voce: `color: var(--muted-foreground)`, sul modello di quella sul fondo del codice. Dopo: 0 violazioni in tutte le 42 combinazioni.
+
+#### Verifiche
+
+- `check:storybook` sui 21 di `blocks/`: **0**; sul repo **110 su 10 file**.
+- Nessuna riga di JSDoc con un numero dispari di backtick o di `**`, fuori dai recinti, sui 21 file (lo span `useDataGrid({ … })` spezzato su due righe l'ho scritto e preso io prima di applicare: riscritto perché ogni span stia su una riga).
+- `oxlint` a zero sui 21; `build-storybook` verde (rifatta dopo la regola CSS, e il server statico riavviato).
+- **Pagine Docs renderizzate, 21 × Chiaro e Scuro, dal manager**, in Chromium vero: per ognuna delle **42** un solo blocco col comando `add` ed è quello giusto, nessun `**`/```` ``` ````/entità letterale nella descrizione, nessun token vietato nel testo della pagina fuori da tabella delle prop e scene, `dark` sull'`<html>` giusto, fondo `246,246,244` / `20,20,20`, **axe `color-contrast` 0**. *Incomplete* su `data-table` (434, le celle delle scene), `foglio-gruppi` (17), `calendario` (6), `rich-text-editor` (3), `app-shell` e `data-grid` (1), identiche nelle due modalità. Guardata a occhio `data-table` in scuro.
+- `npm run check`, i sette gate: **verdi**; `test:a11y` **1540 scansioni, 0 violazioni**, e **ognuna delle quattro passate dice 385 story** — letto riga per riga. Lanciato dopo l'ultima modifica, compresa la regola CSS e la didascalia di `Contatore`.
+
+#### Rilievi
+
+- **`data-grid`: `Tab` non esce dalla griglia**, e le celle numeriche formattano senza `useGrouping: 'always'`. Tutti e due nel sorgente del blocco, fuori dal mandato; aperti in §56.1 e §56.2.
+- **La tabella delle prop mostra i JSDoc dei sorgenti dei blocchi**: 58 occorrenze vietate su 7 pagine, 42 su `data-table` (con prosa vecchia, come `perPagina="auto"` in `app-shell`). Aggiunto alla riga di M5.0e in `CHECKLIST.md`.
+- `data-table → Stretta`: il testo nel canvas dice «le soglie di una tabella guardano la tabella, non lo schermo», ma i salti a prima e ultima pagina si nascondono con `sm:`, cioè guardando lo schermo. Testo neutro, lasciato; la descrizione della story non lo ripete.
+
+**Prossimi passi**: **M5.0e** — le 6 pagine modello e le 4 pagine composte (110 segnalazioni), i nomi fittizi nei dati, il gate armato in `check` e in CI, e la tabella delle prop dei blocchi.

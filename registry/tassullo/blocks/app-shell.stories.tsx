@@ -27,94 +27,73 @@ import {
 } from '@/registry/tassullo/blocks/page-header'
 
 /**
- * Il **guscio** di un'applicazione Tassullo: colonna scura a sinistra, fascia
- * in alto, area di contenuto. Una chiamata sola, attorno a tutta l'app.
+ * Il guscio di un applicativo: la colonna di navigazione a sinistra, la fascia
+ * in alto, l'area del contenuto. Si monta una volta sola, attorno a tutte le
+ * pagine.
+ *
+ * **Quando sì, quando no.** Ogni applicativo Tassullo parte da qui, e non
+ * compone a mano la primitiva `sidebar`: il guscio ha già la colonna con
+ * tutte le sue regole — i tooltip a colonna chiusa, i nomi accessibili, il
+ * menu dell'utente che sul telefono si apre in basso, le larghezze che
+ * seguono la densità. La primitiva serve solo dove il guscio non basta. Il
+ * contenuto della fascia non si passa da qui: percorso e azioni sono della
+ * pagina, che li dichiara con `tassullo-page-header`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-app-shell
+ * ```
  *
  * ```tsx
- * <AppShell applicazione="Anagrafe" sezioni={SEZIONI} utente={me}>
+ * <AppShell applicazione="Anagrafe" sezioni={SEZIONI} utente={utente} azioniUtente={voci}>
  *   <Outlet />
  * </AppShell>
  * ```
  *
- * Sostituisce `Sidebar.tsx` + `Sidebar.css` di Anagrafe — 190 righe di CSS di
- * pagina — e con esse il fatto che ogni app si riscriva il proprio guscio.
+ * **Le prop.**
  *
- * ## Cosa porta con sé, che copiando `sidebar-07` a mano non si ha
+ * - `applicazione`, il nome accanto al marchio; `testataRender`, l'elemento
+ *   della testata, di solito il collegamento alla pagina iniziale del router.
+ * - `sezioni`: ogni sezione ha un `titolo` facoltativo e le sue `voci`. Una
+ *   voce ha `titolo`, `icona`, `href` o `render`, `attiva`, `disabilitata`,
+ *   `badge` per un conteggio, e `figli` per un sottolivello.
+ * - `utente` (`nome`, `cognome`, `email`, `ruolo`, `iniziali`) e
+ *   `azioniUtente`, le voci del suo menu: `DropdownMenuItem` e separatori.
+ * - `contesto`, uno spazio sotto il marchio per l'entità su cui si lavora in
+ *   tutte le pagine — il `SelettoreContesto` di `tassullo-barra-contesto`.
+ *   Serve solo alle app che hanno un'entità attiva di questo tipo.
+ * - `collassa`: `"icona"`, il predefinito, chiude la colonna a una fila di
+ *   icone; `"fuori"` la fa sparire, ed è la scelta per voci senza icona.
+ * - `defaultAperta`: la colonna parte aperta o chiusa.
+ * - `larghezza`: `"piena"`, il predefinito, dà al contenuto tutta la
+ *   larghezza; `"pagina"` lo tiene entro `--container-page` e lo centra, per
+ *   un modulo o un testo lungo.
+ * - `contenuto`: `"scorre"`, il predefinito, lascia crescere la pagina;
+ *   `"riempie"` ferma il guscio all'altezza della finestra, per una pagina
+ *   che è una lista con lo scorrimento interno.
  *
- * Sei correzioni misurate in M2.5, ognuna delle quali è un difetto **muto**:
- * niente errore, niente avviso, solo un'interfaccia che si comporta male.
+ * **Regole d'uso.**
  *
- * 1. **Il `TooltipProvider` alla radice.** Senza, a colonna chiusa le voci sono
- *    icone senza etichetta — misurati zero tooltip su tre `Tab` e su un hover da
- *    nove decimi di secondo.
- * 2. **Il tooltip non passato affatto sotto la soglia mobile.** Il preset lo
- *    nasconde, ma la radice Base UI resta montata, si apre col fuoco e si prende
- *    il **primo `Esc`**: nel pannello a scomparsa il primo `Esc` non chiudeva
- *    niente e il secondo sì. Su un telefono è il tasto che sembra rotto.
- * 3. **`justify-center` sui bottoni `size="lg"` nel rail.** Il loro
- *    `group-data-[collapsible=icon]:p-0!` annulla il padding della base: il
- *    marchio restava **6px fuori asse** rispetto alle icone delle voci.
- * 4. **Il testo spento con `group-data-[collapsible=icon]:hidden`.** Né
- *    `truncate` né `flex-1` lo curano: restano 8px di riquadro, e nel rail si
- *    vedeva la «A» di Anagrafe accanto alla T.
- * 5. **L'`aria-label` su testata e piede.** Nascondere l'etichetta toglie anche
- *    il nome accessibile, e il tooltip **non è un nome** — è un popup che
- *    compare al passaggio, non qualcosa che un lettore di schermo annunci al
- *    posto del contenuto.
- * 6. **Il menù utente che si apre in basso sul telefono.** `side="right"` fisso
- *    lo fa uscire dallo schermo da una colonna di 256px dentro 375.
+ * - Il guscio non sa quali rotte esistano: la voce attiva la dichiara l'app
+ *   con `attiva`, e i collegamenti del router passano da `render` — un
+ *   `<NavLink>`, un `<Link>`. Senza `href` né `render` la voce è un bottone.
+ * - Il guscio non ha bottoni propri: tutto ciò che si clicca arriva dalle
+ *   prop.
+ * - Il respiro attorno alla pagina lo dà il guscio, e segue la densità: la
+ *   pagina non aggiunge un suo margine esterno.
+ * - Non c'è un titolo di pagina visibile: la fascia ha il percorso, e il
+ *   titolo per chi non vede lo scrive `tassullo-page-header`.
+ * - Con `contenuto="riempie"` la pagina rende una colonna
+ *   `flex h-full min-h-0 flex-col`, con la tabella come figlio
+ *   `min-h-0 flex-1`: è la forma di `altezza="ferma"` di
+ *   `tassullo-data-table`.
  *
- * E le **larghezze della colonna riscritte sulla scala della densità**, che è
- * l'unica eccezione accertata di M1.4: `SIDEBAR_WIDTH` e `SIDEBAR_WIDTH_ICON`
- * sono costanti JavaScript, non derivano da `--spacing`, e senza l'override in
- * touch la colonna resta a 256px mentre il suo contenuto cresce del 50%.
- *
- * ## Cosa non c'è
- *
- * **Il `SidebarRail`** — la striscia invisibile sul bordo destro che apre e
- * chiude la colonna. Non è montato. Tre misure da M2.5: è **ridondante** (il
- * grilletto in barra resta visibile a colonna chiusa, e `Ctrl`/`Cmd`+`B`
- * funziona sempre), è **irraggiungibile da tastiera** (`tabIndex={-1}`), e
- * **mente sul cursore** — mostra `w-resize`, cioè promette un ridimensionamento
- * che non esiste, ed è il solo dei tre modi di aprire la colonna che lo faccia.
- * È composizione, non componente: `SidebarRail` resta esportato, rimetterlo è
- * una riga.
- *
- * **Il contenuto della fascia.** Il guscio disegna la fascia — grilletto,
- * altezza, la garanzia che resti una riga sola — ma percorso e azioni sono
- * della **pagina**, che li dichiara con `<PageHeader>`
- * (`Blocchi/Intestazione di pagina`, M3.2). Il guscio si monta una volta sola
- * attorno all'`<Outlet />`: una prop non ci arriverebbe mai.
- *
- * ## La fascia è l'unica intestazione, e non c'è un titolo di pagina
- *
- * Breadcrumb a sinistra, azioni della pagina a destra. **Nessun `<h1>`**: il
- * nome della pagina comparirebbe tre volte in 80px — voce attiva in sidebar,
- * ultimo livello del breadcrumb, titolo — ed è la forma che shadcn usa in
- * `dashboard-01`. Tolto il titolo si guadagnano ~50px di altezza utile su ogni
- * pagina, che a 375px non sono pochi.
- *
- * **Il guscio non contiene nessun bottone.** Espone slot vuoti: i bottoni che
- * si vedono in queste story sono dati della vetrina, come l'indirizzo
- * dell'utente o le voci «Cantieri» e «Utenti». Niente di tutto ciò viaggia nel
- * registry — «Nuovo prodotto» è un bottone di *Anagrafe*, non del design
- * system, e non esiste in nessun'altra pagina.
- *
- * **Il percorso corrente.** Il guscio non sa quali rotte esistano: `attiva` è
- * un dato che passa l'app, e i collegamenti si passano con `render` — un
- * `<NavLink>`, un `<Link>`, o niente e la voce resta un bottone.
- *
- * ## Le libertà che restano all'app
- *
- * - **Se raggruppare**: `titolo` di sezione è facoltativo, e una sezione sola
- *   senza titolo fa sparire il raggruppamento senza cambiare un componente.
- * - **Quali voci hanno un sottomenu**: basta passare `figli`, o non passarli.
- * - **Se le voci hanno un'icona.** Anagrafe oggi non ne ha: senza icone il rail
- *   sarebbe una fila di quadrati vuoti, e allora si passa `collassa="fuori"` —
- *   la colonna sparisce invece di ridursi.
- * - **Quanto è larga la pagina**: `larghezza="pagina"` la tiene entro i 1180px
- *   di `--container-page` e la centra; `piena` toglie il limite, ed è ciò che
- *   vogliono le tabelle grandi e i cruscotti.
+ * **Tastiera e accessibilità.** `Ctrl`+`B` o `⌘`+`B` apre e chiude la colonna
+ * da qualunque punto; lo fa anche il grilletto in fascia. A colonna chiusa i
+ * nomi delle voci arrivano come tooltip, al passaggio e al fuoco; testata e
+ * utente hanno un nome accessibile anche quando il testo è nascosto. Sotto i
+ * 768px la colonna esce dal DOM e il grilletto apre un pannello laterale: il
+ * fuoco resta al suo interno, e `Esc` lo chiude al primo colpo. Il menu
+ * dell'utente si apre di lato sulla scrivania e in basso sul telefono.
  */
 const meta = {
   title: 'Blocchi/App shell',
@@ -242,13 +221,8 @@ function Contenuto() {
 }
 
 /**
- * Il guscio come lo vede chi apre l&apos;app: colonna aperta, percorso in fascia,
- * utente in fondo. Il grilletto in alto a sinistra chiude e riapre la colonna;
- * da tastiera risponde anche a `Ctrl`/`Cmd`+`B`.
- *
- * La story apre il **menù utente**, che è il popup del blocco: la passata
- * `aperto` del gate lo misura aperto, quella `chiuso` a riposo. Un popup non
- * aperto non è un popup senza violazioni.
+ * Il guscio come lo vede chi apre l'applicativo: colonna aperta, percorso e
+ * azioni in fascia, l'utente in fondo col suo menu aperto.
  */
 export const Predefinito: Story = {
   args: {
@@ -274,27 +248,16 @@ export const Predefinito: Story = {
 }
 
 /**
- * Collassato a icone: resta la sola T in cima, il solo avatar in fondo, e i
- * sottolivelli spariscono. Le etichette diventano tooltip — ed è per quelle che
- * il guscio monta il `TooltipProvider`.
- *
- * In densità touch il rail passa da 48 a **72px**: senza l&apos;override delle
- * larghezze resterebbe a 48, cioè esattamente riempito da una voce da 48, zero
- * margine attorno all&apos;icona.
+ * La colonna chiusa a icone: la T in cima, l'avatar in fondo, i sottolivelli
+ * nascosti. I nomi delle voci compaiono come tooltip.
  */
 export const Collassato: Story = {
   args: { ...Predefinito.args, defaultAperta: false },
 }
 
 /**
- * **La forma che serve ad Anagrafe oggi**: voci senza icona, quindi
- * `collassa="fuori"` — la colonna sparisce invece di ridursi a una fila di
- * quadrati vuoti. `larghezza="piena"` resta scritta per chiarezza, ma dal
- * 2026-09-10 è il predefinito: era questa la story che si comportava già come
- * il guscio si comporta adesso ovunque.
- *
- * Sono le sezioni vere di `NAV_SEZIONI`, con «Famiglie EPD» disabilitata come
- * in produzione.
+ * Voci senza icona, con `collassa="fuori"`: chiusa, la colonna sparisce invece
+ * di ridursi a una fila di quadrati vuoti. Una voce è disabilitata.
  */
 export const SenzaIcone: Story = {
   args: {
@@ -335,31 +298,9 @@ export const SenzaIcone: Story = {
 }
 
 /**
- * Sotto i 768px la colonna **non** si comprime: sparisce dal DOM, e il grilletto
- * apre al suo posto uno `Sheet` da 281px col fuoco intrappolato ed `Esc` che
- * chiude al primo colpo. È il ramo `isMobile` del componente, e non c&apos;è
- * niente da scrivere per averlo.
- *
- * È qui che si guarda **D10**: a 375px la colonna non c&apos;è più, quindi
- * l&apos;unica cosa che mangia larghezza è il padding di pagina — 16px per lato
- * in normale, 24 in touch. La misura è in `WORKLOG.md`, M3.1.
- *
- * ## Ma «a 375px» vale solo in una finestra davvero stretta
- *
- * Il global `viewport` qui sotto ridimensiona l&apos;iframe **nella cornice del
- * manager**, cioè per gli occhi. Nel canvas aperto per URL — che è come lo
- * aprono `test:a11y` e `misura:bersagli` — `window.innerWidth` resta quello
- * della finestra vera e **non c&apos;è errore**: nel gate questa story rende il
- * ramo **scrivania**, con la colonna nel DOM (`docs/DECISIONI.md` §46, con le
- * due tabelle misurate). Quindi il paragrafo qui sopra descrive ciò che si
- * vede aprendo Storybook, non ciò che il gate misura.
- *
- * Misurato in Chromium vero a 375px, con un `MutationObserver` installato
- * prima del caricamento (M4ter.6): la colonna **entra nel DOM e poi viene
- * tolta** — 1 rimozione di `[data-slot=sidebar]`, 0 alla fine. È il primo
- * render di `useIsMobile`, che legge `matchMedia` dentro un effetto e quindi
- * parte sempre da scrivania. Su un guscio non morde; su una lista sì, ed è la
- * ragione per cui `useSoglia` esiste accanto e non al posto suo.
+ * Alla larghezza del telefono la colonna non c'è, e il grilletto in fascia
+ * apre il pannello laterale. Si vede aprendo la scena da sola: nella pagina
+ * di documentazione rende la forma della scrivania.
  */
 export const Telefono: Story = {
   globals: { viewport: { value: 'telefono', isRotated: false } },

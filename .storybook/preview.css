@@ -86,3 +86,14 @@ body[data-superficie='sidebar'] .docs-story {
 .sbdocs .docblock-source {
   background: var(--card);
 }
+
+/* ── L'interruttore booleano della tabella delle prop ───────────────────
+   Nella tabella delle prop di una pagina Docs, un booleano si comanda con
+   un interruttore «False / True». La voce spenta Storybook la scrive col
+   colore del testo al 50% di opacità, un valore fisso che il tema non
+   espone: sul fondo chiaro dell'interruttore fa 3.37:1. Qui prende
+   `--muted-foreground`, che è il grigio del tema tarato per il testo; la
+   voce accesa resta quella di Storybook. */
+.sbdocs .docblock-argstable label > span {
+  color: var(--muted-foreground);
+}

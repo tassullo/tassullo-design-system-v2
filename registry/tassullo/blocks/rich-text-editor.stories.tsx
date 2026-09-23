@@ -6,12 +6,17 @@ import { apriCol } from '@/prove/apri'
 import { RichTextEditor } from '@/registry/tassullo/blocks/rich-text-editor'
 
 /**
- * L'editor per i testi che Anagrafe oggi affida a un `<textarea>`: testi di
- * famiglia, voce di capitolato, note tecniche (`editor` ×20 nella sua
- * roadmap). Barra ridotta all'essenziale — grassetto, corsivo, apice,
- * elenchi, collegamento — perché lo schema del documento non accetta altro:
- * un incolla da Word non porta dentro titoli, colori o sottolineato, non
- * perché vengano tolti, ma perché non c'è una casella dove entrare.
+ * Il campo per un testo con una formattazione minima: grassetto, corsivo,
+ * apice e pedice, elenchi, collegamenti.
+ *
+ * **Quando sì, quando no.** Si usa per i testi lunghi che hanno bisogno di un
+ * grassetto o di un elenco: la descrizione di una famiglia di prodotti, una
+ * voce di capitolato, le note tecniche. Per un testo semplice basta
+ * `textarea`, dentro `tassullo-form-field`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-rich-text-editor
+ * ```
  *
  * ```tsx
  * <RichTextEditor
@@ -21,9 +26,28 @@ import { RichTextEditor } from '@/registry/tassullo/blocks/rich-text-editor'
  * />
  * ```
  *
- * Il valore è **JSON** (`editor.getJSON()` serializzato), non HTML: la
- * stessa struttura produce sempre la stessa stringa, la condizione che
- * `diff-view` (M3.9) chiederà per confrontare due revisioni.
+ * **Le prop.** `value` o `defaultValue`, il contenuto; `onChange`;
+ * `limite`, i caratteri ammessi, 2048 se non si passa; `placeholder`;
+ * `disabilitato`; `etichetta`, il nome dell'area di scrittura per i lettori
+ * di schermo.
+ *
+ * **Regole d'uso.**
+ *
+ * - Il valore è JSON, non HTML: lo stesso contenuto dà sempre la stessa
+ *   stringa, e due revisioni si possono confrontare.
+ * - Il testo accetta solo ciò che la barra sa fare. Incollando da un
+ *   programma di videoscrittura restano grassetto e corsivo, e si perdono
+ *   titoli, colori e sottolineature.
+ * - Il contatore mostra caratteri usati e limite, e cambia colore quando ne
+ *   restano 50: il limite si vede prima di arrivarci. Oltre il limite non si
+ *   scrive.
+ * - Il collegamento si inserisce da un popover, mai da una finestra del
+ *   browser.
+ *
+ * **Tastiera e accessibilità.** La barra è una `toolbar` con un nome, e ogni
+ * bottone dice cosa fa e se è acceso. L'area di scrittura è un campo di testo
+ * su più righe con il suo nome. `Ctrl` o `⌘` con `B` e `I` mettono grassetto
+ * e corsivo.
  */
 const meta = {
   title: 'Blocchi/Editor di testo',
@@ -34,7 +58,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** A riposo, con il placeholder. */
+/**
+ * Il campo vuoto, con il testo segnaposto.
+ */
 export const Base: Story = {
   args: {
     placeholder: 'Descrizione del prodotto…',
@@ -48,13 +74,7 @@ export const Base: Story = {
 }
 
 /**
- * Il collegamento passa da un popover, non da un `window.prompt` — coerente
- * col resto del registry (nessun dialogo nativo del browser) e verificabile
- * da axe, che un `prompt()` non lo è. Il bottone non chiede una selezione
- * preventiva: senza, `setLink` si applica come marcatore per il testo che
- * si scriverà dopo — lo stesso comportamento del grassetto sulla riga vuota.
- * L'imbracatura dichiara l'apertura (`@/prove/apri`) perché il gate la
- * misuri in tutti e due gli stati.
+ * Il popover del collegamento, aperto dalla barra.
  */
 export const ConCollegamento: Story = {
   args: {
@@ -78,9 +98,8 @@ export const ConCollegamento: Story = {
 }
 
 /**
- * BC impone 2048 caratteri per campo (`form-field`, M3.4, stessa regola).
- * Contenuto già a 15 caratteri dal limite: il contatore è già in
- * `warning` — "si vede prima di sbatterci contro", non dopo.
+ * Un testo a quindici caratteri dal limite: il contatore ha già cambiato
+ * colore.
  */
 export const VicinoAlLimite: Story = {
   render: () => <DemoLimite />,
@@ -109,12 +128,8 @@ function DemoLimite() {
 }
 
 /**
- * L'accettazione di M3.8: incollare da Word non porta dentro colore,
- * sottolineato né il titolo — restano solo grassetto e corsivo, gli unici
- * marcatori che lo schema di questo editor conosce oltre ad apice e link.
- * Provato incollando davvero (`paste`, non `setContent`): è l'unico modo di
- * passare dal parser HTML di ProseMirror, lo stesso percorso di un incolla
- * reale dalla clipboard.
+ * Un testo incollato da un programma di videoscrittura: restano grassetto e
+ * corsivo, spariscono titolo, colore e sottolineato.
  */
 export const IncollaDaWord: Story = {
   args: { etichetta: 'Note tecniche' },

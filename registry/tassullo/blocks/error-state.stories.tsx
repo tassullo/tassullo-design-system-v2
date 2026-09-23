@@ -4,11 +4,19 @@ import { PlugZapIcon } from 'lucide-react'
 import { ErrorState } from '@/registry/tassullo/blocks/error-state'
 
 /**
- * L'«errore» dello standard unico di M3.5: mai uno stack trace, mai un
- * codice HTTP nudo in UI — un messaggio già tradotto per chi legge, e un 403
- * che diventa sempre «Non hai i permessi per questa azione» (`INTERFACCE.md`
- * §1.1 di Anagrafe). La traduzione resta dell'app; questo blocco dà solo la
- * forma.
+ * Lo stato di errore: quando i dati di una sezione non arrivano, un messaggio
+ * per chi legge al posto del contenuto, e quando serve il bottone per
+ * riprovare.
+ *
+ * **Quando sì, quando no.** È uno dei tre stati di una sezione, con
+ * `tassullo-page-skeleton` mentre i dati arrivano e `tassullo-empty-state`
+ * quando arrivano vuoti. Si usa quando un errore prende il posto di
+ * un'intera sezione. Un avviso accanto al contenuto, che resta leggibile, è
+ * un `alert`; un errore su un campo sta nel campo (`tassullo-form-field`).
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-error-state
+ * ```
  *
  * ```tsx
  * <ErrorState
@@ -17,9 +25,18 @@ import { ErrorState } from '@/registry/tassullo/blocks/error-state'
  * />
  * ```
  *
- * È la stessa primitiva del vuoto (`empty`), tinta di `destructive-subtle` —
- * non `alert`: un errore che sostituisce un'intera sezione è uno stato della
- * pagina, non una riga accanto al contenuto.
+ * **Le prop.** `messaggio`, già tradotto per chi legge; `titolo` e `icona`,
+ * che hanno un valore di serie; `onRiprova` ed `etichettaRiprova`, per il
+ * bottone.
+ *
+ * **Regole d'uso.**
+ *
+ * - Mai uno stack trace, mai un codice HTTP nudo, mai la risposta grezza del
+ *   server: il messaggio lo scrive l'app, che sa cosa è successo.
+ * - Un errore di permessi (403) si scrive sempre «Non hai i permessi per
+ *   questa azione».
+ * - «Riprova» solo per gli errori passeggeri: per un errore di permessi
+ *   riprovare non cambia niente.
  */
 const meta = {
   title: 'Blocchi/Stato di errore',
@@ -30,6 +47,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Il messaggio, senza bottone.
+ */
 export const Predefinito: Story = {
   args: {
     messaggio: 'Il servizio schede non risponde. Riprova fra qualche minuto.',
@@ -41,7 +61,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Con «Riprova»: per gli errori transitori, non per un 403. */
+/**
+ * Con «Riprova», per un errore passeggero.
+ */
 export const ConRiprova: Story = {
   args: {
     messaggio: 'Il servizio schede non risponde. Riprova fra qualche minuto.',
@@ -55,8 +77,7 @@ export const ConRiprova: Story = {
 }
 
 /**
- * Un 403 tradotto: mai il messaggio grezzo del backend, che parla di
- * permessi interni — sempre questa frase, letterale.
+ * Un errore di permessi, con la sua frase fissa e senza «Riprova».
  */
 export const SenzaPermessi: Story = {
   args: {

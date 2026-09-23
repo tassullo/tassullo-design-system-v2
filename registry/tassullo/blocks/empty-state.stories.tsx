@@ -5,9 +5,20 @@ import { EmptyState } from '@/registry/tassullo/blocks/empty-state'
 import { Button } from '@/registry/tassullo/ui/button'
 
 /**
- * Il «vuoto» dello standard unico di M3.5: card guidata con una frase e,
- * quando c'è un'azione sensata, la CTA per uscirne — mai una tabella con la
- * sola intestazione (`INTERFACCE.md` §1.1 di Anagrafe).
+ * Lo stato vuoto: quando una sezione non ha ancora niente da mostrare, dice
+ * perché con una frase e, quando c'è, offre il gesto per uscirne.
+ *
+ * **Quando sì, quando no.** È uno dei tre stati di una sezione, con
+ * `tassullo-page-skeleton` mentre i dati arrivano e `tassullo-error-state`
+ * quando non arrivano. Si usa quando i dati sono arrivati e non c'è niente:
+ * mai una tabella con la sola intestazione. Il «nessun risultato» dopo una
+ * ricerca o un filtro non è questo stato: lo dà da sé `tassullo-data-table`,
+ * con il bottone che toglie i filtri. Il blocco compone la primitiva `empty`
+ * con il bordo tratteggiato acceso; per un vuoto diverso resta la primitiva.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-empty-state
+ * ```
  *
  * ```tsx
  * <EmptyState
@@ -17,9 +28,13 @@ import { Button } from '@/registry/tassullo/ui/button'
  * />
  * ```
  *
- * Compone la primitiva `empty`, non la sostituisce: fissa un solo default che
- * la primitiva lascia aperto, il bordo tratteggiato acceso — la forma che
- * ogni punto d'uso finora ha scelto a mano.
+ * **Le prop.** `icona`, nel cerchio in testa; `titolo`, una frase e non un
+ * titolo tecnico; `descrizione`, cosa aspettarsi o dove cercare; `azione`, il
+ * bottone per uscire dal vuoto.
+ *
+ * **Regole d'uso.** Il titolo dice la cosa com'è — «Nessuna scheda in questa
+ * cartella» — non «Nessun dato». L'azione c'è solo quando ce n'è una
+ * sensata, di solito creare il primo elemento.
  */
 const meta = {
   title: 'Blocchi/Stato vuoto',
@@ -30,6 +45,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Icona, frase e descrizione.
+ */
 export const Predefinito: Story = {
   args: {
     icona: <FolderOpenIcon />,
@@ -43,7 +61,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Con la CTA: lo stato vuoto dice anche **cosa fare adesso**. */
+/**
+ * Con l'azione: lo stato vuoto dice anche cosa fare adesso.
+ */
 export const ConAzione: Story = {
   args: {
     icona: <FileSearchIcon />,
@@ -63,7 +83,9 @@ export const ConAzione: Story = {
   ),
 }
 
-/** Senza descrizione: quando il titolo basta a dire tutto. */
+/**
+ * Senza descrizione, quando la frase basta.
+ */
 export const SoloTitolo: Story = {
   args: {
     icona: <FolderOpenIcon />,

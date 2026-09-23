@@ -253,28 +253,76 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
 }
 
 /**
- * **`tassullo-foglio-gruppi`** — il foglio editabile a gruppi, nella forma del
- * computo metrico da cui nasce: una **voce** è la testata, le sue
- * **misurazioni** sono il corpo, il **SOMMANO** è il piede.
+ * Il foglio editabile a gruppi: una sequenza di gruppi, ognuno con una
+ * testata, un corpo di righe omogenee e un piede che le somma. È la forma del
+ * computo metrico — la voce, le sue misurazioni, il SOMMANO — e di ogni foglio
+ * fatto come lui.
  *
- * **Perché non `data-table` e non `data-grid`** (misure in `docs/DECISIONI.md`
- * §50): il primo ha l'albero ma la tastiera di riga, e mette il subtotale
- * *sopra* i figli mentre il SOMMANO sta sotto; il secondo ha la tastiera di
- * cella ma è una **matrice**, e qui le colonne si spartiscono per zona invece
- * di volere la stessa cosa su ogni riga.
+ * **Quando sì, quando no.** Si usa quando le colonne cambiano significato da
+ * una zona all'altra del gruppo: la designazione è la descrizione della voce
+ * in testata, quella della misura nel corpo, l'etichetta del totale nel piede;
+ * le celle scrivibili stanno nel corpo, il prezzo nel piede. Un elenco da
+ * leggere, anche ad albero con i subtotali, è `tassullo-data-table`, dove la
+ * tastiera si muove per righe e il subtotale sta sopra i figli. Una tabella da
+ * modificare cella per cella, con colonne che vogliono dire la stessa cosa su
+ * ogni riga, copia, incolla e riempimento, è `tassullo-data-grid`.
  *
- * **Da tastiera** — è il motivo per cui il blocco esiste, e va provato:
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-foglio-gruppi
+ * ```
  *
- * - `ArrowDown` dall'ultima misurazione di una voce **entra nella voce dopo**
- *   invece di fermarsi. Nel Computo di Studio, oggi, lì non succede niente.
- * - Dalla colonna **Designazione** le frecce raggiungono il **SOMMANO**, e da
- *   lì `ArrowRight` arriva al **prezzo** — la cella che determina l'importo,
- *   che oggi sta in fondo a un vicolo cieco raggiungibile solo col `Tab`.
- * - `Tab` **esce dal foglio in una fermata**: le celle hanno un fuoco mobile.
- *   Nel Computo vero un gruppo da tre misure costa **24 fermate**, sei delle
- *   quali comandi, e fra una riga e l'altra si passa su «Rimuovi».
- * - I comandi della voce sono su **`Shift+F10`** (o tasto Menu), la
- *   scorciatoia di sistema per il menu contestuale.
+ * **Come si compone.** Il motore è `useFoglioGruppi`, e il foglio è
+ * `<FoglioGruppi motore={…} didascalia="…" />`.
+ *
+ * - `useFoglioGruppi({ gruppiIniziali, colonne, onModifica, conRigaAzioni })`:
+ *   i gruppi sono `{ id, testata, righe }`. Il motore non è controllato: tiene
+ *   i gruppi in uno stato suo, seminato una volta da `gruppiIniziali`, e chi
+ *   vuole sapere cosa è cambiato ascolta `onModifica`.
+ * - Ogni colonna dichiara `id`, `titolo`, `larghezza`, `allineamento` e una
+ *   cella per zona: `testata`, `corpo`, `piede`. Una cella è `scrivibile` —
+ *   `leggi`, `scrivi`, e a scelta `mostra`, `valida`, `segnaposto` — oppure
+ *   `calcolata`, con `rendi`, oppure `fissa`. Una zona senza cella resta
+ *   vuota.
+ * - `azione` è il comando frequente del gruppo, su una riga propria fra corpo
+ *   e piede — nel computo, «+ misurazione». È una sola, e il motore va
+ *   costruito con `conRigaAzioni: true`, o la riga si vede e le frecce non la
+ *   trovano.
+ * - `comandi` sono i comandi rari del gruppo, in un menu: spostare la voce
+ *   su o giù, eliminarla. Un comando con `distruttivo` si colora come
+ *   un'azione che non si disfa.
+ * - `piede` è la riga in coda al foglio, il totale generale.
+ * - `didascalia` descrive la tabella a chi non vede lo schermo, ed è
+ *   obbligatoria come un `alt`.
+ *
+ * **Regole d'uso.**
+ *
+ * - Il foglio conosce solo stringhe: `leggi` e `scrivi` convertono, e `mostra`
+ *   formatta per la vista con le funzioni dell'item `numeri` — `decimale()`,
+ *   `valuta()` — che scrivono sempre il separatore delle migliaia. Le colonne
+ *   con `allineamento: 'destra'` hanno già le cifre tabellari.
+ * - `valida` restituisce il messaggio d'errore, o `undefined` se il valore va
+ *   bene.
+ * - Un gruppo senza righe mostra comunque testata e piede: è la voce appena
+ *   aggiunta, che ha un prezzo e non ha ancora misure.
+ * - Su uno schermo stretto il foglio non si comprime: la pagina sceglie una
+ *   seconda faccia, una lista in sola lettura che apre la modifica in un
+ *   cassetto (`tassullo-responsive-dialog`). La scena «Due Facce» è la
+ *   ricetta.
+ *
+ * **Tastiera e accessibilità.** Il foglio è un solo fermo di tabulazione:
+ * `Tab` entra sulla cella attiva — la prima scrivibile, all'inizio — e il
+ * `Tab` seguente esce. Dentro, le frecce si muovono fra le celle saltando
+ * quelle che non esistono: dall'ultima misura di un gruppo `↓` entra nel
+ * gruppo dopo, e dalla colonna della designazione si arriva al piede e, a
+ * destra, al prezzo. `Invio`, `F2` o un carattere qualsiasi aprono la
+ * modifica, e anche un clic solo. Mentre si scrive, `Invio` conferma e scende,
+ * `Tab` conferma e passa accanto, le frecce verticali cambiano cella e quelle
+ * orizzontali lo fanno arrivate al bordo del testo; la cella d'arrivo si apre
+ * già in modifica. Un valore non valido non si conferma: l'errore resta sulla
+ * cella, con l'anello rosso e un testo collegato con `aria-describedby`, ed
+ * `Esc` annulla sempre. La riga «+ misurazione» si raggiunge con le frecce e
+ * si attiva con `Invio`. I comandi del gruppo si aprono con `Maiusc`+`F10` o
+ * col tasto Menu, e il loro grilletto resta fuori dall'ordine di tabulazione.
  */
 const meta: Meta<typeof FoglioGruppi<Voce, Misurazione>> = {
   title: 'Blocchi/Foglio a gruppi',
@@ -285,16 +333,17 @@ const meta: Meta<typeof FoglioGruppi<Voce, Misurazione>> = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un computo con le sue voci, le misure, i SOMMANO e il totale in fondo. Si
+ * prova da tastiera: le frecce attraversano le zone e i gruppi.
+ */
 export const Computo: Story = {
   render: () => <ComputoFoglio />,
 }
 
 /**
- * **Un gruppo senza righe** mostra comunque il suo piede: è la voce appena
- * aggiunta, che ha un prezzo e non ha ancora una misura. Le frecce verticali
- * la attraversano — testata, poi direttamente il SOMMANO — senza inciampare
- * nel corpo vuoto, perché la matrice salta le caselle che non esistono e un
- * corpo vuoto non ne produce nessuna.
+ * Un gruppo senza misure: testata e piede ci sono comunque, e le frecce
+ * verticali passano dalla testata direttamente al SOMMANO.
  */
 export const GruppoVuoto: Story = {
   render: () => (
@@ -309,12 +358,8 @@ export const GruppoVuoto: Story = {
 }
 
 /**
- * **La validazione per cella**, con la stessa disciplina di
- * `tassullo-form-field`: anello rosso per chi vede, `aria-describedby` verso un
- * testo `sr-only` per chi non vede. `Invio` e `Tab` **non** chiudono una
- * modifica invalida — l'errore resta a schermo e si corregge senza aver perso
- * il posto; `Esc` annulla sempre, valido o no, perché è la via d'uscita che non
- * deve mai bloccarsi. Da provare: scrivere `abc` in una cella di misura.
+ * La validazione per cella: scrivendo `abc` in una misura, l'anello rosso e
+ * il messaggio restano finché non si corregge o non si preme `Esc`.
  */
 export const Validazione: Story = {
   render: () => (
@@ -331,23 +376,8 @@ export const Validazione: Story = {
 }
 
 /**
- * **I comandi della voce**, aperti. Stanno su **`Shift+F10`** (o tasto Menu) e
- * il loro grilletto ha `tabIndex={-1}`: `Tab` non ci si ferma mai. È la
- * correzione di un difetto misurato sul Computo di Studio, dove per passare da
- * una misurazione alla successiva si tabulava **sul bottone che la cancella** —
- * 576 volte, su un computo da 144 voci.
- *
- * La story ha la `play` che **dichiara il popup al gate** (`scripts/gate-a11y.ts`
- * tiene l'elenco dei componenti che ne hanno uno, e senza la dichiarazione
- * questo sarebbe passato per «senza popup»: un popup non aperto non è un popup
- * senza violazioni). Sta qui e non sulla story `Computo` perché Storybook
- * esegue le `play` **anche nel canvas**: quella arriverebbe a video col menu
- * aperto sopra la tabella, cioè illeggibile proprio quando la si guarda.
- *
- * Il `data-slot` del grilletto è stato **guardato nel DOM**, non dedotto:
- * malgrado il `render={<Button/>}` resta `dropdown-menu-trigger`, come il menù
- * utente del guscio — mentre il combobox, composto in modo somigliante, se lo
- * fa riprendere da `InputGroupButton`.
+ * Il menu dei comandi di una voce, aperto: le azioni rare del gruppo, che da
+ * tastiera si aprono con `Maiusc`+`F10`.
  */
 export const Comandi: Story = {
   render: () => <ComputoFoglio />,
@@ -675,30 +705,11 @@ function ComputoADueFacce() {
 }
 
 /**
- * **Come degrada quando la finestra si stringe** — richiesta di Francesco, che
- * ha indicato la strada giusta: *«es. avevamo creato lista a due facce»*. È lo
- * stesso bivio di `Pagine/Lista a due facce` (M4ter.6), applicato al foglio.
- *
- * Sopra soglia il **foglio**, sotto la **forma D**: la lista resta in sola
- * lettura e densissima — non si muove mai — e la modifica accade in un
- * **cassetto dal basso** (`tassullo-responsive-dialog`, che sul telefono è già
- * un `Drawer`). Scelta da Francesco fra quattro provate a video, perché sul
- * telefono un computo si legge molto e si corregge poco.
- *
- * **Tutto si modifica**: la testata apre il cassetto della voce (designazione,
- * unità, prezzo), ogni misura quello della misura. I campi non portano nessuna
- * classe propria per lo zoom: la protezione sta in `ui/input.tsx`, dov'è il suo
- * posto (v. sopra). La faccia stretta non è il foglio
- * rimpicciolito — nove colonne su un telefono non ci stanno, e comprimerle è
- * precisamente ciò che rompeva la testata (misurato: «Designazione dei lavori»
- * e «Par.ug.» scritte una sopra l'altra).
- *
- * **Avvertenza sulla misura, e non è un dettaglio**: `useSoglia` legge la
- * **finestra**, e l'interruttore Viewport di Storybook ridimensiona l'iframe
- * nella cornice del manager — nel canvas aperto per URL `window.innerWidth`
- * resta quello della finestra vera (`docs/DECISIONI.md` §46). Questa story si
- * guarda quindi **restringendo la finestra del browser**, non col Viewport, e
- * nel gate rende sempre il ramo largo.
+ * La faccia stretta: sotto soglia il foglio lascia il posto a una lista in
+ * sola lettura, e toccando la testata o una misura si apre il cassetto per
+ * modificarla. La soglia guarda la finestra: la scena si prova aperta da
+ * sola, scegliendo il telefono dall'interruttore Viewport o stringendo la
+ * finestra del browser.
  */
 export const DueFacce: Story = {
   name: 'Due facce',
