@@ -87,7 +87,7 @@ export const Predefinito: Story = {
       <TableBody>
         {righe.map((r) => (
           <TableRow key={r.cod}>
-            <TableCell className="text-xs">{r.cod}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">{r.cod}</TableCell>
             <TableCell className="whitespace-normal">{r.voce}</TableCell>
             <TableCell>{r.um}</TableCell>
             <TableCell className="text-right">{r.qta}</TableCell>
@@ -122,19 +122,19 @@ export const ConStati: Story = {
       </TableHeader>
       <TableBody>
         <TableRow>
-          <TableCell className="text-xs">SCH-4021-A</TableCell>
+          <TableCell className="text-sm text-muted-foreground">SCH-4021-A</TableCell>
           <TableCell>Guaina bituminosa TS-40</TableCell>
           <TableCell><Badge variant="default">Pubblicata</Badge></TableCell>
           <TableCell className="text-right">4</TableCell>
         </TableRow>
         <TableRow data-state="selected">
-          <TableCell className="text-xs">SCH-1107-C</TableCell>
+          <TableCell className="text-sm text-muted-foreground">SCH-1107-C</TableCell>
           <TableCell>Primer bituminoso</TableCell>
           <TableCell><Badge variant="secondary">Bozza</Badge></TableCell>
           <TableCell className="text-right">11</TableCell>
         </TableRow>
         <TableRow>
-          <TableCell className="text-xs">SCH-0088-A</TableCell>
+          <TableCell className="text-sm text-muted-foreground">SCH-0088-A</TableCell>
           <TableCell>Fissaggi meccanici</TableCell>
           <TableCell><Badge variant="destructive">Revocata</Badge></TableCell>
           <TableCell className="text-right">2</TableCell>
@@ -195,7 +195,7 @@ function Colonna({ titolo, classe }: { titolo: string; classe: string }) {
         <TableBody>
           {righe.map((r) => (
             <TableRow key={r.cod}>
-              <TableCell className="text-xs">{r.cod}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{r.cod}</TableCell>
               <TableCell className="text-right">{r.qta}</TableCell>
             </TableRow>
           ))}

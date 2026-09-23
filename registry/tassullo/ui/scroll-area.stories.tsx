@@ -55,7 +55,7 @@ export const Predefinito: Story = {
         <h4 className="mb-2 text-sm font-medium">Norme citate</h4>
         {norme.map((n) => (
           <div key={n}>
-            <div className="py-1.5 font-mono text-xs">{n}</div>
+            <div className="py-1.5 text-sm text-muted-foreground">{n}</div>
             <Separator />
           </div>
         ))}
@@ -74,7 +74,7 @@ export const Orizzontale: Story = {
         {norme.slice(0, 8).map((n) => (
           <div
             key={n}
-            className="flex size-28 shrink-0 items-center justify-center rounded-md bg-muted p-2 text-center font-mono text-xs"
+            className="flex size-28 shrink-0 items-center justify-center rounded-md bg-muted p-2 text-center text-sm text-muted-foreground"
           >
             {n}
           </div>
@@ -95,7 +95,7 @@ export const DentroUnPannello: Story = {
       <ScrollArea className="h-56">
         <div className="px-3 py-2">
           {norme.map((n) => (
-            <div key={n} className="py-1.5 font-mono text-xs">
+            <div key={n} className="py-1.5 text-sm text-muted-foreground">
               {n}
             </div>
           ))}

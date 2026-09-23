@@ -3428,3 +3428,17 @@ M5.0c ha riscritto per chi legge da fuori le 24 pagine da `kbd` a `tooltip`. Le 
 5. **`sonner` e `spinner`, i due nomi che arrivano da fuori.** `sonner` risponde ad `Alt`+`T` (`hotkey = ['altKey', 'KeyT']`), annuncia in una regione `aria-live="polite"` e tiene un avviso 4 secondi; `spinner` porta di serie `aria-label="Loading"`, in inglese, e la pagina chiede di passarlo in italiano.
 6. **`stepper`: prima di aver dato il fuoco a un passo, `Home` non fa niente.** Il `tabIndex` è `0` sul passo selezionato e `-1` sugli altri, e i tasti sono ascoltati sui bottoni dei passi: senza fuoco dentro la barra non c'è nessun elemento su cui agire. Non è un difetto. E le frecce chiamano `.focus()` e basta: il passo cambia solo con `Invio`, `Spazio` o un clic (attivazione manuale).
 7. **Anagrafe aveva già scritto a mano due «chip» che filtri non sono**: `pdt-prod-chip` e `adm-ruolo-chip`, due collegamenti vestiti da pillole. Era scritto solo nella pagina di `toggle-group`, che non nomina più le app; serve alla guida di migrazione (M5.5) per riconoscere la forma.
+
+## 55. Lo stepper resta identico a reui: la composizione accessibile si ripete (M5.0c, coda, 2026-09-23)
+
+**La domanda, aperta da M4ter.1 (2026-09-19).** In `@reui/stepper` la radice `Stepper` porta `role="tablist"` e le schede stanno dentro lo `<nav>` di `StepperNav`, che spezza la catena fra la lista e le sue schede: axe dà `aria-required-children` sulla radice e `aria-required-parent` su ogni scheda. Due strade: comporre diversamente a ogni uso, oppure un'eccezione alla regola 4bis che sposti il ruolo dalla radice a `StepperNav`.
+
+**Deciso da Francesco: la composizione resta, il componente non si tocca.** La pagina `Primitive/Stepper` la scrive come regola d'uso: radice con `role="group"` e `aria-orientation={undefined}`, schede in un elemento nostro con `role="tablist"` e `aria-label`, tutti i pannelli presenti con `id="stepper-panel-N"`. Oggi è ripetuta in due punti (`Primitive/Stepper`, `SchermateAccesso`), a zero violazioni.
+
+**Perché l'eccezione costava più di «una riga», come la dava M4ter.1.** Misurato aprendo i file:
+1. `check:registry` non ha un modo di accettare una divergenza di forma dichiarata: ogni spostamento di attributo su un file con originale lo manda in rosso. L'eccezione avrebbe chiesto infrastruttura nuova nel gate, per un solo caso.
+2. `StepperNav` destruttura solo `children` e `className`: spostato lì il ruolo, il `tablist` non potrebbe ricevere un `aria-label` senza aprire anche le sue props — una seconda divergenza.
+3. A ogni aggiornamento di reui la modifica andrebbe riportata a mano, sul primo componente di terzi del registry.
+4. Il punto 3 di M4ter.1 — i pannelli che devono esserci tutti — resterebbe comunque: nessuna delle due strade lo toglie.
+
+Si riapre se gli usi crescono al punto che la ripetizione diventa il difetto, o se reui corregge il componente a monte.

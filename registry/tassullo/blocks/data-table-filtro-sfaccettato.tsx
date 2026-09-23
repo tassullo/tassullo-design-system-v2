@@ -415,7 +415,7 @@ export function FiltroSfaccettato<TDato extends RowData>({
                     </span>
                     <span className="truncate">{opzione.label}</span>
                     {opzione.count !== undefined ? (
-                      <span className="ml-auto font-mono text-xs tabular-nums text-muted-foreground">
+                      <span className="ml-auto text-xs tabular-nums text-muted-foreground">
                         {opzione.count}
                       </span>
                     ) : null}

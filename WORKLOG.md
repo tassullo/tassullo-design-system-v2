@@ -12390,3 +12390,13 @@ Il testo è stato scritto a mano, file per file, **già andato a capo**; uno scr
 - `stepper`: la composizione accessibile senza `StepperNav` resta da ripetere a ogni uso; la decisione se spostare `role="tablist"` su `StepperNav` (eccezione a 4bis) è ancora aperta dalla voce di M4ter.1 (2026-09-19). La pagina scrive la composizione com'è oggi.
 
 **Prossimi passi**: **M5.0d** — le 21 story di `blocks/` (129 segnalazioni), con `altezza="ferma"` di `data-table` in evidenza e `IntestazioneColonnaMenu` come alternativa opt-in.
+
+### Coda di M5.0c — i due rilievi, chiusi
+
+Chiesto da Francesco a PR aperta («sistemiamo ora»), con due scelte («1A, 2 sì»).
+
+- **I codici nelle scene seguono la regola.** `table`: le cinque celle di codice da `text-xs` a `text-sm text-muted-foreground`. `scroll-area`: le tre `font-mono text-xs` sulle norme a `text-sm text-muted-foreground`. Codice delle story, nessun componente.
+- **Trovato cercando lo stesso difetto altrove, e corretto**: in `blocks/data-table-filtro-sfaccettato.tsx` il conteggio accanto a ogni opzione del filtro era `font-mono`. È un numero da confrontare, quindi carattere del testo con `tabular-nums` (che c'era già): tolto `font-mono`, rilanciato `registry:build`, `public/r/tassullo-data-table-filtro-sfaccettato.json` aggiornato. Gli altri `font-mono` del repo sono sul codice sorgente o nelle pagine `Tema/`, dove la regola li ammette.
+- **Stepper: la composizione resta, il componente non si tocca** (scelta 1A). Il perché — l'eccezione costava infrastruttura nuova in `check:registry`, una seconda divergenza sulle props di `StepperNav` e un riporto a mano a ogni versione di reui — in `DECISIONI.md` **§55**. La questione aperta da M4ter.1 è chiusa.
+
+**Verifiche**: `npm run check`, i sette gate verdi; `test:a11y` **1540 scansioni, 0 violazioni**, 385 story in ognuna delle quattro passate — invariato anche col grigio attenuato sulla riga selezionata e sulle tessere grigie; `public/r/` allineato ai sorgenti.
