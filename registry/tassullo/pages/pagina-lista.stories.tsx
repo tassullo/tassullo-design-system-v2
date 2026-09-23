@@ -521,7 +521,7 @@ function SchedeNorme({ dati }: { dati: Norma[] }) {
           {norme.map((n) => (
             <Collapsible key={n.id}>
               <Card className="gap-0 overflow-hidden py-0">
-                <CollapsibleTrigger className="group/riga flex w-full items-center gap-3 p-3 text-left hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+                <CollapsibleTrigger className="group/riga flex w-full items-center gap-3 p-3 text-left rounded-xl hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none data-[panel-open]:rounded-b-none">
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     {/* Il **codice sopra il titolo**: è così che una norma si
                         cita e si cerca. Su Prodotti l'identità è il nome, qui

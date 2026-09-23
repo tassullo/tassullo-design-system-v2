@@ -97,9 +97,10 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * - Da sapere: i filtri non passano da una faccia all'altra. Sulla faccia
  *   larga li tiene la tabella, su quella stretta la pagina.
  *
- * **Le immagini** sono le illustrazioni d'esempio dei sistemi Tassullo, non
- * foto di macchine: servono a mostrare `entity-image` con e senza
- * sorgente — due righe su dodici hanno il segnaposto. `alt=""` le dichiara
+ * **Le foto** sono fotografie di macchinari da cantiere con licenza libera,
+ * e mostrano `entity-image` con e senza sorgente: quattro righe su dodici
+ * hanno il segnaposto. Sono fotografie con uno sfondo proprio, quindi nella
+ * miniatura quadrata prendono `adatta="riempi"`. `alt=""` le dichiara
  * decorative, perché accanto c'è già il nome della riga.
  */
 const meta = {
@@ -134,19 +135,23 @@ type Macchina = {
   prossimaRevisione: Date
 }
 
+// Fotografie di macchinari da cantiere da Wikimedia Commons, con licenza
+// libera: autori e licenze in `public/esempi/LEGGIMI.md`.
 const FOTO = {
-  cappotto: 'esempi/sistema-cappotto.png',
-  radiante: 'esempi/sistema-radiante.png',
-  risanamento: 'esempi/sistema-risanamento.png',
-  crm: 'esempi/sistema-crm.png',
-  ripristino: 'esempi/sistema-ripristino-storico.png',
-  seta: 'esempi/sistema-effetto-seta.png',
+  intonacatrice: 'esempi/macchina-intonacatrice.jpg',
+  miscelatore: 'esempi/macchina-miscelatore.jpg',
+  pompa: 'esempi/macchina-pompa.jpg',
+  silo: 'esempi/macchina-silo.jpg',
+  ponteggio: 'esempi/macchina-ponteggio.jpg',
+  generatore: 'esempi/macchina-generatore.jpg',
+  betoniera: 'esempi/macchina-betoniera.jpg',
+  termocamera: 'esempi/macchina-termocamera.jpg',
 }
 
 const MACCHINE: Macchina[] = [
   {
     id: '1',
-    foto: FOTO.cappotto,
+    foto: FOTO.intonacatrice,
     matricola: 'MX-1042',
     nome: 'Intonacatrice PFT G4',
     tipo: 'Intonacatrice',
@@ -158,7 +163,7 @@ const MACCHINE: Macchina[] = [
   },
   {
     id: '2',
-    foto: FOTO.radiante,
+    foto: FOTO.miscelatore,
     matricola: 'MX-1043',
     nome: 'Miscelatore M-Tec D30',
     tipo: 'Miscelatore',
@@ -170,7 +175,7 @@ const MACCHINE: Macchina[] = [
   },
   {
     id: '3',
-    foto: FOTO.risanamento,
+    foto: FOTO.pompa,
     matricola: 'MX-1088',
     nome: 'Pompa Putzmeister S5',
     tipo: 'Pompa',
@@ -193,7 +198,7 @@ const MACCHINE: Macchina[] = [
   },
   {
     id: '5',
-    foto: FOTO.crm,
+    foto: FOTO.silo,
     matricola: 'MX-1120',
     nome: 'Silo pressurizzato 22 t',
     tipo: 'Silo',
@@ -205,7 +210,7 @@ const MACCHINE: Macchina[] = [
   },
   {
     id: '6',
-    foto: FOTO.ripristino,
+    foto: FOTO.ponteggio,
     matricola: 'MX-1174',
     nome: 'Ponteggio autosollevante',
     tipo: 'Sollevamento',
@@ -228,7 +233,7 @@ const MACCHINE: Macchina[] = [
   },
   {
     id: '8',
-    foto: FOTO.seta,
+    foto: FOTO.generatore,
     matricola: 'MX-1204',
     nome: 'Generatore Kohler 60 kVA',
     tipo: 'Generatore',
@@ -251,7 +256,7 @@ const MACCHINE: Macchina[] = [
   },
   {
     id: '10',
-    foto: FOTO.cappotto,
+    foto: FOTO.betoniera,
     matricola: 'MX-1250',
     nome: 'Betoniera a bicchiere 500 l',
     tipo: 'Betoniera',
@@ -274,7 +279,7 @@ const MACCHINE: Macchina[] = [
   },
   {
     id: '12',
-    foto: FOTO.radiante,
+    foto: FOTO.termocamera,
     matricola: 'MX-1281',
     nome: 'Termocamera FLIR E76',
     tipo: 'Strumento',
@@ -365,6 +370,7 @@ const COLONNE = col.columns([
           src={row.original.foto}
           alt=""
           ratio="1:1"
+          adatta="riempi"
           icon={<WrenchIcon className="size-4" aria-hidden="true" />}
         />
       </div>
@@ -671,7 +677,7 @@ function FacciaStretta({ dati }: { dati: Macchina[] }) {
       {dati.map((m) => (
         <Collapsible key={m.id}>
           <Card className="gap-0 overflow-hidden py-0">
-            <CollapsibleTrigger className="group/riga flex w-full items-center gap-3 p-3 text-left hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+            <CollapsibleTrigger className="group/riga flex w-full items-center gap-3 p-3 text-left rounded-xl hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none data-[panel-open]:rounded-b-none">
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-xs text-muted-foreground">
                   {m.matricola}

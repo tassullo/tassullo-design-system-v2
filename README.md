@@ -127,3 +127,6 @@ Codice e documentazione: **© Tassullo**, tutti i diritti riservati. Il repo è 
 Fa eccezione il carattere **Inter**, distribuito con l'item `tema-font` sotto **SIL Open Font License 1.1** — il testo della licenza viaggia con l'item, in [`registry/tassullo/theme/tassullo-inter-OFL.txt`](registry/tassullo/theme/tassullo-inter-OFL.txt).
 
 Il carattere **Replica LL** (Lineto), usato nelle stampe, **non è in questo repo** e non si distribuisce col registry.
+
+Fanno eccezione anche le fotografie dei macchinari in `public/esempi/macchina-*.jpg`, da Wikimedia Commons con le loro licenze (CC BY-SA, CC0, uso libero): autori e licenze in [`public/esempi/LEGGIMI.md`](public/esempi/LEGGIMI.md). Servono solo alla style guide, e nessun item del registry le spedisce.
+

@@ -19,7 +19,7 @@ import {
 
 /**
  * La foto di una cosa — un sistema, un prodotto, una macchina, un impianto —
- * ritagliata a un rapporto fisso, con un segnaposto quando la foto non c'è.
+ * in un riquadro a rapporto fisso, con un segnaposto quando la foto non c'è.
  *
  * **Quando sì, quando no.** Per l'immagine di una scheda o di una card di
  * catalogo, e per la miniatura in una riga di elenco. Il segnaposto fa parte
@@ -33,6 +33,9 @@ import {
  *
  * **Opzioni.** `src` è la foto; senza, o se non arriva, compare il segnaposto.
  * `alt` è obbligatorio. `ratio`: `4:3` (di base), `16:9` o `1:1`, e non altri.
+ * `adatta`: `"intera"` (di base) scala l'immagine finché ci sta tutta, senza
+ * deformarla; `"riempi"` la scala finché copre il riquadro e taglia ciò che
+ * avanza.
  * `icon` è l'icona del segnaposto, di solito un'icona Lucide del dominio —
  * `Layers` per un sistema, per esempio; senza, compare un'immagine mancante.
  *
@@ -40,9 +43,12 @@ import {
  *
  * - `alt` descrive la foto. Per una foto davvero decorativa si scrive
  *   `alt=""`, esplicito.
+ * - I soggetti scontornati — i render dei sistemi, le foto pacco dei prodotti
+ *   — restano `"intera"`: si vedono tutti a ogni rapporto, e attorno resta la
+ *   superficie della card. Le fotografie con uno sfondo proprio prendono
+ *   `adatta="riempi"`, dove una banda vuota si vedrebbe.
  * - Il rapporto segue la sorgente: le foto larghe prendono `4:3` o `16:9`, le
- *   immagini quadrate — i render dei sistemi, le foto pacco dei prodotti —
- *   prendono `1:1`, perché ritagliarle toglie prodotto, non fondo.
+ *   immagini quadrate `1:1`, dove riempiono il riquadro senza bande.
  * - Il raggio sta sulla radice: in testa a una `card` si aggiunge
  *   `className="rounded-b-none"`, e alla card `pt-0`.
  * - La larghezza la decide chi compone. In una griglia di catalogo la soglia
@@ -94,14 +100,33 @@ const FOTO = {
 }
 
 /**
- * Il rapporto di base, `4:3`, su una foto larga: il ritaglio toglie ai lati,
- * dove non c'è il soggetto.
+ * Il rapporto di base, `4:3`, sul render quadrato di un sistema: l'immagine
+ * sta tutta nel riquadro, e ai lati resta la superficie.
  */
 export const Predefinita: Story = {
-  args: { src: FOTO.cantiere, alt: 'Ponteggio su una facciata in restauro' },
+  args: { src: FOTO.cappotto, alt: 'Stratigrafia del sistema Cappotto' },
   render: (args) => (
     <div className="w-3xs">
       <EntityImage {...args} />
+    </div>
+  ),
+}
+
+/**
+ * Una fotografia con il suo sfondo, con `adatta="riempi"`: copre il riquadro
+ * `4:3` e il taglio toglie ai lati, dove non c'è il soggetto. Accanto, la
+ * stessa foto con `"intera"`: le bande vuote sopra e sotto.
+ */
+export const Fotografia: Story = {
+  args: { src: FOTO.cantiere, alt: 'Ponteggio su una facciata in restauro', adatta: 'riempi' },
+  render: (args) => (
+    <div className="flex w-xl items-start gap-4">
+      {(['riempi', 'intera'] as const).map((a) => (
+        <div key={a} className="w-3xs">
+          <EntityImage {...args} adatta={a} />
+          <p className="mt-2 text-sm text-muted-foreground">{a}</p>
+        </div>
+      ))}
     </div>
   ),
 }
@@ -129,9 +154,8 @@ export const SenzaFoto: Story = {
 }
 
 /**
- * I tre rapporti sulla stessa foto quadrata di un prodotto: a cambiare è il
- * ritaglio, non la scala. A `4:3` si perde la base del sacco, a `16:9` anche
- * il nome; a `1:1` c'è tutto.
+ * I tre rapporti sulla stessa foto quadrata di un prodotto: il sacco resta
+ * intero a ogni rapporto, e cambia solo lo spazio attorno.
  */
 export const Rapporti: Story = {
   args: { src: FOTO.intocalx, alt: 'Sacco da 25 kg di INTOCALX' },

@@ -61,7 +61,7 @@ type Rapporto = keyof typeof RAPPORTI
 // una dimenticanza.
 /**
  * La foto di un'entità — una macchina, un impianto, un articolo di catalogo —
- * ritagliata a un rapporto dichiarato, col segnaposto quando la foto non c'è
+ * in un riquadro a rapporto dichiarato, col segnaposto quando la foto non c'è
  * o non arriva. Nelle app la foto manca spesso: il segnaposto è il caso
  * normale.
  *
@@ -72,6 +72,7 @@ function EntityImage({
   src,
   alt,
   ratio = "4:3",
+  adatta = "intera",
   icon,
   className,
   ...props
@@ -79,12 +80,26 @@ function EntityImage({
   src?: string
   alt: string
   ratio?: Rapporto
+  // Il default è `intera` perché la libreria di immagini di Tassullo è fatta
+  // di soggetti scontornati e quadrati — sacchi, render di sistema — e un
+  // ritaglio toglie prodotto, non fondo (rilievo di Francesco in M5.0e,
+  // guardando `Primitive/EntityImage → Rapporti`: a 16:9 il sacco perdeva il
+  // nome). `riempi` resta per le fotografie con uno sfondo proprio.
+  /**
+   * Come l'immagine sta nel riquadro. `"intera"`, il predefinito, la scala
+   * finché ci sta tutta, senza deformarla: per i soggetti scontornati, come
+   * i sacchi e i render dei sistemi. `"riempi"` la scala finché copre tutto il
+   * riquadro e taglia ciò che avanza: per le fotografie con uno sfondo
+   * proprio, dove una banda vuota si vedrebbe.
+   */
+  adatta?: "intera" | "riempi"
   icon?: React.ReactNode
 }) {
   return (
     <AspectRatio
       data-slot="entity-image"
       data-ratio={ratio}
+      data-adatta={adatta}
       ratio={RAPPORTI[ratio]}
       className={cn(
         "w-full overflow-hidden rounded-lg ring-1 ring-foreground/10",
@@ -113,7 +128,10 @@ function EntityImage({
           <AvatarImage
             src={src}
             alt={alt}
-            className="aspect-auto rounded-none"
+            className={cn(
+              "aspect-auto rounded-none",
+              adatta === "intera" && "object-contain"
+            )}
           />
         ) : null}
         <AvatarFallback className="rounded-none">
