@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "toggle-group",
   "title": "Toggle group",
-  "description": "Il chip di filtro del v1: si clicca e cambia la lista sotto. A più scelte o a scelta singola.",
+  "description": "Il chip di filtro: si clicca e cambia la lista sotto. A più scelte o a scelta singola.",
   "dependencies": [
     "@base-ui/react",
     "class-variance-authority",

@@ -109,9 +109,10 @@ function costruisci(): string {
   }).join("\n\n");
 
   return `/* ── NOTA DI REPO — questo commento NON arriva alle app ───────────────
-   \`shadcn build\` scarta il PRIMO commento di un file del registry (M1.5).
-   Qui sta ciò che vale solo dentro questo repo; nel commento successivo —
-   che invece viaggia — ciò che deve leggere chi installa.
+   \`shadcn add\` toglie TUTTI i commenti di testa di un CSS \`registry:theme\`
+   (docs/DECISIONI.md §58; \`npm run check:spedito\` lo rimisura a ogni
+   giro). Qui stanno le note di repo; ciò che deve leggere chi installa sta
+   DENTRO la prima regola, dove arriva.
 
    GENERATO da scripts/build-logo-css.ts dagli .svg in theme/marchio/.
    Non modificare a mano: \`npm run check:logo\` fallisce se diverge.
@@ -125,36 +126,36 @@ function costruisci(): string {
    scartate — stanno in testa allo script. Decisione D13, 2026-09-10.
    ────────────────────────────────────────────────────────────────────── */
 
-/* ══════════════════════════════════════════════════════════════════════
-   IL MARCHIO TASSULLO
-
-   Installato insieme al tema:  npx shadcn@latest add @tassullo/tema
-
-   Il marchio è una CLASSE, non un componente e non un file da mettere in
-   \`public/\`. Si usa su un elemento vuoto:
-
-     <span className="marchio-t size-6" aria-hidden />
-
-   ── Il colore segue il testo, ed è il motivo per cui è fatto così ──────
-   Il tracciato fa da MASCHERA e il colore lo dà \`currentColor\`: il marchio
-   prende il colore del testo che lo circonda, quindi la stessa classe è
-   giusta sulla sidebar antracite, su una pagina chiara e su una scura.
-   Per cambiarne il colore si usa un'utility di testo — \`text-primary\`,
-   \`text-sidebar-accent-foreground\` — non una di sfondo.
-
-   ── La misura ─────────────────────────────────────────────────────────
-   La T è PIÙ ALTA CHE LARGA (24×38). Con \`h-*\` la larghezza la calcola
-   l'\`aspect-ratio\`; con \`size-*\` il marchio si allinea all'altezza e resta
-   stretto dentro il quadrato, senza deformarsi. In mancanza d'altro è
-   alto quanto una riga di testo (\`1em\`).
-
-   ── È decorativo ──────────────────────────────────────────────────────
-   Un elemento senza testo: va sempre accompagnato da \`aria-hidden\`, e il
-   nome accessibile lo mette chi lo contiene (in \`tassullo-app-shell\` è
-   l'\`aria-label\` del bottone di testata).
-   ══════════════════════════════════════════════════════════════════════ */
-
 @layer components {
+  /* ══════════════════════════════════════════════════════════════════════
+     IL MARCHIO TASSULLO
+
+     Installato insieme al tema:  npx shadcn@latest add @tassullo/tema
+
+     Il marchio è una CLASSE, non un componente e non un file da mettere in
+     \`public/\`. Si usa su un elemento vuoto:
+
+       <span className="marchio-t size-6" aria-hidden />
+
+     ── Il colore segue il testo, ed è il motivo per cui è fatto così ──────
+     Il tracciato fa da MASCHERA e il colore lo dà \`currentColor\`: il marchio
+     prende il colore del testo che lo circonda, quindi la stessa classe è
+     giusta sulla sidebar antracite, su una pagina chiara e su una scura.
+     Per cambiarne il colore si usa un'utility di testo — \`text-primary\`,
+     \`text-sidebar-accent-foreground\` — non una di sfondo.
+
+     ── La misura ─────────────────────────────────────────────────────────
+     La T è PIÙ ALTA CHE LARGA (24×38). Con \`h-*\` la larghezza la calcola
+     l'\`aspect-ratio\`; con \`size-*\` il marchio si allinea all'altezza e resta
+     stretto dentro il quadrato, senza deformarsi. In mancanza d'altro è
+     alto quanto una riga di testo (\`1em\`).
+
+     ── È decorativo ──────────────────────────────────────────────────────
+     Un elemento senza testo: va sempre accompagnato da \`aria-hidden\`, e il
+     nome accessibile lo mette chi lo contiene (in \`tassullo-app-shell\` è
+     l'\`aria-label\` del bottone di testata).
+     ══════════════════════════════════════════════════════════════════════ */
+
   /* Ciò che tutti i marchi hanno in comune. Il \`mask-image\` — cioè il
      tracciato — e le proporzioni sono l'unica cosa che cambia da un marchio
      all'altro. */

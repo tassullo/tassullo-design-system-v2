@@ -1,7 +1,8 @@
 /* ── NOTA DI REPO — questo commento NON arriva alle app ───────────────
-   `shadcn build` scarta il PRIMO commento di un file del registry (M1.5).
-   Qui sta ciò che vale solo dentro questo repo; nel commento successivo —
-   che invece viaggia — ciò che deve leggere chi installa.
+   `shadcn add` toglie TUTTI i commenti di testa di un CSS `registry:theme`
+   (docs/DECISIONI.md §58; `npm run check:spedito` lo rimisura a ogni
+   giro). Qui stanno le note di repo; ciò che deve leggere chi installa sta
+   DENTRO la prima regola, dove arriva.
 
    GENERATO da scripts/build-font-css.ts dai .woff2 in theme/fonts/.
    Non modificare a mano: `npm run check:font` fallisce se diverge.
@@ -14,30 +15,29 @@
    Misura in docs/DECISIONI.md §15.
    ────────────────────────────────────────────────────────────────────── */
 
-/* ══════════════════════════════════════════════════════════════════════
-   INTER — il carattere delle interfacce Tassullo
-
-   Installato insieme al tema:  npx shadcn@latest add @tassullo/tema
-
-   I file del carattere sono **dentro questo CSS**, in data URI: l'app non
-   fa nessuna richiesta di rete per la tipografia, né a Google né a noi.
-   È una scelta deliberata — servire i font da un terzo significa mandargli
-   l'indirizzo IP di ogni visitatore (D3, chiusa il 2026-09-08).
-
-   Sottoinsieme `latin`: copre italiano e tedesco. Variabile, un file per
-   stile copre tutti i pesi da 300 a 900.
-
-   ── Licenza ─────────────────────────────────────────────────────────────
-   Inter — Copyright (c) 2016 The Inter Project Authors
-   https://github.com/rsms/inter
-
-   SIL Open Font License 1.1. Il testo integrale accompagna questo file
-   (`tassullo-inter-OFL.txt`) e la licenza richiede che resti insieme al
-   font: **non si cancella**. Il font può essere usato, modificato e
-   ridistribuito liberamente; non può essere venduto per conto proprio.
-   ══════════════════════════════════════════════════════════════════════ */
-
 @font-face {
+  /* ══════════════════════════════════════════════════════════════════════
+     INTER — il carattere delle interfacce Tassullo
+
+     Installato insieme al tema:  npx shadcn@latest add @tassullo/tema
+
+     I file del carattere sono **dentro questo CSS**, in data URI: l'app non
+     fa nessuna richiesta di rete per la tipografia, né a Google né a noi.
+     È una scelta deliberata — servire i font da un terzo significa mandargli
+     l'indirizzo IP di ogni visitatore.
+
+     Sottoinsieme `latin`: copre italiano e tedesco. Variabile, un file per
+     stile copre tutti i pesi da 300 a 900.
+
+     ── Licenza ─────────────────────────────────────────────────────────────
+     Inter — Copyright (c) 2016 The Inter Project Authors
+     https://github.com/rsms/inter
+
+     SIL Open Font License 1.1. Il testo integrale accompagna questo file
+     (`tassullo-inter-OFL.txt`) e la licenza richiede che resti insieme al
+     font: **non si cancella**. Il font può essere usato, modificato e
+     ridistribuito liberamente; non può essere venduto per conto proprio.
+     ══════════════════════════════════════════════════════════════════════ */
   font-family: 'Inter';
   font-style: normal;
   font-weight: 300 900;

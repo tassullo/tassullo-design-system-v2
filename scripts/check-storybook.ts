@@ -45,6 +45,8 @@
  *   5. persone: `Francesco`, `Roberto`
  *   6. gli strumenti del repo: `npm run`, `check:…`, «il gate», «CI»
  *   7. il design system precedente: «v1», `styleguide.html`
+ *   8. le regole numerate del repo: «la regola 3», «regola 4bis, gradino 2» —
+ *      si scrive la regola, non il suo numero
  *
  * Restano legittimi i nomi delle librerie e degli standard — shadcn, Base UI,
  * Tailwind, reui, Recharts, WCAG, axe — e i nomi delle app Tassullo (Anagrafe,
@@ -110,37 +112,15 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { builtinResolvers, ERROR_CODES, makeFsImporter, parse as leggiComponenti } from "react-docgen";
 import ts from "typescript";
+import { REGOLE } from "./note-interne.ts";
 
 const RADICE = process.cwd();
 const CARTELLE = ["registry/tassullo/ui", "registry/tassullo/blocks", "registry/tassullo/pages", "stories", ".storybook/prove"];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Le sette regole. L'ordine è quello del canone qui sopra, e l'autotest ne
-// mette in scena una per tipo.
-
-type Regola = { tipo: string; re: RegExp };
-
-const MESI = "gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre";
-
-const REGOLE: Regola[] = [
-  // `m2.5` minuscolo non è una sigla, è un'unità: la M è maiuscola.
-  { tipo: "sigla di task", re: /\bM\d+(?:bis|ter)?\.\d+[a-z]?\b|\bFASE\s+\d/g },
-  // Le decisioni vanno da D1 a D29, e il tetto è voluto: `D30` è un modello di
-  // miscelatore nei dati d'esempio. Il giorno che arriva D30, si alza qui.
-  { tipo: "sigla di decisione", re: /\bD(?:[1-9]|[12]\d)\b|§\s*\d+/g },
-  {
-    tipo: "documento interno",
-    re: /\b(?:WORKLOG|PIANO|CHECKLIST|DECISIONI|ROADMAP|INTERFACCE|ANALISI-COPERTURA)\b|\bCLAUDE\.md\b|componenti-propri|registry\/\.upstream/g,
-  },
-  { tipo: "data", re: new RegExp(`\\b20\\d\\d-\\d\\d-\\d\\d\\b|\\b(?:${MESI})\\s+20\\d\\d\\b`, "gi") },
-  { tipo: "persona", re: /\b(?:Francesco|Roberto)\b/g },
-  // `CI` resta maiuscolo e a sé: «ci» è una parola italiana.
-  {
-    tipo: "strumento del repo",
-    re: /\bnpm run\b|\bcheck:[a-z][\w-]*|\b(?:[Ii]l|[Aa]l|[Dd]el|[Dd]al|[Nn]el|[Ss]ul)\s+gate\b|\bCI\b/g,
-  },
-  { tipo: "design system precedente", re: /\bv1\b|\bstyleguide\.html\b/g },
-];
+// Le otto regole stanno in `note-interne.ts`, condivise con `check:spedito`.
+// L'ordine è quello del canone qui sopra, e l'autotest ne mette in scena una
+// per tipo.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Le fonti del testo visibile.
@@ -375,6 +355,7 @@ function autotest(): number {
  * Lo ha chiesto Francesco.
  * Lo verifica check:contrast.
  * Era la classe .btn del v1.
+ * Lo vieta la regola 3.
  */
 const meta = { title: 'Primitive/Finto' } satisfies Meta
 
@@ -443,7 +424,7 @@ export const Predefinito = {
 `;
 
   const prove = [
-    { nome: "un file finto con i sette tipi di violazione", file: "registry/tassullo/ui/finto.stories.tsx", testo: sporco, attesi: 7 },
+    { nome: "un file finto con gli otto tipi di violazione", file: "registry/tassullo/ui/finto.stories.tsx", testo: sporco, attesi: 8 },
     { nome: "un file pulito, scritto secondo il canone", file: "registry/tassullo/ui/finto.stories.tsx", testo: pulito, attesi: 0 },
     { nome: "le sigle dentro commenti che nessuno vede", file: "registry/tassullo/ui/finto.stories.tsx", testo: nascosto, attesi: 0 },
     { nome: "una nota dentro l'oggetto di una story", file: "registry/tassullo/ui/finto.stories.tsx", testo: dentroScena, attesi: 2 },
@@ -458,7 +439,7 @@ export const Predefinito = {
     const ok = s.length === p.attesi;
     if (!ok) falliti++;
     console.log(`    ${ok ? "✔" : "✖"} ${p.nome.padEnd(50)} ${s.length} segnalazione/i (atteso ${p.attesi})`);
-    if (p.attesi === 7) {
+    if (p.attesi === REGOLE.length) {
       const tipi = new Set(s.map((x) => x.tipo));
       const mancanti = REGOLE.filter((r) => !tipi.has(r.tipo)).map((r) => r.tipo);
       if (mancanti.length) {
@@ -470,7 +451,7 @@ export const Predefinito = {
   }
   console.log(
     falliti === 0
-      ? "\n✔ L'autotest passa: sette tipi presi su sette, le note nella tabella delle prop prese, i commenti invisibili fuori.\n"
+      ? `\n✔ L'autotest passa: ${REGOLE.length} tipi presi su ${REGOLE.length}, le note nella tabella delle prop prese, i commenti invisibili fuori.\n`
       : `\n✖ L'autotest fallisce su ${falliti} prova/e: il gate non fa quello che dice.\n`,
   );
   return falliti === 0 ? 0 : 1;

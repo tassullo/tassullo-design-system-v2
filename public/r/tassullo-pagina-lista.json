@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tassullo-pagina-lista",
   "title": "Pagina elenco",
-  "description": "La pagina più ripetuta in assoluto: intestazione con azione primaria, barra filtri, data-table con paginazione, stati vuoto/caricamento/errore. Seconda pagina modello della FASE 4.",
+  "description": "La pagina più ripetuta in assoluto: intestazione con azione primaria, barra filtri, data-table con paginazione, stati vuoto/caricamento/errore. Pagina modello: si installa e si adatta.",
   "dependencies": [
     "cn",
     "@tanstack/react-table"

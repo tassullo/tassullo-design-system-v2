@@ -375,11 +375,10 @@ function warnOnce(key: string, message: string) {
    * del **consumatore** si ferma su `Cannot find name 'process'` finché non
    * installa `@types/node` — un pacchetto che nessun documento gli dice di
    * installare, per un errore che non c'entra con quello che stava facendo.
-   * Qui dentro compila lo stesso, perché il workbench ha i tipi di Node in
-   * albero: è il difetto **muto** che M4.6 aveva già corretto in quattro
-   * nostri blocchi, e che con `@reui` è rientrato dalla porta di servizio.
-   * Misurato in M4ter.10 sull'app di prova, non dedotto. La semantica non
-   * cambia: vero in sviluppo, falso nella build.
+   * Nel repo del design system compila lo stesso, perché lì i tipi di Node
+   * ci sono: è un difetto **muto**, che si vede solo nell'app — misurato su
+   * un'app Vite di prova, non dedotto. La semantica non cambia: vero in
+   * sviluppo, falso nella build.
    */
   if (import.meta.env.DEV && !warned.has(key)) {
     warned.add(key)

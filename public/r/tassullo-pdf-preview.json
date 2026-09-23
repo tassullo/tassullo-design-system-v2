@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tassullo-pdf-preview",
   "title": "Anteprima PDF",
-  "description": "Anteprima PDF incorporata con navigazione pagine e zoom (react-pdf, D8: la seconda scelta dopo react-dropzone). Nessuna richiesta di rete per il worker — importato via Vite dal pacchetto — caricamento ed errore sullo standard di M3.5.",
+  "description": "Anteprima PDF incorporata con navigazione pagine e zoom (react-pdf). Nessuna richiesta di rete per il worker — importato via Vite dal pacchetto — caricamento ed errore sullo standard degli stati.",
   "dependencies": [
     "cn",
     "lucide-react",
@@ -24,6 +24,6 @@
       "target": "components/blocks/pdf-preview.tsx"
     }
   ],
-  "docs": "Un blocco, un uso:\n\n  <PdfPreview file={urlDelDocumento} onRiprova={() => ricarica()} />\n\n`file` è lo stesso prop di `react-pdf`: URL, `File`/`Blob` o `ArrayBuffer`.\nLa cornice, la paginazione e lo zoom sono interamente nostri — `react-pdf`\nnon renderizza una propria barra strumenti, solo `<Document>`/`<Page>` su\nun `<canvas>` — la condizione che D8 chiede per essere sostituibile senza\ntoccare l'API del blocco.\n\nD8 (PIANO.md, M3.7): il worker di pdf.js non viene da una CDN (`unpkg`,\nla via più comune) — farebbe dipendere l'anteprima da una richiesta di rete\na ogni apertura, lo stesso principio per cui `tema-font` porta Inter in data\nURI. Si importa con la sintassi `?url` di Vite, che lo stack uniforme del\nprogetto rende sempre disponibile. Livello di testo e annotazioni spenti\n(`renderTextLayer`/`renderAnnotationLayer` a `false`): è un'anteprima, non\nun lettore con testo selezionabile, e il CSS che quei livelli chiederebbero\nnon è un file che il registry sa distribuire.\n\nCaricamento ed errore riusano lo standard di M3.5: uno `Skeleton` alto come\nuna pagina, `ErrorState` col messaggio già tradotto da chi chiama — questo\nblocco non sa nulla del perché un PDF non si è aperto.",
+  "docs": "Un blocco, un uso:\n\n  <PdfPreview file={urlDelDocumento} onRiprova={() => ricarica()} />\n\n`file` è lo stesso prop di `react-pdf`: URL, `File`/`Blob` o `ArrayBuffer`.\nLa cornice, la paginazione e lo zoom sono interamente nostri — `react-pdf`\nnon renderizza una propria barra strumenti, solo `<Document>`/`<Page>` su\nun `<canvas>` — così la libreria si sostituisce senza toccare l'API del\nblocco.\n\nIl worker di pdf.js non viene da una CDN (`unpkg`,\nla via più comune) — farebbe dipendere l'anteprima da una richiesta di rete\na ogni apertura, lo stesso principio per cui `tema-font` porta Inter in data\nURI. Si importa con la sintassi `?url` di Vite, che lo stack uniforme del\nprogetto rende sempre disponibile. Livello di testo e annotazioni spenti\n(`renderTextLayer`/`renderAnnotationLayer` a `false`): è un'anteprima, non\nun lettore con testo selezionabile, e il CSS che quei livelli chiederebbero\nnon è un file che il registry sa distribuire.\n\nCaricamento ed errore riusano lo standard degli stati: uno `Skeleton` alto come\nuna pagina, `ErrorState` col messaggio già tradotto da chi chiama — questo\nblocco non sa nulla del perché un PDF non si è aperto.",
   "type": "registry:block"
 }

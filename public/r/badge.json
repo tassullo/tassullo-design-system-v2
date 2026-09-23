@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "badge",
   "title": "Badge",
-  "description": "Etichetta che si legge, non filtro che si clicca: varianti semantiche sui token del tema, raggio e corpo del v1. Base UI.",
+  "description": "Etichetta che si legge, non filtro che si clicca: varianti semantiche sui token del tema, raggio e corpo Tassullo. Base UI.",
   "dependencies": [
     "@base-ui/react",
     "class-variance-authority",

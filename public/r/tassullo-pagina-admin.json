@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tassullo-pagina-admin",
   "title": "Pagina admin",
-  "description": "L'amministrazione a tab: il blocco possiede la gestione utenti con ruoli multipli (tabella con azioni per riga, dialoghi di conferma) come primo tab, sezioni aggiuntive componibili (ruoli, o altro), banner fisso per chi non ha il ruolo di amministrazione, con degrado a sola lettura. Quinta pagina modello della FASE 4 — dominio Anagrafe (Admin.tsx, 212 righe di CSS) e SuperTM, che condividono la stessa struttura e lo stesso concetto di utente.",
+  "description": "L'amministrazione a tab: il blocco possiede la gestione utenti con ruoli multipli (tabella con azioni per riga, dialoghi di conferma) come primo tab, sezioni aggiuntive componibili (ruoli, o altro), banner fisso per chi non ha il ruolo di amministrazione, con degrado a sola lettura. Pagina modello: si installa e si adatta.",
   "dependencies": [
     "@tanstack/react-table",
     "cn",

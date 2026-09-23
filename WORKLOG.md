@@ -12655,3 +12655,57 @@ Rilievo nato dal controllo dei testi che Claude legge a inizio sessione: la rego
 **Nello stesso giro, i testi che Claude legge** (`/claude-api prompt-audit`): da `CLAUDE.md` tolti i numeri scaduti (868 scansioni, 217 story, 212 riferimenti), la cronaca degli incidenti al posto della regola e la nota per le prime sessioni; chiarito che di `PIANO.md` si legge la sola sezione del task. In `PIANO.md` corretti tre prompt di task aperti che contraddicevano decisioni chiuse: M5.2 (il tema non viaggia come `cssVars`), M5.4 (Inter *si* distribuisce), M5.5 (niente percorso locale, D4 è chiusa).
 
 **Incidente di conduzione**, da sapere: questa sessione e M5.0e hanno lavorato nella stessa cartella. Alla chiusura di M5.0e la copia di lavoro di `WORKLOG.md` era ridotta al solo ultimo paragrafo — il commit era integro, 12.641 righe — e questa voce era andata persa. Ripristinato da `HEAD` e voce riscritta. Due sessioni sulla stessa cartella vanno evitate: una delle due in un worktree.
+
+---
+
+## 2026-09-23 — M5.1a Gate delle dipendenze e del testo spedito
+
+M5.1 misurata prima di scrivere e divisa in tre con Francesco: M5.1a (i due gate, i campi di `registry.json`, tema, `ui/`, `lib/`, `hooks/`), M5.1b (la famiglia della tabella), M5.1c (gli altri blocchi e le pagine). La misura con la CLI vera ha poi cambiato il perimetro: `shadcn add` toglie i commenti di testa. Fatti e misure in `docs/DECISIONI.md` **§58**; qui il sunto.
+
+#### La misura d'apertura
+
+Sull'artefatto `public/r/`, con le regole di `check:storybook`: **90 note in `description`/`docs` di 38 item** (il mandato ne contava 25 nelle sole `description`) e **596 note in 258 blocchi di commento, 3.458 righe, su 53 dei 105 file spediti** (il mandato: 476 in 42; la differenza è l'espressione, qui la stessa del gate). Per gruppo: famiglia della tabella 237 in 7 file, altri blocchi 171 in 18, pagine 71 in 6, `ui`+`lib`+`hooks` 53 in 19, CSS del tema 64 in 3. Con i due gate non stavano in una sessione: proposta la divisione in tre, confermata.
+
+#### Le dipendenze: `check:riferimenti` guarda gli import
+
+Esteso invece di un gate nuovo, perché ha già nomi, `registryDependencies` e visita del grafo. Per ogni file `.ts`/`.tsx` spedito, gli import letti con `ts.preProcessFile` (un `import` scritto in un commento d'esempio non conta; un `import type` sì). Un pacchetto npm — ridotto al nome, `@tiptap/react/menus` → `@tiptap/react`, `?url` tolto — dev'essere fra le `dependencies` dell'item **o di un item della chiusura** dei suoi `registryDependencies`; `react` e `react-dom` no. Un modulo del registry, `@/…` o relativo, si risolve al file dichiarato e da lì all'item: dev'essere nella chiusura.
+
+**Due difetti veri alla prima passata**, tutti e due «`add` riesce, la compilazione no»: `tassullo-pagina-errore` importava `@/registry/tassullo/lib/toni` senza `@tassullo/toni`; `tassullo-data-table-filtro-data` importava `./data-table-filtro-sfaccettato` — valori a runtime, `BORDO_FILTRO` e `PopoverContentFerma` — senza dichiararlo. Corretti in `registry.json`. Il prototipo li aveva mancati: loggava gli import relativi invece di risolverli. Zero pacchetti npm mancanti; il caso `filtro-sfaccettato` di M4ter.10 (`@base-ui/react`, `cn`) tace, perché li porta `@tassullo/button` nella chiusura.
+
+Sette dipendenze dichiarate e non importate (`lucide-react` su `button`, `alert-dialog`, `confirm-dialog`; `date-fns` su `calendar`; `@tanstack/react-virtual` su `data-grid`; `@tanstack/react-table` su due pagine): **non** sono errori — shadcn dichiara `lucide-react` per le icone che la CLI risolve — e il gate non le guarda.
+
+Autotest da 6 a **12 prove**: il falso positivo di M4ter.10 (con sottopercorso, `?url`, `react-dom`, un `import` in un commento), una dipendenza tolta a un item della chiusura (2 errori: all'item e, per chiusura, al filtro), un pacchetto mai dichiarato in un `import type`, il difetto di `pagina-errore`, un relativo fuori chiusura, un `@/` che non è di nessun item. **Accettazione sul registry vero**: tolto `@tiptap/react` a `tassullo-rich-text-editor`, il gate esce con 1 e nomina file e pacchetto; rimesso, verde. 214 riferimenti, **510 import**, tutti coperti.
+
+#### Il testo spedito: `check:spedito`, e la scoperta
+
+Gate a sé e non settima fonte di `check:storybook`: il lettore è un altro, si legge l'artefatto e non i sorgenti, e serve un elenco transitorio. Le regole in un modulo solo, `scripts/note-interne.ts`, importato da tutti e due. Legge `title`, `description`, `docs` e, di ogni file spedito, commenti, testo JSX e stringhe (esclusi i percorsi degli `import` e i tracciati SVG: `M42.2538` in `icon-stack` sembrava una sigla).
+
+**La scoperta.** Per capire se il primo commento dei CSS del tema arrivasse — il commento stesso diceva di no — ho installato `tema` e `stepper` in un'app Vite di prova col registry servito dal workbench. **Arrivano senza nessun commento di testa**: 40 righe tolte al tema, cioè tutte e due le teste, e l'intestazione SPDX tolta a `stepper.tsx`. Poi su item finti: `.ts`/`.tsx` di ogni tipo e CSS `registry:theme` perdono tutto ciò che sta prima della prima istruzione; un `registry:file` arriva intero; i commenti nel corpo arrivano sempre. CLI 4.21.0. §11 aveva misurato «379 righe in casa, 357 nell'app» e ne aveva dedotto il solo primo commento: rettificato. **Il blocco del tema pensato per viaggiare — come si installa, la palette di `init` che vince, le due trappole — non arrivava**, e lo stesso in `inter.css` e `tassullo-logo.css`.
+
+Delle 596 note nei file, **251 stanno in teste** che all'app non arrivano. Chiesto a Francesco, con due spiegazioni: per l'app le due strade sono identiche, cambia solo per chi lavora qui. **Scelta: il gate guarda solo ciò che arriva**, e in M5.1b/c si verifica item per item che ciò che serve a usare un blocco stia in `docs`, non solo nella testa. Le teste restano note di repo: le quattordici teste che avevo già ritoccato prima della misura (`numeri.ts`, la testa di `toni.ts`, i dodici file ReUI) sono tornate com'erano.
+
+**La premessa si rimisura a ogni giro**: `provaCli()` installa con la CLI del lockfile un item finto (`.ts`, `.tsx`, CSS `registry:theme`, CSS `registry:file`) in una cartella temporanea e fallisce se le teste cominciano ad arrivare o se smettono quelle dei `registry:file`. Circa un secondo, **senza rete**: con `baseColor: "neutral"` la CLI scarica `ui.shadcn.com/r/colors/neutral.json` (visto con un proxy morto, `ECONNREFUSED`); con `baseColor: ""` no, e le teste cadono uguali. Provato che la prova sa fallire, invertendo un'attesa.
+
+**L'elenco a tetto.** `DA_RIPULIRE`: file → note contate. Il gate fallisce su una nota fuori elenco, su un file sopra il tetto e **anche sotto** (il tetto va abbassato, la riga tolta a zero), e su una riga di un file che nessuno spedisce: così l'elenco dice sempre il vero. Autotest a **11 prove**. Oggi **18 file, 297 note**: M5.1b 193 in 6 (`data-table` 148, `data-grid` 16, `foglio-gruppi` 14, tre filtri 15), M5.1c 104 in 12. Tredici dei 31 file che la prima misura assegnava a M5.1b/c avevano note solo in testa: non c'è niente da fare.
+
+**Un'ottava regola**, condivisa: «la regola 3», «regola 4bis, gradino 2» rimandano al `CLAUDE.md` del repo. Su `check:storybook` non cambia il conto (0: nessuna è nel testo visibile); autotest a 8 tipi.
+
+#### Il testo riscritto
+
+- **`registry.json`**, 90 note a 0. Tolta la provenienza, tenuta la sostanza: «Seconda pagina modello della FASE 4» → «Pagina modello: si installa e si adatta»; «(D8: react-dropzone)» → «(react-dropzone)»; i paragrafi «Chiesto all'MCP prima di scrivere (regola 4bis, gradino 1)… nessuna riga in `componenti-propri.json`» ridotti a ciò che serve a chi usa il blocco («shadcn non ha una `timeline`: compone badge, avatar, checkbox, button»). Le misure restano dove servono (13px invece di 27 in `indicatori`; 469 righe montate su 500 in `data-grid`; il costo della vista settimana, 11 file / 280 KB / 8.384 righe). Nel `docs` del calendario «Francesco Sartori» → Stefano Bertolini.
+- **Tre nomi di item sbagliati nella prosa** dei `docs`, trovati controllando i `@tassullo/…`: `@tassullo/calendario` (tre volte) e `@tassullo/empty-state` → i nomi pubblicati. Il gate non li avrebbe visti.
+- **I tre CSS del tema**, dai loro generatori. Le istruzioni per chi installa **dentro la prima regola** (`:root, .light {`, la prima `@font-face`, `@layer components {`); in testa le sole note di repo, riscritte per dire la verità (`shadcn add`, tutte le teste, §58). Nel corpo del tema tolti i «v1», i rimandi a `PIANO.md`, le sigle; corretta una frase non più vera: «Lo carica l'app, come sempre (D3)» — da D3 chiusa il carattere arriva col tema; tolto «Le eccezioni accertate a mano sono annotate in WORKLOG.md, M1.4», chiuse tutte e due (la sidebar in M2.5). **Verificato reinstallando**: i tre blocchi arrivano, le note di repo no. `check:contrast`, `check:font`, `check:logo` verdi.
+- **`ui/`, `lib/`, `hooks/`**, i commenti nel corpo: `alert`, `chart`, `entity-image`, `event-calendar` (il `warnOnce`), `item`, `sidebar`, `toni` (la ragione per cui l'hover non è un'opacità), `use-soglia`.
+
+**Le misure tolte** dal testo spedito, cercate nei due documenti: il passaggio di `toni` per `check:registry` in M2.4 (diario, la coda dei badge), 469 righe (M3bis.4), 10/234 KB/7.012 → 11/280/8.384 (§ della settimana e diario M4ter.2), l'`Admin.tsx` da 212 righe di CSS — questo è solo in `PIANO.md`, e lo porto qui: *Anagrafe `Admin.tsx`, 212 righe di CSS, con SuperTM la stessa pagina a tab*.
+
+#### Verifiche
+
+- `check:riferimenti` verde, autotest 12/12; `check:spedito` verde, autotest 11/11, prova della CLI verde; `check:storybook` 0, autotest 6/6 con 8 tipi; `check:checklist` verde.
+- `tsc -p tsconfig.node.json` a zero, `oxlint scripts/` pulito.
+- **`npm run check` verde sui dieci gate**, lanciato dopo l'ultima modifica ai sorgenti: `check:registry` 0 errori (i commenti non toccano la forma), `check:registry-build` 96 file allineati, `test:a11y` **1544 scansioni, 0 violazioni, 386 story** per passata. Accettazione rifatta a fine sessione: senza `@tiptap/react` su `tassullo-rich-text-editor` `check:riferimenti` esce con 1, ripristinato esce con 0.
+- `tsc -b` a zero; `oxlint registry/tassullo` due avvisi già presenti (`event-calendar-month-view`, `data-table`).
+
+**Rilievi.** L'intestazione MIT dei file ReUI non arriva nell'app; arriva `tassullo-reui-MIT.txt` con licenza e copyright, che basta alla MIT. `CLAUDE.md` citava ancora «`shadcn build` scarta il primo» e «`check:riferimenti` non guarda le `dependencies`»: aggiornati, con `check:spedito` fra i comandi e i gate a **dieci** (anche `README.md` e `gate.yml`).
+
+**Prossimi passi**: M5.1b.

@@ -21,6 +21,6 @@
       "type": "registry:ui"
     }
   ],
-  "docs": "La vista mese del calendario a eventi. Le barre pluri-giorno e il calcolo delle\ncorsie — quali barre si sovrappongono e su che riga metterle — sono la ragione per\ncui questa vista si adotta invece di scriverla.\n\nVuole @tassullo/calendario-motore, che la CLI installa da se.\n\nI default di casa (settimana da lunedi, niente creazione dal clic) stanno nel\nblocco @tassullo/calendario.",
+  "docs": "La vista mese del calendario a eventi. Le barre pluri-giorno e il calcolo delle\ncorsie — quali barre si sovrappongono e su che riga metterle — sono la ragione per\ncui questa vista si adotta invece di scriverla.\n\nVuole @tassullo/calendario-motore, che la CLI installa da se.\n\nI default di casa (settimana da lunedi, niente creazione dal clic) stanno nel\nblocco @tassullo/tassullo-calendario.",
   "type": "registry:ui"
 }

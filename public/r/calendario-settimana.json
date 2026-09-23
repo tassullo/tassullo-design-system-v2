@@ -19,6 +19,6 @@
       "type": "registry:ui"
     }
   ],
-  "docs": "La griglia oraria del calendario a eventi. Un file solo (1372 righe): importa\nsolo il motore, che la CLI installa da se.\n\nM4ter.1 l'aveva lasciata fuori — «restano fuori time-grid, resource-view, nav\ne content» — ed e entrata in M4ter.2 su richiesta di Francesco. Il prezzo va\naggiornato dove e scritto: la chiusura degli import passa da 10 file / 234 KB\n/ 7 012 righe a 11 / 280 / 8 384.\n\nNello stesso file ci sono anche EventCalendarDayView e EventCalendarDaysView:\nil blocco @tassullo/calendario spedisce nel commutatore la sola settimana,\nma chi compone da se le ha gia in casa.\n\nLICENZA. Viene da ReUI (Keenthemes) ed e distribuita sotto MIT. L'avviso di\ncopyright sta in testa al file e non si toglie; src/tassullo-reui-MIT.txt e\nil testo integrale.",
+  "docs": "La griglia oraria del calendario a eventi. Un file solo (1372 righe): importa\nsolo il motore, che la CLI installa da se.\n\nIl costo: con la settimana, il calendario installa 11 file, 280 KB, 8.384\nrighe (senza, 10 / 234 KB / 7.012).\n\nNello stesso file ci sono anche EventCalendarDayView e EventCalendarDaysView:\nil blocco @tassullo/tassullo-calendario spedisce nel commutatore la sola settimana,\nma chi compone da se le ha gia in casa.\n\nLICENZA. Viene da ReUI (Keenthemes) ed e distribuita sotto MIT. L'avviso di\ncopyright sta in testa al file e non si toglie; src/tassullo-reui-MIT.txt e\nil testo integrale.",
   "type": "registry:ui"
 }

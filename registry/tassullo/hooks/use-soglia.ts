@@ -71,8 +71,9 @@ function useSoglia(query: string): boolean {
    * `subscribe` e `getSnapshot` devono essere **stabili**: React li confronta
    * per identità e una funzione nuova a ogni render farebbe disiscrivere e
    * riscrivere l'ascoltatore a ogni giro. Dipendono dalla sola `query`, che è
-   * una stringa — cioè un valore primitivo, non un array costruito inline.
-   * È la trappola scritta nel CLAUDE.md, qui evitata per costruzione.
+   * una stringa — cioè un valore primitivo, non un array costruito inline,
+   * che sarebbe nuovo a ogni render e farebbe ripartire l'effetto senza fine
+   * e senza nessun errore.
    */
   const subscribe = React.useCallback(
     (onStoreChange: () => void) => {
