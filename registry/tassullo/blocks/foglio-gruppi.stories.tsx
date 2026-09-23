@@ -10,7 +10,13 @@ import {
   type GruppoFoglio,
 } from '@/registry/tassullo/blocks/foglio-gruppi'
 import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
-import { decimale, valuta } from '@/registry/tassullo/lib/numeri'
+import {
+  decimale,
+  formattatore,
+  leggiNumero,
+  scriviNumero,
+  valuta,
+} from '@/registry/tassullo/lib/numeri'
 import {
   ResponsiveDialog,
   ResponsiveDialogBody,
@@ -43,10 +49,24 @@ type Misurazione = {
   altezza: string
 }
 
+/**
+ * I numeri del dato sono stringhe col punto (`'0.5'`), la forma che `Number()`
+ * legge; si scrivono con la virgola (`0,5`), e `leggiNumero` accetta tutte e
+ * due — serve anche al cassetto, dove il parziale si ricalcola su ciò che si
+ * sta scrivendo.
+ */
 const numero = (v: string) => {
-  const n = parseFloat(v.trim().replace(',', '.'))
+  if (v.trim() === '') return null
+  const n = Number(leggiNumero(v))
   return Number.isNaN(n) ? null : n
 }
+
+/** Si scrive `20,78`, il dato resta `20.78`: v. `formato` in `CellaScrivibile`. */
+const SCRITTURA_NUMERO = { perScrivere: scriviNumero, interpreta: leggiNumero }
+
+/** Una misura nella vista: la virgola, i decimali che ha, il punto delle migliaia. */
+const mostraMisura = (valore: string) =>
+  valore === '' ? ' ' : formattatore().format(Number(valore))
 
 /** Σ parti × Π(fattori non nulli) — la formula di Primus. */
 const parziale = (m: Misurazione) => {
@@ -73,26 +93,26 @@ const soloNumero = (valore: string) =>
 const COMPUTO: GruppoFoglio<Voce, Misurazione>[] = [
   {
     id: 'v1',
-    testata: { designazione: 'RASATURA ARMATA — Tradizionale', unita: 'm²', prezzo: '28,82' },
+    testata: { designazione: 'RASATURA ARMATA — Tradizionale', unita: 'm²', prezzo: '28.82' },
     righe: [
-      { descrizione: 'Piano terra — ambiente 1', parti: '1', lunghezza: '10', larghezza: '1', altezza: '0,5' },
-      { descrizione: 'Piano terra — ambiente 2', parti: '1', lunghezza: '5', larghezza: '3,5', altezza: '' },
-      { descrizione: 'detrazione porta', parti: '-1', lunghezza: '0,9', larghezza: '2,1', altezza: '' },
+      { descrizione: 'Piano terra — ambiente 1', parti: '1', lunghezza: '10', larghezza: '1', altezza: '0.5' },
+      { descrizione: 'Piano terra — ambiente 2', parti: '1', lunghezza: '5', larghezza: '3.5', altezza: '' },
+      { descrizione: 'detrazione porta', parti: '-1', lunghezza: '0.9', larghezza: '2.1', altezza: '' },
     ],
   },
   {
     id: 'v2',
-    testata: { designazione: 'EFFETTO CALCE — Grana fine grandi metrature', unita: 'm²', prezzo: '35,03' },
+    testata: { designazione: 'EFFETTO CALCE — Grana fine grandi metrature', unita: 'm²', prezzo: '35.03' },
     righe: [
-      { descrizione: 'Piano primo — corridoio', parti: '1', lunghezza: '12', larghezza: '2,7', altezza: '' },
+      { descrizione: 'Piano primo — corridoio', parti: '1', lunghezza: '12', larghezza: '2.7', altezza: '' },
     ],
   },
   {
     id: 'v3',
-    testata: { designazione: 'MURO — Bioedilizia', unita: 'm³', prezzo: '14,48' },
+    testata: { designazione: 'MURO — Bioedilizia', unita: 'm³', prezzo: '14.48' },
     righe: [
-      { descrizione: 'Piano secondo — ambiente 1', parti: '2', lunghezza: '4', larghezza: '0,3', altezza: '2,7' },
-      { descrizione: 'Piano secondo — ambiente 2', parti: '1', lunghezza: '6,5', larghezza: '0,3', altezza: '2,7' },
+      { descrizione: 'Piano secondo — ambiente 1', parti: '2', lunghezza: '4', larghezza: '0.3', altezza: '2.7' },
+      { descrizione: 'Piano secondo — ambiente 2', parti: '1', lunghezza: '6.5', larghezza: '0.3', altezza: '2.7' },
     ],
   },
 ]
@@ -107,14 +127,14 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
       leggi: (v) => v.designazione,
       scrivi: (v, valore) => ({ ...v, designazione: valore }),
       segnaposto: 'Descrizione della lavorazione',
-      mostra: (valore) => <span className="font-semibold">{valore}</span>,
+      classiTesto: 'font-semibold',
     },
     corpo: {
       tipo: 'scrivibile',
       leggi: (m) => m.descrizione,
       scrivi: (m, valore) => ({ ...m, descrizione: valore }),
       segnaposto: 'descrizione misura (parti negative = detrazione)',
-      mostra: (valore) => <span className="pl-4 italic">{valore}</span>,
+      classiTesto: 'pl-4 italic',
     },
     // La colonna che le tre zone condividono: è da qui che le frecce
     // verticali raggiungono il piede, e da lì `ArrowRight` arriva al prezzo.
@@ -122,22 +142,25 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
       tipo: 'scrivibile',
       leggi: (v) => v.unita,
       scrivi: (v, valore) => ({ ...v, unita: valore }),
-      mostra: (valore) => (
-        <span className="flex justify-end gap-2 pr-2">
-          <span>SOMMANO</span>
-          <span className="text-accent-ink">{valore}</span>
-        </span>
-      ),
+      // Stile, prefisso e allineamento dichiarati e non disegnati in `mostra`:
+      // così il campo aperto li conosce, e «m²» non si sposta aprendolo.
+      prefisso: 'SOMMANO',
+      allineamento: 'destra',
+      classiTesto: 'pr-2 text-accent-ink',
     },
   },
   { id: 'parti', titolo: 'Par.ug.', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.parti, scrivi: (m, v) => ({ ...m, parti: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.parti, scrivi: (m, v) => ({ ...m, parti: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   { id: 'lunghezza', titolo: 'Lung.', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.lunghezza, scrivi: (m, v) => ({ ...m, lunghezza: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.lunghezza, scrivi: (m, v) => ({ ...m, lunghezza: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   { id: 'larghezza', titolo: 'Larg.', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.larghezza, scrivi: (m, v) => ({ ...m, larghezza: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.larghezza, scrivi: (m, v) => ({ ...m, larghezza: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   { id: 'altezza', titolo: 'H/Peso', larghezza: 'w-20', allineamento: 'destra',
-    corpo: { tipo: 'scrivibile', leggi: (m) => m.altezza, scrivi: (m, v) => ({ ...m, altezza: v }), valida: soloNumero } },
+    corpo: { tipo: 'scrivibile', leggi: (m) => m.altezza, scrivi: (m, v) => ({ ...m, altezza: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
   {
     id: 'quantita',
     titolo: 'Quantità',
@@ -160,6 +183,10 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
       scrivi: (v, valore) => ({ ...v, prezzo: valore }),
       segnaposto: 'da prezzare',
       valida: soloNumero,
+      formato: SCRITTURA_NUMERO,
+      // La coda di ciò che `valuta()` scrive: in modifica il simbolo resta
+      // accanto al campo, e le cifre non si spostano.
+      suffisso: '\u00a0€',
       mostra: (valore) => (valore ? valuta(numero(valore) ?? 0) : 'da prezzare'),
     },
   },
@@ -253,28 +280,99 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
 }
 
 /**
- * **`tassullo-foglio-gruppi`** — il foglio editabile a gruppi, nella forma del
- * computo metrico da cui nasce: una **voce** è la testata, le sue
- * **misurazioni** sono il corpo, il **SOMMANO** è il piede.
+ * Il foglio editabile a gruppi: una sequenza di gruppi, ognuno con una
+ * testata, un corpo di righe omogenee e un piede che le somma. È la forma del
+ * computo metrico — la voce, le sue misurazioni, il SOMMANO — e di ogni foglio
+ * fatto come lui.
  *
- * **Perché non `data-table` e non `data-grid`** (misure in `docs/DECISIONI.md`
- * §50): il primo ha l'albero ma la tastiera di riga, e mette il subtotale
- * *sopra* i figli mentre il SOMMANO sta sotto; il secondo ha la tastiera di
- * cella ma è una **matrice**, e qui le colonne si spartiscono per zona invece
- * di volere la stessa cosa su ogni riga.
+ * **Quando sì, quando no.** Si usa quando le colonne cambiano significato da
+ * una zona all'altra del gruppo: la designazione è la descrizione della voce
+ * in testata, quella della misura nel corpo, l'etichetta del totale nel piede;
+ * le celle scrivibili stanno nel corpo, il prezzo nel piede. Un elenco da
+ * leggere, anche ad albero con i subtotali, è `tassullo-data-table`, dove la
+ * tastiera si muove per righe e il subtotale sta sopra i figli. Una tabella da
+ * modificare cella per cella, con colonne che vogliono dire la stessa cosa su
+ * ogni riga, copia, incolla e riempimento, è `tassullo-data-grid`.
  *
- * **Da tastiera** — è il motivo per cui il blocco esiste, e va provato:
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-foglio-gruppi
+ * ```
  *
- * - `ArrowDown` dall'ultima misurazione di una voce **entra nella voce dopo**
- *   invece di fermarsi. Nel Computo di Studio, oggi, lì non succede niente.
- * - Dalla colonna **Designazione** le frecce raggiungono il **SOMMANO**, e da
- *   lì `ArrowRight` arriva al **prezzo** — la cella che determina l'importo,
- *   che oggi sta in fondo a un vicolo cieco raggiungibile solo col `Tab`.
- * - `Tab` **esce dal foglio in una fermata**: le celle hanno un fuoco mobile.
- *   Nel Computo vero un gruppo da tre misure costa **24 fermate**, sei delle
- *   quali comandi, e fra una riga e l'altra si passa su «Rimuovi».
- * - I comandi della voce sono su **`Shift+F10`** (o tasto Menu), la
- *   scorciatoia di sistema per il menu contestuale.
+ * **Come si compone.** Il motore è `useFoglioGruppi`, e il foglio è
+ * `<FoglioGruppi motore={…} didascalia="…" />`.
+ *
+ * - `useFoglioGruppi({ gruppiIniziali, colonne, onModifica, conRigaAzioni })`:
+ *   i gruppi sono `{ id, testata, righe }`. Il motore non è controllato: tiene
+ *   i gruppi in uno stato suo, seminato una volta da `gruppiIniziali`, e chi
+ *   vuole sapere cosa è cambiato ascolta `onModifica`.
+ * - Ogni colonna dichiara `id`, `titolo`, `larghezza`, `allineamento` e una
+ *   cella per zona: `testata`, `corpo`, `piede`. Una cella è `scrivibile` —
+ *   `leggi`, `scrivi`, e a scelta `mostra`, `valida`, `segnaposto`,
+ *   `formato`, `prefisso`, `suffisso`, `classiTesto`, `allineamento` — oppure
+ *   `calcolata`, con `rendi`, oppure `fissa`. Una zona senza cella resta
+ *   vuota.
+ * - `azione` è il comando frequente del gruppo, su una riga propria fra corpo
+ *   e piede — nel computo, «+ misurazione». È una sola, e il motore va
+ *   costruito con `conRigaAzioni: true`, o la riga si vede e le frecce non la
+ *   trovano.
+ * - `comandi` sono i comandi rari del gruppo, in un menu: spostare la voce
+ *   su o giù, eliminarla. Un comando con `distruttivo` si colora come
+ *   un'azione che non si disfa.
+ * - `piede` è la riga in coda al foglio, il totale generale.
+ * - `didascalia` descrive la tabella a chi non vede lo schermo, ed è
+ *   obbligatoria come un `alt`.
+ *
+ * **Regole d'uso.**
+ *
+ * - Il foglio conosce solo stringhe: `leggi` e `scrivi` convertono, e `mostra`
+ *   formatta per la vista con le funzioni dell'item `numeri` — `decimale()`,
+ *   `valuta()`, `formattatore()` — che scrivono sempre il separatore delle
+ *   migliaia. Le colonne con `allineamento: 'destra'` hanno già le cifre
+ *   tabellari.
+ * - Un numero si scrive con la virgola, come si legge: la cella riceve
+ *   `formato: { perScrivere: scriviNumero, interpreta: leggiNumero }`, con le
+ *   due funzioni dell'item `numeri`. Il campo si apre con `20,78`, e ciò che
+ *   si scrive arriva a `valida` e a `scrivi` già col punto, `20.78`. Il punto
+ *   vale come separatore delle migliaia se raggruppa tre cifre (`1.234`),
+ *   altrimenti come decimale.
+ * - **Una cella aperta si legge come una chiusa**: stesso posto, stesso
+ *   aspetto. Lo stile del valore — corsivo, grassetto, rientro, colore — va
+ *   in `classiTesto`, che vale per la cella chiusa e per il campo aperto;
+ *   `prefisso` è il testo fisso davanti al valore («SOMMANO»), `allineamento`
+ *   quello della singola cella. `mostra` serve solo a formattare il valore:
+ *   uno stile scritto lì il campo aperto non lo vedrebbe, e il testo si
+ *   sposterebbe aprendo la modifica.
+ * - `suffisso` resta accanto al campo in modifica, fuori da ciò che si scrive:
+ *   per un prezzo, `'\u00a0€'`, la coda di ciò che `valuta()` mostra. Senza,
+ *   le cifre allineate a destra si spostano aprendo la modifica.
+ * - `valida` restituisce il messaggio d'errore, o `undefined` se il valore va
+ *   bene.
+ * - Un gruppo senza righe mostra comunque testata e piede: è la voce appena
+ *   aggiunta, che ha un prezzo e non ha ancora misure.
+ * - Quando il fuoco lascia il foglio — un clic su «Salva», su un filtro,
+ *   altrove nella pagina — la cella su cui si lavorava tiene un bordo sottile
+ *   e la sua riga un fondo tenue: resta chiaro dove si era. Un campo aperto si
+ *   conferma, come per ogni uscita. Il `Tab` segue l'ordine della pagina, e
+ *   quando arriva al foglio entra proprio sulla cella segnata.
+ * - Su uno schermo stretto il foglio non si comprime: la pagina sceglie una
+ *   seconda faccia, una lista in sola lettura che apre la modifica in un
+ *   cassetto (`tassullo-responsive-dialog`). La scena «Due Facce» è la
+ *   ricetta.
+ *
+ * **Tastiera e accessibilità.** Il foglio è un solo fermo di tabulazione:
+ * `Tab` entra sulla cella attiva — la prima scrivibile, all'inizio — e il
+ * `Tab` seguente esce. Dentro, le frecce si muovono fra le celle saltando
+ * quelle che non esistono: dall'ultima misura di un gruppo `↓` entra nel
+ * gruppo dopo, e dalla colonna della designazione si arriva al piede e, a
+ * destra, al prezzo. `Invio`, `F2` o un carattere qualsiasi aprono la
+ * modifica, e anche un clic solo. Mentre si scrive, `Invio` conferma e scende,
+ * `Tab` conferma e passa accanto, le frecce verticali cambiano cella e quelle
+ * orizzontali lo fanno arrivate al bordo del testo; la cella d'arrivo si apre
+ * già in modifica. Un valore non valido non si conferma: l'errore resta sulla
+ * cella, con l'anello rosso e un testo collegato con `aria-describedby`, ed
+ * `Esc` annulla sempre. La riga «+ misurazione» si raggiunge con le frecce e
+ * si attiva con `Invio`. I comandi del gruppo si aprono con `Maiusc`+`F10` o
+ * col tasto Menu, e il loro grilletto resta fuori dall'ordine di tabulazione.
  */
 const meta: Meta<typeof FoglioGruppi<Voce, Misurazione>> = {
   title: 'Blocchi/Foglio a gruppi',
@@ -285,16 +383,17 @@ const meta: Meta<typeof FoglioGruppi<Voce, Misurazione>> = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un computo con le sue voci, le misure, i SOMMANO e il totale in fondo. Si
+ * prova da tastiera: le frecce attraversano le zone e i gruppi.
+ */
 export const Computo: Story = {
   render: () => <ComputoFoglio />,
 }
 
 /**
- * **Un gruppo senza righe** mostra comunque il suo piede: è la voce appena
- * aggiunta, che ha un prezzo e non ha ancora una misura. Le frecce verticali
- * la attraversano — testata, poi direttamente il SOMMANO — senza inciampare
- * nel corpo vuoto, perché la matrice salta le caselle che non esistono e un
- * corpo vuoto non ne produce nessuna.
+ * Un gruppo senza misure: testata e piede ci sono comunque, e le frecce
+ * verticali passano dalla testata direttamente al SOMMANO.
  */
 export const GruppoVuoto: Story = {
   render: () => (
@@ -309,12 +408,8 @@ export const GruppoVuoto: Story = {
 }
 
 /**
- * **La validazione per cella**, con la stessa disciplina di
- * `tassullo-form-field`: anello rosso per chi vede, `aria-describedby` verso un
- * testo `sr-only` per chi non vede. `Invio` e `Tab` **non** chiudono una
- * modifica invalida — l'errore resta a schermo e si corregge senza aver perso
- * il posto; `Esc` annulla sempre, valido o no, perché è la via d'uscita che non
- * deve mai bloccarsi. Da provare: scrivere `abc` in una cella di misura.
+ * La validazione per cella: scrivendo `abc` in una misura, l'anello rosso e
+ * il messaggio restano finché non si corregge o non si preme `Esc`.
  */
 export const Validazione: Story = {
   render: () => (
@@ -331,23 +426,8 @@ export const Validazione: Story = {
 }
 
 /**
- * **I comandi della voce**, aperti. Stanno su **`Shift+F10`** (o tasto Menu) e
- * il loro grilletto ha `tabIndex={-1}`: `Tab` non ci si ferma mai. È la
- * correzione di un difetto misurato sul Computo di Studio, dove per passare da
- * una misurazione alla successiva si tabulava **sul bottone che la cancella** —
- * 576 volte, su un computo da 144 voci.
- *
- * La story ha la `play` che **dichiara il popup al gate** (`scripts/gate-a11y.ts`
- * tiene l'elenco dei componenti che ne hanno uno, e senza la dichiarazione
- * questo sarebbe passato per «senza popup»: un popup non aperto non è un popup
- * senza violazioni). Sta qui e non sulla story `Computo` perché Storybook
- * esegue le `play` **anche nel canvas**: quella arriverebbe a video col menu
- * aperto sopra la tabella, cioè illeggibile proprio quando la si guarda.
- *
- * Il `data-slot` del grilletto è stato **guardato nel DOM**, non dedotto:
- * malgrado il `render={<Button/>}` resta `dropdown-menu-trigger`, come il menù
- * utente del guscio — mentre il combobox, composto in modo somigliante, se lo
- * fa riprendere da `InputGroupButton`.
+ * Il menu dei comandi di una voce, aperto: le azioni rare del gruppo, che da
+ * tastiera si aprono con `Maiusc`+`F10`.
  */
 export const Comandi: Story = {
   render: () => <ComputoFoglio />,
@@ -489,7 +569,7 @@ function SchedeComputo({
   }
 
   const fattori = (m: Misurazione) =>
-    [m.parti, m.lunghezza, m.larghezza, m.altezza].filter(Boolean).join(' × ')
+    [m.parti, m.lunghezza, m.larghezza, m.altezza].filter(Boolean).map(scriviNumero).join(' × ')
 
   const voceCorrente = voceAperta != null ? gruppi[voceAperta]?.testata : undefined
   const misuraCorrente =
@@ -582,8 +662,10 @@ function SchedeComputo({
           aperto={voceAperta != null}
           onApertoCambia={(v) => setVoceAperta(v ? voceAperta : null)}
           titolo="Voce di computo"
-          valoreIniziale={voceCorrente}
-          onConferma={(v) => aggiornaVoce(voceAperta!, v)}
+          // Nel cassetto si scrive come nel foglio: con la virgola all'apertura,
+          // interpretato alla conferma.
+          valoreIniziale={{ ...voceCorrente, prezzo: scriviNumero(voceCorrente.prezzo) }}
+          onConferma={(v) => aggiornaVoce(voceAperta!, { ...v, prezzo: leggiNumero(v.prezzo) })}
           campi={(bozza, scriviBozza) => (
             <>
               <CampoCassetto
@@ -615,8 +697,22 @@ function SchedeComputo({
           aperto={misuraAperta != null}
           onApertoCambia={(v) => setMisuraAperta(v ? misuraAperta : null)}
           titolo="Misurazione"
-          valoreIniziale={misuraCorrente}
-          onConferma={(m) => aggiornaMisura(misuraAperta!.g, misuraAperta!.m, m)}
+          valoreIniziale={{
+            ...misuraCorrente,
+            parti: scriviNumero(misuraCorrente.parti),
+            lunghezza: scriviNumero(misuraCorrente.lunghezza),
+            larghezza: scriviNumero(misuraCorrente.larghezza),
+            altezza: scriviNumero(misuraCorrente.altezza),
+          }}
+          onConferma={(m) =>
+            aggiornaMisura(misuraAperta!.g, misuraAperta!.m, {
+              ...m,
+              parti: leggiNumero(m.parti),
+              lunghezza: leggiNumero(m.lunghezza),
+              larghezza: leggiNumero(m.larghezza),
+              altezza: leggiNumero(m.altezza),
+            })
+          }
           campi={(bozza, scriviBozza) => (
             <>
               <CampoCassetto
@@ -675,30 +771,11 @@ function ComputoADueFacce() {
 }
 
 /**
- * **Come degrada quando la finestra si stringe** — richiesta di Francesco, che
- * ha indicato la strada giusta: *«es. avevamo creato lista a due facce»*. È lo
- * stesso bivio di `Pagine/Lista a due facce` (M4ter.6), applicato al foglio.
- *
- * Sopra soglia il **foglio**, sotto la **forma D**: la lista resta in sola
- * lettura e densissima — non si muove mai — e la modifica accade in un
- * **cassetto dal basso** (`tassullo-responsive-dialog`, che sul telefono è già
- * un `Drawer`). Scelta da Francesco fra quattro provate a video, perché sul
- * telefono un computo si legge molto e si corregge poco.
- *
- * **Tutto si modifica**: la testata apre il cassetto della voce (designazione,
- * unità, prezzo), ogni misura quello della misura. I campi non portano nessuna
- * classe propria per lo zoom: la protezione sta in `ui/input.tsx`, dov'è il suo
- * posto (v. sopra). La faccia stretta non è il foglio
- * rimpicciolito — nove colonne su un telefono non ci stanno, e comprimerle è
- * precisamente ciò che rompeva la testata (misurato: «Designazione dei lavori»
- * e «Par.ug.» scritte una sopra l'altra).
- *
- * **Avvertenza sulla misura, e non è un dettaglio**: `useSoglia` legge la
- * **finestra**, e l'interruttore Viewport di Storybook ridimensiona l'iframe
- * nella cornice del manager — nel canvas aperto per URL `window.innerWidth`
- * resta quello della finestra vera (`docs/DECISIONI.md` §46). Questa story si
- * guarda quindi **restringendo la finestra del browser**, non col Viewport, e
- * nel gate rende sempre il ramo largo.
+ * La faccia stretta: sotto soglia il foglio lascia il posto a una lista in
+ * sola lettura, e toccando la testata o una misura si apre il cassetto per
+ * modificarla. La soglia guarda la finestra: la scena si prova aperta da
+ * sola, scegliendo il telefono dall'interruttore Viewport o stringendo la
+ * finestra del browser.
  */
 export const DueFacce: Story = {
   name: 'Due facce',

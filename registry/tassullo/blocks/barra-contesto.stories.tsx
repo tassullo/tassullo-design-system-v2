@@ -18,65 +18,52 @@ import { Button } from '@/registry/tassullo/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
 
 /**
- * **La fascia che dice su cosa stai lavorando**, e lascia cambiarlo da un
+ * La fascia che dice su quale entità si sta lavorando — una commessa, un
+ * cantiere, un calcolo — e, quando ce n'è più d'una, la lascia cambiare da un
  * menu.
  *
- * ## Perché è entrata (M4ter.9)
+ * **Quando sì, quando no.** Si usa quando una pagina lavora dentro un
+ * contesto che va tenuto sotto gli occhi, perché sbagliarlo vuol dire
+ * scrivere nel posto sbagliato. Se il contesto attraversa tutte le pagine
+ * dell'applicativo, le cose da dire sono due e stanno in due posti: nella
+ * colonna del guscio `SelettoreContesto`, che dice **quale** entità e la
+ * cambia, passato ad `AppShell` in `contesto`; in pagina `BarraContesto`
+ * senza `voci`, che dice **cosa comporta** — indirizzo, consegna, stato — e
+ * non si cambia da lì. Il percorso della pagina è `tassullo-page-header`, non
+ * questa fascia.
  *
- * Cinque pagine di Studio la montano oggi a mano — Computo,
- * TaskCalcoloStrutturale, AnalisiCapitolato, AnalisiProdotto, TaskSearch —
- * per **12 selettori** in tutto (`docs/ANALISI-COPERTURA-APP.md` §1, riga
- * 12). Quello che ci guadagnano passando al registry **non è l'aspetto**: è
- * `Esc`, il fuoco da tastiera e il clic fuori, che una `div` con un menu
- * scritto a mano non ha. È la stessa cosa che la migrazione delle modali
- * chiude in Anagrafe, dove nessuna delle cinque scritte a mano gestisce
- * `Escape`.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-barra-contesto
+ * ```
  *
- * ## La pagina se lo monta
+ * **Le prop.**
  *
- * Lo slot in `app-shell` per una fascia persistente fra la testata e
- * `<Outlet/>` **resta sospeso**, con l'innesco scritto in `CHECKLIST.md`:
- * «quando una seconda app ha un contesto attivo che attraversa le pagine».
- * Oggi Anagrafe e Officina un contesto del genere non ce l'hanno, e con un
- * consumatore solo quello che manca allo slot è la sola garanzia di non
- * dimenticarsi una pagina — che non vale un'API in più nel guscio.
+ * - `etichetta`, il tipo di cosa — «Commessa», «Cantiere» — e `titolo`, il
+ *   nome dell'entità attiva; `descrizione`, sotto il nome, ciò che serve a non
+ *   sbagliare entità.
+ * - `icona`, un'icona Lucide; senza, è `MapPinIcon`.
+ * - `voci` (`{ id, titolo, descrizione }`), `attiva` e `onCambia`: le entità
+ *   fra cui scegliere, quella in uso e il cambio. Con meno di due voci il
+ *   grilletto non si monta, e la fascia è in sola lettura.
+ * - `cambia`, il testo del grilletto, «Cambia» se non si passa;
+ *   `etichettaMenu`, il titolo del menu.
+ * - `azioni`, un'azione di pagina accanto al grilletto.
+ * - `SelettoreContesto` prende le stesse prop, tranne `cambia` e `azioni`.
  *
- * ## L'emoji non entra
+ * **Regole d'uso.**
  *
- * La barra di Studio comincia con 📍. La disegna il **sistema operativo**:
- * stessa stringa su due macchine, due disegni diversi — che è l'opposto di un
- * design system, ed è l'obiezione con cui si è chiusa la decisione sul
- * `<select>` nativo (`docs/DECISIONI.md` §42). Il default è `MapPinIcon`,
- * cioè la stessa cosa disegnata da noi, e `icona` prende qualunque Lucide.
+ * - L'icona è sempre un'icona Lucide, mai un'emoji: un'emoji la disegna il
+ *   sistema operativo, e cambia da una macchina all'altra.
+ * - Il grilletto è solo il bottone «Cambia», non la fascia intera: una fascia
+ *   che è tutta un bottone ruba la scena alla pagina, e non può contenere
+ *   `azioni`.
+ * - Quando lo spazio manca, l'etichetta resta intera e si accorcia il nome;
+ *   la descrizione va a capo una volta e poi si ferma.
  *
- * ## Composizione pura, gradino 2
- *
- * `item` (`ItemMedia variant="icon"` + `ItemContent` + `ItemActions`) più
- * `dropdown-menu`. **Nessuna variante e nessuna taglia nuova** su nessuna
- * delle due primitive: tutto si ottiene dal punto di chiamata.
- *
- * Tre cose che valgono più della composizione, e che si vedono solo
- * misurando:
- *
- * 1. **Il grilletto sta in `ItemActions`, non è la riga intera.** Una fascia
- *    che è un bottone gigante ruba la scena alla pagina — ed è il difetto che
- *    questo blocco esiste per non avere. Dentro un bottone, poi, non ci va
- *    `azioni`.
- * 2. **Il grilletto è `size` di default e non `sm`.** `sm` è `h-7`, cioè
- *    **42px in densità touch**, sotto i 44 che `misura:bersagli` chiede.
- *    `default` è `h-8` → **48 in touch**.
- * 3. **Il pannello dichiara la propria larghezza.** `DropdownMenuContent`
- *    porta `w-(--anchor-width)`: senza `w-64` il menu prende la larghezza del
- *    bottone, e nessun nome di commessa ci sta. Stessa riga del menù utente
- *    del guscio, che si difende con `w-56`.
- *
- * ## Le voci sono dati, non figli
- *
- * `app-shell` prende le voci del menù utente come `ReactNode`. Qui no, perché
- * **questo menu ha uno stato**: una voce è quella attiva e va spuntata. Coi
- * dati il blocco monta un `DropdownMenuRadioGroup`, che porta
- * `role="menuitemradio"`, `aria-checked` e il segno di spunta — cioè proprio
- * la parte che nessuno riscriverebbe uguale cinque volte.
+ * **Tastiera e accessibilità.** Il grilletto si apre con `Invio` o `Spazio`,
+ * e il fuoco va sulla prima voce; le frecce scorrono le voci, e l'entità
+ * attiva porta il segno di spunta (`role="menuitemradio"`, `aria-checked`).
+ * `Esc` e il clic fuori chiudono il menu, e il fuoco torna al grilletto.
  */
 const meta = {
   title: 'Blocchi/Barra di contesto',
@@ -132,24 +119,7 @@ function ConStato(props: Partial<React.ComponentProps<typeof BarraContesto>>) {
 }
 
 /**
- * **Il caso di Studio**: la commessa attiva in cima al Computo, e il menu per
- * cambiarla.
- *
- * È la scena che dichiara il popup al gate. Il grilletto si passa come
- * **selettore** e lo slot **si guarda nel DOM**: qui `DropdownMenuTrigger`
- * rende *attraverso* `Button`, e nel DOM vince `dropdown-menu-trigger` — come
- * nel menù utente del guscio, e all'opposto del `combobox`, dove
- * `InputGroupButton` si riprende lo slot. Le due composizioni si somigliano e
- * finiscono in modo diverso: è la ragione per cui `apri.ts` vuole un
- * selettore.
- *
- * Quello che il gate **non** misura, e che è stato misurato a mano in
- * Chromium vero (v. `WORKLOG.md`, M4ter.9): `Esc` chiude e **riporta il fuoco
- * al grilletto**, il clic fuori chiude, e il menu si apre da tastiera con
- * `Invio` portando il fuoco sulla prima voce. Nel pannello del browser
- * dell'app queste tre cose sembrerebbero rotte mentre sono sane —
- * `document.visibilityState` è `hidden`, `requestAnimationFrame` non scatta
- * mai, e Base UI ci schedula dentro lo spostamento del fuoco.
+ * Una commessa attiva, con il menu per cambiarla, aperto.
  */
 export const Predefinita: Story = {
   args: { titolo: '' },
@@ -158,17 +128,8 @@ export const Predefinita: Story = {
 }
 
 /**
- * **Sola lettura**: una voce sola — o nessuna — e il grilletto non si monta
- * affatto.
- *
- * Non è un caso limite da gestire, è il caso di quattro delle cinque pagine
- * di Studio in un dato momento: l'entità c'è, ma non c'è niente fra cui
- * scegliere. Montare lì un bottone «Cambia» che apre un menu con dentro
- * quello che c'è già scritto sopra è peggio che non montarlo — promette una
- * scelta che non esiste.
- *
- * Senza `descrizione` la fascia si riduce a una riga, ed è la forma più
- * discreta: è così che si guarda la domanda «ruba la scena alla pagina?».
+ * Una voce sola, o nessuna: il grilletto non c'è. Senza `descrizione` la
+ * fascia sta su una riga.
  */
 export const SolaLettura: Story = {
   args: {
@@ -179,14 +140,7 @@ export const SolaLettura: Story = {
 }
 
 /**
- * **Con un'azione di pagina** accanto al selettore. È il caso di
- * `AnalisiCapitolato`, dove il contesto è il capitolato e l'azione porta al
- * documento d'origine.
- *
- * `azioni` sta **fuori** dal grilletto per una ragione di markup prima che di
- * gusto: con la riga intera come `DropdownMenuTrigger` — la forma che dà il
- * bersaglio più grosso — un bottone qui dentro sarebbe annidato in un altro
- * bottone.
+ * Un'azione di pagina accanto al grilletto, fuori dal menu.
  */
 export const ConAzioni: Story = {
   args: { titolo: '' },
@@ -203,41 +157,8 @@ export const ConAzioni: Story = {
 }
 
 /**
- * **Il nome lungo**, che è il caso in cui una barra scritta a mano si rompe.
- *
- * Due cose cadono nell'ordine giusto, e nessuna delle due è automatica:
- * l'**etichetta del tipo** («Commessa») è `shrink-0` e resta intera, mentre il
- * **nome** ha `truncate` e si accorcia. Al contrario — `truncate` sull'intera
- * stringa — si leggerebbe «Commessa 2026-114 — Ristrutt…», cioè si
- * perderebbe per primo il soggetto. È lo stesso accorgimento che nel piede
- * del guscio fa cadere il cognome e non il nome.
- *
- * **Due classi che sembrano ridondanti e non lo sono**, e questa scena è ciò
- * che le ha trovate — guardandola, non da un gate.
- *
- * `min-w-0` su `ItemContent`: la larghezza minima automatica di un elemento
- * flex è la sua larghezza a contenuto minimo, quindi senza, un nome lungo
- * allarga la riga invece di lasciarsi troncare.
- *
- * `w-full` su `ItemTitle`, che nasce `w-fit`. `width: fit-content` *dovrebbe*
- * fermarsi alla larghezza disponibile; dentro `ItemContent`, che è una colonna
- * flex, risolve invece alla larghezza a **contenuto massimo**. Misurato nel
- * contenitore da 448px qui sotto: `ItemContent` 298.8px e il titolo **668.6**
- * — il nome usciva dalla fascia, passava sotto il bottone «Cambia», e
- * `truncate` non scattava mai perché dal suo punto di vista lo spazio non
- * mancava. Con `w-full` il titolo sta a 298.8, l'etichetta resta intera a
- * 68.7 e il nome si accorcia da 591.9 a **222.2**.
- *
- * Si verifica leggendo `textContent` e i rettangoli di riga
- * (`Range.getClientRects()`) contro la larghezza utile. `scrollWidth >
- * clientWidth` non serve: su una cella con `truncate` i due **coincidono**, e
- * su un testo che va a capo non vede niente — sbagliato due volte, in
- * M4ter.7 e in M4ter.8.
- *
- * La `descrizione` invece non si tronca: `ItemDescription` porta
- * `line-clamp-2`, quindi va a capo una volta e poi si ferma. È il
- * comportamento di shadcn e va bene così — l'altezza resta limitata — ma
- * vuol dire che la fascia stretta è alta tre righe invece di due.
+ * Il nome lungo, in un contenitore stretto e a piena larghezza: l'etichetta
+ * «Commessa» resta intera e il nome si accorcia.
  */
 export const NomeLungo: Story = {
   args: {
@@ -268,39 +189,8 @@ export const NomeLungo: Story = {
 }
 
 /**
- * **Nel guscio, nella forma scelta il 2026-09-21: due posti, due ruoli.**
- *
- * È la sola condizione in cui si può rispondere alla domanda per cui questo
- * blocco esiste — *dice su cosa stai lavorando senza rubare la scena alla
- * pagina?* — e la risposta, guardata a video con Francesco, non era «sì» né
- * «no»: era che **le cose da dire sono due e vanno divise**.
- *
- * - **Nella colonna, `SelettoreContesto`**: dice *quale*, e lo cambia. È
- *   persistente, si vede da ogni pagina, e collassando la colonna si riduce
- *   alla sua icona. È il `TeamSwitcher` di `@shadcn/sidebar-07`, ricomposto.
- * - **In pagina, `BarraContesto` senza `voci`**: dice *cosa comporta* —
- *   indirizzo, consegna, stato — e **non porta il «Cambia»**. Senza `voci` è
- *   già di sola lettura da sé: nessuna prop nuova.
- *
- * Il difetto che questa divisione toglie si vedeva nell'app vera di Studio,
- * portata da Francesco: «PROGETTO ATTIVO / Prova» nella colonna e «Progetto
- * attivo: Prova» in pagina, a 60px di distanza, **con due grilletti che fanno
- * la stessa cosa**. Fino a quel momento il registry ne conosceva una sola, e
- * lo slot del guscio era differito con l'innesco sbagliato.
- *
- * **Lo slot è una variante, non il nuovo normale**: `AppShell.contesto` è
- * facoltativo, e le app che non hanno un'entità attiva che attraversa le
- * pagine non passano niente. Oggi ce l'ha **solo Studio**.
- *
- * **Due passaggi a video sulla fascia, e in due direzioni opposte** (M4ter.9,
- * restano validi). La prima stesura era `variant="muted"` (`bg-muted/50`,
- * `border-transparent`) e non si vedeva: misurato col colore risolto su
- * canvas, in chiaro il fondo translucido sta a **1.053:1** dalla pagina, il
- * fondo pieno a **1.109**, il bordo a **1.274** — è il **bordo** a portare il
- * salto. Lo conferma il CSS vero di Studio (`CantiereContextBar.css`): fondo
- * `--color-surface-3`, quasi indistinguibile dalla pagina, **più** un bordo.
- * Poi, col fondo pieno, a spiccare troppo era il grilletto — e qui non c'è
- * più, il che è il modo più semplice di chiudere quel rilievo.
+ * I due posti insieme: nella colonna `SelettoreContesto` dice quale commessa
+ * e la cambia; in pagina `BarraContesto`, senza `voci`, dice cosa comporta.
  */
 export const NelGuscio: Story = {
   args: { titolo: '' },
@@ -371,9 +261,8 @@ export const NelGuscio: Story = {
 }
 
 /**
- * **Un contesto che non è un cantiere**: `icona` prende qualunque Lucide, e
- * `etichetta` qualunque parola. È la stessa fascia di `TaskCalcoloStrutturale`,
- * dove l'entità attiva è un calcolo e non una commessa.
+ * Un contesto che non è una commessa: un calcolo, con la sua icona e la sua
+ * etichetta.
  */
 export const AltroContesto: Story = {
   args: {

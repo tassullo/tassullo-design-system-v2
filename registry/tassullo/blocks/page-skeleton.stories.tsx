@@ -3,14 +3,30 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { PageSkeleton } from '@/registry/tassullo/blocks/page-skeleton'
 
 /**
- * Il «caricamento» dello standard unico di M3.5: skeleton al posto del
- * contenuto, mai una pagina bianca e mai uno spinner isolato senza contesto
- * (`INTERFACCE.md` §1.1 di Anagrafe). L'altezza è coerente col contenuto
- * atteso — da cui le tre `variante`, non un rettangolo unico.
+ * Lo stato di caricamento: la sagoma del contenuto in arrivo, al posto di una
+ * pagina bianca o di uno spinner da solo.
+ *
+ * **Quando sì, quando no.** È uno dei tre stati di una sezione, con
+ * `tassullo-empty-state` quando i dati arrivano vuoti e
+ * `tassullo-error-state` quando non arrivano. Si usa mentre si aspetta il
+ * contenuto di una pagina o di una sezione intera. Per un pezzo piccolo —
+ * un valore, una riga — basta la primitiva `skeleton`; per un'attesa dentro un
+ * bottone, `spinner`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-page-skeleton
+ * ```
  *
  * ```tsx
  * <PageSkeleton variante="tabella" righe={8} />
  * ```
+ *
+ * **Le prop.** `variante`: `"tabella"`, il predefinito, `"scheda"` o
+ * `"elenco"`, la forma del contenuto atteso; `righe`, quante righe finte.
+ *
+ * **Regole d'uso.** La sagoma ha l'altezza del contenuto che arriverà, così
+ * la pagina non salta quando arriva: si sceglie la variante che gli somiglia
+ * e un numero di righe vicino a quello vero.
  */
 const meta = {
   title: 'Blocchi/Skeleton di pagina',
@@ -21,12 +37,16 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** Il caso più frequente: una lista di Prodotti, Famiglie, Norme mentre carica. */
+/**
+ * Un elenco che carica: la forma più frequente.
+ */
 export const Tabella: Story = {
   args: { variante: 'tabella', righe: 6 },
 }
 
-/** Una scheda prodotto, prima che i dati arrivino. */
+/**
+ * Una scheda prima che arrivino i dati.
+ */
 export const Scheda: Story = {
   args: { variante: 'scheda', righe: 4 },
   render: (args) => (
@@ -36,7 +56,10 @@ export const Scheda: Story = {
   ),
 }
 
-/** Un elenco con avatar/icona a sinistra — un menu utenti, una lista allegati. */
+/**
+ * Un elenco con un'immagine o un'icona a sinistra: un elenco di persone, di
+ * allegati.
+ */
 export const Elenco: Story = {
   args: { variante: 'elenco', righe: 5 },
   render: (args) => (

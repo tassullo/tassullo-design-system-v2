@@ -25,8 +25,17 @@ import { Switch } from '@/registry/tassullo/ui/switch'
 import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
- * La **riga di un modulo**: etichetta, campo, aiuto, errore — e i cinque
- * collegamenti fatti da sé.
+ * La riga di un modulo: etichetta, campo, aiuto ed errore, collegati fra loro
+ * e con react-hook-form in una chiamata sola.
+ *
+ * **Quando sì, quando no.** Si usa per ogni campo di un modulo gestito con
+ * react-hook-form. Per comporre a mano, senza react-hook-form, resta la
+ * primitiva `field` (`Field`, `FieldLabel`, `FieldDescription`, `FieldError`,
+ * `FieldGroup`), su cui questo blocco è costruito.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-form-field
+ * ```
  *
  * ```tsx
  * <FormField control={form.control} nome="codice" etichetta="Codice">
@@ -34,68 +43,40 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * </FormField>
  * ```
  *
- * ## Non sostituisce `field`, lo compone
+ * **Le prop.**
  *
- * La primitiva `field` di shadcn è installata e non si tocca: `Field`,
- * `FieldLabel`, `FieldDescription`, `FieldError`, `FieldGroup`, `FieldSet`. Chi
- * vuole comporre a mano continua a importare quella. Qui non c&apos;è niente
- * che la primitiva non sappia fare — c&apos;è solo ciò che la guida di shadcn
- * lascia intero a chi la segue.
+ * - `control` e `nome`: il modulo di react-hook-form e il nome del dato.
+ * - `etichetta`; `descrizione`, l'aiuto sotto il campo.
+ * - `orientamento`: `"verticale"`, etichetta sopra; `"orizzontale"`,
+ *   etichetta accanto; `"adattiva"`, accanto quando il gruppo è largo e sopra
+ *   quando è stretto.
+ * - `etichettaInCoda` mette l'etichetta dopo il controllo, per caselle e
+ *   interruttori.
+ * - Il figlio è una funzione che riceve il campo già collegato — valore,
+ *   gestori, `id`, `aria-invalid`, `aria-describedby` — e rende il controllo.
  *
- * ## Cosa lascia intero, di preciso
+ * **Regole d'uso.**
  *
- * Nell&apos;esempio ufficiale (`docs/forms/react-hook-form`) ogni campo è
- * quindici righe, di cui dodici identiche al campo precedente. Dentro quelle
- * dodici stanno cinque cose che vanno scritte a mano e che, se si dimenticano,
- * **non danno errore**:
+ * - Il controllo lo sceglie la pagina: `Input`, `Textarea`, `Select`,
+ *   `Checkbox`, `Switch`. `Checkbox` e `Switch` parlano `checked` e
+ *   `onCheckedChange`, non `value` e `onChange`: il campo si collega a mano,
+ *   come nella scena «Scelte».
+ * - La descrizione è l'eccezione: si scrive solo per un vincolo che il campo
+ *   non mostra da sé — un limite di lunghezza, un formato obbligato, una
+ *   conseguenza che non si disfa. Un campo che ha bisogno di spiegazioni ha
+ *   quasi sempre l'etichetta sbagliata.
+ * - L'`id` del campo è unico per ogni istanza: due moduli nella stessa pagina
+ *   non si rubano le etichette.
+ * - Con `orientamento="adattiva"` la soglia è `@md` del `FieldGroup` che
+ *   contiene i campi: guarda il gruppo, non lo schermo.
+ * - La validazione con `mode: 'onTouched'` parte quando si lascia il campo, e
+ *   poi a ogni battuta.
  *
- * 1. `data-invalid` sul `Field` — è ciò che tinge la riga;
- * 2. `aria-invalid` sul controllo — è ciò che lo dice a chi non la vede;
- * 3. `htmlFor` e `id` appaiati — è ciò che fa sì che il clic sull&apos;etichetta
- *    porti il fuoco nel campo;
- * 4. `<FieldError>` reso **solo** quando c&apos;è un errore;
- * 5. e la quinta, che l&apos;esempio di shadcn **non fa affatto**:
- *    `aria-describedby`. Una `<FieldDescription>` non collegata è testo che sta
- *    lì accanto e che un lettore di schermo non legge quando il fuoco entra nel
- *    campo — cioè esattamente nel momento in cui serviva. Qui descrizione ed
- *    errore hanno un `id` derivato da quello del campo, e il controllo li
- *    dichiara entrambi.
- *
- * ## La descrizione è l&apos;eccezione, non la regola
- *
- * `descrizione` c&apos;è, e quasi sempre **non si usa**. Una riga d&apos;aiuto
- * sotto ogni campo raddoppia l&apos;altezza del modulo e lo fa leggere come
- * documentazione invece che come una cosa da compilare: chi lo usa tutti i
- * giorni la salta dopo la seconda volta, e allora tanto vale che non ci sia. Un
- * campo che ha bisogno di essere spiegato ha quasi sempre **l&apos;etichetta
- * sbagliata**, e l&apos;etichetta costa zero pixel.
- *
- * Resta per il caso in cui c&apos;è un **vincolo che il campo non mostra da
- * sé** — il limite di 2048 caratteri che impone BC, un formato obbligato, una
- * conseguenza non reversibile. In questa vetrina ne è rimasta **una**, sulle
- * note tecniche, ed è quella.
- *
- * ## L&apos;`id` non è il nome del campo
- *
- * Due moduli nella stessa pagina — la scheda e il dialogo che la modifica —
- * avrebbero due `id="nome"`, e il secondo `htmlFor` punterebbe al primo campo.
- * Nel DOM è legale; nel browser il clic sull&apos;etichetta mette il fuoco nel
- * campo sbagliato, e non lo segnala nessuno. `useId()` dà un prefisso unico per
- * istanza. Il `name` resta il nome del **dato**, ed è di react-hook-form.
- *
- * ## Il controllo resta dell&apos;app
- *
- * I figli sono una **funzione**, non del JSX: il blocco non sa se dentro c&apos;è
- * un `<Input>`, un `<Textarea>`, un `<Select>` o una `<Checkbox>`, e non deve
- * saperlo. Un prop `tipo="testo" | "select" | …` dovrebbe crescere di un ramo a
- * ogni controllo nuovo, e ogni ramo diventerebbe una prop in più da inoltrare:
- * è la strada per cui un blocco finisce per reimplementare, peggio, le prop dei
- * componenti che avvolge.
- *
- * Un dettaglio che la funzione tiene onesto: i controlli acceso/spento di Base
- * UI — `Checkbox`, `Switch` — non parlano `value`/`onChange` ma
- * `checked`/`onCheckedChange`, quindi `{...campo}` sputato dentro non
- * funzionerebbe. Si vede nella story **Scelte**.
+ * **Tastiera e accessibilità.** Il clic sull'etichetta porta il fuoco nel
+ * campo. Il campo dichiara `aria-invalid` quando è sbagliato e
+ * `aria-describedby` verso l'aiuto e l'errore, quindi chi arriva col fuoco
+ * sente prima cosa scrivere e poi cosa non va. L'errore compare solo quando
+ * c'è, con `role="alert"`.
  */
 const meta = {
   title: 'Blocchi/Campo di modulo',
@@ -214,10 +195,7 @@ function ModuloScheda({ precompila = false }: { precompila?: boolean }) {
 }
 
 /**
- * Il modulo vuoto. `mode: 'onTouched'` — la validazione parte al primo abbandono
- * del campo e poi a ogni battuta: non si viene corretti mentre si sta ancora
- * scrivendo la prima lettera, e non si scopre tutto insieme al momento di
- * salvare.
+ * Il modulo vuoto: la validazione parte quando si lascia un campo.
  */
 export const Predefinito: Story = {
   args: {} as never,
@@ -225,9 +203,7 @@ export const Predefinito: Story = {
 }
 
 /**
- * Lo stesso modulo già compilato. Utile per guardare la riga a riposo — che è
- * lo stato in cui un modulo passa il 95% del tempo, e quello che si finisce per
- * non guardare mai.
+ * Lo stesso modulo compilato, a riposo.
  */
 export const Compilato: Story = {
   args: {} as never,
@@ -235,15 +211,8 @@ export const Compilato: Story = {
 }
 
 /**
- * **Gli errori.** Il modulo parte con dei valori che lo schema rifiuta e con la
- * validazione già eseguita, così i tre stati si vedono insieme: la riga tinta
- * (`data-invalid`), il messaggio sotto (`FieldError`, con `role="alert"`) e il
- * controllo marcato (`aria-invalid`).
- *
- * Da guardare col pannello Accessibility aperto: il campo dichiara
- * `aria-describedby` verso **entrambi** — l&apos;aiuto e l&apos;errore — quindi
- * chi arriva col fuoco sente prima cosa deve scrivere e poi cosa non va. È la
- * parte che l&apos;esempio di shadcn non fa.
+ * I campi sbagliati: la riga tinta, il messaggio sotto, il controllo marcato
+ * `aria-invalid` e collegato all'aiuto e all'errore.
  */
 export const ConErrori: Story = {
   args: {} as never,
@@ -282,16 +251,8 @@ export const ConErrori: Story = {
 }
 
 /**
- * **Le scelte**: casella e interruttore, con l&apos;etichetta **in coda**.
- *
- * È la sola forma in cui l&apos;etichetta sta dopo il controllo, e non è un
- * capriccio: lì il controllo è piccolo e l&apos;etichetta lo *descrive*, invece
- * di intestare una riga. `etichettaInCoda` mette anche l&apos;aiuto dentro un
- * `FieldContent` insieme all&apos;etichetta, o resterebbe allineato al bordo
- * sinistro della riga invece che sotto la propria etichetta.
- *
- * Qui si vede perché i figli sono una funzione: `Checkbox` e `Switch` parlano
- * `checked`/`onCheckedChange`, non `value`/`onChange`.
+ * Casella e interruttore, con l'etichetta dopo il controllo
+ * (`etichettaInCoda`) e l'aiuto sotto l'etichetta.
  */
 export const Scelte: Story = {
   args: {} as never,
@@ -339,14 +300,8 @@ export const Scelte: Story = {
 }
 
 /**
- * `orientamento="adattiva"`: etichetta accanto al campo quando il **gruppo** è
- * largo, sopra quando è stretto. La soglia è `@md` del `FieldGroup` che la
- * contiene, cioè una **container query** — guarda il gruppo e non lo schermo,
- * che è la regola di `docs/DECISIONI.md` §31 e il motivo per cui questa story
- * si può mettere in scena a qualunque viewport.
- *
- * I due riquadri qui sotto hanno gli stessi identici campi: cambia solo la
- * larghezza del contenitore, dichiarata sopra ciascuno.
+ * `orientamento="adattiva"` in due gruppi di larghezza diversa: etichetta
+ * accanto al campo nel gruppo largo, sopra in quello stretto.
  */
 export const Adattiva: Story = {
   args: {} as never,

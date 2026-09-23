@@ -318,18 +318,55 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * ──────────────────────────────────────────────────────────────────────── */
 
 /**
- * La **tabella di dati**: ricerca, ordinamento, paginazione, selezione,
- * colonne nascondibili e due stati vuoti, in una dichiarazione sola.
+ * Il blocco per un elenco di record da leggere, cercare e scegliere: ricerca,
+ * ordinamento, paginazione, selezione, colonne nascondibili e i due stati
+ * vuoti, in una dichiarazione sola.
  *
- * È il blocco che toglie più codice ad Anagrafe — Prodotti, Famiglie, Norme e
- * Pubblicazioni sono quattro volte la stessa tabella, riscritta quattro volte.
+ * **Quando sì, quando no.** È la forma di ogni elenco dell'applicativo: una
+ * pagina lista, un elenco di appoggio dentro una scheda. Per poche righe fisse
+ * da leggere e basta, serve la primitiva `table`. Per modificare i valori
+ * cella per cella, come in un foglio di calcolo, si usa `tassullo-data-grid`,
+ * che è costruito su questo blocco. Per un foglio a gruppi — una voce con le
+ * sue misure e il totale sotto, come un computo — si usa
+ * `tassullo-foglio-gruppi`: qui l'albero mette il subtotale sulla riga madre,
+ * sopra i figli, e la tastiera si muove per righe. Una pagina lista intera,
+ * con testata e stati di caricamento, è `tassullo-pagina-lista`, che monta già
+ * questo blocco.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-data-table
+ * ```
+ *
+ * I filtri per colonna sono quattro item a parte, da installare quando
+ * servono, con lo stesso comando e il loro nome:
+ *
+ * - `tassullo-data-table-filtro-sfaccettato`, la scelta fra i valori di una
+ *   colonna, con il numero di righe accanto a ogni valore;
+ * - `tassullo-data-table-filtro-intervallo`, un intervallo numerico;
+ * - `tassullo-data-table-filtro-data`, un intervallo di date;
+ * - `tassullo-data-table-filtro-reset`, il bottone che li azzera tutti e
+ *   sparisce quando non c'è niente da azzerare. Non tocca la ricerca né
+ *   l'ordinamento.
+ *
+ * **Le colonne.** Si scrivono con TanStack Table v9, e la documentazione che
+ * serve è la sua: `creaColonne<T>()` è il suo `createColumnHelper`, già
+ * tipizzato sulle caratteristiche del blocco. Il blocco legge in più, dal
+ * campo `meta` di ogni colonna: `titolo`, il nome usato dal menu «Colonne»;
+ * `larghezza`, una utility Tailwind come `w-28`; `sottototale`, `piede` e
+ * `azioniProprie`, descritti sotto. Una colonna va lasciata senza larghezza:
+ * è quella che prende lo spazio che avanza. L'intestazione ordinabile è
+ * `IntestazioneColonna`, con `allinea="fine"` sulle colonne di numeri.
+ * `sortFn` dice come si ordina: `alphanumeric` per i codici, perché `IN-9`
+ * venga prima di `IN-10`; `text`; `basic` per i numeri; `datetime` per le
+ * date. Una colonna che la ricerca non deve guardare dichiara
+ * `enableGlobalFilter: false`.
  *
  * ```tsx
  * const col = creaColonne<Prodotto>()
  * const COLONNE = col.columns([
  *   col.accessor('codice', {
  *     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
- *     meta: { titolo: 'Codice' },
+ *     meta: { titolo: 'Codice', larghezza: 'w-32' },
  *     sortFn: 'alphanumeric',
  *   }),
  * ])
@@ -337,68 +374,163 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * <DataTable colonne={COLONNE} dati={prodotti} cerca="Cerca un prodotto…" selezione />
  * ```
  *
- * ## shadcn un `data-table` non ce l&apos;ha, ed è una scelta sua
+ * **Le prop.**
  *
- * La sua pagina è dichiaratamente una **guida**: «ogni tabella che ho scritto
- * era diversa; metterle tutte in un componente vuol dire perdere la
- * flessibilità che l&apos;headless dà». Chiesto all&apos;MCP prima di scrivere
- * (regola 4bis, gradino 1): nel registry c&apos;è `table` — le sei etichette
- * HTML vestite — e `data-table-demo`, che è un esempio e per lo stile
- * `base-nova` non esiste nemmeno.
+ * - Il contorno: `cerca`, il segnaposto della ricerca, o `false` per
+ *   toglierla; `colonneNascondibili`, il menu «Colonne», acceso di serie;
+ *   `selezione`, la colonna delle caselle; `barra`, una riga sotto la ricerca
+ *   per filtri e azioni di massa; `nomeRighe`, il nome delle righe nel
+ *   conteggio in fondo (`{ singolare: 'prodotto', plurale: 'prodotti' }`).
+ * - Gli stati vuoti sono due. `vuoto` — titolo, descrizione, azione — è ciò
+ *   che si vede quando `dati` è vuoto. Quando invece la ricerca o un filtro
+ *   non trovano niente, il blocco dice «Nessun risultato» e offre da sé il
+ *   bottone «Togli i filtri».
+ * - La paginazione: `perPagina` vale 10, 25 (il predefinito), 50, 100,
+ *   `"infinito"` o `"virtuale"`. `piePagina={false}` toglie la fascia di
+ *   paginazione, per le tabelle di appoggio dentro un'altra pagina.
+ * - Il riquadro: `altezza`, `"naturale"` o `"ferma"`, sotto.
+ * - Le colonne: `bloccaPrimaColonna`, `ridimensionabile`, `colonneBloccabili`,
+ *   `colonneRiordinabili`, `bordiColonna`.
+ * - Le righe: `idRiga`, `getSottoRighe`, `pannelloRiga`, `menuRiga`,
+ *   `riordinabile`, `chiaveMemoRiga`, `piede`.
+ * - `onTabellaPronta` consegna l'istanza di TanStack, per un comando che il
+ *   blocco non traduce in una prop: `toggleAllRowsExpanded()`, per esempio.
  *
- * Quella flessibilità però **noi non la vogliamo pagare quattro volte**. La
- * guida lascia intero a chi la segue tutto il contorno: caratteristiche, stato,
- * ricerca, paginazione, da riassemblare a mano in ogni pagina. Ed è esattamente
- * il meccanismo con cui le app del v1 sono divergite — nessuna ha scritto la
- * tabella *male*, l&apos;hanno scritta ognuna *un po&apos; diversa*.
+ * ## `altezza="ferma"`: il riquadro che si ferma su un confine di riga
  *
- * Quindi la riga passa qui: **le colonne restano di TanStack, il contorno è
- * nostro**. `creaColonne()` è il loro `createColumnHelper` con la sola generica
- * delle caratteristiche già messa — chi scrive una colonna scrive TanStack
- * vero, e la documentazione che gli serve è la loro.
+ * Con `altezza="naturale"`, il predefinito, il riquadro è alto quanto le sue
+ * righe e a scorrere è la pagina: è la forma giusta per una tabella che sta in
+ * una scheda, fra altre sezioni. Con `altezza="ferma"` il riquadro prende lo
+ * spazio che il genitore gli concede, si ferma sul bordo dell'ultima riga che
+ * ci sta intera, e le righe scorrono al suo interno sotto un'intestazione
+ * ferma. Il piè — il conteggio e la paginazione — resta sempre in vista. Con
+ * poche righe il riquadro si restringe fino al contenuto.
  *
- * ## TanStack Table v9, e cosa non è più vero
+ * È la forma di ogni pagina che **è** la lista, qualunque sia la paginazione:
  *
- * La v9 è **a caratteristiche**: si dichiara con `tableFeatures()` ciò che
- * serve e il resto sparisce dal bundle. Cadono i `get*RowModel` fra le opzioni
- * — i modelli di riga si creano con `create*RowModel()` — e cadono anche le
- * funzioni di filtro e di ordinamento incorporate, da registrare una per una.
- * Chi ricorda `useReactTable`, `getCoreRowModel()` e `flexRender(...)` ricorda
- * la v8: qui sono `useTable` e `<table.FlexRender />`.
+ * - con `perPagina="infinito"` non ci sono pagine, e si carica altro
+ *   scorrendo: senza un riquadro fermo non ci sarebbe niente da far scorrere;
+ * - con una `perPagina` numerica, senza il riquadro fermo il piè esce dalla
+ *   vista appena le righe superano l'altezza dello schermo;
+ * - con `perPagina="virtuale"`, senza un tetto non c'è una finestra di righe
+ *   da calcolare.
  *
- * ## Tre scostamenti dalla guida, tutti voluti
+ * Il genitore deve avere un'altezza vera: il blocco riceve
+ * `className="min-h-0 flex-1"` dentro un contenitore `flex flex-col` alto
+ * quanto la pagina, cioè dentro `<AppShell contenuto="riempie">`. Il blocco
+ * `tassullo-pagina-lista` è già composto così.
  *
- * **1. Si cerca in tutta la tabella, non in una colonna.** La guida filtra
- * `email`, cioè una colonna scelta a mano; le pagine di Anagrafe hanno una
- * casella sola che guarda tutto. Le colonne che non devono entrarci lo dicono
- * con `enableGlobalFilter: false` — qui `Rev.` e `Aggiornato`, dove cercare
- * «12» avrebbe pescato mezze tabella.
+ * **Il tetto si misura fra le righe, mai contro il contenitore.** Il blocco
+ * prende la cima della prima riga resa come zero e somma le distanze fra le
+ * righe, fino all'ultima che entra. Chi scrive una misura simile per un altro
+ * riquadro fa lo stesso. `getBoundingClientRect` restituisce coordinate della
+ * finestra, e quindi porta dentro lo scorrimento: a contenitore scorso le
+ * righe in cima hanno un fondo negativo, l'ultima cade proprio sull'altezza
+ * del momento, e il tetto si riscrive uguale a sé stesso. La misura fra le
+ * righe vale anche in virtualizzazione, dove lo scorrimento arriva a centinaia
+ * di migliaia di pixel e le righe rese sono solo quelle in vista.
  *
- * **2. L&apos;intestazione ordina con un clic, non con un menu.** La guida
- * offre `DataTableColumnHeader`, che apre un menu con Asc/Desc/Nascondi: da
- * tastiera sono **quattro gesti** per la cosa che si fa più spesso. Qui
- * l&apos;intestazione *è* il bottone, e cicla crescente → decrescente →
- * nessun ordine — un Tab e un Invio. Il terzo tempo conta: senza, una colonna
- * ordinata per sbaglio non si può più disordinare. Nascondere una colonna resta
- * possibile, dal menu «Colonne», che è dove si va quando si vuole quello.
+ * **Come si riconosce il difetto.** Quando la misura è presa contro il
+ * contenitore, il riquadro sa rimpicciolirsi e non sa più ricrescere: è un
+ * cricchetto, e una schermata sola non lo mostra. Lo si riproduce con una
+ * sequenza: si filtra fino a una **manciata** di righe, poi si toglie il
+ * filtro. Il riquadro resta basso come per quelle poche righe, mentre il
+ * conteggio in fondo dice che le righe sono tornate tutte. Filtrare fino a
+ * una riga sola non basta: con una riga il contenitore non può scorrere, e il
+ * difetto non si vede. Riguarda tutte e tre le paginazioni, ovunque un filtro
+ * o la ricerca possano far scendere le righe sotto l'altezza del riquadro.
  *
- * **3. Il `<th>` dichiara `aria-sort`.** La guida non lo fa e axe non lo
- * pretende, ma è l&apos;unico modo in cui un lettore di schermo sa che la
- * tabella è ordinata e come.
+ * ## La testata a menu, come alternativa
  *
- * ## Due stati vuoti, non uno
+ * La testata normale è `IntestazioneColonna`: il titolo è il bottone che
+ * ordina, un clic e basta. Quando le colonne sono bloccabili, però, ogni
+ * testata porta la freccia dell'ordinamento **e** la puntina del blocco: due
+ * bersagli per colonna. `IntestazioneColonnaMenu` li raccoglie in un solo
+ * grilletto «⋮», con un menu che ha «Ordina» sopra e «Blocca» sotto. È
+ * un'alternativa da scegliere colonna per colonna, non il predefinito.
  *
- * «Nessun risultato» dopo una ricerca e «non c&apos;è ancora niente» su una
- * tabella appena creata **non sono la stessa cosa**: il primo ha un rimedio —
- * togli il filtro, e il blocco offre il bottone che lo fa — il secondo no. La
- * guida ne ha uno solo, `No results.`, che su una tabella vuota dice la cosa
- * sbagliata.
+ * La colonna che la usa dichiara anche `meta.azioniProprie: true`. Senza,
+ * `colonneBloccabili` aggiunge comunque la propria puntina, e i grilletti per
+ * bloccare la colonna tornano due.
  *
- * ## I dati di queste story
+ * ```tsx
+ * col.accessor('nome', {
+ *   header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Nome" />,
+ *   meta: { titolo: 'Nome', azioniProprie: true },
+ * })
+ * ```
  *
- * **500 righe generate, e sempre le stesse.** Il generatore è un LCG con seme
- * fisso: con `Math.random()` cambierebbero a ogni ricarica, e con loro
- * l&apos;ordinamento, il conto dei risultati e ogni misura presa sopra.
+ * Il grilletto si vede al passaggio del puntatore e quando riceve il fuoco, e
+ * resta in vista quando la colonna è ordinata o bloccata: se uno stato c'è, il
+ * modo di toglierlo non si deve cercare.
+ *
+ * ## Regole d'uso
+ *
+ * - I numeri si allineano a destra — `allinea="fine"` sull'intestazione,
+ *   `text-right` sulla cella — e si formattano con le funzioni dell'item
+ *   `numeri`, `intero()`, `decimale()` e `valuta()`, che scrivono sempre il
+ *   separatore delle migliaia. Le cifre tabellari, `tabular-nums`, le dà già
+ *   la tabella. Un codice o un anno non si formattano.
+ * - I codici si scrivono nel carattere del testo, con `text-sm`; uno stato è
+ *   un `badge` coi toni dell'item `toni`.
+ * - La selezione esce dalla tabella solo attraverso `barra` nella forma a
+ *   funzione, `(scelti, tabella) => …`, che riceve le righe scelte e l'istanza
+ *   della tabella. Non c'è una `onSelezione`, e non si ricostruisce con un
+ *   effetto.
+ * - I filtri stanno in `barra`, nella forma a funzione, e leggono `tabella`
+ *   dal secondo argomento, non da `onTabellaPronta`. Ogni colonna filtrata
+ *   dichiara il suo `filterFn`: `arrHas` per il filtro sfaccettato,
+ *   `inNumberRange` per l'intervallo, `inDateRange` per le date.
+ * - `perPagina="infinito"` mostra a passi un elenco che è già tutto in
+ *   `dati`, e non chiede altro al server mentre si scorre. Per un elenco che
+ *   il server consegna a pagine serve un'altra forma.
+ * - `riordinabile` spegne ordinamento, ricerca e filtri e mette tutte le
+ *   righe su una pagina, perché il trascinamento conta le posizioni visibili;
+ *   vuole `idRiga`. `colonneRiordinabili` invece non spegne niente.
+ * - `colonneBloccabili` blocca qualunque colonna, a sinistra o a destra, e
+ *   prende il posto di `bloccaPrimaColonna` se si passano insieme. Con
+ *   `ridimensionabile` o `colonneBloccabili` la larghezza di partenza sta in
+ *   `size`, `minSize` e `maxSize` sulla colonna, non in `meta.larghezza`. Le
+ *   larghezze scelte da chi usa la tabella sono in pixel: non seguono la
+ *   densità e non restano da un caricamento all'altro.
+ * - `getSottoRighe` apre l'albero: la colonna che identifica la riga usa
+ *   `CellaAlbero` per il rientro e la freccia, e `meta.sottototale` scrive il
+ *   conto sulla riga madre. `pannelloRiga` apre invece, sotto la riga, un
+ *   dettaglio con contenuto libero; per una riga senza dettaglio restituisce
+ *   `null`.
+ * - `piede` accende una riga di totali dentro la tabella. Ogni colonna scrive
+ *   la sua cella in `meta.piede`, che riceve le righe che filtri e ricerca
+ *   lasciano passare, non quelle della pagina: il totale cambia col filtro e
+ *   con la ricerca, non con l'ordinamento né con la pagina, e l'etichetta lo
+ *   deve dire. `piede` non è `piePagina`, che è la fascia di paginazione.
+ * - `menuRiga` scrive le voci una volta sola — `RowMenuItem`,
+ *   `RowMenuSeparator`, `RowMenuSub`, con la riga letta da
+ *   `useDataTableRow()` — e le monta sia nel menu «⋯» in coda alla riga sia
+ *   sul tasto destro. `enabledFor` esclude una riga da tutti e due.
+ * - L'editing in riga lo scrive la pagina: le colonne rendono un campo sulla
+ *   riga in modifica, e `chiaveMemoRiga` dice al blocco quale riga
+ *   ricalcolare mentre si scrive.
+ * - Con `perPagina="virtuale"` non si compongono `pannelloRiga` e
+ *   `chiaveMemoRiga`, e il menu di riga resta solo nel «⋯», senza tasto
+ *   destro.
+ * - `bordiColonna` accende le linee verticali fra le colonne, per una tabella
+ *   che si legge per colonne: un computo, un listino.
+ *
+ * ## Tastiera e accessibilità
+ *
+ * L'intestazione ordinabile è un bottone: `Tab` la raggiunge, e `Invio` passa
+ * da crescente a decrescente a nessun ordine. Il `<th>` dichiara `aria-sort`.
+ * Caselle, menu e filtri si raggiungono col `Tab`, e i menu si chiudono con
+ * `Esc`. Le maniglie di ridimensionamento non sono fermi di `Tab`: si
+ * trascinano col puntatore, e da tastiera `Alt` con `←` o `→` sul bottone
+ * dell'intestazione restringe o allarga la colonna di 16px. Sulle maniglie
+ * di riordino, di righe e di colonne, `Spazio`
+ * afferra, le frecce spostano, `Spazio` rilascia ed `Esc` annulla. In
+ * virtualizzazione le righe ricevono il fuoco: frecce su e giù, `Home` e
+ * `Fine` al principio e alla fine dell'elenco intero, `Pagina su` e
+ * `Pagina giù` di una finestra; la riga a fuoco si monta da sé se non è in
+ * vista. Il tasto destro non è mai l'unica via: le stesse voci stanno nel
+ * menu «⋯».
  */
 const meta: Meta<typeof DataTable<Prodotto>> = {
   title: 'Blocchi/Data Table',
@@ -411,7 +543,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /**
- * La forma completa: 500 prodotti, ricerca, selezione, colonne nascondibili,
+ * La forma completa: 500 prodotti, ricerca, selezione, prima colonna bloccata,
  * 25 righe per pagina.
  */
 export const Prodotti: Story = {
@@ -427,40 +559,10 @@ export const Prodotti: Story = {
 }
 
 /**
- * **La stessa tabella dentro 320px** — la larghezza che resta su uno schermo da
- * 375px, dove la colonna del guscio non c&apos;è. Il riquadro è stretto di
- * proposito e a qualunque viewport, come la `Fascia Stretta` di `page-header`:
- * serve che il caso stretto si possa **misurare**, e l&apos;imbracatura del
- * gate non ha un modo affidabile di cambiare viewport.
- *
- * ## Qui la tabella scorre, ed è la risposta di shadcn
- *
- * `dashboard-01` non nasconde nessuna colonna sotto una soglia: lascia scorrere
- * la tabella e mette `hidden lg:flex` solo sulla **chrome di paginazione** — il
- * conto delle righe e i salti a prima e ultima pagina. Chiesto guardando il suo
- * sorgente, non presunto, e qui è lo stesso: sotto `sm` restano avanti,
- * indietro e la scelta delle righe.
- *
- * ## Quello che shadcn non fa, e che serve
- *
- * Scorrere e basta ha un difetto che si vede solo provandolo: a due terzi di
- * tabella fuori dallo schermo si legge **una data senza sapere di che prodotto
- * sia**. `bloccaPrimaColonna` tiene ferme a sinistra la casella e il codice, e
- * il contenuto passa **sotto** il loro bordo destro — che è anche il solo segno
- * necessario: non c&apos;è bisogno di scrivere «scorri» se si vede qualcosa
- * scorrere.
- *
- * Il fondo delle celle bloccate non è decorazione: senza, il testo delle altre
- * colonne passerebbe **sotto** il loro e si leggerebbe come un guasto di resa.
- * E segue lo stato della riga — sorvolo e selezione — o la colonna ferma
- * resterebbe bianca mentre il resto si tinge.
- *
- * ## Cosa resta a M4.2
- *
- * **Se 375×touch sia un bersaglio è D10, e il verdetto è di M4.2**, su una
- * pagina lista vera. Qui si è fatta la parte della tabella: che scorrere sia
- * onesto. Se M4.2 deciderà che a quella larghezza la tabella non ci va, la
- * risposta non sarà una soglia dentro questo blocco ma una **pagina** diversa.
+ * La stessa tabella in un riquadro da 320px, la larghezza utile di un
+ * telefono. La tabella scorre in orizzontale, e la casella e il codice restano
+ * fermi a sinistra (`bloccaPrimaColonna`): si legge sempre di quale prodotto è
+ * una riga.
  */
 export const Stretta: Story = {
   args: {
@@ -487,12 +589,8 @@ export const Stretta: Story = {
 }
 
 /**
- * **Il menu di riga, aperto.** È la story che il gate misura col popup aperto:
- * `apri.ts` ne apre **uno per story**, e il primo grilletto della pagina è
- * quello della prima riga.
- *
- * Dieci righe e niente ricerca, perché con la barra sopra il grilletto che
- * `apriCol` trova per primo sarebbe un altro.
+ * Il menu di una riga, aperto: una colonna `display` scritta dalla pagina con
+ * un `dropdown-menu`. L'azione distruttiva usa `variant="destructive"`.
  */
 export const MenuDiRiga: Story = {
   name: 'Menu Di Riga',
@@ -507,14 +605,8 @@ export const MenuDiRiga: Story = {
 }
 
 /**
- * **Il menu «Colonne», aperto.** Serve una story a parte, e non è duplicazione
- * accidentale: `apri.ts` apre un popup per story, e questa tabella ne ha due
- * generi — il menu di riga e quello delle colonne. È la stessa lezione di M2.3
- * e M2.6, riapplicata dentro un blocco: un popup che il gate non apre è un
- * popup di cui non sa niente.
- *
- * Qui la colonna delle azioni non c&apos;è, così il primo grilletto della
- * pagina è quello giusto.
+ * Il menu «Colonne», aperto: mostra e nasconde le colonne col nome che
+ * dichiarano in `meta.titolo`.
  */
 export const MenuDelleColonne: Story = {
   name: 'Menu Delle Colonne',
@@ -528,16 +620,9 @@ export const MenuDelleColonne: Story = {
 }
 
 /**
- * **Colonne ridimensionabili** (M3bis.3, D17 riaperta e generalizzata). Il
- * filo sul bordo destro di ogni intestazione si trascina col mouse — o si
- * comanda da tastiera: `Tab` fino alla maniglia, frecce sinistra/destra per
- * allargare o restringere di 16px alla volta, `Home` per tornare alla
- * larghezza di partenza. `Famiglia` non dichiara `size`: assorbe lo spazio
- * che avanza, come farebbe senza `meta.larghezza` nella forma non
- * ridimensionabile.
- *
- * Nessun `play`: la maniglia non apre un popup — è un `role="separator"`
- * misurato a riposo, in entrambi gli stati del gate come ogni altra story.
+ * Colonne ridimensionabili: il filo sul bordo destro di ogni intestazione si
+ * trascina, o si comanda con `Alt`+`←`/`→` dall'intestazione. «Famiglia»
+ * non dichiara `size` e prende lo spazio che resta.
  */
 export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
   args: {
@@ -551,24 +636,9 @@ export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
 }
 
 /**
- * **Colonne riordinabili** (M3bis.8, porting di "Column DnD Table") —
- * **insieme al ridimensionamento** (M3bis.3), nella stessa story: è
- * esattamente il criterio d'accettazione di `PIANO.md`
- * («compatibilità verificata con resize colonne nella stessa story»), non
- * una comodità. Stesse `COLONNE_RIDIMENSIONABILI` di `Ridimensionabile`
- * sopra — provare entrambi i gesti sulle stesse intestazioni è il punto:
- * la maniglia di riordino (`⠿`, a sinistra del titolo) e il filo di resize
- * (sul bordo destro) coesistono sulla stessa `<th>` senza rubarsi il gesto.
- *
- * **Da mouse e da tastiera**: `Tab` porta il fuoco sulla maniglia della
- * prima intestazione trascinabile; `Spazio` l'afferra, le frecce sinistra/
- * destra la spostano, `Spazio` di nuovo la rilascia, `Escape` annulla —
- * `KeyboardSensor` di dnd-kit, la stessa forma di `Riordino` (righe, sotto).
- *
- * **A differenza di `Riordino`, ordinamento e ricerca restano attivi**: il
- * prop non li spegne (v. `colonneRiordinabili`, il blocco) — si può ordinare
- * per «Aggiornato» *e* trascinare «Nome» prima di «Codice» nella stessa
- * sessione, senza che l'uno interferisca con l'altro.
+ * Colonne riordinabili insieme al ridimensionamento: la maniglia ⠿ a sinistra
+ * del titolo sposta la colonna, il filo sul bordo la allarga. Ordinamento e
+ * ricerca restano attivi.
  */
 export const RiordinoColonne: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Riordino Colonne',
@@ -584,17 +654,8 @@ export const RiordinoColonne: StoryObj<typeof DataTable<Prodotto>> = {
 }
 
 /**
- * **Il pin generalizzato, aperto** — il menu che `PinIcon` apre in ogni
- * intestazione bloccabile: "Blocca a sinistra" / "Blocca a destra" / "Non
- * bloccare". A differenza di `bloccaPrimaColonna` (v. `Stretta`, sopra) qui
- * qualunque colonna può bloccarsi, su entrambi i lati — lo sticky si calcola
- * dalle larghezze acquisite (`ancoraggioColonna`), non da una classe fissa
- * per indice.
- *
- * Il primo grilletto `dropdown-menu-trigger` della pagina è quello di
- * `Codice`, la prima colonna: nessuna colonna di selezione o d'azioni qui,
- * per la stessa ragione di `MenuDelleColonne` sopra — un popup che il gate
- * non apre è un popup di cui non sa niente.
+ * Il menu del blocco, aperto: ogni intestazione ha una puntina che blocca la
+ * colonna a sinistra o a destra.
  */
 export const ColonneBloccabili: Story = {
   name: 'Colonne Bloccabili',
@@ -672,10 +733,9 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
 ])
 
 /**
- * Stessi dati di `Ridimensionabile`/`ColonneBloccabili` sopra, un solo
- * grilletto invece di due. Da tastiera: `Tab` porta il fuoco sul grilletto
- * di ogni intestazione (si rivela da sé, `group-focus-within`), `Invio`/
- * `Spazio` apre lo stesso menu.
+ * La testata a menu: un grilletto «⋮» per colonna, con «Ordina» e «Blocca»
+ * nello stesso menu, al posto della freccia e della puntina di
+ * `Colonne Bloccabili`.
  */
 export const MenuColonna: Story = {
   name: 'Menu Colonna',
@@ -691,9 +751,8 @@ export const MenuColonna: Story = {
 }
 
 /**
- * **Non c&apos;è ancora niente.** Lo stato di una tabella appena creata: un
- * rimedio c&apos;è, ed è creare il primo record — quindi il bottone lo dichiara
- * la pagina, che è l&apos;unica a sapere dove porta.
+ * La tabella senza dati: `vuoto` dà il titolo, la descrizione e il bottone
+ * che crea il primo record.
  */
 export const SenzaDati: Story = {
   name: 'Senza Dati',
@@ -710,17 +769,8 @@ export const SenzaDati: Story = {
 }
 
 /**
- * **Tutto il contorno è facoltativo, e questa story è il banco che lo prova.**
- *
- * Sei righe, `cerca={false}` e `colonneNascondibili={false}`: restano la sola
- * tabella e la riga di paginazione. È la forma da usare per un elenco corto
- * incastonato in una scheda — dove una casella di ricerca su sei righe costa
- * più che leggerle — e serve a dire che il blocco **non impone la propria
- * barra**: chi lo installa non si trova addosso della chrome che non ha
- * chiesto.
- *
- * Da guardare accanto a `Prodotti`, che è la stessa tabella col contorno
- * acceso: la differenza fra le due *è* il contenuto di questa story.
+ * Sei righe, senza ricerca e senza menu «Colonne»: la forma di un elenco corto
+ * dentro una scheda. Il contorno si toglie una prop alla volta.
  */
 export const ElencoCorto: Story = {
   name: 'Elenco Corto',
@@ -734,17 +784,8 @@ export const ElencoCorto: Story = {
 }
 
 /**
- * **La selezione non esce dalla tabella: è la barra che entra.** `barra` nella
- * forma a funzione riceve le righe scelte — i dati veri, non gli indici — e le
- * azioni di massa compaiono solo quando qualcosa è scelto.
- *
- * Una `onSelezione` non c&apos;è, e la mancanza è voluta: notificarla vorrebbe
- * dire un `useEffect` le cui dipendenze oneste sono un array nuovo a ogni
- * render e una funzione scritta inline dalla pagina — l&apos;effetto riparte,
- * chiama `setState`, il render riparte, e React **non interrompe il ciclo e non
- * stampa niente** (`CLAUDE.md`, le trappole; costò una sessione l&apos;8
- * settembre). Qui è una chiamata in fase di render, e non c&apos;è nessun
- * effetto da sbagliare.
+ * Le azioni di massa in `barra`: il bottone compare quando si sceglie almeno
+ * una riga, e riceve le righe scelte.
  */
 export const ConAzioniDiMassa: Story = {
   name: 'Con Azioni Di Massa',
@@ -1004,6 +1045,12 @@ function AlberoConControlli() {
   )
 }
 
+/**
+ * Righe annidate con subtotale: un computo in cui ogni voce porta le sue
+ * misurazioni. La casella di una voce sceglie anche le misurazioni sotto;
+ * «Espandi tutto» e «Comprimi tutto» comandano la tabella attraverso
+ * `onTabellaPronta`.
+ */
 export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
   render: () => <AlberoConControlli />,
 }
@@ -1063,6 +1110,10 @@ function EspansioneConControlli() {
   )
 }
 
+/**
+ * Il dettaglio sotto la riga, aperto dalla freccia. I prodotti archiviati non
+ * hanno dettaglio, e la loro riga resta senza freccia.
+ */
 export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <EspansioneConControlli />,
 }
@@ -1095,6 +1146,10 @@ export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
  */
 const PRODOTTI_VIRTUALIZZAZIONE = generaProdotti(10000)
 
+/**
+ * Diecimila prodotti in un riquadro fermo, con nel DOM solo le righe in vista.
+ * Col fuoco su una riga, `Fine` porta all'ultima dell'elenco.
+ */
 export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
   args: {
     colonne: COLONNE.filter((c) => c.id !== 'azioni'),
@@ -1215,9 +1270,9 @@ function TabellaConFiltri({ statoIniziale }: { statoIniziale?: string[] }) {
 }
 
 /**
- * I quattro filtri di M3bis.6 sulla stessa barra: sfaccettato (Stato,
- * Famiglia), a intervallo numerico (Revisione), a intervallo di date
- * (Aggiornato), e il reset che li cancella insieme.
+ * I quattro filtri sulla stessa barra — Stato e Famiglia a scelta, Revisione a
+ * intervallo, Aggiornato per date — più il bottone che li azzera. Il primo
+ * filtro è aperto.
  */
 export const Filtri: StoryObj<typeof DataTable<Prodotto>> = {
   play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
@@ -1225,10 +1280,8 @@ export const Filtri: StoryObj<typeof DataTable<Prodotto>> = {
 }
 
 /**
- * Con "Bozza" già scelto: il grilletto porta il valore e il segno «X» per
- * cancellarlo, le opzioni delle **altre** faccette (Famiglia) restano
- * intere — il filtro di Stato non le tocca — e `<FiltroResetTutti>` compare
- * dal primo render, non un render dopo.
+ * Con «Bozza» già scelto: il grilletto mostra il valore scelto, le opzioni di
+ * Famiglia restano tutte, e il bottone che azzera i filtri è in vista.
  */
 export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Filtri Con Filtro Attivo',
@@ -1286,23 +1339,8 @@ function RiordinoConControlli() {
 }
 
 /**
- * **Da mouse e da tastiera.** `Tab` porta il fuoco sulla maniglia (⠿) della
- * prima riga; `Spazio` l'afferra, le frecce su/giù la spostano, `Spazio` di
- * nuovo la rilascia, `Escape` annulla — `KeyboardSensor` di dnd-kit, non
- * scritto qui.
- *
- * **Niente ricerca, niente intestazioni ordinabili**: `riordinabile` li
- * spegne da sé (`PIANO.md`, M3bis.7) — l'indice che il trascinamento calcola
- * viene dall'ordine **visibile** delle righe, e un ordinamento o una ricerca
- * attivi lo farebbero divergere da `dati`. Resta il menu «Colonne»: nascondere
- * una colonna non tocca l'ordine delle righe.
- *
- * **La colonna Ordine si aggiorna da sé** dopo ogni trascinamento — `1`
- * resta sempre in cima, non la riga che c'era prima: è la riprova visibile
- * che `onRiordina` ha scritto davvero il nuovo array, non solo spostato una
- * riga a schermo. Il caso reale è `Caratteristiche` di Anagrafe: oggi
- * quell'`Ordine` si cambia a mano, un numero alla volta, in un modulo
- * separato per ogni riga.
+ * Righe riordinabili: la maniglia ⠿ sposta la riga, e la colonna «Ordine» si
+ * rinumera. Ricerca e ordinamento sono spenti.
  */
 export const Riordino: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <RiordinoConControlli />,
@@ -1382,16 +1420,8 @@ function MenuRigaCondivisoConControlli() {
 }
 
 /**
- * **Identiche da tendina e da tasto destro**: le tre voci — Modifica,
- * Duplica, Elimina — vengono dalla stessa `<MenuAzioniProdotto />`, letta
- * due volte da due `Popup` diversi. **La terza riga (archiviata) non apre
- * né l'una né l'altra**: `enabledFor` spegne insieme la tendina e il tasto
- * destro, con la stessa domanda.
- *
- * **Da tastiera resta raggiungibile solo la tendina**: `Tab` raggiunge il
- * bottone «⋯» di ogni riga abilitata e `Invio` apre lo stesso identico
- * menu che il tasto destro apre — il tasto destro non è mai l'unica via
- * (v. `context-menu.stories.tsx`, «il costo d'ingresso»).
+ * Il menu di riga, aperto col tasto destro: sono le stesse voci del menu «⋯».
+ * La terza riga, archiviata, non ha né l'uno né l'altro.
  */
 export const MenuRigaCondiviso: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Menu Riga Condiviso',
@@ -1712,17 +1742,10 @@ function EditingInRigaConControlli() {
 }
 
 /**
- * **La colonna «Render» è la prova, non un ornamento**: si modifichi il
- * `Nome` di una riga a caso e si digiti — il suo numero sale a ogni tasto,
- * quello di ogni altra riga resta fermo. Senza `chiaveMemoRiga` sarebbero
- * salite tutte insieme, perché lo stato di editing (`bozza`) vive fuori da
- * `dati` e senza quel prop `React.memo` non avrebbe modo di saperlo.
- *
- * **Invio salva, Esc annulla** — verificato da tastiera, non solo dal
- * mouse sulle due icone. Un nome vuoto o una revisione non positiva
- * mostrano l'errore sotto il campo **senza chiudere l'editing**: `salva()`
- * si ferma prima di toccare `prodotti` quando `Object.keys(prossimi).length
- * > 0`.
+ * L'editing in riga: la matita apre i campi, `Invio` salva, `Esc` annulla, e
+ * un valore non valido mostra l'errore senza chiudere il campo. La colonna
+ * «Render» conta i ricalcoli di ogni riga: scrivendo, sale solo su quella in
+ * modifica.
  */
 export const EditingInRiga: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Editing In Riga',
@@ -1894,17 +1917,8 @@ const COLONNE_PIEDE = colPiede.columns([
  * definizione, perché non c&apos;è scarto da compensare.
  */
 /**
- * **`bordiColonna`** — linee verticali fra le colonne e bordo esterno, spente
- * di default. Si accendono quando la tabella si legge **per colonne** invece
- * che per righe: un computo, un listino, una tabella di misure incolonnate,
- * dove a metà riga l'occhio perde di quale colonna sia il numero che sta
- * guardando. Le stesse misurazioni della story qui sotto, per confronto
- * diretto.
- *
- * Non sono accese ovunque perché la tabella di shadcn separa le righe e basta,
- * e cambiarlo per tutti vorrebbe dire cambiare l'aspetto di ogni tabella già
- * composta. `tassullo-foglio-gruppi` invece li ha **sempre**: lì sono la forma
- * del blocco, non un'opzione. Richiesta di Francesco, 2026-09-21.
+ * `bordiColonna`: le linee verticali fra le colonne, per una tabella che si
+ * legge per colonne.
  */
 export const BordiColonna: StoryObj<typeof DataTable<MisurazioneComputo>> = {
   name: 'Bordi Colonna',
@@ -1921,6 +1935,10 @@ export const BordiColonna: StoryObj<typeof DataTable<MisurazioneComputo>> = {
   ),
 }
 
+/**
+ * Il totale in coda: scrivendo `03.05` nella ricerca le righe si riducono, e i
+ * due totali scendono con loro.
+ */
 export const ConPiede: StoryObj<typeof DataTable<MisurazioneComputo>> = {
   name: 'Con Piede',
   render: () => (
@@ -1959,6 +1977,10 @@ const MISURAZIONI_TANTE: MisurazioneComputo[] = Array.from(
   }
 )
 
+/**
+ * Lo stesso piede su 4.000 righe virtualizzate in un riquadro fermo: il totale
+ * resta in fondo alla vista mentre le righe gli scorrono sotto.
+ */
 export const PiedeVirtualizzato: StoryObj<typeof DataTable<MisurazioneComputo>> = {
   name: 'Piede Virtualizzato',
   render: () => (

@@ -13,122 +13,102 @@ import {
 } from '@/registry/tassullo/blocks/calendario'
 
 /**
- * Il calendario a eventi coi default di casa Tassullo, montato sopra il
- * motore `@reui/event-calendar` adottato in M4ter.1.
+ * Il calendario a eventi: fermi, interventi, turni, su un mese, una settimana
+ * o un'agenda, con le barre che durano più giorni, i colori per tipo e chi è
+ * assegnato. È costruito sul motore `@reui/event-calendar`.
+ *
+ * **Quando sì, quando no.** Si usa per guardare e riprogrammare eventi che
+ * hanno un inizio e una fine. Per scegliere una data o un intervallo in un
+ * modulo si usa la primitiva `calendar`, dentro un `popover`; per un elenco di
+ * eventi da filtrare e ordinare, senza griglia, `tassullo-data-table`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-calendario
+ * ```
  *
  * ```tsx
  * const [fermi, setFermi] = useState(fermiIniziali)
  *
  * <Calendario
- *   calendari={squadra}
+ *   calendari={interventi}
+ *   persone={squadra}
  *   eventi={fermi}
  *   onEventiChange={setFermi}
  *   modifica
- *   trascinamento
  * />
  * ```
  *
- * **C'è una scena sola, ed è tutto qui dentro.** Le funzioni non hanno una
- * story per una: si accendono dalle prop nei Controls, o dai comandi della
- * testata.
+ * **Cosa mostra.** Tre viste — mese, settimana, agenda — con la testata che
+ * le commuta e lo stesso periodo sotto tutte e tre: cambia la faccia, non ciò
+ * che si guarda. Una barra che dura più giorni si legge come un solo evento,
+ * e le barre che si accavallano trovano ognuna la sua riga. Quando in un
+ * giorno gli eventi non ci stanno, «+N altri» apre il resto in un popover. Il
+ * **calendario** di un evento è il suo tipo — Guasto, Preventiva, Ispezione —
+ * e dà il **colore**, spiegato dalla legenda; gli **assegnatari** sono le
+ * persone, e compaiono come **avatar**. Sono due canali separati: la stessa
+ * persona fa interventi di tipo diverso, e su un evento possono essere in due.
  *
- * ## Cosa sa fare
+ * **Le prop.**
  *
- * - **Tre viste**, mese, settimana e agenda, con la testata che le commuta e
- *   **lo stesso periodo** sotto tutte e tre: cambia la faccia, non ciò che
- *   si guarda. L'agenda è la faccia stretta — la vista che Officina si è
- *   scritta a mano.
- * - **Barre pluri-giorno con il calcolo delle corsie**: una barra che dura
- *   tre giorni si legge come *un* fermo, e più barre che si accavallano
- *   trovano ognuna la propria riga. È la parte cara, ed è la ragione per cui
- *   il motore si adotta invece di scriverlo.
- * - **«+N altri»** quando in una cella non ci stanno: apre un popover col
- *   resto del giorno.
- * - **Calendari e assegnatari sono due cose diverse**, come in Officina. Il
- *   **calendario** è il tipo di intervento — Guasto, Preventiva, Ispezione,
- *   Miglioria — ed è il **colore**, spiegato dalla legenda sotto la testata.
- *   Gli **assegnatari** sono le persone, e sono gli **avatar**: quando ci
- *   sono si vedono loro, in un `AvatarGroup`, e quando mancano resta il
- *   pallino col colore del calendario. **Possono essere più d'uno** — su un
- *   fermo capita di essere in due — e dal terzo in poi il gruppo dice
- *   *quanti* invece di *chi*. Due canali separati, perché lo stesso
- *   manutentore fa guasti e preventive.
- * - **Un dialogo per crea / modifica / elimina** (`modifica`), che si apre
- *   dal clic su un evento, dal clic su un giorno vuoto e dal bottone
- *   «Nuovo».
- * - **Trascinamento** (`trascinamento`) per riprogrammare, e il bordo per
- *   cambiare quanti giorni dura. La strada **con la conferma** è il
- *   date-picker dentro il dialogo, che è il pattern descritto dal commento
- *   di testa del `Calendario.tsx` di Officina.
- * - **Tre interruttori di vista**, dal menù «Opzioni» in testata (`opzioni`)
- *   o fissati dall'app: `weekend` toglie sabato e domenica,
- *   `numeroSettimana` aggiunge la colonna a sinistra, `tooltip` accende il
- *   tooltip sull'evento. Col menù acceso le tre prop sono il **valore di
- *   partenza** e poi comanda chi guarda.
- * - **Uno stato vuoto** che è quello di casa (`tassullo-empty-state`, M3.5),
- *   non quello di ReUI: si vede svuotando `eventi`, e `statoVuoto` lo
- *   sostituisce quando serve una CTA.
- * - **Densità touch**: le celle passano da 120 a 180px e i bersagli crescono
- *   con `--spacing`. Si prova dalla leva **Densità** in barra, che è globale
- *   alla style guide.
+ * - `eventi` e `onEventiChange`: gli eventi sono controllati.
+ * - `calendari` (`{ id, nome, colore }`) e `persone`
+ *   (`{ id, nome, iniziali, immagine }`); ogni evento li richiama con
+ *   `calendarioId` e `assegnatariId`. Un evento senza calendario prende `colore`, o
+ *   `coloreDefault`. I colori sono i dieci del tema per nome: `arancio`,
+ *   `verde`, `blu`, `grigio`, `ocra`, `prugna`, `indaco`, `oliva`, `malva`,
+ *   `rosso`.
+ * - `modifica` accende il dialogo per creare, modificare ed eliminare: si apre
+ *   dal clic su un evento, dal clic su un giorno vuoto e dal bottone «Nuovo».
+ * - `trascinamento` accende lo spostamento degli eventi e il bordo che ne
+ *   cambia la durata.
+ * - `vista` o `vistaIniziale` (`"mese"`, `"settimana"`, `"agenda"`), `data` o
+ *   `dataIniziale`, con `onVistaChange` e `onDataChange`.
+ * - `giorniAgenda`: `"mese"` tiene l'agenda sullo stesso mese, un numero la
+ *   fa scorrere per N giorni.
+ * - `weekend`, `numeroSettimana`, `tooltip`: sabato e domenica, la colonna
+ *   del numero di settimana, il tooltip sull'evento. `opzioni` mette le tre
+ *   leve in un menu della testata, e allora le prop sono solo il punto di
+ *   partenza.
+ * - `onEventoClick` e `onGiornoClick`; `e.preventDefault()` in
+ *   `onEventoClick` apre un pannello proprio al posto del dialogo.
+ * - `azioni` aggiunge controlli in testata; `testata={false}` e
+ *   `legenda={false}` le tolgono; `statoVuoto` sostituisce il vuoto.
  *
- * ## I quattro default di casa
+ * **Regole d'uso.**
  *
- * Presi dal `Calendario.tsx` di Officina, e **restano default anche adesso
- * che l'interattività c'è**: `modifica` e `trascinamento` dicono quanto
- * aprirlo, non cambiano il punto di partenza.
+ * - La settimana comincia di lunedì in tutte le viste, e sabato e domenica
+ *   sono spenti di serie: è un calendario lavorativo. `weekend` li riaccende;
+ *   l'agenda li elenca comunque, quindi un evento del sabato non si perde.
+ * - Senza `modifica` il calendario è in sola lettura, e il clic su un giorno
+ *   non crea niente. Il trascinamento è spento di serie: col dito, su una
+ *   griglia di celle piccole, si sbaglia giorno, e sarebbe l'unica modifica
+ *   senza conferma. La strada con la conferma è la data nel dialogo.
+ * - Gli eventi non cambiano da soli: trascinamento e dialogo chiamano
+ *   `onEventiChange` con l'elenco nuovo, e l'app lo rimette in `eventi` dopo
+ *   averlo salvato. Senza `onEventiChange` il calendario sembra rispondere e
+ *   non salva niente.
+ * - Ogni evento ha `start` e `end`, e `end` è **esclusivo**: un evento del
+ *   solo 9 finisce alle 00:00 del 10. Il backend che salva gli eventi deve
+ *   usare la stessa convenzione, o ogni evento risulta lungo un giorno di
+ *   più.
+ * - Ogni evento ha un `id` stabile, quello del backend: modifica ed
+ *   eliminazione lo riconoscono dall'`id`. Un evento creato dal dialogo
+ *   arriva in `onEventiChange` con un `id` provvisorio, che l'app sostituisce
+ *   con quello restituito dal backend.
+ * - Il contenitore deve avere un'altezza: il blocco riempie un genitore
+ *   `flex flex-col` di altezza nota.
+ * - Nella vista mese la cella non scende sotto l'altezza di tre eventi: sotto
+ *   quella misura il mese scorre, sopra la cella cresce e mostra più eventi.
+ *   Su uno spazio basso o stretto la faccia giusta è l'agenda, e sceglierla
+ *   spetta alla pagina.
+ * - Il vuoto è quello di `tassullo-empty-state`; `statoVuoto` lo sostituisce
+ *   quando serve un'azione per uscirne.
  *
- * 1. **La settimana comincia di lunedì**, scritto esplicito e non dedotto dal
- *    locale: il motore legge `weekStartsOn ?? locale?.options?.weekStartsOn
- *    ?? 0`, quindi chi dimentica il locale avrebbe la domenica in prima
- *    colonna **senza nessun errore**.
- * 2. **Niente creazione dell'evento dal clic sulla griglia.**
- * 3. **Trascinamento spento.** «La riprogrammazione è un date-picker nel
- *    pannello, non un drag&drop: trascinare su una griglia da 42 celle è
- *    preciso col mouse e impossibile col pollice, e sarebbe l'unica azione
- *    dell'app senza una conferma.»
- * 4. **L'evento prende `start` e `end`**, non un istante. `end` è
- *    **esclusivo**: un fermo del solo 9 finisce alle 00:00 del 10.
- *
- * ## Tre cose da sapere prima di usarlo
- *
- * **Gli eventi sono controllati.** Trascinamento e dialogo non mutano niente
- * da sé: chiamano `onEventiChange` con l'elenco nuovo, e l'app lo rimette
- * dentro da `eventi`. Lo vuole il motore — in modo controllato emette il
- * callback e non tocca lo stato interno — ed è anche giusto, perché una
- * riprogrammazione passa dal backend. Accendere `modifica` o `trascinamento`
- * **senza** `onEventiChange` fa un calendario che sembra rispondere e non
- * salva niente.
- *
- * **Il contenitore deve avere un'altezza**, e il blocco è `min-h-0 flex-1`:
- * dentro un genitore `flex flex-col` con altezza nota riempie lo spazio.
- *
- * **Il pavimento della cella è tre eventi, e da lì in su il mese cresce**
- * (2026-09-21). Sotto quella misura la cella **non si comprime**: il
- * contenitore scorre. Sopra, l'adattamento del motore aggiunge corsie intere —
- * misurato, a 1400px di contenitore la cella è 214px e il «+N altri» sparisce
- * del tutto. Fino a M4ter.11 qui c'era scritto che il mese «scorre invece di
- * schiacciarle», e non era vero: schiacciava **e** scorreva, coi chip
- * disegnati sopra i numeri dei giorni della settimana precedente. Il perché
- * completo, con la via opposta provata e scartata — pavimento a una corsia,
- * che lasciava l'ultimo elemento **tagliato a metà** — sta su `monthRow` in
- * `calendario.tsx`.
- *
- * **Il bivio mese/agenda lo dichiara la pagina**, non il blocco: quale
- * mostrare dipende da quanto spazio ha *quella* pagina, e da M4ter.6 si
- * scriverà con `useSoglia`.
- *
- * ## Due cose che si vedono e non si possono cambiare
- *
- * **Il numero del giorno sta in basso a destra**: è una scelta del motore
- * adottato («Notion-style»), e spostarlo in alto sarebbe muovere un nodo del
- * DOM, fuori dal gradino 2 della regola 4bis.
- *
- * **Le frecce non spostano una selezione nella griglia.** Misurato in
- * Chromium vero: 42 celle, **nessuna** focalizzabile, e axe dà zero
- * violazioni — è D15. Non morde col default di casa, perché una cella non ha
- * azioni; con `modifica` acceso l'appiglio da tastiera è il «+» che compare
- * in ogni cella.
+ * **Tastiera e accessibilità.** Testata, bottoni e menu si usano da tastiera,
+ * e il dialogo tiene il fuoco al suo interno e si chiude con `Esc`. La griglia
+ * del mese non si naviga con le frecce: `Tab` passa per gli eventi, per i
+ * «+N altri» e, con `modifica`, per il «+» che aggiunge un evento in ogni
+ * giorno.
  */
 const meta = {
   title: 'Blocchi/Calendario',
@@ -245,27 +225,10 @@ function Guscio({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * **La scena unica: tutto acceso.** Calendari e persone, barre pluri-giorno
- * con le corsie, «+N altri», mese e agenda, dialogo e trascinamento.
- *
- * Cosa provare, in ordine di quanto è facile sbagliarlo:
- *
- * - **trascina** un fermo su un altro giorno, e **tira il bordo** di una
- *   barra per cambiarne la durata;
- * - **clicca un evento**: si apre in modifica, col suo calendario già scelto;
- * - **clicca un giorno vuoto**, o «Nuovo»: si apre in creazione;
- * - cambia il **calendario** nel dialogo e guarda cambiare colore e iniziali;
- * - apri il **«+N altri»** del 15;
- * - passa a **settimana** e ad **agenda**, e torna al **mese**: il periodo
- *   non cambia, cambia la faccia;
- * - **passa sopra** un evento: il tooltip dice titolo, orario e di chi è —
- *   è lì che il nome per esteso si legge, perché nel cerchio dell'avatar ci
- *   sta una lettera sola;
- * - la colonna a sinistra col **numero della settimana** si spegne con
- *   `numeroSettimana`, e `weekend` toglie sabato e domenica.
- *
- * Gli eventi stanno in uno `useState` di questa story: è il modo in cui
- * un'app li tiene, perché il calendario **non muta niente da sé**.
+ * Tutto acceso: tipi e persone, barre di più giorni, «+N altri», le tre viste,
+ * dialogo e trascinamento. Il «+N altri» del 15 è aperto. Si prova a
+ * trascinare un evento, a tirarne il bordo, a cliccarne uno e a cliccare un
+ * giorno vuoto.
  */
 export const Completo: Story = {
   args: {
@@ -299,14 +262,7 @@ export const Completo: Story = {
 }
 
 /**
- * **Il dialogo, aperto.** È la scena di sopra con una `play` che preme
- * «Nuovo»: serve al gate, perché **un popup non aperto non è un popup senza
- * violazioni**.
- *
- * Sta a parte e non sulla scena principale per una ragione pratica:
- * Storybook esegue le `play` anche nel canvas, quindi la story che dichiara
- * un popup **arriva col popup davanti** — e sulla scena completa il dialogo
- * coprirebbe proprio ciò che si vuole provare, cioè il trascinamento.
+ * Il dialogo di creazione, aperto da «Nuovo».
  */
 export const DialogoEvento: Story = {
   // Scena di misura: `!dev` la toglie dalla barra e da Docs — Francesco
@@ -333,14 +289,7 @@ export const DialogoEvento: Story = {
 }
 
 /**
- * **La griglia oraria.** Esiste come story sua per una ragione di misura, non
- * di catalogo: axe guarda le story **come si presentano**, e una vista che
- * nessuna story monta è una vista che il gate non ha mai visto. La scena
- * completa apre sul mese, quindi la settimana andrebbe misurata da nessuna
- * parte.
- *
- * È lo stesso calendario e lo stesso mese: qui l'ancora cade sulla settimana
- * dell'8, che è quella coi fermi sovrapposti.
+ * La vista settimana, sulla settimana con gli eventi che si accavallano.
  */
 export const Settimana: Story = {
   // Scena di misura, come sopra: axe guarda le story **come si presentano**,
@@ -363,18 +312,7 @@ export const Settimana: Story = {
 }
 
 /**
- * **Il vuoto è quello nostro, non quello di ReUI.** Il motore monterebbe una
- * sua illustrazione; qui il vuoto passa da `tassullo-empty-state`, che è lo
- * standard unico di M3.5 — icona, frase, e una CTA quando c'è un'azione
- * sensata. Un calendario che si inventasse un vuoto proprio sarebbe
- * esattamente la deriva che il design system esiste per non avere.
- *
- * `statoVuoto` lo sostituisce, ed è la strada per aggiungerci il bottone che
- * porta fuori dal vuoto.
- *
- * La scena mostra l'**agenda**, perché è lì che il vuoto si vede: nel mese la
- * griglia c'è comunque — trentun caselle numerate non sono uno stato vuoto,
- * sono un mese senza niente dentro.
+ * Un'agenda senza eventi: il vuoto è quello di `tassullo-empty-state`.
  */
 export const Vuoto: Story = {
   // Scena di misura, come sopra: lo stato vuoto non si raggiunge da
@@ -395,32 +333,11 @@ export const Vuoto: Story = {
 }
 
 /**
- * **Il banco per provare l'adattamento in altezza.** Il riquadro si
- * **trascina dal bordo in basso a destra** (`resize-y`), e la riga sotto
- * legge dal DOM cosa succede mentre lo si muove: altezza del contenitore,
- * altezza della cella, quanti eventi restano visibili, quanti finiscono nel
- * «+N altri», e se la griglia sta scorrendo.
- *
- * È il modo di verificare a mano quello che `monthRow` documenta misurato:
- * **il mese ci sta sempre tutto e non si scorre mai**, e più il riquadro è
- * basso più eventi la cella arrotola. Il pavimento è una corsia più il numero
- * del giorno — 64px in densità normale, 96 in touch — e sotto quello nemmeno
- * un evento ci starebbe: lì la faccia giusta è l'agenda.
- *
- * Da provare, in quest'ordine:
- *
- * - **tira in su fino in fondo**: le celle scendono al pavimento e quasi ogni
- *   giornata diventa un «+N altri». Le sei settimane ci sono ancora tutte;
- * - **clicca un «+N altri»**: il popover mostra la giornata intera — niente si
- *   è perso, si è solo arrotolato;
- * - **tira in giù**: le corsie tornano una per volta, e il «+N» si consuma;
- * - **commuta la densità** in barra: in touch il pavimento è più alto, quindi
- *   lo stesso riquadro arrotola prima.
- *
- * Il righello da guardare è **«sovrapposizione»**: deve restare a `0px` a
- * ogni altezza. È il difetto che questa scena esiste per sorvegliare — prima
- * di M4ter.11 a 576px valeva 51px fra le righe, coi chip disegnati sopra i
- * numeri dei giorni della settimana precedente.
+ * Il calendario in un riquadro che si ridimensiona dal bordo in basso a
+ * destra. La riga sotto legge l'altezza della cella, gli eventi visibili,
+ * quanti finiscono in «+N altri» e se il mese scorre: tirando in su la cella
+ * si ferma all'altezza di tre eventi e il mese comincia a scorrere, tirando
+ * in giù tornano visibili più eventi. La sovrapposizione resta a zero.
  */
 export const AltezzaVariabile: Story = {
   name: 'Altezza variabile',

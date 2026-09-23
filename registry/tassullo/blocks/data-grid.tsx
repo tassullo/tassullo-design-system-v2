@@ -105,8 +105,9 @@
  * porting da "Cell Types" di niko-table. Il confine fra motore e cella resta
  * quello di sessione 1: `useDataGrid` non sa cos'è un numero o una data,
  * conosce solo `leggiCella`/`scriviCella` come confine di **stringhe** — è
- * la cella tipizzata a formattare per la vista (`Intl.NumberFormat('it-IT')`
- * per numero/valuta, `toLocaleDateString('it-IT')` per la data) e a
+ * la cella tipizzata a formattare per la vista (`lib/numeri` per numero e
+ * valuta, col punto delle migliaia sempre; `toLocaleDateString('it-IT')`
+ * per la data) e a
  * interpretare ciò che l'utente scrive. Il checkbox e il select non passano
  * da `apriModifica`/`commitModifica` — un gesto solo (spuntare, scegliere)
  * si scrive subito con `impostaValore`, senza un testo intermedio da
@@ -164,7 +165,14 @@ import {
   creaColonne,
   type ColonnaTabella,
   type DataTableProps,
+  type IstanzaTabella,
 } from "@/registry/tassullo/blocks/data-table"
+import {
+  formattatore,
+  leggiNumero,
+  scriviNumero,
+  valuta as valutaFormattata,
+} from "@/registry/tassullo/lib/numeri"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Checkbox } from "@/registry/tassullo/ui/checkbox"
 import {
@@ -196,6 +204,14 @@ export type CommitGriglia = {
   sequenza: number
 }
 
+/** Come una colonna si scrive e si legge: v. `registraFormato`. */
+export type FormatoCellaGriglia = {
+  /** Dal valore del dato a ciò che si vede nel campo in modifica e si copia. */
+  perScrivere: (valore: string) => string
+  /** Da ciò che si è scritto o incollato al valore del dato. */
+  interpreta: (testo: string) => string
+}
+
 export type OpzioniDataGrid<TDato> = {
   /** Seminano lo stato interno una volta sola — v. il commento in testa al file. */
   righeIniziali: TDato[]
@@ -209,6 +225,19 @@ export type OpzioniDataGrid<TDato> = {
   scriviCella: (riga: TDato, colonnaId: string, valore: string) => TDato
   /** Chiamato dopo ogni commit (modifica, incolla, riempimento, annulla, ripeti). */
   onModifica?: (righe: TDato[]) => void
+  /**
+   * Le colonne **di comando** — un cestino, un «duplica» — che seguono quelle
+   * di `colonneId`. Le frecce le raggiungono come ogni altra cella, così il
+   * comando agisce sulla riga su cui si sta già lavorando, e la riga resta
+   * segnata dal fuoco; copia, incolla, riempimento, svuotamento e selezione
+   * le saltano, e `Tab` non ci si ferma. Le celle si scrivono con
+   * `colonnaAzioneGriglia`, con lo stesso `id`.
+   *
+   * Nasce da un bottone di riga messo **fuori** dalla navigazione: a fuoco
+   * uscito dalla griglia la riga su cui si agiva non era più segnata, e ogni
+   * riga in vista aggiungeva un fermo di `Tab` (misurato: 19 sul Computo).
+   */
+  colonneAzioneId?: readonly string[]
 }
 
 const CRONOLOGIA_MAX = 100
@@ -264,12 +293,57 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
    * è un no-op.
    */
   registraValidatore: (colonnaId: string, f: ((valore: string) => string | undefined) | null) => void
+  /**
+   * Registra il **formato di scrittura** di una colonna — `colonnaNumeroGriglia`
+   * e `colonnaValutaGriglia` lo fanno da sé, come per il validatore. Dice come
+   * si mostra il valore nel campo in modifica e nella copia (`perScrivere`), e
+   * come si legge ciò che si è scritto o incollato (`interpreta`): per i
+   * numeri, la virgola decimale di chi scrive in italiano contro il punto del
+   * dato. Senza formato, il valore passa com'è.
+   */
+  registraFormato: (colonnaId: string, formato: FormatoCellaGriglia | null) => void
   /** Wiring privata per `<DataGrid>`: v. il commento in testa al file. */
   registraSpostamentoVerticale: (f: ((indiceRiga: number) => void) | null) => void
+  /** Wiring privata per `<DataGrid>`: allarga o restringe una colonna da tastiera. */
+  registraRidimensiona: (f: ((colonnaId: string, delta: number) => void) | null) => void
+}
+
+/**
+ * `Home` e `Fine` dentro un campo in modifica, fatti a mano. Il browser li
+ * fa da sé — cursore all'inizio o alla fine — ma quando il testo sta tutto
+ * nel campo lascia anche passare il tasto al contenitore che scorre, e la
+ * griglia virtualizzata saltava in fondo all'elenco: la riga in modifica
+ * usciva dalla finestra, veniva smontata col suo campo, e il fuoco finiva
+ * sul `body` (misurato: `scrollTop` da 0 a 21.601 con un `Fine`). Con
+ * `Maiusc` la selezione si estende fino al capo.
+ */
+function capoDelCampo(evento: React.KeyboardEvent): boolean {
+  if (evento.key !== "Home" && evento.key !== "End") return false
+  const campo = evento.target
+  if (!(campo instanceof HTMLInputElement) || campo.type === "date") return false
+  evento.preventDefault()
+  const capo = evento.key === "End" ? campo.value.length : 0
+  if (evento.shiftKey) {
+    const fermo = evento.key === "End" ? (campo.selectionStart ?? 0) : (campo.selectionEnd ?? 0)
+    const verso = evento.key === "End" ? "forward" : "backward"
+    campo.setSelectionRange(Math.min(fermo, capo), Math.max(fermo, capo), verso)
+  } else {
+    campo.setSelectionRange(capo, capo)
+  }
+  return true
 }
 
 export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEngine<TDato> {
-  const { righeIniziali, colonneId, idRiga, leggiCella, scriviCella, onModifica } = opzioni
+  const { righeIniziali, colonneId, colonneAzioneId, idRiga, leggiCella, scriviCella, onModifica } =
+    opzioni
+  // Le colonne che le frecce percorrono: quelle dei dati, poi quelle di
+  // comando. Le operazioni sui valori (rettangolo, incolla, riempimento)
+  // restano sulle sole `colonneId`: un indice di colonna `>= colonneId.length`
+  // è sempre una cella di comando.
+  const colonneNavigabili = React.useMemo(
+    () => [...colonneId, ...(colonneAzioneId ?? [])],
+    [colonneId, colonneAzioneId]
+  )
 
   const [righe, setRighe] = React.useState(righeIniziali)
   const [passato, setPassato] = React.useState<TDato[][]>([])
@@ -307,9 +381,9 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   }, [righe, idRiga])
   const indiceColonna = React.useMemo(() => {
     const mappa = new Map<string, number>()
-    colonneId.forEach((c, i) => mappa.set(c, i))
+    colonneNavigabili.forEach((c, i) => mappa.set(c, i))
     return mappa
-  }, [colonneId])
+  }, [colonneNavigabili])
 
   const rettangolo = (a: CellaGrigliaId | null, b: CellaGrigliaId | null) => {
     if (!a || !b) return null
@@ -318,11 +392,16 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     const c1 = indiceColonna.get(a.colonnaId)
     const c2 = indiceColonna.get(b.colonnaId)
     if (r1 == null || r2 == null || c1 == null || c2 == null) return null
+    // Il rettangolo copre solo le colonne dei dati: una cella di comando non
+    // ha un valore da copiare, incollare o riempire.
+    const colMin = Math.min(c1, c2)
+    const colMax = Math.min(Math.max(c1, c2), colonneId.length - 1)
+    if (colMin > colMax) return null
     return {
       rigaMin: Math.min(r1, r2),
       rigaMax: Math.max(r1, r2),
-      colMin: Math.min(c1, c2),
-      colMax: Math.max(c1, c2),
+      colMin,
+      colMax,
     }
   }
   const dentroRettangolo = (
@@ -359,6 +438,20 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     []
   )
 
+  // Come i validatori: una `Map` in una `ref`, letta solo nei gestori.
+  const formatiRef = React.useRef(new Map<string, FormatoCellaGriglia>())
+  const registraFormato = React.useCallback(
+    (colonnaId: string, formato: FormatoCellaGriglia | null) => {
+      if (formato) formatiRef.current.set(colonnaId, formato)
+      else formatiRef.current.delete(colonnaId)
+    },
+    []
+  )
+  const interpreta = (colonnaId: string, testo: string) =>
+    formatiRef.current.get(colonnaId)?.interpreta(testo) ?? testo
+  const perScrivere = (colonnaId: string, valore: string) =>
+    formatiRef.current.get(colonnaId)?.perScrivere(valore) ?? valore
+
   const eAttiva = (id: CellaGrigliaId) =>
     cellaAttiva?.rigaId === id.rigaId && cellaAttiva?.colonnaId === id.colonnaId
   const eInModifica = (id: CellaGrigliaId) =>
@@ -384,20 +477,22 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
    */
   const commitModificaInterno = (): boolean => {
     if (!cellaInModifica) return false
-    if (validatoriRef.current.get(cellaInModifica.colonnaId)?.(draftModifica)) return false
+    const valore = interpreta(cellaInModifica.colonnaId, draftModifica)
+    if (validatoriRef.current.get(cellaInModifica.colonnaId)?.(valore)) return false
     const idx = indiceRiga.get(cellaInModifica.rigaId)
     if (idx == null) {
       setCellaInModifica(null)
       return true
     }
     const nuoveRighe = righe.slice()
-    nuoveRighe[idx] = scriviCella(nuoveRighe[idx]!, cellaInModifica.colonnaId, draftModifica)
+    nuoveRighe[idx] = scriviCella(nuoveRighe[idx]!, cellaInModifica.colonnaId, valore)
     registraCommit(nuoveRighe, "modifica")
     setCellaInModifica(null)
     return true
   }
 
-  const impostaValore = (id: CellaGrigliaId, valore: string): boolean => {
+  const impostaValore = (id: CellaGrigliaId, testo: string): boolean => {
+    const valore = interpreta(id.colonnaId, testo)
     if (validatoriRef.current.get(id.colonnaId)?.(valore)) return false
     const idx = indiceRiga.get(id.rigaId)
     if (idx == null) return false
@@ -429,19 +524,22 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
    * tasto: `Delete`/`Backspace` da tastiera già significano "svuota le
    * celle selezionate" (v. `cancellaSelezione`), e sovrapporci "elimina la
    * riga" sullo stesso tasto sarebbe ambiguo, non un'estensione naturale.
-   * Se la cella attiva era su una riga tolta, si sposta sulla prima riga
-   * rimasta — o a `null` se non ne resta nessuna, lo stesso stato di una
-   * griglia appena creata senza dati.
+   * Se la cella attiva era su una riga tolta, passa alla **stessa colonna
+   * della riga che ne prende il posto** (o dell'ultima, se era in fondo): il
+   * cestino premuto da tastiera lascia il fuoco sul cestino della riga dopo,
+   * non in cima alla griglia. `null` se non resta nessuna riga, lo stesso
+   * stato di una griglia appena creata senza dati.
    */
   const rimuoviRighe = (ids: readonly string[]) => {
     const daTogliere = new Set(ids)
     const nuoveRighe = righe.filter((r) => !daTogliere.has(idRiga(r)))
     registraCommit(nuoveRighe, "cancellazione")
     if (cellaAttiva && daTogliere.has(cellaAttiva.rigaId)) {
-      const id =
-        nuoveRighe.length > 0 && colonneId.length > 0
-          ? { rigaId: idRiga(nuoveRighe[0]!), colonnaId: colonneId[0]! }
-          : null
+      const primaDella = righe
+        .slice(0, indiceRiga.get(cellaAttiva.rigaId) ?? 0)
+        .filter((r) => !daTogliere.has(idRiga(r))).length
+      const vicina = nuoveRighe[Math.min(primaDella, nuoveRighe.length - 1)]
+      const id = vicina ? { rigaId: idRiga(vicina), colonnaId: cellaAttiva.colonnaId } : null
       setCellaAttiva(id)
       setAncora(id)
     }
@@ -465,7 +563,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     setCellaAttiva(id)
     setAncora(id)
     setCellaInModifica(id)
-    setDraftModifica(valoreIniziale ?? leggiCella(riga, id.colonnaId))
+    setDraftModifica(valoreIniziale ?? perScrivere(id.colonnaId, leggiCella(riga, id.colonnaId)))
   }
 
   const annullaModifica = () => setCellaInModifica(null)
@@ -510,7 +608,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     for (let r = rigaMin; r <= rigaMax; r++) {
       const valori: string[] = []
       for (let c = colMin; c <= colMax; c++) {
-        valori.push(leggiCella(righe[r]!, colonneId[c]!))
+        valori.push(perScrivere(colonneId[c]!, leggiCella(righe[r]!, colonneId[c]!)))
       }
       righeTsv.push(valori.join("\t"))
     }
@@ -529,7 +627,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     if (!cellaAttiva) return
     const rigaBase = indiceRiga.get(cellaAttiva.rigaId)
     const colBase = indiceColonna.get(cellaAttiva.colonnaId)
-    if (rigaBase == null || colBase == null) return
+    if (rigaBase == null || colBase == null || colBase >= colonneId.length) return
     const righeIncollate = testo
       .replace(/\r/g, "")
       .split("\n")
@@ -542,7 +640,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
       riga.split("\t").forEach((valore, dc) => {
         const indiceC = colBase + dc
         if (indiceC >= colonneId.length) return
-        nuoveRighe[indiceR] = scriviCella(nuoveRighe[indiceR]!, colonneId[indiceC]!, valore)
+        const colonna = colonneId[indiceC]!
+        nuoveRighe[indiceR] = scriviCella(nuoveRighe[indiceR]!, colonna, interpreta(colonna, valore))
       })
     })
     registraCommit(nuoveRighe, "incolla")
@@ -570,6 +669,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     if (!rett) return
     const rSorgente = indiceRiga.get(cellaAttiva.rigaId)!
     const cSorgente = indiceColonna.get(cellaAttiva.colonnaId)!
+    if (cSorgente >= colonneId.length) return
     const sorgente = leggiCella(righe[rSorgente]!, colonneId[cSorgente]!)
     const nuoveRighe = righe.slice()
     for (let r = rett.rigaMin; r <= rett.rigaMax; r++) {
@@ -588,6 +688,14 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     setObiettivoRiempimento(null)
   }
 
+  const ridimensionaRef = React.useRef<((colonnaId: string, delta: number) => void) | null>(null)
+  const registraRidimensiona = React.useCallback(
+    (f: ((colonnaId: string, delta: number) => void) | null) => {
+      ridimensionaRef.current = f
+    },
+    []
+  )
+
   const spostamentoVerticaleRef = React.useRef<((indice: number) => void) | null>(null)
   const registraSpostamentoVerticale = React.useCallback(
     (f: ((indice: number) => void) | null) => {
@@ -599,8 +707,13 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   const spostaA = (ri: number, ci: number, estendi: boolean) => {
     if (righe.length === 0 || colonneId.length === 0) return
     const riChiuso = Math.max(0, Math.min(righe.length - 1, ri))
-    const ciChiuso = Math.max(0, Math.min(colonneId.length - 1, ci))
-    vaiA({ rigaId: idRiga(righe[riChiuso]!), colonnaId: colonneId[ciChiuso]! }, { estendi })
+    const ciChiuso = Math.max(0, Math.min(colonneNavigabili.length - 1, ci))
+    // Su una cella di comando la selezione non si estende: `Maiusc`+`→`
+    // dall'ultima colonna dei dati porta al comando, e basta.
+    vaiA(
+      { rigaId: idRiga(righe[riChiuso]!), colonnaId: colonneNavigabili[ciChiuso]! },
+      { estendi: estendi && ciChiuso < colonneId.length }
+    )
     spostamentoVerticaleRef.current?.(riChiuso)
   }
   const posizioneAttiva = () => ({
@@ -651,6 +764,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
       } else if (evento.key === "Tab") {
         evento.preventDefault()
         if (commitModificaInterno()) spostaOrizzontale(evento.shiftKey ? -1 : 1)
+      } else {
+        capoDelCampo(evento)
       }
       return
     }
@@ -674,6 +789,16 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     // (l'errore veniva inghiottito da un `.catch(() => {})`). Rilievo di
     // Francesco: "ho provato a incollare e non succede nulla", provato solo
     // in Safari. V. `DataGridClipboard`, sotto.
+    // **`Alt` e le frecce laterali allargano o restringono la colonna** della
+    // cella attiva, di 16px — lo stesso passo della maniglia. Le maniglie
+    // nella griglia sono fuori dall'ordine di `Tab` (la griglia è un fermo
+    // solo), e questa è la loro via da tastiera.
+    if (evento.altKey && !mod && (evento.key === "ArrowLeft" || evento.key === "ArrowRight")) {
+      evento.preventDefault()
+      ridimensionaRef.current?.(id.colonnaId, evento.key === "ArrowRight" ? 16 : -16)
+      return
+    }
+
     if (mod) {
       const tasto = evento.key.toLowerCase()
       if (evento.key === "Enter") {
@@ -728,10 +853,16 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
         evento.stopPropagation()
         spostaA(ri, colonneId.length - 1, evento.shiftKey)
         return
-      case "Tab":
-        evento.preventDefault()
-        spostaOrizzontale(evento.shiftKey ? -1 : 1)
-        return
+      // **`Tab` a celle chiuse non si intercetta: esce dalla griglia.** La
+      // griglia è un fermo solo (una cella a `tabIndex={0}`, le altre a
+      // `-1`), quindi il `Tab` nativo porta al controllo successivo della
+      // pagina. Intercettarlo per passare di cella in cella — com'era fino al
+      // 2026-09-23 — rendeva la griglia una trappola: all'ultima cella il
+      // fuoco si fermava, e da tastiera non se ne usciva più (misurato: undici
+      // `Tab` di fila, tutti dentro la tabella; `docs/DECISIONI.md` §56). Fra
+      // le celle ci si muove con le frecce. `Tab` sposta di cella solo **in
+      // modifica**, sopra, dove conferma e passa accanto come in un foglio di
+      // calcolo, e `Esc` ne esce sempre.
       case "Enter":
       case "F2":
         evento.preventDefault()
@@ -755,6 +886,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   return {
     righeIniziali,
     colonneId,
+    colonneAzioneId,
     idRiga,
     leggiCella,
     scriviCella,
@@ -786,7 +918,9 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     incolla,
     serializzaSelezione,
     registraValidatore,
+    registraFormato,
     registraSpostamentoVerticale,
+    registraRidimensiona,
   }
 }
 
@@ -879,6 +1013,8 @@ type ContestoDataGridValore = {
    * v. il commento sul fuoco in `CellaTestoGriglia`: senza, la griglia si
    * ruberebbe il fuoco dalla pagina appena montata. */
   interagitoRef: React.RefObject<boolean>
+  /** `true` quando il fuoco ha lasciato le celle — v. lo stato `fuoco` di `<DataGrid>`. */
+  fuoriRef: React.RefObject<boolean>
 }
 
 const ContestoDataGrid = React.createContext<ContestoDataGridValore | null>(null)
@@ -897,6 +1033,7 @@ export function useContestoDataGrid<TDato>() {
     motore: DataGridEngine<TDato>
     contenitoreRef: React.RefObject<HTMLDivElement | null>
     interagitoRef: React.RefObject<boolean>
+    fuoriRef: React.RefObject<boolean>
   }
 }
 
@@ -926,16 +1063,36 @@ function useStatoCellaGriglia<TDato>(
   colonnaId: string,
   validazione?: (valore: string) => string | undefined
 ) {
-  const { motore, interagitoRef } = useContestoDataGrid<TDato>()
+  const { motore, interagitoRef, fuoriRef } = useContestoDataGrid<TDato>()
   const rigaId = motore.idRiga(riga)
   const id: CellaGrigliaId = { rigaId, colonnaId }
   const inModifica = motore.eInModifica(id)
+  const attiva = motore.eAttiva(id)
   return {
+    /**
+     * Il puntatore su una cella: il primo clic la sceglie, **il secondo sulla
+     * stessa cella apre la modifica** — non serve il doppio clic, che resta.
+     * «Già scelta» vuol dire attiva **e** col fuoco nelle celle: su una riga
+     * rimasta segnata dopo un clic fuori, il primo clic la riprende soltanto.
+     *
+     * Aprendo la modifica si blocca l'azione predefinita del `mousedown`, che
+     * è dare il fuoco all'elemento sotto il puntatore: nel frattempo la cella
+     * è diventata un campo, il nodo cliccato non c'è più, il fuoco finirebbe
+     * sul `body` e il campo appena aperto si richiuderebbe perdendolo.
+     */
+    alPremere: (evento: React.MouseEvent) => {
+      if (attiva && !fuoriRef.current) {
+        evento.preventDefault()
+        motore.apriModifica(id)
+      } else {
+        motore.vaiA(id)
+      }
+    },
     motore,
     interagitoRef,
     rigaId,
     id,
-    attiva: motore.eAttiva(id),
+    attiva,
     inModifica,
     selezionata: motore.eSelezionata(id),
     inAnteprima: motore.eInAnteprimaRiempimento(id),
@@ -968,8 +1125,14 @@ function useFuocoCellaGriglia(
   inModifica: boolean,
   interagitoRef: React.RefObject<boolean>
 ) {
+  const contesto = React.useContext(ContestoDataGrid)
   React.useEffect(() => {
     if (!interagitoRef.current || !attiva || inModifica) return
+    // Il fuoco sul `body` vuol dire «è sparito il nodo che lo aveva» solo se
+    // era nelle celle. Se chi usa la griglia ha cliccato fuori, il fuoco sul
+    // `body` è voluto: riportarlo nella cella al primo render seguente —
+    // quello che segna la riga come «fuori», per esempio — lo ruberebbe.
+    if (contesto?.fuoriRef.current) return
     const fuocoNellaGriglia =
       document.activeElement === document.body ||
       (document.activeElement instanceof HTMLElement &&
@@ -1068,7 +1231,13 @@ function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: st
     // ora deve coprire anche il `p-2` che si è preso in carico lui: cinque
     // unità di contenuto più due e due di padding, la stessa altezza di
     // riga di prima, non una in più.
-    "-m-2 block min-h-9 w-full truncate p-2 outline-none",
+    // Senza `w-full`: con la larghezza fissata al contenuto della cella il
+    // `-m-2` spostava il riquadro a sinistra invece di allargarlo, e il bordo
+    // destro del testo cadeva 16px prima di quello del campo in modifica — le
+    // cifre di un numero saltavano a destra aprendo la modifica (rilievo di
+    // Francesco). A larghezza automatica il riquadro copre la cella intera,
+    // bordo compreso, e il testo finisce dove finisce il campo.
+    "-m-2 block min-h-9 truncate p-2 outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
     selezionata && "bg-accent/40",
     inAnteprima && "outline-primary outline-1 outline-dashed",
@@ -1090,7 +1259,7 @@ function CellaTestoGriglia<TDato extends RowData>({
   validazione?: (valore: string) => string | undefined
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
     useStatoCellaGriglia(riga, colonnaId, validazione)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
@@ -1104,7 +1273,7 @@ function CellaTestoGriglia<TDato extends RowData>({
 
   if (inModifica) {
     return (
-      <>
+      <RiquadroModifica erroreId={erroreId} errore={errore}>
         <input
           ref={inputRef}
           value={motore.draftModifica}
@@ -1116,13 +1285,12 @@ function CellaTestoGriglia<TDato extends RowData>({
           aria-invalid={!!errore}
           aria-describedby={errore ? erroreId : undefined}
           className={cn(
-            "block h-full w-full truncate bg-transparent outline-none",
+            "block w-full truncate bg-transparent outline-none",
             errore && "text-destructive"
           )}
           aria-label={colonnaId}
         />
-        {nodoErroreCella(erroreId, errore)}
-      </>
+      </RiquadroModifica>
     )
   }
 
@@ -1139,8 +1307,9 @@ function CellaTestoGriglia<TDato extends RowData>({
       // `<td>` — preso da axe, `critical`, prima di questa correzione.
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
-      onMouseDown={() => motore.vaiA(id)}
+      onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       // Niente `onFocus`: il fuoco mobile fa sì che la cella tabbabile sia
       // **sempre** quella già attiva nello stato — sincronizzarla di nuovo
@@ -1186,6 +1355,16 @@ export function colonnaTestoGriglia<TDato extends RowData>(
  * Numero e valuta — stessa cella, una differenza di formattazione
  * ──────────────────────────────────────────────────────────────────────── */
 
+// Si scrive con la virgola, come si legge: la regola è di `lib/numeri`
+// (`leggiNumero`, `scriviNumero`), condivisa con `tassullo-foglio-gruppi`.
+const FORMATO_NUMERO: FormatoCellaGriglia = { perScrivere: scriviNumero, interpreta: leggiNumero }
+
+/** Un numero nella vista della cella: i decimali che ha, fino a tre come
+ * `Intl.NumberFormat` di serie, e sempre il punto delle migliaia. */
+function numeroFormattato(numero: number): string {
+  return formattatore().format(numero)
+}
+
 function CellaNumericaGriglia<TDato extends RowData>({
   info,
   colonnaId,
@@ -1198,45 +1377,65 @@ function CellaNumericaGriglia<TDato extends RowData>({
   valuta?: boolean
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
-    useStatoCellaGriglia(riga, colonnaId, validazione)
+  // L'errore a schermo si calcola su ciò che il motore scriverà, non sul testo
+  // grezzo: `20,78` è valido, e `z.coerce.number()` da solo lo rifiuterebbe.
+  const validazioneScritta = validazione && ((testo: string) => validazione(leggiNumero(testo)))
+  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+    useStatoCellaGriglia(riga, colonnaId, validazioneScritta)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
   const erroreId = React.useId()
-  const formattatore = React.useMemo(
-    () =>
-      new Intl.NumberFormat("it-IT", valuta ? { style: "currency", currency: "EUR" } : undefined),
-    [valuta]
-  )
+  // Da `lib/numeri` e non una `Intl.NumberFormat` scritta qui: in italiano
+  // quella raggruppa solo da cinque cifre (`2086,93` accanto a `12.345,00`),
+  // mentre la convenzione Tassullo il punto delle migliaia lo scrive sempre
+  // (`docs/DECISIONI.md` §47). Le istanze sono già memorizzate lì.
+  const formatta = valuta ? valutaFormattata : numeroFormattato
 
   useValidatoreCellaGriglia(motore, colonnaId, validazione)
+  React.useEffect(() => {
+    motore.registraFormato(colonnaId, FORMATO_NUMERO)
+  }, [motore, colonnaId])
   useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
   React.useEffect(() => {
     if (inModifica) inputRef.current?.focus()
   }, [inModifica])
 
   if (inModifica) {
+    const campo = (
+      <input
+        ref={inputRef}
+        value={motore.draftModifica}
+        onChange={(evento) => motore.aggiornaDraft(evento.target.value)}
+        onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
+        onBlur={() => {
+          if (!motore.commitModifica()) motore.annullaModifica()
+        }}
+        aria-invalid={!!errore}
+        aria-describedby={errore ? erroreId : undefined}
+        inputMode="decimal"
+        className={cn(
+          "block truncate bg-transparent text-right tabular-nums outline-none",
+          "min-w-0 flex-1",
+          errore && "text-destructive"
+        )}
+        aria-label={colonnaId}
+      />
+    )
     return (
-      <>
-        <input
-          ref={inputRef}
-          value={motore.draftModifica}
-          onChange={(evento) => motore.aggiornaDraft(evento.target.value)}
-          onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-          onBlur={() => {
-            if (!motore.commitModifica()) motore.annullaModifica()
-          }}
-          aria-invalid={!!errore}
-          aria-describedby={errore ? erroreId : undefined}
-          inputMode="decimal"
-          className={cn(
-            "block h-full w-full truncate bg-transparent text-right tabular-nums outline-none",
-            errore && "text-destructive"
-          )}
-          aria-label={colonnaId}
-        />
-        {nodoErroreCella(erroreId, errore)}
-      </>
+      <RiquadroModifica erroreId={erroreId} errore={errore}>
+        {campo}
+        {/* **Il simbolo resta dov'era.** La vista scrive `20,78 €`, il campo
+            `20,78`: senza il simbolo le cifre, allineate a destra, saltavano
+            della larghezza di « €» appena si apriva la modifica (rilievo di
+            Francesco). Resta fuori dal campo — non si scrive e non si
+            cancella — con lo stesso spazio non divisibile che mette
+            `valuta()`, quindi con la stessa larghezza. */}
+        {valuta ? (
+          <span aria-hidden className="shrink-0">
+            {"\u00a0€"}
+          </span>
+        ) : null}
+      </RiquadroModifica>
     )
   }
 
@@ -1247,13 +1446,14 @@ function CellaNumericaGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
-      onMouseDown={() => motore.vaiA(id)}
+      onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
       className={classiVistaCella(selezionata, inAnteprima, "text-right tabular-nums")}
     >
-      {numero === null || Number.isNaN(numero) ? raw : formattatore.format(numero)}
+      {numero === null || Number.isNaN(numero) ? raw : formatta(numero)}
     </div>
   )
 }
@@ -1277,10 +1477,9 @@ export function colonnaNumeroGriglia<TDato extends RowData>(
   })
 }
 
-/** Come `colonnaNumeroGriglia`, ma la vista formatta in euro (`Intl.
- * NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })`) — la
- * cella in modifica resta un numero semplice: si scrive "12.5", non "€
- * 12,50". */
+/** Come `colonnaNumeroGriglia`, ma la vista formatta in euro (`valuta()`
+ * di `lib/numeri`) — in modifica si scrive il numero con la virgola, `12,5`,
+ * e il simbolo resta accanto al campo. */
 export function colonnaValutaGriglia<TDato extends RowData>(
   col: ReturnType<typeof creaColonne<TDato>>,
   id: Extract<keyof TDato, string>,
@@ -1298,6 +1497,32 @@ export function colonnaValutaGriglia<TDato extends RowData>(
       <CellaNumericaGriglia info={info} colonnaId={id} validazione={opzioni?.validazione} valuta />
     ),
   })
+}
+
+/**
+ * Il riquadro di un campo in modifica: **lo stesso** della cella chiusa
+ * (`-m-2 min-h-9 p-2`, v. `classiVistaCella`), così il testo non si sposta
+ * aprendo la modifica. Prima il campo stava direttamente nel `<td>`,
+ * centrato in altezza, e il testo scendeva di un pixel (misurato su tutte le
+ * colonne del Computo, rilievo di Francesco). `flex` per il simbolo accanto
+ * al campo di valuta; il campo, alto quanto la sua riga di testo, resta in
+ * cima come il testo della cella chiusa.
+ */
+function RiquadroModifica({
+  erroreId,
+  errore,
+  children,
+}: {
+  erroreId: string
+  errore: string | undefined
+  children: React.ReactNode
+}) {
+  return (
+    <>
+      <div className="-m-2 flex min-h-9 items-start p-2">{children}</div>
+      {nodoErroreCella(erroreId, errore)}
+    </>
+  )
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1340,6 +1565,7 @@ function CellaCheckboxGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
       onMouseDown={() => motore.vaiA(id)}
       onClick={commuta}
@@ -1385,6 +1611,102 @@ export function colonnaCheckboxGriglia<TDato extends RowData>(
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Comando di riga — un bottone che è una cella della griglia
+ * ──────────────────────────────────────────────────────────────────────── */
+
+function CellaAzioneGriglia<TDato extends RowData>({
+  info,
+  colonnaId,
+  icona,
+  etichetta,
+  onAzione,
+}: {
+  info: CellContext<any, TDato, unknown>
+  colonnaId: string
+  icona: React.ReactNode
+  etichetta: (riga: TDato) => string
+  onAzione: (riga: TDato, motore: DataGridEngine<TDato>) => void
+}) {
+  const riga = info.row.original
+  const { motore, interagitoRef, rigaId, id, attiva } = useStatoCellaGriglia<TDato>(riga, colonnaId)
+  const bottoneRef = React.useRef<HTMLButtonElement>(null)
+  useFuocoCellaGriglia(bottoneRef, attiva, false, interagitoRef)
+
+  return (
+    // Il bottone **è** la cella: niente contenitore focalizzabile attorno,
+    // che con un bottone dentro sarebbe `nested-interactive`.
+    <Button
+      ref={bottoneRef}
+      type="button"
+      variant="ghost"
+      size="icon"
+      data-riga-id={rigaId}
+      data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
+      tabIndex={attiva ? 0 : -1}
+      aria-label={etichetta(riga)}
+      onMouseDown={() => motore.vaiA(id)}
+      onClick={() => onAzione(riga, motore)}
+      onKeyDown={(evento) => {
+        // `Invio` e `Spazio` li gestisce il bottone da sé: premono il
+        // comando. Al motore vanno solo la navigazione e le combinazioni —
+        // un carattere qualunque non deve aprire una modifica che qui non c'è.
+        if (TASTI_NAVIGAZIONE_GRIGLIA.has(evento.key) || evento.metaKey || evento.ctrlKey) {
+          motore.onKeyDownCella(evento, id)
+        }
+      }}
+      className="-my-1 ml-auto flex"
+    >
+      {icona}
+    </Button>
+  )
+}
+
+/**
+ * Una colonna **di comando**: un bottone per riga — il cestino — che è una
+ * cella della griglia. Le frecce ci arrivano dalla riga su cui si lavora,
+ * `Invio` o `Spazio` lo premono, `Tab` non ci si ferma. Il suo `id` va anche
+ * in `colonneAzioneId` di `useDataGrid`, o le frecce non lo trovano.
+ *
+ * `onAzione` riceve la riga e il motore: per eliminare,
+ * `(riga, motore) => motore.rimuoviRighe([riga.id])`, annullabile come ogni
+ * altra modifica.
+ */
+export function colonnaAzioneGriglia<TDato extends RowData>(
+  col: ReturnType<typeof creaColonne<TDato>>,
+  id: string,
+  titolo: string,
+  opzioni: {
+    icona: React.ReactNode
+    /** Il nome del bottone per chi non vede l'icona: «Elimina C0042». */
+    etichetta: (riga: TDato) => string
+    onAzione: (riga: TDato, motore: DataGridEngine<TDato>) => void
+    size?: number
+  }
+): ColonnaTabella<TDato> {
+  return col.display({
+    id,
+    meta: { titolo },
+    size: opzioni.size ?? 48,
+    // Non si nasconde dal menu «Colonne» e non si ridimensiona: una colonna
+    // di comando nascosta lascerebbe le frecce senza bersaglio, e 48px
+    // bastano appena al bottone.
+    enableHiding: false,
+    enableResizing: false,
+    header: () => <span className="sr-only">{titolo}</span>,
+    cell: (info) => (
+      <CellaAzioneGriglia
+        info={info}
+        colonnaId={id}
+        icona={opzioni.icona}
+        etichetta={opzioni.etichetta}
+        onAzione={opzioni.onAzione}
+      />
+    ),
+  })
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Data — `<input type="date">`, v. il commento in testa al file
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -1398,7 +1720,7 @@ function CellaDataGriglia<TDato extends RowData>({
   validazione?: (valore: string) => string | undefined
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
     useStatoCellaGriglia(riga, colonnaId, validazione)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
@@ -1412,7 +1734,7 @@ function CellaDataGriglia<TDato extends RowData>({
 
   if (inModifica) {
     return (
-      <>
+      <RiquadroModifica erroreId={erroreId} errore={errore}>
         <input
           ref={inputRef}
           type="date"
@@ -1425,13 +1747,12 @@ function CellaDataGriglia<TDato extends RowData>({
           aria-invalid={!!errore}
           aria-describedby={errore ? erroreId : undefined}
           className={cn(
-            "block h-full w-full bg-transparent outline-none",
+            "block w-full bg-transparent outline-none",
             errore && "text-destructive"
           )}
           aria-label={colonnaId}
         />
-        {nodoErroreCella(erroreId, errore)}
-      </>
+      </RiquadroModifica>
     )
   }
 
@@ -1446,8 +1767,9 @@ function CellaDataGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
-      onMouseDown={() => motore.vaiA(id)}
+      onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
       className={classiVistaCella(selezionata, inAnteprima)}
@@ -1492,7 +1814,7 @@ function CellaSelectGriglia<TDato extends RowData>({
   opzioni: OpzioneSelectGriglia[]
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, rigaId, id, attiva, inModifica, selezionata, inAnteprima } =
+  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima } =
     useStatoCellaGriglia(riga, colonnaId)
   const divRef = React.useRef<HTMLDivElement>(null)
   useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
@@ -1531,7 +1853,10 @@ function CellaSelectGriglia<TDato extends RowData>({
           // riga: 41.56px chiusa, 49px con la select aperta — quella cella
           // sola, non l'intera griglia, perché solo lì cresceva il
           // contenuto oltre l'altezza delle altre.
-          className="h-full w-full min-w-0 rounded-none border-0 px-2 py-0 data-[size=default]:h-full"
+          // Lo stesso riquadro della cella chiusa (`-my-2 py-2 min-h-9`, testo
+          // in cima e al bordo del contenuto): prima il testo scendeva di un
+          // pixel e si spostava di 8px a destra aprendo la tendina.
+          className="-my-2 h-auto min-h-9 w-full min-w-0 items-start rounded-none border-0 px-0 py-2 data-[size=default]:h-auto"
           aria-label={colonnaId}
         >
           <SelectValue />
@@ -1552,8 +1877,9 @@ function CellaSelectGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
-      onMouseDown={() => motore.vaiA(id)}
+      onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
       className={classiVistaCella(selezionata, inAnteprima)}
@@ -1635,13 +1961,84 @@ export function DataGrid<TDato extends RowData>({
     return () => motore.registraSpostamentoVerticale(null)
   }, [motore])
 
+  // L'istanza della tabella, per allargare una colonna da tastiera: stessa
+  // misura e stessi limiti della maniglia (`minSize`, `maxSize`).
+  const tabellaGrigliaRef = React.useRef<IstanzaTabella<TDato> | null>(null)
+  React.useEffect(() => {
+    motore.registraRidimensiona((colonnaId, delta) => {
+      const colonna = tabellaGrigliaRef.current?.getColumn(colonnaId)
+      if (!colonna || !colonna.getCanResize()) return
+      const min = colonna.columnDef.minSize ?? 20
+      const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
+      tabellaGrigliaRef.current?.setColumnSizing((prima) => {
+        const attuale = prima[colonnaId] ?? colonna.getSize()
+        return { ...prima, [colonnaId]: Math.min(max, Math.max(min, attuale + delta)) }
+      })
+    })
+    return () => motore.registraRidimensiona(null)
+  }, [motore])
+
+  /**
+   * **Dove sta il fuoco, rispetto alle celle**: `"mai"` finché nessuno ha
+   * toccato la griglia, poi `"dentro"` o `"fuori"`. Serve a segnare la cella
+   * attiva e la sua riga anche quando il fuoco è altrove — un bottone
+   * «Salva», un filtro, la barra: il motore la ricorda sempre (è così che
+   * `Tab` ci rientra), ma senza un segno chi ha cliccato fuori non sa più
+   * su quale riga stava lavorando. È la convenzione dei fogli di calcolo: la
+   * selezione resta visibile, attenuata. `"mai"` non segna niente, o la
+   * prima riga comparirebbe scelta su una pagina appena aperta.
+   *
+   * «Dentro» vuol dire dentro la `<table>`, non dentro `contenitoreRef`, che
+   * contiene anche la barra. `focusout` arriva prima che il fuoco sia
+   * atterrato altrove, quindi si rilegge al giro dopo; `focusin` non arriva
+   * quando il fuoco finisce sul `body`, e per questo servono tutti e due.
+   */
+  const [fuoco, setFuoco] = React.useState<"mai" | "dentro" | "fuori">("mai")
+  // Lo stesso fatto in una `ref`, per `useFuocoCellaGriglia`: va scritta
+  // **prima** di `setFuoco`, perché il render che quello provoca è proprio
+  // quello in cui la cella non deve riprendersi il fuoco.
+  const fuoriRef = React.useRef(false)
+  React.useEffect(() => {
+    let attesa: ReturnType<typeof setTimeout> | undefined
+    const aggiorna = () => {
+      const tabella = contenitoreRef.current?.querySelector("table")
+      const dentro = !!tabella && tabella.contains(document.activeElement)
+      fuoriRef.current = !dentro
+      setFuoco((prima) => (dentro ? "dentro" : prima === "mai" ? "mai" : "fuori"))
+    }
+    const dopo = () => {
+      clearTimeout(attesa)
+      attesa = setTimeout(aggiorna, 0)
+    }
+    // **Un clic fuori dalle celle si sa subito, prima del `blur`**: il campo
+    // in modifica che si chiude per quel `blur` ridarebbe il fuoco alla cella
+    // nel render stesso, prima che `focusout` sia riletto al giro dopo. Non si
+    // può leggere dal `focusout` del campo: Chrome lo manda identico — nodo
+    // ancora attaccato, nessuna destinazione — anche quando il campo si
+    // chiude da sé con `Invio` o `Esc`, e lì il fuoco deve tornare alla cella.
+    // In cattura, per arrivare prima dei gestori di React.
+    const premuto = (evento: PointerEvent) => {
+      const tabella = contenitoreRef.current?.querySelector("table")
+      if (tabella && !tabella.contains(evento.target as Node)) fuoriRef.current = true
+    }
+    document.addEventListener("focusin", aggiorna)
+    document.addEventListener("focusout", dopo)
+    document.addEventListener("pointerdown", premuto, true)
+    return () => {
+      clearTimeout(attesa)
+      document.removeEventListener("focusin", aggiorna)
+      document.removeEventListener("focusout", dopo)
+      document.removeEventListener("pointerdown", premuto, true)
+    }
+  }, [])
+
   const alVirtualizzatore = React.useCallback((v: (indice: number) => void) => {
     vaiAVirtualeRef.current = v
   }, [])
 
   return (
     <ContestoDataGrid.Provider
-      value={{ motore: motore as DataGridEngine<unknown>, contenitoreRef, interagitoRef }}
+      value={{ motore: motore as DataGridEngine<unknown>, contenitoreRef, interagitoRef, fuoriRef }}
     >
       <div
         ref={contenitoreRef}
@@ -1676,9 +2073,36 @@ export function DataGrid<TDato extends RowData>({
           attributiTabella={{
             role: "grid",
             "aria-rowcount": motore.righe.length,
-            "aria-colcount": motore.colonneId.length,
+            "aria-colcount": motore.colonneId.length + (motore.colonneAzioneId?.length ?? 0),
           }}
           {...resto}
+          onTabellaPronta={(tabella) => {
+            tabellaGrigliaRef.current = tabella
+            resto.onTabellaPronta?.(tabella)
+          }}
+          className={cn(
+            resto.className,
+            // Il riquadro della tabella ha gli angoli arrotondati e taglia ciò
+            // che sborda: l'anello della cella attiva nell'ultima riga, sulla
+            // prima e sull'ultima colonna, restava tagliato nell'angolo
+            // (rilievo di Francesco, con la schermata). Lì l'anello prende la
+            // stessa curva del riquadro. Solo l'ultima riga vera: le righe
+            // virtualizzate in fondo hanno un distanziatore dopo di sé, che è
+            // l'ultima `tr` finché non si arriva in fondo all'elenco.
+            "[&_tbody>tr:last-child>td:first-child>[data-attiva]]:rounded-bl-lg [&_tbody>tr:last-child>td:last-child>[data-attiva]]:rounded-br-lg",
+            // La cella attiva ha sempre il suo bordo, anche dopo un clic col
+            // puntatore (dove `focus-visible` non si accende); a fuoco fuori
+            // il bordo si attenua e la riga intera prende il fondo tenue.
+            //
+            // In scuro `bg-muted` si stacca appena dalla card (1.13:1, si
+            // vedeva poco): lì il fondo è `border-strong` al 70%, 1.48:1 dalla
+            // card, l'unico grigio del tema più deciso che tenga il testo
+            // attenuato sopra soglia (4.86:1; al 100% scenderebbe a 4.03).
+            fuoco === "dentro" &&
+              "[&_[data-attiva]]:ring-2 [&_[data-attiva]]:ring-ring [&_[data-attiva]]:ring-inset",
+            fuoco === "fuori" &&
+              "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted dark:[&_tr:has([data-attiva])]:bg-border-strong/70"
+          )}
         />
       </div>
     </ContestoDataGrid.Provider>
@@ -1841,6 +2265,11 @@ export function DataGridFillHandle() {
         !(document.activeElement instanceof HTMLElement) ||
         !document.activeElement.hasAttribute("data-riga-id")
       ) {
+        setPosizione(null)
+        return
+      }
+      // Né su una cella di comando: lì non c'è un valore da trascinare.
+      if (motore.colonneAzioneId?.includes(motore.cellaAttiva.colonnaId)) {
         setPosizione(null)
         return
       }

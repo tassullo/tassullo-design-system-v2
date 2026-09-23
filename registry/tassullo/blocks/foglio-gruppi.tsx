@@ -124,6 +124,35 @@ export type CellaScrivibile<TDato> = {
   segnaposto?: string
   /** Messaggio d'errore, o `undefined` se il valore va bene. */
   valida?: (valore: string) => string | undefined
+  /**
+   * Come si scrive il valore, se non com'è: `perScrivere` va dal valore al
+   * campo in modifica, `interpreta` da ciò che si è scritto al valore, prima
+   * di `valida` e di `scrivi`. Per i numeri, `leggiNumero` e `scriviNumero`
+   * dell'item `numeri`: si scrive `20,78`, il valore resta `20.78`.
+   */
+  formato?: { perScrivere: (valore: string) => string; interpreta: (testo: string) => string }
+  /**
+   * Testo fisso accanto al campo in modifica, fuori da ciò che si scrive —
+   * « €» per un prezzo. Deve essere la coda di ciò che `mostra` scrive, o le
+   * cifre si spostano aprendo la modifica.
+   */
+  suffisso?: string
+  /**
+   * Testo fisso **davanti** al valore, in vista e in modifica, fuori da ciò
+   * che si scrive: «SOMMANO» davanti all'unità di misura del piede.
+   */
+  prefisso?: string
+  /**
+   * Come si scrive il testo del valore — corsivo, grassetto, rientro, colore —
+   * **uguale in vista e in modifica**: le stesse classi vanno sul testo della
+   * cella chiusa e sul campo aperto, così il testo non cambia né aspetto né
+   * posto aprendo la modifica. È il posto per lo stile; `mostra` resta per
+   * formattare il valore (`valuta()`, i decimali), non per vestirlo, o il
+   * campo aperto non lo saprebbe.
+   */
+  classiTesto?: string
+  /** L'allineamento di questa cella, se non è quello della colonna. */
+  allineamento?: "sinistra" | "destra"
 }
 
 export type CellaCalcolata<TDato, TAltro = never> = {
@@ -212,6 +241,30 @@ export type MotoreFoglioGruppi<TTestata, TRiga> = {
   annullaModifica: () => void
   onKeyDownCella: (evento: React.KeyboardEvent, p: PosizioneFoglio) => void
   scriviGruppi: (g: GruppoFoglio<TTestata, TRiga>[]) => void
+}
+
+/**
+ * `Home` e `Fine` dentro un campo in modifica, fatti a mano. Il browser li
+ * fa da sé — cursore all'inizio o alla fine — ma quando il testo sta tutto
+ * nel campo lascia passare il tasto anche alla pagina, che scorre (misurato:
+ * 103px con `Home` e `Fine`, e il cursore restava all'inizio). Con `Maiusc`
+ * la selezione si estende fino al capo. La stessa funzione di `data-grid`:
+ * i due blocchi si installano separati, e non si importano a vicenda.
+ */
+function capoDelCampo(evento: React.KeyboardEvent): boolean {
+  if (evento.key !== "Home" && evento.key !== "End") return false
+  const campo = evento.target
+  if (!(campo instanceof HTMLInputElement)) return false
+  evento.preventDefault()
+  const capo = evento.key === "End" ? campo.value.length : 0
+  if (evento.shiftKey) {
+    const fermo = evento.key === "End" ? (campo.selectionStart ?? 0) : (campo.selectionEnd ?? 0)
+    const verso = evento.key === "End" ? "forward" : "backward"
+    campo.setSelectionRange(Math.min(fermo, capo), Math.max(fermo, capo), verso)
+  } else {
+    campo.setSelectionRange(capo, capo)
+  }
+  return true
 }
 
 export function useFoglioGruppi<TTestata, TRiga>({
@@ -314,7 +367,14 @@ export function useFoglioGruppi<TTestata, TRiga>({
     return null
   }, [matrice])
 
-  const errore = inModifica ? cellaScrivibile(inModifica)?.valida?.(bozza) : undefined
+  const interpreta = (p: PosizioneFoglio, testo: string) =>
+    cellaScrivibile(p)?.formato?.interpreta(testo) ?? testo
+  const perScrivere = (p: PosizioneFoglio, valore: string) =>
+    cellaScrivibile(p)?.formato?.perScrivere(valore) ?? valore
+
+  // L'errore si calcola su ciò che si scriverà nel dato, non sul testo grezzo:
+  // `20,78` è valido anche se `valida` si aspetta `20.78`.
+  const errore = inModifica ? cellaScrivibile(inModifica)?.valida?.(interpreta(inModifica, bozza)) : undefined
 
   const vaiA = (p: PosizioneFoglio) => {
     if (inModifica && !stessaPosizione(inModifica, p)) {
@@ -359,7 +419,7 @@ export function useFoglioGruppi<TTestata, TRiga>({
     if (!p || !cellaScrivibile(p)) return
     setPosizione(p)
     setInModifica(p)
-    setBozza(valoreIniziale ?? valoreDi(p))
+    setBozza(valoreIniziale ?? perScrivere(p, valoreDi(p)))
   }
 
   const annullaModifica = () => setInModifica(null)
@@ -368,21 +428,22 @@ export function useFoglioGruppi<TTestata, TRiga>({
     if (!inModifica) return true
     const cella = cellaScrivibile(inModifica)
     if (!cella) return true
-    if (cella.valida?.(bozza)) return false
     const p = inModifica
+    const valore = interpreta(p, bozza)
+    if (cella.valida?.(valore)) return false
     const nuovi = gruppi.map((gruppo, gi) => {
       if (gi !== p.gruppo) return gruppo
       if (p.zona === "corpo") {
         return {
           ...gruppo,
           righe: gruppo.righe.map((riga, ri) =>
-            ri === p.riga ? (cella.scrivi as (d: unknown, v: string) => TRiga)(riga, bozza) : riga
+            ri === p.riga ? (cella.scrivi as (d: unknown, v: string) => TRiga)(riga, valore) : riga
           ),
         }
       }
       return {
         ...gruppo,
-        testata: (cella.scrivi as (d: unknown, v: string) => TTestata)(gruppo.testata, bozza),
+        testata: (cella.scrivi as (d: unknown, v: string) => TTestata)(gruppo.testata, valore),
       }
     })
     scriviGruppi(nuovi)
@@ -466,6 +527,7 @@ export function useFoglioGruppi<TTestata, TRiga>({
         }
         return
       }
+      capoDelCampo(evento)
       return
     }
 
@@ -572,6 +634,7 @@ function CellaFoglio<TTestata, TRiga>({
   dato,
   extra,
   etichettaColonna,
+  fuoriRef,
 }: {
   motore: MotoreFoglioGruppi<TTestata, TRiga>
   posizione: PosizioneFoglio
@@ -579,6 +642,8 @@ function CellaFoglio<TTestata, TRiga>({
   dato: TTestata | TRiga
   extra?: TRiga[]
   etichettaColonna: string
+  /** `true` quando il fuoco ha lasciato le celle: v. `FoglioGruppi`. */
+  fuoriRef: React.RefObject<boolean>
 }) {
   const zona = posizione.zona
   const cella = zona === "testata" ? colonna.testata : zona === "corpo" ? colonna.corpo : colonna.piede
@@ -594,8 +659,10 @@ function CellaFoglio<TTestata, TRiga>({
     // Solo quando il fuoco è **già** su questa cella per volontà di qualcuno:
     // non al montaggio sulla prima, o il foglio se lo prenderebbe da sé
     // appena la pagina apre.
-    if (aFuoco && !inModifica) riferimento.current?.focus()
-  }, [aFuoco, inModifica])
+    // E non quando il fuoco se n'è andato fuori dal foglio: un campo che si
+    // chiude per un clic altrove non deve riportarlo qui.
+    if (aFuoco && !inModifica && !fuoriRef.current) riferimento.current?.focus()
+  }, [aFuoco, inModifica, fuoriRef])
 
   if (!cella) return <TableCell />
 
@@ -617,27 +684,52 @@ function CellaFoglio<TTestata, TRiga>({
 
   const valore = (cella.leggi as (d: unknown) => string)(dato)
 
+  /**
+   * **Cella chiusa e cella aperta hanno lo stesso riquadro e lo stesso testo.**
+   * Stesso contenitore (`riquadro`), stesso prefisso, e sul valore le stesse
+   * classi (`classiTesto`, l'allineamento): aprendo la modifica il testo non
+   * cambia né posto né aspetto — prima il corsivo e il rientro delle misure
+   * sparivano e il testo saltava di 16px a sinistra (rilievo di Francesco).
+   */
+  const destra = (cella.allineamento ?? colonna.allineamento) === "destra"
+  const riquadro = cn("px-2 py-1", RIGA, destra && "justify-end")
+  const classiValore = cn(destra ? "text-right tabular-nums" : "text-left", cella.classiTesto)
+  const prefisso = cella.prefisso ? <span className="me-2 shrink-0">{cella.prefisso}</span> : null
+
   if (inModifica) {
     const errore = motore.errore
     return (
       <TableCell className="p-0">
-        <input
-          autoFocus
-          className={cn(
-            "w-full bg-transparent px-2 py-1 outline-none ring-2 ring-ring ring-inset",
-            colonna.allineamento === "destra" && "text-right tabular-nums",
-            errore && "ring-destructive"
-          )}
-          value={motore.bozza}
-          aria-label={etichettaColonna}
-          aria-invalid={errore ? true : undefined}
-          aria-describedby={errore ? `errore-${colonna.id}` : undefined}
-          onChange={(e) => motore.aggiornaBozza(e.target.value)}
-          onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
-          onBlur={() => {
-            if (!motore.confermaModifica()) motore.annullaModifica()
-          }}
-        />
+        <div className={cn(riquadro, "ring-2 ring-ring ring-inset", errore && "ring-destructive")}>
+          {prefisso}
+          <input
+            autoFocus
+            className={cn(
+              "min-w-0 bg-transparent p-0 outline-none placeholder:text-muted-foreground",
+              // Con un prefisso e il valore a destra il campo è largo quanto
+              // il testo, o spingerebbe il prefisso al bordo sinistro.
+              cella.prefisso && destra ? "field-sizing-content" : "flex-1",
+              classiValore
+            )}
+            value={motore.bozza}
+            placeholder={cella.segnaposto}
+            aria-label={etichettaColonna}
+            aria-invalid={errore ? true : undefined}
+            aria-describedby={errore ? `errore-${colonna.id}` : undefined}
+            onChange={(e) => motore.aggiornaBozza(e.target.value)}
+            onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
+            onBlur={() => {
+              if (!motore.confermaModifica()) motore.annullaModifica()
+            }}
+          />
+          {/* Il suffisso resta dov'era nella vista: senza, le cifre di un
+              prezzo allineato a destra saltavano della larghezza di « €». */}
+          {cella.suffisso ? (
+            <span aria-hidden className="shrink-0">
+              {cella.suffisso}
+            </span>
+          ) : null}
+        </div>
         {errore ? (
           <span id={`errore-${colonna.id}`} className="sr-only">
             {errore}
@@ -651,23 +743,16 @@ function CellaFoglio<TTestata, TRiga>({
     <TableCell className="p-0">
       <div
         ref={riferimento}
+        data-attiva={aFuoco ? "" : undefined}
         // Fuoco mobile (roving tabindex): una sola cella tabbabile per volta,
         // così `Tab` esce dal foglio in una fermata invece di attraversarlo.
         tabIndex={tabbabile ? 0 : -1}
         role="button"
-        aria-label={`${etichettaColonna}: ${valore || "vuoto"}`}
+        aria-label={`${etichettaColonna}: ${(cella.formato?.perScrivere(valore) ?? valore) || "vuoto"}`}
         className={cn(
-          // `truncate` è il prezzo di `table-fixed`, la stessa scelta già presa
-          // in `data-table`: con le larghezze decise dalle colonne, un testo
-          // più lungo **sborda nella colonna accanto** invece di allargarla.
-          // Misurato qui: a 880px sbordano 8 celle, a 700px dodici — e ciò che
-          // sborda è la designazione, cioè la colonna elastica. Meglio i
-          // puntini: il testo intero resta leggibile aprendo la modifica.
-          "cursor-text truncate px-2 py-1 outline-none",
-          RIGA,
-          colonna.allineamento === "destra" && "justify-end",
+          "cursor-text outline-none",
+          riquadro,
           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-          classiAllineamento(colonna),
           !valore && "text-muted-foreground"
         )}
         onFocus={() => motore.vaiA(posizione)}
@@ -681,13 +766,23 @@ function CellaFoglio<TTestata, TRiga>({
         onClick={() => motore.apriModifica(posizione)}
         onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
       >
-        {cella.mostra
-          ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
-          : valore || cella.segnaposto || " "}
+        {prefisso}
+        {/* `truncate` è il prezzo di `table-fixed`, la stessa scelta già presa
+            in `data-table`: con le larghezze decise dalle colonne, un testo
+            più lungo **sborda nella colonna accanto** invece di allargarla.
+            Misurato qui: a 880px sbordano 8 celle, a 700px dodici — e ciò che
+            sborda è la designazione, cioè la colonna elastica. Meglio i
+            puntini: il testo intero resta leggibile aprendo la modifica. */}
+        <span className={cn("min-w-0 truncate", classiValore)}>
+          {cella.mostra
+            ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
+            : valore || cella.segnaposto || " "}
+        </span>
       </div>
     </TableCell>
   )
 }
+
 
 /**
  * Il menu dei comandi di un gruppo. `tabIndex={-1}` sul grilletto: non entra
@@ -786,6 +881,58 @@ export function FoglioGruppi<TTestata, TRiga>({
 }: FoglioGruppiProps<TTestata, TRiga>) {
   const { gruppi, colonne, posizione } = motore
   const apreComandi = React.useRef<(() => void) | null>(null)
+  const radiceRef = React.useRef<HTMLDivElement>(null)
+
+  /**
+   * **Dove sta il fuoco rispetto alle celle**, come nella `data-grid`:
+   * `"mai"` finché nessuno ha toccato il foglio, poi `"dentro"` o `"fuori"`.
+   * A fuoco fuori — «Salva», un filtro, un clic altrove — la cella su cui si
+   * lavorava tiene un bordo sottile e la sua riga un fondo tenue: la
+   * posizione il motore la ricorda sempre (è lì che `Tab` rientra), ma senza
+   * un segno chi ha cliccato fuori non sa più su quale riga era. `"mai"` non
+   * segna niente, o la prima cella comparirebbe scelta a pagina appena aperta.
+   *
+   * `focusout` arriva prima che il fuoco sia atterrato altrove, quindi si
+   * rilegge al giro dopo; `focusin` non arriva quando il fuoco finisce sul
+   * `body`. `fuoriRef` porta lo stesso fatto al bottone della riga delle
+   * azioni, che si riprende il fuoco a ogni render e non deve farlo a fuoco
+   * uscito.
+   */
+  const [fuoco, setFuoco] = React.useState<"mai" | "dentro" | "fuori">("mai")
+  const fuoriRef = React.useRef(false)
+  React.useEffect(() => {
+    let attesa: ReturnType<typeof setTimeout> | undefined
+    const aggiorna = () => {
+      const tabella = radiceRef.current?.querySelector("table")
+      const dentro = !!tabella && tabella.contains(document.activeElement)
+      fuoriRef.current = !dentro
+      setFuoco((prima) => (dentro ? "dentro" : prima === "mai" ? "mai" : "fuori"))
+    }
+    const dopo = () => {
+      clearTimeout(attesa)
+      attesa = setTimeout(aggiorna, 0)
+    }
+    // **Un clic fuori dalle celle si sa subito, prima del `blur`**: il campo
+    // in modifica che si chiude per quel `blur` ridarebbe il fuoco alla cella
+    // nel render stesso, prima che `focusout` sia riletto al giro dopo. Non si
+    // può leggere dal `focusout` del campo: Chrome lo manda identico — nodo
+    // ancora attaccato, nessuna destinazione — anche quando il campo si
+    // chiude da sé con `Invio` o `Esc`, e lì il fuoco deve tornare alla cella.
+    // In cattura, per arrivare prima dei gestori di React.
+    const premuto = (evento: PointerEvent) => {
+      const tabella = radiceRef.current?.querySelector("table")
+      if (tabella && !tabella.contains(evento.target as Node)) fuoriRef.current = true
+    }
+    document.addEventListener("focusin", aggiorna)
+    document.addEventListener("focusout", dopo)
+    document.addEventListener("pointerdown", premuto, true)
+    return () => {
+      clearTimeout(attesa)
+      document.removeEventListener("focusin", aggiorna)
+      document.removeEventListener("focusout", dopo)
+      document.removeEventListener("pointerdown", premuto, true)
+    }
+  }, [])
 
   // `Shift+F10` e il tasto Menu aprono i comandi del gruppo a fuoco: è la
   // scorciatoia di sistema per il menu contestuale, la stessa che il browser
@@ -800,7 +947,19 @@ export function FoglioGruppi<TTestata, TRiga>({
   }
 
   return (
-    <div className={cn("overflow-x-auto", className)} onKeyDown={onKeyDown}>
+    <div
+      ref={radiceRef}
+      className={cn(
+        "overflow-x-auto",
+        // In scuro il fondo è `border-strong` al 70%: `bg-muted` si staccava
+        // appena dalla card, lo stesso rimedio della `data-grid`
+        // (`docs/DECISIONI.md` §56.9).
+        fuoco === "fuori" &&
+          "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted dark:[&_tr:has([data-attiva])]:bg-border-strong/70",
+        className
+      )}
+      onKeyDown={onKeyDown}
+    >
       <Table
         // `role="grid"` è ciò che dice a un lettore di schermo che qui le
         // frecce navigano: senza, la tabella è un documento e la tastiera che
@@ -876,6 +1035,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                   }
                   return (
                     <CellaFoglio
+                      fuoriRef={fuoriRef}
                       key={col.id}
                       motore={motore}
                       posizione={posizioneCella}
@@ -892,6 +1052,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                 <TableRow key={`${gruppo.id}-${ri}`}>
                   {colonne.map((col, ci) => (
                     <CellaFoglio
+                      fuoriRef={fuoriRef}
                       key={col.id}
                       motore={motore}
                       posizione={{ gruppo: gi, zona: "corpo", riga: ri, colonna: ci }}
@@ -924,8 +1085,9 @@ export function FoglioGruppi<TTestata, TRiga>({
                         <button
                           type="button"
                           ref={(nodo) => {
-                            if (aFuocoAzione) nodo?.focus()
+                            if (aFuocoAzione && !fuoriRef.current) nodo?.focus()
                           }}
+                          data-attiva={aFuocoAzione ? "" : undefined}
                           tabIndex={aFuocoAzione ? 0 : -1}
                           disabled={comando.disabilitato}
                           className={cn(
@@ -956,6 +1118,7 @@ export function FoglioGruppi<TTestata, TRiga>({
               <TableRow className="border-t font-medium">
                 {colonne.map((col, ci) => (
                   <CellaFoglio
+                    fuoriRef={fuoriRef}
                     key={col.id}
                     motore={motore}
                     posizione={{ gruppo: gi, zona: "piede", riga: 0, colonna: ci }}

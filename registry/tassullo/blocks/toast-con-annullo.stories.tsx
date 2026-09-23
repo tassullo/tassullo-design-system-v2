@@ -6,29 +6,41 @@ import { Button } from '@/registry/tassullo/ui/button'
 import { Toaster } from '@/registry/tassullo/ui/sonner'
 
 /**
- * Il «successo annullabile», verdetto di D18 (`docs/DECISIONI.md` §35,
- * chiusa il 2026-09-15): per i passaggi di stato reversibili — archiviare,
- * ritirare una pubblicazione — **non** un dialogo di conferma **e** un
- * annullo insieme, che sarebbero due interruzioni per un'azione sola e
- * svuoterebbero la conferma. Uno dei due, ed è questo per tutto ciò che
- * Anagrafe non cancella mai davvero, solo supera.
+ * L'avviso che un'azione è fatta, con il bottone «Annulla» per qualche
+ * secondo: l'azione parte davvero solo quando l'avviso se ne va.
+ *
+ * **Quando sì, quando no.** Si usa per le azioni che si possono disfare —
+ * archiviare, ritirare una pubblicazione, togliere un elemento da un gruppo —
+ * al posto di una domanda di conferma. Per ciò che non si disfa si chiede
+ * prima, con `tassullo-confirm-dialog`; mai tutti e due per la stessa azione.
+ * Un avviso senza annullo è `toast` della primitiva `sonner`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-toast-con-annullo
+ * ```
  *
  * ```tsx
  * toastConAnnullo(() => api.archivia(id), {
  *   messaggio: 'Scheda archiviata',
- *   descrizione: 'Tassullo T30 non compare più nell’elenco attivo.',
+ *   descrizione: 'La scheda non compare più nell’elenco attivo.',
  * })
  * ```
  *
- * **Differita lato client, non ripristino via API** (provvisorio: da
- * rivedere con Roberto a design system finito). `azione` non parte finché il
- * toast non si chiude da sé o l'utente non lo scarta senza cliccare
- * «Annulla» — cliccarlo cancella `azione` senza mai eseguirla. Nessun
- * contratto di soft-delete richiesto al backend: l'annullo funziona sempre,
- * al costo dei cinque secondi di attesa prima che l'azione sia effettiva.
+ * **Le opzioni.** `toastConAnnullo(azione, opzioni)`: `messaggio`, al
+ * passato, perché agli occhi di chi guarda è già successo; `descrizione`;
+ * `durata` in millisecondi, 5000 se non si passa; `etichettaAnnulla`,
+ * «Annulla» se non si passa; `onAnnulla`, chiamata quando si annulla.
  *
- * `<Toaster />` va una volta sola in cima all'app — qui c'è in ogni story
- * perché ognuna è un'app a sé, come in `Primitive/Sonner`.
+ * **Regole d'uso.**
+ *
+ * - L'azione è differita: parte quando l'avviso scade o viene chiuso senza
+ *   annullare, e con «Annulla» non parte mai. Il backend non deve saper
+ *   ripristinare niente, ma l'effetto arriva dopo la durata.
+ * - `<Toaster />` va una volta sola, alla radice dell'applicativo.
+ *
+ * **Tastiera e accessibilità.** L'avviso si annuncia ai lettori di schermo
+ * senza prendere il fuoco. `Alt`+`T` porta il fuoco sugli avvisi, e da lì
+ * «Annulla» si raggiunge col `Tab`.
  */
 const meta = {
   title: 'Blocchi/Toast con annullo',
@@ -46,6 +58,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Il bottone archivia la scheda e mostra l'avviso con «Annulla».
+ */
 export const Predefinito: Story = {
   render: () => (
     <Button
@@ -63,10 +78,9 @@ export const Predefinito: Story = {
 }
 
 /**
- * **Provato col dito.** Il pannello conta quante volte `azione` è stata
- * chiamata davvero e quante volte è stata annullata: cliccando «Annulla»
- * entro cinque secondi il contatore delle azioni resta a zero; aspettando, o
- * chiudendo il toast con la X, l'azione parte.
+ * Il contatore mostra quante azioni sono partite e quante sono state
+ * annullate: con «Annulla» entro cinque secondi l'azione non parte; aspettando,
+ * o chiudendo l'avviso, parte.
  */
 export const Verificabile: Story = {
   render: function Render() {

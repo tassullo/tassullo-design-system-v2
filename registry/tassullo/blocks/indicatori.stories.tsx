@@ -26,49 +26,51 @@ const COMPATTO = formattatore({
 })
 
 /**
- * La fila di indicatori — etichetta, valore, tendenza — nella forma che vale
- * in ogni app Tassullo. È lo **scorporo** di M4ter.7: fino a ieri era una
- * funzione non esportata dentro `tassullo-pagina-dashboard`, e tre app la
- * riscrivevano identica (Anagrafe AdminBC, Studio Admin, RadarOpere) perché
- * non c'era modo di installarla senza la dashboard intera.
+ * La fila di indicatori di un cruscotto: per ognuno l'etichetta, il valore, e
+ * sotto la tendenza o una riga di spiegazione.
+ *
+ * **Quando sì, quando no.** Si usa per i quattro o cinque numeri da leggere a
+ * colpo d'occhio in cima a un cruscotto o a una scheda. Un andamento nel tempo
+ * è un grafico (`chart`); tanti valori da confrontare in colonna sono una
+ * tabella (`table`, `tassullo-data-table`); uno stato di una cosa è un
+ * `badge`. Un cruscotto intero è `tassullo-pagina-dashboard`, che monta già
+ * questa fila.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-indicatori
+ * ```
  *
  * ```tsx
  * <Indicatori
  *   indicatori={[
- *     { etichetta: 'Prodotti attivi', valore: '1.284', tendenza: { direzione: 'su', valore: '+4,2%' } },
+ *     { etichetta: 'Prodotti attivi', valore: intero(1284), tendenza: { direzione: 'su', valore: '+4,2%' } },
+ *     { etichetta: 'Schede in revisione', valore: intero(37), descrizione: 'da chiudere entro venerdì' },
  *   ]}
  * />
  * ```
  *
- * ── La soglia è del blocco, ed è questa la scena che lo prova ────────────
+ * **Le prop.** `indicatori` è l'elenco; ogni indicatore ha `etichetta`,
+ * `valore`, e a scelta `descrizione` e `tendenza`, con `direzione` (`"su"`,
+ * `"giù"`, `"stabile"`) e `valore`. `GrigliaIndicatori` è la sola griglia,
+ * per mettere in fila riquadri propri o gli scheletri del caricamento.
  *
- * Un blocco che nasce per essere installato **fuori** dalla dashboard non può
- * nominare un contenitore che la dashboard dichiara. La riga nasceva con
- * `@4xl/dashboard:grid-cols-4`: spedita così, in una pagina qualunque, la
- * query non avrebbe mai trovato il contenitore — **due colonne per sempre**,
- * nessun errore, nessun avviso, `test:a11y` verde. Il blocco dichiara quindi
- * il proprio `@container/indicatori`, e `Quattro` qui sotto è la scena che lo
- * misura: fuori dalla dashboard, a finestra 1440, `grid-template-columns` dà
- * `340px 340px 340px 340px`. Con la classe vecchia, la stessa fila spostata
- * fuori dal contenitore della dashboard dava `628px 628px`.
+ * **Regole d'uso.**
  *
- * Contenitore e griglia sono **due nodi**: una container query si applica ai
- * discendenti del contenitore, mai all'elemento che lo dichiara.
- *
- * ── Il numero e la `Card` ────────────────────────────────────────────────
- *
- * La `Card` resta di taglia **normale**. `size="sm"` porterebbe
- * `group-data-[size=sm]/card:text-sm`, che vince su `text-2xl` e rende il
- * numero alla stessa misura della sua etichetta — 13px invece di 27, misurati
- * in Chromium. È il difetto muto di M4.4, e si verifica misurando.
- *
- * ── La freccia non si colora mai ─────────────────────────────────────────
- *
- * `direzione` sceglie la freccia, mai un colore. Un aumento non è un successo
- * e un calo non è un errore: «schede aperte» che sale è un problema, «pratiche
- * chiuse» che sale è una buona notizia — e il blocco non sa quale dei due sta
- * mostrando. Stessa regola già misurata su `Primitive/Chart`, story
- * `Scostamenti`.
+ * - Il valore arriva già formattato, con le funzioni dell'item `numeri`:
+ *   `intero()`, `decimale()`, `valuta()` scrivono sempre il separatore delle
+ *   migliaia. Le cifre sono tabellari. Anche il valore della tendenza lo
+ *   scrive chi chiama — segno, decimali, unità — e non deve per forza essere
+ *   un numero.
+ * - La freccia della tendenza non si colora mai: un aumento non è sempre una
+ *   buona notizia, e il blocco non sa quale sia. Il giudizio, se serve, sta
+ *   nell'etichetta o nella descrizione.
+ * - La fila guarda il proprio contenitore, non lo schermo: una colonna sotto i
+ *   384px, due fino a 896px, quattro da lì in su.
+ * - Un valore lungo in una colonna stretta viene tagliato dal riquadro: sulle
+ *   due colonne strette un importo per esteso non ci sta, e si scrive in
+ *   forma corta con `formattatore()` dell'item `numeri`.
+ * - Il riquadro resta della taglia normale: la taglia piccola della `Card`
+ *   rimpicciolisce il numero fino alla misura della sua etichetta.
  */
 const meta = {
   title: 'Blocchi/Indicatori',
@@ -105,19 +107,15 @@ const QUATTRO: Indicatore[] = [
 ]
 
 /**
- * La forma piena, **fuori dalla dashboard**: quattro riquadri su una riga
- * sopra gli 896px del proprio contenitore. È la scena che distingue uno
- * scorporo riuscito da uno che rende due colonne per sempre — e il modo di
- * guardarla è contare le colonne nel DOM, non a occhio.
+ * Quattro indicatori su una riga, in un contenitore più largo di 896px.
  */
 export const Quattro: Story = {
   args: { indicatori: QUATTRO },
 }
 
 /**
- * Solo etichetta e valore: senza `tendenza` né `descrizione` il riquadro non
- * rende affatto la riga in basso — un piede vuoto sotto un numero si legge
- * come un dato che manca.
+ * Solo etichetta e valore: senza tendenza né descrizione il riquadro non ha la
+ * riga in basso.
  */
 export const SenzaTendenza: Story = {
   args: {
@@ -126,13 +124,8 @@ export const SenzaTendenza: Story = {
 }
 
 /**
- * Le tre direzioni una accanto all'altra. Nessuna delle tre è verde o rossa,
- * ed è deliberato: il giudizio su cosa sia una buona notizia appartiene
- * all'indicatore, non alla freccia.
- *
- * `valore` della tendenza è **già formattato dal chiamante** — segno,
- * separatori, unità: sa tutto questo solo chi conosce il dominio. Qui
- * «invariate» dimostra che non deve nemmeno essere un numero.
+ * Le tre direzioni una accanto all'altra, tutte dello stesso colore. Il valore
+ * della tendenza può essere una parola, come «invariate».
  */
 export const Tendenze: Story = {
   args: {
@@ -154,20 +147,8 @@ export const Tendenze: Story = {
  * finestra è larga uguale alla scena sopra.
  */
 /**
- * **Sotto i 384px di contenitore, uno per riga.** Non è la griglia che si
- * arrende: sotto quella larghezza la carta scende sotto i 200px e un valore
- * lungo **sborda dalla `Card`**, che ha `overflow-hidden` — quindi non sbava,
- * si taglia, e nessun gate lo vede.
- *
- * Misurato sui rettangoli di riga del testo, perché `scrollWidth` su un
- * titolo che va a capo non vede niente (il testo si impila invece di
- * sbordare, e la sonda ingenua dice che va tutto bene): a 375px di finestra,
- * a due colonne la carta è 164px e `€ 1.284.500,00` sborda; a una è 343px e
- * ci stanno tutti su una riga, valuta a otto cifre compresa.
- *
- * Il prezzo è l'altezza: la fila passa da 303 a 553px a 375px di finestra
- * (425 → 718 in touch). È il motivo per cui una colonna resta il pavimento
- * **solo** quaggiù, e non il comportamento normale.
+ * Due contenitori stretti: sotto i 384px un indicatore per riga, e l'importo
+ * per esteso ci sta; a due colonne gli importi vanno in forma corta.
  */
 export const UnoPerRiga: Story = {
   args: {
@@ -210,6 +191,9 @@ export const UnoPerRiga: Story = {
   ),
 }
 
+/**
+ * Un contenitore da 672px: due colonne, anche su uno schermo largo.
+ */
 export const InUnPannelloStretto: Story = {
   args: { indicatori: QUATTRO },
   render: (args) => (

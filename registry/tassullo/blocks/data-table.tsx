@@ -1690,7 +1690,14 @@ function ManigliaRidimensiona<TDato extends RowData>({
       aria-valuenow={Math.round(colonna.getSize())}
       aria-valuemin={min}
       aria-valuemax={max === Number.MAX_SAFE_INTEGER ? undefined : max}
-      tabIndex={0}
+      // **Fuori dall'ordine di `Tab`**, in ogni tabella: una maniglia per
+      // colonna erano cinque, sei fermi prima delle righe, e servono di rado
+      // (Francesco: «le maniglie le togliamo ovunque dal ciclo dei tab»). La
+      // tastiera le comanda dall'intestazione — `Alt` con `←`/`→` sul bottone
+      // che ordina, v. `CellaIntestazione` — e nella Data Grid dalla cella.
+      // Resta raggiungibile col puntatore, e le frecce funzionano ancora se ci
+      // arriva il fuoco da un clic.
+      tabIndex={-1}
       // `preventDefault()` prima di delegare a TanStack, non dopo: in
       // Safari (non in Chrome, preso da Francesco) un `mousedown` non
       // impedito fa scattare anche la selezione di testo nativa mentre si
@@ -1890,6 +1897,28 @@ function CellaIntestazione<TDato extends RowData>({
       <TableHead
         ref={setNodeRef}
         style={{ ...ancoraColonna?.style, ...stile }}
+        // **La tastiera della maniglia sta sull'intestazione.** La maniglia
+        // non è un fermo di `Tab` (v. `ManigliaRidimensiona`): `Alt` con `←` o
+        // `→`, dal bottone che ordina o da qualunque controllo dell'intestazione,
+        // restringe o allarga la colonna dello stesso passo, entro `minSize` e
+        // `maxSize`.
+        onKeyDown={
+          ridimensionabile && intestazione.column.getCanResize()
+            ? (evento: React.KeyboardEvent) => {
+                if (!evento.altKey || evento.ctrlKey || evento.metaKey) return
+                if (evento.key !== "ArrowLeft" && evento.key !== "ArrowRight") return
+                evento.preventDefault()
+                const colonna = intestazione.column
+                const min = colonna.columnDef.minSize ?? 20
+                const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
+                const delta = evento.key === "ArrowRight" ? PASSO_RIDIMENSIONA : -PASSO_RIDIMENSIONA
+                tabella.setColumnSizing((prima) => {
+                  const attuale = prima[colonna.id] ?? colonna.getSize()
+                  return { ...prima, [colonna.id]: Math.min(max, Math.max(min, attuale + delta)) }
+                })
+              }
+            : undefined
+        }
         className={cn(
           !conDimensioni &&
             (intestazione.column.columnDef.meta as MetaColonna | undefined)?.larghezza,

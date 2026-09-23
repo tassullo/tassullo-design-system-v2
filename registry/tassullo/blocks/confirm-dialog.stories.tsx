@@ -20,7 +20,21 @@ import {
 } from '@/registry/tassullo/ui/dropdown-menu'
 
 /**
- * «Sei sicuro?», in una forma sola.
+ * La domanda «sei sicuro?» prima di un'azione: titolo, spiegazione, due
+ * bottoni, e se serve un campo da compilare per confermare.
+ *
+ * **Quando sì, quando no.** Si usa prima di un'azione che non si disfa:
+ * eliminare, cancellare, sostituire. Per un'azione che si può annullare —
+ * archiviare, ritirare una pubblicazione — non si chiede conferma: si esegue
+ * e si offre l'annullo con `tassullo-toast-con-annullo`. Mai tutti e due
+ * insieme. Un modulo da compilare è un dialogo (`dialog`, o
+ * `tassullo-responsive-dialog` se deve diventare un cassetto sul telefono);
+ * la primitiva `alert-dialog`, su cui questo blocco è costruito, resta per
+ * le domande che non stanno in questa forma.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-confirm-dialog
+ * ```
  *
  * ```tsx
  * <ConfirmDialog
@@ -34,50 +48,47 @@ import {
  * </ConfirmDialog>
  * ```
  *
- * ## Cosa c&apos;era già, e cosa manca
+ * **Le prop.**
  *
- * `alert-dialog` di shadcn è la primitiva giusta e qui sotto non se ne tocca una
- * riga. Ciò che manca è che **una conferma non è una composizione, è una
- * domanda**: titolo, spiegazione, due bottoni. Scritta a mano sono quattordici
- * righe di JSX in cui l&apos;unica cosa che cambia da un punto d&apos;uso
- * all&apos;altro sono due stringhe — e con quattordici righe di ripetizione
- * arrivano tre difetti che si vedono solo a cose fatte.
+ * - `titolo`, scritto come una domanda; `descrizione`, cosa succede e cosa
+ *   non si potrà disfare.
+ * - `conferma`, il verbo dell'azione — «Elimina», mai «OK»; `annulla`,
+ *   l'altro bottone.
+ * - `tono`: `"normale"`, il predefinito, o `"distruttivo"`, che colora la
+ *   conferma col rosso delle azioni che non si disfano.
+ * - `onConferma` riceve il testo del campo, se c'è. Se restituisce una
+ *   promessa, il dialogo aspetta che si risolva.
+ * - Il grilletto è il figlio, nella forma comoda. Nella forma controllata si
+ *   passano `aperto` e `onApertoChange`, senza figli.
+ * - `corpo`, un contenuto fra la spiegazione e i bottoni: un riepilogo, un
+ *   elenco di ciò che si cancella.
+ * - `campo`, la conferma scritta: `etichetta`, `aiuto`, `segnaposto`,
+ *   `iniziale`, `multiriga`, e `parolaAttesa` (la conferma si accende solo
+ *   quando il campo la contiene esatta) oppure `obbligatorio` (si accende
+ *   appena c'è scritto qualcosa).
  *
- * **Il colore del testo.** La tentazione, sull&apos;azione distruttiva, è
- * `className="text-destructive"`. `--destructive` è il colore dei **fondi**:
- * come testo su un fondo scuro dà **3.52:1**, misurato dal gate in M3.2. Qui
- * l&apos;azione distruttiva è `variant="destructive"`, che è la variante del
- * componente — l&apos;unica forma che il tema garantisce leggibile in tutte e
- * due le modalità.
+ * **Regole d'uso.**
  *
- * **L&apos;ordine dei bottoni.** Annulla a sinistra, conferma a destra; in
- * colonna, su schermo stretto, conferma **sopra**. Se ogni punto d&apos;uso lo
- * riscrive, prima o poi da qualche parte è invertito, e chi clicca in automatico
- * cancella una cosa che voleva tenere.
+ * - Il rosso lo dà `tono="distruttivo"`, che usa la variante `destructive`
+ *   del bottone: mai una classe di colore sul testo.
+ * - L'ordine dei bottoni è fisso: annulla a sinistra, conferma a destra; su
+ *   schermo stretto, in colonna, la conferma sta sopra.
+ * - Mentre la promessa di `onConferma` è in corso, la conferma mostra
+ *   l'attesa ed è spenta, l'annullo è spento, e né `Esc` né il clic fuori
+ *   chiudono. Se la promessa fallisce il dialogo resta aperto e si può
+ *   riprovare: l'errore lo racconta l'app.
+ * - Da una voce di un menu si usa la forma controllata, con il dialogo reso
+ *   fuori dal menu: cliccata la voce il menu si chiude, e un grilletto dentro
+ *   il menu si porterebbe via anche il dialogo.
+ * - Un campo non va in `descrizione`, che il lettore di schermo legge tutta
+ *   di fila all'apertura: sta in `campo` o in `corpo`.
+ * - Il campo torna al valore iniziale a ogni apertura.
  *
- * **L&apos;attesa** — ed è la ragione vera per cui questo blocco esiste.
- *
- * ## L&apos;attesa
- *
- * `onConferma` può restituire una **promessa**. Finché non si risolve il dialogo
- * resta aperto: la conferma mostra l&apos;indicatore e si disabilita,
- * l&apos;annullo si disabilita, `Esc` e il clic fuori non chiudono. Se la
- * promessa viene rifiutata il dialogo **resta aperto e riprovabile** —
- * l&apos;errore lo racconta l&apos;app, che sa cosa dire, ma non su un dialogo
- * già sparito.
- *
- * Senza, il comportamento diffuso è: si chiude subito, la richiesta fallisce in
- * silenzio, l&apos;utente crede di aver cancellato. È una piccola macchina a
- * stati, e ce ne vuole **una** per tutte le app — non una per pagina.
- *
- * ## Controllato, perché il grilletto spesso non c&apos;è
- *
- * Il caso più frequente nelle app Tassullo è la voce di un menu di riga della
- * tabella, e lì il grilletto **non può stare dentro**: cliccando la voce il menu
- * si chiude e si smonta, e con lui si smonterebbe il dialogo che stava per
- * aprire. È il caso che shadcn documenta come `dropdown-menu-dialog`, e la
- * risposta è la forma controllata — `aperto` e `onApertoChange`, senza figli.
- * Vedi la story **Da un menu di riga**.
+ * **Tastiera e accessibilità.** Il fuoco entra nel dialogo e ci resta;
+ * `Esc` chiude come «Annulla», tranne durante l'attesa. Titolo e
+ * descrizione sono il nome e la descrizione del dialogo. L'aiuto del campo è
+ * collegato con `aria-describedby`, e con `parolaAttesa` dice quale parola
+ * scrivere prima che la si debba scrivere.
  */
 const meta = {
   title: 'Blocchi/Dialogo di conferma',
@@ -91,9 +102,8 @@ type Story = StoryObj<typeof meta>
 const attendi = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /**
- * La forma comoda, col grilletto dentro. Il dialogo si apre da sé in fase di
- * misura: è la dichiarazione che il gate legge per sapere **quale** popup
- * aprire — un popup non aperto non è un popup senza violazioni.
+ * La forma comoda, col grilletto dentro, in tono distruttivo. Il dialogo è
+ * aperto.
  */
 export const Distruttivo: Story = {
   args: {
@@ -119,10 +129,8 @@ export const Distruttivo: Story = {
 }
 
 /**
- * Non tutte le conferme sono distruzioni. `tono="normale"` è il default: la
- * conferma resta il bottone primario, e il rosso resta riservato a ciò che non
- * si disfa. Un&apos;interfaccia in cui ogni conferma è rossa è
- * un&apos;interfaccia in cui il rosso non vuol più dire niente.
+ * Una conferma che non distrugge niente: il bottone resta quello primario, e
+ * il rosso resta per ciò che non si disfa.
  */
 export const Normale: Story = {
   args: {
@@ -140,12 +148,9 @@ export const Normale: Story = {
 }
 
 /**
- * **L&apos;attesa, da provare col dito.** `onConferma` qui impiega un secondo e
- * mezzo. Premendo «Elimina»: l&apos;indicatore compare, i due bottoni si
- * disabilitano, `Esc` non chiude, e il dialogo se ne va solo a cose fatte.
- *
- * La seconda volta la promessa viene **rifiutata**: il dialogo resta aperto e
- * riprovabile. È il caso che, scritto a mano, quasi nessuno gestisce.
+ * L'attesa: `onConferma` impiega un secondo e mezzo. Premendo «Elimina» i
+ * bottoni si spengono e `Esc` non chiude; la seconda volta la promessa
+ * fallisce, e il dialogo resta aperto.
  */
 export const InCorso: Story = {
   args: {
@@ -176,12 +181,8 @@ export const InCorso: Story = {
 }
 
 /**
- * **Da un menu di riga**, che è il caso vero della tabella.
- *
- * Il grilletto non può stare dentro il dialogo: la voce del menu, cliccata,
- * chiude il menu e si smonta con lui. Lo stato dell&apos;apertura lo tiene
- * quindi la pagina, e `<ConfirmDialog>` si rende **fuori** dal menu, senza
- * figli.
+ * Dal menu di una riga: la pagina tiene lo stato di apertura, e il dialogo è
+ * reso fuori dal menu, senza figli.
  */
 export const DaUnMenuDiRiga: Story = {
   args: {
@@ -232,31 +233,8 @@ export const DaUnMenuDiRiga: Story = {
 }
 
 /**
- * **La parola da ricopiare**, cioè la guardia davanti a una cosa che non si
- * disfa. `campo.parolaAttesa` tiene la conferma spenta finché il campo non la
- * contiene esatta — e la parola si legge **prima** di doverla scrivere, nella
- * riga sotto il campo: se comparisse solo dopo aver sbagliato sarebbe un
- * indovinello, non una guardia.
- *
- * ## Il campo non sta nella descrizione, e non è un formalismo
- *
- * `descrizione` finisce in `<AlertDialogDescription>`, cioè nell&apos;elemento
- * che il dialogo dichiara in `aria-describedby`: è il testo che un lettore di
- * schermo annuncia **tutto in fila** come descrizione del dialogo, appena si
- * apre. Un campo lì dentro vuol dire un&apos;etichetta letta come parte della
- * spiegazione e un controllo in mezzo a una frase. Il campo sta quindi in
- * `corpo`, che è un terzo posto fra l&apos;intestazione e i bottoni — e si
- * compone dal punto di chiamata, senza toccare `alert-dialog`: la primitiva è
- * un `grid`, e il corpo è una riga in più della griglia.
- *
- * ## Il valore torna a chi ha chiamato
- *
- * `onConferma` riceve il testo digitato. Senza, il dialogo saprebbe cosa si è
- * scritto e la pagina no, e le toccherebbe tenersi uno stato in parallelo —
- * cioè la ripetizione che questo blocco esiste per togliere. Chi non usa
- * `campo` continua a scrivere `onConferma={() =&gt; …}`: una funzione che
- * ignora il suo argomento resta assegnabile, e nessun punto d&apos;uso
- * esistente cambia.
+ * La parola da ricopiare: la conferma resta spenta finché il campo non la
+ * contiene esatta, e la riga sotto il campo dice quale parola scrivere.
  */
 export const ParolaDaRicopiare: Story = {
   name: 'Parola da ricopiare',
@@ -305,20 +283,8 @@ export const ParolaDaRicopiare: Story = {
 }
 
 /**
- * **Il motivo da scrivere**, ed è il caso vero: ChangeSets di Anagrafe, che
- * oggi apre un `window.prompt`. Una finestra del sistema operativo non ha i
- * colori del tema, non si naviga come il resto della pagina e su ogni macchina
- * è disegnata diversa — la stessa obiezione con cui si è chiuso D19 sul
- * `&lt;select&gt;` nativo.
- *
- * Qui il campo è `multiriga` — un motivo si scrive in più di una riga — e
- * `obbligatorio`: la conferma resta spenta finché non c&apos;è scritto
- * qualcosa. Nessuna `parolaAttesa`, perché non c&apos;è una parola giusta: il
- * testo **è** il dato, e finisce a `onConferma`.
- *
- * `aiuto` è scritto dall&apos;app e non dal blocco: il blocco lo scrive da sé
- * solo quando c&apos;è una parola da ricopiare, perché lì è l&apos;unica riga
- * che rende la guardia usabile.
+ * Il motivo da scrivere: un campo su più righe, obbligatorio, il cui testo
+ * arriva a `onConferma`.
  */
 export const MotivoDaScrivere: Story = {
   name: 'Motivo da scrivere',

@@ -9,9 +9,16 @@ import {
 } from '@/registry/tassullo/blocks/file-upload'
 
 /**
- * Il caricamento allegati che `INTERFACCE.md` di Anagrafe non ha ancora:
- * documenti, foto TDS, asset REN/RES/IM1-9 (`allegati` ×10, `caricamento`
- * ×16 nella sua roadmap).
+ * Il caricamento di file: una cornice dove trascinarli o da cui sceglierli,
+ * che controlla tipo e dimensione, e l'elenco dei file con il loro stato.
+ *
+ * **Quando sì, quando no.** Si usa per gli allegati di una scheda — documenti,
+ * foto, certificati — e per ogni campo che accetta file. Per guardare un PDF
+ * già caricato c'è `tassullo-pdf-preview`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-file-upload
+ * ```
  *
  * ```tsx
  * <FileUpload
@@ -23,14 +30,27 @@ import {
  * <FileUploadList file={file} onRimuovi={rimuovi} />
  * ```
  *
- * `FileUpload` valida e seleziona — tipo e dimensione, con l'errore già
- * tradotto — e non carica niente da sé: l'upload vero è dell'app.
- * `FileUploadList` renderizza la coda che l'app tiene in stato, e la stessa
- * forma serve per l'elenco degli allegati già caricati in precedenza.
+ * **Le prop.**
  *
- * **Da tastiera, senza trascinamento**: `Tab` porta il fuoco sulla cornice,
- * `Invio` o `Spazio` aprono il selettore nativo — è `react-dropzone`, non
- * codice di questo blocco, ma è la ragione per cui è stato scelto (D8).
+ * - `FileUpload`: `onFile`, i file accettati; `onRifiutati`, quelli scartati,
+ *   ognuno con il motivo già tradotto; `accetta`, nella forma dell'`accept`
+ *   di un campo file; `dimensioneMassima` in byte; `multiplo`,
+ *   `disabilitato`; `etichetta`, `descrizione` ed `etichettaBottone`, i testi
+ *   della cornice.
+ * - `FileUploadList`: `file`, l'elenco che l'app tiene nel suo stato, e
+ *   `onRimuovi`. Ogni file è in coda, in corso con il suo avanzamento,
+ *   riuscito o fallito.
+ *
+ * **Regole d'uso.**
+ *
+ * - Il blocco sceglie e controlla, non carica: l'invio al server, i
+ *   tentativi e l'annullamento sono dell'app.
+ * - La stessa lista mostra gli allegati già caricati: senza `onRimuovi` le
+ *   righe non hanno il bottone per toglierli.
+ *
+ * **Tastiera e accessibilità.** Il trascinamento non è l'unica via: nella
+ * cornice c'è un bottone, che si raggiunge col `Tab` e con `Invio` o `Spazio`
+ * apre la scelta dei file. La cornice in sé non riceve il fuoco.
  */
 const meta = {
   title: 'Blocchi/Caricamento file',
@@ -41,7 +61,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** La cornice a riposo: trascinamento o clic, entrambi aprono lo stesso selettore. */
+/**
+ * La cornice a riposo: si trascinano i file, o il bottone apre la scelta.
+ */
 export const Dropzone: Story = {
   args: {
     onFile: () => {},
@@ -72,9 +94,8 @@ function nuovoIdDemo() {
 }
 
 /**
- * I cinque file dell'accettazione di M3.6, con uno che fallisce: scegliere
- * dal computer (tastiera compresa) o il bottone di prova avviano la stessa
- * simulazione — una barra per file, un errore di rete per `planimetria.pdf`.
+ * Cinque file in caricamento, ognuno con la sua barra, e uno che fallisce per
+ * un errore di rete.
  */
 export const ConAvanzamentoEUnErrore: Story = {
   args: { onFile: () => {} },
@@ -168,7 +189,9 @@ function DemoCaricamento() {
   )
 }
 
-/** L'elenco degli allegati già caricati: stessa lista, nessuna barra, nessuna coda. */
+/**
+ * Gli allegati già caricati: la stessa lista, senza barre.
+ */
 export const AllegatiGiaCaricati: Story = {
   args: { onFile: () => {} },
   render: () => <DemoAllegati />,

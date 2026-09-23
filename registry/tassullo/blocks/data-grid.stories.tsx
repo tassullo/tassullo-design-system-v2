@@ -9,13 +9,13 @@ import {
   DataGridFillHandle,
   DataGridRedo,
   DataGridUndo,
+  colonnaAzioneGriglia,
   colonnaCheckboxGriglia,
   colonnaDataGriglia,
   colonnaNumeroGriglia,
   colonnaSelectGriglia,
   colonnaTestoGriglia,
   colonnaValutaGriglia,
-  useContestoDataGrid,
   useDataGrid,
   useGridChanges,
   validaConZod,
@@ -116,6 +116,106 @@ function ComputoFinto() {
   )
 }
 
+/**
+ * La tabella da modificare cella per cella, come un foglio di calcolo: la
+ * cella attiva si sposta con le frecce, si scrive, si copia e si incolla un
+ * blocco di celle, si annulla e si ripete.
+ *
+ * **Quando sì, quando no.** Si usa quando le righe sono tante e omogenee — ogni
+ * colonna vuol dire la stessa cosa su ogni riga — e il lavoro è correggerle o
+ * compilarle in fila: un listino, un computo piatto, un elenco di voci. Per
+ * leggere, cercare, filtrare e ordinare un elenco si usa `tassullo-data-table`,
+ * su cui questo blocco è costruito; per cambiare un campo alla volta basta
+ * l'editing in riga di quel blocco. Quando le colonne cambiano significato da
+ * una zona all'altra — una voce con le sue misure e il totale sotto — il
+ * foglio giusto è `tassullo-foglio-gruppi`. La griglia non ha ricerca,
+ * ordinamento, filtri né righe annidate: la tastiera conta le celle
+ * nell'ordine dei dati, e un ordine visibile diverso la porterebbe sulla riga
+ * sbagliata.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-data-grid
+ * ```
+ *
+ * **Come si compone.**
+ *
+ * - `useDataGrid(opzioni)` è il motore, con `righeIniziali`, `colonneId`,
+ *   `colonneAzioneId`, `idRiga`, `leggiCella`, `scriviCella` e `onModifica`.
+ *   `colonneId` elenca le colonne modificabili nell'ordine in cui le
+ *   percorrono le frecce, `Tab` in modifica e l'incolla; `leggiCella` e
+ *   `scriviCella` convertono una riga da e verso stringhe, e `scriviCella`
+ *   restituisce una riga nuova. Il motore non è controllato: tiene le righe
+ *   in uno stato suo, seminato una volta da `righeIniziali`, e si ascolta con
+ *   `onModifica`.
+ * - `<DataGrid motore={…} colonne={…} />` monta la tabella, sempre con un
+ *   riquadro fermo e le righe virtualizzate: il genitore deve avere
+ *   un'altezza, e la griglia riceve `className="min-h-0 flex-1"`. Accetta le
+ *   prop di `tassullo-data-table` per il contorno — `barra`, `nomeRighe`,
+ *   `selezione` — ma non `cerca`, `perPagina` e `altezza`.
+ * - Le colonne si dichiarano con `colonnaTestoGriglia`,
+ *   `colonnaNumeroGriglia`, `colonnaValutaGriglia`, `colonnaCheckboxGriglia`,
+ *   `colonnaDataGriglia` e `colonnaSelectGriglia`, che ricevono il costruttore
+ *   di `creaColonne()`, l'`id`, il titolo e a scelta `size` e `validazione`.
+ * - Un comando di riga — il cestino — è una colonna `colonnaAzioneGriglia`,
+ *   con `icona`, `etichetta` (il nome del bottone, riga per riga) e
+ *   `onAzione`, che riceve la riga e il motore. Il suo `id` va anche in
+ *   `colonneAzioneId` di `useDataGrid`. È una cella della griglia: si
+ *   raggiunge con le frecce dalla riga su cui si lavora, e copia, incolla,
+ *   riempimento e selezione la saltano.
+ * - Dentro `<DataGrid>` si mettono, se servono, `<DataGridClipboard />` per
+ *   copia e incolla e `<DataGridFillHandle />` per la maniglia di
+ *   riempimento; `<DataGridUndo />` e `<DataGridRedo />` sono i bottoni di
+ *   annulla e ripeti, da mettere in `barra`.
+ * - `validaConZod(schema)` trasforma uno schema Zod in una `validazione`.
+ * - `useGridChanges(motore.righe, righeSalvate, idRiga)` confronta le righe
+ *   con l'ultimo salvataggio e dice `creati`, `aggiornati`, `cancellati` e
+ *   `cePendente`, per un bottone «Salva». Il motore offre `aggiungiRiga` e
+ *   `rimuoviRighe`, annullabili come ogni altra modifica.
+ * - `useContestoDataGrid()` dà il motore a una cella scritta a mano.
+ *
+ * **Regole d'uso.**
+ *
+ * - `idRiga` dev'essere un identificativo stabile, non l'indice: annulla e
+ *   ripeti spostano le righe.
+ * - Una cella non valida resta in modifica, con l'errore sotto, finché non si
+ *   corregge o non si annulla.
+ * - La cella attiva ha sempre il suo bordo, anche dopo un clic. Quando il
+ *   fuoco lascia la griglia — per «Salva», un filtro, un bottone della barra —
+ *   il bordo si attenua e la riga intera prende un fondo tenue: resta chiaro
+ *   su quale riga si stava lavorando. Un comando fuori dalla griglia che
+ *   agisce sulla riga attiva si legge così. Il `Tab` segue l'ordine della
+ *   pagina: arriva alla griglia dopo i controlli che la precedono, come la
+ *   barra, ed entra proprio sulla cella segnata.
+ * - La data è un campo nativo `<input type="date">`, non il calendario.
+ * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
+ *   `numeri`, quindi col separatore delle migliaia sempre scritto
+ *   (`2.086,93 €`), allineate a destra e con le cifre tabellari. In modifica
+ *   si scrive con la virgola, come si legge — `12,5` — senza migliaia, e il
+ *   simbolo dell'euro resta accanto al campo; il punto vale come separatore
+ *   delle migliaia se raggruppa tre cifre (`1.234`), altrimenti come
+ *   decimale. Copia e incolla usano la virgola, quindi un foglio di calcolo
+ *   in italiano li legge com'è. Il dato resta un numero col punto. In una
+ *   cella scritta a mano, i numeri si formattano con le stesse funzioni,
+ *   `intero()`, `decimale()`, `valuta()`.
+ *
+ * **Tastiera e accessibilità.** La tabella dichiara `role="grid"` ed è un
+ * solo fermo di tabulazione: `Tab` entra sulla cella attiva — la prima,
+ * all'inizio — e il `Tab` seguente esce dalla griglia. Le frecce spostano la
+ * cella attiva, con `Maiusc` estendono la selezione; `Home` e `Fine` vanno al
+ * principio e alla fine della riga. `Invio`, `F2` o un carattere qualsiasi
+ * aprono la modifica; col puntatore, il primo clic sceglie la cella e il
+ * secondo la apre, come il doppio clic. In modifica `Invio` conferma e scende, `Tab` conferma e passa accanto, `Esc`
+ * annulla. `Canc` e `Backspace` svuotano la selezione. Con `Ctrl` o `⌘`: `C`,
+ * `X` e `V` copiano, tagliano e incollano come testo separato da tabulazioni,
+ * quindi anche da e verso un foglio di calcolo; `Z` annulla, `Maiusc`+`Z` o `Y`
+ * ripete, `A` seleziona tutto, `Invio` riempie la selezione col valore della
+ * cella in alto a sinistra. `Alt` con `←` o `→` restringe o allarga di 16px
+ * la colonna della cella attiva: le maniglie sul bordo delle intestazioni si
+ * trascinano col puntatore, ma non sono fermi di `Tab`. La casella si spunta
+ * con `Spazio` o `Invio`.
+ * Sulla cella di comando `Invio` o `Spazio` premono il bottone; dopo
+ * un'eliminazione il fuoco passa alla stessa cella della riga seguente.
+ */
 const meta: Meta = {
   title: 'Blocchi/Data Grid',
   parameters: { layout: 'padded' },
@@ -126,14 +226,8 @@ export default meta
 type Story = StoryObj
 
 /**
- * Il motore su un elenco piatto di 60 voci — sessione 1 di 3 (M3bis.5): solo
- * `CellaTestoGriglia`, niente celle tipizzate/Zod (sessione 2) né
- * `useGridChanges` (sessione 3). Prova da tastiera: frecce spostano la cella
- * attiva, Invio/F2 apre la modifica (o un carattere qualunque, che la apre
- * scrivendolo), Escape annulla, Tab conferma e passa alla cella accanto.
- * Ctrl/Cmd+C copia la selezione come TSV, Ctrl/Cmd+V la incolla, Ctrl/Cmd+Z
- * e Ctrl/Cmd+Shift+Z annullano/ripetono, Ctrl/Cmd+Invio riempie la
- * selezione col valore della cella in alto a sinistra.
+ * Sessanta voci con sole colonne di testo: la navigazione, la modifica, copia
+ * e incolla, annulla e ripeti, la maniglia di riempimento.
  */
 export const Editabile: Story = {
   render: () => <ComputoFinto />,
@@ -229,15 +323,9 @@ function ComputoTipizzato() {
 }
 
 /**
- * Le sei celle tipizzate. `Quantità` e `Prezzo unitario`
- * validano con `validaConZod` (`z.coerce.number()`, negativo/zero
- * rifiutati) — scrivere un valore non valido e premere Invio o Tab non
- * chiude la modifica: l'anello rosso resta finché non si corregge, Escape
- * annulla comunque. `Disp.` si spunta con un clic o Spazio/Invio da
- * tastiera, senza un passo di modifica intermedio. `U.M.` apre il `Select`
- * del registry, non un elenco a parte. `Scadenza` usa `<input type="date">`
- * nativo — non il `Calendar` del registry, v. il commento in testa a
- * `data-grid.tsx` sul perché.
+ * Le sei celle tipizzate. «Quantità» e «Prezzo unitario» rifiutano un valore
+ * non valido e restano in modifica; «Disp.» si spunta con un clic o con
+ * `Spazio`; «U.M.» apre un `select`; «Scadenza» è un campo data nativo.
  */
 export const CelleTipizzate: Story = {
   render: () => <ComputoTipizzato />,
@@ -300,35 +388,6 @@ function generaVociComputo(quante: number): VoceComputo[] {
 
 const VOCI_COMPUTO = generaVociComputo(500)
 
-/**
- * La sola colonna che non passa da `colonnaXGriglia`: un bottone «elimina»
- * per riga, non editabile e fuori da `colonneId` — la freccia non ci si
- * ferma mai, `Tab` sì (è un bottone vero, nell'ordine naturale del
- * documento). Usa `useContestoDataGrid` per arrivare al motore: la stessa
- * via che usano `CellaTestoGriglia` e le altre, non un accesso privato.
- */
-function CellaEliminaComputo({ riga }: { riga: VoceComputo }) {
-  const { motore } = useContestoDataGrid<VoceComputo>()
-  return (
-    // `flex ml-auto`, non solo `-my-1`: il bottone è `inline-flex` di suo
-    // (v. `ui/button.tsx`), e un `margin-left: auto` non allinea a destra
-    // un elemento inline — deve diventare lui stesso un box di blocco
-    // (`flex`) perché lo spazio in più della colonna vada a sinistra, non a
-    // destra. Lo stesso pattern già usato per il menu «azioni» di
-    // `data-table.stories.tsx`.
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className="-my-1 ml-auto flex"
-      aria-label={`Elimina ${riga.codice || 'la riga'}`}
-      onClick={() => motore.rimuoviRighe([riga.id])}
-    >
-      <Trash2Icon aria-hidden />
-    </Button>
-  )
-}
-
 const colC = creaColonne<VoceComputo>()
 const COLONNE_COMPUTO = colC.columns([
   colonnaTestoGriglia(colC, 'codice', 'Codice', {
@@ -345,14 +404,13 @@ const COLONNE_COMPUTO = colC.columns([
     size: 112,
     validazione: validaConZod(z.coerce.number('Dev\'essere un numero').positive('Dev\'essere maggiore di zero')),
   }),
-  colC.display({
-    id: 'azioni',
-    size: 48,
-    // Non ridimensionabile: 48px basta appena al bottone, una maniglia lì
-    // non avrebbe niente da restringere prima di sparire.
-    enableResizing: false,
-    header: () => <span className="sr-only">Azioni</span>,
-    cell: ({ row }) => <CellaEliminaComputo riga={row.original} />,
+  // Il cestino è una cella della griglia: le frecce ci arrivano dalla riga
+  // su cui si lavora, `Invio` lo preme, `Tab` non ci si ferma. L'`id` va
+  // anche in `colonneAzioneId`, sotto.
+  colonnaAzioneGriglia(colC, 'azioni', 'Azioni', {
+    icona: <Trash2Icon aria-hidden />,
+    etichetta: (v) => `Elimina ${v.codice || 'la riga'}`,
+    onAzione: (v, motore) => motore.rimuoviRighe([v.id]),
   }),
 ])
 
@@ -360,6 +418,7 @@ function ComputoEndToEnd() {
   const motore = useDataGrid<VoceComputo>({
     righeIniziali: VOCI_COMPUTO,
     colonneId: ['codice', 'descrizione', 'unita', 'quantita', 'prezzoUnitario'],
+    colonneAzioneId: ['azioni'],
     idRiga: (v) => v.id,
     leggiCella: (v, c) => String(v[c as keyof VoceComputo] ?? ''),
     scriviCella: (v, c, valore) => ({ ...v, [c]: valore }),
@@ -438,14 +497,10 @@ function ComputoEndToEnd() {
 }
 
 /**
- * Sessione 3 di 3 — il criterio di accettazione di `PIANO.md` per intero:
- * 500 voci finte, editing/incolla/annulla-ripeti già provati sulle story
- * precedenti, qui su una mole vera (virtualizzata, mai più di una finestra
- * di righe montate). `Codice` e `Prezzo unitario` validano con Zod. "Aggiungi
- * riga" e la crocetta di ogni riga esercitano `aggiungiRiga`/`rimuoviRighe`
- * — annullabili come qualunque altro commit. I contatori sopra vengono da
- * `useGridChanges`, confrontato contro l'ultimo "Salva" (finto: aggiorna
- * solo lo stato locale, non c'è un server dietro questa story).
+ * Cinquecento voci, con righe da aggiungere ed eliminare e i conteggi del
+ * salvataggio in cima: quante righe nuove, modificate e cancellate rispetto
+ * all'ultimo «Salva». Il cestino in fondo a ogni riga si raggiunge con `→`
+ * dall'ultima colonna, e `Invio` elimina la riga.
  */
 export const Computo: Story = {
   render: () => <ComputoEndToEnd />,

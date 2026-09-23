@@ -1287,6 +1287,7 @@
       "registryDependencies": [
         "@tassullo/button",
         "@tassullo/checkbox",
+        "@tassullo/numeri",
         "@tassullo/tassullo-data-table",
         "@tassullo/select",
         "@tassullo/tema"

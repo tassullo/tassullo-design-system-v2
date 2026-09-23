@@ -160,3 +160,58 @@ export function decimale(valore: number, cifre = 2): string {
 export function valuta(valore: number, moneta = "EUR"): string {
   return formattatore({ style: "currency", currency: moneta }).format(valore)
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Scrivere un numero, non solo leggerlo
+ *
+ * Le tre funzioni qui sopra vanno **dal numero al testo** per la vista. Un
+ * campo in cui si scrive un numero fa anche il viaggio opposto, e i due
+ * blocchi che ne hanno — `tassullo-data-grid` e `tassullo-foglio-gruppi` —
+ * lo fanno con la stessa regola, che sta qui per non averne due.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * **Dal testo scritto al valore**, che resta la forma col punto che `Number()`
+ * e Zod capiscono: si scrive con la virgola, come si legge, e il dato non
+ * cambia forma.
+ *
+ * Il punto, in italiano, separa le migliaia: con la virgola, ogni punto è
+ * migliaia. Senza virgola il punto è ambiguo, e si decide così: se raggruppa
+ * esattamente tre cifre sono migliaia, altrimenti è il decimale di chi scrive o
+ * incolla all'inglese. Spazi e `€` si ignorano. Un numero esce in forma
+ * canonica; un testo che numero non è resta com'è, e lo rifiuta la validazione.
+ *
+ * ```ts
+ * leggiNumero("20,78")     // "20.78"
+ * leggiNumero("1.234,5")   // "1234.5"
+ * leggiNumero("1.234")     // "1234"  — migliaia, non un decimale
+ * leggiNumero("20.78")     // "20.78" — decimale all'inglese
+ * leggiNumero("3,")        // "3"
+ * leggiNumero("abc")       // "abc"
+ * ```
+ */
+export function leggiNumero(testo: string): string {
+  const t = testo.replace(/[\s€]/g, "")
+  if (t === "") return ""
+  const grezzo = t.includes(",")
+    ? t.replace(/\./g, "").replace(",", ".")
+    : /^-?\d{1,3}(\.\d{3})+$/.test(t)
+      ? t.replace(/\./g, "")
+      : t
+  const numero = Number(grezzo)
+  return Number.isNaN(numero) ? grezzo : String(numero)
+}
+
+/**
+ * **Dal valore a ciò che si scrive** nel campo in modifica, o si copia: il
+ * punto decimale diventa la virgola, senza separatore delle migliaia — in un
+ * campo le cifre si correggono, e un punto in mezzo sarebbe d'intralcio.
+ *
+ * ```ts
+ * scriviNumero("20.78") // "20,78"
+ * scriviNumero("1234.5") // "1234,5"
+ * ```
+ */
+export function scriviNumero(valore: string): string {
+  return valore === "" || Number.isNaN(Number(valore)) ? valore : valore.replace(".", ",")
+}
