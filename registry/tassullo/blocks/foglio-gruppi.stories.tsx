@@ -127,14 +127,14 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
       leggi: (v) => v.designazione,
       scrivi: (v, valore) => ({ ...v, designazione: valore }),
       segnaposto: 'Descrizione della lavorazione',
-      mostra: (valore) => <span className="font-semibold">{valore}</span>,
+      classiTesto: 'font-semibold',
     },
     corpo: {
       tipo: 'scrivibile',
       leggi: (m) => m.descrizione,
       scrivi: (m, valore) => ({ ...m, descrizione: valore }),
       segnaposto: 'descrizione misura (parti negative = detrazione)',
-      mostra: (valore) => <span className="pl-4 italic">{valore}</span>,
+      classiTesto: 'pl-4 italic',
     },
     // La colonna che le tre zone condividono: è da qui che le frecce
     // verticali raggiungono il piede, e da lì `ArrowRight` arriva al prezzo.
@@ -142,12 +142,11 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
       tipo: 'scrivibile',
       leggi: (v) => v.unita,
       scrivi: (v, valore) => ({ ...v, unita: valore }),
-      mostra: (valore) => (
-        <span className="flex justify-end gap-2 pr-2">
-          <span>SOMMANO</span>
-          <span className="text-accent-ink">{valore}</span>
-        </span>
-      ),
+      // Stile, prefisso e allineamento dichiarati e non disegnati in `mostra`:
+      // così il campo aperto li conosce, e «m²» non si sposta aprendolo.
+      prefisso: 'SOMMANO',
+      allineamento: 'destra',
+      classiTesto: 'pr-2 text-accent-ink',
     },
   },
   { id: 'parti', titolo: 'Par.ug.', larghezza: 'w-20', allineamento: 'destra',
@@ -309,7 +308,7 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  * - Ogni colonna dichiara `id`, `titolo`, `larghezza`, `allineamento` e una
  *   cella per zona: `testata`, `corpo`, `piede`. Una cella è `scrivibile` —
  *   `leggi`, `scrivi`, e a scelta `mostra`, `valida`, `segnaposto`,
- *   `formato`, `suffisso` — oppure
+ *   `formato`, `prefisso`, `suffisso`, `classiTesto`, `allineamento` — oppure
  *   `calcolata`, con `rendi`, oppure `fissa`. Una zona senza cella resta
  *   vuota.
  * - `azione` è il comando frequente del gruppo, su una riga propria fra corpo
@@ -336,6 +335,13 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   si scrive arriva a `valida` e a `scrivi` già col punto, `20.78`. Il punto
  *   vale come separatore delle migliaia se raggruppa tre cifre (`1.234`),
  *   altrimenti come decimale.
+ * - **Una cella aperta si legge come una chiusa**: stesso posto, stesso
+ *   aspetto. Lo stile del valore — corsivo, grassetto, rientro, colore — va
+ *   in `classiTesto`, che vale per la cella chiusa e per il campo aperto;
+ *   `prefisso` è il testo fisso davanti al valore («SOMMANO»), `allineamento`
+ *   quello della singola cella. `mostra` serve solo a formattare il valore:
+ *   uno stile scritto lì il campo aperto non lo vedrebbe, e il testo si
+ *   sposterebbe aprendo la modifica.
  * - `suffisso` resta accanto al campo in modifica, fuori da ciò che si scrive:
  *   per un prezzo, `'\u00a0€'`, la coda di ciò che `valuta()` mostra. Senza,
  *   le cifre allineate a destra si spostano aprendo la modifica.

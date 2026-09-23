@@ -137,6 +137,22 @@ export type CellaScrivibile<TDato> = {
    * cifre si spostano aprendo la modifica.
    */
   suffisso?: string
+  /**
+   * Testo fisso **davanti** al valore, in vista e in modifica, fuori da ciò
+   * che si scrive: «SOMMANO» davanti all'unità di misura del piede.
+   */
+  prefisso?: string
+  /**
+   * Come si scrive il testo del valore — corsivo, grassetto, rientro, colore —
+   * **uguale in vista e in modifica**: le stesse classi vanno sul testo della
+   * cella chiusa e sul campo aperto, così il testo non cambia né aspetto né
+   * posto aprendo la modifica. È il posto per lo stile; `mostra` resta per
+   * formattare il valore (`valuta()`, i decimali), non per vestirlo, o il
+   * campo aperto non lo saprebbe.
+   */
+  classiTesto?: string
+  /** L'allineamento di questa cella, se non è quello della colonna. */
+  allineamento?: "sinistra" | "destra"
 }
 
 export type CellaCalcolata<TDato, TAltro = never> = {
@@ -668,24 +684,35 @@ function CellaFoglio<TTestata, TRiga>({
 
   const valore = (cella.leggi as (d: unknown) => string)(dato)
 
+  /**
+   * **Cella chiusa e cella aperta hanno lo stesso riquadro e lo stesso testo.**
+   * Stesso contenitore (`riquadro`), stesso prefisso, e sul valore le stesse
+   * classi (`classiTesto`, l'allineamento): aprendo la modifica il testo non
+   * cambia né posto né aspetto — prima il corsivo e il rientro delle misure
+   * sparivano e il testo saltava di 16px a sinistra (rilievo di Francesco).
+   */
+  const destra = (cella.allineamento ?? colonna.allineamento) === "destra"
+  const riquadro = cn("px-2 py-1", RIGA, destra && "justify-end")
+  const classiValore = cn(destra ? "text-right tabular-nums" : "text-left", cella.classiTesto)
+  const prefisso = cella.prefisso ? <span className="me-2 shrink-0">{cella.prefisso}</span> : null
+
   if (inModifica) {
     const errore = motore.errore
     return (
       <TableCell className="p-0">
-        <div
-          className={cn(
-            "flex items-center ring-2 ring-ring ring-inset",
-            errore && "ring-destructive"
-          )}
-        >
+        <div className={cn(riquadro, "ring-2 ring-ring ring-inset", errore && "ring-destructive")}>
+          {prefisso}
           <input
             autoFocus
             className={cn(
-              "min-w-0 flex-1 bg-transparent px-2 py-1 outline-none",
-              colonna.allineamento === "destra" && "text-right tabular-nums",
-              cella.suffisso && "pr-0"
+              "min-w-0 bg-transparent p-0 outline-none placeholder:text-muted-foreground",
+              // Con un prefisso e il valore a destra il campo è largo quanto
+              // il testo, o spingerebbe il prefisso al bordo sinistro.
+              cella.prefisso && destra ? "field-sizing-content" : "flex-1",
+              classiValore
             )}
             value={motore.bozza}
+            placeholder={cella.segnaposto}
             aria-label={etichettaColonna}
             aria-invalid={errore ? true : undefined}
             aria-describedby={errore ? `errore-${colonna.id}` : undefined}
@@ -698,7 +725,7 @@ function CellaFoglio<TTestata, TRiga>({
           {/* Il suffisso resta dov'era nella vista: senza, le cifre di un
               prezzo allineato a destra saltavano della larghezza di « €». */}
           {cella.suffisso ? (
-            <span aria-hidden className="shrink-0 py-1 pr-2">
+            <span aria-hidden className="shrink-0">
               {cella.suffisso}
             </span>
           ) : null}
@@ -723,17 +750,9 @@ function CellaFoglio<TTestata, TRiga>({
         role="button"
         aria-label={`${etichettaColonna}: ${(cella.formato?.perScrivere(valore) ?? valore) || "vuoto"}`}
         className={cn(
-          // `truncate` è il prezzo di `table-fixed`, la stessa scelta già presa
-          // in `data-table`: con le larghezze decise dalle colonne, un testo
-          // più lungo **sborda nella colonna accanto** invece di allargarla.
-          // Misurato qui: a 880px sbordano 8 celle, a 700px dodici — e ciò che
-          // sborda è la designazione, cioè la colonna elastica. Meglio i
-          // puntini: il testo intero resta leggibile aprendo la modifica.
-          "cursor-text truncate px-2 py-1 outline-none",
-          RIGA,
-          colonna.allineamento === "destra" && "justify-end",
+          "cursor-text outline-none",
+          riquadro,
           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-          classiAllineamento(colonna),
           !valore && "text-muted-foreground"
         )}
         onFocus={() => motore.vaiA(posizione)}
@@ -747,13 +766,23 @@ function CellaFoglio<TTestata, TRiga>({
         onClick={() => motore.apriModifica(posizione)}
         onKeyDown={(e) => motore.onKeyDownCella(e, posizione)}
       >
-        {cella.mostra
-          ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
-          : valore || cella.segnaposto || " "}
+        {prefisso}
+        {/* `truncate` è il prezzo di `table-fixed`, la stessa scelta già presa
+            in `data-table`: con le larghezze decise dalle colonne, un testo
+            più lungo **sborda nella colonna accanto** invece di allargarla.
+            Misurato qui: a 880px sbordano 8 celle, a 700px dodici — e ciò che
+            sborda è la designazione, cioè la colonna elastica. Meglio i
+            puntini: il testo intero resta leggibile aprendo la modifica. */}
+        <span className={cn("min-w-0 truncate", classiValore)}>
+          {cella.mostra
+            ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
+            : valore || cella.segnaposto || " "}
+        </span>
       </div>
     </TableCell>
   )
 }
+
 
 /**
  * Il menu dei comandi di un gruppo. `tabIndex={-1}` sul grilletto: non entra

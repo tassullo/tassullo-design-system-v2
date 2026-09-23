@@ -12543,3 +12543,11 @@ Francesco ha provato la lista di verifica in Safari: sette su sette buone tranne
 - **L'anello tagliato nell'angolo dell'ultima riga**: curva del riquadro sugli angoli.
 
 **Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
+
+### Coda di M5.0d, nona — nel foglio la cella aperta è uguale alla chiusa
+
+Francesco: il testo in modifica deve essere uguale a quello chiuso, stile e posizione, per tutte le celle modificabili. Nel foglio lo stile stava dentro `mostra` della scena, dove il campo aperto non lo vede. `CellaScrivibile` ha ora `classiTesto`, `prefisso` e `allineamento`; cella chiusa e aperta condividono riquadro e classi del valore; la scena dichiara `font-semibold` sulla voce, `pl-4 italic` sulle misure, `prefisso: 'SOMMANO'` con `allineamento: 'destra'` sull'unità del piede. La pagina `Blocchi/Foglio a gruppi` lo scrive come regola: lo stile in `classiTesto`, `mostra` solo per formattare. Misure in `DECISIONI.md` §56.15.
+
+Sulla prova del `Tab` (§56.14), Francesco in Safari: dopo «Colonne», «Aggiungi riga» e la maniglia di Codice, il fuoco va direttamente alla cella segnata, senza le maniglie delle altre colonne. La cella segnata è raggiunta: è l'esito atteso.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build`; Docs di `data-grid` e `foglio-gruppi` pulite in Chiaro e Scuro; `Esc`/`Invio` nel foglio tengono il fuoco; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.
