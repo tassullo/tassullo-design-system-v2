@@ -109,27 +109,34 @@ import { Separator } from "@/registry/tassullo/ui/separator"
 /** Un'icona Lucide, o qualunque componente che accetti una `className`. */
 type Icona = ComponentType<{ className?: string }>
 
+// Su `titolo`:
+//
+// `ReactNode` e non `string`: sull'**ultimo** livello — il nome della pagina
+// — ci sta accanto il contatore che Officina scrive in Triage, Ricambi e
+// Piani, «Segnalazioni da smistare · 4». Le due strade erano «il numero va
+// fra le azioni» e questa: vince questa, perché il numero appartiene al
+// nome della pagina e non ai comandi — un'azione è qualcosa che si clicca.
+// A chi passa una stringa non toglie niente.
+//
+// Il contatore si scrive in un **`Badge variant="secondary"`**, scelto il
+// 2026-09-21. Non in testo attenuato: misurato, `--muted-foreground` è
+// *esattamente* il colore di «Officina» e del separatore `›`, quindi il
+// numero si stacca dal nome della pagina ma prende il tono dei livelli che
+// lo precedono — e si legge come un altro livello invece che come «quanti ce
+// ne sono». `secondary` e non il pieno del brand: il badge dice *quanti*,
+// non *quanto è grave*, e non deve competere con l'azione primaria della
+// fascia. `tabular-nums`, perché il numero cambia sotto gli occhi.
 /**
  * Un livello del percorso. **L'ultimo è la pagina corrente** e non è un
  * collegamento: non lo si dichiara, lo si deduce dalla posizione.
  */
 export type LivelloPercorso = {
   /**
-   * `ReactNode` e non `string`: sull'**ultimo** livello — il nome della pagina
-   * — ci sta accanto il contatore che Officina scrive in Triage, Ricambi e
-   * Piani, «Segnalazioni da smistare · 4». Le due strade erano «il numero va
-   * fra le azioni» e questa: vince questa, perché il numero appartiene al
-   * nome della pagina e non ai comandi — un'azione è qualcosa che si clicca.
-   * A chi passa una stringa non toglie niente.
-   *
-   * Il contatore si scrive in un **`Badge variant="secondary"`**, scelto il
-   * 2026-09-21. Non in testo attenuato: misurato, `--muted-foreground` è
-   * *esattamente* il colore di «Officina» e del separatore `›`, quindi il
-   * numero si stacca dal nome della pagina ma prende il tono dei livelli che
-   * lo precedono — e si legge come un altro livello invece che come «quanti ce
-   * ne sono». `secondary` e non il pieno del brand: il badge dice *quanti*,
-   * non *quanto è grave*, e non deve competere con l'azione primaria della
-   * fascia. `tabular-nums`, perché il numero cambia sotto gli occhi.
+   * Il nome del livello. `ReactNode` e non solo testo: sull'ultimo livello — il
+   * nome della pagina — può stare accanto un contatore, «Segnalazioni da
+   * smistare · 4». Il contatore si scrive in un `Badge variant="secondary"`
+   * con `tabular-nums`: dice quanti sono, e non deve competere con l'azione
+   * primaria né confondersi coi livelli del percorso.
    */
   titolo: ReactNode
   href?: string
@@ -199,23 +206,27 @@ export function IntestazioneProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// La fascia in alto: il grilletto della colonna e, accanto, il posto in cui la
+// pagina rende la propria intestazione.
+//
+// **`@container/fascia` è la riga che rende le soglie sensate**: da qui in giù
+// `@md/fascia:` e `@2xl/fascia:` guardano la larghezza di questa barra, non
+// quella dello schermo. Attenzione a quale larghezza: una container query
+// `inline-size` misura il **riquadro di contenuto**, cioè al netto del `px-4` —
+// che segue la densità, 32px in tutto in normale e 48 in touch. È una
+// differenza che si nota solo misurando, e sposta ogni soglia di quel tanto.
+//
+// `overflow-hidden` più `whitespace-nowrap` su tutta la discendenza sono la
+// garanzia che il guscio deve dare: **la fascia è una riga sola, sempre**.
+// L'altezza è fissa (`h-12`), quindi una seconda riga non alzerebbe la barra —
+// le uscirebbe fuori, ed è successo (misurato in M3.1 a 375px in touch, con una
+// sola azione: il numero delle azioni non c'entrava). Dove tagliare lo decide
+// invece il contenuto, e per il percorso lo decide `Percorso` qui sotto.
 /**
- * La fascia in alto: il grilletto della colonna e, accanto, il posto in cui la
- * pagina rende la propria intestazione.
- *
- * **`@container/fascia` è la riga che rende le soglie sensate**: da qui in giù
- * `@md/fascia:` e `@2xl/fascia:` guardano la larghezza di questa barra, non
- * quella dello schermo. Attenzione a quale larghezza: una container query
- * `inline-size` misura il **riquadro di contenuto**, cioè al netto del `px-4` —
- * che segue la densità, 32px in tutto in normale e 48 in touch. È una
- * differenza che si nota solo misurando, e sposta ogni soglia di quel tanto.
- *
- * `overflow-hidden` più `whitespace-nowrap` su tutta la discendenza sono la
- * garanzia che il guscio deve dare: **la fascia è una riga sola, sempre**.
- * L'altezza è fissa (`h-12`), quindi una seconda riga non alzerebbe la barra —
- * le uscirebbe fuori, ed è successo (misurato in M3.1 a 375px in touch, con una
- * sola azione: il numero delle azioni non c'entrava). Dove tagliare lo decide
- * invece il contenuto, e per il percorso lo decide `Percorso` qui sotto.
+ * La fascia in alto: il grilletto della colonna e, accanto, il posto in cui
+ * la pagina rende la sua intestazione. È sempre una riga sola, alta `h-12`:
+ * ciò che non ci sta si tronca o si ripiega in un menu, e le soglie guardano
+ * la larghezza della fascia, non quella della finestra.
  */
 export function FasciaIntestazione({
   grilletto,

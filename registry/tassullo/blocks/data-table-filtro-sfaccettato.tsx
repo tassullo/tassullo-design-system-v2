@@ -116,21 +116,27 @@ import type { CaratteristicheTabella, IstanzaTabella } from "./data-table"
  */
 export const BORDO_FILTRO = "border-dashed"
 
+// Come `PopoverContent` di `ui/popover.tsx`, con una sola differenza:
+// `collisionAvoidance={{ side: "shift", fallbackAxisSide: "none" }}`, che
+// quella primitiva non espone (aggiungerlo lì è un cambio di forma, non di
+// classi — il gradino che `CLAUDE.md` §4bis riserva a una conferma
+// esplicita, non a questa sessione). Qui la tendina resta **sempre sotto**
+// il grilletto, spostata in orizzontale se lo spazio manca, mai su un
+// fianco — i grilletti di questi filtri stanno in una riga di bottoni
+// affiancati che crescono in larghezza a ogni scelta (v. `barra` in
+// `data-table.tsx`); se Base UI sposta la tendina di lato per mancanza di
+// spazio sotto, resta agganciata al bordo che si sposta insieme al
+// bottone, e sembra "scappare" a ogni clic — misurato: nel riquadro
+// ridotto di uno storybook con l'addon aperto sotto, succede davvero.
+// Esportata: la usano anche `data-table-filtro-intervallo.tsx` e
+// `data-table-filtro-data.tsx`.
 /**
- * Come `PopoverContent` di `ui/popover.tsx`, con una sola differenza:
- * `collisionAvoidance={{ side: "shift", fallbackAxisSide: "none" }}`, che
- * quella primitiva non espone (aggiungerlo lì è un cambio di forma, non di
- * classi — il gradino che `CLAUDE.md` §4bis riserva a una conferma
- * esplicita, non a questa sessione). Qui la tendina resta **sempre sotto**
- * il grilletto, spostata in orizzontale se lo spazio manca, mai su un
- * fianco — i grilletti di questi filtri stanno in una riga di bottoni
- * affiancati che crescono in larghezza a ogni scelta (v. `barra` in
- * `data-table.tsx`); se Base UI sposta la tendina di lato per mancanza di
- * spazio sotto, resta agganciata al bordo che si sposta insieme al
- * bottone, e sembra "scappare" a ogni clic — misurato: nel riquadro
- * ridotto di uno storybook con l'addon aperto sotto, succede davvero.
- * Esportata: la usano anche `data-table-filtro-intervallo.tsx` e
- * `data-table-filtro-data.tsx`.
+ * Come `PopoverContent`, ma la tendina resta sempre sotto il grilletto: se
+ * manca spazio si sposta di lato, non salta su un fianco. I grilletti dei
+ * filtri si allargano a ogni scelta, e una tendina agganciata di fianco
+ * sembrerebbe scappare a ogni clic. La usano anche
+ * `tassullo-data-table-filtro-intervallo` e
+ * `tassullo-data-table-filtro-data`.
  */
 export function PopoverContentFerma({
   className,

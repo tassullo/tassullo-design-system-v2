@@ -126,20 +126,24 @@ export type BarraContestoProps = {
   titolo: string
   /** Sotto il nome: indirizzo, committente, stato — quello che serve a non sbagliare entità. */
   descrizione?: ReactNode
+  // L'icona del contesto. **Mai un'emoji**: la disegna il sistema operativo,
+  // quindi la stessa riga rende un simbolo diverso su Mac, su Windows e su
+  // Android — l'unica cosa che un design system non può tenere ferma. La barra
+  // vera di Studio comincia con 📍, e `MapPinIcon` è quel segnaposto disegnato
+  // da noi.
+  //
+  // **La sceglie l'app, da Lucide** (Francesco, 2026-09-21): il default resta
+  // `MapPinIcon` perché un default deve essere quello che non sbaglia mai —
+  // «ecco dove sei» vale per una commessa, un impianto, una famiglia di
+  // prodotti — mentre l'icona che *dice qualcosa* dipende da cosa sia il
+  // contesto, e lo sa solo l'app. Le story mostrano `HardHatIcon` per il
+  // cantiere di Studio e `CalculatorIcon` per un calcolo strutturale: sono
+  // **esempi**, non un vocabolario che il registry fissa.
   /**
-   * L'icona del contesto. **Mai un'emoji**: la disegna il sistema operativo,
-   * quindi la stessa riga rende un simbolo diverso su Mac, su Windows e su
-   * Android — l'unica cosa che un design system non può tenere ferma. La barra
-   * vera di Studio comincia con 📍, e `MapPinIcon` è quel segnaposto disegnato
-   * da noi.
-   *
-   * **La sceglie l'app, da Lucide** (Francesco, 2026-09-21): il default resta
-   * `MapPinIcon` perché un default deve essere quello che non sbaglia mai —
-   * «ecco dove sei» vale per una commessa, un impianto, una famiglia di
-   * prodotti — mentre l'icona che *dice qualcosa* dipende da cosa sia il
-   * contesto, e lo sa solo l'app. Le story mostrano `HardHatIcon` per il
-   * cantiere di Studio e `CalculatorIcon` per un calcolo strutturale: sono
-   * **esempi**, non un vocabolario che il registry fissa.
+   * L'icona del contesto, da Lucide; `MapPinIcon` di default. Mai un'emoji:
+   * la disegna il sistema operativo, e cambia da un computer all'altro. L'app
+   * sceglie l'icona che dice cosa sia il suo contesto — un cantiere, un
+   * calcolo, un impianto.
    */
   icona?: Icona
   /** Le entità fra cui scegliere. Se sono meno di due il menu non si monta. */
@@ -353,9 +357,102 @@ export type SelettoreContestoProps = Pick<
   "etichetta" | "titolo" | "descrizione" | "icona" | "voci" | "attiva" | "onCambia" | "etichettaMenu" | "className"
 >
 
+// **Il commutatore del contesto, nella testata della colonna.** Si passa ad
+// `AppShell` con la prop `contesto`, e sta sotto il marchio.
+//
+// ```tsx
+// <AppShell
+//   applicazione="Studio"
+//   contesto={
+//     <SelettoreContesto
+//       etichetta="Commessa"
+//       titolo="2026-114 — Palazzo Roccabruna"
+//       voci={commesse}
+//       attiva={commessa.id}
+//       onCambia={setCommessa}
+//     />
+//   }
+//   sezioni={SEZIONI}
+// />
+// ```
+//
+// ── Perché due forme e non una (2026-09-21) ──────────────────────────────
+//
+// Studio ne ha **due**, e la scoperta è di Francesco guardando l'app vera in
+// M4ter.11: una nella colonna — il riquadro «PROGETTO ATTIVO» — e una in
+// pagina. Fino a quel momento il registry ne conosceva una sola, e
+// `docs/ANALISI-COPERTURA-APP.md` teneva lo slot del guscio **differito** con
+// l'innesco sbagliato («quando una seconda app avrà un contesto che attraversa
+// le pagine»): l'innesco vero era un altro, e era già scattato.
+//
+// Le due non sono un doppione **se hanno ruoli diversi**, ed è la forma
+// scelta:
+//
+// - **la colonna dice *quale*, e lo cambia.** È persistente, si vede da ogni
+//   pagina, e collassando la colonna si riduce alla sua icona.
+// - **la pagina dice *cosa comporta*** — indirizzo, consegna, stato — e **non
+//   porta il «Cambia»**: `BarraContesto` senza `voci` (o con una sola) è già
+//   di sola lettura da sé, non serve una prop nuova.
+//
+// Tenerle tutte e due col «Cambia» era il difetto che si vedeva nello
+// screenshot: «PROGETTO ATTIVO / Prova» e «Progetto attivo: Prova» a 60px di
+// distanza, con due grilletti che fanno la stessa cosa.
+//
+// ── La forma è quella di shadcn, non una nostra ──────────────────────────
+//
+// È il `TeamSwitcher` di `@shadcn/sidebar-07`, chiesto all'MCP e ricomposto
+// qui: `SidebarMenuButton size="lg"` dentro un `SidebarMenu`, con il riquadro
+// dell'icona a sinistra, due righe di testo al centro e `ChevronsUpDown` a
+// destra, e un `DropdownMenu` sopra. Gradino 1 della regola 4bis — la forma
+// esisteva già — e nessuna primitiva nuova: `componenti-propri.json` resta a 1.
+//
+// L'unico scarto dal loro è il **menu a scelta esclusiva**
+// (`DropdownMenuRadioGroup`) invece di voci semplici: qui una delle entità è
+// quella attiva e deve portare il segno di spunta, esattamente come nella
+// `BarraContesto`. Le due forme condividono il vocabolario apposta — stessa
+// `VoceContesto`, stessa `attiva`, stesso `onCambia` — così l'app le alimenta
+// da un dato solo.
+//
+// `side="right"`: il pannello si apre **accanto** alla colonna e non sopra la
+// navigazione, che è ciò che fa anche shadcn. Con la colonna collassata a
+// icona il bottone resta il quadrato dell'icona e il menu si apre lo stesso.
+//
+// ── `titolo` qui è il **nome**, senza il codice ──────────────────────────
+//
+// E non è un gusto: è misurato. Nella colonna al testo restano **159px** in
+// densità normale — 255 di colonna, meno il quadrato dell'icona, il chevron e
+// i margini — mentre «2026-114 — Palazzo Roccabruna» ne vuole **350**: con
+// `truncate` erano **191px fuori**, cioè più di metà nome. (In touch la
+// colonna vale 383px e ci sta: il difetto c'è **solo** in densità normale, che
+// è il modo più facile di non accorgersene provando col guanto.)
+//
+// Provate tutte e tre, misurate, e scelta da Francesco il 2026-09-21:
+//
+// | forma | righe rese | larghezza del testo | cosa si perde |
+// |---|---|---|---|
+// | nome intero, `truncate` | 1 | 350px su 159 | **metà nome**, tagliata |
+// | nome intero, `line-clamp-2` | 2 | 126 + 75 | niente, ma 49px di testo in un bottone alto 48 |
+// | **solo il nome, senza codice** | **1** | **127 su 159** | **il codice, che è in pagina** |
+//
+// (Il bottone è `size="lg"`, cioè **48px fissi** in densità normale e 72 in
+// touch: l'altezza della testata non cambia fra le tre forme — a cambiare è
+// se il testo ci sta dentro.)
+//
+// Vince la terza: il codice non è ciò che si riconosce a colpo d'occhio — il
+// nome sì — e il codice **non sparisce**, sta nella `BarraContesto` della
+// pagina quaranta pixel più a destra, e in ogni voce del menu. Quindi
+// `titolo="Palazzo Roccabruna"` in colonna e `titolo="2026-114 — Palazzo
+// Roccabruna"` in pagina, dallo stesso dato.
+//
+// `line-clamp-2` resta come rete: un nome che non ci sta va a capo e si ferma
+// alla seconda riga, invece di perdere la coda. Non è il caso normale — è
+// quello che succede quando l'app ha un nome più lungo dei nostri.
+//
+// Il menu, invece, mostra codice e nome interi: lì la larghezza la dichiara il
+// pannello (`w-xs`), non la colonna.
 /**
- * **Il commutatore del contesto, nella testata della colonna.** Si passa ad
- * `AppShell` con la prop `contesto`, e sta sotto il marchio.
+ * Il commutatore del contesto, in cima alla colonna di navigazione. Si passa
+ * ad `AppShell` con la prop `contesto`, e sta sotto il marchio.
  *
  * ```tsx
  * <AppShell
@@ -363,7 +460,7 @@ export type SelettoreContestoProps = Pick<
  *   contesto={
  *     <SelettoreContesto
  *       etichetta="Commessa"
- *       titolo="2026-114 — Palazzo Roccabruna"
+ *       titolo="Palazzo Roccabruna"
  *       voci={commesse}
  *       attiva={commessa.id}
  *       onCambia={setCommessa}
@@ -373,80 +470,17 @@ export type SelettoreContestoProps = Pick<
  * />
  * ```
  *
- * ── Perché due forme e non una (2026-09-21) ──────────────────────────────
+ * Con `BarraContesto` in pagina i ruoli si dividono: la colonna dice quale
+ * entità è attiva e la cambia; la barra in pagina dice cosa comporta, senza
+ * `voci`, e quindi in sola lettura. Le due forme usano gli stessi dati —
+ * `VoceContesto`, `attiva`, `onCambia` — così l'app le alimenta da uno
+ * solo.
  *
- * Studio ne ha **due**, e la scoperta è di Francesco guardando l'app vera in
- * M4ter.11: una nella colonna — il riquadro «PROGETTO ATTIVO» — e una in
- * pagina. Fino a quel momento il registry ne conosceva una sola, e
- * `docs/ANALISI-COPERTURA-APP.md` teneva lo slot del guscio **differito** con
- * l'innesco sbagliato («quando una seconda app avrà un contesto che attraversa
- * le pagine»): l'innesco vero era un altro, e era già scattato.
- *
- * Le due non sono un doppione **se hanno ruoli diversi**, ed è la forma
- * scelta:
- *
- * - **la colonna dice *quale*, e lo cambia.** È persistente, si vede da ogni
- *   pagina, e collassando la colonna si riduce alla sua icona.
- * - **la pagina dice *cosa comporta*** — indirizzo, consegna, stato — e **non
- *   porta il «Cambia»**: `BarraContesto` senza `voci` (o con una sola) è già
- *   di sola lettura da sé, non serve una prop nuova.
- *
- * Tenerle tutte e due col «Cambia» era il difetto che si vedeva nello
- * screenshot: «PROGETTO ATTIVO / Prova» e «Progetto attivo: Prova» a 60px di
- * distanza, con due grilletti che fanno la stessa cosa.
- *
- * ── La forma è quella di shadcn, non una nostra ──────────────────────────
- *
- * È il `TeamSwitcher` di `@shadcn/sidebar-07`, chiesto all'MCP e ricomposto
- * qui: `SidebarMenuButton size="lg"` dentro un `SidebarMenu`, con il riquadro
- * dell'icona a sinistra, due righe di testo al centro e `ChevronsUpDown` a
- * destra, e un `DropdownMenu` sopra. Gradino 1 della regola 4bis — la forma
- * esisteva già — e nessuna primitiva nuova: `componenti-propri.json` resta a 1.
- *
- * L'unico scarto dal loro è il **menu a scelta esclusiva**
- * (`DropdownMenuRadioGroup`) invece di voci semplici: qui una delle entità è
- * quella attiva e deve portare il segno di spunta, esattamente come nella
- * `BarraContesto`. Le due forme condividono il vocabolario apposta — stessa
- * `VoceContesto`, stessa `attiva`, stesso `onCambia` — così l'app le alimenta
- * da un dato solo.
- *
- * `side="right"`: il pannello si apre **accanto** alla colonna e non sopra la
- * navigazione, che è ciò che fa anche shadcn. Con la colonna collassata a
- * icona il bottone resta il quadrato dell'icona e il menu si apre lo stesso.
- *
- * ── `titolo` qui è il **nome**, senza il codice ──────────────────────────
- *
- * E non è un gusto: è misurato. Nella colonna al testo restano **159px** in
- * densità normale — 255 di colonna, meno il quadrato dell'icona, il chevron e
- * i margini — mentre «2026-114 — Palazzo Roccabruna» ne vuole **350**: con
- * `truncate` erano **191px fuori**, cioè più di metà nome. (In touch la
- * colonna vale 383px e ci sta: il difetto c'è **solo** in densità normale, che
- * è il modo più facile di non accorgersene provando col guanto.)
- *
- * Provate tutte e tre, misurate, e scelta da Francesco il 2026-09-21:
- *
- * | forma | righe rese | larghezza del testo | cosa si perde |
- * |---|---|---|---|
- * | nome intero, `truncate` | 1 | 350px su 159 | **metà nome**, tagliata |
- * | nome intero, `line-clamp-2` | 2 | 126 + 75 | niente, ma 49px di testo in un bottone alto 48 |
- * | **solo il nome, senza codice** | **1** | **127 su 159** | **il codice, che è in pagina** |
- *
- * (Il bottone è `size="lg"`, cioè **48px fissi** in densità normale e 72 in
- * touch: l'altezza della testata non cambia fra le tre forme — a cambiare è
- * se il testo ci sta dentro.)
- *
- * Vince la terza: il codice non è ciò che si riconosce a colpo d'occhio — il
- * nome sì — e il codice **non sparisce**, sta nella `BarraContesto` della
- * pagina quaranta pixel più a destra, e in ogni voce del menu. Quindi
- * `titolo="Palazzo Roccabruna"` in colonna e `titolo="2026-114 — Palazzo
- * Roccabruna"` in pagina, dallo stesso dato.
- *
- * `line-clamp-2` resta come rete: un nome che non ci sta va a capo e si ferma
- * alla seconda riga, invece di perdere la coda. Non è il caso normale — è
- * quello che succede quando l'app ha un nome più lungo dei nostri.
- *
- * Il menu, invece, mostra codice e nome interi: lì la larghezza la dichiara il
- * pannello (`w-xs`), non la colonna.
+ * Nella colonna `titolo` è il solo nome, senza il codice: in densità normale
+ * al testo restano circa 160px. Il codice sta nella barra in pagina e in ogni
+ * voce del menu, che ha una larghezza sua. Un nome troppo lungo va a capo e
+ * si ferma alla seconda riga. Il menu si apre accanto alla colonna, anche
+ * quando è chiusa a icone.
  */
 export function SelettoreContesto({
   etichetta,

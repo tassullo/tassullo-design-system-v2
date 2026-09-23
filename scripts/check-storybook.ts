@@ -66,20 +66,41 @@
  *   (c) il corpo dei `.mdx`;
  *   (d) nei soli `stories/*.stories.tsx`, che sono pagine di prosa: i nodi di
  *       testo JSX e ogni stringa del file — anche quelle delle tabelle in testa
- *       che la pagina rende con un `.map()`.
+ *       che la pagina rende con un `.map()`;
+ *   (e) nei sorgenti di `registry/tassullo/` e di `.storybook/prove/`, le
+ *       descrizioni che react-docgen ne estrae: il JSDoc di ogni componente
+ *       esportato e di ogni sua prop, più i commenti scritti dentro il tipo
+ *       di una prop — anche i `//` —, che la tabella copia col testo del
+ *       tipo. La pagina Docs le
+ *       mostra nella tabella delle prop, e Storybook le scrive nel JavaScript
+ *       pubblicato anche quando la tabella non c'è. Si leggono con
+ *       react-docgen stesso, lo strumento che Storybook usa, e non con
+ *       un'imitazione: un JSDoc è visibile se react-docgen lo prende, e solo
+ *       allora;
+ *   (f) i commenti scritti **dentro** una story — nell'oggetto di
+ *       `export const <Nome>`, `render` e `play` compresi. La pagina Docs
+ *       mostra quel codice così com'è, commenti inclusi, sotto «Show code».
+ *       Una nota su come si misura una scena va sopra la story, in `//`.
  *
- * **Non legge** i commenti `//`, i `/* … *\/` non attaccati al meta o a una
- * story, i JSDoc delle funzioni di appoggio, le `play`, i dati d'esempio
- * dichiarati fuori dal JSX, i sorgenti dei componenti. Lì le note interne
- * sono al loro posto.
+ * **Non legge** i commenti `//` e i `/* … *\/` fuori dalle story e non
+ * attaccati al meta, i JSDoc delle funzioni di appoggio, il codice delle
+ * `play` (i loro commenti sì, v. (f)), i dati d'esempio dichiarati fuori dal
+ * JSX. Nei sorgenti dei componenti non legge i commenti
+ * di testa, i `//` e i JSDoc di ciò che non è un componente o una sua prop:
+ * lì le note interne sono al loro posto. Per tenerne una accanto a una prop,
+ * la si scrive in `//` sopra il JSDoc, che resta la frase per chi usa la
+ * prop.
  *
  * Segnala file, riga, tipo ed espressione, e **non suggerisce niente**: non
  * c'è un «nome giusto» da proporre, c'è una frase da riscrivere per chi legge.
  * **Nessuna esenzione per token**: se un caso legittimo emerge, si stringe
  * l'espressione regolare, non si apre un'eccezione.
  *
+ * È l'ottavo gate: sta in `npm run check` e in `.github/workflows/gate.yml`.
+ *
  * Uso:
  *   npm run check:storybook                     tutto il repo; esce con 1
+ *                                               se c'è una segnalazione
  *   npm run check:storybook -- --avvisa         stampa il conto, non fallisce
  *   npm run check:storybook -- <file|cartella>  solo quei percorsi
  *   npm run check:storybook -- --self-test      prova che sa fallire, e dove no
@@ -87,10 +108,11 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import { builtinResolvers, ERROR_CODES, makeFsImporter, parse as leggiComponenti } from "react-docgen";
 import ts from "typescript";
 
 const RADICE = process.cwd();
-const CARTELLE = ["registry/tassullo/ui", "registry/tassullo/blocks", "registry/tassullo/pages", "stories"];
+const CARTELLE = ["registry/tassullo/ui", "registry/tassullo/blocks", "registry/tassullo/pages", "stories", ".storybook/prove"];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Le sette regole. L'ordine è quello del canone qui sopra, e l'autotest ne
@@ -200,6 +222,94 @@ function testoPagina(sf: ts.SourceFile): Brano[] {
   return out;
 }
 
+/**
+ * (e) le descrizioni che react-docgen estrae da un sorgente: quella di ogni
+ * componente esportato e quella di ogni sua prop. Sono le stesse che il
+ * plugin di Storybook appende al modulo come `__docgenInfo`, con lo stesso
+ * risolutore — `FindExportedDefinitionsResolver` — e un importatore che
+ * conosce l'alias `@/`, così una prop tipata altrove porta con sé la sua
+ * descrizione come nella build.
+ *
+ * react-docgen non dà posizioni: la riga è quella in cui il testo compare nel
+ * file, o quella del componente se il testo viene da un altro file.
+ */
+const risolutore = new builtinResolvers.FindExportedDefinitionsResolver();
+const ESTENSIONI = [".tsx", ".ts", "/index.tsx", "/index.ts"];
+// Un modulo che non si risolve è un pacchetto esterno: react-docgen lo salta se
+// l'errore porta il codice `MODULE_NOT_FOUND`, come fa con quelli che non trova.
+// Le descrizioni che contano sono le nostre, e stanno tutte sotto `@/`.
+const importatore = makeFsImporter((nome: string, cartella: string) => {
+  const base = nome.startsWith("@/") ? join(RADICE, nome.slice(2)) : nome.startsWith(".") ? join(cartella, nome) : null;
+  if (base) for (const e of ["", ...ESTENSIONI]) if (existsSync(base + e) && statSync(base + e).isFile()) return base + e;
+  throw Object.assign(new Error(`modulo non risolto: ${nome}`), { code: "MODULE_NOT_FOUND" });
+});
+
+/** Tutte le stringhe di un oggetto, a qualunque profondità. */
+function stringhe(o: unknown): string[] {
+  if (typeof o === "string") return [o];
+  if (o && typeof o === "object") return Object.values(o).flatMap(stringhe);
+  return [];
+}
+
+function descrizioniComponenti(percorso: string, testo: string): Brano[] {
+  let componenti: ReturnType<typeof leggiComponenti>;
+  try {
+    componenti = leggiComponenti(testo, { filename: join(RADICE, percorso), resolver: risolutore, importer: importatore });
+  } catch (e) {
+    // Un file senza componenti non ha niente da mostrare. Ogni altro errore
+    // si fa vedere: un gate che ingoia i propri guasti passa sempre.
+    if ((e as { code?: string }).code === ERROR_CODES.MISSING_DEFINITION) return [];
+    throw e;
+  }
+  const righe = testo.split("\n");
+  const rigaDi = (t: string, ripiego: number) => {
+    const prima = t.split("\n").find((r) => r.trim())?.trim();
+    const i = prima ? righe.findIndex((r) => r.includes(prima)) : -1;
+    return i >= 0 ? i + 1 : ripiego;
+  };
+  const out: Brano[] = [];
+  for (const c of componenti) {
+    const nome = c.displayName ?? "componente";
+    const rigaComp = rigaDi(`function ${nome}`, 1);
+    const testi: [string, string][] = [[`descrizione di ${nome} (react-docgen)`, c.description ?? ""]];
+    for (const [prop, d] of Object.entries(c.props ?? {})) {
+      testi.push([`prop «${prop}» di ${nome} (tabella delle prop)`, d.description ?? ""]);
+      // Il tipo di una prop arriva nella tabella col suo testo sorgente, e i
+      // commenti scritti dentro il corpo di un tipo — anche i `//` — ci
+      // arrivano con lui.
+      for (const t of stringhe(d.tsType ?? d.flowType ?? d.type))
+        for (const m of t.matchAll(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g))
+          testi.push([`tipo della prop «${prop}» di ${nome} (tabella delle prop)`, m[0]]);
+    }
+    for (const [fonte, t] of testi) {
+      if (!t.trim()) continue;
+      const da = rigaDi(t, rigaComp);
+      t.split("\n").forEach((r, i) => out.push({ riga: da + i, testo: r, fonte }));
+    }
+  }
+  return out;
+}
+
+/**
+ * (f) i commenti dentro una story. Storybook pubblica il sorgente dell'oggetto
+ * di ogni `export const <Nome>` e la pagina Docs lo mostra sotto «Show code»:
+ * un `//` scritto lì dentro lo legge chiunque apra il codice della scena.
+ */
+function commentiScene(sf: ts.SourceFile): Brano[] {
+  const out: Brano[] = [];
+  for (const st of sf.statements) {
+    if (!ts.isVariableStatement(st) || !haExport(st)) continue;
+    for (const d of st.declarationList.declarations) {
+      if (!d.initializer) continue;
+      const da = d.initializer.getStart(sf);
+      const testo = sf.text.slice(da, d.initializer.end);
+      for (const m of testo.matchAll(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g))
+        out.push(...brani(sf, da + m.index!, m[0], `codice di ${d.name.getText(sf)} (Show code)`));
+    }
+  }
+  return out;
+}
+
 /** (c) il corpo di un `.mdx`: tutto tranne le righe di `import`. */
 function corpoMdx(testo: string): Brano[] {
   return testo
@@ -211,8 +321,9 @@ function corpoMdx(testo: string): Brano[] {
 /** Tutto il testo visibile di un file. `percorso` è relativo alla radice. */
 function testoVisibile(percorso: string, testo: string): Brano[] {
   if (percorso.endsWith(".mdx")) return corpoMdx(testo);
+  if (!/\.stories\.tsx$/.test(percorso)) return descrizioniComponenti(percorso, testo);
   const sf = ts.createSourceFile(percorso, testo, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const out = [...jsdocVisibili(sf), ...descrizioniDocs(sf)];
+  const out = [...jsdocVisibili(sf), ...descrizioniDocs(sf), ...commentiScene(sf)];
   if (percorso.split(sep).join("/").startsWith("stories/")) out.push(...testoPagina(sf));
   return out;
 }
@@ -237,16 +348,21 @@ function elenca(percorso: string): string[] {
   if (statSync(assoluto).isFile()) return [percorso];
   return readdirSync(assoluto, { recursive: true })
     .map((f) => join(percorso, String(f)))
-    .filter((f) => /\.stories\.tsx$|\.mdx$/.test(f))
+    .filter((f) => /\.stories\.tsx$|\.mdx$/.test(f) || (SORGENTI.test(f.split(sep).join("/")) && !f.includes(".upstream")))
     .sort();
 }
+
+/** I sorgenti che react-docgen legge: i componenti del registry, non le story. */
+const SORGENTI = /^(?:registry\/tassullo|\.storybook\/prove)\/.*(?<!\.stories)\.tsx$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * **L'autotest.** Tre prove, e la terza è quella che conta di più: un gate che
- * leggesse anche i commenti `//` darebbe centinaia di falsi positivi sui
- * sorgenti, e verrebbe spento alla prima settimana.
+ * **L'autotest.** Sei prove. La terza e l'ultima sono quelle che contano
+ * di più: un gate che leggesse anche i commenti `//` darebbe centinaia di
+ * falsi positivi sui sorgenti, e verrebbe spento alla prima settimana. La
+ * quinta prova che i sorgenti si leggono davvero: su un file che react-docgen
+ * non riuscisse ad aprire il gate direbbe 0, e sembrerebbe pulito.
  */
 function autotest(): number {
   const sporco = `import type { Meta } from '@storybook/react-vite'
@@ -292,10 +408,47 @@ const meta = { title: 'Primitive/Finto', component: aiuto } satisfies Meta
 export default meta
 `;
 
+  // Il sorgente di un componente: la tabella delle prop mostra il JSDoc della
+  // prop e quello del componente, e non il `//` che gli sta sopra.
+  const sorgente = (nota: string) => `import type { ReactNode } from "react"
+
+export type FintoProps = {
+${nota}
+  /** Il testo del bottone. */
+  titolo: ReactNode
+}
+
+/** Un'azione che si esegue con un clic. */
+export function Finto({ titolo }: FintoProps) {
+  return <button type="button">{titolo}</button>
+}
+`;
+  const propSporca = sorgente(`  /** Il contenuto, deciso da Francesco in M3.2 (D14). */\n  contenuto?: ReactNode`);
+  const propPulita = sorgente(`  // Deciso da Francesco in M3.2 (D14).\n  /** Il contenuto. */\n  contenuto?: ReactNode`);
+
+  // Un commento dentro l'oggetto di una story: «Show code» lo mostra.
+  const dentroScena = `import type { Meta } from '@storybook/react-vite'
+
+/** Un'azione che si esegue con un clic. */
+const meta = { title: 'Primitive/Finto' } satisfies Meta
+
+export default meta
+
+// Sopra la story, fuori dal suo oggetto: M3.2, D14, invisibile.
+/** La variante di default. */
+export const Predefinito = {
+  // Misurata in M3.2, v. D14.
+  args: {},
+}
+`;
+
   const prove = [
     { nome: "un file finto con i sette tipi di violazione", file: "registry/tassullo/ui/finto.stories.tsx", testo: sporco, attesi: 7 },
     { nome: "un file pulito, scritto secondo il canone", file: "registry/tassullo/ui/finto.stories.tsx", testo: pulito, attesi: 0 },
     { nome: "le sigle dentro commenti che nessuno vede", file: "registry/tassullo/ui/finto.stories.tsx", testo: nascosto, attesi: 0 },
+    { nome: "una nota dentro l'oggetto di una story", file: "registry/tassullo/ui/finto.stories.tsx", testo: dentroScena, attesi: 2 },
+    { nome: "un sorgente con le note nel JSDoc di una prop", file: "registry/tassullo/ui/finto.tsx", testo: propSporca, attesi: 3 },
+    { nome: "le stesse note in un `//` sopra il JSDoc", file: "registry/tassullo/ui/finto.tsx", testo: propPulita, attesi: 0 },
   ];
 
   let falliti = 0;
@@ -317,7 +470,7 @@ export default meta
   }
   console.log(
     falliti === 0
-      ? "\n✔ L'autotest passa: sette tipi presi su sette, e i commenti invisibili restano fuori.\n"
+      ? "\n✔ L'autotest passa: sette tipi presi su sette, le note nella tabella delle prop prese, i commenti invisibili fuori.\n"
       : `\n✖ L'autotest fallisce su ${falliti} prova/e: il gate non fa quello che dice.\n`,
   );
   return falliti === 0 ? 0 : 1;

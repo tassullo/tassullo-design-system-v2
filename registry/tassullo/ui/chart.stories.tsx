@@ -460,9 +460,8 @@ export const Barre: Story = {
               // (misurato: «118» reso «11»). In verticale va SOPRA, e la barra
               // più alta arriva al tetto dell'asse: con `top: 20` contro
               // `offset: 12` + 12px di testo il totale della pila usciva di 4px
-              // (misurato su «120», e usciva di 3px anche prima di M1.6 — il
-              // difetto è più vecchio della scala nuova). 36 tiene anche in
-              // densità touch, dove `text-xs` fa 13px.
+              // (su «120» usciva di 3px). 36 tiene anche in densità touch,
+              // dove `text-xs` fa 13px.
               margin={{
                 top: !args.orizzontali && ((args.etichette && !args.impilato) || (args.impilato && args.totale)) ? 36 : 20,
                 right: args.orizzontali && (args.etichette || args.totale) ? 56 : 20,

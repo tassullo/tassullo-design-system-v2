@@ -47,7 +47,6 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/registry/tassullo/blocks/responsive-dialog'
-import { toastConAnnullo } from '@/registry/tassullo/blocks/toast-con-annullo'
 import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
@@ -79,93 +78,89 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/registry/tassullo/ui/select'
-import { Toaster } from '@/registry/tassullo/ui/sonner'
 import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-group'
 
 /**
- * **M3.10 — gate di fase.** La pagina Prodotti di Anagrafe
- * (`frontend/src/pages/Prodotti.tsx` + `Prodotti.css`, letti in sola lettura)
- * ricostruita con **soli blocchi Tassullo** — `tassullo-app-shell` +
- * `tassullo-page-header` + `tassullo-data-table` + `tassullo-empty-state` —
- * **zero CSS di pagina**: nessuna classe `prd-*`, nessun valore arbitrario,
- * niente fuori dai token del tema.
+ * L'elenco dei prodotti di Anagrafe, composto blocco per blocco con il solo
+ * registry e senza CSS di pagina. È l'esempio di una pagina elenco completa:
+ * le azioni di riga funzionano, i filtri contano, e sotto i 1024px la
+ * tabella diventa un elenco di schede.
  *
- * ## Cosa cambia rispetto all'originale, e perché è equivalente
+ * **Quando sì, quando no.** Per una pagina elenco nuova si parte da
+ * `tassullo-pagina-lista`, che ha già questa forma in un import solo. Questa
+ * pagina serve a vedere dove sta ogni pezzo, e cosa si scrive a mano quando
+ * la si compone da sé.
  *
- * - **Il titolo `<h1>`** (`prd-titolo`) sparisce dallo schermo: è la forma di
- *   `tassullo-page-header` (M3.2), che lo tiene solo in `sr-only` — comparirebbe
- *   tre volte in 80px insieme alla voce di sidebar attiva e al percorso. Zero
- *   perdita d'informazione, solo di pixel ripetuti.
- * - **I filtri famiglia/tipo/stato** (`prd-filtri`, tre `<select className="input">`
- *   a mano) diventano tre filtri **sfaccettati** (M3bis.6), passati nella
- *   barra del blocco `DataTable` — stesso posto, stessa fila, di default
- *   nessuna opzione scelta e tutti i prodotti visibili, come i tre `<select>`
- *   dell'originale. Stato è passato per ultimo dopo un giro su
- *   `toggle-group` (coda di M3bis.11b): coerenza con Famiglia/Tipo ha
- *   vinto su «è booleano, ha una forma diversa».
- * - **Il contatore** (`prd-conta`) è la riga «N prodotti» che `DataTable` scrive
- *   già da sé (`nomeRighe`, M3.10 coda): non va ridichiarato.
- * - **La divisione in pagine (`Prodotti.tsx` non ne aveva, l'API restituisce
- *   tutto in un colpo) diventa `perPagina="infinito"`**: la stessa lista,
- *   la stessa mole di dati di `anagrafe.tassullo.it` in produzione, con la
- *   correzione al solo difetto noto di quell'implementazione — qui la testata
- *   resta `sticky` mentre il **contenitore** scorre, non la pagina intera, e
- *   non si perde mai il nome delle colonne (M3.10, coda).
- * - **Lo stato vuoto per filtro** (`prd-vuoto`, un `<p>`) e quello per «non
- *   esiste ancora niente» erano lo stesso paragrafo nell'originale. Il blocco li
- *   distingue: il primo lo rende `DataTable` internamente (ricerca senza esito,
- *   col bottone che pulisce i filtri); il secondo — *nessun prodotto è mai
- *   stato creato* — è `EmptyState` (story `SenzaProdotti`), con la CTA che porta
- *   a crearne il primo. `INTERFACCE.md` §1.1 li vuole distinti, e i due stati
- *   del v1 li confondevano.
- * - **Le due modali** (`prd-modale-sfondo`/`prd-modale`, CSS di pagina scritto a
- *   mano) restano fuori da questo gate nella forma in cui esistevano in
- *   Anagrafe (un modulo intero di creazione prodotto): il bottone di testata
- *   «Nuovo prodotto» resta un dato di vetrina, come le azioni di Anagrafe che
- *   non sono del design system. **Modifica ed Elimina**, invece, sono
- *   compresi in questo gate — v. il menu di riga, sotto.
- * - **Le colonne** sono le stesse sette dell'originale (Nome, Variante, Tipo,
- *   Famiglia, Codice interno, BC, Stato), coi due badge — Tipo neutro, Stato
- *   con tono — al posto delle classi `badge`/`badge-success`/`badge-warn`
- *   scritte a mano.
+ * ```bash
+ * npx shadcn@latest add \
+ *   tassullo/tassullo-design-system-v2/tassullo-app-shell \
+ *   tassullo/tassullo-design-system-v2/tassullo-page-header \
+ *   tassullo/tassullo-design-system-v2/tassullo-data-table \
+ *   tassullo/tassullo-design-system-v2/tassullo-data-table-filtro-sfaccettato \
+ *   tassullo/tassullo-design-system-v2/tassullo-data-table-filtro-reset \
+ *   tassullo/tassullo-design-system-v2/tassullo-empty-state \
+ *   tassullo/tassullo-design-system-v2/tassullo-responsive-dialog \
+ *   tassullo/tassullo-design-system-v2/tassullo-form-field \
+ *   tassullo/tassullo-design-system-v2/tassullo-confirm-dialog \
+ *   tassullo/tassullo-design-system-v2/use-soglia \
+ *   tassullo/tassullo-design-system-v2/toni \
+ *   tassullo/tassullo-design-system-v2/card \
+ *   tassullo/tassullo-design-system-v2/toggle-group
+ * ```
  *
- * Confronto a schermata in `WORKLOG.md`, voce M3.10.
+ * **Come è composta.**
  *
- * ## M3bis.11b — le capacità di FASE 3bis, e il gate della fase
+ * - `tassullo-app-shell` con `contenuto="riempie"`, e dentro una colonna
+ *   `flex h-full min-h-0 flex-col`: la tabella ne è il figlio
+ *   `min-h-0 flex-1`.
+ * - `tassullo-page-header`: il percorso «Prodotti» e l'azione primaria
+ *   «Nuovo prodotto», nella fascia in alto.
+ * - `tassullo-data-table` con `perPagina="infinito"` e `altezza="ferma"`: la
+ *   tabella carica le righe man mano che si scorre, dentro un riquadro che
+ *   si ferma all'altezza della finestra, con le intestazioni sempre in
+ *   vista. `nomeRighe` scrive il conteggio «220 prodotti».
+ * - Colonne che si allargano col trascinamento (`ridimensionabile`) e si
+ *   bloccano (`colonneBloccabili`); ogni intestazione è
+ *   `IntestazioneColonnaMenu`, un solo grilletto «⋮» per ordinare e
+ *   bloccare, con `meta.azioniProprie: true`.
+ * - I filtri sfaccettati su Famiglia, Tipo e Stato, nella `barra`, con il
+ *   conteggio accanto a ogni opzione; `FiltroResetTutti` li toglie insieme.
+ * - Il menu di riga (`menuRiga`), dalla tendina «⋯» o col tasto destro.
+ *   «Modifica» apre `tassullo-responsive-dialog` con un modulo di
+ *   `tassullo-form-field` — denominazione, famiglia, variante — che scrive
+ *   sulla riga. «Elimina» chiede conferma con `tassullo-confirm-dialog`.
+ * - `tassullo-empty-state` quando non esiste ancora nessun prodotto.
+ * - Sotto i 1024px, deciso da `useSoglia`, le schede che la pagina scrive: la
+ *   famiglia diventa il raggruppamento, lo stato una fila di chip, il tipo
+ *   un badge sulla scheda. Nessun filtro in un popover; la ricerca copre
+ *   nome, variante e codici. Le schede si caricano quaranta alla volta, con
+ *   un bottone «Mostra altri».
  *
- * Ambito confermato da Francesco (`WORKLOG.md`, 2026-09-17): non un elenco di
- * capacità dimostrate a vuoto, ma applicate alla pagina reale con azioni
- * **testabili davvero**, non uno stub `console.info`.
+ * **Regole d'uso.**
  *
- * - **Resize** (`ridimensionabile`, M3bis.3): ogni intestazione porta la
- *   maniglia sul bordo destro, come già su Norme (M3bis.11a). Le sette
- *   colonne dichiarano `size`/`minSize`, non più `meta.larghezza`.
- * - **Menu colonna unico** (`colonneBloccabili` + intestazioni proprie,
- *   `azioniProprie: true`): la forma confermata su `Blocchi/Data Table` →
- *   `Menu Colonna` — un solo grilletto «⋮» che compone ordinamento e pin,
- *   non due bottoni separati. **Da M4ter.14 è `IntestazioneColonnaMenu`, dal
- *   blocco**, non più riscritta qui: resta un'alternativa opt-in, scelta
- *   colonna per colonna, ma da una sorgente sola.
- * - **Menu di riga condiviso** (`menuRiga`, M3bis.9), con azioni vere:
- *   **Modifica** apre un `responsive-dialog` con un modulo `form-field` —
- *   Denominazione, Famiglia, Variante — che scrive davvero sulla riga.
- *   **Elimina** apre `confirm-dialog`: la conferma toglie la riga dai dati
- *   della story e apre `toast-con-annullo` (D18) — «Annulla» entro cinque
- *   secondi la rimette, altrimenti resta tolta. Nessuno dei due è un
- *   `console.info`.
- * - **Filtri sfaccettati** (M3bis.6) su Famiglia, Tipo e Stato, al posto dei
- *   tre `Select`/`toggle-group` che c'erano prima — con il conteggio per
- *   opzione ricalcolato sulle righe che passano gli altri filtri. Stato ha
- *   un filtro scritto a mano (`col.accessor('attivo', { filterFn: ... })`,
- *   sopra): `arrHas` confronta con `===` senza stringificare, e un
- *   booleano contro le stringhe delle opzioni non troverebbe mai un pari.
+ * - Il titolo della pagina non si scrive sopra la tabella: è l'ultimo
+ *   livello del percorso.
+ * - Il conteggio delle righe lo scrive la tabella con `nomeRighe`, non la
+ *   pagina.
+ * - Ogni colonna dichiara `size` e `minSize`: con `ridimensionabile` la
+ *   larghezza di partenza è quella.
+ * - Il tipo è un badge neutro, lo stato un badge col tono di `lib/toni`.
+ * - Un filtro sfaccettato su una colonna booleana vuole un `filterFn` suo,
+ *   `valori.includes(String(riga.getValue(id)))`: `arrHas` confronta i
+ *   valori senza convertirli, e un booleano non è mai uguale alle stringhe
+ *   `"true"` e `"false"` delle opzioni.
+ * - Il vuoto dei filtri e il vuoto iniziale sono due stati: il primo lo
+ *   rende la tabella, col bottone che toglie i filtri; il secondo è
+ *   `tassullo-empty-state` al posto della tabella, con l'azione che crea il
+ *   primo prodotto.
+ * - Da sapere: passando la soglia i filtri non vanno da una faccia
+ *   all'altra. Sopra li tiene la tabella, sotto la pagina.
  *
- * **Non incluso, deliberatamente** (lo stesso elenco di `WORKLOG.md`): il
- * riordino di colonna per trascinamento (`colonneRiordinabili`, M3bis.8) — il
- * "menu colonna" copre già ordinamento e pin, e Francesco non l'ha chiesto.
- * Tree/subtotale, espansione, virtualizzazione e la Data Grid editabile
- * restano il pattern "Computo" (`Blocchi/Data Table`/`Blocchi/Data Grid`),
- * non quello di un elenco.
+ * **Tastiera e accessibilità.** Quelle dei blocchi: l'ordinamento e i menu
+ * di colonna dalle intestazioni, il menu di riga dal grilletto «⋯», i
+ * dialoghi che tengono il fuoco al loro interno finché sono aperti. Nella
+ * faccia stretta ogni scheda è un bottone, e `Invio` o `Spazio` aprono il
+ * pannello con i codici e le due azioni.
  */
 const meta = {
   title: 'Pagine/Prodotti (Anagrafe)',
@@ -233,9 +228,9 @@ const SEZIONI: SezioneNav[] = [
 ]
 
 const UTENTE = {
-  nome: 'Francesco',
-  cognome: 'Sartori',
-  email: 'fsartori@covicostruzioni.it',
+  nome: 'Stefano',
+  cognome: 'Bertolini',
+  email: 'sbertolini@esempio.it',
   ruolo: 'Admin',
 }
 
@@ -761,7 +756,7 @@ function SchedeProdotti({
           {prodotti.map((p) => (
             <Collapsible key={p.id}>
               <Card className="gap-0 overflow-hidden py-0">
-                <CollapsibleTrigger className="group/riga flex w-full items-center gap-3 p-3 text-left hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+                <CollapsibleTrigger className="group/riga flex w-full items-center gap-3 p-3 text-left rounded-xl hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none data-[panel-open]:rounded-b-none">
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="font-medium">
                       {p.nome}
@@ -1009,15 +1004,8 @@ function PaginaProdotti({
         onConferma={() => {
           const prodotto = inEliminazione
           if (!prodotto) return
-          // Tolta subito (ottimista): il toast che segue è la finestra
-          // d'annullo, non una seconda conferma — D18, `toastConAnnullo`.
           setProdotti((righe) => righe.filter((r) => r.id !== prodotto.id))
           setInEliminazione(null)
-          toastConAnnullo(() => {}, {
-            messaggio: `«${prodotto.nome}» eliminato`,
-            onAnnulla: () =>
-              setProdotti((righe) => [...righe, prodotto].sort((a, b) => a.id - b.id)),
-          })
         }}
       />
 
@@ -1087,25 +1075,20 @@ function Guscio({
       sezioni={SEZIONI}
     >
       <PaginaProdotti dati={dati} faccia={faccia} soglia={soglia} />
-      {/* Una volta sola in cima all'app, come `Blocchi/Toast con annullo` —
-          serve a `toastConAnnullo` dietro l'Elimina del menu di riga. */}
-      <Toaster />
     </AppShell>
   )
 }
 
 /**
- * La pagina com'è oggi in produzione, con le capacità di FASE 3bis
- * (M3bis.11b): 220 prodotti finti, scorrimento infinito, ricerca, filtri
- * sfaccettati Famiglia/Tipo + Stato, ordinamento da tastiera su ogni
- * colonna, resize e menu colonna unico, menu di riga condiviso con
- * Modifica/Elimina testabili davvero.
+ * Il caso comune: 220 prodotti, lo scorrimento che carica le righe man
+ * mano, la ricerca, i filtri sfaccettati, il menu «⋮» delle intestazioni e
+ * il menu di riga con «Modifica» ed «Elimina» funzionanti. La scena passa
+ * `faccia="tabella"`.
  */
 export const ConDati: Story = {
-  // `faccia="tabella"`, non `'auto'`: il gate deve vedere il markup largo
-  // **vero**, non quello che capita alla larghezza con cui la finestra del
-  // test è stata aperta (`docs/DECISIONI.md` §46). La scena che dipende
-  // davvero dall'hook è `Soglia della pagina`, sotto.
+  // `faccia="tabella"`, non `'auto'`: la faccia larga a ogni larghezza della
+  // finestra, anche in una prova automatica. La scena che dipende davvero
+  // dalla finestra è `Soglia della pagina`, sotto.
   render: () => <Guscio dati={PRODOTTI} faccia="tabella" />,
   // Non il primo `dropdown-menu-trigger` della pagina: quello è il menu
   // utente della sidebar (`AppShell`), montato prima della tabella nel DOM,
@@ -1115,19 +1098,11 @@ export const ConDati: Story = {
 }
 
 /**
- * **La faccia stretta**, resa in modo deterministico: una scheda per
- * prodotto, il pannello con codice interno/BC e le due azioni, la ricerca a
- * tutta larghezza, Famiglia e Tipo sfaccettati, Stato a chip.
- *
- * Le azioni sono **le stesse** della faccia larga, non stub: Modifica apre il
- * `responsive-dialog` col modulo che scrive davvero sulla riga, Elimina apre
- * `confirm-dialog` e poi `toast-con-annullo`. Sul telefono il dialogo è già
- * un cassetto dal basso, senza che la pagina faccia niente.
- *
- * Da guardare **restringendo la finestra del browser**, non con
- * l'interruttore Viewport: quello ridimensiona l'iframe nella cornice del
- * manager e `window.innerWidth` non si muove (`docs/DECISIONI.md` §46).
- * Questa scena non ne ha bisogno, perché rende la faccia per la prop.
+ * La faccia stretta, fissata con `faccia="schede"`: una scheda per
+ * prodotto, raggruppate per famiglia, la ricerca a tutta larghezza e lo
+ * stato a chip. Le azioni sono le stesse della tabella: «Modifica» apre il
+ * dialogo, che sul telefono è un cassetto dal basso, ed «Elimina» chiede
+ * conferma.
  */
 export const FacciaStretta: Story = {
   name: 'Faccia stretta',
@@ -1135,20 +1110,10 @@ export const FacciaStretta: Story = {
 }
 
 /**
- * **La scena che dipende davvero dalla finestra.** `faccia="auto"`: la sceglie
- * `useSoglia('(min-width: 1024px)')`, quindi questa story cambia forma
- * restringendo la finestra del browser — ed è l'unica delle tre che lo fa.
- *
- * Nel gate rende **la faccia larga**, perché la finestra dell'imbracatura è
- * 1440. È un numero da rimisurare ogni volta che la soglia cambia: portandola
- * sopra 1440 questa scena passerebbe alle schede e il gate continuerebbe a
- * dire «0 violazioni» senza segnalare niente — è §46 applicata alla story che
- * la cita.
- *
- * **Se la tabella non ci sta, la risposta non è alzare la soglia**: è
- * scorrere, con `bloccaPrimaColonna` che tiene ferma la colonna d'identità.
- * Alzare la soglia sposta sul telefono una pagina che sulla scrivania
- * funzionava.
+ * `faccia="auto"`: decide `useSoglia('(min-width: 1024px)')`. È la sola
+ * scena che cambia forma con la larghezza della finestra — la tabella sopra
+ * i 1024px, le schede sotto. Si vede aprendo la scena da sola e stringendo
+ * la finestra, o con l'interruttore Viewport.
  */
 export const SogliaDellaPagina: Story = {
   name: 'Soglia della pagina',
@@ -1156,12 +1121,9 @@ export const SogliaDellaPagina: Story = {
 }
 
 /**
- * **Nessun prodotto esiste ancora.** Non è lo stesso stato di «la ricerca non
- * trova niente» — quello lo rende `DataTable` da sé, col bottone che pulisce i
- * filtri. Qui la tabella non compare affatto: comparirebbe solo la sua
- * intestazione, che è la forma che `INTERFACCE.md` vieta. `EmptyState`
- * (`tassullo-empty-state`, M3.5) prende il suo posto con la CTA che crea il
- * primo prodotto.
+ * Non esiste ancora nessun prodotto: al posto della tabella,
+ * `tassullo-empty-state` con l'azione che crea il primo. La ricerca che non
+ * trova niente è un'altra cosa, e la rende la tabella.
  */
 export const SenzaProdotti: Story = {
   render: () => <Guscio dati={[]} />,

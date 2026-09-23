@@ -183,8 +183,8 @@ const INTERVENTI: CalendarioSorgente[] = [
  * **Gli assegnatari sono le persone**, e sono l'avatar — non il colore.
  *
  * Due hanno la fotografia e uno no, apposta: è la differenza che si vuole
- * vedere. Senza `immagine` restano le **iniziali** — «Francesco Sartori» →
- * `FS` — e senza nemmeno l'assegnatario resta il pallino col colore del
+ * vedere. Senza `immagine` restano le **iniziali** — «Stefano Bertolini» →
+ * `SB` — e senza nemmeno l'assegnatario resta il pallino col colore del
  * calendario.
  *
  * Gli indirizzi delle due foto sono remoti, come nelle demo di ReUI, e
@@ -193,9 +193,9 @@ const INTERVENTI: CalendarioSorgente[] = [
  * il comportamento che si vuole comunque garantito.
  */
 const SQUADRA: PersonaEvento[] = [
-  { id: 'fs', nome: 'Francesco Sartori', immagine: 'https://i.pravatar.cc/80?img=13' },
-  { id: 'mr', nome: 'Marta Rossi', immagine: 'https://i.pravatar.cc/80?img=45' },
-  { id: 'lb', nome: 'Luca Boni' },
+  { id: 'sb', nome: 'Stefano Bertolini', immagine: 'https://i.pravatar.cc/80?img=13' },
+  { id: 'am', nome: 'Anna Moretti', immagine: 'https://i.pravatar.cc/80?img=45' },
+  { id: 'nf', nome: 'Nicola Ferrari' },
 ]
 
 /**
@@ -206,18 +206,18 @@ const SQUADRA: PersonaEvento[] = [
  */
 const FERMI: EventoCalendario[] = [
   // La settimana del 7: tre barre sovrapposte, tre corsie.
-  { id: 'e1', title: 'Fermo pressa 3 — guarnizioni', start: g(7, 6), end: g(10, 22), calendarioId: 'guasto', assegnatariId: ['fs', 'lb'] },
+  { id: 'e1', title: 'Fermo pressa 3 — guarnizioni', start: g(7, 6), end: g(10, 22), calendarioId: 'guasto', assegnatariId: ['sb', 'nf'] },
   { id: 'e2', title: 'Fermo forno A — refrattario', start: g(8, 6), end: g(12, 22), calendarioId: 'guasto' },
-  { id: 'e3', title: 'Revisione semestrale', start: g(9, 0), end: g(10, 0), allDay: true, calendarioId: 'preventiva', assegnatariId: ['mr'] },
+  { id: 'e3', title: 'Revisione semestrale', start: g(9, 0), end: g(10, 0), allDay: true, calendarioId: 'preventiva', assegnatariId: ['am'] },
   // La settimana del 14: una giornata affollata, per il «+N altri».
-  { id: 'e4', title: 'Cambio stampo', start: g(15, 6), end: g(15, 8), calendarioId: 'preventiva', assegnatariId: ['fs'] },
-  { id: 'e5', title: 'Taratura bilance', start: g(15, 8, 30), end: g(15, 10), calendarioId: 'ispezione', assegnatariId: ['mr'] },
-  { id: 'e6', title: 'Collaudo linea B', start: g(15, 10, 30), end: g(15, 13), calendarioId: 'ispezione', assegnatariId: ['lb'] },
+  { id: 'e4', title: 'Cambio stampo', start: g(15, 6), end: g(15, 8), calendarioId: 'preventiva', assegnatariId: ['sb'] },
+  { id: 'e5', title: 'Taratura bilance', start: g(15, 8, 30), end: g(15, 10), calendarioId: 'ispezione', assegnatariId: ['am'] },
+  { id: 'e6', title: 'Collaudo linea B', start: g(15, 10, 30), end: g(15, 13), calendarioId: 'ispezione', assegnatariId: ['nf'] },
   { id: 'e7', title: 'Revisione muletto', start: g(15, 14), end: g(15, 16), calendarioId: 'preventiva' },
-  { id: 'e8', title: 'Aspirazione trucioli', start: g(15, 16, 30), end: g(15, 18), calendarioId: 'miglioria', assegnatariId: ['lb'] },
+  { id: 'e8', title: 'Aspirazione trucioli', start: g(15, 16, 30), end: g(15, 18), calendarioId: 'miglioria', assegnatariId: ['nf'] },
   // Sparsi, perché il mese non sia tutto in due settimane.
-  { id: 'e9', title: 'Fermo compressore', start: g(21, 6), end: g(23, 18), calendarioId: 'guasto', assegnatariId: ['lb', 'mr', 'fs'] },
-  { id: 'e10', title: 'Manutenzione forno', start: g(25, 8), end: g(25, 12), calendarioId: 'preventiva', assegnatariId: ['mr'] },
+  { id: 'e9', title: 'Fermo compressore', start: g(21, 6), end: g(23, 18), calendarioId: 'guasto', assegnatariId: ['nf', 'am', 'sb'] },
+  { id: 'e10', title: 'Manutenzione forno', start: g(25, 8), end: g(25, 12), calendarioId: 'preventiva', assegnatariId: ['am'] },
 ]
 
 function Guscio({ children }: { children: React.ReactNode }) {
@@ -265,9 +265,9 @@ export const Completo: Story = {
  * Il dialogo di creazione, aperto da «Nuovo».
  */
 export const DialogoEvento: Story = {
-  // Scena di misura: `!dev` la toglie dalla barra e da Docs — Francesco
-  // la vuole integrata in «Completo» — ma il gate axe continua a eseguirla,
-  // e senza il dialogo non verrebbe scansionato da nessuna parte.
+  // Scena di misura: `!dev` la toglie dalla barra e da Docs, dove il
+  // dialogo si vede da «Completo», ma axe continua a eseguirla, e senza
+  // questa il dialogo non verrebbe scansionato da nessuna parte.
   tags: ['!dev', '!autodocs'],
   name: "Dialogo dell'evento",
   args: {
@@ -372,8 +372,8 @@ export const AltezzaVariabile: Story = {
      * Si misura a ogni ridimensionamento del riquadro, non a intervalli: un
      * `ResizeObserver` sul contenitore è la sola cosa che scatta **quando**
      * la geometria cambia davvero. La dipendenza è una `ref`, cioè un
-     * riferimento stabile — la regola delle dipendenze non primitive del
-     * `CLAUDE.md`: un `.map()` inline qui manderebbe l'effetto in giostra.
+     * riferimento stabile: un `.map()` inline fra le dipendenze manderebbe
+     * l'effetto in giostra.
      */
     /*
      * **Il riquadro segue la finestra finché non lo si trascina.**
@@ -455,9 +455,8 @@ export const AltezzaVariabile: Story = {
        * `ResizeObserver` scatta), *poi* il motore ri-rende i chip decidendo
        * quanti ce ne stanno. Leggendo solo sul primo tempo il numero di eventi
        * è quello di **prima** — misurato: riquadro a 944px, nel DOM 7 chip e
-       * un «+N», e il righello scriveva ancora 3 e 5. È la famiglia di §32:
-       * si misura a pagina ferma, e qui «ferma» vuol dire dopo il secondo
-       * tempo. Un `MutationObserver` sul corpo lo coglie senza dipendere dai
+       * un «+N», e il righello scriveva ancora 3 e 5. Si misura a pagina
+       * ferma, e qui «ferma» vuol dire dopo il secondo tempo. Un `MutationObserver` sul corpo lo coglie senza dipendere dai
        * fotogrammi — che col pannello nascosto non scattano.
        */
       const mut = corpo

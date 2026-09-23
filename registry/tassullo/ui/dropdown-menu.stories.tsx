@@ -219,11 +219,11 @@ export const MenuUtente: Story = {
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" />}>
         <UserIcon />
-        Francesco Sartori
+        Stefano Bertolini
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Covi Costruzioni S.r.l.</DropdownMenuLabel>
+          <DropdownMenuLabel>Impresa Esempio S.r.l.</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>
             Profilo

@@ -214,19 +214,24 @@ export type OpzioniFoglioGruppi<TTestata, TRiga> = {
   conRigaAzioni?: boolean
 }
 
+// Su `primaPosizione`:
+//
+// La prima cella scrivibile del foglio. Serve al fuoco mobile: finché
+// `posizione` è `null` — cioè prima che si sia cliccato o tabulato — è
+// **questa** a portare `tabIndex={0}`, o `Tab` non avrebbe dove entrare e
+// il foglio sarebbe irraggiungibile da tastiera pura. Preso misurando in
+// Chromium vero: `[tabindex="0"]` valeva **0** e `Tab` scavalcava la
+// tabella intera, con le frecce perfettamente funzionanti dietro. È D15
+// in casa: axe non vede niente, perché non c'è niente di sbagliato da
+// vedere — c'è una porta che non si apre.
 export type MotoreFoglioGruppi<TTestata, TRiga> = {
   gruppi: GruppoFoglio<TTestata, TRiga>[]
   colonne: ColonnaFoglio<TTestata, TRiga>[]
   posizione: PosizioneFoglio | null
   /**
-   * La prima cella scrivibile del foglio. Serve al fuoco mobile: finché
-   * `posizione` è `null` — cioè prima che si sia cliccato o tabulato — è
-   * **questa** a portare `tabIndex={0}`, o `Tab` non avrebbe dove entrare e
-   * il foglio sarebbe irraggiungibile da tastiera pura. Preso misurando in
-   * Chromium vero: `[tabindex="0"]` valeva **0** e `Tab` scavalcava la
-   * tabella intera, con le frecce perfettamente funzionanti dietro. È D15
-   * in casa: axe non vede niente, perché non c'è niente di sbagliato da
-   * vedere — c'è una porta che non si apre.
+   * La prima cella scrivibile del foglio. Finché non si è cliccato o tabulato
+   * dentro il foglio è lei a portare `tabIndex={0}`, così `Tab` ha un punto
+   * da cui entrare.
    */
   primaPosizione: PosizioneFoglio | null
   inModifica: PosizioneFoglio | null
@@ -849,19 +854,23 @@ export type FoglioGruppiProps<TTestata, TRiga> = {
   motore: MotoreFoglioGruppi<TTestata, TRiga>
   /** I comandi di un gruppo: menu con `tabIndex={-1}`, aperto da `Shift+F10`. */
   comandi?: (gruppo: GruppoFoglio<TTestata, TRiga>, indice: number) => ComandoFoglio[]
+  // L'azione **frequente** del gruppo, su una riga propria fra corpo e piede —
+  // nel computo il «+ misurazione». Non sta nel menu: un'azione che si ripete
+  // per ogni riga non va nascosta dietro due gesti. Il motore va costruito con
+  // `conRigaAzioni: true`, o la riga si rende e le frecce non la trovano.
+  //
+  // **Una sola, e il tipo lo impone.** La prima stesura ne accettava un
+  // elenco, dentro un contenitore focalizzabile: `role="button"` su un `<div>`
+  // che contiene dei `<button>` è **`nested-interactive`**, e il gate l'ha
+  // preso — 4 violazioni per passata, 16 in tutto. La correzione non è stata
+  // cambiare il ruolo ma il **numero**: il bottone stesso è la cella, così non
+  // c'è niente da annidare. Ed è anche la forma giusta — una riga di azioni
+  // con cinque collegamenti è un menu travestito, e il menu c'è già.
   /**
-   * L'azione **frequente** del gruppo, su una riga propria fra corpo e piede —
-   * nel computo il «+ misurazione». Non sta nel menu: un'azione che si ripete
-   * per ogni riga non va nascosta dietro due gesti. Il motore va costruito con
-   * `conRigaAzioni: true`, o la riga si rende e le frecce non la trovano.
-   *
-   * **Una sola, e il tipo lo impone.** La prima stesura ne accettava un
-   * elenco, dentro un contenitore focalizzabile: `role="button"` su un `<div>`
-   * che contiene dei `<button>` è **`nested-interactive`**, e il gate l'ha
-   * preso — 4 violazioni per passata, 16 in tutto. La correzione non è stata
-   * cambiare il ruolo ma il **numero**: il bottone stesso è la cella, così non
-   * c'è niente da annidare. Ed è anche la forma giusta — una riga di azioni
-   * con cinque collegamenti è un menu travestito, e il menu c'è già.
+   * L'azione frequente del gruppo, su una riga sua fra il corpo e il piede —
+   * in un computo, «+ misurazione». Non sta nel menu perché si ripete per ogni
+   * gruppo. Una sola: il bottone è la cella stessa. Il motore va costruito con
+   * `conRigaAzioni: true`, o le frecce non trovano la riga.
    */
   azione?: (gruppo: GruppoFoglio<TTestata, TRiga>, indice: number) => ComandoFoglio
   /** La riga in coda al foglio: il totale generale. */

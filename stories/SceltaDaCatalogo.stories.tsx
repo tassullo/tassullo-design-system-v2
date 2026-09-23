@@ -79,7 +79,7 @@ const SISTEMI: Sistema[] = [
     codice: 'ST100', famiglia: 'MURO', variante: 'Blocchi tradizionali',
     casoUso: 'Stai costruendo un edificio in muratura tradizionale?',
     categoria: 'EDILIZIA CIVILE', prodotti: 3, voceStandard: true,
-    immagine: '/esempi/sistema-risanamento.png',
+    immagine: 'esempi/sistema-risanamento.png',
     strati: [
       [{ nome: 'Malta da muratura M5', resa: '18' }],
       [{ nome: 'Intonaco di fondo', resa: '14' }, { nome: 'Rinzaffo di aggrappo', resa: '5' }],
@@ -117,7 +117,7 @@ const SISTEMI: Sistema[] = [
     codice: 'ST200', famiglia: 'FACCIA VISTA', variante: '100% calce idraulica naturale',
     casoUso: 'Stai operando nell’ambito del restauro o della bioedilizia?',
     categoria: 'RESTAURO', prodotti: 3, voceStandard: true,
-    immagine: '/esempi/sistema-ripristino-storico.png',
+    immagine: 'esempi/sistema-ripristino-storico.png',
     strati: [
       [{ nome: 'Malta di allettamento NHL 3.5', resa: '18' }],
       [{ nome: 'Stilatura dei giunti a base di calce idraulica naturale', resa: '2' }],
@@ -127,7 +127,7 @@ const SISTEMI: Sistema[] = [
     codice: 'ST201', famiglia: 'FACCIA VISTA', variante: '4 colori',
     casoUso: 'Hai bisogno di una malta colorata?',
     categoria: 'FINITURE DI PREGIO', prodotti: 3,
-    immagine: '/esempi/sistema-effetto-seta.png',
+    immagine: 'esempi/sistema-effetto-seta.png',
     strati: [
       [{ nome: 'Malta colorata in pasta', resa: '1,8' }],
       [{ nome: 'Idrorepellente silossanico', resa: '0,17' }],
@@ -140,7 +140,7 @@ const SISTEMI: Sistema[] = [
     // Il caso che la ricerca per sinonimi deve prendere: in cantiere si dice
     // «ETICS», e la parola non compare da nessuna parte nella scheda.
     sinonimi: ['ETICS', 'isolamento a cappotto'],
-    immagine: '/esempi/sistema-cappotto.png',
+    immagine: 'esempi/sistema-cappotto.png',
     strati: [
       [{ nome: 'Collante cementizio', resa: '4,5' }],
       [{ nome: 'Pannello EPS', resa: '0' }],
@@ -165,7 +165,7 @@ const SISTEMI: Sistema[] = [
     casoUso: 'Devi rinforzare una muratura portante?',
     categoria: 'RINFORZI STRUTTURALI', prodotti: 4, voceStandard: true,
     sinonimi: ['FRCM', 'fibra di basalto'],
-    immagine: '/esempi/sistema-crm.png',
+    immagine: 'esempi/sistema-crm.png',
     strati: [
       [{ nome: 'Malta strutturale di calce idraulica naturale NHL 5 per rinforzi strutturali', resa: '18' }],
       [
@@ -179,7 +179,7 @@ const SISTEMI: Sistema[] = [
     codice: 'ST600', famiglia: 'SOTTOFONDO', variante: 'Massetto alleggerito',
     casoUso: 'Devi realizzare un massetto su solaio esistente?',
     categoria: 'SOTTOFONDI E POSA PAVIMENTI', prodotti: 3,
-    immagine: '/esempi/sistema-radiante.png',
+    immagine: 'esempi/sistema-radiante.png',
     strati: [
       [{ nome: 'Massetto alleggerito', resa: '6' }],
       [{ nome: 'Autolivellante', resa: '1,6' }],
@@ -516,53 +516,59 @@ function SceltaDaCatalogo() {
 }
 
 /**
- * **La scelta di una lavorazione dal catalogo** — il `SistemaPickerModal` di
- * Studio, ricomposto con quattro item che il registry ha già. **Non è un blocco
- * nuovo**: è una ricetta, ed è l'esito di M4ter.13.
+ * La scelta di una voce da un catalogo lungo: si cerca, si sfoglia per
+ * categoria, si guarda il dettaglio, si sceglie. Qui è un sistema
+ * dall'elenco prezzi, per una voce di computo. È una ricetta, non un
+ * componente: la compongono item che il registry ha già.
+ *
+ * ```bash
+ * npx shadcn@latest add \
+ *   tassullo/tassullo-design-system-v2/tassullo-responsive-dialog \
+ *   tassullo/tassullo-design-system-v2/command \
+ *   tassullo/tassullo-design-system-v2/toggle-group \
+ *   tassullo/tassullo-design-system-v2/badge \
+ *   tassullo/tassullo-design-system-v2/item \
+ *   tassullo/tassullo-design-system-v2/entity-image \
+ *   tassullo/tassullo-design-system-v2/numeri
+ * ```
  *
  * | pezzo | item |
  * |---|---|
  * | il contenitore | `tassullo-responsive-dialog` — dialogo sulla scrivania, **cassetto** sul telefono |
  * | ricerca, gruppi, frecce, `Invio` | `command` |
- * | i chip di categoria | `toggle-group`, scelta singola deselezionabile |
+ * | i chip di categoria | `toggle-group`, scelta singola che si può togliere |
  * | «Voce standard», «N prodotti» | `badge` |
  *
- * **Perché `toggle-group` e non `badge` per i chip**: un chip che si clicca è
- * un filtro, un chip che si legge è un'etichetta — e nella stessa schermata ci
- * sono tutti e due. `CLAUDE.md` avverte proprio su questa coppia, perché nel v1
- * confonderla è costato riscritture ripetute.
+ * **Quando sì, quando no.** Quando le voci sono tante da doverle cercare e
+ * ognuna ha un dettaglio da guardare prima di sceglierla. Per una scelta fra
+ * poche voci senza dettaglio basta `combobox`, o `select` se non serve
+ * scrivere.
  *
- * ## Le due cose che **non** si copiano dall'app
+ * **Regole d'uso.**
  *
- * **Gli strati si aprono sotto la riga, come nell'app — ma senza il «Vedi
- * strati».** La forma è quella di Studio: il pannello compare in linea sotto la
- * voce, non in una colonna accanto (prima stesura, corretta su rilievo di
- * Francesco: *«si aprono sotto la riga e non a lato»*). Quello che **non** si
- * copia è il comando: nell'app «Vedi strati» è un `<button>` dentro un
- * `<div role="option">`, cioè **`nested-interactive`** — la stessa violazione
- * che il gate ha preso in M4ter.12 — e un `role="option"` con un comando dentro
- * non è riparabile restando quella forma.
+ * - I chip di categoria sono `toggle-group`, non `badge`: un chip che si
+ *   clicca è un filtro, uno che si legge è un'etichetta. In questa schermata
+ *   ci sono tutti e due, e ognuno ha il suo componente.
+ * - Il dettaglio della voce — qui gli strati del sistema — si apre da sé
+ *   sotto la voce attiva, e si chiude quando la selezione passa oltre. Una
+ *   voce di `command` non contiene bottoni: un comando dentro un'opzione
+ *   sarebbe un controllo annidato in un altro, che la tastiera e i lettori
+ *   di schermo non sanno raggiungere. La voce stessa è il bersaglio, e
+ *   `Invio` la sceglie.
+ * - Il filtro di `command` si spegne con `shouldFilter={false}` quando la
+ *   ricerca guarda più campi di quelli che si vedono. Qui la pagina cerca su
+ *   sei campi, compresi i sinonimi dell'ufficio tecnico che non si mostrano
+ *   mai: chi scrive «ETICS» trova il cappotto.
+ * - La ricerca è a parola intera: «calce» non trova «calcestruzzo». Da
+ *   sapere: una parola compare solo quando è finita, e scrivendo «cal» non
+ *   si vede ancora niente. La regola sta nella pagina, nella funzione
+ *   `cerca`, e si cambia lì.
  *
- * La via d'uscita non è spostare il bottone: è **toglierlo**. Gli strati si
- * aprono da sé sulla voce **attiva**, quindi non c'è niente da premere per
- * vederli e niente da annidare — e scorrendo con le frecce si aprono e si
- * chiudono da soli, che è **meno** lavoro che aprirli riga per riga col mouse.
- * Per lo stesso motivo sparisce anche il «Usa questo sistema»: la voce stessa è
- * il bersaglio, e `Invio` la sceglie.
- *
- * **Il filtro di `command` si spegne.** `shouldFilter={false}`: `command`
- * cerca su una stringa, questo catalogo su sei campi più i **sinonimi
- * dell'ufficio tecnico**, che non si mostrano mai — chi scrive «ETICS» deve
- * trovare il cappotto, e quella parola non compare in nessun campo visibile.
- * La ricerca è **a parola intera**: «calce» non deve trovare «calcestruzzo»,
- * rilievo dell'ufficio tecnico già a verbale nel codice di Studio.
- *
- * ## Da tastiera
- *
- * Si scrive per filtrare, `↑`/`↓` scorrono **saltando le intestazioni di
- * gruppo**, `Invio` sceglie, `Esc` chiude. Il fuoco resta **sempre nel campo di
- * ricerca** e la selezione si muove con `aria-activedescendant`: è il solo modo
- * di continuare a scrivere mentre si scorre, e `command` lo fa da sé.
+ * **Tastiera e accessibilità.** Si scrive per filtrare; `↑` e `↓` scorrono
+ * le voci saltando le intestazioni di gruppo, `Invio` sceglie, `Esc`
+ * chiude. Il fuoco resta sempre nel campo di ricerca e la voce attiva la
+ * segna `aria-activedescendant`, così si continua a scrivere mentre si
+ * scorre: lo fa `command` da sé.
  */
 const meta: Meta<typeof SceltaDaCatalogo> = {
   title: 'Pagine/Scelta da catalogo',
@@ -572,18 +578,20 @@ const meta: Meta<typeof SceltaDaCatalogo> = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Il bottone apre la scelta. Si provi a scrivere «ETICS», a filtrare per
+ * categoria coi chip e a scorrere con le frecce: sotto la voce attiva si
+ * aprono i suoi strati.
+ */
 export const Predefinito: Story = {
   render: () => <SceltaDaCatalogo />,
-  // Il dialogo è un popup: la passata `aperto` del gate lo apre da qui, o
-  // l'intera schermata resterebbe non misurata (un popup non aperto non è un
-  // popup senza violazioni).
+  // Il dialogo è un popup: le prove di accessibilità lo aprono da qui, o
+  // l'intera schermata resterebbe non misurata.
   //
   // Lo slot del contenuto è **`responsive-dialog-content`**, non
   // `dialog-content`: il blocco ne tiene uno proprio apposta, perché sulla
   // scrivania monta `Dialog` e sul telefono `Drawer`, e chi cerca il contenuto
-  // dovrebbe altrimenti sapere in che forma si sta rendendo. L'avevo **dedotto**
-  // invece di guardarlo, e il gate l'ha preso — `imbracatura×1` in entrambe le
-  // passate `aperto`, cioè una story che falliva senza nessuna violazione axe.
-  // È la regola del `CLAUDE.md`: **lo slot si guarda nel DOM**.
+  // dovrebbe altrimenti sapere in che forma si sta rendendo. Lo slot si guarda
+  // nel DOM, non si deduce.
   play: apriCol('[data-slot="responsive-dialog-trigger"]', 'responsive-dialog-content'),
 }

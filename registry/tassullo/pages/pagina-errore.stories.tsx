@@ -7,24 +7,46 @@ import { PaginaErrore } from '@/registry/tassullo/pages/pagina-errore'
 import { Button } from '@/registry/tassullo/ui/button'
 
 /**
- * **M4.6 — sesta e ultima pagina modello della FASE 4.** Le quattro varianti
- * che il `PIANO.md` nomina per gli stati di sistema: 404, accesso negato,
- * errore del server, manutenzione.
+ * Le pagine degli stati di sistema: pagina non trovata, accesso negato,
+ * errore del server, manutenzione. Ognuna con la sua icona, il suo tono e
+ * un messaggio che dice cosa fare.
  *
- * Nessuna delle quattro è un blocco nuovo: sono la stessa composizione di
- * `tassullo-empty-state`/`tassullo-error-state` — `Empty` e derivati — con un
- * tono per variante (`lib/toni`) invece del solo `destructive` di
- * `error-state`. V. il commento di testa del componente per il ragionamento
- * completo, in particolare su **dentro/fuori dal guscio**: qui sotto la
- * differenza si vede — 404 e Accesso negato sono montate dentro `AppShell`
- * (la navigazione resta, l'utente ha sbagliato un link interno o una rotta
- * riservata), Errore del server e Manutenzione sono `schermoIntero`, sul
- * modello di `tassullo-pagina-login` (marchio in testa, nessun guscio: non
- * c'è nulla di affidabile da mostrare attorno).
+ * **Quando sì, quando no.** Quando non c'è niente da mostrare al posto
+ * della pagina intera. Una sezione che non carica, dentro una pagina che
+ * funziona, è `tassullo-error-state`; un elenco ancora vuoto è
+ * `tassullo-empty-state`.
  *
- * Ogni story passa un'azione di ritorno vera — un bottone che aggiorna un
- * contatore visibile sotto la pagina, per provare col dito che il clic parte
- * davvero (non solo che il bottone è disegnato).
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-errore
+ * ```
+ *
+ * È composta sulla primitiva `empty`, la stessa di `tassullo-empty-state` e
+ * `tassullo-error-state`, con i toni di `lib/toni`.
+ *
+ * **Le prop.**
+ *
+ * - `variante`: `"404"`, `"accesso-negato"`, `"errore-server"` o
+ *   `"manutenzione"`. Sceglie icona, tono, titolo e messaggio di default.
+ * - `titolo`, `messaggio`, `icona`: sostituiscono quelli della variante.
+ * - `azione`: il nodo che riporta da qualche parte — un collegamento alla
+ *   pagina iniziale, un bottone che riprova, un indirizzo dell'assistenza. Di
+ *   default non c'è, perché il blocco non sa quale rotta esista.
+ * - `schermoIntero`: la pagina a tutto schermo, col marchio in testa e senza
+ *   guscio. Di default è vero per `"errore-server"` e `"manutenzione"`, falso
+ *   per le altre due.
+ *
+ * **Regole d'uso.**
+ *
+ * - Pagina non trovata e accesso negato stanno dentro il guscio: la
+ *   navigazione resta, perché è sbagliato un collegamento, non l'app.
+ * - Errore del server e manutenzione stanno a tutto schermo: capitano prima
+ *   che l'app abbia la sessione e i permessi, e un guscio vuoto sarebbe
+ *   peggio di nessun guscio.
+ * - Accesso negato serve per una rotta che senza un ruolo non ha niente da
+ *   mostrare. Una pagina che si può ancora consultare non è un errore: è
+ *   sola lettura, come `soloLettura` di `tassullo-pagina-admin`.
+ * - Conviene passare sempre un'`azione`: una pagina d'errore senza una via
+ *   d'uscita è un vicolo cieco.
  */
 const meta = {
   title: 'Pagine/Errore',
@@ -41,9 +63,9 @@ const SEZIONI_NAV: SezioneNav[] = [
 ]
 
 const UTENTE_CORRENTE = {
-  nome: 'Francesco',
-  cognome: 'Sartori',
-  email: 'fsartori@covicostruzioni.it',
+  nome: 'Stefano',
+  cognome: 'Bertolini',
+  email: 'sbertolini@esempio.it',
   ruolo: 'Lettore',
 }
 
@@ -126,9 +148,8 @@ export const Manutenzione: Story = {
 }
 
 /**
- * Le quattro varianti fianco a fianco, coi rispettivi toni — utile per un
- * controllo visivo rapido, non sostituisce le quattro story sopra (ognuna
- * verifica anche dentro/fuori dal guscio).
+ * Le quattro varianti affiancate, coi loro toni: per un confronto a colpo
+ * d'occhio. Dentro o fuori dal guscio si vede nelle quattro scene sopra.
  */
 export const Confronto: Story = {
   render: () => (

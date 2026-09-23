@@ -224,9 +224,8 @@ export const ConErrori: Story = {
     /*
      * Una volta sola, al montaggio. La dipendenza è `form`, che react-hook-form
      * garantisce stabile fra i render: è un **riferimento stabile**, non un
-     * oggetto scritto inline, che è la condizione posta da `CLAUDE.md` — un
-     * array o un oggetto inline qui avvierebbe il ciclo che React non
-     * interrompe e non stampa.
+     * oggetto scritto inline. Un array o un oggetto inline qui avvierebbe un
+     * ciclo di render che React non interrompe e non segnala.
      */
     useEffect(() => {
       void form.trigger()

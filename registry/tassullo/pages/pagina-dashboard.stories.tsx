@@ -42,42 +42,66 @@ import {
 import { valoreIt } from '@/prove/numeri-tooltip'
 
 /**
- * **M4.4 — quarta pagina modello.** Nessuna app Tassullo ha ancora una
- * dashboard fatta bene — a differenza delle altre tre pagine modello non
- * c'è un file di Anagrafe da cui ricavarla — e la `ROADMAP.md` prevede una
- * tab Metriche e un quadro sinottico di prodotto: il caso qui è quello,
- * dominio Anagrafe (prodotti, famiglie, norme).
+ * La pagina iniziale di un applicativo: gli avvisi da leggere per primi, una
+ * fila di indicatori, due grafici e le attività recenti.
  *
- * `PaginaDashboard` compone ciò che il registry ha già — `page-header`,
- * `page-skeleton`, `error-state`, `card`, `table`, `alert`, `toni` — e i
- * grafici veri restano quelli di `Primitive/Chart` (Recharts): il blocco
- * non li incapsula, riceve **due nodi già completi** (`grafici`), perché un
- * grafico non ha una forma sola — barre, torta, area, ciascuno con la sua
- * `Card`/`ChartContainer`/`config` — e fissarne una sola dentro il blocco
- * vorrebbe dire perderne il resto.
+ * **Quando sì, quando no.** Per la pagina che riassume lo stato dell'app a
+ * chi entra. Una fila di indicatori da sola, dentro un'altra pagina, è
+ * `tassullo-indicatori`; un grafico da solo è la primitiva `chart`.
  *
- * ## L'ordine in pagina non è l'ordine del piano
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-dashboard
+ * ```
  *
- * `PIANO.md` §M4.4 elenca «indicatori, due grafici, tabella, avvisi» — è
- * l'ordine in cui le capacità si sono pensate, non quello in cui un utente
- * le legge. In pagina gli **avvisi stanno in cima**: sono l'unica sezione
- * che chiede attenzione prima del resto — «la sincronizzazione con SAP è
- * ferma da tre ore» non deve aspettare lo scorrimento sotto due grafici.
+ * **I blocchi che la compongono**, e che arrivano con lei:
+ * `tassullo-page-header`, `tassullo-indicatori`, `tassullo-data-table` per
+ * le attività, `alert` e `toni` per gli avvisi, `card`, `button`,
+ * `tassullo-page-skeleton` e `tassullo-error-state` per gli stati, e
+ * `use-soglia` per la forma stretta delle attività.
  *
- * ## Le frecce di tendenza non si colorano mai
+ * **Le prop.**
  *
- * Stessa regola misurata su `Primitive/Chart`, story `Scostamenti`: un
- * aumento non è un successo e un calo non è un errore — «Schede aperte» che
- * sale è un problema, «Norme in revisione» che sale può essere una buona
- * notizia, e il blocco non lo sa. Le frecce restano `text-muted-foreground`
- * in ogni indicatore qui sotto, comprese quelle che salgono.
+ * - `percorso` e `azioni` passano a `tassullo-page-header`.
+ * - `indicatori`: la fila in cima, resa da `tassullo-indicatori`.
+ * - `grafici`: esattamente due nodi. Ognuno porta la sua `Card` con dentro
+ *   `ChartContainer`: il blocco fissa che siano due e dove stanno, non che
+ *   forma abbiano.
+ * - `attivita`: ogni riga ha `id`, `descrizione`, `utente`, `quando` (una
+ *   `Date`) e un `distintivo` facoltativo. `messaggioAttivitaVuote` è il
+ *   testo quando non ce n'è nessuna.
+ * - `avvisi`: ogni avviso ha `id`, `tono`, `titolo`, `descrizione`, `icona`
+ *   e `azione` facoltative, e `chiudibile`. Il bottone che lo chiude compare
+ *   solo se c'è anche `onChiudiAvviso`.
+ * - `faccia`: `"auto"`, il predefinito, sceglie la forma delle attività
+ *   dalla larghezza della finestra — tabella dai 768px in su, elenco sotto;
+ *   `"larga"` e `"stretta"` la fissano.
+ * - `stato`: `"pronto"`, `"caricamento"` o `"errore"`, con
+ *   `messaggioErrore` e `onRiprovaErrore`.
  *
- * ## Gli avvisi si chiudono davvero
+ * **Regole d'uso.**
  *
- * `chiudibile` più `onChiudiAvviso` — qui `AvvisiVivi`, sotto, che toglie
- * l'avviso da un `useState` locale. Nell'app vera `onChiudiAvviso` è anche
- * il posto in cui segnare l'avviso come letto sul server: il blocco non
- * tiene stato proprio, l'app decide cosa succede quando si chiude.
+ * - Gli avvisi stanno in cima: sono la sola sezione che chiede attenzione
+ *   prima del resto.
+ * - Le frecce di tendenza degli indicatori non si colorano: un aumento non è
+ *   un successo e un calo non è un errore, e il blocco non sa quale dei due
+ *   sia.
+ * - Chiudere un avviso chiama `onChiudiAvviso`: il blocco non tiene stato, e
+ *   l'app decide se segnarlo come letto anche sul server.
+ * - Le griglie si adattano alla larghezza della pagina, non a quella della
+ *   finestra: aprendo o chiudendo la colonna del guscio, i riquadri si
+ *   ridispongono.
+ * - Le attività sono una `tassullo-data-table` con il solo ordinamento
+ *   acceso. È la regola per ogni tabella: se serve anche una sola opzione —
+ *   ordinare, cercare, nascondere colonne, paginare, un menu di riga — si
+ *   monta `tassullo-data-table` spegnendo le altre; se non ne serve
+ *   nessuna, basta la primitiva `table`. Un'opzione non si aggiunge a mano
+ *   a una tabella semplice.
+ * - Ogni colonna delle attività ha una larghezza, tranne «Attività», che
+ *   prende lo spazio che avanza. L'ordine è chi, cosa, quando.
+ *
+ * **Tastiera e accessibilità.** Le intestazioni delle attività ordinano con
+ * `Invio` o `Spazio`. Il bottone che chiude un avviso è un'icona, e il suo
+ * nome per chi non vede è «Chiudi avviso».
  */
 const meta = {
   title: 'Pagine/Dashboard',
@@ -97,9 +121,9 @@ const SEZIONI: SezioneNav[] = [
 ]
 
 const UTENTE = {
-  nome: 'Francesco',
-  cognome: 'Sartori',
-  email: 'fsartori@covicostruzioni.it',
+  nome: 'Stefano',
+  cognome: 'Bertolini',
+  email: 'sbertolini@esempio.it',
   ruolo: 'Admin',
 }
 
@@ -312,28 +336,28 @@ const ATTIVITA: AttivitaRecente[] = [
   {
     id: '1',
     descrizione: 'Ha aggiornato la scheda UNI EN 1090',
-    utente: 'Francesco Sartori',
+    utente: 'Stefano Bertolini',
     quando: new Date('2026-09-18T09:14:00'),
     distintivo: <Badge className={TONO.info}>Norma</Badge>,
   },
   {
     id: '2',
     descrizione: 'Ha pubblicato "Malta cementizia MC-40"',
-    utente: 'Roberto Zanetti',
+    utente: 'Giorgio Pedrotti',
     quando: new Date('2026-09-18T08:02:00'),
     distintivo: <Badge className={TONO.success}>Prodotto</Badge>,
   },
   {
     id: '3',
     descrizione: 'Ha eliminato la scheda "Additivo AD-12 (superato)"',
-    utente: 'Francesco Sartori',
+    utente: 'Stefano Bertolini',
     quando: new Date('2026-09-17T17:41:00'),
     distintivo: <Badge className={TONO.destructive}>Prodotto</Badge>,
   },
   {
     id: '4',
     descrizione: 'Ha aperto la revisione 5 di UNI EN 1090',
-    utente: 'Roberto Zanetti',
+    utente: 'Giorgio Pedrotti',
     quando: new Date('2026-09-14T11:20:00'),
     distintivo: <Badge className={TONO.warning}>Norma</Badge>,
   },
@@ -408,24 +432,10 @@ export const Caricamento: Story = {
 }
 
 /**
- * **La faccia stretta delle attività, resa in modo deterministico.**
- *
- * `faccia="stretta"` e non una finestra stretta: `useSoglia` è una media
- * query sulla **finestra**, e la larghezza della finestra non si commuta dal
- * canvas (`docs/DECISIONI.md` §46). Senza questa prop il gate renderebbe
- * sempre il ramo largo — a 1440 — e «0 violazioni» non direbbe niente sulla
- * forma che si vede sul telefono. È la stessa scelta di `Pagine/Lista a due
- * facce`, e per la stessa ragione.
- *
- * Il difetto che chiude, preso a video da Francesco il 2026-09-20: con
- * `table-fixed` le colonne «Utente» (`w-44`) e «Quando» (`w-32`) tengono la
- * loro larghezza e «Attività», che è l'elastica, **va a zero** — il testo si
- * taglia a metà parola e le due intestazioni si sovrappongono. È il difetto
- * numero 1 di M4ter.6, riapparso su un'altra tabella.
- *
- * Impilata, l'ordine si ribalta: in tabella è `chi / cosa / quando`, qui è
- * l'**attività** in cima e `utente · quando` come riga di contesto — quello
- * che si cerca scorrendo un elenco è cosa è successo.
+ * Le attività nella forma stretta, fissata con `faccia="stretta"`: al posto
+ * della tabella un elenco, con l'attività in cima e utente e data sotto, come
+ * riga di contesto. Scorrendo un elenco quello che si cerca è cosa è
+ * successo.
  */
 export const AttivitaStrette: Story = {
   name: 'Attività, faccia stretta',

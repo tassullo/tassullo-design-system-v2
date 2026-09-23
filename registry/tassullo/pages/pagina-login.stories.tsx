@@ -5,8 +5,20 @@ import { LogoMicrosoft } from '@/prove/logo-microsoft'
 import { PaginaLogin } from '@/registry/tassullo/pages/pagina-login'
 
 /**
- * La schermata d'accesso, sul modello di `Login.tsx` di Anagrafe (letto in
- * sola lettura): logo, nome dell'app, un bottone «Accedi con Microsoft».
+ * La schermata d'accesso: il marchio, il nome dell'app e le vie per
+ * entrare — con Microsoft, con email e password, o con tutte e due.
+ *
+ * **Quando sì, quando no.** È la prima schermata di ogni applicativo, fuori
+ * dal guscio. Le schermate che le stanno intorno — registrazione, password
+ * dimenticata, verifica dell'email — non sono sue scene: si compongono con
+ * le primitive, come mostra `Pagine/Schermate d'accesso`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-login
+ * ```
+ *
+ * È composta con `card`, `field`, `input`, `input-group`, `alert`,
+ * `spinner` e `button`, che arrivano con lei.
  *
  * ```tsx
  * <PaginaLogin
@@ -17,13 +29,45 @@ import { PaginaLogin } from '@/registry/tassullo/pages/pagina-login'
  * />
  * ```
  *
- * `onAccedi` è la sola cucitura verso MSAL/Entra ID: il blocco non importa
- * `@azure/msal-react`, l'app ci aggancia il proprio provider.
+ * **Le vie, con `modo`.**
  *
- * **`modo` apre il guscio a tre vie** (D23): `"microsoft"` di default — cioè
- * Anagrafe e Officina immutate — `"credenziali"`, e `"entrambi"`, che è
- * Studio. In `"entrambi"` l'ordine sulla pagina dice il ruolo: credenziali,
- * separatore «oppure», SSO in fondo.
+ * - `"microsoft"`, il predefinito: un bottone «Accedi con Microsoft», e
+ *   `onAccedi` avvia l'accesso. Il blocco non importa MSAL: l'app ci aggancia
+ *   il suo provider.
+ * - `"credenziali"`: email e password, e `onAccediConCredenziali` riceve
+ *   `{ email, password }`.
+ * - `"entrambi"`: le credenziali in cima col bottone primario, poi il
+ *   separatore «oppure», poi Microsoft. Servono tutti e due i gestori.
+ *
+ * La firma è un'unione sul valore di `modo`: una via dichiarata senza il suo
+ * gestore non compila.
+ *
+ * **Le altre prop.**
+ *
+ * - `stato`: `"inattivo"`, `"in-corso"` o `"errore"`, con `messaggioErrore`;
+ *   `statoDi` dice a quale via si riferisce, se le vie sono due.
+ * - `configurato={false}` spegne la via Microsoft con un avviso, quando la
+ *   registrazione dell'app su Entra ID non è pronta;
+ *   `credenzialiAbilitate={false}` fa lo stesso con email e password.
+ * - `logoMicrosoft`: il marchio di Microsoft, passato dall'app. Senza, resta
+ *   un'icona generica.
+ * - `etichettaAccedi`, `intestazioneSso`, `onPasswordDimenticata`,
+ *   `onRegistrati`: il testo del bottone, l'etichetta sopra l'accesso
+ *   Microsoft in `"entrambi"`, e i due collegamenti, che compaiono solo se
+ *   passati.
+ *
+ * **Regole d'uso.**
+ *
+ * - L'errore sta accanto alla via che l'ha prodotto: quello delle
+ *   credenziali sul modulo, coi campi `aria-invalid`; quello di Microsoft
+ *   accanto al suo bottone, senza toccare i campi.
+ * - I messaggi d'errore arrivano già tradotti: mai un codice del provider.
+ * - Una via spenta resta visibile, disabilitata e con l'avviso: una via che
+ *   sparisce senza dirlo si legge come un guasto.
+ *
+ * **Tastiera e accessibilità.** Il modulo delle credenziali è un modulo
+ * vero: `Invio` dal campo password lo invia. «Mostra» sta dentro il campo
+ * password e dice il suo stato con `aria-pressed`.
  */
 const meta = {
   title: 'Pagine/Login',
@@ -40,6 +84,7 @@ const guscio = {
   descrizione: 'Anagrafica tecnica e documentale di prodotto',
 }
 
+/** La via predefinita, Microsoft: il marchio, il nome dell'app, un bottone. */
 export const Predefinito: Story = {
   args: {
     applicazione: 'Anagrafe',
@@ -65,7 +110,10 @@ export const Errore: Story = {
   },
 }
 
-/** L'app registration Entra ID non è ancora pronta — come `isAuthConfigured` in Anagrafe. */
+/**
+ * `configurato={false}`: la registrazione dell'app su Entra ID non è ancora
+ * pronta. Il bottone resta disabilitato e l'avviso dice perché.
+ */
 export const NonConfigurato: Story = {
   args: {
     ...Predefinito.args,
@@ -74,13 +122,7 @@ export const NonConfigurato: Story = {
 }
 
 /**
- * Interattiva: il clic avvia l'accesso, due secondi dopo l'errore.
- *
- * Le props si passano **una per una** e non con uno spread di `args`: da
- * M4ter.4 la firma è un'unione discriminata su `modo`, e uno spread di
- * un'unione TypeScript non lo sa restringere (`TS2322`, misurato). È il
- * costo della firma che impedisce di dichiarare una via senza il suo
- * gestore, e si paga qui, in una story, non nelle app.
+ * Da provare: il clic avvia l'accesso, e due secondi dopo compare l'errore.
  */
 export const Interattiva: Story = {
   args: { ...Predefinito.args },
@@ -104,13 +146,8 @@ export const Interattiva: Story = {
 }
 
 /**
- * `modo="credenziali"` — solo email e password. Non ha consumatori oggi, ed
- * è fatto lo stesso: senza il caso puro, «entrambi» sembrerebbe un caso
- * speciale invece che la somma di due vie.
- *
- * Il «Mostra» sta **dentro** il campo (`InputGroup` + `InputGroupButton`), e
- * il form è **non controllato**: i valori li legge `FormData` all'invio,
- * quindi `Invio` dal campo password invia come su qualunque form.
+ * `modo="credenziali"`: solo email e password. «Mostra» sta dentro il campo
+ * password; `Invio` dal campo invia il modulo.
  */
 export const Credenziali: Story = {
   args: {
@@ -123,11 +160,10 @@ export const Credenziali: Story = {
 }
 
 /**
- * `modo="entrambi"` — è Studio. **L'ordine sulla pagina dice il ruolo**:
- * credenziali prima col bottone primario, `FieldSeparator` con «oppure» al
- * centro, poi l'SSO in `outline` sotto l'etichetta del team.
- *
- * Il logo Microsoft arriva dall'app come nodo (`logoMicrosoft`).
+ * `modo="entrambi"`: le credenziali in cima col bottone primario, il
+ * separatore «oppure» al centro, e sotto l'accesso Microsoft in `outline`,
+ * con l'etichetta di chi entra di lì. Il marchio Microsoft lo passa l'app
+ * (`logoMicrosoft`).
  */
 export const Entrambi: Story = {
   args: {
@@ -143,13 +179,10 @@ export const Entrambi: Story = {
 }
 
 /**
- * L'errore delle **credenziali**: sta sul form, accanto ai campi che l'hanno
- * prodotto, e quei campi sono `aria-invalid`. `Alert variant="destructive"`,
- * mai un testo tinto `text-destructive`.
- *
- * Qui il messaggio è **quello di default della via**, che è il punto: le
- * parole dei due errori devono distinguersi da sole. Passarne uno uguale al
- * titolo ripeteva la stessa frase due volte — visto a video, corretto.
+ * L'errore delle credenziali: sta sul modulo, accanto ai campi che l'hanno
+ * prodotto, e quei campi sono `aria-invalid`. È un `Alert` con
+ * `variant="destructive"`, non un testo tinto di rosso. Il messaggio è
+ * quello di default della via, che si distingue da solo dall'altro.
  */
 export const ErroreCredenziali: Story = {
   args: {
@@ -160,21 +193,11 @@ export const ErroreCredenziali: Story = {
 }
 
 /**
- * L'errore del **ritorno da Microsoft**: sta **accanto al bottone Microsoft**,
- * non in cima, e non tocca i campi. La posizione si legge prima delle parole,
- * ed è lei a dire quale via ha fallito.
- *
- * È la ragione di `statoDi`: indistinti, questo errore colorerebbe di rosso
- * il campo password di chi ha sbagliato tutt'altro.
- *
- * **Le parole dicono un'azione che esiste.** La prima stesura diceva «Torna
- * indietro e riprova», ed era falsa: l'SSO è un redirect, quindi chi legge
- * questo avviso **è già tornato** — non c'è nessuna schermata precedente, e
- * il bottone per riprovare è quello subito sotto.
- *
- * E sta **su una riga sola**: misurato, 330px di larghezza utile. La seconda
- * stesura ne prendeva due e lasciava «contatta l'amministratore» orfano sulla
- * seconda, che in un avviso di tre righe si legge come un secondo messaggio.
+ * L'errore del ritorno da Microsoft: sta accanto al bottone Microsoft, non
+ * in cima, e non tocca i campi. La posizione dice quale via ha fallito
+ * prima ancora delle parole. Le parole indicano un'azione che esiste: chi
+ * legge è già tornato da Microsoft, e per riprovare c'è il bottone subito
+ * sotto.
  */
 export const ErroreMicrosoft: Story = {
   args: {
@@ -186,10 +209,9 @@ export const ErroreMicrosoft: Story = {
 }
 
 /**
- * La via locale **spenta** — in Studio `accessoLocale` è `false` finché il
- * backend non ha il segreto. I campi restano disabilitati con l'avviso, non
- * spariscono: è lo stesso trattamento che `configurato={false}` dà da sempre
- * all'altra via, e una via che sparisce senza dirlo si legge come un guasto.
+ * `credenzialiAbilitate={false}`: la via con email e password è spenta. I
+ * campi restano, disabilitati e con l'avviso, come fa `configurato={false}`
+ * per Microsoft.
  */
 export const CredenzialiSpente: Story = {
   args: {

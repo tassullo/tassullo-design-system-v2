@@ -38,9 +38,10 @@ jobs:
       # si aspetta.
       - run: npx playwright install --with-deps chromium
 
-      # I cinque controlli statici — palette, aggiornabilità dei componenti,
-      # allineamento di `public/r/` ai sorgenti, font, marchio — e poi le
-      # quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto}.
+      # Gli otto gate: i sette controlli statici — palette, aggiornabilità dei
+      # componenti, allineamento di `public/r/` ai sorgenti, riferimenti fra
+      # item, font, marchio, testo della style guide (`check:storybook`) — e
+      # poi le quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto}.
       - run: npm run check
 
       # La style guide deve anche **costruirsi**: una story che compila nel

@@ -78,36 +78,48 @@ export type PaginaListaProps<TDato extends RowData> = {
   perPagina?: DataTableProps<TDato>["perPagina"]
   bloccaPrimaColonna?: boolean
   barra?: DataTableProps<TDato>["barra"]
+  // Passati a `DataTable` — le capacità di FASE 3bis (niko-table) rilevanti
+  // per una pagina **sola lista**: colonne che si ridimensionano, si
+  // bloccano, si riordinano, e un menu di riga condiviso fra tendina e tasto
+  // destro. `idRiga` è **richiesto** insieme a `menuRiga` o a un futuro
+  // riordino righe (v. `DataTableProps.idRiga`, `data-table.tsx`).
   /**
-   * Passati a `DataTable` — le capacità di FASE 3bis (niko-table) rilevanti
-   * per una pagina **sola lista**: colonne che si ridimensionano, si
-   * bloccano, si riordinano, e un menu di riga condiviso fra tendina e tasto
-   * destro. `idRiga` è **richiesto** insieme a `menuRiga` o a un futuro
-   * riordino righe (v. `DataTableProps.idRiga`, `data-table.tsx`).
+   * Passano a `tassullo-data-table`: colonne che si ridimensionano, si
+   * bloccano, si riordinano, e il menu di riga dalla tendina o col tasto
+   * destro. `idRiga` serve insieme a `menuRiga`.
    */
   idRiga?: DataTableProps<TDato>["idRiga"]
   ridimensionabile?: DataTableProps<TDato>["ridimensionabile"]
   colonneBloccabili?: DataTableProps<TDato>["colonneBloccabili"]
   colonneRiordinabili?: DataTableProps<TDato>["colonneRiordinabili"]
   menuRiga?: DataTableProps<TDato>["menuRiga"]
+  // **La seconda faccia, per quando la tabella non ci sta.**
+  //
+  // Passandola, sotto `soglia` il blocco rende **questo** al posto della
+  // `DataTable` — e con lei spariscono `cerca`, `barra` e la paginazione,
+  // che sono contorno della tabella: i comandi della faccia stretta li porta
+  // `facciaStretta` stessa. Testata, i tre `stato` e `vuotoIniziale` restano
+  // del blocco, perché non cambiano con la larghezza.
+  //
+  // **Il blocco sceglie *quando*, non *cosa***, ed è la divisione di
+  // `Pagine/Lista a due facce` (M4ter.6): `useSoglia` è il bivio e sta nel
+  // registry; la faccia stretta la scrive la pagina, perché le due facce non
+  // sono la stessa lista impaginata due volte — quante colonne diventano un
+  // raggruppamento, quale filtro sopravvive e cosa resta sulla scheda lo sa
+  // solo chi quella lista la conosce.
+  //
+  // Assente, la pagina resta a una faccia a ogni larghezza: è il
+  // comportamento di prima di M4ter.16, e nessuna pagina già scritta cambia.
   /**
-   * **La seconda faccia, per quando la tabella non ci sta.**
+   * La seconda forma della pagina, per quando la tabella non ci sta: sotto
+   * `soglia` il blocco rende questo nodo al posto della tabella. Con la tabella
+   * se ne vanno la ricerca, la `barra` e la paginazione; i comandi delle
+   * schede li porta `facciaStretta`. La fascia, gli `stato` e `vuotoIniziale`
+   * restano del blocco.
    *
-   * Passandola, sotto `soglia` il blocco rende **questo** al posto della
-   * `DataTable` — e con lei spariscono `cerca`, `barra` e la paginazione,
-   * che sono contorno della tabella: i comandi della faccia stretta li porta
-   * `facciaStretta` stessa. Testata, i tre `stato` e `vuotoIniziale` restano
-   * del blocco, perché non cambiano con la larghezza.
-   *
-   * **Il blocco sceglie *quando*, non *cosa***, ed è la divisione di
-   * `Pagine/Lista a due facce` (M4ter.6): `useSoglia` è il bivio e sta nel
-   * registry; la faccia stretta la scrive la pagina, perché le due facce non
-   * sono la stessa lista impaginata due volte — quante colonne diventano un
-   * raggruppamento, quale filtro sopravvive e cosa resta sulla scheda lo sa
-   * solo chi quella lista la conosce.
-   *
-   * Assente, la pagina resta a una faccia a ogni larghezza: è il
-   * comportamento di prima di M4ter.16, e nessuna pagina già scritta cambia.
+   * Il blocco sceglie quando, la pagina scrive cosa: quale colonna diventa un
+   * raggruppamento, quale filtro resta, cosa entra nella scheda. Assente, la
+   * pagina ha una forma sola a ogni larghezza.
    */
   facciaStretta?: ReactNode
   /**
@@ -119,12 +131,16 @@ export type PaginaListaProps<TDato extends RowData> = {
    * pagina che sulla scrivania funzionava.
    */
   soglia?: string
+  // `"auto"` (default) lascia decidere a `soglia`. Le altre due rendono una
+  // faccia **in modo deterministico**, e servono alle story: `useSoglia`
+  // legge una media query sulla **finestra**, e la larghezza della finestra
+  // non si commuta dal canvas di Storybook (`docs/DECISIONI.md` §46) — una
+  // scena che dipendesse dall'hook renderebbe nel gate il ramo che capita.
   /**
-   * `"auto"` (default) lascia decidere a `soglia`. Le altre due rendono una
-   * faccia **in modo deterministico**, e servono alle story: `useSoglia`
-   * legge una media query sulla **finestra**, e la larghezza della finestra
-   * non si commuta dal canvas di Storybook (`docs/DECISIONI.md` §46) — una
-   * scena che dipendesse dall'hook renderebbe nel gate il ramo che capita.
+   * `"auto"`, il predefinito, lascia decidere a `soglia`. `"tabella"` e
+   * `"schede"` rendono una faccia fissa a ogni larghezza: per una scena di
+   * documentazione o una prova automatica, dove la forma non deve dipendere
+   * dalla finestra.
    */
   faccia?: "auto" | "tabella" | "schede"
   className?: string

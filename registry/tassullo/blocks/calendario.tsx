@@ -298,7 +298,7 @@ export interface EventoCalendario<TData = unknown>
 export type VistaCalendario = "mese" | "settimana" | "agenda"
 
 /**
- * **Due iniziali, come nella primitiva** — «Francesco Sartori» è `FS`.
+ * **Due iniziali, come nella primitiva** — «Stefano Bertolini» è `SB`.
  *
  * Ci stanno perché il chip è stato alzato: `--ec-month-bar-h` è una
  * variabile del motore e il blocco la lega a `--spacing`, così il chip
@@ -1191,11 +1191,14 @@ export interface CalendarioProps<TData = unknown> {
   testata?: boolean
   /** Nodi in fondo alla testata, prima di «Nuovo» (filtri, una legenda). */
   azioni?: React.ReactNode
+  // Cosa mostrare quando non c'è nessun evento. Il default è
+  // `tassullo-empty-state`, cioè lo standard unico del vuoto di M3.5 — **non**
+  // lo stato vuoto di ReUI, che porterebbe una sua illustrazione e un suo
+  // tono. Si passa un nodo per cambiare la frase o aggiungerci una CTA.
   /**
-   * Cosa mostrare quando non c'è nessun evento. Il default è
-   * `tassullo-empty-state`, cioè lo standard unico del vuoto di M3.5 — **non**
-   * lo stato vuoto di ReUI, che porterebbe una sua illustrazione e un suo
-   * tono. Si passa un nodo per cambiare la frase o aggiungerci una CTA.
+   * Cosa mostrare quando non c'è nessun evento. Di default è
+   * `tassullo-empty-state`; si passa un nodo per cambiare la frase o per
+   * aggiungere un'azione.
    */
   statoVuoto?: React.ReactNode
   /** Fuso orario di visualizzazione. @default quello del browser */
@@ -1214,23 +1217,29 @@ export interface CalendarioProps<TData = unknown> {
   persone?: PersonaEvento[]
   /** La legenda dei calendari sotto la testata. @default true con `calendari` */
   legenda?: boolean
+  // Mostrare sabato e domenica nelle viste **mese** e **settimana**.
+  //
+  // **`false` di default, su indirizzo di Francesco (2026-09-21)**: quello
+  // delle app Tassullo è un calendario **lavorativo**, da lunedì a venerdì, e
+  // il fine settimana è rumore in cinque colonne su sette. Il motore non lo
+  // legge in **agenda**, che continua a elencare tutto — verificato: con
+  // `weekend={false}` un evento del solo sabato sparisce dalla griglia del
+  // mese ma resta in agenda, quindi **non si perde niente**, si nasconde.
+  //
+  // Misurato a prop accesa e spenta: 42 celle e 7 colonne contro **30 celle e
+  // 5 colonne**, e una barra a cavallo del fine settimana (venerdì→lunedì) si
+  // **spezza in due segmenti** invece di attraversare.
+  //
+  // Chi ha bisogno del sabato — un cantiere che lavora, un turno di
+  // reperibilità — lo riaccende con `weekend`, e l'interruttore c'è anche nel
+  // menù Opzioni. @default false
   /**
-   * Mostrare sabato e domenica nelle viste **mese** e **settimana**.
-   *
-   * **`false` di default, su indirizzo di Francesco (2026-09-21)**: quello
-   * delle app Tassullo è un calendario **lavorativo**, da lunedì a venerdì, e
-   * il fine settimana è rumore in cinque colonne su sette. Il motore non lo
-   * legge in **agenda**, che continua a elencare tutto — verificato: con
-   * `weekend={false}` un evento del solo sabato sparisce dalla griglia del
-   * mese ma resta in agenda, quindi **non si perde niente**, si nasconde.
-   *
-   * Misurato a prop accesa e spenta: 42 celle e 7 colonne contro **30 celle e
-   * 5 colonne**, e una barra a cavallo del fine settimana (venerdì→lunedì) si
-   * **spezza in due segmenti** invece di attraversare.
-   *
-   * Chi ha bisogno del sabato — un cantiere che lavora, un turno di
-   * reperibilità — lo riaccende con `weekend`, e l'interruttore c'è anche nel
-   * menù Opzioni. @default false
+   * Mostrare sabato e domenica nelle viste mese e settimana. Spento di
+   * default: è un calendario di lavoro, da lunedì a venerdì. L'agenda elenca
+   * comunque tutti gli eventi, anche quelli del fine settimana, quindi non si
+   * perde niente. Un evento che attraversa il fine settimana si divide in due
+   * tratti. L'interruttore c'è anche nel menu Opzioni.
+   * @default false
    */
   weekend?: boolean
   /** Il numero della settimana in una colonna a sinistra. @default false */

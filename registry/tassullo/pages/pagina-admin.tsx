@@ -128,10 +128,13 @@ export type UtenteAdmin = {
   attivo: boolean
 }
 
+// Su `etichetta`:
+//
+// La parola italiana. Senza, la tabella renderebbe `valore` grezzo — lo stesso difetto preso in M3bis.11b sui filtri sfaccettati.
 export type RuoloAssegnabile = {
   /** La chiave — quella che compare in `UtenteAdmin.ruoli`. */
   valore: string
-  /** La parola italiana. Senza, la tabella renderebbe `valore` grezzo — lo stesso difetto preso in M3bis.11b sui filtri sfaccettati. */
+  /** La parola italiana. Senza, la tabella mostrerebbe `valore` grezzo. */
   etichetta: string
   /** Il vocabolario di `lib/toni`. Assente, il neutro — l'app che non vuole distinguere i ruoli a colpo d'occhio non deve importare `lib/toni` per dirlo. */
   tono?: Tono

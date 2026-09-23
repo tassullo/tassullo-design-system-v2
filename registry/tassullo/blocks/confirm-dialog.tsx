@@ -155,21 +155,26 @@ export type ConfirmDialogProps = {
    * dire «l'operazione non è reversibile», non il titolo.
    */
   descrizione?: ReactNode
+  // Quello che sta **fra la spiegazione e i bottoni**: un campo, un elenco di
+  // cose che si stanno per cancellare, un riepilogo.
+  //
+  // Non è un secondo `descrizione` con un altro nome, ed è la ragione per cui
+  // esiste: `descrizione` finisce in `<AlertDialogDescription>`, cioè
+  // nell'elemento di `aria-describedby`, che un lettore di schermo annuncia
+  // **tutto in fila** all'apertura. Ci sta una frase; non ci sta un controllo,
+  // né un elenco di dodici righe. Il corpo sta fuori di lì, ed è un contenuto
+  // come un altro della pagina.
+  //
+  // Si compone **dal punto di chiamata** e non aggiunge nulla ad
+  // `alert-dialog`: la primitiva è un `grid`, e un terzo figlio fra
+  // intestazione e piè è una riga in più della griglia. Vedi la regola 4bis di
+  // `CLAUDE.md`, gradino 2.
   /**
-   * Quello che sta **fra la spiegazione e i bottoni**: un campo, un elenco di
-   * cose che si stanno per cancellare, un riepilogo.
-   *
-   * Non è un secondo `descrizione` con un altro nome, ed è la ragione per cui
-   * esiste: `descrizione` finisce in `<AlertDialogDescription>`, cioè
-   * nell'elemento di `aria-describedby`, che un lettore di schermo annuncia
-   * **tutto in fila** all'apertura. Ci sta una frase; non ci sta un controllo,
-   * né un elenco di dodici righe. Il corpo sta fuori di lì, ed è un contenuto
-   * come un altro della pagina.
-   *
-   * Si compone **dal punto di chiamata** e non aggiunge nulla ad
-   * `alert-dialog`: la primitiva è un `grid`, e un terzo figlio fra
-   * intestazione e piè è una riga in più della griglia. Vedi la regola 4bis di
-   * `CLAUDE.md`, gradino 2.
+   * Ciò che sta fra la spiegazione e i bottoni: un campo da compilare, l'elenco
+   * di ciò che si sta per cancellare, un riepilogo. Non è una seconda
+   * `descrizione`: la descrizione si legge tutta insieme all'apertura, e ci
+   * sta una frase; il corpo è contenuto come un altro, e ci sta anche un
+   * controllo.
    */
   corpo?: ReactNode
   /**
