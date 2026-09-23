@@ -12483,4 +12483,14 @@ Dopo la correzione del `Tab`, i cestini di `Data Grid → Computo` erano diventa
 
 **Verifiche**: `tsc -b` e `oxlint` a zero; `registry:build` rilanciato (`public/r/tassullo-data-grid.json`); pagina Docs di `data-grid` pulita in Chiaro e Scuro, axe `color-contrast` 0; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0**, 385 story in ognuna delle quattro passate.
 
-**Resta per dopo**: la riga di lavoro segnata anche a fuoco fuori dalla griglia (proposta in questa coda, non fatta): serve a ogni bottone fuori dalla griglia, non più al cestino.
+
+### Coda di M5.0d, terza — la riga di lavoro resta segnata a fuoco fuori
+
+Chiesto da Francesco dopo il cestino («facciamo anche la riga segnata a fuoco fuori»). Serve a ogni comando fuori dalla griglia — «Salva», i filtri, la barra — che agisca sulla riga su cui si stava lavorando.
+
+- **Il blocco** (`data-grid.tsx`): le sei celle (testo, numero, casella, data, scelta, comando) portano `data-attiva` quando sono la cella attiva. `<DataGrid>` tiene uno stato `"mai" | "dentro" | "fuori"` sul fuoco rispetto alla `<table>` (non al contenitore, che ha dentro anche la barra) e passa a `<DataTable>` le classi: dentro, l'anello pieno sulla cella attiva anche dopo un clic col puntatore, dove `focus-visible` non scatta; fuori, un bordo sottile grigio e il fondo tenue sull'intera riga. Nessun segno finché la griglia non è stata toccata. Nessun valore arbitrario: varianti `[&_[data-attiva]]:` e `[&_tr:has([data-attiva])]:` su utility del tema, e `check:registry` passa.
+- **La pagina**: una regola d'uso nuova — la cella attiva ha sempre il suo bordo, a fuoco fuori la riga resta segnata e `Tab` ci rientra.
+
+**Misurato in Chromium** (`DECISIONI.md` §56.9), in chiaro e in scuro: nessun segno all'apertura, anello da 2px dopo il clic, bordo da 1px e riga tinta col fuoco su «Aggiungi riga» e dopo un clic sul vuoto, `Maiusc`+`Tab` che rientra sulla stessa cella; axe `color-contrast` 0 a fuoco fuori. Guardato a occhio: in scuro la tinta della riga è debole, e a segnare è soprattutto il bordo della cella.
+
+**Verifiche**: `tsc -b`, `oxlint` a zero; `registry:build` rilanciato; pagina Docs di `data-grid` pulita in Chiaro e Scuro; `npm run check`, i sette gate **verdi**, `test:a11y` **1540/0** con 385 story per passata.

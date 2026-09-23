@@ -1184,6 +1184,7 @@ function CellaTestoGriglia<TDato extends RowData>({
       // `<td>` — preso da axe, `critical`, prima di questa correzione.
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
       onMouseDown={() => motore.vaiA(id)}
       onDoubleClick={() => motore.apriModifica(id)}
@@ -1298,6 +1299,7 @@ function CellaNumericaGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
       onMouseDown={() => motore.vaiA(id)}
       onDoubleClick={() => motore.apriModifica(id)}
@@ -1390,6 +1392,7 @@ function CellaCheckboxGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
       onMouseDown={() => motore.vaiA(id)}
       onClick={commuta}
@@ -1466,6 +1469,7 @@ function CellaAzioneGriglia<TDato extends RowData>({
       size="icon"
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
       aria-label={etichetta(riga)}
       onMouseDown={() => motore.vaiA(id)}
@@ -1591,6 +1595,7 @@ function CellaDataGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
       onMouseDown={() => motore.vaiA(id)}
       onDoubleClick={() => motore.apriModifica(id)}
@@ -1697,6 +1702,7 @@ function CellaSelectGriglia<TDato extends RowData>({
       ref={divRef}
       data-riga-id={rigaId}
       data-colonna-id={colonnaId}
+      data-attiva={attiva ? "" : undefined}
       tabIndex={attiva ? 0 : -1}
       onMouseDown={() => motore.vaiA(id)}
       onDoubleClick={() => motore.apriModifica(id)}
@@ -1780,6 +1786,42 @@ export function DataGrid<TDato extends RowData>({
     return () => motore.registraSpostamentoVerticale(null)
   }, [motore])
 
+  /**
+   * **Dove sta il fuoco, rispetto alle celle**: `"mai"` finché nessuno ha
+   * toccato la griglia, poi `"dentro"` o `"fuori"`. Serve a segnare la cella
+   * attiva e la sua riga anche quando il fuoco è altrove — un bottone
+   * «Salva», un filtro, la barra: il motore la ricorda sempre (è così che
+   * `Tab` ci rientra), ma senza un segno chi ha cliccato fuori non sa più
+   * su quale riga stava lavorando. È la convenzione dei fogli di calcolo: la
+   * selezione resta visibile, attenuata. `"mai"` non segna niente, o la
+   * prima riga comparirebbe scelta su una pagina appena aperta.
+   *
+   * «Dentro» vuol dire dentro la `<table>`, non dentro `contenitoreRef`, che
+   * contiene anche la barra. `focusout` arriva prima che il fuoco sia
+   * atterrato altrove, quindi si rilegge al giro dopo; `focusin` non arriva
+   * quando il fuoco finisce sul `body`, e per questo servono tutti e due.
+   */
+  const [fuoco, setFuoco] = React.useState<"mai" | "dentro" | "fuori">("mai")
+  React.useEffect(() => {
+    let attesa: ReturnType<typeof setTimeout> | undefined
+    const aggiorna = () => {
+      const tabella = contenitoreRef.current?.querySelector("table")
+      const dentro = !!tabella && tabella.contains(document.activeElement)
+      setFuoco((prima) => (dentro ? "dentro" : prima === "mai" ? "mai" : "fuori"))
+    }
+    const dopo = () => {
+      clearTimeout(attesa)
+      attesa = setTimeout(aggiorna, 0)
+    }
+    document.addEventListener("focusin", aggiorna)
+    document.addEventListener("focusout", dopo)
+    return () => {
+      clearTimeout(attesa)
+      document.removeEventListener("focusin", aggiorna)
+      document.removeEventListener("focusout", dopo)
+    }
+  }, [])
+
   const alVirtualizzatore = React.useCallback((v: (indice: number) => void) => {
     vaiAVirtualeRef.current = v
   }, [])
@@ -1824,6 +1866,16 @@ export function DataGrid<TDato extends RowData>({
             "aria-colcount": motore.colonneId.length + (motore.colonneAzioneId?.length ?? 0),
           }}
           {...resto}
+          className={cn(
+            resto.className,
+            // La cella attiva ha sempre il suo bordo, anche dopo un clic col
+            // puntatore (dove `focus-visible` non si accende); a fuoco fuori
+            // il bordo si attenua e la riga intera prende il fondo tenue.
+            fuoco === "dentro" &&
+              "[&_[data-attiva]]:ring-2 [&_[data-attiva]]:ring-ring [&_[data-attiva]]:ring-inset",
+            fuoco === "fuori" &&
+              "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted"
+          )}
         />
       </div>
     </ContestoDataGrid.Provider>
