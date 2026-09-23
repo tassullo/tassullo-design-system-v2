@@ -14,49 +14,46 @@ import {
 } from '@/registry/tassullo/ui/select'
 
 /**
- * **Un ri-stile solo**: `rounded-[min(var(--radius-md),10px)]` → `rounded-md`
- * sulla taglia `sm`. Il `min()` serviva a mettere un tetto a un `--radius-md`
- * grande; il nostro è 6px, quindi il risultato è identico al pixel — ma ora è
- * il gradino del tema, e segue il tema se cambia. Come per il checkbox, era
- * **invisibile al gate** fino a M2.2 (segnaposto d'icona): corretto lì.
+ * Un campo che fa scegliere una voce da un elenco corto e fisso: si apre, si
+ * sceglie, si chiude.
  *
- * **`Select` vuole `items`, o il grilletto mostra il valore grezzo.** È il
- * secondo rilievo di questa fase, e si vede a occhio nudo appena si sceglie
- * una voce: senza `items`, `SelectValue` non sa risalire dall'`value` alla
- * scritta, e il campo «Famiglia» dice `deumidificanti` invece di «Intonaci
- * deumidificanti». Non è un difetto del ri-stile — è come Base UI risolve
- * l'etichetta (`resolveSelectedLabel` legge la mappa `items` sulla radice) —
- * ma è un passo che shadcn non documenta e che **ogni consumatore sbaglierà
- * una volta**. Qui si scrive perché lo sbagli zero volte.
+ * **Quando sì, quando no.** Il confine con `combobox` è la lunghezza
+ * dell'elenco: fino a poche decine di voci si usa `select`, sopra si usa
+ * `combobox`, che filtra mentre si scrive. Il segno è uno solo: se per
+ * trovare una voce bisogna scorrere, serviva un combobox. Con tre o quattro
+ * opzioni sempre in vista, `radio-group`. Un elenco di azioni, non di valori,
+ * è `dropdown-menu`.
  *
- * ## Le voci vanno dentro un `SelectGroup`, anche quando il gruppo è uno solo
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/select
+ * ```
  *
- * **È il rientro del riquadro, e senza gruppo non c'è.** Il `p-1` che stacca
- * le voci dal bordo del popup sta su `SelectGroup` (`scroll-my-1 p-1`), non su
- * `SelectContent`, che ha padding **0**. Mettere gli `SelectItem` direttamente
- * dentro `SelectContent` — la forma più naturale da scrivere, e quella in cui
- * erano tre delle quattro story di questa pagina — fa arrivare la riga
- * evidenziata **a filo del bordo**, con gli angoli arrotondati che spariscono
- * contro il bordo del riquadro.
+ * **Taglie e opzioni.** `size` su `SelectTrigger`: `default` o `sm`.
+ * `alignItemWithTrigger` su `SelectContent`, acceso di base, apre l'elenco
+ * in modo che la voce scelta cada sopra il campo; spento, l'elenco scende
+ * sotto il bordo del campo come un menu. Le parti: `Select` con `items`,
+ * `value` o `defaultValue`; `SelectTrigger` con dentro `SelectValue` e il suo
+ * `placeholder`; `SelectContent`, `SelectGroup`, `SelectLabel`, `SelectItem`,
+ * `SelectSeparator`.
  *
- * Misurato contro la pagina di shadcn, che avvolge sempre le voci in un
- * gruppo: rientro della voce **4px per lato da loro, 0px da noi**. È la
- * differenza che si vede a occhio fra i due menu aperti, e l'unica: per il
- * resto le classi del popup, il padding e le classi delle voci coincidono
- * (`DECISIONI.md` §24).
+ * **Regole d'uso.**
  *
- * Non è un difetto del componente né un'opzione di `components.json`: è come
- * shadcn ha distribuito il padding fra le parti. Il gruppo si usa **anche
- * senza `SelectLabel`**, che resta facoltativa.
+ * - `items` sulla radice c'è sempre: è la mappa da valore a testo, e senza il
+ *   campo mostra il valore grezzo — `deumidificanti` invece di
+ *   «Deumidificanti».
+ * - Le voci stanno sempre dentro un `SelectGroup`, anche quando il gruppo è
+ *   uno solo e senza `SelectLabel`: è il gruppo che stacca le voci dal bordo
+ *   del riquadro.
+ * - In fondo alla pagina o dentro un contenitore che scorre si mette
+ *   `alignItemWithTrigger={false}`: l'elenco resta sotto il campo e non ne
+ *   copre la parte superiore.
+ * - Lo stato non valido si scrive con `aria-invalid` sul grilletto; il campo
+ *   spento con `disabled`.
  *
- * **Il `select` regge le liste corte.** Sopra le poche decine di voci non
- * regge più, e la risposta è il `combobox` di M2.6 — che si scrive filtrando,
- * mentre qui si può solo scorrere. Le famiglie e le norme di Anagrafe, che
- * oggi stanno in `<select>` nudi con centinaia di voci, vanno lì, non qui.
- *
- * **Da tastiera**: `Tab` porta sul grilletto, `Spazio`/`Invio`/`↓` apre,
- * le frecce scorrono, le **lettere** saltano alla voce che comincia così,
- * `Invio` sceglie, `Esc` chiude senza cambiare.
+ * **Tastiera e accessibilità.** `Tab` porta sul campo; `Spazio`, `Invio` o
+ * `↓` apre; le frecce scorrono le voci; una lettera salta alla prima voce che
+ * comincia così; `Invio` sceglie; `Esc` chiude senza cambiare. Il campo prende
+ * il nome dalla `Label` collegata con `htmlFor`.
  */
 const meta = {
   title: 'Primitive/Select',
@@ -69,6 +66,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un campo con segnaposto: lo stato di una scheda fra quattro.
+ */
 export const Predefinito: Story = {
   render: () => (
     <div className="flex w-72 flex-col gap-2">
@@ -97,7 +97,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Raggruppato, con etichette di gruppo e separatore: le famiglie di prodotto. */
+/**
+ * Le voci divise in due gruppi, con etichetta di gruppo e separatore.
+ */
 export const ConGruppi: Story = {
   render: () => (
     <div className="flex w-72 flex-col gap-2">
@@ -134,6 +136,9 @@ export const ConGruppi: Story = {
   ),
 }
 
+/**
+ * Le due taglie del campo, `default` e `sm`.
+ */
 export const Taglie: Story = {
   render: () => (
     <div className="flex w-72 flex-col gap-4">
@@ -169,6 +174,9 @@ export const Taglie: Story = {
   ),
 }
 
+/**
+ * Vuoto col segnaposto, non valido, disabilitato.
+ */
 export const Stati: Story = {
   render: () => (
     <div className="flex w-72 flex-col gap-4">
@@ -216,36 +224,9 @@ export const Stati: Story = {
 }
 
 /**
- * **`alignItemWithTrigger`**, l'unica prop di posizionamento che cambia il
- * *carattere* del controllo. Sta su `SelectContent`, vale `true` per
- * impostazione predefinita, e le due rese sono queste — qui affiancate,
- * entrambe con la terza voce già scelta perché la differenza si veda.
- *
- * - **`true` (predefinito)** — il popup si posiziona in modo che **la voce
- *   scelta cada sopra il grilletto**: il menu si apre *attorno* al valore
- *   corrente, che può quindi debordare sopra il campo. È il comportamento del
- *   `<select>` nativo di macOS, e il motivo per cui il preset spegne
- *   l'animazione in questo caso (`data-[align-trigger=true]:animate-none`):
- *   una tendina che si apre già a cavallo del campo, se anche scivolasse,
- *   sembrerebbe saltare.
- * - **`false`** — il popup si aggancia al **bordo** del grilletto e scende
- *   sotto, come un menu a tendina qualsiasi. Qui l'animazione c'è.
- *
- * **Misurato** su questa story, grilletto alto 32px con bordo superiore a
- * y=344 e la terza voce su cinque già scelta:
- *
- * | | bordo alto del popup | voce scelta |
- * |---|---|---|
- * | `true` | **51px sopra** il grilletto | y=347, cioè **sul grilletto** (scarto 3px) |
- * | `false` | 36px **sotto** — i 4px di `sideOffset` dal bordo basso | y=434, 90px più giù |
- *
- * **Quando mettere `false`.** Quando il campo sta in fondo alla pagina o
- * dentro un contenitore che scorre: con `true` il popup si sposta in su per
- * inseguire la voce scelta, e in una lista lunga può coprire il campo e
- * quello che gli sta sopra. Con `false` la posizione è prevedibile. Nelle
- * schede di Anagrafe, dove i `select` stanno dentro form lunghi, è la
- * variante da valutare — la decisione vera arriva col `combobox` di M2.6,
- * che è ciò che sostituirà queste liste quando si allungano.
+ * `alignItemWithTrigger` acceso e spento, con la terza voce già scelta:
+ * aperto, a sinistra l'elenco cade con la voce scelta sopra il campo, a
+ * destra scende sotto il bordo.
  */
 export const AllineatoAlGrilletto: Story = {
   render: () => {

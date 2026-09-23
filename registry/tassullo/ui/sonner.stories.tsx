@@ -6,56 +6,40 @@ import { ButtonGroup } from '@/registry/tassullo/ui/button-group'
 import { Toaster } from '@/registry/tassullo/ui/sonner'
 
 /**
- * **Nessun ri-stile: qui non ci sono classi da toccare.** Il `Toaster` del
- * preset non stila i toast con Tailwind — li stila passando i **token del
- * tema** alle variabili di `sonner`: `--normal-bg: var(--popover)`,
- * `--normal-text: var(--popover-foreground)`, `--normal-border:
- * var(--border)`, `--border-radius: var(--radius)`. È un `var()`, quindi
- * resta vivo e segue la modalità e la superficie da sé — la stessa ragione
- * per cui la superficie della style guide sta nel CSS e non nell'addon
- * `backgrounds` (M0.3).
+ * Un avviso breve che compare in un angolo dello schermo dopo un'azione, e
+ * sparisce da solo: «Scheda salvata», «Esportazione in corso».
  *
- * **La stranezza di questo file, e come è finita.** Il componente importa
- * `useTheme` da **`next-themes`**, la libreria di temi di Next.js. Noi non la
- * usiamo: la nostra modalità è una classe sulla radice (`.light`/`.dark`),
- * messa dall'app — o, qui, dall'interruttore della style guide. Senza il suo
- * provider `useTheme()` non rompe niente e ricade su `"system"`, cioè sul
- * tema del **sistema operativo**, e `data-sonner-theme` non viene scritto
- * affatto. Fondo, bordo e titolo del toast restano giusti — arrivano dai
- * `var()` qui sopra; a divergere è la palette interna di `sonner`.
+ * **Quando sì, quando no.** Conferma ciò che è andato bene, o segnala ciò che
+ * si può ignorare. Ciò che va letto e riletto non va in un avviso che sparisce:
+ * un errore che blocca il lavoro sta nella pagina, in un `alert` o nel
+ * messaggio d'errore del `field`. Per un'azione che si può annullare c'è il
+ * blocco `tassullo-toast-con-annullo`, che ha già il tempo e il bottone.
  *
- * **Il sintomo era grave e ora è chiuso**: la descrizione del toast ha il
- * colore `#3f3f3f` cablato dentro il CSS di `sonner`, sollevato solo da
- * `[data-sonner-theme='dark']` — che senza `next-themes` non viene mai
- * scritto. Su fondo scuro faceva **1.62:1**. Fissata sul token con una
- * stringa di classi, `**:data-[description]:text-muted-foreground!`: ora
- * **7.17:1** in scuro e 5.37 in chiaro. L'importante serve perché il CSS di
- * `sonner` non sta in un layer e batterebbe l'utility a prescindere dalla
- * specificità.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/sonner
+ * ```
  *
- * **E `next-themes` si lascia dov'è** (D12, chiusa il 2026-09-09). Dopo quella
- * correzione il toast reso **con e senza** il tema forzato è **identico**:
- * zero differenze su fondo, testo, bordo, raggio, ombra, titolo, descrizione,
- * icona, bottone d'azione e bottone di chiusura, in **entrambe** le modalità.
- * Il preset mappa già `--normal-*` sui nostri token e non accende
- * `richColors`, quindi la palette interna di `sonner` non viene mai usata.
- * Costa **3,4 KB** nel bundle, e nulla sul server: è una dipendenza di
- * compilazione. Si tiene perché toglierlo sarebbe la **prima divergenza
- * strutturale** del progetto — e su un file che `check:registry` non
- * confronta, essendo a segnaposto d'icona: il gate non ci proteggerebbe.
+ * **Forme.** Si chiamano con la funzione `toast` di `sonner`: `toast(…)`,
+ * `toast.success`, `toast.info`, `toast.warning`, `toast.error`, e
+ * `toast.promise` per un'operazione che finisce bene o male. Le opzioni
+ * `description` e `action` aggiungono una riga e un bottone.
  *
- * **Se un'app volesse comunque forzare il tema del toast**, non serve toccare
- * niente: `{...props}` è l'ultima prop, quindi `<Toaster theme="dark" />`
- * vince su `next-themes`. Verificato — `data-sonner-theme` passa da `light` a
- * `dark`.
+ * **Regole d'uso.**
  *
- * **`<Toaster />` va una volta sola**, in cima all'app. Queste story ce
- * l'hanno dentro perché ognuna è un'app a sé.
+ * - `<Toaster />` si mette una volta sola, alla radice dell'app. Le scene di
+ *   questa pagina ce l'hanno ciascuna perché ognuna è un'app a sé.
+ * - I colori arrivano dai token del tema e seguono la modalità da soli. Il
+ *   componente importa `next-themes`, ma non serve il suo provider. Per
+ *   forzare una modalità si passa `theme` al `Toaster`.
+ * - Un'azione dentro l'avviso è una comodità, mai l'unica via: l'avviso
+ *   sparisce, e la stessa cosa si deve poter fare dalla pagina.
+ * - Il titolo è una frase breve; la descrizione, se c'è, dice di che cosa si
+ *   parla.
  *
- * **Il toast non è il posto degli errori che vanno letti.** Sparisce da solo:
- * quello che si deve poter rileggere sta nella pagina — `alert` (M2.4) o il
- * messaggio d'errore del `field`. Il toast conferma ciò che è andato bene, o
- * segnala ciò che si può ignorare.
+ * **Tastiera e accessibilità.** Gli avvisi arrivano in una regione che il
+ * lettore di schermo legge senza interrompere ciò che sta dicendo. `Alt`+`T`
+ * porta il fuoco sugli avvisi; mentre il puntatore o il fuoco ci stanno sopra,
+ * restano aperti.
  */
 const meta = {
   title: 'Primitive/Sonner',
@@ -73,6 +57,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un avviso con titolo e descrizione.
+ */
 export const Predefinito: Story = {
   render: () => (
     <Button
@@ -85,8 +72,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Le cinque forme semantiche. Le icone le mette il preset (Lucide), i colori
- * arrivano dai token: nessun colore è scritto qui dentro.
+ * Le cinque forme: successo, informazione, avviso, errore e un'operazione in
+ * corso che finisce con successo. Icone e colori sono già dentro.
  */
 export const Semantici: Story = {
   render: () => (
@@ -123,9 +110,8 @@ export const Semantici: Story = {
 }
 
 /**
- * Con un'azione. **L'azione dentro un toast è sempre ridondante**: il toast
- * sparisce, e chi non fa in tempo dev'essere in grado di fare la stessa cosa
- * dalla pagina. «Annulla» qui è una comodità, non l'unica via.
+ * Un avviso con «Annulla»: una comodità, perché la stessa azione resta nella
+ * pagina.
  */
 export const ConAzione: Story = {
   render: () => (
@@ -143,7 +129,9 @@ export const ConAzione: Story = {
   ),
 }
 
-/** Più toast in coda: si impilano, il più recente in cima. */
+/**
+ * Tre avvisi di fila: si impilano, il più recente davanti.
+ */
 export const InCoda: Story = {
   render: () => (
     <Button

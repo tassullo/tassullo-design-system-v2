@@ -14,31 +14,43 @@ import {
 import { Badge } from '@/registry/tassullo/ui/badge'
 
 /**
- * **L'unico ri-stile del file è `tabular-nums` sull'elemento `<table>`**, ed è
- * il criterio d'accettazione di M2.4. Una classe sola, sulla radice: le cifre
- * tabellari sono ereditate, quindi coprono intestazioni, corpo e piede senza
- * che chi scrive una tabella debba ricordarsene colonna per colonna — che è
- * esattamente il modo in cui la regola si perde.
+ * Una tabella di dati in righe e colonne, con intestazione, corpo e piede.
  *
- * Non serve un altro carattere. La style guide del v1 diceva «monospace per
- * codici di sistema *e dati tabellari*», e la seconda metà è caduta in M2.1:
- * Inter porta la feature OpenType `tnum` e le sue cifre tabellari sono stabili
- * fra i pesi, quindi **il totale in grassetto si incolonna col corpo in
- * tondo**. Il `font-mono` **non si usa nemmeno sui codici**: sospeso il
- * 2026-09-20 su richiesta di Roberto (`docs/DECISIONI.md` §48) — il codice
- * resta `text-xs text-muted-foreground`, che è il peso e non il carattere.
+ * **Quando sì, quando no.** La primitiva basta quando le righe sono poche e
+ * fisse e si leggono e basta: un computo in una scheda, un riepilogo, un
+ * confronto. Appena servono ordinamento, filtri, paginazione, selezione delle
+ * righe o un menu di riga, si usa il blocco `tassullo-data-table`, che è
+ * costruito sopra questa tabella e ha già tutto; per righe da modificare cella
+ * per cella, `tassullo-data-grid`.
  *
- * `MisuraDelleCifre` lo verifica dal DOM, con lo stesso righello di
- * `Tema/Cifre` — il **bordo sinistro dei decimali**, non la virgola, che resta
- * proporzionale e si sposta anche quando le cifre sono perfettamente
- * incolonnate.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/table
+ * ```
  *
- * Due cose che **non** sono state toccate, e vale la pena dirle. `TableRow`
- * porta `hover:bg-muted/50` su ogni riga: a differenza della card non è una
- * promessa falsa, perché una riga di tabella è un bersaglio vero quasi
- * ovunque (selezione, menu contestuale, apertura della scheda) e il `data-table`
- * di M3.3 la userà. E il contenitore ha `overflow-x-auto`: sotto una certa
- * larghezza la tabella scorre invece di stritolare le colonne.
+ * **Parti.** `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`,
+ * `TableHead`, `TableCell`, `TableCaption`. Una riga selezionata porta
+ * `data-state="selected"`.
+ *
+ * **Regole d'uso.**
+ *
+ * - Le cifre sono tabellari su tutta la tabella: `tabular-nums` sta già sulla
+ *   radice e lo ereditano intestazione, corpo e piede. Il totale in grassetto
+ *   si incolonna col corpo in tondo, senza cambiare carattere.
+ * - I numeri si allineano a destra (`text-right` sulla cella e sulla sua
+ *   intestazione), e si formattano con le funzioni dell'item `numeri` —
+ *   `intero()`, `decimale()`, `valuta()` — che scrivono sempre il separatore
+ *   delle migliaia: `4.128`, mai `4128` accanto a `12.345`.
+ * - Un codice, un anno, un identificativo non si formattano: sono stringhe
+ *   scritte con delle cifre. I codici si scrivono nel carattere del testo,
+ *   attenuati con `text-sm text-muted-foreground`.
+ * - Uno stato in una colonna è un `badge`, coi toni dell'item `toni`.
+ * - Una cella di testo lungo va a capo con `whitespace-normal`; le altre
+ *   restano su una riga. Su schermo stretto la tabella scorre in orizzontale
+ *   invece di stringere le colonne.
+ *
+ * **Tastiera e accessibilità.** È una `<table>` nativa: il lettore di schermo
+ * annuncia righe, colonne e intestazioni. `TableCaption` le dà il titolo. La
+ * tabella non riceve il fuoco; lo ricevono i controlli dentro le celle.
  */
 const meta = {
   title: 'Primitive/Table',
@@ -55,6 +67,10 @@ const righe = [
   { cod: 'MAT-0088', voce: 'Fissaggi meccanici', um: 'pz', qta: '4.960,00', prezzo: '0,37' },
 ]
 
+/**
+ * Un computo con didascalia, quantità e prezzi allineati a destra e un totale
+ * nel piede.
+ */
 export const Predefinito: Story = {
   render: () => (
     <Table className="max-w-3xl">
@@ -71,7 +87,7 @@ export const Predefinito: Story = {
       <TableBody>
         {righe.map((r) => (
           <TableRow key={r.cod}>
-            <TableCell className="text-xs">{r.cod}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">{r.cod}</TableCell>
             <TableCell className="whitespace-normal">{r.voce}</TableCell>
             <TableCell>{r.um}</TableCell>
             <TableCell className="text-right">{r.qta}</TableCell>
@@ -91,8 +107,7 @@ export const Predefinito: Story = {
 }
 
 /**
- * Il codice attenuato, lo stato come badge, i numeri in colonna. È la forma
- * che il `data-table` di M3.3 erediterà.
+ * Lo stato di ogni scheda come `badge`, e una riga selezionata.
  */
 export const ConStati: Story = {
   render: () => (
@@ -107,19 +122,19 @@ export const ConStati: Story = {
       </TableHeader>
       <TableBody>
         <TableRow>
-          <TableCell className="text-xs">SCH-4021-A</TableCell>
+          <TableCell className="text-sm text-muted-foreground">SCH-4021-A</TableCell>
           <TableCell>Guaina bituminosa TS-40</TableCell>
           <TableCell><Badge variant="default">Pubblicata</Badge></TableCell>
           <TableCell className="text-right">4</TableCell>
         </TableRow>
         <TableRow data-state="selected">
-          <TableCell className="text-xs">SCH-1107-C</TableCell>
+          <TableCell className="text-sm text-muted-foreground">SCH-1107-C</TableCell>
           <TableCell>Primer bituminoso</TableCell>
           <TableCell><Badge variant="secondary">Bozza</Badge></TableCell>
           <TableCell className="text-right">11</TableCell>
         </TableRow>
         <TableRow>
-          <TableCell className="text-xs">SCH-0088-A</TableCell>
+          <TableCell className="text-sm text-muted-foreground">SCH-0088-A</TableCell>
           <TableCell>Fissaggi meccanici</TableCell>
           <TableCell><Badge variant="destructive">Revocata</Badge></TableCell>
           <TableCell className="text-right">2</TableCell>
@@ -180,7 +195,7 @@ function Colonna({ titolo, classe }: { titolo: string; classe: string }) {
         <TableBody>
           {righe.map((r) => (
             <TableRow key={r.cod}>
-              <TableCell className="text-xs">{r.cod}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{r.cod}</TableCell>
               <TableCell className="text-right">{r.qta}</TableCell>
             </TableRow>
           ))}
@@ -202,11 +217,16 @@ function Colonna({ titolo, classe }: { titolo: string; classe: string }) {
   )
 }
 
+/**
+ * Le stesse quantità con e senza `tabular-nums`. Sotto ogni tabella lo scarto
+ * fra il decimale più a sinistra e quello più a destra, letto dalla pagina:
+ * con le cifre tabellari è praticamente zero.
+ */
 export const MisuraDelleCifre: Story = {
   render: () => (
     <div className="flex flex-wrap items-start gap-8">
-      <Colonna titolo="Con tabular-nums (il nostro)" classe="" />
-      <Colonna titolo="Senza (il preset)" classe="normal-nums" />
+      <Colonna titolo="Con tabular-nums" classe="" />
+      <Colonna titolo="Senza, con normal-nums" classe="normal-nums" />
     </div>
   ),
 }

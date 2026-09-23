@@ -4,24 +4,31 @@ import { ScrollArea, ScrollBar } from '@/registry/tassullo/ui/scroll-area'
 import { Separator } from '@/registry/tassullo/ui/separator'
 
 /**
- * **`scroll-area` è la risposta pronta al rilievo lasciato aperto da M2.3.**
- * Lì, sull'elenco lungo dentro lo `sheet`, axe aveva alzato
- * `scrollable-region-focusable`: una regione che scorre e non contiene
- * controlli va **raggiungibile dal fuoco**, o da tastiera non la si scorre —
- * il contenuto esiste e non c'è modo di arrivarci. In M2.3 si era chiusa a
- * mano mettendo `tabIndex` sul contenitore; da qui in poi la risposta di
- * sistema è questa primitiva, che il `Viewport` di Base UI rende focalizzabile
- * da sé e che porta già l'anello di fuoco (`focus-visible:ring-ring/50`).
+ * Un riquadro che scorre dentro la pagina, con la sua barra di scorrimento e
+ * raggiungibile da tastiera.
  *
- * `scroll-area.tsx` è identico all'originale: nessuna stringa ri-stilata. Un
- * valore arbitrario ereditato, `ring-[3px]` sul fuoco del viewport, che è di
- * shadcn e non nostro.
+ * **Quando sì, quando no.** Serve ai riquadri: un elenco dentro un pannello,
+ * il contenuto di un pannello ridimensionabile, il corpo lungo di un dialogo.
+ * Non si usa per la pagina intera: lì la barra del browser è quella che tutti
+ * sanno usare. Un elenco tanto lungo da chiedere una ricerca è un `combobox`
+ * o un `command`, non un riquadro da scorrere.
  *
- * **Quando non usarla.** Non per la pagina intera — la barra di scorrimento
- * del browser è quella che tutti sanno usare, e sostituirla è un dispetto. La
- * `scroll-area` serve ai riquadri: un elenco dentro un pannello, una colonna
- * di norme, il corpo di un dialogo. E la barra è visibile: non è una di quelle
- * che compaiono solo al passaggio del mouse, che da touch non si vedono mai.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/scroll-area
+ * ```
+ *
+ * **Parti.** `ScrollArea` il riquadro, con l'altezza o la larghezza che lo
+ * limita; `ScrollBar` con `orientation="horizontal"` per lo scorrimento in
+ * orizzontale. Quella verticale c'è già.
+ *
+ * **Regole d'uso.** Il riquadro ha un limite esplicito — `h-64`, `h-full`
+ * dentro un genitore alto — o non scorre mai. Una regione che scorre senza
+ * controlli dentro si mette in una `ScrollArea` e non in un `div` con
+ * `overflow-auto`, che da tastiera non si raggiunge.
+ *
+ * **Tastiera e accessibilità.** Quando il contenuto sborda, il riquadro
+ * diventa un fermo di tabulazione con l'anello di fuoco, e le frecce lo
+ * scorrono. La barra resta visibile, non solo al passaggio del mouse.
  */
 const meta = {
   title: 'Primitive/ScrollArea',
@@ -39,8 +46,7 @@ const norme = [
 ]
 
 /**
- * L'elenco che scorre. **Provalo da tastiera**: `Tab` si ferma sul riquadro
- * — è il fermo che in M2.3 mancava — e le frecce lo scorrono.
+ * Un elenco che scorre: `Tab` si ferma sul riquadro e le frecce lo scorrono.
  */
 export const Predefinito: Story = {
   render: () => (
@@ -49,7 +55,7 @@ export const Predefinito: Story = {
         <h4 className="mb-2 text-sm font-medium">Norme citate</h4>
         {norme.map((n) => (
           <div key={n}>
-            <div className="py-1.5 font-mono text-xs">{n}</div>
+            <div className="py-1.5 text-sm text-muted-foreground">{n}</div>
             <Separator />
           </div>
         ))}
@@ -58,7 +64,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** In orizzontale: serve la `ScrollBar` esplicita con `orientation`. */
+/**
+ * In orizzontale, con `ScrollBar orientation="horizontal"`.
+ */
 export const Orizzontale: Story = {
   render: () => (
     <ScrollArea className="w-96 rounded-md border">
@@ -66,7 +74,7 @@ export const Orizzontale: Story = {
         {norme.slice(0, 8).map((n) => (
           <div
             key={n}
-            className="flex size-28 shrink-0 items-center justify-center rounded-md bg-muted p-2 text-center font-mono text-xs"
+            className="flex size-28 shrink-0 items-center justify-center rounded-md bg-muted p-2 text-center text-sm text-muted-foreground"
           >
             {n}
           </div>
@@ -78,8 +86,7 @@ export const Orizzontale: Story = {
 }
 
 /**
- * Il caso di M2.3 rifatto per bene: un elenco lungo dentro un riquadro con
- * intestazione fissa. L'intestazione resta ferma, scorre solo l'elenco.
+ * Un pannello con intestazione e piede fissi: scorre solo l'elenco in mezzo.
  */
 export const DentroUnPannello: Story = {
   render: () => (
@@ -88,7 +95,7 @@ export const DentroUnPannello: Story = {
       <ScrollArea className="h-56">
         <div className="px-3 py-2">
           {norme.map((n) => (
-            <div key={n} className="py-1.5 font-mono text-xs">
+            <div key={n} className="py-1.5 text-sm text-muted-foreground">
               {n}
             </div>
           ))}

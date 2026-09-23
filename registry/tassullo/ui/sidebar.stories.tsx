@@ -62,171 +62,69 @@ import {
 import { TooltipProvider } from '@/registry/tassullo/ui/tooltip'
 
 /**
- * `sidebar.tsx` è **identico all'originale nella forma**, con un solo ri-stile
- * e un intervento di lingua — «Toggle Sidebar» e il titolo del pannello
- * mobile, che sono le sole stringhe del componente che arrivano a un utente, e
- * le sente **solo chi usa uno screen reader**.
+ * La colonna di navigazione dell'applicativo: il marchio e il nome in cima, le
+ * sezioni e le voci al centro, l'utente in fondo. Si chiude a una fila di
+ * icone e sul telefono diventa un pannello a scomparsa.
  *
- * **Il ri-stile è l'opacità sull'etichetta di gruppo.** Il preset scrive
- * `text-sidebar-foreground/70`: il token pieno sul fondo della sidebar fa
- * 7.75:1, al 70% fa **4.41 in chiaro e 4.21 in scuro**, cioè sotto soglia in
- * entrambe. È la **seconda volta** che l'opacità su un testo apre un difetto
- * che `check:contrast` non può vedere — la prima erano gli alert di M2.4 —
- * perché il gate verifica le *coppie di token* e nessun token dichiara con
- * quanta opacità un componente lo usa. Tolto il `/70`: la gerarchia fra
- * etichetta e voce la fanno già la taglia (`text-xs` contro `text-sm`) e il
- * peso, che non costano contrasto.
+ * **Quando sì, quando no.** Per un applicativo intero non si compone a mano:
+ * il blocco `tassullo-app-shell` ha già la colonna, la testata di pagina e
+ * tutte le regole qui sotto. La primitiva serve quando il guscio non basta.
+ * Una navigazione dentro una pagina — schede di un dettaglio, passi di una
+ * procedura — è `tabs` o `stepper`, non una seconda sidebar.
  *
- * Che non ci fosse altro da ri-stilare non era scontato, ed è la conferma che
- * la palette è nel posto giusto: il preset dipinge la sidebar con la famiglia
- * `--sidebar-*`, che il tema Tassullo definisce **antracite in entrambe le
- * modalità** (`#141414` in chiaro, `#1C1C1C` in scuro). La sidebar del v1 non
- * è una superficie che segue il tema: è *l'unica superficie scura* delle app,
- * e resta scura anche quando la pagina è chiara.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/sidebar
+ * ```
  *
- * **Lo stato attivo è già quello del v1, alla lettera.** In `components.css`
- * del v1 la regola è `.sidebar-item:hover, .sidebar-item.is-active { background:
- * var(--color-sidebar-hover); color: var(--color-sidebar-text-hi) }` — cioè
- * esattamente `data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground`
- * del preset, sugli stessi due colori. shadcn ci aggiunge
- * `data-active:font-medium`, che il v1 non aveva perché dava peso 500 a
- * *tutte* le voci: è un guadagno, perché nel v1 attivo e hover erano
- * indistinguibili.
+ * **Parti e opzioni.** `SidebarProvider` avvolge colonna e pagina, con
+ * `defaultOpen`; `Sidebar` con `collapsible="icon"` si chiude a icone;
+ * `SidebarHeader`, `SidebarContent`, `SidebarFooter` sono cima, centro e
+ * fondo; `SidebarGroup` e `SidebarGroupLabel` una sezione col suo nome;
+ * `SidebarMenu`, `SidebarMenuItem`, `SidebarMenuButton` (con `isActive`,
+ * `tooltip`, `size="lg"` per testata e utente); `SidebarMenuSub` e le sue
+ * voci per il sottolivello; `SidebarMenuBadge` per un conteggio;
+ * `SidebarMenuSkeleton` durante il caricamento; `SidebarTrigger` il bottone
+ * che apre e chiude; `SidebarRail` il bordo che si clicca per fare lo stesso;
+ * `SidebarInset` la pagina accanto; `useSidebar()` dà `isMobile` e lo stato.
  *
- * ## La composizione: marchio in cima, utente in fondo
+ * **Regole d'uso.**
  *
- * L'impianto è quello del blocco **`sidebar-07`** di shadcn — «a sidebar that
- * collapses to icons» — coi menu annidati del suo `nav-main`: un `Collapsible`
- * che *rende* il `SidebarMenuItem` e un `CollapsibleTrigger` che rende il
- * `SidebarMenuButton`. È indicazione di Francesco, e coincide con la sidebar
- * che Anagrafe ha già in produzione.
+ * - **La densità non scala la sidebar da sola.** Le larghezze sono costanti
+ *   del componente, non derivano da `--spacing`: in densità touch le voci
+ *   crescono e la colonna no. Per farla crescere insieme, `SidebarProvider`
+ *   riceve uno `style` con due variabili, `--sidebar-width` a
+ *   `calc(var(--spacing) * 64)` e `--sidebar-width-icon` a
+ *   `calc(var(--spacing) * 12)`: in densità normale rendono la stessa misura
+ *   del componente. La larghezza del pannello sul telefono non si può
+ *   cambiare da fuori.
+ * - Un `TooltipProvider` avvolge l'applicativo, una volta sola alla radice:
+ *   a colonna chiusa i nomi delle voci arrivano come tooltip, e senza il
+ *   provider non compaiono, senza alcun errore.
+ * - Il `tooltip` di una voce si passa solo fuori dal telefono:
+ *   `tooltip={isMobile ? undefined : titolo}`. Sul telefono il tooltip non si
+ *   vede ma resta montato, e si prende il primo `Esc`.
+ * - Nei bottoni `size="lg"` — testata e utente — il blocco di testo porta
+ *   `group-data-[collapsible=icon]:hidden`, e il bottone
+ *   `group-data-[collapsible=icon]:justify-center`: senza il primo, nella
+ *   colonna chiusa spunta un pezzo del nome; senza il secondo, il marchio
+ *   esce dall'asse delle icone.
+ * - Nascosto il testo, il bottone resta senza nome: testata e utente hanno un
+ *   `aria-label` esplicito. Il tooltip non vale come nome.
+ * - Il menu dell'utente si apre di lato sulla scrivania e sotto sul telefono:
+ *   `side={isMobile ? 'bottom' : 'right'}`.
+ * - Il marchio è la classe `.marchio-t` del tema, in un elemento
+ *   `aria-hidden` con `size-6`: il colore lo dà il testo.
+ * - Le sezioni sono facoltative: con una sezione sola il raggruppamento non
+ *   si vede. Il sottolivello si decide voce per voce: un `Collapsible` che
+ *   rende il `SidebarMenuItem`, con un `CollapsibleTrigger` che rende il
+ *   `SidebarMenuButton`. A colonna chiusa i sottolivelli spariscono e restano
+ *   gli stacchi fra le sezioni, senza i loro nomi.
  *
- * Due estremi fissi:
- *
- * - **in cima il marchio più il nome dell'applicativo**, e a sidebar chiusa
- *   resta la sola T. Non c'è niente da nascondere a mano: la testata è un
- *   `SidebarMenuButton size="lg"`, e il marchio sta nel riquadro d'icona che il
- *   bottone tiene sempre. **Il nome però non sparisce da sé, e questa è la
- *   trappola**: il bottone collassato è 32px con `overflow-hidden`, ma il testo
- *   comincia dopo l'icona da 16 e il divario da 8, quindi gli restano **8px
- *   dentro il riquadro** — misurato — e nel rail si vedeva una «A» accanto
- *   alla T. Non lo cura né `truncate` né `flex-1`: va scritto
- *   `group-data-[collapsible=icon]:hidden` sul blocco di testo, che è come
- *   shadcn stesso spegne le parti che nel rail non ci stanno.
- * - **in fondo l'utente**, con avatar, indirizzo, ruolo e un menu per le
- *   opzioni — profilo, impostazioni, uscita. Stessa forma: collassato resta il
- *   solo avatar, e il menu si apre di lato invece che sopra.
- *
- * **Nel rail il marchio va centrato a mano, e non è ovvio perché.** I bottoni
- * `size="lg"` — testata e utente — portano `group-data-[collapsible=icon]:p-0!`,
- * che annulla il `p-2!` della base: il contenuto resta appoggiato a sinistra
- * invece di stare al centro. Misurato: bottone da 32px centrato a 24 nel rail,
- * ma il marchio dentro centrato a **18**, cioè **6px fuori asse** rispetto alle
- * icone delle voci. Si rimette con `group-data-[collapsible=icon]:justify-center`
- * sul bottone — segnalato da Francesco guardando la story, e vale per
- * qualunque `size="lg"` nella sidebar.
- *
- * ## Le sezioni sono facoltative, e i sottomenu si decidono voce per voce
- *
- * `sidebar-07` raggruppa le voci in sezioni — da loro *Platform* e *Projects* —
- * e la navigazione qui è scritta allo stesso modo: un elenco di **sezioni**,
- * ciascuna con la sua `SidebarGroup` e la sua `SidebarGroupLabel`, ciascuna
- * con le sue **voci**. Sono due libertà che restano **all'app**, non al design
- * system:
- *
- * - **se raggruppare**: una sezione sola e il raggruppamento sparisce da sé,
- *   senza cambiare un componente;
- * - **quali voci hanno un sottomenu**: basta passare `figli`, o non passarli.
- *   Qui `Prodotti` e `Documenti` ce l'hanno, `Cruscotto` no.
- *
- * Una conseguenza da conoscere: **nel rail spariscono i nomi delle sezioni,
- * non le sezioni.** Il preset spegne le etichette di gruppo quando la sidebar
- * è collassata (`group-data-[collapsible=icon]:-mt-8` e `opacity-0`), ma il
- * `p-2` di ogni `SidebarGroup` resta, quindi fra un gruppo e l'altro rimane
- * uno stacco visibile: si vede *che* ci sono due sezioni, non *come si
- * chiamano*. Se anche il nome deve arrivare a rail chiuso, l'unica strada è
- * il tooltip sulle voci — e per quello serve il `TooltipProvider` di cui
- * sopra.
- *
- * **Il marchio non è più incollato qui.** Fino a M2.9 il tracciato stava in
- * questa story, ed era la deriva che la regola permanente vieta: una copia in
- * ogni app. Ora è una **classe del tema** — `.marchio-t`, l'item `tema-logo`,
- * che arriva con `add @tassullo/tema` — e il tracciato fa da maschera, quindi
- * il colore segue il testo. È **D13**, chiusa il 2026-09-10 (`docs/DECISIONI.md`
- * §28).
- *
- * ## Un requisito d'uso che costa le etichette: serve un `TooltipProvider`
- *
- * A sidebar collassata le voci sono sole icone, e il preset restituisce
- * l'etichetta come tooltip. **Senza un `TooltipProvider` che avvolge l'albero
- * il tooltip non compare — né col fuoco né col mouse — e non c'è nessun
- * errore**: la sidebar chiusa diventa una fila di icone mute. Misurato: senza
- * provider, zero tooltip su tre `Tab` e su un hover da nove decimi di secondo.
- * È la stessa famiglia del `select` che vuole `items` (M2.2) e del
- * `DropdownMenuLabel` che vuole un `Group` (M2.3), e va nel fascicolo di M3.1:
- * il provider sta **una volta sola**, alla radice dell'app.
- *
- * **E nascondere l'etichetta toglie anche il nome accessibile.** Con
- * `group-data-[collapsible=icon]:hidden` sul testo, a sidebar chiusa la
- * testata resta un bottone con dentro un solo SVG: axe l'ha presa come
- * `button-name`, in entrambe le modalità. Il tooltip **non** è un nome — è un
- * popup che compare al passaggio, non qualcosa che un lettore di schermo
- * annuncia al posto del contenuto. Serve un `aria-label` esplicito su testata
- * e piede. Il bottone dell'utente non era stato segnalato solo perché
- * l'avatar porta le iniziali, e «FS» come nome di un bottone è peggio di
- * niente: ha un `aria-label` anche lui.
- *
- * ## E sul telefono il primo `Esc` non chiude niente
- *
- * Misurato sullo `Sheet` da 375: aperto il pannello, il fuoco va su un
- * `SidebarMenuButton`; **il primo `Esc` non chiude, il secondo sì**. Non è lo
- * `Sheet`: togliendo il fuoco, un `Esc` solo basta.
- *
- * La causa è il `tooltip` del bottone. Sotto la soglia mobile il preset non
- * *mostra* il tooltip — `hidden={state !== "collapsed" || isMobile}` — ma la
- * radice Base UI resta montata lo stesso, si apre col fuoco e **si prende il
- * primo `Esc`**, invisibile. Su un telefono è il tasto che sembra rotto.
- *
- * È comportamento, non stringhe di classi: non si ri-stila. Ma non serve
- * toccare il componente, perché il rimedio sta nella composizione e usa la sua
- * API pubblica — `useSidebar().isMobile`, e il `tooltip` non si passa affatto
- * quando non servirebbe. È la forma che queste story usano, e con quella
- * l'`Esc` chiude al primo colpo. Da portare in `tassullo-app-shell` (M3.1):
- * `sidebar-07` di shadcn passa il tooltip sempre, quindi chiunque copi il
- * blocco a occhi chiusi si porta dietro il difetto.
- *
- * ## La densità: qui si chiude l'unica eccezione di M1.4
- *
- * `SIDEBAR_WIDTH` (`16rem`) e `SIDEBAR_WIDTH_ICON` (`3rem`) sono **costanti
- * JavaScript**, non utility Tailwind: non derivano da `--spacing` e in touch
- * restavano identiche mentre il loro contenuto cresceva. Misurato senza
- * rimedio, in touch: colonna ferma a **256px** con voci da 48, e rail
- * collassato a **48px** riempito **esattamente** da un `SidebarMenuButton` da
- * 48 — zero margine attorno all'icona, come M1.4 aveva previsto.
- *
- * Non si patcha il componente: `SidebarProvider` accetta uno `style` che
- * sovrascrive le due variabili, e lì le si esprime in unità di `--spacing`
- * conservando i valori di densità normale — `calc(var(--spacing) * 64)` fa
- * **256px in normale e 384 in touch**, `calc(var(--spacing) * 12)` fa **48 e
- * 72**. È la forma che tutte le story qui usano, ed è quella che il blocco
- * `tassullo-app-shell` (M3.1) porterà alle app: **l'override non va copiato in
- * ogni app**, ci sta il blocco, e il blocco sta nel registry.
- *
- * **La terza costante non ha via d'uscita, e va saputo.**
- * `SIDEBAR_WIDTH_MOBILE` (`18rem`) è scritta *dentro* `Sidebar`, sullo `style`
- * dello `SheetContent`, dove non arrivano né `style` né `className` del
- * chiamante: da fuori non è sovrascrivibile in nessun modo. Non è un problema
- * — misurati 281px su un telefono da 375, ed è già più largo dei 256 della
- * scrivania — ma è una libertà che il componente non concede, e chi scrive
- * M3.1 non deve perderci una mezz'ora.
- *
- * ## Sotto la soglia mobile diventa uno `Sheet`, e non lo scriviamo noi
- *
- * `useIsMobile` (768px) fa passare `Sidebar` al ramo `Sheet`: la colonna fissa
- * sparisce del tutto dal DOM e il grilletto apre un pannello a scomparsa col
- * fuoco intrappolato ed `Esc` che chiude riportando il fuoco al grilletto —
- * verificato in un browser vero. È responsive nativo di shadcn: si eredita,
- * non si riscrive.
+ * **Tastiera e accessibilità.** `Ctrl`+`B` o `⌘`+`B` apre e chiude la
+ * colonna da qualunque punto della pagina. Sotto i 768px la colonna esce dal
+ * DOM e il grilletto apre un pannello laterale: il fuoco entra e gira al suo
+ * interno, `Esc` chiude e il fuoco torna sul grilletto. La colonna resta
+ * antracite in entrambe le modalità, coi colori della famiglia `--sidebar-*`.
  */
 const meta = {
   title: 'Primitive/Sidebar',
@@ -532,36 +430,29 @@ function Guscio({
 }
 
 /**
- * La sidebar aperta: marchio e nome in cima, menu annidati al centro con la
- * voce attiva e i contatori, utente in fondo. Il grilletto in testata la
- * chiude e la riapre; da tastiera risponde anche a `Ctrl`/`Cmd`+`B`.
+ * La colonna aperta: marchio e nome in cima, due sezioni con la voce attiva,
+ * un sottolivello aperto e un conteggio, l'utente in fondo.
  */
 export const Aperta: Story = {
   render: () => (
     <Guscio>
-      La colonna scura resta scura anche in modalità chiara: nel v1 è l&apos;unica superficie
-      antracite, e il tema la dichiara con la famiglia <code>--sidebar-*</code>.
+      La colonna resta antracite anche in modalità chiara: i suoi colori sono la famiglia di
+      token <code>--sidebar-*</code>.
     </Guscio>
   ),
 }
 
 /**
- * Collassata a icone: resta la sola T in cima, il solo avatar in fondo, e i
- * sottolivelli spariscono. È qui che si vedeva l&apos;eccezione di M1.4 —
- * senza l&apos;override il rail resta 48px in entrambe le densità, e in touch
- * la voce da 48px lo riempie fino al bordo. Con `--sidebar-width-icon` sulla
- * scala il rail passa a 72px e il margine attorno all&apos;icona torna.
- *
- * Le etichette diventano tooltip, e per quelle serve il `TooltipProvider`.
+ * Chiusa a icone: la T in cima, l'avatar in fondo, niente sottolivelli. I
+ * nomi delle voci compaiono come tooltip al passaggio e al fuoco.
  */
 export const Collassata: Story = {
   render: () => <Guscio aperta={false}>Il grilletto in testata la riapre.</Guscio>,
 }
 
 /**
- * Il menu mentre i dati arrivano. `SidebarMenuSkeleton` dà a ogni riga una
- * larghezza casuale fra il 50 e il 90%: una fila di barre identiche si legge
- * come un&apos;interfaccia rotta, non come un caricamento.
+ * Il menu mentre i dati arrivano: righe di larghezza diversa, perché una fila
+ * di barre identiche sembra un'interfaccia rotta.
  */
 export const InCaricamento: Story = {
   render: () => (
@@ -585,10 +476,8 @@ export const InCaricamento: Story = {
 }
 
 /**
- * Sotto i 768px la sidebar **non** si comprime: sparisce dal DOM, e il
- * grilletto apre al suo posto uno `Sheet` da 281px col fuoco intrappolato ed
- * `Esc` che chiude. È il ramo `isMobile` del componente, e non c&apos;è niente
- * da scrivere per averlo.
+ * Alla larghezza del telefono: la colonna non c'è, e il grilletto in testata
+ * apre il pannello laterale.
  */
 export const Telefono: Story = {
   globals: { viewport: { value: 'telefono', isRotated: false } },

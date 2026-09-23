@@ -4,18 +4,31 @@ import { Label } from '@/registry/tassullo/ui/label'
 import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
- * **Nessun ri-stile.** Stessi token e stessi stati dell'`Input`, con una cosa
- * in più che vale la pena conoscere: `field-sizing-content`. Il campo **cresce
- * col testo** senza una riga di JavaScript — niente `onChange` che misura lo
- * `scrollHeight`, che è il modo in cui questa cosa si è sempre fatta a mano e
- * il motivo per cui non funzionava mai bene. `min-h-16` è il pavimento.
+ * Un campo di testo su più righe, che cresce mentre si scrive.
  *
- * Attenzione a `rows`: qui **non** fissa l'altezza, la suggerisce soltanto,
- * perché il dimensionamento sul contenuto vince. Per limitare davvero si usa
- * `max-h-*` più `overflow-auto`.
+ * **Quando sì, quando no.** Per una nota, una descrizione breve, un testo
+ * senza formattazione. Se il testo ha bisogno di grassetti, elenchi o
+ * collegamenti, si usa il blocco `tassullo-rich-text-editor`. Per una riga
+ * sola, `input`.
  *
- * Il testo lungo vero — la descrizione di una scheda tecnica, l'editor di
- * M3.8 — non è questo: è **D11**, aperta e con verdetto a M3.8.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/textarea
+ * ```
+ *
+ * **Regole d'uso.**
+ *
+ * - Il campo si allunga da sé col contenuto, senza codice: parte da
+ *   un'altezza minima (`min-h-16`) e non scende sotto. `rows` non fissa
+ *   l'altezza.
+ * - Per fermare la crescita si mette un tetto con `max-h-*` e
+ *   `overflow-auto`: oltre, il campo scorre.
+ * - Sul telefono il testo è a 16px, perché il browser non ingrandisca la
+ *   pagina entrando nel campo; da `md` in su torna alla misura del corpo.
+ * - In un modulo sta dentro un `Field`, con la sua `Label`. Lo stato non
+ *   valido si scrive con `aria-invalid`, quello spento con `disabled`.
+ *
+ * **Tastiera e accessibilità.** È una `<textarea>` nativa: `Invio` va a capo
+ * e non invia il modulo, `Tab` esce dal campo.
  */
 const meta = {
   title: 'Primitive/Textarea',
@@ -29,7 +42,9 @@ type Story = StoryObj<typeof meta>
 
 export const Predefinito: Story = {}
 
-/** Scrivi qui dentro: il campo si allunga da sé, e non torna più corto del pavimento. */
+/**
+ * Si scrive dentro, e il campo si allunga da sé.
+ */
 export const CresceColContenuto: Story = {
   render: (args) => (
     <div className="flex w-96 flex-col gap-2">
@@ -43,6 +58,9 @@ export const CresceColContenuto: Story = {
   ),
 }
 
+/**
+ * A riposo, non valido, disabilitato.
+ */
 export const Stati: Story = {
   render: (args) => (
     <div className="flex w-96 flex-col gap-4">
@@ -62,7 +80,10 @@ export const Stati: Story = {
   ),
 }
 
-/** Con un tetto: `max-h-*` più `overflow-auto`, perché `rows` da solo non ferma la crescita. */
+/**
+ * Con `max-h-32` e `overflow-auto`: oltre il tetto il campo scorre invece di
+ * crescere.
+ */
 export const ConUnTetto: Story = {
   render: (args) => (
     <div className="flex w-96 flex-col gap-2">

@@ -4,17 +4,32 @@ import { Label } from '@/registry/tassullo/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/registry/tassullo/ui/radio-group'
 
 /**
- * **Nessun ri-stile.** Stesso disegno del checkbox, tondo invece che quadrato,
- * e non è una scelta estetica: **la forma dice la regola**. Quadrato = ne puoi
- * scegliere quanti vuoi; tondo = ne scegli esattamente uno, e per cambiare devi
- * togliere il precedente. Un gruppo di radio con una sola voce è sempre un
- * errore di progetto, e un gruppo di radio da cui si vuole poter *deselezionare*
- * è un checkbox travestito.
+ * Una scelta fra poche opzioni che si escludono: se ne sceglie una, e per
+ * cambiarla se ne sceglie un'altra.
  *
- * **Da tastiera il gruppo è un solo fermo di tabulazione**: `Tab` entra sulla
- * voce selezionata, le **frecce** cambiano scelta, `Tab` esce. Non si tabula
- * voce per voce, ed è giusto così — è il comportamento nativo dei radio, che
- * Base UI riproduce. Se un giorno tabulasse su ognuna, è rotto.
+ * **Quando sì, quando no.** La forma dice la regola: il cerchio vuol dire
+ * «una sola», il quadrato di `checkbox` «quante se ne vuole». Se un'opzione
+ * si deve poter anche togliere senza sceglierne un'altra, non è un radio ma
+ * una `checkbox`. Con molte opzioni si usa `select`; per un filtro o una
+ * scelta di visualizzazione che si clicca sopra la pagina, `toggle-group`. Un
+ * gruppo con una voce sola è un errore: è una `checkbox`.
+ *
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/radio-group
+ * ```
+ *
+ * **Parti e opzioni.** `RadioGroup` con `value` o `defaultValue`;
+ * `RadioGroupItem` con il suo `value` e `disabled`. Ogni voce ha la sua
+ * `Label` collegata con `htmlFor`.
+ *
+ * **Regole d'uso.** Una voce disabilitata porta `disabled` sulla voce e
+ * `data-disabled="true"` sul contenitore con la classe `group`, così
+ * l'etichetta si spegne insieme. Lo stato non valido si scrive con
+ * `aria-invalid`, sul gruppo e sulle voci.
+ *
+ * **Tastiera e accessibilità.** Il gruppo è un solo fermo di tabulazione:
+ * `Tab` entra sulla voce scelta, le frecce spostano la scelta, `Tab` esce. Le
+ * voci disabilitate si saltano.
  */
 const meta = {
   title: 'Primitive/RadioGroup',
@@ -43,7 +58,10 @@ export const Predefinito: Story = {
   ),
 }
 
-/** Con una voce disabilitata: le frecce la saltano, non ci si può fermare sopra. */
+/**
+ * Una voce disabilitata: le frecce la saltano, e la sua etichetta è spenta
+ * insieme al cerchio.
+ */
 export const ConVoceDisabilitata: Story = {
   render: () => (
     <RadioGroup defaultValue="ordinaria" className="w-72">
@@ -63,7 +81,9 @@ export const ConVoceDisabilitata: Story = {
   ),
 }
 
-/** Non valido: il bordo segue `aria-invalid`, come in tutte le altre primitive. */
+/**
+ * Il gruppo non valido: il bordo di ogni voce segue `aria-invalid`.
+ */
 export const NonValido: Story = {
   render: () => (
     <RadioGroup className="w-72" aria-invalid>

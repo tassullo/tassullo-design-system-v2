@@ -13,31 +13,40 @@ import {
 } from '@/registry/tassullo/ui/tooltip'
 
 /**
- * **Un ri-stile**: `rounded-[2px]` sulla punta della freccia → `rounded-xs`.
- * Stesso pixel — Tailwind lascia `--radius-xs` a 0.125rem e il tema non lo
- * ridichiara — ma ora è un gradino del tema invece di un numero. Il
- * `translate-y-[calc(-50%-2px)]` accanto resta: è la geometria della freccia
- * ruotata di 45°, non un valore di tema.
+ * Una riga di testo che compare accanto a un controllo, al passaggio del
+ * puntatore o al fuoco, e dice che cosa fa o che cosa significa.
  *
- * **Il colore è invertito, ed è voluto**: `bg-foreground text-background`. Il
- * tooltip non poggia sulla superficie, ci sta sopra, e l'inversione è ciò che
- * lo stacca senza aggiungere un'ombra. È una coppia che `check:contrast`
- * verifica in entrambe le modalità.
+ * **Quando sì, quando no.** `tooltip`, `hover-card` e `popover` si
+ * distinguono per come si aprono e per cosa ci si fa dentro. Il tooltip si
+ * apre col passaggio e col fuoco, e contiene una riga di testo, mai controlli:
+ * sparisce appena il fuoco se ne va, e ciò che ci fosse dentro da cliccare
+ * non si raggiungerebbe. Un'anteprima più ricca da leggere è `hover-card`; un
+ * riquadro con dentro qualcosa da fare, che si apre al clic, è `popover`.
  *
- * **Il tooltip non è un nome accessibile.** Un bottone a sola icona col
- * tooltip resta un bottone senza nome per chi usa uno screen reader: il
- * tooltip è testo aggiuntivo, non l'etichetta. Il nome si scrive comunque
- * (`sr-only`), e il tooltip lo ripete per chi vede. Le due cose convivono,
- * non si sostituiscono — è l'errore più comune, e in queste story il nome
- * c'è sempre.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tooltip
+ * ```
  *
- * **E non contiene mai controlli.** Si apre al passaggio e al **fuoco**, e
- * sparisce appena il fuoco se ne va: qualsiasi cosa ci si metta dentro da
- * cliccare è irraggiungibile. Se serve un riquadro con dentro qualcosa da
- * fare, è un `popover`.
+ * **Parti e opzioni.** `TooltipProvider` alla radice dell'app, una volta
+ * sola: regge il ritardo condiviso, e aperto il primo tooltip i vicini si
+ * aprono subito. `Tooltip`, `TooltipTrigger` (di solito con
+ * `render={<Button … />}`), `TooltipContent` con `side` (`top` di base,
+ * `right`, `bottom`, `left`).
  *
- * `TooltipProvider` regge il ritardo condiviso: aperto il primo, i vicini si
- * aprono subito. Va una volta sola, in cima all'app.
+ * **Regole d'uso.**
+ *
+ * - Il tooltip non è il nome del controllo. Un bottone di sola icona ha il suo
+ *   nome scritto in uno `<span className="sr-only">`, e il tooltip lo ripete
+ *   per chi vede.
+ * - Il testo sta in una riga o due: il riquadro va a capo oltre una larghezza
+ *   massima, e se serve di più non è un tooltip.
+ * - Il colore è invertito rispetto alla pagina, in entrambe le modalità. Un
+ *   `Kbd` dentro il tooltip si adatta da solo al fondo scuro.
+ *
+ * **Tastiera e accessibilità.** Il tooltip si apre quando il controllo prende
+ * il fuoco da tastiera, non solo al passaggio del puntatore, e si chiude con
+ * `Esc` o quando il fuoco se ne va. Se manca spazio sul lato scelto, si
+ * ribalta sul lato opposto.
  */
 const meta = {
   title: 'Primitive/Tooltip',
@@ -57,6 +66,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un tooltip su un bottone, al passaggio del puntatore.
+ */
 export const Predefinito: Story = {
   render: () => (
     <Tooltip>
@@ -69,9 +81,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Bottoni a sola icona: **ognuno ha il suo `sr-only`**, e il tooltip dice la
- * stessa cosa a chi vede. Provare col `Tab`: il tooltip si apre anche col
- * fuoco, non solo col mouse.
+ * Bottoni di sola icona: ognuno ha il nome in un testo `sr-only`, e il
+ * tooltip lo ripete. Si apre anche arrivandoci con `Tab`.
  */
 export const SuIconeSole: Story = {
   render: () => (
@@ -94,10 +105,7 @@ export const SuIconeSole: Story = {
 }
 
 /**
- * Con la scorciatoia da tastiera. `Kbd` dentro il tooltip ha il suo fondo
- * dedicato — le classi `**:data-[slot=kbd]:` del preset — e le misure dei
- * tasti simbolo sono quelle già chiuse a mano in M2.1: 4,55:1 in chiaro e
- * 6,36:1 in scuro.
+ * Con la scorciatoia da tastiera scritta in `Kbd` dentro il tooltip.
  */
 export const ConScorciatoia: Story = {
   render: () => (
@@ -112,7 +120,9 @@ export const ConScorciatoia: Story = {
   ),
 }
 
-/** I quattro lati. Se non c'è spazio, si ribalta da sé. */
+/**
+ * I quattro lati d'ancoraggio, con `side`.
+ */
 export const QuattroLati: Story = {
   render: () => (
     <div className="grid grid-cols-2 gap-2">
@@ -129,8 +139,7 @@ export const QuattroLati: Story = {
 }
 
 /**
- * Testo lungo: il tooltip si ferma a `max-w-xs` e va a capo. Se serve più di
- * così, non è un tooltip — è un `hover-card` o un `popover`.
+ * Un testo di due righe: il tooltip va a capo alla sua larghezza massima.
  */
 export const TestoLungo: Story = {
   render: () => (

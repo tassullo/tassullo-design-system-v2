@@ -8,24 +8,36 @@ import {
 } from '@/registry/tassullo/ui/progress'
 
 /**
- * `progress.tsx` è identico all'originale: nessuna stringa ri-stilata. Il
- * preset è già sui token — traccia `bg-muted`, indicatore `bg-primary`, cioè
- * l'arancio del brand come **fondo**, che è l'uso corretto: `--primary` non si
- * usa mai per il testo, ma per una barra piena va benissimo.
+ * Una barra che dice a che punto è un'operazione in corso: un caricamento,
+ * un'importazione, un calcolo.
  *
- * E porta già `tabular-nums` su `ProgressValue`, che è la regola delle cifre
- * fissata in M2.1: **la percentuale non deve ballare** mentre sale da 9 a 10 a
- * 100. Si vede in `Determinato`, dove il numero cresce senza spostare niente.
+ * **Quando sì, quando no.** Dice «a che punto siamo», non «com'è andata»:
+ * l'esito si comunica con un `alert`, un `badge` o un avviso di `sonner`, che
+ * hanno un testo. Per un'attesa breve senza avanzamento da mostrare basta
+ * `spinner`; per una pagina che sta caricando i dati, `skeleton`. I passi di
+ * una procedura con un nome ciascuno sono `stepper`.
  *
- * **Il colore non è l'informazione.** La barra dice «a che punto siamo», non
- * «com'è andata»: per l'esito ci sono gli alert e i badge, che hanno un testo.
- * Una barra che diventa rossa comunica il fallimento solo a chi distingue i
- * colori.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/progress
+ * ```
  *
- * `Progress` di Base UI vuole `value={null}` per lo stato **indeterminato** —
- * quando non si sa quanto manca. La differenza è vera e non estetica: con
- * `null` sparisce `aria-valuenow`, e chi legge lo schermo sente «in corso»
- * invece di un numero inventato.
+ * **Parti e opzioni.** `Progress` con `value` da 0 a 100, oppure
+ * `value={null}` quando non si sa quanto manca; `ProgressLabel` il nome
+ * dell'operazione; `ProgressValue` la percentuale.
+ *
+ * **Regole d'uso.**
+ *
+ * - La barra è arancio perché è un fondo: `--primary` riempie, non scrive.
+ * - La percentuale ha le cifre tabellari già dentro `ProgressValue`: mentre
+ *   sale da 9 a 10 a 100 non sposta niente.
+ * - Il colore della barra non cambia con l'esito. Una barra che diventa rossa
+ *   dice il fallimento solo a chi distingue i colori.
+ * - Se non si sa quanto manca, `value={null}` e nessuna percentuale: un numero
+ *   inventato è peggio di nessun numero.
+ *
+ * **Tastiera e accessibilità.** Non riceve il fuoco. Si annuncia come barra
+ * di avanzamento col suo nome, preso da `ProgressLabel`, e col valore; con
+ * `value={null}` il valore non c'è e l'operazione risulta in corso.
  */
 const meta = {
   title: 'Primitive/Progress',
@@ -36,6 +48,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un'operazione a metà, col nome a sinistra e la percentuale a destra.
+ */
 export const Predefinito: Story = {
   render: () => (
     <Progress value={62} className="w-96">
@@ -63,11 +78,14 @@ function BarraCheSale() {
   )
 }
 
+/**
+ * Una barra che sale da sola: la percentuale cambia senza spostarsi, perché
+ * le cifre sono tabellari.
+ */
 export const Determinato: Story = { render: () => <BarraCheSale /> }
 
 /**
- * Indeterminato: `value={null}`. Non c'è `aria-valuenow`, e la percentuale non
- * si mostra perché non esiste — inventarne una sarebbe peggio che non darla.
+ * Quando non si sa quanto manca: `value={null}`, nessuna percentuale.
  */
 export const Indeterminato: Story = {
   render: () => (
@@ -77,7 +95,9 @@ export const Indeterminato: Story = {
   ),
 }
 
-/** I gradini, per guardare la barra a più riempimenti in una volta. */
+/**
+ * La barra a cinque riempimenti, da vuota a piena.
+ */
 export const Gradini: Story = {
   render: () => (
     <div className="flex w-96 flex-col gap-5">

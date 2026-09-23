@@ -12326,3 +12326,77 @@ L'iframe **aperto da solo** (`iframe.html?id=…&viewMode=docs`) si **ricarica**
 - **`test:a11y`: 1540 scansioni su 385 story, 0 violazioni**, invariato — ma **alla seconda corsa**. La prima, dentro `npm run check`, ha stampato **✔ 1467** con la passata chiaro/chiuso a **312 story** invece di 385, e verde. Rilanciata da sola la passata dà 385, rilanciato il gate intero dà 1540: una prima passata instabile (probabilmente l'avvio a freddo di Vite dopo la build di Storybook), non questa modifica, che al canvas non arriva — `docs.container` agisce solo in Docs e le due regole CSS solo su `.docs-story` e `.docblock-source`. **Il rilievo vero è sul gate**: conta le asserzioni che trova, quindi una story che non viene raccolta **sparisce dal conto senza farlo fallire**. È la famiglia di §22 — «un popup non aperto non è un popup senza violazioni» — sul numero delle story. Proposto come task a parte: il gate dovrebbe confrontare il conto di ogni passata con quello delle story indicizzate e fallire se ne manca una.
 
 **Prossimi passi**: **M5.0c**, invariato. Se la cornice di Storybook deve davvero avere la colonna antracite, è un task a sé (§53, in coda).
+
+## 2026-09-23 — M5.0c Primitive, seconda metà
+
+Le 24 story di `registry/tassullo/ui/` da `kbd` a `tooltip`, riscritte secondo il canone di M5.0a con lo scheletro e il tono di M5.0b. Nessun sorgente di componente, nessuna `play`, nessun dato d'esempio toccato; i JSDoc non attaccati (quelli sulle funzioni d'appoggio di `sidebar`, `stepper`, `table`, `progress`) e i commenti `//` sono rimasti dove erano. Toccato il testo reso nel canvas in quattro file, sotto.
+
+#### Il conto
+
+**123 segnalazioni su 22 file**, rimisurato aprendo la sessione (`check:storybook -- --avvisa`): lo stesso numero del mandato. `label` e `radio-group` erano a 0 e sono stati riscritti lo stesso. A fine sessione **0 sui 24, 0 sui 52 file di `ui/`** (accettazione del piano); sul repo **362 → 239** (esattamente 362 − 123), su 31 file di 90: `blocks/` 129, `pages/` 49, `stories/` 61 — tutto M5.0d ed M5.0e.
+
+#### I confini chiesti dal mandato
+
+- **`toggle-group` ↔ `badge`**: «un filtro che si clicca»; la regola è scritta come regola — se l'elemento si può accendere e spegnere è un `toggle-group`, se dice soltanto com'è fatta la cosa è un `badge`; un badge con un clic sopra è il componente sbagliato. Combacia con la pagina di `badge` di M5.0b («Il badge non si clicca… un badge che sembra da premere è il componente sbagliato»).
+- **`toggle` / `toggle-group` / `switch`**: un bottone che resta premuto, una scelta fra opzioni, un'impostazione che ha effetto subito — scritto nelle tre pagine, ciascuna dal suo lato, con `checkbox` come quarto vicino.
+- **`sheet`**: completa gli overlay di `dialog`/`alert-dialog`/`drawer` — il pannello laterale su schermo largo; la differenza con `drawer` è il gesto, non il bordo.
+- **`select` ↔ `combobox`**: stessa frase di M5.0b dal lato del select («se per trovare una voce bisogna scorrere, serviva un combobox»).
+- **`popover` / `tooltip` / `hover-card`**: la tabella «si apre con / contiene» in `popover`, ripresa in prosa in `tooltip`, coerente con `hover-card` di M5.0b.
+- **`sidebar`, la densità**: scritta come prima regola d'uso — le larghezze sono costanti del componente e non seguono `--spacing`; lo `style` con le due variabili in `calc(var(--spacing) * …)` le fa seguire; il pannello del telefono non si cambia da fuori. E il rimando al blocco `tassullo-app-shell`, che ha già tutto.
+- **`table` ↔ `data-table`**: la primitiva per poche righe fisse da leggere; appena servono ordinamento, filtri, paginazione, selezione o menu di riga, `tassullo-data-table`; per modificare cella per cella, `tassullo-data-grid`.
+- **Numeri in colonna**: `table` dice `tabular-nums` sulla radice, `text-right`, e le funzioni dell'item `numeri` (`intero()`, `decimale()`, `valuta()`) che scrivono sempre il separatore delle migliaia; e il rovescio, un codice o un anno non si formattano. `progress`, `slider`, `toggle-group` (il conteggio) dicono le cifre tabellari dove mostrano numeri.
+
+I nomi degli item nei comandi `add` presi da `registry.json`: per tutti i 24 coincidono col nome del file.
+
+#### Cose verificate invece che copiate
+
+Ogni affermazione di tastiera è stata controllata sul sorgente del componente o su `@base-ui/react` installato (che porta anche la sua documentazione in `node_modules/@base-ui/react/docs/`). Tre correggono la vecchia prosa; i dettagli in `DECISIONI.md` **§54**.
+- **`toggle-group`**: `Tab` entra sul **primo** elemento, non su quello acceso — solo `Radio` dichiara l'elemento attivo al `CompositeRoot`. Aggiunti `Home`/`Fine`.
+- **`tabs`**: le frecce spostano il **fuoco**; la scheda si apre con `Invio`/`Spazio` (`activateOnFocus` è `false` di base).
+- **`stepper`, `BarraASegmenti`**: la vecchia prosa diceva che il nome del segmento sta in un `aria-label`; la scena lo scrive in uno `<span className="sr-only">` dentro l'indicatore. Riscritta su ciò che c'è. Lettura del sorgente: frecce, `Home`/`Fine`, `Invio`/`Spazio` in `stepper.tsx`, `id` `stepper-tab-N` / `stepper-panel-N`.
+- **`label`**: la prima stesura diceva che l'etichetta si spegne se «precede» il campo come `peer`; `peer-disabled:` vale al contrario — è il **campo** che deve precedere. Corretto prima del commit.
+- **`resizable`**: `react-resizable-panels` 4.12.4, frecce e `Home`/`Fine` letti nel `dist`.
+- **`popover`** (`Tab` esce e chiude, `closeOnFocusOut`), **`scroll-area`** (fermo di tabulazione solo quando scorre), **`sonner`** (`Alt`+`T`, `aria-live="polite"`), **`spinner`** (`aria-label="Loading"` di serie), **`switch`** (`Invio` e `Spazio`, `useButton`): confermati.
+- **`skeleton`**: in prima stesura la pagina chiedeva `aria-busy` sul contenitore; nessun blocco del registry lo usa (`page-skeleton` compreso), quindi la regola non era del sistema. Tolta: la pagina dice solo che lo scheletro non si annuncia.
+- **`table`, `MisuraDelleCifre`**: letto dalla pagina costruita, scarto dei decimali **0px** con `tabular-nums` e **1.47px** senza. La descrizione dice «praticamente zero», perché il valore è arrotondato al centesimo.
+
+#### Il testo reso nel canvas
+
+Il gate per `ui/` legge i soli JSDoc, ma il `grep` di M5.0e su `storybook-static/` legge tutto. Riscritti come contenuto neutro:
+- **`sidebar`, `Aperta`**: «nel v1 è l'unica superficie antracite» → «La colonna resta antracite anche in modalità chiara: i suoi colori sono la famiglia di token `--sidebar-*`».
+- **`toggle-group`, `ChipColConteggio`**: «Quello che Officina scrive oggi — …» → «Il contro-esempio — …». **`AccesoPienoOTenue`**: i tre titoli «Preset shadcn, oggi», «Arancio pieno — il v1 spedito», «Arancio tenue — il token del v1» → «Grigio, in uso», «Arancio pieno, non adottato», «Arancio tenue, non adottato».
+- **`toggle`, `SpentoSorvolatoAcceso`**: «Acceso, rimedio proposto» → «Acceso, arancio tenue».
+- **`table`, `MisuraDelleCifre`**: «Con tabular-nums (il nostro)» / «Senza (il preset)» → «Con tabular-nums» / «Senza, con normal-nums».
+
+#### Le misure: cercate prima di togliere
+
+Estratti da ogni JSDoc i numeri con unità e cercati in `DECISIONI.md` e `WORKLOG.md`: **tutti c'erano** (l'unico «mancante» dello script era il 15% di `TrePannelli`, che è il `minSize` della scena, non una misura). In `DECISIONI.md` **§54** vanno quindi le cose senza numero che stavano solo nelle story — i due chip scritti a mano in Anagrafe (`pdt-prod-chip`, `adm-ruolo-chip`), che servono a M5.5 — e i comportamenti di tastiera verificati sopra. La decisione sullo stato acceso di `toggle`/`toggle-group` (grigio di shadcn, 2026-09-09) e le sue misure al byte stanno già qui, voce di M2.6 e coda.
+
+#### Lo strumento, e il difetto che ha preso
+
+Il testo è stato scritto a mano, file per file, **già andato a capo**; uno script d'appoggio nella cartella temporanea l'ha solo messo al posto del JSDoc attaccato a `meta` e a ogni `export const`, senza riandare a capo — la difesa dai due errori di M5.0b. **Uno dei due è tornato lo stesso, perché l'a capo l'ho scritto io**: in `sidebar` lo span `` `--sidebar-width: calc(var(--spacing) * 64)` `` era spezzato su due righe, e la pagina lo rendeva come due blocchi di codice in mezzo all'elenco. Visto **solo sulla pagina costruita**, come in M5.0b. Corretto riscrivendo la frase perché ogni span stia su una riga; poi un controllo su tutti i 52 file di `ui/`: **nessuna riga di JSDoc con un numero dispari di backtick**, fuori dai recinti.
+
+#### Verifiche
+
+- `check:storybook` sui 52 di `ui/`: **0 segnalazioni**; `-- --avvisa` sul repo: **239 su 31 file di 90**.
+- `build-storybook` verde; `oxlint` a zero sui 24.
+- **Pagine Docs renderizzate, tutte e 24, in Chiaro e in Scuro, dal manager** (`/?path=/docs/…&globals=modalita:…`), in un Chromium vero (Playwright, dalla cartella temporanea) sullo Storybook costruito: per ognuna delle **48** combinazioni un solo blocco di codice nella descrizione ed è il comando `add` giusto, nessun `**`/```` ``` ````/entità letterale nel testo, `dark` sull'`<html>` nella modalità giusta, fondo `246,246,244` / `20,20,20`, **axe `color-contrast` 0 violazioni**. *Incomplete* solo su `kbd` (10, i tasti simbolo, note), `select` (1) e `sidebar` (1), identiche in entrambe le modalità. Guardate a occhio `sidebar`, `toggle-group`, `select`, `sheet`, `stepper`, `table`, nelle due modalità. Due passate si sono fermate a 38 e 42 pagine per un timeout di caricamento del server statico: aggiunto un ritento per pagina, la terza passata ha fatto **48/48 senza ritenti**.
+- **`test:a11y` 1540 scansioni, 0 violazioni**, e **ognuna delle quattro passate dice 385 story** — letto riga per riga, per il rilievo della coda di M5.0b. Lanciato dopo l'ultima modifica al canvas.
+- `npm run check`, i sette gate: verdi.
+
+#### Rilievi
+
+- **Due scene non seguono la regola dei codici** che le pagine ora scrivono: in `table` i codici sono `text-xs` senza `text-muted-foreground`, in `scroll-area` le norme sono in `font-mono`. È codice delle story, fuori dal mandato; le descrizioni delle scene non affermano il contrario. Da allineare in M5.0e o in un task a parte.
+- `stepper`: la composizione accessibile senza `StepperNav` resta da ripetere a ogni uso; la decisione se spostare `role="tablist"` su `StepperNav` (eccezione a 4bis) è ancora aperta dalla voce di M4ter.1 (2026-09-19). La pagina scrive la composizione com'è oggi.
+
+**Prossimi passi**: **M5.0d** — le 21 story di `blocks/` (129 segnalazioni), con `altezza="ferma"` di `data-table` in evidenza e `IntestazioneColonnaMenu` come alternativa opt-in.
+
+### Coda di M5.0c — i due rilievi, chiusi
+
+Chiesto da Francesco a PR aperta («sistemiamo ora»), con due scelte («1A, 2 sì»).
+
+- **I codici nelle scene seguono la regola.** `table`: le cinque celle di codice da `text-xs` a `text-sm text-muted-foreground`. `scroll-area`: le tre `font-mono text-xs` sulle norme a `text-sm text-muted-foreground`. Codice delle story, nessun componente.
+- **Trovato cercando lo stesso difetto altrove, e corretto**: in `blocks/data-table-filtro-sfaccettato.tsx` il conteggio accanto a ogni opzione del filtro era `font-mono`. È un numero da confrontare, quindi carattere del testo con `tabular-nums` (che c'era già): tolto `font-mono`, rilanciato `registry:build`, `public/r/tassullo-data-table-filtro-sfaccettato.json` aggiornato. Gli altri `font-mono` del repo sono sul codice sorgente o nelle pagine `Tema/`, dove la regola li ammette.
+- **Stepper: la composizione resta, il componente non si tocca** (scelta 1A). Il perché — l'eccezione costava infrastruttura nuova in `check:registry`, una seconda divergenza sulle props di `StepperNav` e un riporto a mano a ogni versione di reui — in `DECISIONI.md` **§55**. La questione aperta da M4ter.1 è chiusa.
+
+**Verifiche**: `npm run check`, i sette gate verdi; `test:a11y` **1540 scansioni, 0 violazioni**, 385 story in ognuna delle quattro passate — invariato anche col grigio attenuato sulla riga selezionata e sulle tessere grigie; `public/r/` allineato ai sorgenti.

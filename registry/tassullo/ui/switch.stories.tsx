@@ -4,31 +4,34 @@ import { Label } from '@/registry/tassullo/ui/label'
 import { Switch } from '@/registry/tassullo/ui/switch'
 
 /**
- * **L'interruttore era l'unico componente del set con misure in pixel crudi**,
- * e quindi l'unico che la densità touch non scalava: `h-[18.4px] w-[32px]` e
- * `h-[14px] w-[24px]`. È la stessa forma dell'eccezione della sidebar accertata
- * in M1.4 — un valore che non deriva da `--spacing` resta identico mentre tutto
- * quello che gli sta intorno cresce. Ri-stilato in unità del tema:
+ * Un interruttore per un'impostazione che ha effetto subito: acceso o spento,
+ * senza un «Salva» dopo.
  *
- * | | prima | ora | normale | touch |
- * |---|---|---|---|---|
- * | `default` | `h-[18.4px] w-[32px]` | `h-4.5 w-8` | 18 × 32 px | **27 × 48 px** |
- * | `sm` | `h-[14px] w-[24px]` | `h-3.5 w-6` | 14 × 24 px | 21 × 36 px |
+ * **Quando sì, quando no.** Tre componenti si somigliano e fanno cose
+ * diverse. Lo `switch` cambia un'impostazione nel momento in cui lo si tocca.
+ * Se la scelta è una risposta dentro un modulo, che vale quando il modulo si
+ * invia, è una `checkbox`: se accanto c'è un bottone di conferma, la casella
+ * è quella giusta. Un bottone che resta premuto in una barra di strumenti —
+ * grassetto, mostra le note — è `toggle`; una scelta fra più opzioni è
+ * `toggle-group` o `radio-group`.
  *
- * I 18px al posto di 18,4 non sono un arrotondamento comodo: sono **esatti** —
- * il pomello è `size-4` (16px) più i due bordi da 1px. Il quarto di pixel
- * mancante era il refuso, non la correzione.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/switch
+ * ```
  *
- * **L'unico valore arbitrario che resta è voluto**: `translate-x-[calc(100%-2px)]`.
- * Quei 2px sono i due bordi da 1px, e i bordi non scalano **mai** con la densità
- * (M1.4) — quindi la formula è giusta in entrambe, e sostituirla con un token la
- * romperebbe. È il secondo avviso che il gate tiene acceso di proposito, dopo il
- * `color-mix` dell'hover di `secondary`.
+ * **Taglie e opzioni.** `size`: `default` o `sm`. `checked` o
+ * `defaultChecked`, `onCheckedChange`, `disabled`. Entrambe le taglie
+ * crescono con la densità touch.
  *
- * **Interruttore o casella?** L'interruttore agisce **subito** e non ha un
- * «Salva» dopo; la casella è una risposta dentro un modulo, e vale quando il
- * modulo si invia. Se accanto c'è un bottone di conferma, quello giusto è il
- * checkbox.
+ * **Regole d'uso.** Ogni interruttore ha la sua `Label`, collegata con
+ * `htmlFor`, che dice che cosa si accende — «Visibile nel catalogo pubblico»,
+ * non «Attivo». Da disabilitato, `disabled` sull'interruttore e
+ * `data-disabled="true"` sul contenitore con la classe `group`, così si spegne
+ * anche l'etichetta.
+ *
+ * **Tastiera e accessibilità.** `Tab` porta sull'interruttore, `Spazio` o
+ * `Invio` lo commutano. Si annuncia come interruttore, acceso o spento, col
+ * nome della sua etichetta.
  */
 const meta = {
   title: 'Primitive/Switch',
@@ -38,6 +41,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/**
+ * Un interruttore spento con la sua etichetta.
+ */
 export const Predefinito: Story = {
   render: () => (
     <div className="flex items-center gap-3">
@@ -47,6 +53,9 @@ export const Predefinito: Story = {
   ),
 }
 
+/**
+ * Le due taglie, `default` e `sm`, con le misure in densità normale e touch.
+ */
 export const Taglie: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
@@ -63,8 +72,8 @@ export const Taglie: Story = {
 }
 
 /**
- * Commuta la **Densità** in barra e guarda questa story: prima del ri-stile
- * l'interruttore restava fermo mentre etichetta e riga crescevano intorno.
+ * Spento, acceso, e i due disabilitati. Con la Densità in touch l'interruttore
+ * cresce insieme all'etichetta.
  */
 export const Stati: Story = {
   render: () => (

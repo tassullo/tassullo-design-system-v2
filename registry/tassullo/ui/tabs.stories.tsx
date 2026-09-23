@@ -4,47 +4,38 @@ import { FileTextIcon, ImageIcon, ListChecksIcon } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui/tabs'
 
 /**
- * `tabs.tsx` è identico all'originale: nessuna stringa ri-stilata. Il preset
- * è già sui token del tema e le due varianti — `default` (a pillole, su
- * `bg-muted`) e `line` (a filo sotto la scheda attiva) — coprono i due modi in
- * cui il v1 usa le schede.
+ * Schede che dividono il contenuto di una pagina in parti, e ne mostrano una
+ * alla volta: i dati, gli allegati, le revisioni di una scheda.
  *
- * **Le schede non sono navigazione.** Cambiano il pannello sotto, non la
- * pagina: se un'etichetta deve portare a un altro indirizzo, è un link, e
- * l'indice di pagina è `breadcrumb` (M2.5). Confonderli rompe il tasto
- * indietro del browser.
+ * **Quando sì, quando no.** Le schede cambiano il pannello sotto, non la
+ * pagina: se un'etichetta porta a un altro indirizzo è un collegamento, e il
+ * tasto indietro del browser deve funzionare. I passi di una procedura, da
+ * fare in ordine, sono `stepper`. Una scelta che filtra o cambia la vista di
+ * un elenco è `toggle-group`.
  *
- * Da tastiera è il comportamento standard ARIA, che Base UI porta da sé:
- * `Tab` entra nella lista e si ferma **sulla scheda attiva sola**, le frecce
- * spostano fra le schede, `Tab` di nuovo scende nel pannello. Vale la pena
- * provarlo, perché è la differenza fra una lista di schede e cinque fermi di
- * tabulazione da attraversare ogni volta.
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/tabs
+ * ```
  *
- * **Una trappola d'uso, trovata da Francesco e misurata: se il contenitore
- * non ha una larghezza definita, cambiare scheda sposta l'interfaccia.** Il
- * pannello attivo è l'unico figlio che porta testo, quindi in un contenitore
- * che si stringe sul contenuto — un flex item, una cella di griglia `auto`,
- * un `inline-block` — è **la lunghezza del testo del pannello** a decidere la
- * larghezza del gruppo. Misurato qui, dove il canvas di Storybook è
- * `align-items: center` e la radice si stringe: passando Dati → Allegati →
- * Revisioni la radice faceva **452 → 421 → 341px** e la lista di schede
- * slittava di **55px** a ogni clic.
+ * **Varianti e opzioni.** `variant` su `TabsList`: `default` (a pillole, su
+ * fondo grigio) o `line` (un filo sotto la scheda attiva). `orientation` su
+ * `Tabs`: `horizontal` o `vertical`. `value` o `defaultValue` su `Tabs`,
+ * `value` e `disabled` su `TabsTrigger` e `TabsContent`.
  *
- * Non è un difetto del componente, ed è la parte che conta: **`w-full` non lo
- * cura**, perché su un contenitore a larghezza indefinita è circolare e non
- * fa nulla (misurato: `w-full` risolveva a 277px, cioè alla larghezza del
- * testo). Serve una larghezza **definita** — qui `w-96`, che sta sulla scala
- * di `--spacing` e quindi segue la densità. Con quella, posizione e larghezza
- * restano identiche su tutte e tre le schede.
+ * **Regole d'uso.**
  *
- * In un'app il caso non si presenta quasi mai, perché le schede stanno in una
- * colonna di pagina che una larghezza ce l'ha. Si presenta appena si mettono
- * dentro un contenitore che si adatta al contenuto — ed è lì che va ricordato.
+ * - Il contenitore delle schede ha una larghezza definita — una classe della
+ *   scala, come `w-96`, o la colonna della pagina. In un contenitore che si
+ *   stringe sul contenuto, ogni pannello porta la sua larghezza e la lista
+ *   delle schede si sposta a ogni clic; `w-full` lì non basta.
+ * - Le icone nelle schede sono decorative: il nome resta il testo.
  *
- * Quattro valori arbitrari ereditati (`p-[3px]`, `h-[calc(100%-1px)]`,
- * `ring-[3px]`, `bottom-[-5px]`): sono di shadcn, non nostri, e il gate li
- * segnala come avvisi. Toccarli qui vorrebbe dire ridisegnare il fuoco e
- * l'allineamento del filo per un guadagno nullo.
+ * **Tastiera e accessibilità.** La lista è un solo fermo di tabulazione:
+ * `Tab` entra sulla scheda attiva, le frecce spostano il fuoco fra le schede
+ * e ricominciano dall'inizio in fondo alla lista, `Invio` o `Spazio` aprono
+ * quella col fuoco, e il `Tab` seguente scende nel pannello. Le schede
+ * disattivate si saltano. Con `activateOnFocus` su `TabsList` la scheda si apre
+ * già spostandoci sopra il fuoco.
  */
 const meta = {
   title: 'Primitive/Tabs',
@@ -70,6 +61,10 @@ function Pannelli() {
   )
 }
 
+/**
+ * Tre schede a pillole su una larghezza fissa: cambiando scheda la lista non
+ * si sposta.
+ */
 export const Predefinito: Story = {
   render: () => (
     <Tabs defaultValue="dati" className="w-96">
@@ -83,7 +78,9 @@ export const Predefinito: Story = {
   ),
 }
 
-/** La variante `line`: un filo sotto la scheda attiva, senza pillola. */
+/**
+ * La variante `line`: un filo sotto la scheda attiva, senza pillola.
+ */
 export const Filo: Story = {
   render: () => (
     <Tabs defaultValue="dati" className="w-96">
@@ -97,7 +94,9 @@ export const Filo: Story = {
   ),
 }
 
-/** Con le icone: decorative, il testo resta il nome accessibile. */
+/**
+ * Con le icone accanto ai nomi.
+ */
 export const ConIcone: Story = {
   render: () => (
     <Tabs defaultValue="dati" className="w-96">
@@ -111,7 +110,9 @@ export const ConIcone: Story = {
   ),
 }
 
-/** In verticale: la lista si impila a sinistra e il pannello sta a destra. */
+/**
+ * In verticale: la lista a sinistra, il pannello a destra.
+ */
 export const Verticale: Story = {
   render: () => (
     <Tabs orientation="vertical" defaultValue="dati" className="w-96">
@@ -125,7 +126,9 @@ export const Verticale: Story = {
   ),
 }
 
-/** Una scheda disattivata: non prende il fuoco e le frecce la saltano. */
+/**
+ * Una scheda disattivata: non prende il fuoco e le frecce la saltano.
+ */
 export const Disattivata: Story = {
   render: () => (
     <Tabs defaultValue="dati" className="w-96">

@@ -14,149 +14,64 @@ import {
 } from '@/registry/tassullo/ui/stepper'
 
 /**
- * **La barra dei passi — e non è un componente nostro.** Viene dal registry
- * `@reui` (ReUI, Keenthemes), che è la stessa variante Base UI dello stesso
- * preset `base-nova` che usiamo qui: stesse primitive, stesso `style`. È stato
- * adottato **senza modifiche**, ed è la prima volta che il registry Tassullo
- * ridistribuisce il codice di un terzo.
+ * La barra dei passi di una procedura: dice a che passo si è, quali sono fatti
+ * e quali mancano, e porta da un passo all'altro.
  *
- * Perché non l'abbiamo scritto: serve tre volte in due pagine di Studio, e la
- * scala della regola 4bis si esaurisce al gradino 1 — esiste già, e in casa
- * nostra. `componenti-propri.json` resta vuoto.
+ * **Quando sì, quando no.** Si usa per una procedura divisa in passi che si
+ * compiono in ordine: una registrazione, un calcolo in più fasi. I passi sono
+ * schede che si navigano e di cui una è selezionata; se l'elemento non si
+ * naviga e non si seleziona — un misuratore di robustezza della password, un
+ * conto di pagine — non è uno stepper, anche se gli somiglia. Sezioni
+ * indipendenti di una scheda, senza un ordine, sono `tabs`. L'avanzamento di
+ * un'operazione automatica è `progress`.
  *
- * ## La licenza viaggia col componente
+ * ```bash
+ * npx shadcn@latest add tassullo/tassullo-design-system-v2/stepper
+ * ```
  *
- * MIT. L'unica condizione che pone è che l'avviso di copyright resti nelle
- * copie: sta in testa a `stepper.tsx` e **non si toglie**, e l'item installa
- * accanto `src/tassullo-reui-MIT.txt` col testo integrale. Non è una
- * formalità da ricordare a memoria: `npm run check:registry` **fallisce** se
- * l'avviso sparisce dal file, perché senza di quello la ridistribuzione alle
- * app non è coperta.
+ * Il componente viene dal registry reui, con licenza MIT: l'avviso di
+ * copyright in testa a `stepper.tsx` resta nel file, e l'item installa
+ * accanto il testo della licenza.
  *
- * ## Lo stato lo deriva il componente: `completed` quasi mai si passa
+ * **Opzioni e parti.** `Stepper` con `value` o `defaultValue` (il passo
+ * corrente, da 1), `orientation` (`horizontal` o `vertical`) e `indicators`,
+ * che dà l'icona di ogni stato — `completed`, `loading`. `StepperItem` con
+ * `step`; `StepperTrigger` il bottone del passo; `StepperIndicator` il
+ * pallino; `StepperTitle`, `StepperDescription`; `StepperSeparator` il
+ * tratto verso il passo seguente; `StepperPanel` e `StepperContent` con
+ * `value` per il contenuto di ogni passo.
  *
- * `StepperItem` calcola da sé `step < activeStep → fatto`,
- * `step === activeStep → corrente`, il resto **da fare**. La prop `completed`
- * è un **forzante**, per il caso in cui non sia derivabile — un modulo con
- * convalida dove si torna indietro a correggere il primo passo lasciando il
- * secondo già buono. Passarla fissa in una barra che si clicca è un difetto
- * che si vede subito: i passi forzati restano accesi **anche quando si torna
- * al primo**, e una barra a cinque segmenti su «passo 1 di 5» ne mostra due
- * accesi. Qui non si passa, e la spunta la dà `indicators` sulla radice, che
- * è l'API fatta apposta.
+ * **Regole d'uso.**
  *
- * ## Si compone così, e non come lo compongono loro
+ * - Lo stato di ogni passo lo calcola il componente: prima del corrente è
+ *   fatto, dopo è da fare. `completed` su un passo si passa solo quando non si
+ *   può calcolare — un passo già valido che resta tale tornando indietro. La
+ *   spunta del passo fatto si dà con `indicators` sulla radice.
+ * - **La composizione accessibile è questa**, e non quella con `StepperNav`,
+ *   che mette le schede dentro un `<nav>` e ne spezza la lista: la radice ha
+ *   `role="group"` e `aria-orientation={undefined}`; le schede stanno in un
+ *   elemento con `role="tablist"` e un `aria-label`; sotto ci sono **tutti** i
+ *   pannelli, anche quelli non attivi, ciascuno in un contenitore con
+ *   `id="stepper-panel-N"`, `role="tabpanel"` e
+ *   `aria-labelledby="stepper-tab-N"`. Senza i pannelli le schede puntano al
+ *   nulla: una barra dei passi senza pannelli non si fa.
+ * - In orizzontale con i titoli, pallino e tratto stanno su una riga e il
+ *   titolo sotto, fuori dal bottone; le colonne le fa uguali una griglia
+ *   (`grid grid-flow-col auto-cols-fr`), non il contenuto; il tratto parte
+ *   dal centro del pallino e arriva al centro del seguente
+ *   (`absolute top-1/2 left-1/2 -right-1/2 -translate-y-1/2`). Il titolo fuori
+ *   dal bottone non gli dà il nome: il bottone ha un `aria-label` con titolo e
+ *   descrizione, e il titolo è `aria-hidden`.
+ * - Il tratto si accende con `data-[state=completed]:bg-primary`, mai sul
+ *   passo corrente: la strada dopo il corrente è ancora da fare.
+ * - Un bottone senza testo visibile ha comunque un nome, in un `aria-label` o
+ *   in uno `<span className="sr-only">`.
  *
- * **Queste story non usano `StepperNav`, e la ragione è un difetto ARIA del
- * componente, misurato qui il 2026-09-19.** Nella composizione documentata da
- * reui la radice `Stepper` porta `role="tablist"` e i `role="tab"` stanno
- * dentro un `<nav>`: il `nav` è un punto di riferimento, quindi spezza la
- * catena fra la lista e le sue schede. Il gate dà **due** regole violate,
- * `aria-required-children` sulla radice («ha un figlio `nav`, che lì non ci
- * può stare») e `aria-required-parent` su **ogni** scheda.
- *
- * Qui il gruppo lo fa un elemento nostro con `role="tablist"` scritto sopra, e
- * la radice passa a `role="group"`. Tre conseguenze, tutte trovate misurando:
- *
- * 1. Cambiando ruolo alla radice va **tolta anche `aria-orientation`**, che il
- *    componente scrive per il `tablist` e che su `group` non è ammessa
- *    (`aria-allowed-attr`). Si toglie passandola `undefined`, perché lo spread
- *    dei props viene dopo.
- * 2. Ogni scheda punta con `aria-controls` a `stepper-panel-N`, ma né
- *    `StepperPanel` né `StepperContent` scrivono quell'`id`: **lo deve mettere
- *    chi compone**, o l'attributo punta al nulla (`aria-valid-attr-value`).
- * 3. E i pannelli devono esserci **tutti**, non solo quello attivo. Detto
- *    altrimenti, **una barra di passi senza pannelli non si può fare**: una
- *    scheda che non comanda niente non è una scheda — ed è la ragione per cui
- *    anche la barra a segmenti, qui sotto, un pannello ce l'ha.
- *
- * Senza `StepperNav` cade anche il nome di gruppo `group/stepper-nav`, su cui
- * `StepperItem` e `StepperSeparator` appoggiano le proprie misure. **Non si
- * rimette**, e non è una perdita: quelle misure qui si scrivono in chiaro, ed
- * è l'unico modo di avere l'impaginazione giusta (v. sotto).
- *
- * Nessuna delle tre si chiude ri-stilando: sono ruoli e attributi, non
- * stringhe di classi, e la regola 4bis non lascia toccarli. **In carico a
- * Francesco**: o la composizione resta questa e si ripete a ogni uso (M4ter.5
- * ne ha due), o si autorizza l'eccezione a 4bis e si sposta `role="tablist"`
- * dalla radice a `StepperNav` — una riga, che chiuderebbe il punto 1 e il 2.
- *
- * ## L'impaginazione orizzontale va scritta, non ereditata
- *
- * Due difetti visti sullo schermo, non dedotti, e valgono per chiunque componga
- * una barra dei passi **con le etichette**:
- *
- * · **L'etichetta non può stare nella stessa riga del trattino.** Se ci sta, il
- *   trattino si centra sull'altezza di pallino *più* etichetta, quindi cade
- *   sotto il centro del pallino; e la sua lunghezza è quel che avanza dopo
- *   l'etichetta, quindi **cambia da passo a passo** («Dati dell'impresa» è più
- *   largo di «Tipo di utente», e si vede). Qui pallino e trattino stanno in una
- *   riga loro, e l'etichetta sotto.
- * · **Le colonne vanno rese uguali dalla griglia, non dal contenuto.**
- *   `grid-flow-col auto-cols-fr` dà a ogni passo la stessa frazione, e da lì i
- *   trattini escono tutti della stessa lunghezza. Con `flex-1` sui passi no: la
- *   larghezza la detta l'etichetta.
- * · **Il trattino si ancora al centro dei pallini, non allo spazio fra loro.**
- *   `absolute left-1/2 -right-1/2` dentro una riga larga quanto la colonna lo fa
- *   partire dal centro di questo pallino e arrivare al centro del prossimo —
- *   che è la geometria con cui reui fa il tratto verticale, portata in
- *   orizzontale. Così il pallino può stare **centrato** nella sua colonna, col
- *   titolo centrato sotto, invece di essere schiacciato a sinistra.
- *   `top-1/2 -translate-y-1/2` lo centra sul pallino a **qualunque densità**:
- *   nessun numero fisso da riaggiustare quando `--spacing` cambia.
- * · **L'etichetta sta fuori dal grilletto.** Il grilletto è `rounded-full` e
- *   porta l'anello di fuoco: se ci si mette dentro anche il titolo, premendo
- *   `Tab` si accende una pastiglia attorno a pallino *ed* etichetta invece del
- *   cerchio attorno al pallino. Il prezzo è che il nome della scheda va dato a
- *   mano con `aria-label` — senza, la scheda si chiamerebbe «2».
- *
- * ## La trappola del nome, di nuovo
- *
- * Lo stepper è un `tablist` di `tab`: i passi **si navigano** e uno **è
- * selezionato**. Il misuratore di robustezza di una password gli somiglia —
- * N trattini, M accesi — ma non si naviga e non si seleziona, quindi non è
- * questo componente e resta codice della pagina. È `badge` scambiato per
- * `toggle-group`, un giro più in là.
- *
- * ## Il ri-stile è una stringa sola
- *
- * Zero esadecimali, zero valori arbitrari, e i due corpi che usa — `text-xs`
- * e `text-sm` — sono gradini che il tema tara, quindi seguono la densità da
- * soli.
- *
- * L'unico cambio è il **pallino del passo da fare**, che reui fa `bg-accent`:
- * `--accent` in shadcn è il grigio di sorvolo dei menu, ed è talmente vicino al
- * fondo che il pallino non si vede: i passi ancora da fare sembrano numeri
- * appoggiati sul niente. Passa a `bg-muted text-muted-foreground`, cioè **lo
- * stesso colore del trattino che collega i pallini** — così il non-fatto è una
- * cosa sola, pallini e collegamenti, e il fatto e il corrente si staccano.
- * È una stringa di classi e basta (gradino 2 della regola 4bis): forma, props,
- * varianti ed export restano di reui, e `check:registry` lo conta fra i
- * ri-stilati sopra una forma intatta.
- *
- * ## Da tastiera — provato a mano da Francesco il 2026-09-19
- *
- * Frecce, `Home` e `End` funzionano. In automazione non si possono provare (i
- * tasti arrivano con `event.key` vuoto e i bottoni non si attivano), quindi
- * quella misura è sempre stata e resta **a mano**.
- *
- * **La barra è un solo fermo di tabulazione, non uno per pallino.** Il
- * `tabIndex` vale `0` sul passo selezionato e `-1` su tutti gli altri
- * (`stepper.tsx`), quindi `Tab` entra nella barra e si posa sul passo corrente,
- * e il `Tab` dopo **esce** invece di passare al pallino successivo. Da lì dentro
- * si naviga con le frecce. È la stessa scelta del `toggle-group`, e la ragione è
- * la stessa: altrimenti una barra da cinque passi sarebbero cinque fermi da
- * attraversare a ogni giro. Da cui una conseguenza che sembra un difetto e non
- * lo è: **prima di aver dato il fuoco a un pallino, `Home` non fa nulla** — non
- * c'è nessun elemento su cui agire.
- *
- * **E le frecce spostano il fuoco senza cambiare il passo.**
- * `focusNext`/`focusPrev`/`focusFirst`/`focusLast` chiamano `.focus()` e basta:
- * il passo corrente cambia solo con `Invio`, `Spazio` o un clic. È
- * l'*attivazione manuale*, quella raccomandata quando il pannello costa — e qui
- * costa, perché il passo di un modulo può avere dentro un form intero. Chi si
- * aspetta che la freccia cambi anche il contenuto sta pensando all'attivazione
- * automatica, che è un pattern diverso e non è questo.
+ * **Tastiera e accessibilità.** La barra è un solo fermo di tabulazione: `Tab`
+ * entra sul passo corrente e il `Tab` seguente esce. Dentro, le frecce
+ * spostano il fuoco fra i passi, `Home` e `Fine` al primo e all'ultimo; il
+ * passo cambia solo con `Invio`, `Spazio` o un clic, perché il contenuto di un
+ * passo può essere un modulo intero.
  */
 const meta = {
   title: 'Primitive/Stepper',
@@ -244,13 +159,9 @@ const PASSI = [
 ]
 
 /**
- * **Orizzontale**, il modo che serve alla registrazione di Studio: i passi
- * stanno in riga sopra il modulo, il corrente è pieno d'arancio, i fatti
- * portano la spunta e quelli da fare restano sul grigio d'ambiente.
- *
- * Si clicca: i passi sono schede, e cambiando passo cambiano il pannello sotto
- * **e** i trattini alle spalle. È il modo giusto di guardare se lo stato è
- * derivato bene — una barra che si clicca e resta ferma sta dicendo il falso.
+ * Tre passi in riga sopra il contenuto, al secondo: il fatto ha la spunta, il
+ * corrente è pieno, il da fare è grigio. Si clicca, e cambiano insieme il
+ * contenuto e i tratti.
  */
 export const Orizzontale: Story = {
   render: () => (
@@ -293,15 +204,8 @@ export const Orizzontale: Story = {
 }
 
 /**
- * **Verticale**, che è la forma giusta quando ogni passo ha una riga di
- * spiegazione sotto al titolo: in riga quelle righe non ci starebbero, e
- * l'`orientation` non è una scelta estetica ma una conseguenza di quanto testo
- * porta ogni passo.
- *
- * Il tratto verticale va incolonnato **sotto il centro del pallino**, e lo fa
- * un contenitore largo quanto il pallino (`w-6`, la stessa misura di `size-6`)
- * che lo centra: così resta allineato anche se la densità cambia, perché
- * entrambe le misure escono da `--spacing`.
+ * In colonna, quando ogni passo ha una riga di descrizione: il tratto scende
+ * sotto il centro del pallino.
  */
 export const Verticale: Story = {
   render: () => (
@@ -351,16 +255,8 @@ export const Verticale: Story = {
 }
 
 /**
- * **Titolo in linea** (`c-stepper-9`): il titolo sta **accanto** al pallino e
- * non sotto. È la forma che ci sta dove l'altezza è poca — sopra un modulo in
- * una card, dentro un pannello — e si paga in larghezza, quindi regge finché i
- * titoli sono corti.
- *
- * Qui il titolo torna **dentro** il grilletto, al contrario della scena
- * orizzontale, e non è un'incoerenza: in linea il pallino e la sua parola sono
- * un bersaglio solo, e l'anello di fuoco che li abbraccia entrambi dice il
- * vero. Sotto, invece, il titolo è una didascalia e l'anello attorno a tutta la
- * colonna sarebbe una pastiglia storta.
+ * Il titolo accanto al pallino, dentro il bottone: occupa poca altezza e
+ * regge finché i titoli sono corti.
  */
 export const TitoloInLinea: Story = {
   render: () => (
@@ -394,22 +290,8 @@ export const TitoloInLinea: Story = {
 }
 
 /**
- * **Barra con titoli** (`c-stepper-11` della galleria reui), ed è l'alternativa
- * da preferire alla barra a segmenti nuda quando i passi hanno un nome.
- *
- * Stessa idea della barra a segmenti — il pallino diventa un **tratto pieno**,
- * uno per passo — ma i segmenti sono staccati e sotto ognuno c'è la sua parola.
- * Rispetto ai pallini numerati guadagna in larghezza, perché un tratto può
- * essere corto quanto serve mentre un pallino no; rispetto alla barra nuda dice
- * **a che punto si è**, non solo quanti ne mancano.
- *
- * Qui il titolo torna **dentro** il grilletto, come nella scena in linea e al
- * contrario dell'orizzontale: il tratto è largo quanto la colonna, quindi il
- * bersaglio è già tutta la colonna e l'anello di fuoco che la circonda è quello
- * giusto. E il titolo che sbiadisce sui passi da fare
- * (`group-data-[state=inactive]/step:text-muted-foreground`) è ciò che sostituisce
- * il numero: senza pallino, è l'unica cosa che distingue il fatto dal da fare
- * oltre al colore del tratto.
+ * Un tratto pieno per passo, col titolo sotto, che sbiadisce sui passi da
+ * fare. Dice a che punto si è in meno spazio dei pallini numerati.
  */
 export const BarraConTitoli: Story = {
   render: () => (
@@ -443,19 +325,9 @@ export const BarraConTitoli: Story = {
 }
 
 /**
- * **La barra a segmenti non è una variante**: è lo stesso componente con
- * l'indicatore tolto e il solo separatore a vista, che è la ragione per cui
- * non c'è stato bisogno di scriverla. Cinque trattini, e quelli accesi sono
- * quelli fino al passo corrente — **derivati**, non dichiarati: cliccando il
- * primo resta acceso solo il primo.
- *
- * È il caso di `TaskCalcoloStrutturale` di Studio, dove i passi sono tanti e i
- * titoli non ci stanno: resta il conto, scritto a parole sotto.
- *
- * Senza titolo dentro, il bersaglio resta **senza nome**: `aria-label` sul
- * grilletto non è un dettaglio di rifinitura, è ciò che distingue un passo
- * navigabile da un bottone muto — e il gate lo prende (`button-name`,
- * gravità *critical*).
+ * Cinque segmenti senza titolo, quando i passi sono tanti: sono accesi fino al
+ * corrente, e il conto è scritto sotto. Ogni segmento ha il nome in un testo
+ * `sr-only`.
  */
 export const BarraASegmenti: Story = {
   render: () => (
