@@ -3596,3 +3596,15 @@ Le strade misurate:
 | 3. selezione su `muted` al 60% | 4,61:1 | 1,10, quasi uguale all'hover (50%) |
 
 **Scelta: 1.** Ripara la coppia di token dovunque l'arancio stia sul grigio, non solo nelle tabelle, e non cambia l'aspetto di nessun componente. È la stessa mossa di M1.1, dove le tre coppie sotto soglia erano passate con una riduzione di `L` di 0,006. La coppia entra in `check:contrast` («link su riga selezionata»), che passa a **25 coppie per modalità, 50 in tutto**. Effetto sulle altre coppie: `primary-subtle` 4,57 → 4,89, `background` 4,77 → 5,09, `card` 5,07 → 5,42. In scuro `--accent-ink` non cambia (#F4AC3D, 7,79:1 sulla riga selezionata).
+
+## 63. Il canale per proporre una modifica: una issue col modulo «Proposta» (2026-09-24)
+
+**Decisa da Francesco.** La regola «se manca qualcosa si propone al design system, mai "per ora" nell'app» non diceva **dove** si propone, e col v1 questo è costato: in Anagrafe un campo con un `<datalist>` nativo apre la tendina nel posto sbagliato; il diario dice che un vero combobox «andrebbe prima proposto al repo condiviso», e lì si ferma. La proposta non è mai partita, e il difetto è ancora lì. Il buco l'ha trovato la prima rilettura del blocco di M5.4.
+
+- **Dove**: una issue su `tassullo/tassullo-design-system-v2`, col modulo `.github/ISSUE_TEMPLATE/proposta.yml`: app, cosa manca (cinque voci, compreso «un errore del design system»), cosa serve per funzione, cosa si è provato, cosa fa l'app nel frattempo, esempi facoltativi, due caselle obbligatorie. Etichetta `proposta`, creata su GitHub lo stesso giorno. Le issue libere sono spente (`config.yml`). Perché una issue: chi lavora sull'app, persona o sessione, la apre da sé (`gh issue create`); resta scritta con un numero da citare nel codice; una sessione sul design system la trova da sola. Una richiesta in chat non lascia traccia, ed è così che è andata col `<datalist>`.
+- **Il prezzo**: il repository è pubblico (D4), quindi anche le issue. Il modulo lo dice in testa e fa spuntare «la proposta non contiene dati veri»: si descrive il bisogno, non la pagina.
+- **Nel frattempo** l'app usa il componente più vicino così com'è, con `// in attesa di tassullo-design-system-v2#<n>`. «Mai per ora» non vuol dire che l'app si ferma: vuol dire niente versioni fatte in casa.
+- **Chi risponde**: le proposte le valuta Francesco. Accettata, diventa una riga in `CHECKLIST.md` e si chiude con la PR che la realizza; respinta, si chiude con la ragione scritta.
+- **Perché nessuno debba ricordarsene**: `sync.sh`, che parte a ogni inizio sessione, elenca le proposte aperte (o dice che non ce ne sono).
+
+Il modulo è stato mostrato a Francesco prima di unirlo, ricostruito dal file YAML: GitHub rende i moduli solo dal ramo principale.

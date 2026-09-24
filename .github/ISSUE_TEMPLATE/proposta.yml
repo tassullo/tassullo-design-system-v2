@@ -1,0 +1,76 @@
+name: Proposta
+description: Manca un componente, una variante, un token o una regola nel design system, o ne hai trovato uno sbagliato.
+title: "Proposta: "
+labels: ["proposta"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Questo repository è pubblico, e questa issue la può leggere chiunque.** Niente dati veri: né nomi di prodotti, clienti o persone, né schermate dell'app con dati reali. Si descrive il bisogno, non la pagina.
+
+        Prima di aprire, cerca con l'MCP di shadcn nel registry Tassullo e nella [style guide](https://tassullo.github.io/tassullo-design-system-v2): se quello che serve c'è già, si installa.
+
+  - type: input
+    id: app
+    attributes:
+      label: App
+      description: In quale app è nato il bisogno.
+      placeholder: Anagrafe, Studio, Officina…
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Cosa manca
+      options:
+        - Un componente
+        - Una variante di un componente che c'è
+        - Un token (un colore, una misura)
+        - Un blocco o una pagina modello
+        - Un errore del design system, o una regola poco chiara
+    validations:
+      required: true
+
+  - type: textarea
+    id: bisogno
+    attributes:
+      label: Cosa serve
+      description: La funzione, non l'aspetto. Cosa deve fare l'elemento, per chi, in quale momento del lavoro.
+      placeholder: "Un campo di testo che, mentre si scrive, propone i valori già usati, ma lascia scrivere anche un valore nuovo."
+    validations:
+      required: true
+
+  - type: textarea
+    id: provato
+    attributes:
+      label: Cosa hai provato nel design system
+      description: Cosa hai cercato con l'MCP e nella style guide, quali item hai trovato vicini, e perché non bastano.
+      placeholder: "Cercato «combobox» e «autocomplete». «combobox» c'è, ma accetta solo le voci dell'elenco."
+    validations:
+      required: true
+
+  - type: textarea
+    id: frattempo
+    attributes:
+      label: Cosa fa l'app nel frattempo
+      description: "Si usa il componente più vicino così com'è, con un commento che rimanda a questa issue: `// in attesa di tassullo-design-system-v2#<numero>`. Mai una versione fatta in casa."
+      placeholder: "Usa «combobox» così com'è: si scelgono solo i gruppi esistenti, un gruppo nuovo si crea da un'altra pagina."
+    validations:
+      required: true
+
+  - type: textarea
+    id: esempi
+    attributes:
+      label: Esempi o schermate
+      description: Facoltativo. Solo con dati inventati, o un disegno.
+
+  - type: checkboxes
+    id: controlli
+    attributes:
+      label: Prima di inviare
+      options:
+        - label: Ho cercato con l'MCP e nella style guide.
+          required: true
+        - label: La proposta non contiene dati veri.
+          required: true

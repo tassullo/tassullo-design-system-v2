@@ -24,6 +24,8 @@ Un task = una sessione, salvo indicazione contraria nel piano (l'unico doppio è
 
 **Nessuna app tiene una copia dei token o dei componenti.** Se a un'app serve un token nuovo, una variante o un pattern non coperto, si propone e si aggiunge **qui**, nel registry — mai localmente "per ora" nell'app. È la regola che ha tenuto insieme il v1 ed è la stessa che tiene insieme il v2: la deriva delle app comincia sempre da un'eccezione temporanea.
 
+**Il canale è una issue col modulo «Proposta»** (`.github/ISSUE_TEMPLATE/proposta.yml`, etichetta `proposta`; deciso da Francesco il 2026-09-24, `docs/DECISIONI.md` §63). Le issue libere sono spente. `sync.sh` elenca le proposte aperte a inizio sessione; le valuta Francesco. Accettata, una proposta diventa una riga in `CHECKLIST.md` e la issue si chiude con la PR che la realizza (`Closes #n`); respinta, si chiude con la ragione scritta, cioè cosa usare invece. Nel frattempo l'app usa il componente più vicino così com'è, con `// in attesa di tassullo-design-system-v2#<n>`.
+
 ## §Regole di scrittura del codice
 
 1. Gli import interni al registry usano **sempre** `@/registry/...`, mai `src/components`. È una convenzione shadcn, non un gusto: da essa dipende che i file atterrino nei path giusti nell'app consumer.

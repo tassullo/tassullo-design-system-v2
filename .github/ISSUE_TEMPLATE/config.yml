@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Style guide
+    url: https://tassullo.github.io/tassullo-design-system-v2
+    about: Prima di proporre, guarda se quello che serve c'è già.
