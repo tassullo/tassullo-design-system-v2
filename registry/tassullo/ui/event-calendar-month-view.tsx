@@ -7,11 +7,12 @@
  * installa accanto e che non si cancella.
  */
 
-import { PlusIcon } from "lucide-react"
 // Title: Event Calendar Month View
 // Description: ARIA-grid month view with week rows, day cells, event chips, and overflow counts.
 
 "use client"
+
+import { PlusIcon } from "lucide-react"
 
 import {
   useCallback,

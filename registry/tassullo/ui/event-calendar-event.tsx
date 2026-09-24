@@ -7,11 +7,12 @@
  * installa accanto e che non si cancella.
  */
 
-import { RepeatIcon } from "lucide-react"
 // Title: Event Calendar Event
 // Description: The reusable event chip/bar/block - selection, clicks, drag + resize wiring, and the consumer render slot.
 
 "use client"
+
+import { RepeatIcon } from "lucide-react"
 
 import {
   createContext,

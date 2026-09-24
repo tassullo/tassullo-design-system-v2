@@ -24,25 +24,17 @@ import * as React from "react"
  *
  * ## Perché non `useIsMobile`, che pure c'è
  *
- * `use-mobile.ts` **non si tocca**, e le ragioni sono due, entrambe misurate.
- *
  * I suoi 768px governano l'**arredamento**: la sidebar passa a `Sheet` e il
  * dialogo a `Drawer` allo stesso pixel, ed è una cosa sola — un'interfaccia
  * che cambia grammatica a 40px di distanza si legge come un guasto
  * (`responsive-dialog.tsx`). Il bivio tabella/schede è **contenuto**, e non
- * ha nessuna ragione di cadere dove cade l'arredamento.
- *
- * E `useIsMobile` legge `matchMedia` dentro un `useEffect` che chiama
- * `setState`: **il primo render torna sempre `false`, cioè scrivania.** Su un
- * dialogo non morde, perché al primo render è chiuso; su una lista sì — sul
- * telefono disegnerebbe la tabella a nove colonne e la sostituirebbe un
- * fotogramma dopo, cioè uno sfarfallio e un layout buttato via.
+ * ha nessuna ragione di cadere dove cade l'arredamento. I due hook leggono
+ * la finestra nello stesso modo; cambia solo chi sceglie la soglia.
  *
  * ## Perché `useSyncExternalStore` e non uno stato con un effetto
  *
- * È la differenza che questo file esiste per fare. `getSnapshot` legge
- * `matchMedia` **durante il render**, quindi il primo fotogramma è già
- * quello giusto e non c'è niente da correggere dopo. Un `useState` +
+ * `getSnapshot` legge `matchMedia` **durante il render**, quindi il primo
+ * fotogramma è già quello giusto e non c'è niente da correggere dopo. Un `useState` +
  * `useEffect` non può arrivarci: l'effetto gira dopo che il DOM è stato
  * scritto, e il `setState` che ne esce è un secondo render per dire una cosa
  * che si sapeva già — che è poi il difetto che oxlint segnala come
@@ -60,7 +52,7 @@ import * as React from "react"
  * una convenzione che tiene: `true` vuol dire «c'è spazio», `false` vuol dire
  * «non c'è», e il valore di partenza è quello prudente. Scritta al
  * contrario (`max-width`) il default diventerebbe «schermo grande», cioè
- * esattamente il difetto di `useIsMobile` rimesso in piedi da un'altra parte.
+ * la tabella disegnata per un fotogramma sul telefono.
  *
  * @param query una media query CSS, in forma `min-width` — p.es.
  *   `"(min-width: 1024px)"`. La dichiara la pagina.

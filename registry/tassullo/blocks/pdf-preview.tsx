@@ -57,7 +57,7 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
 import { Document, Page, pdfjs, type DocumentProps } from "react-pdf"
-// eslint-disable-next-line import/no-unresolved -- risolto da Vite in ogni app: sintassi `?url`, non un pacchetto a parte.
+// `?url` è sintassi di Vite: il worker arriva come indirizzo di un file, non come modulo.
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
 import { cn } from "cn"

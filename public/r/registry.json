@@ -887,7 +887,7 @@
       "name": "use-mobile",
       "type": "registry:hook",
       "title": "useIsMobile",
-      "description": "Soglia mobile a 768px, in un solo posto. La sidebar la usa per passare a Sheet.",
+      "description": "Soglia mobile a 768px, in un solo posto. La sidebar la usa per passare a Sheet, il dialogo responsivo per diventare cassetto. Legge la finestra durante il render, quindi il primo render è già quello giusto.",
       "files": [
         {
           "path": "registry/tassullo/hooks/use-mobile.ts",

@@ -361,7 +361,7 @@ export function RichTextEditor({
   React.useEffect(() => {
     if (!editor || value === undefined) return
     if (value === ultimoEmesso.current) return
-    let contenuto: object | string = ""
+    let contenuto: object | string
     try {
       contenuto = JSON.parse(value)
     } catch {

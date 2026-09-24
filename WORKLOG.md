@@ -13185,3 +13185,26 @@ Come deciso da Francesco, la versione resta `v2.0.0` e contiene il controllo. PR
 Verificato da fuori: `…/v2.0.0/public/r/tassullo-controllo.json` risponde. Nell'app di prova riportata a `v2.0.0` e ripulita dalle violazioni, controllo reinstallato da quella versione: «L'app rispetta il Design System Tassullo 2.0», 35 item confrontati.
 
 Da qui in avanti un'etichetta pubblicata non si sposta più: una modifica è una versione nuova (`DECISIONI.md` §66).
+
+## 2026-09-24 — Proposta #49: i file installati passano il lint dell'app
+
+Ramo `fras/proposta-49-lint`. Proposta di Anagrafe dopo l'installazione della `v2.0.0`: tre errori del suo `npm run lint` (ESLint, `react-hooks` 7, `react-refresh`) in file che non può toccare. Francesco: si risolve, con la correzione di `use-mobile` su `useSyncExternalStore`; tag e merge solo con la sua conferma.
+
+#### La misura, prima di correggere
+
+Il template di Vite oggi usa oxlint; ESLint era quello fino a `create-vite` 8 (preso il template da `npm pack create-vite@8.3.0`). Anagrafe ha ESLint 10, `react-hooks` 7.1, `react-refresh` 0.5: le stesse versioni sono entrate nelle `devDependencies`. Installati **tutti** i file del registry nella stessa configurazione, gli errori non erano tre: 63 di `only-export-components` in 18 file, più 35 in 10 file. Il lint del repository, oxlint, li dava come avvisi e non è fra i gate.
+
+#### Le correzioni
+
+- **`use-mobile`**: `useSyncExternalStore` + `matchMedia`, firma e soglia invariate. Misurato in Chromium contro il vecchio: a 375 e 767px il vecchio fa due render (`false`, `true`), il nuovo uno (`true`); a 768 e 1280 entrambi `false`; il ridimensionamento aggiorna entrambi. Diverge da shadcn, che ha ancora l'effetto: scritto nella testa del file e in §67. Aggiornati i testi che citavano il vecchio difetto: `use-soglia`, `responsive-dialog`, la story della lista a due facce, la `description` dell'item.
+- **Blocchi nostri**: `data-grid` (sette `any` → `CaratteristicheTabella`), `calendario` (variabile inutilizzata), `rich-text-editor` (assegnazione inutile), `pdf-preview` (una direttiva `eslint-disable` per `import/no-unresolved`, regola che nessun'app ha: ESLint la dà come errore).
+- **Tre file di reui** (`event-calendar-event`, `-agenda-view`, `-month-view`): l'import dell'icona stava sopra `"use client"`, messo lì dalla CLI risolvendo il segnaposto. In `-event` la CLI all'installazione non toglieva più la direttiva, e ESLint la leggeva come espressione inutile. Rimessa in testa come nell'originale; `check:registry` invariato.
+- **Esportazioni e codice di terzi**: nessuna modifica ai file. Righe nella configurazione dell'app, nel **passo 12 di `docs/INTEGRAZIONE.md`**: `only-export-components` spenta su `ui/` e `blocks/`; su carosello, calendario a eventi e stepper solo le regole che violano. Motivazione della scelta (e delle due scartate) in §67. Anche «Aggiornare» e il blocco per il `CLAUDE.md` delle app: le righe si ricopiano con la versione, e non se ne aggiungono altre.
+
+#### Il gate
+
+`check:lint-app`, il dodicesimo, nel `check` e quindi in CI. Installa con la CLI del lockfile tutti i `.ts`/`.tsx` spediti in un'app di prova (99 file), poi ESLint e oxlint con i blocchi presi dal documento. Fallisce sugli errori e su un'eccezione che non serve più. Esito: ESLint 0 errori e 5 avvisi, oxlint 0 errori e 13 avvisi, 11 secondi. Autotest: un hook pulito passa, uno con `setState` nell'effetto dà l'errore, un'eccezione inutile è segnalata.
+
+#### Per Anagrafe (DS.6, da fare lì quando la versione è pubblicata)
+
+Il blocco «in attesa di tassullo-design-system-v2#49» in `frontend/eslint.config.js` non si toglie e basta: si **sostituisce** con le righe del passo 12, perché `button` e `sidebar` esportano ancora `buttonVariants` e `useSidebar`. `set-state-in-effect` e la cartella `hooks/` non servono più.

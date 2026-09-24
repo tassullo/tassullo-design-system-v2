@@ -74,10 +74,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  *
  * - Per scegliere fra due forme dello stesso contenuto si usa `useSoglia`,
  *   non `useIsMobile`. I 768px di `useIsMobile` sono quelli dell'arredamento
- *   — la colonna del guscio, il dialogo che diventa cassetto —, e il suo
- *   primo render dà sempre la scrivania: sul telefono la tabella
- *   comparirebbe per un fotogramma. `useSoglia` legge la finestra già al
- *   primo render.
+ *   — la colonna del guscio, il dialogo che diventa cassetto —, mentre la
+ *   soglia di una lista dipende da quante colonne ha.
  * - La soglia la sceglie l'app, ed è la larghezza a cui l'interfaccia cambia
  *   modo di mostrare il contenuto. Non si ricava da quanto spazio vuole la
  *   tabella: una tabella che non ci sta scorre in orizzontale.
