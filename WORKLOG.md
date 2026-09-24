@@ -12951,3 +12951,12 @@ Ramo `fras/codici-in-tabella`. Nasce da una domanda aperta di M5.4 («il codice 
 Ho detto a Francesco che il difetto era «vivo in `Pagine/Lista` e `Pagine/Prodotti`»: sbagliato, quelle pagine non hanno la selezione. Corretto in §62 e qui.
 
 **Resta scoperto**: nessuna scena di story rende una riga selezionata con un collegamento, quindi axe non la vedrebbe comunque. Adesso la guardia è la coppia di token in `check:contrast`.
+
+## 2026-09-24 — Il canale delle proposte: una issue col modulo «Proposta»
+
+Ramo `fras/canale-proposte`. La seconda domanda aperta di M5.4, decisa da Francesco (`docs/DECISIONI.md` §63).
+
+- **Il caso che l'ha motivata**, trovato nel diario di Anagrafe: la tendina del `<datalist>` in Caratteristiche. La regola «si propone al design system» c'era, il canale no: la proposta non è mai partita.
+- **Fatto**: il modulo `.github/ISSUE_TEMPLATE/proposta.yml` (sei campi, due caselle obbligatorie, l'avviso sui dati veri in testa); `config.yml`, che spegne le issue libere e rimanda alla style guide; l'etichetta `proposta` creata su GitHub (arancio del brand), con l'autorizzazione di Francesco; `sync.sh`, che a inizio sessione elenca le proposte aperte (provato: «Nessuna proposta aperta dalle app») e tace senza `gh` o senza rete; la regola nel blocco di `docs/INTEGRAZIONE.md` e in `CLAUDE.md` §Regola permanente.
+- **Mostrato prima di unire**: GitHub rende i moduli solo dal ramo principale, quindi l'anteprima è una ricostruzione generata dallo stesso YAML (`yaml` + `marked` in una cartella temporanea, fotografata con Chromium). La schermata vera va presa dopo l'unione.
+- **Una riga corretta prima di scriverla per buona**: avevo messo `gh issue create --template proposta.yml`. `--template` prende un modello «come testo di partenza», e con un modulo YAML non è provato; non si prova senza aprire una issue vera. La riga ora dà l'indirizzo che apre il modulo (`issues/new?template=proposta.yml`) e, da riga di comando, `gh issue create --label proposta` con le stesse voci nel testo. Lo spegnimento delle issue libere riguarda la pagina web, non la riga di comando.

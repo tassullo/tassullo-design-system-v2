@@ -519,8 +519,17 @@ installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
 **I file del design system non si modificano qui.**
 - Si aggiornano dal registry e non si correggono in casa: una modifica locale
   sparisce al primo aggiornamento, senza avvisi.
-- Se manca una variante, un token o un componente, si propone al design system
-  e poi si reinstalla. Mai una versione «per ora» nell'app.
+- Se manca una variante, un token o un componente, o se ne trovi uno
+  sbagliato, si apre una issue col modulo «Proposta»:
+  https://github.com/tassullo/tassullo-design-system-v2/issues/new?template=proposta.yml.
+  Da riga di comando: `gh issue create -R tassullo/tassullo-design-system-v2
+  --label proposta --title "Proposta: …"`, con nel testo le stesse voci del
+  modulo (app, cosa manca, cosa serve, cosa si è provato, cosa fa l'app nel
+  frattempo). È pubblica: niente dati veri, né nomi di prodotti, clienti o persone, né
+  schermate con dati reali. Nel frattempo si usa il componente più vicino così
+  com'è, con un commento `// in attesa di tassullo-design-system-v2#<numero>`;
+  quando la proposta è chiusa si reinstalla e il commento si toglie. Mai una
+  versione «per ora» nell'app.
 - In `components.json` il campo `"style"` resta `"base-nova"`: è ciò che fa
   arrivare le primitive Base UI.
 

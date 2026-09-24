@@ -66,3 +66,17 @@ else
   fi
   rm -f /tmp/sync_main_fetch_err
 fi
+
+# Le proposte aperte dalle app: le issue col modulo «Proposta» portano
+# l'etichetta `proposta`. Si elencano qui perché guardarle non sia un ricordo.
+# Senza `gh` o senza rete si tace: l'aggiornamento di main conta di più.
+if command -v gh >/dev/null 2>&1; then
+  PROPOSTE="$(gh issue list --label proposta --state open --limit 20 2>/dev/null || true)"
+  echo ""
+  if [ -n "$PROPOSTE" ]; then
+    echo "==> Proposte aperte dalle app (etichetta «proposta»):"
+    echo "$PROPOSTE"
+  else
+    echo "==> Nessuna proposta aperta dalle app."
+  fi
+fi
