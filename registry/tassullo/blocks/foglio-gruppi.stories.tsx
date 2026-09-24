@@ -773,11 +773,11 @@ function ComputoADueFacce() {
 /**
  * La faccia stretta: sotto soglia il foglio lascia il posto a una lista in
  * sola lettura, e toccando la testata o una misura si apre il cassetto per
- * modificarla. La soglia guarda la finestra: la scena si prova aperta da
- * sola, scegliendo il telefono dall'interruttore Viewport o stringendo la
- * finestra del browser.
+ * modificarla. La soglia guarda la finestra: la scena è alla larghezza di un
+ * telefono, e la faccia larga è quella della scena «Computo».
  */
 export const DueFacce: Story = {
   name: 'Due facce',
+  globals: { viewport: { value: 'telefono', isRotated: false } },
   render: () => <ComputoADueFacce />,
 }

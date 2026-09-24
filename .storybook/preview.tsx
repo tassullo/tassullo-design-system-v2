@@ -9,6 +9,7 @@ import { temaStorybook } from './tema-storybook'
 import '../src/index.css'
 // Il canvas di Storybook dipinto coi token, non col bianco di Storybook.
 import './preview.css'
+import { withFinestraDocs } from './prove/finestra'
 
 /**
  * Densità: l'interruttore agisce su un attributo del documento e basta —
@@ -178,7 +179,9 @@ function ContenitoreDocs(props: ComponentProps<typeof DocsContainer>) {
 }
 
 const preview: Preview = {
-  decorators: [withModalita, withSuperficie, withDensity],
+  // `withFinestraDocs` per ultimo, cioè più esterno: nella pagina Docs, a
+  // Viewport stretta, sostituisce la scena con un riquadro che la contiene.
+  decorators: [withModalita, withSuperficie, withDensity, withFinestraDocs],
 
   /**
    * Una pagina Docs per ogni componente. È lì che compare il JSDoc di `const

@@ -784,25 +784,15 @@ export const FacciaLargaScena: Story = {
 }
 
 /**
- * La faccia stretta, fissata con `faccia="schede"` e mostrata in un
- * riquadro da 360px, la larghezza utile di un telefono. La tendina dello
+ * La faccia stretta, fissata con `faccia="schede"`, alla larghezza di un
+ * telefono. La tendina dello
  * stato è diventata una fila di chip, la miniatura non c'è, il bottone
  * prende tutta la larghezza, e il dettaglio si apre toccando la scheda.
  */
 export const FacciaStrettaScena: Story = {
   name: 'Faccia stretta',
-  render: () => (
-    <div className="flex flex-col gap-2 p-4">
-      <p className="text-sm text-muted-foreground">
-        Riquadro da 360px. La faccia la decide la prop, non la larghezza del
-        riquadro: <code className="font-mono text-sm">useSoglia</code> guarda la{' '}
-        <strong>finestra</strong>.
-      </p>
-      <div className="w-90 rounded-lg border border-dashed">
-        <ListaMacchine faccia="schede" />
-      </div>
-    </div>
-  ),
+  globals: { viewport: { value: 'telefono', isRotated: false } },
+  render: () => <ListaMacchine faccia="schede" />,
 }
 
 /**

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import {
   BoxesIcon,
+  CalculatorIcon,
   FileTextIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -20,6 +22,7 @@ import {
   DropdownMenuSeparator,
 } from '@/registry/tassullo/ui/dropdown-menu'
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
+import { SelettoreContesto, type VoceContesto } from '@/registry/tassullo/blocks/barra-contesto'
 import {
   PageHeader,
   type AzionePagina,
@@ -59,8 +62,10 @@ import {
  * - `utente` (`nome`, `cognome`, `email`, `ruolo`, `iniziali`) e
  *   `azioniUtente`, le voci del suo menu: `DropdownMenuItem` e separatori.
  * - `contesto`, uno spazio sotto il marchio per l'entità su cui si lavora in
- *   tutte le pagine — il `SelettoreContesto` di `tassullo-barra-contesto`.
- *   Serve solo alle app che hanno un'entità attiva di questo tipo.
+ *   tutte le pagine — il `SelettoreContesto` di `tassullo-barra-contesto`,
+ *   nelle scene «Con contesto». Serve solo alle app che hanno un'entità
+ *   attiva di questo tipo; come si divide il lavoro con la fascia in pagina
+ *   lo spiega `Blocchi/Barra di contesto`.
  * - `collassa`: `"icona"`, il predefinito, chiude la colonna a una fila di
  *   icone; `"fuori"` la fa sparire, ed è la scelta per voci senza icona.
  * - `defaultAperta`: la colonna parte aperta o chiusa.
@@ -297,10 +302,99 @@ export const SenzaIcone: Story = {
 
 /**
  * Alla larghezza del telefono la colonna non c'è, e il grilletto in fascia
- * apre il pannello laterale. Si vede aprendo la scena da sola: nella pagina
- * di documentazione rende la forma della scrivania.
+ * apre il pannello laterale. In questa pagina la scena sta in un riquadro
+ * largo 375px, come lo schermo di un telefono.
  */
 export const Telefono: Story = {
   globals: { viewport: { value: 'telefono', isRotated: false } },
   args: Predefinito.args,
+}
+
+const COMMESSE: VoceContesto[] = [
+  { id: '2026-114', titolo: '2026-114 — Palazzo Roccabruna', descrizione: 'Trento, via Santa Trinità' },
+  { id: '2026-092', titolo: '2026-092 — Scuola media Bolghera', descrizione: 'Trento, via Volta' },
+  { id: '2025-233', titolo: '2025-233 — Capannone Pergine lotto B', descrizione: 'Pergine Valsugana' },
+]
+
+/** La commessa attiva è dell'app: la scena la tiene per far vedere che cambia. */
+function SelettoreCommessa() {
+  const [attiva, setAttiva] = useState(COMMESSE[0]!.id)
+  const voce = COMMESSE.find((c) => c.id === attiva) ?? COMMESSE[0]!
+  return (
+    <SelettoreContesto
+      etichetta="Commessa attiva"
+      // In colonna il solo nome, senza il codice: sulla scrivania al testo
+      // restano circa 160px.
+      titolo={voce.titolo.split(' — ')[1] ?? voce.titolo}
+      icona={HardHatIcon}
+      voci={COMMESSE}
+      attiva={attiva}
+      onCambia={setAttiva}
+      etichettaMenu="Commesse aperte"
+    />
+  )
+}
+
+const SEZIONI_STUDIO: SezioneNav[] = [
+  {
+    titolo: 'Lavoro',
+    voci: [
+      { titolo: 'Cruscotto', icona: LayoutDashboardIcon, href: '#' },
+      { titolo: 'Computo', icona: CalculatorIcon, href: '#', attiva: true },
+      { titolo: 'Capitolati', icona: FileTextIcon, href: '#' },
+    ],
+  },
+]
+
+/** Una pagina di Studio, con la sua intestazione: il computo della commessa. */
+function ContenutoStudio() {
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        percorso={[{ titolo: 'Commesse', href: '#' }, { titolo: 'Computo' }]}
+        azioni={[{ titolo: 'Nuova voce', icona: PlusIcon, ruolo: 'primaria' }]}
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Computo metrico estimativo</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Ogni pagina lavora sulla commessa scelta in colonna: cambiarla lì cambia il contesto di
+          tutte, senza tornare a un elenco.
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Il grilletto si cerca dentro la testata della colonna: anche il menu
+// dell'utente è un `dropdown-menu-trigger`, e un selettore senza contesto
+// aprirebbe quello che capita per primo.
+/**
+ * Con `contesto`: sotto il marchio, la commessa su cui si lavora in tutte le
+ * pagine, col menu per cambiarla aperto. Il menu si apre accanto alla colonna.
+ */
+export const ConContesto: Story = {
+  name: 'Con contesto',
+  args: {
+    applicazione: 'Studio',
+    contesto: <SelettoreCommessa />,
+    sezioni: SEZIONI_STUDIO,
+    utente: UTENTE,
+    azioniUtente: AZIONI_UTENTE,
+    children: <ContenutoStudio />,
+  },
+  play: apriCol(
+    '[data-slot="sidebar-header"] [data-slot="dropdown-menu-trigger"]',
+    'dropdown-menu-content'
+  ),
+}
+
+/**
+ * La stessa colonna chiusa a icone: il selettore si riduce al quadrato della
+ * sua icona, allineato alle voci, e il menu si apre lo stesso.
+ */
+export const ConContestoChiuso: Story = {
+  name: 'Con contesto, chiuso',
+  args: { ...ConContesto.args, defaultAperta: false },
 }

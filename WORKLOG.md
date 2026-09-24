@@ -12792,3 +12792,24 @@ Cinque `docs` su dodici dicevano qualcosa di non più vero: il testo che la CLI 
 - **`npm run check` verde sui dieci gate**, lanciato dopo l'ultima modifica ai sorgenti: `test:a11y` 1548 scansioni, 0 violazioni, 387 story per passata.
 
 **Prossimi passi**: M5.2 (fusa con l'accettazione di M5.3).
+
+## 2026-09-24 — Il selettore di contesto nel guscio, e la Viewport nella pagina Docs
+
+Fuori piano, su richiesta di Francesco. Ramo `claude/selettore-nel-guscio`.
+
+#### `SelettoreContesto` in `Blocchi/App shell` e `Primitive/Sidebar`
+
+La prop `contesto` del guscio era descritta nel testo della pagina ma nessuna scena la mostrava: l'unica stava in `Blocchi/Barra di contesto → Nel guscio`. Aggiunte **«Con contesto»** — Studio, la commessa attiva sotto il marchio, il menu «Commesse aperte» aperto — e **«Con contesto, chiuso»**, dove il selettore si riduce al quadrato dell'icona. Il contenuto della pagina è di Studio (Commesse › Computo), non quello di Anagrafe delle altre scene. Il grilletto si cerca in `[data-slot="sidebar-header"]`: anche il menu dell'utente è un `dropdown-menu-trigger`, e il primo della pagina sarebbe stato quello che capitava. Misurato in Chromium sullo Storybook costruito: si apre «Commesse aperte» e non il menu dell'utente; a colonna chiusa il selettore è 32×32 a x 8, come le voci.
+
+In `Primitive/Sidebar` una frase in «Quando sì, quando no», non una scena: il commutatore dell'entità attiva non si ricompone con `SidebarMenuButton`, è `SelettoreContesto`, ospitato dal guscio con `contesto`. La primitiva documenta i pezzi; il selettore è un blocco fatto di quei pezzi, e il rimando serve a chi parte dalla primitiva, cioè a chi lo riscriverebbe.
+
+#### La Viewport nella pagina Docs (`docs/DECISIONI.md` §59)
+
+Francesco: in Docs la scena `Telefono` del guscio mostrava la scrivania, e lo stesso `Foglio a gruppi` con la Viewport a 375. Nella pagina Docs le scene vedono la finestra della pagina, e il selettore Viewport lì non conta. Prima un decoratore per scena, poi, alla seconda segnalazione, generale: **`withFinestraDocs`** nel `preview`, che in Docs e a Viewport stretta mostra la scena in un iframe di quella larghezza. Dichiarano la Viewport `telefono` le otto scene che mostrano la forma del telefono (elenco in §59); `Lista a due facce → Faccia stretta` perde il suo riquadro da 360px, che il riquadro vero sostituisce.
+
+Verificato in Chromium sulle pagine Docs di `app-shell`, `sidebar`, `foglio-a-gruppi`, `lista`, `lista-a-due-facce`, `prodotti-anagrafe`, `dashboard`, `dialogo-adattivo`: un riquadro per pagina, `innerWidth` 375 dentro ognuno; con la Viewport della barra a `telefono` o a `375-413`, `Foglio a gruppi` rende tutte e sei le scene nel riquadro. Due correzioni prese misurando: la larghezza (373 per il bordo, ora +2) e l'altezza (814 per tutte perché il documento non scende sotto la finestra, ora si misura il corpo; il cassetto, in un portale, dava 98px, ora le scene con un popup tengono l'altezza del telefono). Il gate non cambia: apre le scene per URL, fuori da Docs.
+
+#### Verifiche
+
+- **`npm run check` verde sui dieci gate**, lanciato dopo l'ultima modifica ai sorgenti: `test:a11y` **1556 scansioni, 0 violazioni, 389 story** per passata (le due in più sono le scene «Con contesto»).
+- `tsc -b` a zero; `finestra.tsx` controllato a parte con `tsc --strict` (sta in `.storybook/`, fuori dai due `tsconfig`).

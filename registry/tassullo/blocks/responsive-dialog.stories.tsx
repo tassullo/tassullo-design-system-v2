@@ -169,6 +169,7 @@ export const Dialogo: Story = {
  * cambiare sono intestazione, corpo e piede.
  */
 export const Cassetto: Story = {
+  globals: { viewport: { value: 'telefono', isRotated: false } },
   args: { forma: 'drawer' },
   render: (args) => (
     <ResponsiveDialog {...args}>

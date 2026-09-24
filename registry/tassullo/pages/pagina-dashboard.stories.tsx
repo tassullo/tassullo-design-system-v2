@@ -439,6 +439,7 @@ export const Caricamento: Story = {
  */
 export const AttivitaStrette: Story = {
   name: 'Attività, faccia stretta',
+  globals: { viewport: { value: 'telefono', isRotated: false } },
   render: () => <Guscio faccia="stretta" />,
 }
 
