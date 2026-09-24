@@ -168,6 +168,12 @@ Il primo fissa i componenti che arrivano **come dipendenze**, il secondo
 quello che si chiede per nome. Se ne fissa uno solo, l'app mescola due
 versioni.
 
+Una volta dichiarato il registry, c'è una forma più corta che la versione la
+prende **solo** da `components.json`: `npx shadcn@latest add @tassullo/tema`.
+È quella che le regole dell'app usano per tutti i giorni, perché lì non c'è un
+secondo posto da tenere allineato. La forma lunga resta necessaria finché il
+registry non è dichiarato, cioè fino al passo 4.
+
 ### 5. L'MCP di shadcn (~2 s, più il riavvio di Claude Code)
 
 ```bash
@@ -276,6 +282,14 @@ Se l'app si usa in cantiere o in officina — schermo piccolo, guanti —, in
 Bottoni, campi e voci di menu si ingrandiscono (il bottone standard passa da
 32 a 48 pixel) e i testi crescono di un gradino. Le app da scrivania non
 mettono l'attributo. Vedi sotto, «Densità e modalità scura».
+
+### 10. Le regole nel `CLAUDE.md` dell'app, e le due voci nel piano
+
+Il blocco della sezione «Regole da inserire nel CLAUDE.md della nuova app»,
+più sotto, si copia **tal quale** nel `CLAUDE.md` dell'app. La voce di
+manutenzione va nella roadmap e il paragrafo nella checklist (sezione «Nel
+piano dell'app»). È il passo che tiene l'app agganciata nel tempo, non solo
+al primo giorno.
 
 ## Da dove partire: le pagine modello
 
@@ -456,9 +470,172 @@ propone al design system come variante del tema.
 Un componente si aggiorna reinstallandolo:
 
 ```bash
-npx shadcn@latest add tassullo/tassullo-design-system-v2/<item> --overwrite
+npx shadcn@latest add @tassullo/<item> --overwrite
 ```
 
-(con `#` e l'etichetta, se l'app ha fissato una versione). Poi si guarda il
-diff: se l'app aveva modificato il file in casa, è qui che la modifica si
-perde — ed è la ragione per cui non si modifica.
+Prende la versione scritta in `components.json`, e riscrive anche gli item da
+cui quello dipende. Poi si guarda il diff: se l'app aveva modificato un file in
+casa, è qui che la modifica si perde — ed è la ragione per cui non si modifica.
+Con la forma lunga, `tassullo/tassullo-design-system-v2/<item>`, si aggiunge
+`#` e la stessa versione di `components.json`.
+
+## Regole da inserire nel CLAUDE.md della nuova app
+
+Si copiano **tal quali**, senza adattarle: servono a tenere l'aggancio nel
+tempo, non solo al setup. Ciò che nominano — l'MCP, `components.json`, i file
+`src/tassullo-*.css` — esiste nell'app dopo i passi di setup; l'unica cosa che
+va installata a parte, e il blocco dice come, è la libreria dei numeri.
+
+```markdown
+## Stile e design system
+
+Lo stile di questa app viene dal **Design System Tassullo 2.0**, un registry
+shadcn/ui: https://github.com/tassullo/tassullo-design-system-v2 (style guide:
+https://tassullo.github.io/tassullo-design-system-v2). La CLI di shadcn ne ha
+copiato i file qui — in `src/components/ui/`, `src/components/blocks/`,
+`src/components/pages/`, `src/lib/`, `src/hooks/` e i CSS `src/tassullo-*.css`
+—, ma la loro unica fonte resta il design system. Sono del design system i file
+installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
+
+**Prima di scrivere, si cerca.**
+- Prima di scrivere un componente si chiede all'MCP di shadcn se il registry
+  Tassullo ce l'ha già. Se c'è, si installa: non si riscrive.
+- Si installa con `npx shadcn@latest add @tassullo/<item>`, che prende la
+  versione scritta in `components.json`. `npx shadcn@latest add button`, senza
+  `@tassullo/`, porta il bottone di shadcn e non quello Tassullo.
+- I nomi degli item: le primitive hanno il nome di shadcn (`badge`, `alert`,
+  `dialog`…); blocchi e pagine cominciano con `tassullo-`
+  (`tassullo-error-state`, `tassullo-pagina-lista`); il tema e la libreria dei
+  numeri si chiamano `tema` e `numeri`. L'MCP e la style guide li elencano
+  tutti. Ogni item installato per nome si annota nella checklist dell'app
+  (`CHECKLIST.md`, sezione «Design system»): sono quelli da reinstallare a ogni
+  aggiornamento, e le primitive arrivano con loro.
+- Una pagina nuova parte dalla pagina modello più vicina
+  (`tassullo-pagina-lista`, `-scheda`, `-dashboard`, `-admin`, `-login`,
+  `-errore`): si installa e si usa il suo componente (`PaginaLista`, …) con le
+  sue prop, senza copiarne il file. Se nessuna somiglia, si compone con i
+  blocchi e le primitive.
+
+**I file del design system non si modificano qui.**
+- Si aggiornano dal registry e non si correggono in casa: una modifica locale
+  sparisce al primo aggiornamento, senza avvisi.
+- Se manca una variante, un token o un componente, si propone al design system
+  e poi si reinstalla. Mai una versione «per ora» nell'app.
+- In `components.json` il campo `"style"` resta `"base-nova"`: è ciò che fa
+  arrivare le primitive Base UI.
+
+**Colori e misure vengono solo dai token del tema.**
+- Nel codice dell'app le utility Tailwind usano solo i nomi del tema
+  (`bg-card`, `text-muted-foreground`, `border-border`, `p-4`, `rounded-lg`).
+  Niente valori arbitrari (`h-[37px]`, `bg-[#F4AC3D]`, `text-[13px]`), niente
+  esadecimali, niente tavolozza standard di Tailwind (`red-500`, `white`,
+  `black`), anche negli `style={{…}}` e nei `fill`/`stroke` degli SVG. Le
+  parentesi quadre nei selettori (`[&_svg]:`, `has-[>svg]:`) vanno bene: è il
+  valore arbitrario dopo i due punti che non si scrive. Quelli che si trovano
+  dentro i file del design system sono suoi, e non fanno testo.
+- Le misure del testo sono `text-xs` … `text-3xl`: solo queste crescono con la
+  densità touch. `text-4xl` e oltre non crescono; `text-md` non esiste e non fa
+  niente, senza errori.
+- `primary` è l'arancio del brand; `accent` è il grigio dell'hover dei menu.
+  `bg-accent` non è arancio.
+- Il testo arancio è sempre `text-accent-ink`, mai `text-primary`: sul chiaro
+  `primary` non si legge, e `accent-ink` è giusto in chiaro e in scuro.
+  Nonostante il nome, `accent-ink` non c'entra con `accent`.
+- Lo stesso per il rosso: `destructive` è un colore da fondo, e
+  `text-destructive` non si usa. Un'azione che cancella usa
+  `variant="destructive"` (`Button`, le voci di `DropdownMenu` e
+  `ContextMenu`); un errore da mostrare usa `Alert` o `Badge` con
+  `variant="destructive"`, o il blocco `ErrorState` per una pagina intera. Se
+  serve una classe per un testo rosso, è `text-destructive-subtle-foreground`.
+- Modalità scura e densità sono la classe `dark` e l'attributo
+  `data-density="touch"` su `<html>`: i componenti li seguono da soli, e
+  `data-density="normale"` riporta un pezzo di pagina alla densità da
+  scrivania. Con la densità crescono bersagli e testi; raggi, bordi, larghezze
+  massime e la larghezza della colonna laterale restano uguali.
+- Il carattere è Inter e arriva col tema: niente altri font, niente Google
+  Fonts. `font-mono` solo per il codice sorgente mostrato in pagina.
+
+**Il nome dice la funzione, non l'aspetto.** `badge` è un'etichetta che si
+legge; `toggle-group` è un filtro che si clicca. Prima di scegliere un
+componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
+
+**Numeri.**
+- I numeri da confrontare in colonna hanno `tabular-nums`, non un altro
+  carattere. `Table` e le tabelle dei blocchi lo hanno già; fuori (totali,
+  indicatori) si scrive a mano.
+- Si formattano con `intero()`, `decimale()`, `valuta()` di `@/lib/numeri`, o
+  con `formattatore(opzioni)` per gli altri casi: il punto delle migliaia c'è
+  sempre (`2.086,93 €`), mentre `Intl.NumberFormat("it-IT")` da solo scrive
+  `2086,93`. Nel codice dell'app non si scrivono mai `Intl.NumberFormat` né
+  `toLocaleString()` su un numero: hanno lo stesso difetto. Per i campi dove si
+  digita un numero ci sono `leggiNumero("1.234,5")` → `"1234.5"` (dal testo
+  scritto al valore) e `scriviNumero("20.78")` → `"20,78"` (il contrario). Se
+  `src/lib/numeri.ts` non c'è, si installa
+  (`npx shadcn@latest add @tassullo/numeri`) e si annota nella checklist.
+- Anni, codici, identificativi e CAP non si formattano: sono stringhe fatte di
+  cifre, e `2026` diventerebbe `2.026`.
+- I codici (articolo, lotto, partita IVA) si scrivono nel carattere del testo,
+  `text-sm text-muted-foreground`, non in `font-mono`.
+
+**Classi con `cn`.** Nel codice dell'app si importa da `@/lib/utils`; i file
+del design system la prendono dal pacchetto `cn`, ed è la stessa funzione. Fra
+due utility dello stesso tipo vince l'ultima scritta, e l'altra sparisce dal
+DOM: `cn("mx-2 m-0")` perde `mx-2`. La classe che deve vincere si scrive per
+ultima; se una classe «non fa niente», si guarda il DOM.
+
+**Aggiornare.**
+- La versione del design system sta nell'indirizzo di `@tassullo` in
+  `components.json`: `main` (l'ultima) oppure un'etichetta git come `v2.0.0`
+  (l'elenco è nella pagina *Tags* del repository su GitHub).
+- Un item si aggiorna reinstallandolo, poi si legge il diff:
+  `npx shadcn@latest add @tassullo/<item> --overwrite`. Riscrive anche gli
+  item da cui dipende. Il `tema` chiede conferma e si risponde `y`: lanciato
+  senza nessuno che risponda, esce senza errore e non aggiorna niente.
+- La forma lunga, `tassullo/tassullo-design-system-v2/<item>`, qui non serve.
+  Senza `#` prende `main` qualunque cosa dica `components.json`, e un solo
+  `add` porterebbe file di due versioni; se proprio si usa, porta `#` e la
+  stessa versione (`…/badge#v2.0.0`).
+```
+
+## Nel piano dell'app
+
+### La voce di manutenzione, per la roadmap
+
+```markdown
+**Allineamento al Design System Tassullo (ricorrente, a ogni nuova versione)**
+- Prompt: "Il design system ha una versione nuova. Guarda su GitHub cosa è
+  cambiato fra la versione installata e la nuova
+  (`github.com/tassullo/tassullo-design-system-v2/compare/<installata>...<nuova>`).
+  Cambia la versione nell'indirizzo di `@tassullo` in `components.json` e
+  reinstalla con `npx shadcn@latest add @tassullo/<item> --overwrite` gli item
+  elencati nella checklist, `tema` per primo (chiede conferma: `y`). Leggi il
+  `git diff`: una differenza che non viene dal design system è una modifica
+  fatta in casa, e si porta al design system invece di ripristinarla. Una riga
+  `"use client"` che compare o sparisce in testa a un file non conta: la
+  aggiunge e la toglie la riga di comando di shadcn. Poi `npx tsc -b`,
+  `npm run build`, e un giro delle pagine in chiaro, in scuro e, se l'app la
+  usa, in densità touch."
+- File: `components.json`, `src/index.css`, `src/tassullo-*.css`,
+  `src/components/`, `src/lib/`, `src/hooks/`.
+- Accettazione: la versione nuova in `components.json`; `tsc -b` e build puliti;
+  nessun file del design system diverso da quello della versione installata.
+```
+
+### Il paragrafo, per la checklist
+
+```markdown
+## Design system
+
+> Lo stile viene dal Design System Tassullo 2.0
+> (`tassullo/tassullo-design-system-v2`). **Versione installata: `main`**,
+> quella scritta in `components.json`. **Item installati per
+> nome**: `tema`, `tassullo-app-shell`, `tassullo-pagina-lista` — le primitive
+> arrivano come dipendenze e non si elencano. Un item nuovo si aggiunge qui
+> quando si installa. Le regole stanno nel `CLAUDE.md`, sezione «Stile e
+> design system».
+
+| Attività | Stato | Responsabile | Dipendenze | Criterio di accettazione (sintesi) |
+|---|---|---|---|---|
+| Setup del design system | TODO | | scaffold | pagina vuota con sfondo `#F6F6F4` e testo in Inter; l'MCP trova `tassullo-pagina-lista`; `tsc -b` e build puliti |
+| Allineamento al design system (ricorrente) | TODO | | nuova versione | versione nuova in `components.json`; build pulita; ultima versione allineata e data nel diario |
+```

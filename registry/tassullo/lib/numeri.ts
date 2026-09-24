@@ -85,7 +85,8 @@ const LINGUA = "it-IT"
 
 /**
  * Le opzioni che **tutte** le formattatrici Tassullo portano. Una sola, per
- * ora, ed è quella che il CLDR italiano non dà: v. la tabella in testa.
+ * ora, ed è quella che il CLDR italiano non dà: il punto delle migliaia anche
+ * sotto le cinque cifre (`2.086,93`, dove `it-IT` da solo scrive `2086,93`).
  */
 const CONVENZIONE: Intl.NumberFormatOptions = { useGrouping: "always" }
 
@@ -102,7 +103,7 @@ const cache = new Map<string, Intl.NumberFormat>()
  *
  * `useGrouping` si può sovrascrivere, e c'è un caso in cui è giusto farlo:
  * un numero che non è una quantità ma un'etichetta. Ma quello, di norma, non
- * andrebbe formattato affatto (v. in testa).
+ * andrebbe formattato affatto: un anno, un codice o un CAP sono stringhe.
  */
 export function formattatore(
   opzioni?: Intl.NumberFormatOptions
