@@ -12890,3 +12890,49 @@ Riscritto il commento nella prima regola di `tassullo-theme.css` (attrito 3), `c
 `docs/DECISIONI.md` §60 per i quattro fatti accertati. Corretta anche la voce di stamattina sul ciclo di lavoro: l'archiviazione automatica è stata spenta lo stesso giorno.
 
 **Prossimi passi**: M5.4, il blocco di regole per il `CLAUDE.md` delle app (andrà in `docs/INTEGRAZIONE.md`, §Regole).
+
+## 2026-09-24 — M5.4 Le regole per il `CLAUDE.md` e il piano delle app
+
+Ramo `fras/m5-4-regole`.
+
+#### Cosa è stato scritto
+
+- **`docs/INTEGRAZIONE.md`**: un passo 10 nel setup («le regole nel `CLAUDE.md` dell'app, e le due voci nel piano»); la sezione **«Regole da inserire nel CLAUDE.md della nuova app»**, un blocco da copiare tal quale, erede di quello del v1; la sezione **«Nel piano dell'app»**, con la voce di manutenzione per la roadmap (Prompt/File/Accettazione, sul modello di Anagrafe) e il paragrafo per la checklist (una nota con versione e item installati per nome, più due righe di tabella: setup e allineamento ricorrente). Il passo 4 e la sezione «Aggiornare» ora presentano anche la forma `@tassullo/<item>`.
+- **Il blocco**: si cerca prima di scrivere (MCP, installazione solo da `@tassullo/`, nomi degli item, pagine modello usate e non copiate); i file del design system non si modificano (proporre, mai «per ora»; `style` resta `base-nova`); colori e misure solo dai token (niente arbitrari, esadecimali, tavolozza standard; gradini di testo che scalano; `primary`/`accent`/`accent-ink`; `destructive` da fondo con le varianti giuste; `dark` e `data-density`; Inter, `font-mono` solo per il codice); `badge`/`toggle-group`; numeri (`tabular-nums`, `@/lib/numeri`, niente `Intl.NumberFormat` né `toLocaleString`, anni e codici non si formattano, codici senza mono); `cn`; aggiornare. Dal `CLAUDE.md` di questo repo ho preso anche l'ordine delle classi con `cn` e i gradini di testo che la densità non tocca: sono i due difetti muti che un'app incontra davvero. Ho lasciato fuori il `useEffect` (è React, non design system) e tutto ciò che riguarda i gate di questo repo.
+- **`docs/DECISIONI.md` §61**: i cinque perché in sintesi, con i rimandi — non npm (`PIANO.md` §0, D4), Base UI (D9, §1), `primary` ≠ `accent` (`PIANO.md` §2bis), oklch, Inter in data URI (§11, §14, §15). **Il perché di oklch non c'era scritto da nessuna parte**: c'erano solo i suoi effetti (la correzione di `L` di 0,006, `--info-border` derivato, il `color-mix`). Ora c'è.
+- **`registry/tassullo/lib/numeri.ts`**: due commenti nel corpo rimandavano a «la tabella in testa», che `shadcn add` toglie. Riscritti autosufficienti; `registry:build` rilanciato. Trovato dalla prima rilettura.
+- **`CHECKLIST.md`**: la riga di M5.4 diceva «font non distribuito», superato da §15. Corretta.
+
+#### Scostamento dal prompt: la versione in un posto solo
+
+Il prompt chiedeva l'aggiornamento «con la versione fissata nei due posti allineati». La seconda rilettura ha trovato che il blocco, così, **faceva sbagliare**: il comando d'installazione «di tutti i giorni» era la forma lunga senza `#`, che prende `main` qualunque cosa dica `components.json` — cioè un `add` in un'app fissata a `v2.0.0` avrebbe portato file di due versioni. Provato nell'app: con `@tassullo/<item>` la versione viene **solo** da `components.json` (con un'etichetta inesistente l'`add` fallisce; con lo SHA di `main` tema e `numeri` tornano all'originale). Le regole dell'app usano quindi `@tassullo/<item>`, e i due posti allineati restano nel documento per la forma lunga, che serve prima del passo 4.
+
+#### La prova: un'app nuova, il blocco incollato tal quale
+
+Cartella temporanea, stesso metodo di M5.2: i blocchi di codice presi dal documento stesso (`vite.config.ts`, `App.tsx`), il resto fatto come il testo lo descrive. Passi 1–2 in 12s, `init` 15s, tema 6s, guscio + lista 19s, `numeri` 6s; `tsc -b` e build puliti. Il blocco è **estratto dal documento con uno script** e scritto in `CLAUDE.md` senza toccarlo; all'ultimo giro anche il paragrafo in `CHECKLIST.md`, come dice il passo 10.
+
+**Misurato nell'app, riga per riga del blocco:**
+- `add button` senza registry, con `--dry-run --diff`, **sostituisce** il bottone Tassullo con quello di shadcn (per esempio `link` torna `text-primary`).
+- `--overwrite` sulla sola pagina lista riporta all'originale **quattro file modificati a mano**: una primitiva, un blocco, la pagina, il tema.
+- Il `tema` chiesto per nome con `--overwrite` **chiede conferma**, e senza risposta esce con codice 0 senza aggiornare niente. È lo stesso difetto muto di §60, sull'aggiornamento invece che sull'installazione.
+- Il CSS costruito: `.text-md` non esiste, `.text-4xl` esiste ma il blocco `[data-density=touch]` ridichiara solo `xs`…`3xl`, `.text-accent-ink` e `.tabular-nums` ci sono. `cn("mx-2 m-0")` → `"m-0"`. `Intl.NumberFormat("it-IT")` e `toLocaleString("it-IT")` → `2086,93`.
+- Una pagina di prova con `Button`, `DropdownMenuItem`, `Alert` e `Badge` in `variant="destructive"`, `ErrorState` e `text-destructive-subtle-foreground` compila (`badge` e `alert` installati con `@tassullo/badge` e con la forma lunga).
+
+**Attriti, e come si sono chiusi.**
+
+*Dalla prova, 3*: `@/lib/numeri` non arriva con nessuna pagina modello (controllata la chiusura delle dipendenze di tutte e sette), quindi la regola dice come installarlo; la conferma muta del tema; la riga `"use client"`, che la CLI lascia a un `add` e toglie a un `--overwrite` (`dropdown-menu.tsx`) e che nel diff di un aggiornamento sembra una modifica fatta in casa — scritto nella voce di roadmap che non conta.
+
+*Tre riletture da parte di agenti senza contesto*, ognuno nuovo, con la sola cartella dell'app e il divieto di uscirne. **11, 14 e 12 attriti**, tutti verificati da loro nei file:
+- **Prima rilettura (11).** Corretti: nomi degli item (le primitive senza prefisso, blocchi e pagine con `tassullo-`); `destructive` spiegato per uso — azione che cancella contro errore da mostrare, più `ErrorState` e la classe ammessa per un testo rosso; `accent-ink` che col nome sembra `accent`; «se `numeri.ts` non c'è»; la pagina modello si **usa** con le sue prop e non si copia; le due forme d'installazione; cosa riscrive `--overwrite`; la forma di una versione e dove si trovano le etichette; i valori arbitrari del design system che non fanno testo; da dove si importa `cn`. Più il rimando rotto in `numeri.ts`. **Non chiuso: come si propone una modifica al design system** (issue su GitHub? a chi?). Non è mai stato deciso e non l'ho inventato.
+- **Seconda rilettura (14).** Il più grave è quello dello scostamento qui sopra. Corretti anche: la terza famiglia di nomi (`tema`, `numeri`); `accent-ink` che sullo scuro coincide con `primary`; parentesi quadre nei selettori ammesse, valori arbitrari no; tavolozza standard di Tailwind vietata; cosa fare se nessuna pagina modello somiglia; i file nuovi dell'app accanto a quelli installati; `leggiNumero`/`scriviNumero`; `tabular-nums` già nelle tabelle; `font-mono` solo per il codice; la colonna laterale che non scala. **Non chiuso: il codice in una colonna di `DataTable`**. La regola dice `text-sm text-muted-foreground`, ma `MetaColonna` non porta classi e nessuna story del design system mostra la `cell` giusta. È una decisione di forma, non di testo.
+- **Terza rilettura (12, due gravi).** (1) Il blocco rimandava alla checklist degli item installati e la mia app di prova non l'aveva, perché avevo incollato solo il blocco. Nella procedura il paragrafo c'è (passo 10); ora il blocco nomina `CHECKLIST.md`, sezione «Design system», e l'ultimo giro incolla anche quello. (2) `toLocaleString("it-IT")` era una scappatoia con lo stesso difetto: vietato insieme a `Intl.NumberFormat`. Rifiniture corrette: quali misure non scalano con la densità, `data-density="normale"`, e soprattutto **l'esempio `data-[state=open]:`, che è la forma di Radix**: con Base UI (`data-open:`) chi l'avesse copiato avrebbe scritto uno stile che non si applica mai, senza errore; ora gli esempi sono `[&_svg]:` e `has-[>svg]:`, entrambi presenti nei file installati. Sono tornati anche la frase sui valori arbitrari del design system, persa riscrivendo, e la forma lunga, ridotta a «qui non serve». **Non accolto**: `npx shadcn@latest` contro la CLI che `init` mette fra le `devDependencies` dell'app. È la convenzione di tutto il documento (l'ultima CLI, di proposito), e cambiarla qui soltanto ne farebbe due.
+
+Le correzioni della terza rilettura sono verificate **a mano e non con una quarta rilettura**: blocco e paragrafo reincollati, ogni percorso nominato esiste (11 su 11), `data-density="normale"` è nel tema, `has-[>svg]:` e `[&_svg]` compaiono nei file installati.
+
+**Il blocco è lungo 108 righe**, contro le 25 del v1. Ogni riga in più viene da un attrito misurato: il v1 aveva una regola («solo variabili») e un linter che la rendeva eseguibile, il v2 ha più regole e nell'app **nessun controllo automatico**. È il candidato naturale per un seguito: un `grep` di valori arbitrari, esadecimali e `text-destructive` da mettere nella CI dell'app, erede di `lint:css`.
+
+#### Verifiche
+
+- `npm run check` verde sui dieci gate, `test:a11y` **1556 scansioni, 0 violazioni, 389 story**. Rilanciato dopo l'ultima modifica a `numeri.ts` e `public/r/`; le modifiche successive sono solo a `docs/`, `CHECKLIST.md` (`check:checklist` rilanciato, verde) e questo diario.
+
+**Prossimi passi**: M5.5, la guida di migrazione. Due domande per Francesco nate qui: il canale per proporre una modifica al design system, e il codice nelle colonne di `DataTable`.
