@@ -807,8 +807,8 @@ gestiscono il fuoco (→ `tassullo-responsive-dialog`), **31** tabelle, nessuna 
 anche in Caratteristiche, NormaDettaglio e Sistema. E **7 azioni distruttive senza nessuna
 conferma**: vanno coperte con `tassullo-confirm-dialog` o `tassullo-toast-con-annullo`.
 
-**Lacune candidate**, elencate e **non aperte**: le decide Francesco, e diventano issue
-col modulo «Proposta» solo col suo sì.
+**Lacune candidate**, elencate e **non aperte**. **Chiuse tutte e tre da Francesco il
+2026-09-24, senza proposte** (esito in coda a ogni voce).
 
 - **L1 — scelta con suggerimenti e valore libero.** Due `<datalist>` in Caratteristiche e
   una tendina con «Altro» che passa a un campo libero in NormaDettaglio. Il `combobox` del
@@ -816,13 +816,17 @@ col modulo «Proposta» solo col suo sì.
   `docs/DECISIONI.md`. Base UI ha per questo un componente a parte, **Autocomplete** (il
   valore è il testo scritto, la lista suggerisce; presente in `@base-ui/react` 1.8), che
   shadcn non distribuisce (cercato con l'MCP): sarebbe un componente nostro, gradino 4.
+  **Chiusa: niente valore libero.** I valori sono solo quelli della lista, quindi basta
+  `combobox` (o `select` se la lista è corta); nella migrazione spariscono i `<datalist>` e la
+  voce «Altro». Si adatta l'app, non il design system.
 - **L2 — righe raggruppate con un'intestazione di gruppo** in `tassullo-data-table`.
   Candidata debole: si può comporre una tabella per gruppo, come fa oggi la pagina, o
   usare l'**albero** che il blocco ha già (`getSottoRighe`, la categoria come riga madre).
-  Manca solo un'intestazione di gruppo su tutta la riga.
+  Manca solo un'intestazione di gruppo su tutta la riga. **Chiusa: va bene l'albero.**
 - **L3 — una tavolozza di segnaposto da inserire in un testo.** Né `textarea` né
   `tassullo-rich-text-editor` la hanno. Candidata debole: probabilmente si compone con
-  `dropdown-menu`, e la logica d'inserimento resta dell'app.
+  `dropdown-menu`, e la logica d'inserimento resta dell'app. **Chiusa: i segnaposto sono
+  testi da inserire nei campi**, lavoro dell'app.
 
 Due pagine non hanno una pagina modello (Fpc e AdminBC) e si compongono dai blocchi:
 non è una lacuna, è la ragione per cui i blocchi esistono.
