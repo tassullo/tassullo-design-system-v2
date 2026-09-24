@@ -1238,13 +1238,24 @@ const COLONNE_FILTRI = colFiltri.columns([
  * parte — non per il render dei filtri stessi. V. il commento su `barra`
  * in `data-table.tsx`.
  */
-function TabellaConFiltri({ statoIniziale }: { statoIniziale?: string[] }) {
+function TabellaConFiltri({
+  statoIniziale,
+  dateIniziali,
+}: {
+  statoIniziale?: string[]
+  dateIniziali?: [number, number]
+}) {
   const tabellaRef = React.useRef<IstanzaTabella<Prodotto> | null>(null)
 
   React.useEffect(() => {
     if (statoIniziale) tabellaRef.current?.getColumn('stato')?.setFilterValue(statoIniziale)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statoIniziale?.join('|')])
+
+  React.useEffect(() => {
+    if (dateIniziali) tabellaRef.current?.getColumn('aggiornato')?.setFilterValue(dateIniziali)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateIniziali?.join('|')])
 
   return (
     <DataTable
@@ -1287,6 +1298,22 @@ export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Filtri Con Filtro Attivo',
   play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
   render: () => <TabellaConFiltri statoIniziale={['bozza']} />,
+}
+
+// Il quarto grilletto della barra è quello del filtro per date: la scena
+// apre il suo riquadro, col filtro già impostato, perché il gate misuri anche
+// «Cancella» attivo e non solo il primo filtro.
+/**
+ * Il filtro per date già impostato, col riquadro aperto: il calendario
+ * dell'intervallo e, in fondo, «Cancella», la via da tastiera per togliere il
+ * filtro. La X sul grilletto fa lo stesso col mouse.
+ */
+export const FiltroDataAttivo: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Filtro Data Attivo',
+  play: apriCol(':nth-child(4 of [data-slot="popover-trigger"])', 'popover-content'),
+  render: () => (
+    <TabellaConFiltri dateIniziali={[new Date(2025, 0, 1).getTime(), new Date(2026, 11, 31).getTime()]} />
+  ),
 }
 
 /* ────────────────────────────────────────────────────────────────────────

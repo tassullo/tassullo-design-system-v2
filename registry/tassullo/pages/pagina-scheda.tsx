@@ -191,7 +191,7 @@ export function PaginaScheda({
   return (
     <div data-slot="pagina-scheda" className={cn("flex flex-col gap-4", className)}>
       {/*
-        Le azioni salgono nella fascia, col percorso (2026-09-21). Il
+        Le azioni salgono nella fascia, col percorso. Il
         «Modifica»/«Annulla» va **in coda**, dopo quelle dell'app: è l'azione
         che il blocco aggiunge di suo, e in un ripiegamento a menu si legge
         ultima, dove chi cerca un comando di pagina se l'aspetta.

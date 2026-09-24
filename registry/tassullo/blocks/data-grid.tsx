@@ -54,15 +54,21 @@
  * `alVirtualizzatore`, la stessa wiring privata di `senzaFocoRiga` — non un
  * meccanismo a parte.
  *
- * ── Copia/incolla: l'API asincrona, non l'evento nativo ─────────────────
+ * ── Copia/incolla: una `<textarea>` nascosta, non `navigator.clipboard` ──
  *
- * Una cella non genera un evento `copy`/`paste` nativo al premere Ctrl/Cmd+C/V — quell'evento nasce solo da una selezione di testo
- * vera o da un campo modificabile, e una cella non in modifica non è
- * nessuno dei due. Si intercetta la combinazione da tastiera e si passa da
- * `navigator.clipboard` (che richiede un contesto sicuro — https o
- * localhost, sempre vero qui). È lo stesso limite che rende il segnaposto
- * "Incolla un foglio di calcolo (Ctrl/Cmd+V)…" (annotato nell'inventario di
- * M3bis.0) un'istruzione onesta e non un vezzo.
+ * Una cella non genera un evento `copy`/`paste` nativo al premere
+ * Ctrl/Cmd+C/V — quell'evento nasce solo da una selezione di testo vera o da
+ * un campo modificabile, e una cella non in modifica non è nessuno dei due.
+ * La prima stesura intercettava la combinazione e passava da
+ * `navigator.clipboard`; ma Safari non implementa `readText()`, e da lì
+ * incollare non faceva niente, in silenzio (rilievo di Francesco, v. il
+ * diario di M3bis.5). Oggi `DataGridClipboard` sposta il fuoco su una
+ * `<textarea>` nascosta appena si preme la combinazione, **prima** che il
+ * browser esegua l'azione del tasto: il comando di sistema scatta su un
+ * campo di testo vero, e gli eventi nativi `copy`/`cut`/`paste` funzionano
+ * in ogni browser senza permessi. È un componente opt-in: senza, la griglia
+ * non ha appunti. Il segnaposto "Incolla un foglio di calcolo
+ * (Ctrl/Cmd+V)…" (inventario di M3bis.0) resta un'istruzione onesta.
  *
  * ── Cosa NON c'è, di proposito — e resta così ────────────────────────────
  *
@@ -785,10 +791,8 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     // `addEventListener` in cattura sul contenitore, montato solo se quel
     // componente è presente), e li dirotta su una `<textarea>` nascosta —
     // `navigator.clipboard.readText()` **non esiste in Safari** (WebKit non
-    // la implementa), e il tentativo precedente falliva lì in silenzio
-    // (l'errore veniva inghiottito da un `.catch(() => {})`). Rilievo di
-    // Francesco: "ho provato a incollare e non succede nulla", provato solo
-    // in Safari. V. `DataGridClipboard`, sotto.
+    // la implementa), e una chiamata lì fallirebbe in silenzio. V.
+    // `DataGridClipboard`, sotto.
     // **`Alt` e le frecce laterali allargano o restringono la colonna** della
     // cella attiva, di 16px — lo stesso passo della maniglia. Le maniglie
     // nella griglia sono fuori dall'ordine di `Tab` (la griglia è un fermo
@@ -856,11 +860,10 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
       // **`Tab` a celle chiuse non si intercetta: esce dalla griglia.** La
       // griglia è un fermo solo (una cella a `tabIndex={0}`, le altre a
       // `-1`), quindi il `Tab` nativo porta al controllo successivo della
-      // pagina. Intercettarlo per passare di cella in cella — com'era fino al
-      // 2026-09-23 — rendeva la griglia una trappola: all'ultima cella il
-      // fuoco si fermava, e da tastiera non se ne usciva più (misurato: undici
-      // `Tab` di fila, tutti dentro la tabella; `docs/DECISIONI.md` §56). Fra
-      // le celle ci si muove con le frecce. `Tab` sposta di cella solo **in
+      // pagina. Intercettarlo per passare di cella in cella renderebbe la
+      // griglia una trappola: all'ultima cella il fuoco si fermerebbe, e da
+      // tastiera non se ne uscirebbe più. Fra le celle ci si muove con le
+      // frecce. `Tab` sposta di cella solo **in
       // modifica**, sopra, dove conferma e passa accanto come in un foglio di
       // calcolo, e `Esc` ne esce sempre.
       case "Enter":
@@ -961,8 +964,7 @@ function righeUguali<TDato>(a: TDato, b: TDato): boolean {
  * differenza conta: un registro accumulato per-commit dovrebbe sapere
  * disfare la propria contabilità a ogni `annulla`/`ripeti` (un "creata"
  * seguito da un "annulla" dev'essere di nuovo "non c'era"), e sbagliarla è
- * facile quanto il caso che la trappola dell'`useEffect` di `CLAUDE.md`
- * descrive per un motivo diverso — uno stato derivato che si scosta
+ * facile, e l'errore sarebbe muto: uno stato derivato che si scosta
  * silenziosamente dalla verità che dovrebbe rispecchiare. Un confronto puro
  * non ha questo problema: qualunque stato la griglia raggiunga — dopo dieci
  * modifiche, o dopo altrettanti annulla — il change-set è sempre "cosa
@@ -1222,20 +1224,18 @@ function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: st
     // che cancella (stesso schema di `-my-2 -mr-2` già usato altrove nel
     // registro per un bottone in una cella), e lo riscrive come proprio
     // `p-2` interno, così il testo resta dove stava. La differenza è dove
-    // arriva il **bordo** del `<div>`: prima si fermava al bordo interno
-    // del padding del `<td>`, con uno scarto visibile fra l'anello di
-    // fuoco e il vero confine della cella — "risicato", rilievo di
-    // Francesco confrontato col comportamento di niko-table (il riquadro
-    // lì arriva fino al bordo). Ora il `<div>` (e quindi l'anello) copre
-    // l'intera cella. `min-h-9` — non più `min-h-5` — perché il minimo
-    // ora deve coprire anche il `p-2` che si è preso in carico lui: cinque
-    // unità di contenuto più due e due di padding, la stessa altezza di
-    // riga di prima, non una in più.
+    // arriva il **bordo** del `<div>`: dentro il padding del `<td>` ci
+    // sarebbe uno scarto visibile fra l'anello di fuoco e il vero confine
+    // della cella; così il `<div>` (e quindi l'anello) copre la cella
+    // intera, come in niko-table. `min-h-9` perché il minimo deve coprire
+    // anche il `p-2` che si è preso in carico lui: cinque unità di
+    // contenuto più due e due di padding, la stessa altezza di riga di una
+    // cella senza riquadro.
     // Senza `w-full`: con la larghezza fissata al contenuto della cella il
-    // `-m-2` spostava il riquadro a sinistra invece di allargarlo, e il bordo
-    // destro del testo cadeva 16px prima di quello del campo in modifica — le
-    // cifre di un numero saltavano a destra aprendo la modifica (rilievo di
-    // Francesco). A larghezza automatica il riquadro copre la cella intera,
+    // `-m-2` sposterebbe il riquadro a sinistra invece di allargarlo, e il
+    // bordo destro del testo cadrebbe 16px prima di quello del campo in
+    // modifica — le cifre di un numero salterebbero a destra aprendo la
+    // modifica. A larghezza automatica il riquadro copre la cella intera,
     // bordo compreso, e il testo finisce dove finisce il campo.
     "-m-2 block min-h-9 truncate p-2 outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
@@ -1387,8 +1387,8 @@ function CellaNumericaGriglia<TDato extends RowData>({
   const erroreId = React.useId()
   // Da `lib/numeri` e non una `Intl.NumberFormat` scritta qui: in italiano
   // quella raggruppa solo da cinque cifre (`2086,93` accanto a `12.345,00`),
-  // mentre la convenzione Tassullo il punto delle migliaia lo scrive sempre
-  // (`docs/DECISIONI.md` §47). Le istanze sono già memorizzate lì.
+  // mentre la convenzione Tassullo il punto delle migliaia lo scrive sempre.
+  // Le istanze sono già memorizzate lì.
   const formatta = valuta ? valutaFormattata : numeroFormattato
 
   useValidatoreCellaGriglia(motore, colonnaId, validazione)
@@ -1425,9 +1425,8 @@ function CellaNumericaGriglia<TDato extends RowData>({
       <RiquadroModifica erroreId={erroreId} errore={errore}>
         {campo}
         {/* **Il simbolo resta dov'era.** La vista scrive `20,78 €`, il campo
-            `20,78`: senza il simbolo le cifre, allineate a destra, saltavano
-            della larghezza di « €» appena si apriva la modifica (rilievo di
-            Francesco). Resta fuori dal campo — non si scrive e non si
+            `20,78`: senza il simbolo le cifre, allineate a destra, salterebbero
+            della larghezza di « €» appena si apriva la modifica. Resta fuori dal campo — non si scrive e non si
             cancella — con lo stesso spazio non divisibile che mette
             `valuta()`, quindi con la stessa larghezza. */}
         {valuta ? (
@@ -1502,9 +1501,8 @@ export function colonnaValutaGriglia<TDato extends RowData>(
 /**
  * Il riquadro di un campo in modifica: **lo stesso** della cella chiusa
  * (`-m-2 min-h-9 p-2`, v. `classiVistaCella`), così il testo non si sposta
- * aprendo la modifica. Prima il campo stava direttamente nel `<td>`,
- * centrato in altezza, e il testo scendeva di un pixel (misurato su tutte le
- * colonne del Computo, rilievo di Francesco). `flex` per il simbolo accanto
+ * aprendo la modifica: un campo messo direttamente nel `<td>`, centrato in
+ * altezza, farebbe scendere il testo di un pixel. `flex` per il simbolo accanto
  * al campo di valuta; il campo, alto quanto la sua riga di testo, resta in
  * cima come il testo della cella chiusa.
  */
@@ -2084,8 +2082,8 @@ export function DataGrid<TDato extends RowData>({
             resto.className,
             // Il riquadro della tabella ha gli angoli arrotondati e taglia ciò
             // che sborda: l'anello della cella attiva nell'ultima riga, sulla
-            // prima e sull'ultima colonna, restava tagliato nell'angolo
-            // (rilievo di Francesco, con la schermata). Lì l'anello prende la
+            // prima e sull'ultima colonna, resterebbe tagliato nell'angolo.
+            // Lì l'anello prende la
             // stessa curva del riquadro. Solo l'ultima riga vera: le righe
             // virtualizzate in fondo hanno un distanziatore dopo di sé, che è
             // l'ultima `tr` finché non si arriva in fondo all'elenco.
@@ -2116,20 +2114,16 @@ export function DataGrid<TDato extends RowData>({
 // Il copia/incolla vero: un componente opt-in — montato solo se una pagina
 // lo mette dentro `<DataGrid>` — che aggiunge **una** `<textarea>` nascosta
 // e un solo `addEventListener` in cattura sul contenitore. Non montarlo
-// lascia la griglia senza clipboard, zero costo, come da architettura (v.
-// il commento in testa al file).
+// lascia la griglia senza clipboard, a costo zero: ogni funzione in più
+// della griglia è un componente da montare, non un'opzione da accendere.
 //
 // ── Perché non `navigator.clipboard` ─────────────────────────────────────
 //
-// La prima stesura usava `navigator.clipboard.writeText`/`readText` da
-// dentro `onKeyDownCella`. **Safari non implementa `readText()`** — non è
-// un bug di questa sessione, è WebKit che non la espone affatto — e il
-// tentativo falliva in silenzio dietro un `.catch(() => {})`: da Safari,
-// incollare un foglio copiato da un'altra app non faceva **niente**,
-// rilievo di Francesco su questa storia. `writeText()` invece esiste in
-// Safari, ma solo `readText()` era il problema — asimmetria che avrebbe
-// reso il difetto ancora più difficile da sospettare guardando solo la
-// copia, che funzionava.
+// **Safari non implementa `navigator.clipboard.readText()`** — WebKit non
+// la espone affatto — e una chiamata lì fallisce: da Safari, incollare un
+// foglio copiato da un'altra app non farebbe **niente**. `writeText()`
+// invece esiste in Safari: l'asimmetria rende il difetto difficile da
+// sospettare, perché la copia funziona.
 //
 // La tecnica che funziona ovunque è la stessa di prima dei permessi
 // asincroni: una `<textarea>` vera, **reindirizzata a fuoco** appena si
@@ -2230,8 +2224,8 @@ export function DataGridClipboard({ className }: { className?: string }) {
 // della cella attiva, trascinabile per riempire le celle sotto/accanto col
 // valore della cella di partenza. **Non l'unica via**: Ctrl/Cmd+Invio fa la
 // stessa cosa sulla selezione corrente, da tastiera, senza puntatore — la
-// via primaria per chi non usa il mouse (lo stesso principio già scritto per
-// la maniglia di ridimensionamento in M3bis.3).
+// via primaria per chi non usa il mouse (lo stesso principio della maniglia
+// di ridimensionamento, che da tastiera è `Alt` più le frecce).
 /**
  * La maniglia di riempimento: il quadratino nell'angolo della cella attiva,
  * che trascinato copia il valore nelle celle accanto. Da tastiera fa lo
@@ -2241,9 +2235,9 @@ export function DataGridFillHandle() {
   const { motore, contenitoreRef } = useContestoDataGrid()
   const [posizione, setPosizione] = React.useState<{ top: number; left: number } | null>(null)
   // Chiave primitiva della cella attiva — non l'oggetto, che è nuovo ogni
-  // render (la stessa trappola delle dipendenze non primitive di
-  // `CLAUDE.md`): l'effetto deve ripartire solo quando la cella **cambia
-  // davvero**, non a ogni render di `<DataGrid>`.
+  // render: con l'oggetto fra le dipendenze l'effetto ripartirebbe a ogni
+  // render di `<DataGrid>`, invece che solo quando la cella **cambia
+  // davvero**.
   const cellaChiave = motore.cellaAttiva
     ? `${motore.cellaAttiva.rigaId} ${motore.cellaAttiva.colonnaId}`
     : null
@@ -2260,8 +2254,8 @@ export function DataGridFillHandle() {
       // `cellaAttiva` resta quella di prima: il motore non la scorda mai
       // (è così che «Invio» sa dove tornare), ma la maniglia è un
       // comando sulla cella **a fuoco**, e senza fuoco lì non c'è niente
-      // da trascinare. Rilievo di Francesco: restava a mezz'aria sopra la
-      // riga anche con la barra degli strumenti a fuoco. Non basta
+      // da trascinare: resterebbe a mezz'aria sopra la riga anche con la
+      // barra degli strumenti a fuoco. Non basta
       // `contenitore.contains(...)`: la barra è anche lei dentro
       // `contenitore` (è dentro `<DataTable>`, che `<DataGrid>` avvolge).
       // Il bersaglio giusto è "il fuoco è su una cella vera" —
@@ -2293,9 +2287,9 @@ export function DataGridFillHandle() {
        * montate anche le righe dell'`overscan` appena fuori dalla finestra
        * — la cella attiva può quindi avere ancora un nodo DOM vero anche
        * mentre è scorsa sopra la testata o sotto il fondo del riquadro, e
-       * `nodo` qui sopra non torna mai `null` per quel caso. Preso da
-       * Francesco: la maniglia "usciva dal bordo della tabella e saliva
-       * sullo schermo" — perché la sua posizione si calcola rispetto a
+       * `nodo` qui sopra non torna mai `null` per quel caso. Senza questo
+       * controllo la maniglia uscirebbe dal bordo della tabella e salirebbe
+       * sullo schermo, perché la sua posizione si calcola rispetto a
        * `contenitore` (tutto `<DataGrid>`, barra compresa), non rispetto
        * al riquadro della tabella: una cella scorsa sopra la testata dà un
        * `top` piccolo o negativo **dentro la tabella**, ma resta un `top`

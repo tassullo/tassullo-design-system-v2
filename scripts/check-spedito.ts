@@ -67,31 +67,25 @@ import { note } from "./note-interne.ts";
 const RADICE = process.cwd();
 
 /**
- * I file ancora da ripulire, col loro tetto di note. Si svuota in M5.1b (la
- * famiglia della tabella) e M5.1c (gli altri blocchi e le pagine); alla fine
- * di M5.1c è vuoto, e questa costante si toglie.
+ * I file ancora da ripulire, col loro tetto di note. La famiglia della
+ * tabella è uscita in M5.1b; alla fine di M5.1c è vuoto, e questa costante si
+ * toglie.
  */
 const DA_RIPULIRE: Record<string, number> = {
-  // M5.1b — la famiglia della tabella
-  "registry/tassullo/blocks/data-grid.tsx": 16,
-  "registry/tassullo/blocks/data-table-filtro-data.tsx": 3,
-  "registry/tassullo/blocks/data-table-filtro-intervallo.tsx": 5,
-  "registry/tassullo/blocks/data-table-filtro-sfaccettato.tsx": 7,
-  "registry/tassullo/blocks/data-table.tsx": 148,
-  "registry/tassullo/blocks/foglio-gruppi.tsx": 14,
-  // M5.1c — gli altri blocchi e le pagine
-  "registry/tassullo/blocks/app-shell.tsx": 12,
-  "registry/tassullo/blocks/barra-contesto.tsx": 11,
-  "registry/tassullo/blocks/calendario.tsx": 27,
-  "registry/tassullo/blocks/confirm-dialog.tsx": 4,
+  // M5.1c — gli altri blocchi e le pagine. Sei tetti alzati in M5.1b: il gate
+  // non leggeva i commenti JSX `{/* … */}`, e corretto ne ha trovati 13.
+  "registry/tassullo/blocks/app-shell.tsx": 15,
+  "registry/tassullo/blocks/barra-contesto.tsx": 15,
+  "registry/tassullo/blocks/calendario.tsx": 29,
+  "registry/tassullo/blocks/confirm-dialog.tsx": 5,
   "registry/tassullo/blocks/form-field.tsx": 2,
   "registry/tassullo/blocks/page-header.tsx": 16,
   "registry/tassullo/blocks/responsive-dialog.tsx": 4,
-  "registry/tassullo/pages/pagina-admin.tsx": 2,
+  "registry/tassullo/pages/pagina-admin.tsx": 3,
   "registry/tassullo/pages/pagina-dashboard.tsx": 10,
   "registry/tassullo/pages/pagina-errore.tsx": 1,
   "registry/tassullo/pages/pagina-lista.tsx": 8,
-  "registry/tassullo/pages/pagina-login.tsx": 7,
+  "registry/tassullo/pages/pagina-login.tsx": 9,
 };
 
 type Item = { name: string; title?: string; description?: string; docs?: string; files?: { path: string }[] };
@@ -158,6 +152,13 @@ function brani(percorso: string, testo: string): { riga: number; testo: string }
     // Il testo JSX non ha commenti davanti: un `//` lì dentro è testo, e si
     // legge sotto come tale.
     if (!ts.isJsxText(n)) commenti(n.pos);
+    // Un `{/* … */}` è un'espressione JSX vuota: il commento sta fra le due
+    // graffe e non precede nessun nodo, quindi si legge dalla graffa aperta.
+    // Lo stesso per un commento dopo l'espressione, prima della graffa chiusa.
+    if (ts.isJsxExpression(n)) {
+      commenti(n.getStart(sf) + 1);
+      if (n.expression) commenti(n.expression.end);
+    }
     if ((ts.isImportDeclaration(n) || ts.isExportDeclaration(n)) && n.moduleSpecifier) {
       commenti(n.moduleSpecifier.pos);
       return;
@@ -337,7 +338,7 @@ import { icona } from "./M3.2"
 
 /** Il bottone del v1, controllato da check:contrast. */
 export function Finto() {
-  return <svg><path d="M3.59 3.59 L4 4" /><title>Chiuso in M4ter.4bis</title></svg>
+  return <svg><path d="M3.59 3.59 L4 4" /><title>Chiuso in M4ter.4bis</title>{/* preso da Francesco */}</svg>
 }
 `;
   const pulito = `// Il bottone primario: un'azione che si esegue con un clic.
@@ -362,9 +363,10 @@ export function Finto() {
   const prove: { nome: string; items: Item[]; spediti: (i: Item) => FileSpedito[] | null; elenco?: Record<string, number>; attesi: number }[] = [
     { nome: "un file pulito", items: [item()], spediti: con(pulito), attesi: 0 },
     // Riga 5: persona, data, task, decisione, documento (5). Riga 7: v1 e
-    // check:contrast (2). Riga 9: M4ter.4bis nel testo JSX (1). La testa,
-    // l'import `./M3.2` e il tracciato `M3.59` non contano.
-    { nome: "un file con note in commenti e testo JSX", items: [item()], spediti: con(sporco), attesi: 8 },
+    // check:contrast (2). Riga 9: M4ter.4bis nel testo JSX (1) e la persona
+    // in un commento JSX `{/* */}` (1). La testa, l'import `./M3.2` e il
+    // tracciato `M3.59` non contano.
+    { nome: "un file con note in commenti e testo JSX", items: [item()], spediti: con(sporco), attesi: 9 },
     { nome: "un CSS `registry:file`: arriva intero", items: [item()], spediti: con(css, "theme/finto.css"), attesi: 2 },
     {
       nome: "un CSS `registry:theme`: la testa no, il corpo sì",
@@ -379,9 +381,9 @@ export function Finto() {
       attesi: 2,
     },
     { nome: "l'artefatto manca", items: [item()], spediti: () => null, attesi: 1 },
-    { nome: "in elenco, al tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 8 }, attesi: 0 },
-    { nome: "in elenco, sopra il tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 7 }, attesi: 9 },
-    { nome: "in elenco, sotto il tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 9 }, attesi: 1 },
+    { nome: "in elenco, al tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 9 }, attesi: 0 },
+    { nome: "in elenco, sopra il tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 8 }, attesi: 10 },
+    { nome: "in elenco, sotto il tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 10 }, attesi: 1 },
     { nome: "in elenco e già ripulito", items: [item()], spediti: con(pulito), elenco: { "ui/finto.tsx": 3 }, attesi: 1 },
     { nome: "in elenco e non spedito", items: [item()], spediti: con(pulito), elenco: { "ui/altro.tsx": 3 }, attesi: 1 },
   ];
@@ -424,7 +426,7 @@ function main(): number {
 
   console.log(`\n  ${registry.items.length} item, ${file} file spediti letti dall'artefatto, senza le teste che la CLI toglie`);
   if (!cli.length) console.log("  prova della CLI: le teste dei .ts/.tsx e dei CSS del tema cadono ancora, il resto arriva");
-  if (inElenco) console.log(`  ancora da ripulire: ${inElenco} file, ${noteInElenco.length} note (M5.1b, M5.1c)`);
+  if (inElenco) console.log(`  ancora da ripulire: ${inElenco} file, ${noteInElenco.length} note (M5.1c)`);
 
   if (errori.length) {
     console.log(
