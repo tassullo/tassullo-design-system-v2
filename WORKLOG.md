@@ -13043,3 +13043,71 @@ Ramo `fras/m5-5-niente-convivenza`. Due seguiti di M5.5a, da Francesco.
   - **L2**: la `tassullo-data-table` ha già l'albero (`getSottoRighe`). La categoria come riga madre forse basta, e manca solo un'intestazione di gruppo su tutta la riga.
   - Aggiornato `docs/ANALISI-COPERTURA-APP.md` §9. Nessuna issue aperta: le lacune aspettano la decisione di Francesco.
 - **Le tre lacune chiuse da Francesco, nessuna proposta.** L1: niente valore libero, i valori sono solo quelli della lista. Basta `combobox`, e in migrazione spariscono i `<datalist>` e la voce «Altro»: si adatta l'app (gradino 3 della scala), non si aggiunge Autocomplete. L2: va bene l'albero della `tassullo-data-table`. L3: i segnaposto sono testi da inserire nei campi, lavoro dell'app. Annotato in `docs/ANALISI-COPERTURA-APP.md` §9 e nelle note private.
+
+## 2026-09-24 — M5.5b `GUIDA-MIGRAZIONE.md` e il passo 0 nel clone
+
+Ramo `fras/m5-5b-guida`. Il repository vero di Anagrafe non è stato toccato.
+
+#### La guida
+
+`docs/GUIDA-MIGRAZIONE.md`, scritta per il **passaggio in un colpo solo** deciso poco fa (§64, «Seguito»). Sezioni:
+- in breve, e perché in un colpo solo (la misura di M5.5a in tre righe);
+- il passo 0;
+- l'inventario (i `grep` e ciò che a `grep` non si trova);
+- il ramo nell'ordine, in nove passi, con i rimandi a `docs/INTEGRAZIONE.md` e le sole differenze;
+- le sostituzioni in tre tabelle: classe v1 → componente v2, variabile v1 → classe v2, scala dei testi v1 → v2;
+- le cose che il design system non risolve (le «Note per M5.5» di `ANALISI-COPERTURA-APP.md` §7, più le decisioni sulle lacune);
+- i documenti dell'app.
+
+Pubblica e generica. Anagrafe vi compare solo come esempio già pubblico (§9, i conteggi). Ogni nome citato nelle tabelle (varianti di `Button`, 16 utility di colore, `useSoglia`, `@/lib/toni`, le prop del guscio) è verificato sul registry.
+
+#### Il passo 0, provato nel clone
+
+Worktree `transizione-anagrafe/passo-0` del clone, dal commit `9f0c4a5`. Tre scoperte, in `docs/DECISIONI.md` §65:
+1. **`mcp init` installa `shadcn`** e, senza un `package.json`, ne crea uno: nella radice di Anagrafe, 73 MB di `node_modules`. Quindi `.mcp.json` si scrive a mano.
+2. **`--cwd` è ignorato** dagli strumenti del server: il registry risulta sconosciuto in tutte e tre le forme provate, e il sorgente della CLI lo conferma (`process.cwd()`). Il server va fatto partire da `frontend/`. Provati due lanciatori, `sh -c` e Node, entrambi funzionanti; nella guida c'è quello in Node, che va anche su Windows.
+3. **`init` davanti al `components.json` del passo 0** chiede due volte, anche con `--yes`. Con «no» esce con errore; con «sì» e la seconda domanda senza risposta esce con 0 **senza fare niente**. Il file si cancella prima di `init`.
+
+Verifica in due modi:
+- **Su stdio, come un client**: registry elencati, 82 voci per «lista», `tassullo-confirm-dialog` letto.
+- **Da una sessione vera di Claude Code** (`claude -p` nella radice del clone, col solo `.mcp.json`): cercando «conferma» trova `tassullo-confirm-dialog`, `alert-dialog` e `tassullo-toast-con-annullo`, e ne legge la descrizione.
+
+`git status` mostra solo i due file nuovi.
+
+#### I documenti di Anagrafe, preparati e non caricati
+
+In `transizione-anagrafe/anagrafe-md/`, con un `LEGGIMI.md` e le copie intere più i `.patch`:
+- `passo-0/`: i due file e `CLAUDE.md` con la riga «in consultazione» e l'indirizzo del v1 corretto.
+- `migrazione/`:
+  - `CLAUDE.md`: regole 3 e 10 riscritte, e la sezione di stile sostituita col blocco di `INTEGRAZIONE.md` tal quale, più due punti propri di Anagrafe. Nessun riferimento al v1 resta.
+  - `INTERFACCE.md`: §1 e §2 riscritti sul v2; le prop del guscio che §2 nomina sono verificate.
+- Voci di roadmap e paragrafo di checklist.
+- Piano privato della migrazione in `transizione-anagrafe/piano-migrazione-anagrafe.md`: ordine delle pagine, e tutto ciò che non va perso (i 5 `confirm`/`prompt` coi numeri di riga, le 7 azioni distruttive, gli errori dietro le modali).
+
+**Un punto da decidere, trovato leggendo le regole di Anagrafe.** La regola 18 vuole rami di una o due sessioni, e i documenti di conduzione committati su `main` dopo l'unione, mai nei rami. Il ramo unico della migrazione ne è un'eccezione, da scrivere nel loro `CLAUDE.md` prima di aprirlo. E la regola è «Git a due persone»: il passaggio va detto a Roberto prima. Scritto nel piano privato e, in forma generica, nella guida.
+
+#### La rilettura senza contesto
+
+Un agente nuovo ha letto la guida come chi deve migrare un'app, col solo repository, verificando ogni nome nei file. Tutti i nomi esistono. **14 attriti, tutti corretti**; verificati da me nei file quelli che non avevo già controllato. I gravi:
+1. **Il passo 1 rimandava al passo 2 di `INTEGRAZIONE.md`**, che riscrive `vite.config.ts` e svuota `App.tsx`. Seguito alla lettera, avrebbe fatto perdere rotte e configurazione. Ora la guida prende solo pacchetti e alias, e dice cosa non toccare.
+2. **Col v1 ancora caricato anche le pagine migrate si vedono sbagliate**: testi 1px più piccoli, niente Inter, link senza arancio. La guida avvisava solo per le pagine non migrate, e qualcuno avrebbe «corretto» il v2 in casa. Ora dice che il controllo d'aspetto si fa dopo aver tolto il v1.
+3. **`tassullo-form-field` vuole react-hook-form** (è fra le sue `dependencies`), e Anagrafe non lo usa. Ora la tabella indica `Field`, e il blocco solo per chi adotta react-hook-form.
+4. **I `grep` della verifica finale trovavano anche il codice del design system** (`bg-card` contiene `card`); e l'inventario non vedeva `className={'btn …'}`. Riscritti: l'inventario cerca le classi fra virgolette o spazi, provato in zsh sul clone con la riga copiata dalla guida (527 righe); la verifica esclude i file installati. **In zsh `--include=*.tsx` senza virgolette non parte.**
+
+Gli altri:
+- `toni` e `numeri` non arrivano con nessun item.
+- `Alert` ha solo `default` e `destructive`: i quattro toni passano da `TONO_ALERT`.
+- `<Toaster />` va montato dall'app.
+- Il v1 ha `.btn-danger` e altre sei classi che la tabella non traduceva, e cinque variabili che mancavano (`--transition-fast`, `--page-max-width`, `--color-on-*`, `--color-danger-hover`, `--color-badge-*`).
+- `--color-overlay` il v1 la definisce dalla 1.2.0, che porta anche `components.css`: aggiunto come capire quale v1 ha l'app.
+- Una sezione «Numeri e codici», che il blocco del `CLAUDE.md` diceva solo alla fine.
+- Cosa succede rispondendo `y` alla conferma del tema, su un `index.css` pieno.
+- La frase su `init` riallineata a §65.
+- Dove annotare gli item prima che esista la checklist.
+
+#### Verifiche
+
+- `npm run check` verde sui dieci gate, 1556 scansioni, 0 violazioni. Cambiano solo documenti.
+- Repository vero di Anagrafe invariato, verificato a fine sessione contro la fotografia di inizio M5.5a: stato pulito, stessi rami, ref e worktree, `HEAD` `9f0c4a5`.
+
+**Prossimi passi**: M5.6, il tag `v2.0.0` e la prova d'installazione dall'esterno. Per Anagrafe, quando Francesco decide di cominciare: l'eccezione alla regola 18 e l'avviso a Roberto (piano privato), poi DS.0 con i file di `transizione-anagrafe/anagrafe-md/passo-0/`.

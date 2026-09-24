@@ -528,6 +528,9 @@ letto con quella rettifica davanti** (dettaglio in `WORKLOG.md`, M4ter.1):
 
 ## 7. Note per M5.5 — cose che il design system non può risolvere da sé
 
+> **Raccolte in `docs/GUIDA-MIGRAZIONE.md`** (M5.5b, 2026-09-24), sezione «Cose che il design
+> system non risolve da sé». Qui resta la storia di come sono emerse.
+
 Aperta il 2026-09-19, quando la fase è stata pianificata. Qui va ciò che una migrazione
 incontrerà e che **non si chiude nel registry**, perché dipende da un backend, da un dato o
 da una scelta dell'app. Senza questa sezione si scopre il giorno in cui non si riesce a
