@@ -118,8 +118,7 @@ type Icona = ComponentType<{ className?: string }>
 // nome della pagina e non ai comandi — un'azione è qualcosa che si clicca.
 // A chi passa una stringa non toglie niente.
 //
-// Il contatore si scrive in un **`Badge variant="secondary"`**, scelto il
-// 2026-09-21. Non in testo attenuato: misurato, `--muted-foreground` è
+// Il contatore si scrive in un **`Badge variant="secondary"`**. Non in testo attenuato: misurato, `--muted-foreground` è
 // *esattamente* il colore di «Officina» e del separatore `›`, quindi il
 // numero si stacca dal nome della pagina ma prende il tono dei livelli che
 // lo precedono — e si legge come un altro livello invece che come «quanti ce
@@ -219,8 +218,8 @@ export function IntestazioneProvider({ children }: { children: ReactNode }) {
 // `overflow-hidden` più `whitespace-nowrap` su tutta la discendenza sono la
 // garanzia che il guscio deve dare: **la fascia è una riga sola, sempre**.
 // L'altezza è fissa (`h-12`), quindi una seconda riga non alzerebbe la barra —
-// le uscirebbe fuori, ed è successo (misurato in M3.1 a 375px in touch, con una
-// sola azione: il numero delle azioni non c'entrava). Dove tagliare lo decide
+// le uscirebbe fuori (misurato a 375px in touch, con una sola azione: il
+// numero delle azioni non c'entra). Dove tagliare lo decide
 // invece il contenuto, e per il percorso lo decide `Percorso` qui sotto.
 /**
  * La fascia in alto: il grilletto della colonna e, accanto, il posto in cui
@@ -293,11 +292,10 @@ export function FasciaIntestazione({
  * Chromium sullo Storybook costruito, larghezza utile della fascia (al netto
  * del `px-4`): 1152 a 1440×normale, 1008 a 1440×touch, 736 a 1024×normale, 592
  * a 1024×touch, 480 a 768×normale, 336 a 768×touch, **343 e 327** nelle due
- * celle da 375px — che sono, alla cifra, le stesse due di D10 in M3.1: è la
- * stessa larghezza vista nella fascia invece che nel contenuto.
+ * celle da 375px, cioè la larghezza del contenuto vista nella fascia.
  *
- * Una soglia sola copre le otto celle, dove la regola sulla viewport di M3.1
- * doveva ramificarsi per densità.
+ * Una soglia sola copre le otto celle, dove una regola sulla finestra
+ * dovrebbe ramificarsi per densità.
  */
 function Collegamento({ l }: { l: LivelloPercorso }) {
   return (
@@ -383,7 +381,7 @@ function Percorso({ livelli }: { livelli: LivelloPercorso[] }) {
  *
  * **Fascia larga: bottoni interi. Fascia stretta: un solo bottone «⋯»** con
  * dentro tutte le azioni. Non è una preferenza estetica, è aritmetica misurata
- * in M3.1 a 375px: due bottoni con l'etichetta per esteso occupano 283px dei
+ * a 375px: due bottoni con l'etichetta per esteso occupano 283px dei
  * 375 disponibili, e al nome della pagina ne restano **7** — sparisce. Con una
  * sola azione ne restano 149, che bastano per «Famiglie» ma non per un titolo
  * vero. Il numero delle azioni non era il problema, e ridurle a icone era una
@@ -393,16 +391,15 @@ function Percorso({ livelli }: { livelli: LivelloPercorso[] }) {
  * `display: none`, quindi la forma spenta esce anche dall'albero di
  * accessibilità: nessuna azione viene annunciata due volte.
  *
- * **`@2xl/fascia` (672px) sposta di una cella il confine di M3.1**, e la
- * differenza va dichiarata: a **1024×touch** la fascia ha 592px utili, quindi
- * qui le azioni entrano nel menu mentre la regola `lg:` le teneva intere. Non
- * è una svista: i 1024 di M3.1 erano un compromesso *imposto* dalla
- * ramificazione per densità — «a 768 in touch non resterebbe niente» — e una
- * soglia sulla fascia quel compromesso non deve farlo. Nelle altre sette celle
- * misurate le due regole danno lo stesso esito.
+ * **`@2xl/fascia` (672px)**: a **1024×touch** la fascia ha 592px utili, quindi
+ * lì le azioni entrano nel menu. Una soglia `lg:` sulla finestra le terrebbe
+ * intere, ma solo per un compromesso imposto dalla ramificazione per densità
+ * — «a 768 in touch non resterebbe niente» — che una soglia sulla fascia non
+ * deve fare. Nelle altre sette celle misurate le due regole danno lo stesso
+ * esito.
  *
- * **Taglia normale, non `sm` come nel v1**: `sm` in densità touch fa 42px, cioè
- * sotto i 44 di WCAG e sotto i 48 che il v1 dà a `.btn` in cantiere. La normale
+ * **Taglia normale, non `sm`**: `sm` in densità touch fa 42px, cioè sotto i 44
+ * di WCAG e sotto i 48 di un bottone in cantiere. La normale
  * fa 32px in normale e 48 in touch.
  */
 function Azioni({ azioni }: { azioni: AzionePagina[] }) {
@@ -435,11 +432,9 @@ function Azioni({ azioni }: { azioni: AzionePagina[] }) {
           <DropdownMenuContent align="end" sideOffset={4} className="w-56">
             {azioni.map((a) => (
               /*
-               * `variant="destructive"` e non `className="text-destructive"`,
-               * che è quello che il guscio faceva in M3.1: `--destructive` è
-               * l'arancione-rosso dei *fondi*, e come testo su un menu scuro
-               * dà **3.52:1** — misurato dal gate, che l'ha preso appena una
-               * story ha aperto il menu con un'azione distruttiva dentro. La
+               * `variant="destructive"` e non `className="text-destructive"`:
+               * `--destructive` è l'arancione-rosso dei *fondi*, e come testo
+               * su un menu scuro dà **3.52:1**. La
                * variante del componente usa `destructive-subtle-foreground`,
                * che è il rosso *leggibile*. Stessa coppia di trappole di
                * `--primary`/`--accent-ink`: il colore del fondo non è il colore
@@ -508,14 +503,13 @@ export function PageHeader({
    * durante il render. Il DOM il conto ce l'ha già.
    *
    * La dipendenza è un solo riferimento stabile, quindi l'effetto scatta a
-   * montaggio e smontaggio e basta — che è la forma che la trappola delle
-   * dipendenze non primitive di `CLAUDE.md` chiede.
+   * montaggio e smontaggio e basta: nessun valore nuovo a ogni render fra
+   * le dipendenze.
    */
   useEffect(() => {
     // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
-    // esiste in un'app Vite appena creata, e il typecheck del consumatore si
-    // ferma su «Cannot find name 'process'» benché a runtime funzioni
-    // (misurato nel gate di fine FASE 4, M4.6).
+    // esiste in un'app Vite appena creata, e il typecheck dell'app si
+    // fermerebbe su «Cannot find name 'process'» benché a runtime funzioni.
     if (!nodo || !import.meta.env.DEV) return
     const n = nodo.querySelectorAll('[data-slot="page-header-content"]').length
     if (n > 1) {

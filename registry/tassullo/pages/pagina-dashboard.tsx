@@ -137,7 +137,7 @@ type Icona = ComponentType<{ className?: string }>
 
 /**
  * Ri-esportato da `tassullo-indicatori`, dove la forma adesso vive: la riga
- * è un item a sé (M4ter.7) e la dashboard la ricompone. Resta esportato di
+ * è un item a sé e la dashboard la ricompone. Resta esportato di
  * qui perché è il tipo di `PaginaDashboardProps.indicatori`.
  */
 export type { Indicatore }
@@ -189,10 +189,9 @@ export type PaginaDashboardProps = {
   //
   // `auto` (default) la sceglie `useSoglia` sulla larghezza della finestra;
   // `larga` e `stretta` la impongono. Le due forzate non sono comodità: una
-  // media query sulla finestra **non si commuta dal canvas**
-  // (`docs/DECISIONI.md` §46), quindi senza di esse il gate renderebbe sempre
-  // il ramo che tocca a 1440 e «0 violazioni» direbbe meno di quello che
-  // sembra. È la stessa forma di `faccia` in `Pagine/Lista a due facce`.
+  // media query sulla finestra **non si commuta dal canvas** di Storybook,
+  // quindi senza di esse una prova automatica renderebbe sempre il ramo della
+  // finestra in cui gira. È la stessa forma di `faccia` in `PaginaLista`.
   /**
    * La forma delle attività recenti. `"auto"`, il predefinito, la sceglie
    * dalla larghezza della finestra: tabella dai 768px in su, elenco sotto.
@@ -214,12 +213,11 @@ export type PaginaDashboardProps = {
  * Il numero non è scelto a occhio: le tre colonne dichiarano `w-44` (176px)
  * per «Utente» e `w-32` (128px) per «Quando», e «Attività» è quella elastica.
  * Con `table-fixed` una colonna elastica sotto spazio **va a zero**, e le
- * intestazioni si sovrappongono — è il difetto che M4ter.6 prese su
- * `lista-due-facce`, e che qui era rimasto. Misurato in Chromium: sotto i 768
+ * intestazioni si sovrappongono. Misurato in Chromium: sotto i 768
  * di finestra la colonna «Attività» scende sotto i 200px utili e il testo si
  * taglia a metà parola già alla prima riga.
  *
- * Resta un numero **di questa pagina**, come vuole §6.3: tre colonne stanno
+ * Resta un numero **di questa pagina**: tre colonne stanno
  * larghe dove nove stanno strette, e un'app che monti la dashboard in un
  * guscio diverso può doverlo cambiare.
  */
@@ -245,16 +243,13 @@ function DueGrafici({ grafici }: { grafici: [ReactNode, ReactNode] }) {
 const colAttivita = creaColonne<AttivitaRecente>()
 
 /**
- * `tassullo-data-table` spogliata, non la primitiva `table` — scelta di
- * Francesco il 2026-09-18, davanti alle tre varianti messe a confronto sugli
- * stessi dati. Resta acceso il **solo ordinamento**: ricerca, menu delle
+ * `tassullo-data-table` spogliata, non la primitiva `table`. Resta acceso il **solo ordinamento**: ricerca, menu delle
  * colonne e piè di pagina spenti, altezza naturale. La soglia che ne è uscita
  * vale oltre questo caso: serve una qualunque opzione — ordina, cerca,
  * nascondi, pagina, menu di riga — e allora si monta `DataTable` spegnendo le
  * altre; non ne serve nessuna, e allora la primitiva. Non si aggiunge **mai**
  * un'opzione a mano a una tabella semplice: rifare l'intestazione ordinabile
- * vorrebbe dire riscrivere `IntestazioneColonna`, che è la duplicazione che la
- * regola 4bis esiste per impedire.
+ * vorrebbe dire riscrivere `IntestazioneColonna`, cioè duplicarla.
  *
  * **L'ordine delle colonne è chi / cosa / quando**: il soggetto per primo,
  * l'azione al centro — è la colonna che si allunga, e quindi l'unica senza
@@ -279,7 +274,7 @@ function TabellaAttivita({
         colAttivita.accessor("descrizione", {
           header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Attività" />,
           // Nessuna `larghezza`: è la colonna elastica, quella che si prende
-          // ciò che avanza (v. il rilievo sulla colonna «azioni» di M3bis.11b).
+          // ciò che avanza.
           meta: { titolo: "Attività" },
           sortFn: "text",
           cell: ({ row }) => (

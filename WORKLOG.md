@@ -12755,3 +12755,40 @@ Letta la testa di ogni file e le prop, e confrontate col `docs` di `registry.jso
 **La testa di `data-grid.tsx` descriveva un copia/incolla che non c'è più** («l'API asincrona, non l'evento nativo», `navigator.clipboard`). Riscritta: la prima stesura, il difetto di Safari (`readText` assente, rilievo di Francesco nella coda di M3bis.5, sessione 2/3), e com'è oggi — la `<textarea>` nascosta di `DataGridClipboard`, componente opt-in. È una testa: all'app non arriva, è nota di repo.
 
 **Prossimi passi**: M5.1c, 117 note in 12 file.
+
+## 2026-09-23 — M5.1c Il testo spedito degli altri blocchi e delle pagine
+
+Ramo `claude/m5-1c-blocchi`, aperto sopra `claude/m5-1b-tabella` perché la PR #30 non era ancora unita.
+
+#### Il corpo dei dodici file
+
+117 note a 0: `calendario` 29, `page-header` 16, `app-shell` 15, `barra-contesto` 15, `pagina-dashboard` 10, `pagina-login` 9, `pagina-lista` 8, `confirm-dialog` 5, `responsive-dialog` 4, `pagina-admin` 3, `form-field` 2, `pagina-errore` 1. Stesso criterio di M5.1b: via sigle, date, persone, documenti, «la regola 3», «l'imbracatura del gate», «la trappola di `CLAUDE.md`»; restano le misure (1148/104/208 del tetto di larghezza, 1.053/1.109/1.274 della fascia, 159 su 350 del nome in colonna, la tabella delle dieci altezze del mese, 576px e 51px di invasione, 4.41:1…). Tre commenti erano solo storia di lavoro e sono stati ridotti alla ragione: in `barra-contesto` «Perché due forme e non una» (la scoperta su Studio in M4ter.11, l'innesco sbagliato di `ANALISI-COPERTURA-APP.md`), in `pagina-login` la nota sul `justify-self-center` rimandato da M4ter.4 a M4ter.5, in `calendario` «da cinque a dieci colori il 2026-09-21» e lo scarto 30/28 «alzato in M4ter.2». Rileggendo il corpo a mano, oltre a ciò che il gate segnala, sono spariti anche i «rilievo di Francesco», «preso a video», «la prima stesura… bocciata» che il gate non riconosce come nota.
+
+**Cercate prima di togliere, tutte già a verbale**: le due forme del contesto (diario di M4ter.11, «La barra di contesto: due posti, due ruoli»), «si fa fatica a vedere», il tetto di larghezza del 2026-09-10, il Guasto arancio poi rosso, i tre giri a video del pavimento del mese, 4.41:1, l'avviso dell'SSO (coda 2 di M4ter.4), `npm run build` in CI dopo M4ter.3, 668.6px di `ItemTitle`, i tre `landmark-*`, il doppio bordo, le tre varianti della tabella della dashboard. Nessuna da portare.
+
+#### `DA_RIPULIRE` tolto
+
+Svuotato l'elenco, come da piano la costante esce da `scripts/check-spedito.ts` e con lei tutta la logica dei tetti, l'opzione `--elenca` e le cinque prove dell'autotest che la esercitavano (11 → 6). `controlla()` ora segnala ogni nota di ogni file spedito, senza eccezioni. La testa dello script diceva ancora «`shadcn build` scarta il primo commento»: rettificata sulla misura di §58. `CLAUDE.md` aggiornato (il gate legge anche i commenti JSX; nessuna esenzione).
+
+#### Il campo `docs`, item per item
+
+- **`tassullo-app-shell`**: **corretto un errore**: diceva che il guscio ha di suo il tetto di 1180px e che `larghezza="piena"` lo toglie — è il contrario da quando `piena` è il predefinito; e l'esempio passava una prop `barra` che `AppShell` non ha più (la fascia la riempie `<PageHeader>`). Portati: `contenuto="riempie"` con la forma che la pagina deve rendere, `contesto`, `testataRender`, `azioniUtente`, `defaultAperta`, le larghezze della colonna.
+- **`tassullo-page-header`**: il `titolo` di un livello è un nodo (il contatore col `Badge secondary`); una sola `<PageHeader>` per pagina, con l'avviso in sviluppo.
+- **`tassullo-barra-contesto`**: **corretto un errore**: diceva che nel guscio non c'è uno slot per il contesto, «candidato sospeso». C'è da M4ter.11 (`contesto`), e c'è `SelettoreContesto`, che il `docs` non nominava. Portati l'esempio, la divisione dei ruoli fra colonna e pagina, il nome senza codice in colonna.
+- **`tassullo-confirm-dialog`**: `corpo`, `campo`, `parolaAttesa` — tre prop che il `docs` non nominava.
+- **`tassullo-responsive-dialog`**: il limite noto del primo fotogramma di `useIsMobile` con un dialogo già aperto al montaggio.
+- **`tassullo-pagina-lista`**: va dentro `contenuto="riempie"`; le prop che passano alla tabella (e `idRiga` con `menuRiga`); `facciaStretta`, `soglia`, `faccia`.
+- **`tassullo-pagina-dashboard`**: **corretto un errore**: diceva che le attività usano la primitiva `table`; è `tassullo-data-table` spogliata (col solo ordinamento), come dicono il codice e le `registryDependencies`.
+- **`tassullo-pagina-errore`**: «la raccomandazione del piano» → «raccomandata».
+- **`tassullo-calendario`**: **corretto un errore**: «i cinque colori (arancio | verde | blu | grigio | ardesia)» — sono dieci, e `ardesia` non esiste (`ocra`, `prugna`, `indaco`, `oliva`, `malva`, `rosso`). Portati il fine settimana spento di default (`weekend`) e il senso di `rosso` e `grigio`.
+- **`tassullo-form-field`**, **`tassullo-pagina-login`**, **`tassullo-pagina-admin`**: verificati, ciò che serve per usarli c'era già.
+
+Cinque `docs` su dodici dicevano qualcosa di non più vero: il testo che la CLI stampa a fine installazione non lo controlla nessun gate contro il codice, e invecchia in silenzio. Non c'è un rimedio automatico ragionevole (il `docs` è prosa); resta da rileggere a ogni cambio d'API di un blocco.
+
+#### Verifiche
+
+- `check:spedito` verde senza elenco, autotest 6/6; `check:storybook` 0; `check:riferimenti` verde.
+- `registry:build` rilanciato dopo l'ultima modifica; `tsc -b` a zero; `tsc -p tsconfig.node.json` e `oxlint scripts` puliti.
+- **`npm run check` verde sui dieci gate**, lanciato dopo l'ultima modifica ai sorgenti: `test:a11y` 1548 scansioni, 0 violazioni, 387 story per passata.
+
+**Prossimi passi**: M5.2 (fusa con l'accettazione di M5.3).

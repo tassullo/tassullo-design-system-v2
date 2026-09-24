@@ -78,7 +78,7 @@ export type PaginaListaProps<TDato extends RowData> = {
   perPagina?: DataTableProps<TDato>["perPagina"]
   bloccaPrimaColonna?: boolean
   barra?: DataTableProps<TDato>["barra"]
-  // Passati a `DataTable` — le capacità di FASE 3bis (niko-table) rilevanti
+  // Passati a `DataTable` — le capacità rilevanti
   // per una pagina **sola lista**: colonne che si ridimensionano, si
   // bloccano, si riordinano, e un menu di riga condiviso fra tendina e tasto
   // destro. `idRiga` è **richiesto** insieme a `menuRiga` o a un futuro
@@ -101,15 +101,13 @@ export type PaginaListaProps<TDato extends RowData> = {
   // `facciaStretta` stessa. Testata, i tre `stato` e `vuotoIniziale` restano
   // del blocco, perché non cambiano con la larghezza.
   //
-  // **Il blocco sceglie *quando*, non *cosa***, ed è la divisione di
-  // `Pagine/Lista a due facce` (M4ter.6): `useSoglia` è il bivio e sta nel
+  // **Il blocco sceglie *quando*, non *cosa***: `useSoglia` è il bivio e sta nel
   // registry; la faccia stretta la scrive la pagina, perché le due facce non
   // sono la stessa lista impaginata due volte — quante colonne diventano un
   // raggruppamento, quale filtro sopravvive e cosa resta sulla scheda lo sa
   // solo chi quella lista la conosce.
   //
-  // Assente, la pagina resta a una faccia a ogni larghezza: è il
-  // comportamento di prima di M4ter.16, e nessuna pagina già scritta cambia.
+  // Assente, la pagina resta a una faccia a ogni larghezza.
   /**
    * La seconda forma della pagina, per quando la tabella non ci sta: sotto
    * `soglia` il blocco rende questo nodo al posto della tabella. Con la tabella
@@ -134,8 +132,8 @@ export type PaginaListaProps<TDato extends RowData> = {
   // `"auto"` (default) lascia decidere a `soglia`. Le altre due rendono una
   // faccia **in modo deterministico**, e servono alle story: `useSoglia`
   // legge una media query sulla **finestra**, e la larghezza della finestra
-  // non si commuta dal canvas di Storybook (`docs/DECISIONI.md` §46) — una
-  // scena che dipendesse dall'hook renderebbe nel gate il ramo che capita.
+  // non si commuta dal canvas di Storybook — una scena che dipendesse
+  // dall'hook renderebbe, in una prova automatica, il ramo che capita.
   /**
    * `"auto"`, il predefinito, lascia decidere a `soglia`. `"tabella"` e
    * `"schede"` rendono una faccia fissa a ogni larghezza: per una scena di
@@ -181,11 +179,9 @@ export function PaginaLista<TDato extends RowData>({
     // sempre lo spazio che `<AppShell contenuto="riempie">` concede,
     // a prescindere da come `perPagina` carica le righe: `altezza="ferma"`
     // su `DataTable` (sotto) apre lo scorrimento interno tanto con
-    // `perPagina="infinito"` quanto con una `perPagina` numerica — prima di
-    // questa distinzione (`data-table.tsx`, `DataTableProps.altezza`) la
-    // paginazione numerica non aveva questo riquadro, e con più righe di
-    // quante ne stiano a schermo il piè usciva dalla vista finché non si
-    // scorreva tutta la pagina (rilievo di Francesco, coda di M4.2).
+    // `perPagina="infinito"` quanto con una `perPagina` numerica. Senza, con
+    // più righe di quante ne stiano a schermo il piè uscirebbe dalla vista
+    // finché non si scorre tutta la pagina.
     <div data-slot="pagina-lista" className={cn("flex h-full min-h-0 flex-col gap-4", className)}>
       <PageHeader percorso={percorso} azioni={azioni} />
 

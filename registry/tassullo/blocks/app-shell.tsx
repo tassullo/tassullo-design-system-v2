@@ -100,13 +100,13 @@ import {
  *
  * `SIDEBAR_WIDTH` e `SIDEBAR_WIDTH_ICON` sono **costanti JavaScript** dentro
  * `sidebar.tsx`: non derivano da `--spacing` e in touch resterebbero identiche
- * mentre il loro contenuto cresce — misurato in M2.5, rail collassato a 48px
+ * mentre il loro contenuto cresce — misurato: rail collassato a 48px
  * riempito *esattamente* da una voce da 48, zero margine attorno all'icona.
  * `calc(var(--spacing) * 64)` fa 256px in normale e 384 in touch,
  * `calc(var(--spacing) * 12)` fa 48 e 72: in densità normale la resa è identica
  * a quella del preset.
  *
- * È l'unica eccezione accertata alla densità del tema (M1.4), e sta **qui**
+ * È l'unica eccezione accertata alla densità del tema, e sta **qui**
  * perché nessuna app la ricopi.
  *
  * La terza costante, `SIDEBAR_WIDTH_MOBILE`, è scritta dentro lo `SheetContent`
@@ -223,8 +223,7 @@ function inizialiDa(u: UtenteShell): string {
  *
  * È una **classe**, non un componente e non un file in `public/`: il tracciato
  * viaggia dentro il CSS del tema come maschera in data URI, e il colore lo dà
- * `currentColor`. È la decisione D13, chiusa il 2026-09-10; arriva con
- * `add @tassullo/tema`, che porta `tema-logo` fra le proprie dipendenze.
+ * `currentColor`. Arriva con `add @tassullo/tema`, che porta `tema-logo` fra le proprie dipendenze.
  *
  * `size-6` e non `h-6`: la T è più alta che larga (24×38), e dentro un quadrato
  * la maschera si allinea all'altezza e resta stretta — che è come si allinea
@@ -351,7 +350,7 @@ function Voci({ voci }: { voci: VoceNav[] }) {
   /*
    * Il tooltip non si passa affatto sotto la soglia mobile. Il preset lo
    * nasconde ma la radice Base UI resta montata, si apre col fuoco e si prende
-   * il primo `Esc` — misurato in M2.5: nel pannello a scomparsa il primo `Esc`
+   * il primo `Esc` — misurato: nel pannello a scomparsa il primo `Esc`
    * non chiudeva niente e il secondo sì.
    */
   const suggerimento = (titolo: string) => (isMobile ? undefined : titolo)
@@ -445,16 +444,15 @@ export type AppShellProps = {
   /** Le voci del menù utente: `<DropdownMenuItem>` e separatori. */
   azioniUtente?: ReactNode
   // **Lo slot della testata della colonna, sotto il marchio** — tipicamente
-  // il `<SelettoreContesto>` di `tassullo-barra-contesto` (2026-09-21).
+  // il `<SelettoreContesto>` di `tassullo-barra-contesto`.
   //
   // È uno slot e non delle prop tipizzate, per la stessa ragione per cui la
   // fascia non riceve il percorso da qui: il guscio non sa che cosa sia una
   // commessa, e non deve impararlo. Riceve un nodo e gli fa posto.
   //
   // **È una variante, non il nuovo normale.** Serve alle app che hanno
-  // un'entità attiva che attraversa tutte le pagine — oggi **solo Studio**, e
-  // il bisogno è stato accertato guardando l'app vera in M4ter.11: ne ha due,
-  // una qui e una in pagina. Le altre non passano niente e la testata resta
+  // un'entità attiva che attraversa tutte le pagine — una commessa, un
+  // cantiere — e la mostrano due volte, una qui e una in pagina. Le altre non passano niente e la testata resta
   // quella di prima, marchio e nome dell'applicativo.
   //
   // Con `collassa="icona"` la colonna stretta riduce il selettore al suo
@@ -490,14 +488,13 @@ export type AppShellProps = {
   // La larghezza del contenuto.
   //
   // **`piena` è il predefinito**, e il contenuto si adatta alla larghezza della
-  // pagina. Scelta di Francesco il 2026-09-10, guardando la story col tetto
-  // attivo: collassare la colonna **non dava un pixel di contenuto in più** —
+  // pagina. Col tetto attivo, collassare la colonna **non dava un pixel di contenuto in più** —
   // misurato a 1440, la card restava 1148px e si limitava a scivolare a
   // sinistra di 104, perché i 208px liberati andavano ai margini. Collassare la
   // colonna deve dare spazio al contenuto, o il grilletto non serve a niente.
   //
   // `pagina` tiene il contenuto entro `--container-page` (1180px) e lo centra:
-  // è la misura del v1, e resta la scelta giusta dove una riga lunga si legge
+  // resta la scelta giusta dove una riga lunga si legge
   // male — un form, un testo. Si chiede, non si subisce.
   /**
    * La larghezza del contenuto. `"piena"`, il predefinito, gli dà tutta la
@@ -516,7 +513,7 @@ export type AppShellProps = {
   // `riempie` blocca il guscio all'altezza esatta della finestra
   // (`h-svh` invece di `min-h-svh`): serve alle pagine **sola lista** —
   // Prodotti, Norme, Certificazioni — il cui contenuto è `<DataTable
-  // perPagina="auto">` (M3.10, coda): senza un'altezza *ferma* a cui
+  // altezza="ferma">`: senza un'altezza *ferma* a cui
   // appoggiarsi, `flex-1` non avrebbe un numero a cui arrivare e la tabella
   // non saprebbe quante righe entrano. La pagina che lo chiede deve rendere
   // a sua volta una colonna flex alta quanto il contenuto (`flex h-full
@@ -566,7 +563,7 @@ export function AppShell({
     /*
      * Il provider dei tooltip sta QUI, una volta sola, e non è un dettaglio di
      * gusto: senza, a colonna collassata le etichette non compaiono né col
-     * mouse né col fuoco, e **nessun errore lo dice**. Misurato in M2.5: zero
+     * mouse né col fuoco, e **nessun errore lo dice**. Misurato: zero
      * tooltip su tre `Tab` e su un hover da nove decimi di secondo.
      */
     <TooltipProvider>
@@ -616,7 +613,7 @@ export function AppShell({
              * La fascia in alto. Il guscio la **disegna** — grilletto, altezza,
              * e la garanzia che resti una riga sola; ciò che ci va dentro,
              * percorso e azioni, lo dichiara la **pagina** con `<PageHeader>`,
-             * che ci rende attraverso un portale. È M3.2.
+             * che ci rende attraverso un portale.
              */}
             <FasciaIntestazione grilletto={<SidebarTrigger />} />
 
@@ -632,15 +629,14 @@ export function AppShell({
              * pixel di contenuto in più — i 208px liberati andavano ai margini, e
              * la card scivolava a sinistra invece di crescere.
              *
-             * `p-4` segue la densità: 16px in normale, 24 in touch. È qui che si
-             * misura D10 — su uno schermo da 375 il padding è l'unica cosa che
+             * `p-4` segue la densità: 16px in normale, 24 in touch. Su uno
+             * schermo da 375 il padding è l'unica cosa che
              * mangia larghezza, perché sotto i 768px la colonna non c'è più.
              *
              * **È un `div`, e va saputo perché**: il punto di riferimento `main`
              * lo mette già `SidebarInset`, che *è* un `<main>`. Un secondo `main`
-             * qui dentro dava tre violazioni axe per story — `landmark-unique`,
-             * `landmark-no-duplicate-main`, `landmark-main-is-top-level` — e le
-             * ha trovate il gate al primo giro. La fascia in alto sta dentro il
+             * qui dentro darebbe tre violazioni axe — `landmark-unique`,
+             * `landmark-no-duplicate-main`, `landmark-main-is-top-level`. La fascia in alto sta dentro il
              * `main` come nel `sidebar-07` di shadcn: è la loro forma, non una
              * nostra deriva.
              */}

@@ -129,7 +129,7 @@ const SCHERMO_INTERO_DI_DEFAULT: Record<VarianteErrore, boolean> = {
  * Il fondo dell'icona e il colore della descrizione, un token per tono — mai
  * una classe costruita a runtime (`text-${tono}-...`): Tailwind scansiona
  * stringhe letterali, una concatenata a runtime sparirebbe dalla build senza
- * errore (lo stesso avvertimento che vale per gli hex, regola 3).
+ * errore.
  */
 const ICONA_DI_TONO: Record<Tono, string> = {
   success: "bg-success-subtle-foreground/10",
