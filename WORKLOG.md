@@ -12964,3 +12964,16 @@ Ramo `fras/canale-proposte`. La seconda domanda aperta di M5.4, decisa da France
 ## 2026-09-24 — Le due schermate di `shot/` in `docs/img/M5.0d/`
 
 Su richiesta di Francesco. La cartella `shot/` nella radice, con due schermate di `foglio-gruppi` (chiaro e scuro), era entrata col commit di coda di M5.0d. Spostate in `docs/img/M5.0d/`, come le altre immagini (una cartella per task). Nessun file rimandava a `shot/`.
+
+## 2026-09-24 — M5.5 divisa in due, e come si lavora su Anagrafe
+
+Decisioni di Francesco, prese dopo aver guardato Anagrafe in sola lettura:
+- **Anagrafe va in produzione a ogni push su `main`** (`deploy.yml`).
+- **Roberto ci lavora molto**: 55 commit su 87 dal 10 settembre.
+- **Le sue regole sono strette**: prenotare il task nella loro checklist, un ramo `persona/Mx.y-…`, PR, squash, conferma prima di unire o cancellare rami.
+- **Le pagine sono 19**, non le 10 del piano: circa 8.500 righe di `.tsx` e 3.600 di CSS a mano, sul v1 come pacchetto npm, senza Tailwind.
+
+- **Clone temporaneo** per l'analisi e le prove, scollegato da GitHub, e non un worktree o un ramo del repository vero: così non ci sono tracce né rischi di push.
+- **M5.5a / M5.5b**. La prova di convivenza merita una sessione sua. Il piano dava per scontato che i due temi convivano, ma vale per i nomi dei token: Tailwind (con l'azzeramento di base) e il `body` del tema v2 cambiano l'aspetto di tutte le pagine prima ancora di migrarne una. Non è ancora misurato: è il compito di M5.5a.
+- **Il passo 0** passa da una PR nel repository di Anagrafe, con le sue regole, e lo approva Francesco.
+- **I documenti di Anagrafe** (`CLAUDE.md`, `docs/INTERFACCE.md`) oggi non si aggiornano: descrivono il v1, che è il codice che c'è. Due proposte per il passo 0, da decidere in M5.5b: una riga in `CLAUDE.md` che dica che il v2 si consulta con l'MCP, e la correzione del vecchio indirizzo `cibiosacte-hue/tassullo-design-system` che il loro `CLAUDE.md` riporta ancora. La transizione delle regole, v1 e v2 insieme pagina per pagina, sarà un passo della guida.
