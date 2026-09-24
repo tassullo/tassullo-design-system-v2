@@ -13111,3 +13111,40 @@ Gli altri:
 - Repository vero di Anagrafe invariato, verificato a fine sessione contro la fotografia di inizio M5.5a: stato pulito, stessi rami, ref e worktree, `HEAD` `9f0c4a5`.
 
 **Prossimi passi**: M5.6, il tag `v2.0.0` e la prova d'installazione dall'esterno. Per Anagrafe, quando Francesco decide di cominciare: l'eccezione alla regola 18 e l'avviso a Roberto (piano privato), poi DS.0 con i file di `transizione-anagrafe/anagrafe-md/passo-0/`.
+
+## 2026-09-24 — M5.6 Il tag `v2.0.0`, e la prova d'installazione da fuori
+
+Rami `fras/m5-6-tag` (PR #44) e `fras/m5-6-chiusura`. Via libera di Francesco («procedi con M5.6»).
+
+#### Prima dell'etichetta: i documenti
+
+`docs/INTEGRAZIONE.md` diceva di usare `main` «finché il design system non ha un'etichetta». Riscritto perché un'app nuova parta fissata:
+- l'indirizzo di `@tassullo` in `components.json` porta `v2.0.0`; `main` serve solo a provare;
+- **dal passo 4 in poi ogni `add` è `@tassullo/<item>`**: tema, pagine modello, esempio del guscio. Quella forma prende la versione solo da `components.json`; la forma lunga senza `#` prenderebbe `main` e mescolerebbe due versioni, lo scostamento già trovato in M5.4. Il documento l'aveva detto nelle regole, ma i comandi dei passi 6 e seguenti usavano ancora la forma lunga;
+- riscritta «Aggiornare»: si cambia l'etichetta, poi `--overwrite`, il tema per primo, e il confronto fra versioni su GitHub;
+- nel blocco per il `CLAUDE.md` e nel paragrafo per la checklist, la versione d'esempio è `v2.0.0`.
+
+Allineati anche il passo 0 di `docs/GUIDA-MIGRAZIONE.md`, il `README.md` (stato) e i file preparati per Anagrafe in `transizione-anagrafe/`.
+
+Prima della PR, la procedura riscritta è stata provata con l'indirizzo fissato allo SHA del ramo: build pulita.
+
+#### L'etichetta
+
+PR #44 unita, gate e Pages verdi sul commit di unione `7222314`. Poi `git tag -a v2.0.0` su quel commit, e push dell'etichetta sola. `…/v2.0.0/public/r/tema.json` risponde 200. Nessuna *release* di GitHub, solo l'etichetta: il piano chiedeva quella.
+
+#### La prova da fuori
+
+Cartella temporanea fuori dal repository, script che segue `docs/INTEGRAZIONE.md` con i blocchi di codice presi dal documento, come in M5.2:
+- dalla cartella vuota alla build di produzione di una lista nel guscio, **39 secondi** di comandi, `tsc -b` e build puliti;
+- **i file arrivati sono quelli dell'etichetta**: 6 su 6 (`button`, `alert`, `table`, guscio, tabella dati, pagina lista) identici al contenuto di `…/v2.0.0/public/r/`, a meno di ciò che la CLI trasforma (import del registry, testa, `"use client"`);
+- con l'indirizzo cambiato in `v9.9.9` l'`add` fallisce («not found») e non scrive niente;
+- la forma lunga `…/alert#v2.0.0` installa;
+- nel browser, sulla build servita con `vite preview`: sfondo `246,246,244`, testo `20,20,20`, Inter caricato, bottone 32px arancio (48px in touch), scuro `20,20,20`/`237,237,235`, tre righe in tabella. Una sola origine fra le richieste, console pulita. Sono gli stessi valori di M5.2. Schermata in `docs/img/M5.6/`.
+
+Un'osservazione sulla CLI, senza conseguenze: sull'errore di versione suggerisce di riprovare con `shadcn@4.20.0`, cioè una CLI più vecchia. Il problema era l'etichetta.
+
+#### Pages
+
+<https://tassullo.github.io/tassullo-design-system-v2> risponde, con 389 story, le stesse che il gate scansiona. L'ultimo `pages.yml` è sul commit dell'etichetta.
+
+**La FASE 5 è chiusa.** Resta aperta la sola D6: quando migrano le app, che decide ciascuna. Per Anagrafe è pronto il materiale in `transizione-anagrafe/`.
