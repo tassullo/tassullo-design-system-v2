@@ -41,38 +41,13 @@ Il tema si porta con un comando solo — `tema` dichiara fra le sue dipendenze `
 npx shadcn@latest add tassullo/tassullo-design-system-v2/tema
 ```
 
-### Prerequisiti in un'app Vite appena creata
+### Portare un'app nuova sul design system
 
-Rimisurato cronometrando il gate di fine FASE 4ter (M4ter.10, 2026-09-20; la prima stesura veniva da M4.6). Partendo da un `npm create vite@latest` puro servono **quattro** passi che nessun comando fa da solo — i primi due **prima** del primo `add`, il quarto **dopo** l'`add` del tema:
+La procedura completa — da una cartella vuota a una pagina modello nel guscio, in stile Tassullo, con i passi che nessun comando fa da solo (Tailwind e l'alias `@` prima di `init`, `init` col preset `nova`, il registry `@tassullo` dichiarato in `components.json`, la palette di partenza di shadcn da togliere dopo il tema) — è in **[`docs/INTEGRAZIONE.md`](docs/INTEGRAZIONE.md)**, scritta per essere incollata nel piano della nuova app. I comandi, dalla cartella vuota alla build di produzione, fanno meno di un minuto.
 
-1. **Tailwind v4 e l'alias `@/*` devono già esistere.** `npm install tailwindcss @tailwindcss/vite`, il plugin in `vite.config.ts`, `@import "tailwindcss";` in testa al CSS globale. L'alias `@/*` → `./src/*` va dichiarato **nel `tsconfig.json` alla radice**, non solo in `tsconfig.app.json`: se sta solo lì, la CLI non lo trova e scrive i file dei componenti `ui/*` dentro una cartella letterale `./@/` invece che in `src/`. Basta `paths`: **non si aggiunge `baseUrl`**, che TypeScript 6 dichiara deprecato e fa uscire `tsc` con errore.
-2. **`components.json` deve dichiarare il registry `@tassullo`**, o qualunque item con dipendenze interne (quasi tutti i blocchi e le pagine) fallisce con `Unknown registry "@tassullo"`:
+L'app non fa **nessuna richiesta di rete per la tipografia**: niente Google Fonts, il font viaggia dentro il CSS.
 
-   ```json
-   "registries": {
-     "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/main/public/r/{name}.json"
-   }
-   ```
-
-   In locale, durante lo sviluppo di questo stesso repo, si punta invece a `http://localhost:5180/r/{name}.json` (il workbench, `npm run dev`).
-
-3. **`shadcn init` vuole un preset, e non lo si può omettere.** Il comando è:
-
-   ```bash
-   npx shadcn@latest init --base base --preset nova --yes
-   ```
-
-   Senza `--preset`, `init` apre un menu a tendina e si pianta in qualunque contesto non interattivo — `--yes` non lo salta. Il nome del preset è **`nova`**, non `base-nova`: è `--base base` a farne `base-nova`, che è il valore di `style` da cui dipende che i componenti siano Base UI (regola 2 del `CLAUDE.md`). Passare `--preset base-nova` è un errore: *Invalid preset*.
-
-4. **Dopo l'`add` del tema, la palette del preset va tolta da `src/index.css`.** È il difetto che costa di più, perché **non dà nessun errore**: `init` scrive in fondo al CSS globale i propri blocchi `@theme inline`, `:root` e `.dark` con la **palette neutra di shadcn**, e stanno *dopo* l'`@import "./tassullo-theme.css"` che la CLI aggiunge in testa. A parità di specificità vince l'ultimo, quindi **ogni token standard del tema Tassullo viene sovrascritto**. Misurato in M4ter.10 su un'app appena installata: `--primary` risolveva a `rgb(23, 23, 23)` — il grigio di shadcn — invece dell'arancio del brand, e il carattere era Geist e non Inter. Il risultato è peggio di un guasto, perché è **verosimile**: i token custom Tassullo (`--accent-ink`, `--warning`, `--success`) sopravvivono, perché il preset non li dichiara, quindi l'app sembra vestita a metà invece che spogliata.
-
-   Si tolgono da `src/index.css` i tre blocchi `@theme inline { … }`, `:root { … }` e `.dark { … }` scritti da `init`, più l'`@import "@fontsource-variable/geist"`. Non manca niente: `tassullo-theme.css` porta i **propri** `@theme inline` e `@theme`, con colori, raggi e famiglie di carattere. Restano gli `@import` e il `@custom-variant dark`. Dopo la pulizia, misurato sulla stessa app: `--primary` = `rgb(244, 172, 61)`, carattere **Inter**.
-
-Con questi quattro passi il gate — app Vite vuota, i dodici item della FASE 4ter più tema e guscio, `tsc -b` e build di produzione puliti, app navigabile e in stile — sta **molto** sotto i dieci minuti: i comandi e le scritture di file, cronometrati da uno script, sono **36 secondi**, di cui **5** i dodici `add`.
-
-L'app non fa **nessuna richiesta di rete per la tipografia**: niente Google Fonts, il font viaggia dentro il CSS. Verificato in M4ter.10 sulla build di produzione servita in HTTP: **tre richieste in tutto** — il documento, il JS e il CSS — e nessuna per il carattere.
-
-> **Stato:** la FASE 3 è in corso. Il registry è consultabile e installabile, ma il tag `v2.0.0` e la guida di migrazione per le app esistenti arrivano con la FASE 5 (`M5.3`–`M5.6`). Vedi `CHECKLIST.md`.
+> **Stato:** il registry è consultabile e installabile da `main`. Il tag `v2.0.0` e la guida di migrazione per le app esistenti arrivano con la FASE 5 (`M5.5`–`M5.6`). Vedi `CHECKLIST.md`.
 
 ## Consultare il registry senza installarlo
 
@@ -117,6 +92,7 @@ Oggi sono tutti verdi, **0 violazioni**. C'è anche `npm run misura:bersagli`, c
 | [`CHECKLIST.md`](CHECKLIST.md) | **stato di avanzamento**: da leggere per sapere a che punto siamo |
 | [`WORKLOG.md`](WORKLOG.md) | il diario: cosa è stato fatto, cosa è andato storto e perché |
 | [`docs/DECISIONI.md`](docs/DECISIONI.md) | le decisioni tecniche accertate sul campo, con la prova che le sostiene |
+| [`docs/INTEGRAZIONE.md`](docs/INTEGRAZIONE.md) | come si aggancia un'app nuova: da incollare nel suo piano di sviluppo |
 
 Rapporto col v1 (`tassullo-design-system`, `@tassullo/theme`): **resta in produzione e non si tocca.** Le tre app ci restano sopra finché ognuna non decide di passare. Del v1 il v2 eredita solo l'identità visiva — palette, font, raggi, densità — tradotta nella convenzione shadcn.
 

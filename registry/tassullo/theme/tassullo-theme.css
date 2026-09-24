@@ -30,8 +30,10 @@
      Per aggiornarlo: lo stesso comando con `--overwrite`.
 
      ⚠ Se l'app viene da `shadcn init`, il suo CSS globale contiene ancora
-     il blocco `:root`/`.dark` della palette di partenza. Sta DOPO questo
-     `@import` e quindi VINCE: va tolto, o i colori Tassullo non si vedono.
+     la palette di partenza: i blocchi `@theme inline`, `:root` e `.dark`,
+     e l'`@import` del carattere Geist. Stanno DOPO questo `@import` e
+     quindi VINCONO: vanno tolti tutti e quattro, o i colori e il carattere
+     Tassullo non si vedono. Questo file ridichiara tutto ciò che serve.
 
      Due trappole, se stai per usare un token:
      · --primary è l'ARANCIO DEL BRAND; --accent è il grigio di hover dei

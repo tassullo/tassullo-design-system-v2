@@ -12818,4 +12818,75 @@ Verificato in Chromium sulle pagine Docs di `app-shell`, `sidebar`, `foglio-a-gr
 
 Su indirizzo di Francesco, in §Conduzione: un task, un ramo `claude/<task>`; a fine sessione, con `npm run check` verde e checklist e diario aggiornati, PR verso `main`; aperta la PR si accende la correzione automatica dell'app; si unisce a gate verde, con un commit di unione. Due cose accertate oggi e scritte lì perché non si ripetano: l'unione automatica di GitHub nel repository è disattivata («Auto merge is not allowed for this repository»), e cancellare da riga di comando il ramo di base di una PR impilata **chiude** la PR sopra invece di spostarla (#31, riaperta ricreando il ramo) — prima si sposta con `gh pr edit --base main`, poi si cancella. Per la correzione automatica non si è trovata un'impostazione che la accenda di default: si accende PR per PR.
 
-**Aggiunta, stesso giorno.** Il prefisso dei rami è `fras/`, lo stesso che l'app dà alle sessioni (impostazione «Branch prefix»): scelto da Francesco per non avere due convenzioni. Accesa anche, nelle impostazioni dell'app, l'archiviazione automatica della sessione quando la sua PR si chiude. Verificato con gli strumenti delle impostazioni: fra le chiavi che l'app espone non ce n'è una per la correzione automatica, che resta da accendere PR per PR.
+**Aggiunta, stesso giorno.** Il prefisso dei rami è `fras/`, lo stesso che l'app dà alle sessioni (impostazione «Branch prefix»): scelto da Francesco per non avere due convenzioni. L'archiviazione automatica della sessione alla chiusura della PR, accesa nelle impostazioni dell'app, è stata **spenta lo stesso giorno**: le sessioni le archivia Francesco. Verificato con gli strumenti delle impostazioni: fra le chiavi che l'app espone non ce n'è una per la correzione automatica, che resta da accendere PR per PR.
+
+## 2026-09-24 — M5.2 + M5.3 `INTEGRAZIONE.md` v2, e la prova seguendo solo quello
+
+Ramo `fras/m5-2-integrazione`. Il piano fonde i due task: la prova d'installazione di M5.2 è l'accettazione di M5.3.
+
+#### Il documento
+
+`docs/INTEGRAZIONE.md`, erede di quello del v1 (letto, non toccato): stesso taglio, autosufficiente, da incollare nel piano di un'app nuova, senza sigle, date né nomi di documenti interni. Sezioni: **Contesto** (cos'è un registry shadcn, perché non un pacchetto npm, le quattro famiglie del catalogo); **Task di setup**, nove passi cronometrati — scaffold, Tailwind + alias `@` + via i CSS demo, `init --base base --preset nova`, registry `@tassullo` in `components.json` con **come si fissa una versione** (il tag non c'è: si usa `main`), MCP con Claude Code riavviato, tema prima della prima pagina, via la palette di partenza, verifica della pagina vuota, `data-density="touch"`; **Da dove partire** (tabella delle pagine modello col comando, e un esempio completo: lista dentro il guscio); **Densità e modalità scura** con le due regole di colore; **Identità visiva diversa**; **Aggiornare**. I quattro prerequisiti del `README` sono passati qui, e il `README` ci rimanda: due copie della stessa ricetta divergerebbero.
+
+#### La prova: tre giri da cartella vuota
+
+Cartella temporanea fuori dal repo, registry da GitHub con la scorciatoia su `main`, cache di npm calda. Per i giri 2 e 3 uno script che esegue **i blocchi di codice presi dal documento stesso** (`vite.config.ts`, `App.tsx` vuoto e d'esempio, `index.css`), così che un blocco sbagliato nel documento rompa la prova. Le modifiche a mano (i due `tsconfig`, `registries`, la pulizia di `index.css`) fatte come le descrive il testo. Browser: Chromium di Playwright installato nella cartella temporanea (1.63.0, la versione del repo, per riusare il browser già scaricato), niente nel repo.
+
+| passo | giro 1 | giro 2 | giro 3 |
+|---|---:|---:|---:|
+| 1. scaffold + `npm install` | 12.5s | 10.8s | 2.1s |
+| 2. Tailwind, alias, via i CSS demo | 2.6s | 3.6s | 2.1s |
+| 3. `shadcn init` | 16.2s | 5.8s | 13.8s |
+| 4. registry in `components.json` | — | 0.1s | 0.1s |
+| 5. MCP | 2.5s | 2.2s | 2.1s |
+| 6. tema, `--dry-run` + vero | 11.4s | 10.3s | 10.9s |
+| 7. via la palette di partenza | — | 0.8s | 0.8s |
+| guscio + lista, `--dry-run` + vero | 31.5s | 19.8s | 19.8s |
+| `tsc -b` + build | 4.7s | 5.7s | 5.8s |
+| **totale comandi** | **~81s** | **59.2s** | **57.6s** |
+
+Il giro 1 è stato fatto a mano, comando per comando, e il suo totale non comprende le scritture di file; i giri 2 e 3 sì. Lo scarto del passo 1 fra giro 2 e 3 è la cache di npm. Nel titolo del documento restano i «~10 minuti» del v1: i comandi fanno meno di un minuto, il resto è leggere e scrivere a mano, e un tempo di lettura non si cronometra da script.
+
+**Giro 1 — nove attriti**, tutti corretti nel documento prima del giro dopo:
+
+1. `init` scrive già `"registries": {}`: «si aggiunge al primo livello» avrebbe fatto una chiave doppia. Ora: «lo si riempie».
+2. `add` del tema **chiede conferma** (y/N) e il documento non lo diceva: chi non conosce la CLI si ferma davanti a «Existing CSS variables and components will be overwritten». Ora il documento cita la domanda, dice di rispondere `y` e perché non si perde niente.
+3. **Il `docs` di `tema` stampato dalla CLI contraddiceva il documento**: diceva di togliere `:root`/`.dark` e le sole righe `--color-*` dell'`@theme inline`, ma in quel blocco c'è anche `--font-sans: 'Geist Variable'`, dopo gli `@import` del tema. Corretti il `docs` in `registry.json` e il commento generato da `scripts/hex-to-oklch.ts` (tema rigenerato, `registry:build` rilanciato). Arriva alle app da `main` quando la PR è unita: i giri 2 e 3 hanno ancora stampato il testo vecchio, e il documento, che è quello che si segue, era già giusto.
+4. `npm warn install-scripts … fsevents`, a ogni `npm install`: rumore che fa paura a chi non lo conosce. Una riga: si ignora.
+5. `npm install -D @types/node` è già nel template: detto che non cambia niente.
+6. `@fontsource-variable/geist` restava fra le dipendenze dopo la pulizia: aggiunto `npm uninstall`.
+7. Il passo 8 diceva «pagina vuota» ma mostrava il contatore e i loghi del template: `App.tsx` ora si riduce a un componente vuoto al passo 2.
+8. L'avviso della build (JavaScript oltre 500 kB) non era spiegato: è un avviso, non un errore.
+9. Col dev server acceso durante l'`add`, due `504 (Outdated Optimize Dep)` in console e un ricaricamento da solo: detto che è Vite e che passa.
+
+**Giro 2 — un attrito nuovo**, trovato leggendo il log della build per intero (nel giro 1 ne avevo letto la coda): Vite avvisa che `__dirname` in `vite.config.ts` non è supportato dal caricatore nativo che diventerà il predefinito. Ora `import.meta.dirname`.
+
+**Giro 3 — nessuna deviazione.** Restano i soli due avvisi che il documento spiega (fsevents, 500 kB).
+
+Rileggendo il documento dopo il giro 3 corrette due cose che non toccano la procedura: il bottone passa da **32** (non 36) a 48 pixel in touch, e la testata della tabella delle pagine («item», perché il guscio non è una pagina modello). La verifica della pagina vuota nel browser (sfondo `rgb(246, 246, 244)`, Inter, `--primary` arancio) è del giro 1, allo stesso punto della procedura.
+
+#### Le verifiche del giro 3
+
+- **Percorsi**: primitive in `src/components/ui/` (19), blocchi in `src/components/blocks/` (6), la pagina in `src/components/pages/`, hook in `src/hooks/`, il tema in `src/` (tre CSS e la licenza OFL). Nessun `@/registry` negli import.
+- **CSS globale**: `src/index.css` importa `tassullo-inter.css`, `tassullo-logo.css`, `tassullo-theme.css` dopo Tailwind; il secondo `add` (tema come dipendenza del guscio) salta i quattro file identici e non duplica gli `@import`.
+- **MCP**: interrogato su stdio come un client — `get_project_registries` elenca `@shadcn` e `@tassullo`, `search_items_in_registries` trova `tassullo-pagina-lista`.
+- `tsc -b` a zero, build di produzione pulita.
+- **Browser**, sul dev server e sulla build di produzione servita con `vite preview`, stesse misure:
+
+| | sfondo | testo | bottone «Nuovo prodotto» | carattere |
+|---|---|---|---|---|
+| chiaro | 246,246,244 | 20,20,20 | 32px, 244,172,61 | Inter |
+| scuro | 20,20,20 | 237,237,235 | 32px, 244,172,61 | Inter |
+| touch | 246,246,244 | 20,20,20 | **48px**, 244,172,61 | Inter |
+
+  Console pulita, **una sola origine** fra le richieste (niente font da fuori), le tre righe della tabella rese. Schermate in `docs/img/M5.2/` (`lista-nel-guscio-chiaro.png`, `-scuro.png`, `-touch.png`).
+- **La ricetta dell'identità diversa**, provata a parte su una copia: `--primary` e `--sidebar-primary` ridefiniti in `:root` e `.dark` dopo gli `@import` → bottone blu in chiaro (39,132,213), in scuro (90,163,236) e in touch.
+- **Il pin di versione**: `add …/button#<sha di main>` installa; `#v9.9.9` fallisce. Il documento lo scrive per un tag che non c'è ancora.
+
+#### Un difetto del gate, trovato dalla correzione
+
+Riscritto il commento nella prima regola di `tassullo-theme.css` (attrito 3), `check:registry` è uscito con **66 errori**: «`text-accent-ink` non è un'utility… il tema non la definisce», e «0/32 token standard». Il tema era giusto: `tokenDelTema()` ritagliava il blocco `:root` fino al primo `"@theme"` **ovunque nel file**, e il commento nuovo nomina `@theme inline`, quindi il ritaglio finiva dentro il commento e i token letti erano zero. Corretto il gate, non il commento: le due regole si cercano a inizio riga (`/^:root/m`, `/^@theme\b/m`). Da quando le istruzioni per chi installa stanno dentro la prima regola, un commento che nomina un'at-rule era solo questione di tempo. Dopo la correzione: 0 errori, 32/32 token standard.
+
+`docs/DECISIONI.md` §60 per i quattro fatti accertati. Corretta anche la voce di stamattina sul ciclo di lavoro: l'archiviazione automatica è stata spenta lo stesso giorno.
+
+**Prossimi passi**: M5.4, il blocco di regole per il `CLAUDE.md` delle app (andrà in `docs/INTEGRAZIONE.md`, §Regole).
