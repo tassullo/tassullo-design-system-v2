@@ -86,7 +86,7 @@ const light: Palette = {
   "primary-hover": "#E8990C", // v1 --color-accent-hover (custom: shadcn non ce l'ha)
   "primary-subtle": "#FCF0DB", // v1 --color-accent-light
   "primary-border": "#F5D9A8", // v1 --color-accent-border
-  "accent-ink": "#B25105", // v1 --color-accent-ink #B45309, ΔL 0.006 per 4.5:1 su --primary-subtle
+  "accent-ink": "#AD4C00", // v1 --color-accent-ink #B45309; −0.006 di L per 4.5:1 su --primary-subtle, poi −0.015 per 4.5:1 su --muted (il collegamento su una riga selezionata)
 
   // ── Neutri ───────────────────────────────────────────────────────────────
   secondary: "#ECEAE8", // v1 --color-surface-2
@@ -362,6 +362,7 @@ const PAIRS: Pair[] = [
   ["accent", "accent-foreground", "voce di menu in hover"],
   ["background", "accent-ink", "link su pagina"],
   ["card", "accent-ink", "link su card"],
+  ["muted", "accent-ink", "link su riga selezionata"],
   ["destructive", "destructive-foreground", "bottone distruttivo"],
   ["success", "success-foreground", "indicatore di successo"],
   ["warning", "warning-foreground", "badge di avviso"],

@@ -300,7 +300,7 @@ function Sorgente({ children }: { children: string }) {
   )
 }
 
-/** La tabella nella forma adottata: codici nel carattere del testo, numeri in tabellare. */
+/** La tabella nella forma adottata: codici nel carattere e nel colore del testo, numeri in tabellare. */
 function TabellaModello() {
   return (
     <table className="w-full border-collapse text-base">
@@ -316,7 +316,7 @@ function TabellaModello() {
       <tbody>
         {IMPORTI.map((r) => (
           <tr key={r.codice} className="border-b border-border">
-            <td className="py-1 pr-3 text-sm text-muted-foreground">{r.codice}</td>
+            <td className="py-1 pr-3">{r.codice}</td>
             <td className="py-1 pr-3">{r.voce}</td>
             <td className="py-1 pr-3 text-right tabular-nums">{r.qta}</td>
             <td className="py-1 pr-3 text-right tabular-nums">{r.prezzo}</td>
@@ -485,14 +485,14 @@ function Pagina() {
           <p className="max-w-prose text-base text-muted-foreground">
             I <strong>numeri</strong> in <code>tabular-nums</code>, perché si confrontano in
             colonna; tutto il resto — codice compreso — <strong>nel carattere del testo</strong>.
-            Il codice prende <code>text-sm text-muted-foreground</code>, che non cambia il
-            carattere ma il <em>peso</em>: un identificativo non deve pesare quanto la voce che
-            identifica.
+            In tabella il codice ha anche il colore e la misura del resto della riga, perché è
+            spesso la colonna che si cerca a occhio. Se la riga apre una scheda, il collegamento
+            sta su una colonna sola, il codice o il nome.
           </p>
           <div className="rounded-md border border-border p-4">
             <TabellaModello />
           </div>
-          <Sorgente>{`<td className="text-sm text-muted-foreground">TAS-04182-B</td>
+          <Sorgente>{`<td>TAS-04182-B</td>
 <td>Rasatura armata — tradizionale</td>
 <td className="text-right tabular-nums">1.114,00</td>
 <td className="text-right tabular-nums">18,40</td>
