@@ -13177,3 +13177,11 @@ Ramo `fras/m5-7-controllo`. Nasce dalla pianificazione di Anagrafe: il controllo
   - `GUIDA-MIGRAZIONE.md`: il controllo nella verifica finale, e `--solo-stile` come inventario;
   - `CLAUDE.md`, `README.md`, `gate.yml`: gli undici gate;
   - `PIANO.md` e `CHECKLIST.md`: M5.7.
+
+## 2026-09-24 — L'etichetta `v2.0.0` spostata su M5.7
+
+Come deciso da Francesco, la versione resta `v2.0.0` e contiene il controllo. PR #47 unita, gate e Pages verdi sul commit di unione `d1af3bc`. Poi `git tag -f -a v2.0.0` su quel commit e `git push -f` della sola etichetta: prima puntava a `7222314`. Nessuna app aveva installato niente con `v2.0.0`: Anagrafe ha solo `components.json`, dal passo 0.
+
+Verificato da fuori: `…/v2.0.0/public/r/tassullo-controllo.json` risponde. Nell'app di prova riportata a `v2.0.0` e ripulita dalle violazioni, controllo reinstallato da quella versione: «L'app rispetta il Design System Tassullo 2.0», 35 item confrontati.
+
+Da qui in avanti un'etichetta pubblicata non si sposta più: una modifica è una versione nuova (`DECISIONI.md` §66).
