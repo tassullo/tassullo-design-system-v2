@@ -13148,3 +13148,13 @@ Un'osservazione sulla CLI, senza conseguenze: sull'errore di versione suggerisce
 <https://tassullo.github.io/tassullo-design-system-v2> risponde, con 389 story, le stesse che il gate scansiona. L'ultimo `pages.yml` è sul commit dell'etichetta.
 
 **La FASE 5 è chiusa.** Resta aperta la sola D6: quando migrano le app, che decide ciascuna. Per Anagrafe è pronto il materiale in `transizione-anagrafe/`.
+
+## 2026-09-24 — Anagrafe: la regola 18bis e i prompt per partire
+
+Su richiesta di Francesco, dopo M5.6. Tutto fuori da questo repository, in `transizione-anagrafe/anagrafe-md/`:
+- `regola-18bis.md`: il testo dell'eccezione alla regola 18 di Anagrafe per il ramo unico della migrazione (DS.1), da mettere in `CLAUDE.md` con la PR del passo 0;
+- `prompt-avvio.md`: i prompt delle sessioni in Anagrafe. DS.0 (regola 18bis e passo 0), la prima sessione di DS.1 (fondamenta e guscio), le sessioni delle pagine, la chiusura.
+
+Verificato in sola lettura, con l'API di GitHub: `main` di Anagrafe è ancora al commit `9f0c4a5`, lo stesso su cui sono preparati i file.
+
+**Rettifica a M5.5b**: non serve avvisare Roberto del passaggio (Francesco). Tolto dal piano privato.
