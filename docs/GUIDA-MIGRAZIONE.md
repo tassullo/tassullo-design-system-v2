@@ -68,7 +68,7 @@ shadcn, invece di riscriverli. Installarli richiede la migrazione; consultarli n
        "hooks": "@/hooks"
      },
      "registries": {
-       "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/main/public/r/{name}.json"
+       "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.0/public/r/{name}.json"
      }
    }
    ```

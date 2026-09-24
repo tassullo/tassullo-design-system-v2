@@ -146,7 +146,7 @@ quello Base UI.
 
 ```json
 "registries": {
-  "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/main/public/r/{name}.json"
+  "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.0/public/r/{name}.json"
 }
 ```
 
@@ -154,25 +154,18 @@ Senza questa riga i componenti che dipendono da altri componenti del catalogo
 — quasi tutti i blocchi e tutte le pagine — falliscono con
 `Unknown registry "@tassullo"`, e l'MCP del passo 5 non vede il catalogo.
 
-**Fissare una versione.** `main` è l'ultima versione pubblicata, ed è quella
-da usare finché il design system non ha un'etichetta di versione. Quando
-l'etichetta c'è (per esempio `v2.0.0`), un'app in produzione la fissa in
-**due** posti, sempre gli stessi due, allineati:
+**La versione sta nell'indirizzo.** `v2.0.0` è l'etichetta della versione: fissata
+lì, l'app riceve sempre gli stessi file, e non cambia niente finché non si decide di
+aggiornare. Le etichette sono elencate nella pagina *Tags* del repository su GitHub;
+una versione più recente si adotta cambiando l'etichetta nell'indirizzo (vedi
+«Aggiornare»). Al posto dell'etichetta si può scrivere `main`, l'ultima versione
+pubblicata: serve a provare, non a un'app in produzione, perché ogni `add` porterebbe
+quello che c'è quel giorno.
 
-- nell'indirizzo di `components.json`, `main` diventa l'etichetta:
-  `…/tassullo-design-system-v2/v2.0.0/public/r/{name}.json`;
-- in coda a ogni comando `add` si scrive `#` e l'etichetta:
-  `npx shadcn@latest add tassullo/tassullo-design-system-v2/tema#v2.0.0`.
-
-Il primo fissa i componenti che arrivano **come dipendenze**, il secondo
-quello che si chiede per nome. Se ne fissa uno solo, l'app mescola due
-versioni.
-
-Una volta dichiarato il registry, c'è una forma più corta che la versione la
-prende **solo** da `components.json`: `npx shadcn@latest add @tassullo/tema`.
-È quella che le regole dell'app usano per tutti i giorni, perché lì non c'è un
-secondo posto da tenere allineato. La forma lunga resta necessaria finché il
-registry non è dichiarato, cioè fino al passo 4.
+Da qui in avanti ogni componente si installa con `npx shadcn@latest add
+@tassullo/<item>`, che prende la versione **solo** da questo indirizzo. La forma
+lunga, `tassullo/tassullo-design-system-v2/<item>`, non la legge: senza `#` prende
+sempre `main`, e mescolerebbe due versioni.
 
 ### 5. L'MCP di shadcn (~2 s, più il riavvio di Claude Code)
 
@@ -198,13 +191,13 @@ scrivere un componente, si chiede all'MCP se c'è**.
 Prima si guarda cosa farebbe, senza scrivere niente:
 
 ```bash
-npx shadcn@latest add tassullo/tassullo-design-system-v2/tema --dry-run
+npx shadcn@latest add @tassullo/tema --dry-run
 ```
 
 poi si installa:
 
 ```bash
-npx shadcn@latest add tassullo/tassullo-design-system-v2/tema
+npx shadcn@latest add @tassullo/tema
 ```
 
 La CLI chiede conferma: *You are about to install a new theme. Existing CSS
@@ -299,13 +292,13 @@ servono**.
 
 | item | per cosa | comando |
 |---|---|---|
-| `tassullo-app-shell` | il guscio: colonna di navigazione, fascia in alto, menu dell'utente. Si monta una volta, attorno a tutta l'app | `npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-app-shell` |
-| `tassullo-pagina-lista` | un elenco da cercare, filtrare, aprire | `npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-lista` |
-| `tassullo-pagina-scheda` | il dettaglio di un record, a schede, con lo storico | `npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-scheda` |
-| `tassullo-pagina-dashboard` | il cruscotto: indicatori, due grafici, attività recenti | `npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-dashboard` |
-| `tassullo-pagina-admin` | utenti e ruoli | `npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-admin` |
-| `tassullo-pagina-login` | l'accesso, con Microsoft e/o credenziali | `npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-login` |
-| `tassullo-pagina-errore` | 404, accesso negato, errore del server, manutenzione | `npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-errore` |
+| `tassullo-app-shell` | il guscio: colonna di navigazione, fascia in alto, menu dell'utente. Si monta una volta, attorno a tutta l'app | `npx shadcn@latest add @tassullo/tassullo-app-shell` |
+| `tassullo-pagina-lista` | un elenco da cercare, filtrare, aprire | `npx shadcn@latest add @tassullo/tassullo-pagina-lista` |
+| `tassullo-pagina-scheda` | il dettaglio di un record, a schede, con lo storico | `npx shadcn@latest add @tassullo/tassullo-pagina-scheda` |
+| `tassullo-pagina-dashboard` | il cruscotto: indicatori, due grafici, attività recenti | `npx shadcn@latest add @tassullo/tassullo-pagina-dashboard` |
+| `tassullo-pagina-admin` | utenti e ruoli | `npx shadcn@latest add @tassullo/tassullo-pagina-admin` |
+| `tassullo-pagina-login` | l'accesso, con Microsoft e/o credenziali | `npx shadcn@latest add @tassullo/tassullo-pagina-login` |
+| `tassullo-pagina-errore` | 404, accesso negato, errore del server, manutenzione | `npx shadcn@latest add @tassullo/tassullo-pagina-errore` |
 
 Anche qui prima `--dry-run`, poi il comando vero. Più item si installano
 insieme scrivendoli uno dopo l'altro nello stesso `add`. A fine installazione
@@ -320,7 +313,7 @@ si importano con l'alias `@/components/…`.
 ### Esempio: una lista dentro il guscio
 
 ```bash
-npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-app-shell tassullo/tassullo-design-system-v2/tassullo-pagina-lista
+npx shadcn@latest add @tassullo/tassullo-app-shell @tassullo/tassullo-pagina-lista
 ```
 
 `src/App.tsx`:
@@ -467,17 +460,18 @@ propone al design system come variante del tema.
 
 ## Aggiornare
 
-Un componente si aggiorna reinstallandolo:
+Una versione nuova si adotta in due gesti. Prima si cambia l'etichetta
+nell'indirizzo di `@tassullo` in `components.json` (per esempio da `v2.0.0` a
+`v2.1.0`); poi si reinstallano gli item installati per nome, il tema per primo:
 
 ```bash
 npx shadcn@latest add @tassullo/<item> --overwrite
 ```
 
-Prende la versione scritta in `components.json`, e riscrive anche gli item da
-cui quello dipende. Poi si guarda il diff: se l'app aveva modificato un file in
-casa, è qui che la modifica si perde — ed è la ragione per cui non si modifica.
-Con la forma lunga, `tassullo/tassullo-design-system-v2/<item>`, si aggiunge
-`#` e la stessa versione di `components.json`.
+Ogni comando riscrive anche gli item da cui quello dipende. Poi si guarda il
+diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
+— ed è la ragione per cui non si modifica. Cosa è cambiato fra due versioni lo
+dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.0...v2.1.0`.
 
 ## Regole da inserire nel CLAUDE.md della nuova app
 
@@ -599,8 +593,9 @@ ultima; se una classe «non fa niente», si guarda il DOM.
 
 **Aggiornare.**
 - La versione del design system sta nell'indirizzo di `@tassullo` in
-  `components.json`: `main` (l'ultima) oppure un'etichetta git come `v2.0.0`
-  (l'elenco è nella pagina *Tags* del repository su GitHub).
+  `components.json`: un'etichetta git come `v2.0.0` (l'elenco è nella pagina
+  *Tags* del repository su GitHub). `main`, l'ultima versione pubblicata, serve
+  solo a provare.
 - Un item si aggiorna reinstallandolo, poi si legge il diff:
   `npx shadcn@latest add @tassullo/<item> --overwrite`. Riscrive anche gli
   item da cui dipende. Il `tema` chiede conferma e si risponde `y`: lanciato
@@ -641,7 +636,7 @@ ultima; se una classe «non fa niente», si guarda il DOM.
 ## Design system
 
 > Lo stile viene dal Design System Tassullo 2.0
-> (`tassullo/tassullo-design-system-v2`). **Versione installata: `main`**,
+> (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.0`**,
 > quella scritta in `components.json`. **Item installati per
 > nome**: `tema`, `tassullo-app-shell`, `tassullo-pagina-lista` — le primitive
 > arrivano come dipendenze e non si elencano. Un item nuovo si aggiunge qui

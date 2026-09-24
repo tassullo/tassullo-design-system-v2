@@ -47,7 +47,7 @@ La procedura completa — da una cartella vuota a una pagina modello nel guscio,
 
 L'app non fa **nessuna richiesta di rete per la tipografia**: niente Google Fonts, il font viaggia dentro il CSS.
 
-> **Stato:** il registry è consultabile e installabile da `main`. Il tag `v2.0.0` e la guida di migrazione per le app esistenti arrivano con la FASE 5 (`M5.5`–`M5.6`). Vedi `CHECKLIST.md`.
+> **Stato:** la prima versione, `v2.0.0`, è pubblicata: le app la fissano nell'indirizzo del registry (vedi [`docs/INTEGRAZIONE.md`](docs/INTEGRAZIONE.md), passo 4). Le app già sul v1 hanno la loro guida: [`docs/GUIDA-MIGRAZIONE.md`](docs/GUIDA-MIGRAZIONE.md).
 
 ## Consultare il registry senza installarlo
 
