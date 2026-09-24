@@ -12977,3 +12977,58 @@ Decisioni di Francesco, prese dopo aver guardato Anagrafe in sola lettura:
 - **M5.5a / M5.5b**. La prova di convivenza merita una sessione sua. Il piano dava per scontato che i due temi convivano, ma vale per i nomi dei token: Tailwind (con l'azzeramento di base) e il `body` del tema v2 cambiano l'aspetto di tutte le pagine prima ancora di migrarne una. Non è ancora misurato: è il compito di M5.5a.
 - **Il passo 0 si prova nel clone.** Il repository vero di Anagrafe non si tocca in FASE 5: Francesco ha deciso di lavorare e provare sulla copia locale, e di pianificare la transizione delle app esistenti a FASE 5 finita. La PR del passo 0 nel repository di Anagrafe seguirà allora le sue regole, e la approva Francesco. Rettifica `CLAUDE.md` §Confini, che dava il passo 0 come l'unica scrittura su Anagrafe «in M5.5».
 - **I documenti di Anagrafe** (`CLAUDE.md`, `docs/INTERFACCE.md`) oggi non si aggiornano: descrivono il v1, che è il codice che c'è. Due proposte per il passo 0, da decidere in M5.5b: una riga in `CLAUDE.md` che dica che il v2 si consulta con l'MCP, e la correzione del vecchio indirizzo `cibiosacte-hue/tassullo-design-system` che il loro `CLAUDE.md` riporta ancora. La transizione delle regole, v1 e v2 insieme pagina per pagina, sarà un passo della guida. **Le modifiche ai `.md` di Anagrafe si preparano in M5.5b e si caricano quando comincia il lavoro sul suo repository** (Francesco). Si tengono in una cartella locale fuori da ogni repository, `~/Documents/Claude Code/transizione-anagrafe/`: scelta di Francesco, perché questo repository è pubblico.
+
+## 2026-09-24 — M5.5a Anagrafe letta, e la prova di convivenza fra v1 e v2
+
+Ramo `fras/m5-5a-anagrafe`. Il repository vero di Anagrafe non è stato toccato.
+
+#### Il clone
+
+`~/Documents/Claude Code/transizione-anagrafe/anagrafe-clone`, clonato dalla cartella locale con `--no-hardlinks` (nessun file condiviso con l'originale), poi `git remote remove origin`: `git remote -v` è vuoto. Resta lì per M5.5b. Le prove stanno in rami e worktree **del clone** (`../varianti/v1`, `A`, `B`, `C`, `D`, `R`), non dell'originale. Nella stessa cartella: `M5.5a-lettura-pagine.md` (le 19 pagine con numeri di riga, testi e dettagli interni), `M5.5a-convivenza/` (il documento con le immagini, gli strumenti di misura, le risposte finte dell'API).
+
+#### La lettura delle pagine
+
+Le pagine sono 19 più 4 componenti, lette da un agente in sola lettura. Il blocco v2 di ognuna l'ho cercato con l'MCP (workbench acceso, 31 blocchi e pagine, 61 primitive). Tabella pubblica in `docs/ANALISI-COPERTURA-APP.md` §9, senza dati né nomi del gestionale. I conteggi: 26 `<select>`, 12 modali a mano in 7 copie di CSS (nessuna si chiude con Esc), 31 tabelle, 5 barre di tab. **4 `window.confirm` e 1 `window.prompt`**, non i due scritti in §8.4. E **7 azioni distruttive senza nessuna conferma**. Due pagine senza pagina modello (Fpc, AdminBC), da comporre. **Tre lacune candidate, non aperte**: L1 scelta con suggerimenti e valore libero (i `<datalist>`), L2 righe raggruppate in `data-table`, L3 tavolozza di segnaposto in un testo. Le ultime due deboli.
+
+#### La prova di convivenza
+
+Tailwind e il tema v2 aggiunti nel clone **seguendo `docs/INTEGRAZIONE.md`**, senza togliere il v1: `init`, registry, `add tema`, tolta la palette di partenza. Sette primitive e un blocco installati con `@tassullo/…` e una pagina `/prova-v2` con dati d'esempio. Misura: Chromium di Playwright 1.63 da una cartella temporanea. Per ogni rotta gli stili calcolati di **ogni elemento**, con i colori risolti dal motore di resa, confrontati elemento per elemento con la pagina di oggi.
+
+- **Senza backend** si vedono colonna, titoli, bottoni, campi, tendine, avvisi e scheletri, più 6 modali che si aprono lo stesso e il login (con due identificativi Azure finti). Totale 1.454 elementi. Tabelle, badge e schede non si vedono: detto a Francesco prima di inventare dati.
+- **Quattro strade**, più un riferimento R con il solo v2:
+  - **A** come `INTEGRAZIONE.md`;
+  - **B** Tailwind senza l'azzeramento;
+  - **C** l'azzeramento dentro `@scope (:root) to (<zone v1>)`, con le regole v1 in un livello fra `base` e le utility;
+  - **D** come C, più `data-density="normale"` su `<html>` e `font-sans` su `<body>`.
+- Numeri e ricetta in `docs/DECISIONI.md` §64. In sintesi:
+
+| strada | elementi v1 spostati (su 1.454) | pagina v2 uguale al riferimento |
+|---|---|---|
+| A | 976 | 0 su 20 |
+| B | 0 | 0 su 20, e peggio di A |
+| C | 0 | 18 su 20 |
+| D | 971, solo carattere e corpo | 20 su 20 |
+
+- **Scelta di Francesco: D.** Dopo la scelta ha chiesto la verifica con dati finti. Un agente ha scritto le risposte dell'API, con nomi fittizi e fuori dal repository. Intercettate nel browser, 22 scene e 3.112 elementi: in D cambiano solo carattere e corpo, in A anche colori e grassetti.
+- Il documento per decidere (`transizione-anagrafe/M5.5a-convivenza/convivenza.html`) è privato, perché fotografa pagine vere. Nel repository c'è solo l'immagine della pagina di prova (`docs/img/M5.5a/pagina-v2-cinque-strade.png`), fatta di dati d'esempio.
+
+#### Attriti e scoperte
+
+- **Il piano sbagliava sui nomi**: il v1 usa gli stessi prefissi del **tema di Tailwind**, non di quello del v2 (`--color-*`, `--text-*`, `--radius-*`, `--shadow-*`). I nomi in comune sono venti, e diciassette erano emessi. Vince il v1, perché è fuori dai livelli: per i colori è un bene, per la scala dei testi no. Rettificato in `PIANO.md` M5.5.
+- **Un diciottesimo nome entra da un ripiego**: `var(--color-overlay, …)` nelle pagine di Anagrafe, che il v1 non definisce. Il CSS di Anagrafe usa anche `--font-size-*` e `--color-accent-soft/bg`, anch'essi assenti nel v1: una deriva dell'app, annotata nelle note private.
+- **Il `<body>` del v2 non ha cambiato niente**, contro quello che si temeva: le regole del v1 stanno fuori dai livelli e vincono su `@layer base`. Il danno viene dall'azzeramento e dai nomi.
+- **Tre trappole di `@scope`, tutte misurate prima di capirle.**
+  1. Tailwind accetta `@import "tailwindcss/preflight.css"` dentro `@scope` e lo espande: l'azzeramento non va copiato.
+  2. I selettori `html` dell'azzeramento lì dentro **non valgono**: nello scope sono discendenti della radice. Si è visto dall'interlinea `normal` sulle tab v2.
+  3. A parità di livello, una regola con `@scope` batte una senza, perché la prossimità conta prima dell'ordine. I bordi v2 prendevano `currentColor`: la base v2 va nello stesso scope.
+- **In C i popup restano col carattere e la scala del v1**, perché il portale sta in fondo al `<body>`, fuori dalla pagina migrata. È la ragione di D.
+- **In D la pagina migrata porta solo `data-v2`**: tolti `data-density` e `font-sans` dalla radice della pagina, 20 sonde su 20 uguali lo stesso.
+- Porte scelte a caso per lanciare le misure in parallelo: si sono scontrate. Rilanciate con porte fisse.
+- `Button` con `render={<a/>}` vuole `nativeButton={false}`. L'avviso di Base UI in console lo dice: corretta la pagina di prova.
+
+#### Verifiche
+
+- Repository vero di Anagrafe invariato, verificato a fine sessione contro una fotografia presa a inizio: `git status` pulito (anche gli ignorati, 13), stessi rami (`main`, `fix/prodotti-famiglia-review-ui`), stessi ref, un solo worktree, `HEAD` `9f0c4a5`.
+- `npm run check` verde sui dieci gate, `test:a11y` 1556 scansioni, 0 violazioni. Nessun componente toccato: cambiano solo `docs/`, `PIANO.md`, `CHECKLIST.md` e questo diario.
+
+**Prossimi passi**: M5.5b. La guida riporta la ricetta D, con la regola per trovare le zone v1 di un'app qualunque, e il passo 0 si prova nel clone. Da decidere con Francesco: le tre lacune candidate; se la ricetta D diventa una story o un item «di transizione» (oggi nomina classi di Anagrafe, quindi è materia di guida).

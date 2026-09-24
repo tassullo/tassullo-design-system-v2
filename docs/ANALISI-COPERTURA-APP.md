@@ -762,3 +762,63 @@ macchina è disegnata diversa — la stessa obiezione con cui si è chiuso D19 s
 nativo. `tassullo-confirm-dialog` copre tutti e due i casi, col campo obbligatorio e con la
 parola da ricopiare. **Va in `GUIDA-MIGRAZIONE.md` come voce di ricerca-e-sostituzione**,
 perché è l'unico pattern che si trova a `grep` e si chiude senza ragionare.
+
+## 9. Anagrafe, le 19 pagine lette una per una (M5.5a, 2026-09-24)
+
+Letto il codice di un **clone locale** di Anagrafe, scollegato da GitHub, in sola lettura;
+i blocchi v2 cercati con l'MCP di shadcn sul registry `@tassullo` (31 blocchi e pagine,
+61 primitive e librerie). Il dettaglio con i numeri di riga, i testi e ciò che riguarda i
+dati sta fuori da questo repository, in `~/Documents/Claude Code/transizione-anagrafe/`,
+perché questo è pubblico. Il piano ne contava 10: sono **19**, più quattro componenti.
+
+Nessuna delle 19 usa `.card`, `.chip` o `.sidebar` del v1: le classi del v1 sono ricopiate
+nel CSS globale dell'app (`btn`, `input`, `badge`, `alert`, `table`, `skel`…), e ogni pagina
+ha i propri equivalenti con un prefisso suo.
+
+| pagina | che cosa è | blocco v2 |
+|---|---|---|
+| Prodotti | lista con quattro filtri e due finestre di creazione | `tassullo-pagina-lista` + `tassullo-data-table-filtro-sfaccettato` + `tassullo-responsive-dialog` |
+| Prodotto | scheda a cinque tab, due finestre, una tabella modificabile | `tassullo-pagina-scheda` + `tassullo-form-field` + `tassullo-responsive-dialog` + `tassullo-data-grid` |
+| Fpc | editor denso a sezioni, con una finestra | nessuna pagina modello: `tassullo-data-grid` o `tassullo-foglio-gruppi`, da scegliere migrando, + `radio-group` + `collapsible` + `tassullo-empty-state` |
+| Famiglie | lista in sola lettura | `tassullo-pagina-lista` |
+| Famiglia | scheda a quattro tab | `tassullo-pagina-scheda` + `select` + `sonner` |
+| FamiglieEpd | lista con creazione | `tassullo-pagina-lista` + `tassullo-responsive-dialog` |
+| FamigliaEpd | scheda a tre tab con documento allegato | `tassullo-pagina-scheda` + `tassullo-file-upload` + `combobox` |
+| Sistemi | lista raggruppata per categoria | `tassullo-pagina-lista` + `tooltip` — lacuna L2 |
+| Sistema | scheda a cinque tab: composizione, editor, prezzo, confronto | `tassullo-pagina-scheda` + `item` + `tassullo-diff-view` + `accordion` + `tassullo-foglio-gruppi` — lacuna L3 |
+| Norme | lista, creazione in due passi | `tassullo-pagina-lista` + `tassullo-responsive-dialog` + `stepper` |
+| NormaDettaglio | scheda con le edizioni, tre finestre, un allegato | `tassullo-pagina-scheda` + `tassullo-version-timeline` + `tassullo-file-upload` + `tassullo-pdf-preview` — lacuna L1 |
+| Caratteristiche | lista modificabile in una finestra | `tassullo-pagina-lista` + `tassullo-responsive-dialog` + `popover` — lacuna L1 |
+| OrganismiNotificati | lista con finestra che contiene una tabella | `tassullo-pagina-lista` + `tassullo-responsive-dialog` |
+| ChangeSets | lista con dettaglio, confronto prima/dopo, flusso di approvazione | `tassullo-pagina-lista` + `tassullo-diff-view` + `tassullo-confirm-dialog` |
+| Traduzioni | segnaposto | `tassullo-empty-state` |
+| Pubblicazioni | segnaposto | `tassullo-empty-state` |
+| Admin | utenti e ruoli, a tab | `tassullo-pagina-admin` (i ruoli si cambiano da un dialogo, non più nella riga) |
+| AdminBC | manutenzione del collegamento col gestionale | nessuna pagina modello: `tassullo-page-header` + `tassullo-indicatori` + `tassullo-data-table` + `tassullo-confirm-dialog` |
+| Login | accesso con Microsoft | `tassullo-pagina-login` |
+
+I quattro componenti: la colonna di navigazione → `tassullo-app-shell`; i tre editor
+dentro Prodotto e Sistema sono nelle righe delle loro pagine.
+
+**Conteggi**, da cercare e sostituire migrando: **26** `<select>` nativi (→ `select`, D19),
+**12** finestre modali a mano, in 7 copie di CSS, che non si chiudono con Esc e non
+gestiscono il fuoco (→ `tassullo-responsive-dialog`), **31** tabelle, nessuna ordinabile,
+**5** barre di tab. **`window.confirm` sono 4 e `window.prompt` 1**, non i due di §8.4:
+anche in Caratteristiche, NormaDettaglio e Sistema. E **7 azioni distruttive senza nessuna
+conferma**: vanno coperte con `tassullo-confirm-dialog` o `tassullo-toast-con-annullo`.
+
+**Lacune candidate**, elencate e **non aperte**: le decide Francesco, e diventano issue
+col modulo «Proposta» solo col suo sì.
+
+- **L1 — scelta con suggerimenti e valore libero.** Due `<datalist>` in Caratteristiche e
+  una tendina con «Altro» che passa a un campo libero in NormaDettaglio. Il `combobox` del
+  registry sceglie da una lista e non accetta un valore fuori lista. È il caso di §63 di
+  `docs/DECISIONI.md`.
+- **L2 — righe raggruppate con un'intestazione di gruppo** in `tassullo-data-table`.
+  Candidata debole: si può comporre una tabella per gruppo, come fa oggi la pagina.
+- **L3 — una tavolozza di segnaposto da inserire in un testo.** Né `textarea` né
+  `tassullo-rich-text-editor` la hanno. Candidata debole: probabilmente si compone con
+  `dropdown-menu`, e la logica d'inserimento resta dell'app.
+
+Due pagine non hanno una pagina modello (Fpc e AdminBC) e si compongono dai blocchi:
+non è una lacuna, è la ragione per cui i blocchi esistono.
