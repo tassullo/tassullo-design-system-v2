@@ -77,7 +77,7 @@ Da sapere per non farci conto a sproposito: l'MCP è **solo lato consumo**. Non 
 ## §Conduzione
 
 - **Il ciclo di lavoro: un task, un ramo, una PR** (deciso da Francesco il 2026-09-24).
-  1. **Si comincia su un ramo nuovo** da `main` aggiornato, `claude/<task>` — mai lavoro diretto su `main`. Se il task dipende da una PR non ancora unita, il ramo parte da quello della PR.
+  1. **Si comincia su un ramo nuovo** da `main` aggiornato, `fras/<task>` — il prefisso che l'app dà ai rami delle sessioni — e mai lavoro diretto su `main`. I rami `claude/…` della storia sono di prima di questa regola. Se il task dipende da una PR non ancora unita, il ramo parte da quello della PR.
   2. **A fine sessione**, con `npm run check` verde e `CHECKLIST.md`/`WORKLOG.md` aggiornati: commit, push, **PR verso `main`**.
   3. **Aperta la PR, si accende subito la correzione automatica** (se la sessione gira nell'app desktop): l'app sveglia la sessione quando il gate in CI fallisce, quando nasce un conflitto con `main` o quando arriva un commento di revisione. Si accende PR per PR; non esiste un'impostazione che la accenda da sé.
   4. **Si unisce quando tutto è a posto**: gate verde in CI e verifiche della sessione chiuse. `gh pr merge --merge --delete-branch`, cioè un commit di unione, come la storia del repo. L'unione automatica di GitHub nel repository è **disattivata**: si aspetta il verde e si unisce a mano.
