@@ -3562,3 +3562,37 @@ Sintesi, non accertamento nuovo: le ragioni sono già scritte, sparse fra il pia
 **Perché oklch.** Anzitutto perché è la forma dei token di shadcn con Tailwind v4 (`PIANO.md` §0bis): stare fuori dalla convenzione vorrebbe dire convertire a ogni aggiornamento. Ma rende anche, in pratica, due cose che in esadecimale non si fanno. La luminosità `L` di oklch è **percettiva**, quindi una correzione di contrasto è prevedibile e piccola: le tre coppie sotto soglia di M1.1 sono passate abbassando `L` di **0,006**, a occhio invisibile (`PIANO.md` §2bis, «Cinque rilievi»); e un colore mancante si **deriva** invece di inventarlo — `--info-border` è la media della banda dei bordi tenui alla tinta di `--info-subtle`, ricalcolata a ogni esecuzione (`PIANO.md` §2bis). La conversione non si fa a mano: la palette sta in esadecimale in una sola costante di `scripts/hex-to-oklch.ts`, il CSS del tema è il suo output e porta l'esadecimale in commento accanto a ogni valore, e lo stesso script è il gate di contrasto. Due costi, già noti: il browser restituisce i colori risolti in oklch, e una misura di contrasto va fatta risolvere al motore di resa (`CLAUDE.md`, «Due avvertenze di strumento»); e dove uno strumento non accetta oklch — il tema della cornice di Storybook — gli esadecimali sono generati, mai scritti (§53).
 
 **Perché Inter viaggia dentro il tema, in data URI.** Inter e non Replica perché Replica non ha i pesi 500 e 600, e quattro gradini scritti ne renderebbero due (§14). Dentro il registry perché la licenza OFL lo permette e perché servirlo da Google manderebbe l'indirizzo di ogni visitatore a un terzo (§15, che chiude D3). In **data URI** perché il registry trasporta solo testo: un `.woff2` dichiarato come file arriva corrotto senza nessun errore, mentre in base64 arriva identico byte per byte, e un solo `add @tassullo/tema` porta tema, carattere e licenza (§15). Il tema stesso viaggia **come file intero** e non come variabili, perché `cssVars.theme` scriverebbe in `@theme inline` e spegnerebbe la densità (§11).
+
+## 62. I codici in tabella stanno nel colore del testo, e `--accent-ink` si scurisce per la riga selezionata (2026-09-24)
+
+**Decisa da Francesco**, guardando quattro varianti rese sulla stessa `DataTable`, in chiaro e in scuro, con una riga selezionata.
+
+### I codici in tabella
+
+La regola scritta fino a qui (§48, `Tema/Cifre` §3, il blocco per il `CLAUDE.md` delle app) diceva: codici in `text-sm text-muted-foreground`, perché «un identificativo non deve pesare quanto la voce che identifica». Le tabelle del design system però non la seguivano: in `Blocchi/Data Table`, `Pagine/Lista` e `Pagine/Prodotti` il codice era nel colore del testo, oppure un collegamento. Lo ha fatto notare la terza rilettura del blocco di M5.4. Le varianti messe a confronto:
+
+| | codice della riga | codici secondari (BC) |
+|---|---|---|
+| **A** | colore del testo | colore del testo |
+| B | tenue | tenue |
+| C | colore del testo | tenue |
+| D | collegamento | tenue |
+
+**Scelta: A.** Se la riga apre una pagina, il collegamento sta su **una** colonna, il codice o il nome secondo la pagina, come `Button variant="link"` col `render` del collegamento. Sono le due forme che `Pagine/Lista` e `Pagine/Prodotti` avevano già. Fuori dalle tabelle la regola di §48 resta: un codice accanto a un nome prende `text-sm text-muted-foreground`. La ragione pratica di A: in un elenco il codice è spesso proprio la colonna che si cerca a occhio, e in grigio si trova peggio. Il grigio tenue su una riga selezionata stava a **4,55:1**, sulla soglia.
+
+Cambiati: il blocco in `docs/INTEGRAZIONE.md`, la regola nella story di `Blocchi/Data Table`, `Tema/Cifre` §3 (tabella, testo e sorgente d'esempio), `CLAUDE.md`. Nessun componente.
+
+### Il difetto trovato preparando gli esempi
+
+Il collegamento (`text-accent-ink`) su una riga **selezionata** in chiaro faceva **4,30:1**: `--accent-ink` #B25105 su `--muted` #ECEAE8, lo sfondo che `ui/table.tsx` dà a `data-[state=selected]`. Era **latente**: le pagine modello col collegamento (`Pagine/Lista`, `Pagine/Prodotti`) non hanno la selezione, e la story con la selezione (`Blocchi/Data Table`) non ha collegamenti. Sarebbe comparso nella prima tabella di un'app che mette insieme le due cose, che è una combinazione normale. Nessun gate lo vedeva: `check:contrast` non aveva la coppia `muted`/`accent-ink`, e `test:a11y` apre le scene senza selezionare righe. Il passaggio del mouse (`bg-muted/50`) invece passava, a 4,67:1.
+
+Le strade misurate:
+
+| strada | riga selezionata | selezione contro card |
+|---|---|---|
+| oggi | 4,30:1 ✗ | 1,18 |
+| **1. `--accent-ink` a #AD4C00 (L −0,015)** | **4,59:1** | 1,18 |
+| 2. selezione su `primary-subtle` | 4,57:1 | 1,11 |
+| 3. selezione su `muted` al 60% | 4,61:1 | 1,10, quasi uguale all'hover (50%) |
+
+**Scelta: 1.** Ripara la coppia di token dovunque l'arancio stia sul grigio, non solo nelle tabelle, e non cambia l'aspetto di nessun componente. È la stessa mossa di M1.1, dove le tre coppie sotto soglia erano passate con una riduzione di `L` di 0,006. La coppia entra in `check:contrast` («link su riga selezionata»), che passa a **25 coppie per modalità, 50 in tutto**. Effetto sulle altre coppie: `primary-subtle` 4,57 → 4,89, `background` 4,77 → 5,09, `card` 5,07 → 5,42. In scuro `--accent-ink` non cambia (#F4AC3D, 7,79:1 sulla riga selezionata).

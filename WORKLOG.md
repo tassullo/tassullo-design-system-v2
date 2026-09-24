@@ -12936,3 +12936,18 @@ Le correzioni della terza rilettura sono verificate **a mano e non con una quart
 - `npm run check` verde sui dieci gate, `test:a11y` **1556 scansioni, 0 violazioni, 389 story**. Rilanciato dopo l'ultima modifica a `numeri.ts` e `public/r/`; le modifiche successive sono solo a `docs/`, `CHECKLIST.md` (`check:checklist` rilanciato, verde) e questo diario.
 
 **Prossimi passi**: M5.5, la guida di migrazione. Due domande per Francesco nate qui: il canale per proporre una modifica al design system, e il codice nelle colonne di `DataTable`.
+
+## 2026-09-24 — I codici in tabella, e `--accent-ink` sulla riga selezionata
+
+Ramo `fras/codici-in-tabella`. Nasce da una domanda aperta di M5.4 («il codice in una colonna di `DataTable`»). Decisioni di Francesco, prese guardando le varianti rese. Da qui in avanti le scelte di forma si mostrano con esempi da guardare, non solo descritte.
+
+**Il metodo.** Una story di prova, non committata (`stories/ProvaCodici.stories.tsx`, `Prove/Codici in tabella`), con la stessa `DataTable` in quattro varianti (A tutto nel colore del testo; B codici tenui; C codice della riga nel testo e codici secondari tenui; D come C col codice collegamento). Fotografata con Chromium di Playwright in chiaro e in scuro, con la seconda riga selezionata, e il contrasto letto dal motore di resa (pixel su canvas, come da `CLAUDE.md`). Grigio tenue: 5,37/4,55 in chiaro (riga normale/selezionata), 7,17/6,36 in scuro.
+
+**Decisione: A**, più il collegamento su **una** colonna, codice o nome, quando la riga apre una pagina (`docs/DECISIONI.md` §62). Correzione mia a verbale: avevo scritto che la tabella «non ha un modo semplice» di dare una classe a una cella. Non è vero: `cell` di TanStack è il modo, e le story lo usano già.
+- Cambiati: il blocco di regole in `docs/INTEGRAZIONE.md`, la regola d'uso nella story di `Blocchi/Data Table`, `Tema/Cifre` §3 (codice della tabella modello dal grigio al colore del testo, testo e sorgente d'esempio; prima e dopo fotografati), `CLAUDE.md`. Nessun componente: le tabelle del design system erano già in forma A.
+
+**Il difetto trovato preparando le varianti.** `text-accent-ink` su riga selezionata in chiaro: **4,30:1** (#B25105 su `--muted` #ECEAE8). Era latente: nessuna story mette insieme selezione e collegamento. `check:contrast` non aveva la coppia, e `test:a11y` non seleziona righe. Tre strade rese e misurate. Scelta di Francesco: **scurire `--accent-ink` a #AD4C00** (L −0,015), 4,59:1 misurato nel browser. La coppia `muted`/`accent-ink` entra nel gate, che passa da 24 a **25 coppie per modalità**; aggiornati `CLAUDE.md` e `README.md`. Tema, `public/r/tema.json` e `manager-palette.json` rigenerati. Scartate: la selezione su `primary-subtle` (ripara solo le tabelle e le tinge) e la selezione più chiara (uguale all'hover).
+
+Ho detto a Francesco che il difetto era «vivo in `Pagine/Lista` e `Pagine/Prodotti`»: sbagliato, quelle pagine non hanno la selezione. Corretto in §62 e qui.
+
+**Resta scoperto**: nessuna scena di story rende una riga selezionata con un collegamento, quindi axe non la vedrebbe comunque. Adesso la guardia è la coppia di token in `check:contrast`.

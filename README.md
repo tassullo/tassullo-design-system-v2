@@ -71,7 +71,7 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 
 | Comando | Cosa verifica |
 |---|---|
-| `check:contrast` | il rapporto di contrasto delle **48 coppie di token** (24 per modalità), fallendo sotto 4.5:1 |
+| `check:contrast` | il rapporto di contrasto delle **50 coppie di token** (25 per modalità), fallendo sotto 4.5:1 |
 | `check:registry` | che i componenti divergano dall'originale shadcn **solo nelle stringhe di classi** — cioè che restino aggiornabili |
 | `check:font` / `check:logo` | che i CSS generati siano allineati ai `.woff2` e agli `.svg` di partenza |
 | `test:a11y` | axe-core su ogni story: **4 passate** (chiaro/scuro × popup chiuso/aperto), 1540 scansioni su 385 story |

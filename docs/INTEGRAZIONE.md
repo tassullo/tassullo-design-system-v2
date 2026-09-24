@@ -575,7 +575,12 @@ componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
 - Anni, codici, identificativi e CAP non si formattano: sono stringhe fatte di
   cifre, e `2026` diventerebbe `2.026`.
 - I codici (articolo, lotto, partita IVA) si scrivono nel carattere del testo,
-  `text-sm text-muted-foreground`, non in `font-mono`.
+  mai in `font-mono`. In una tabella hanno anche il colore del testo, come il
+  resto della riga; fuori dalle tabelle, un codice accanto a un nome prende
+  `text-sm text-muted-foreground`.
+- Se una riga di tabella apre una pagina, il collegamento sta su una colonna
+  sola — il codice o il nome — ed è un `Button variant="link"` col `render` del
+  collegamento (`<a>` o il `Link` del router), non un testo colorato a mano.
 
 **Classi con `cn`.** Nel codice dell'app si importa da `@/lib/utils`; i file
 del design system la prendono dal pacchetto `cn`, ed è la stessa funzione. Fra

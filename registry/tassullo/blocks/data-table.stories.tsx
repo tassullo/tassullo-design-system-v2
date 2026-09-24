@@ -471,8 +471,12 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   `numeri`, `intero()`, `decimale()` e `valuta()`, che scrivono sempre il
  *   separatore delle migliaia. Le cifre tabellari, `tabular-nums`, le dà già
  *   la tabella. Un codice o un anno non si formattano.
- * - I codici si scrivono nel carattere del testo, con `text-sm`; uno stato è
- *   un `badge` coi toni dell'item `toni`.
+ * - I codici si scrivono nel carattere e nel colore del testo, come il resto
+ *   della riga; uno stato è un `badge` coi toni dell'item `toni`.
+ * - Se la riga apre una pagina, il collegamento sta su una colonna sola — il
+ *   codice o il nome, lo sceglie la pagina — scritto come `Button`
+ *   `variant="link"` col `render` del collegamento (`<a>` o il `Link` del
+ *   router).
  * - La selezione esce dalla tabella solo attraverso `barra` nella forma a
  *   funzione, `(scelti, tabella) => …`, che riceve le righe scelte e l'istanza
  *   della tabella. Non c'è una `onSelezione`, e non si ricostruisce con un
