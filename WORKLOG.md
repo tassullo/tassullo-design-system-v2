@@ -13032,3 +13032,13 @@ Tailwind e il tema v2 aggiunti nel clone **seguendo `docs/INTEGRAZIONE.md`**, se
 - `npm run check` verde sui dieci gate, `test:a11y` 1556 scansioni, 0 violazioni. Nessun componente toccato: cambiano solo `docs/`, `PIANO.md`, `CHECKLIST.md` e questo diario.
 
 **Prossimi passi**: M5.5b. La guida riporta la ricetta D, con la regola per trovare le zone v1 di un'app qualunque, e il passo 0 si prova nel clone. Da decidere con Francesco: le tre lacune candidate; se la ricetta D diventa una story o un item «di transizione» (oggi nomina classi di Anagrafe, quindi è materia di guida).
+
+## 2026-09-24 — Su Anagrafe v1 e v2 non convivono; le tre lacune mostrate
+
+Ramo `fras/m5-5-niente-convivenza`. Due seguiti di M5.5a, da Francesco.
+
+- **Niente convivenza su Anagrafe.** Letta la misura di §64, Francesco ha deciso di non far convivere i due temi. Il passaggio al v2 si fa tutto su un ramo: il v1 si toglie nello stesso lavoro, e in produzione arriva l'app finita, perché ogni push su `main` di Anagrafe va in produzione. Durante il passaggio sul repository di Anagrafe lavora solo lui, quindi un ramo lungo non si incrocia col lavoro di altri. Due domande di chiarimento prima di scriverlo: quale repository («Anagrafe») e se la conseguenza per la guida era quella («sì»). Scritto in `docs/DECISIONI.md` §64 («Seguito»), in `PIANO.md` M5.5 e nella riga di M5.5b in `CHECKLIST.md`. La ricetta D resta in §64 come misura e come ragione della scelta. Cade per Anagrafe la migrazione pagina per pagina: la guida di M5.5b si scrive per il passaggio in un colpo solo.
+- **Le tre lacune, mostrate con esempi.** Francesco non le aveva mai viste. Pagina privata `transizione-anagrafe/M5.5a-lacune/lacune.html`, perché fotografa Anagrafe: a sinistra la pagina nel clone con i dati finti, a destra il v2 nella style guide. Preparandola, due cose verificate che cambiano la lettura:
+  - **L1**: Base UI ha un componente apposta, **Autocomplete**, con il testo scritto come valore. shadcn non lo distribuisce (cercato con l'MCP), quindi sarebbe un componente nostro, gradino 4. Nella prima stesura della pagina avevo scritto che il `Combobox` di Base UI «ha già una modalità» per il valore libero, senza averlo controllato. Corretto prima di mandarla.
+  - **L2**: la `tassullo-data-table` ha già l'albero (`getSottoRighe`). La categoria come riga madre forse basta, e manca solo un'intestazione di gruppo su tutta la riga.
+  - Aggiornato `docs/ANALISI-COPERTURA-APP.md` §9. Nessuna issue aperta: le lacune aspettano la decisione di Francesco.

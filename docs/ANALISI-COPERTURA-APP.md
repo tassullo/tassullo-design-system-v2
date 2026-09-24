@@ -813,9 +813,13 @@ col modulo «Proposta» solo col suo sì.
 - **L1 — scelta con suggerimenti e valore libero.** Due `<datalist>` in Caratteristiche e
   una tendina con «Altro» che passa a un campo libero in NormaDettaglio. Il `combobox` del
   registry sceglie da una lista e non accetta un valore fuori lista. È il caso di §63 di
-  `docs/DECISIONI.md`.
+  `docs/DECISIONI.md`. Base UI ha per questo un componente a parte, **Autocomplete** (il
+  valore è il testo scritto, la lista suggerisce; presente in `@base-ui/react` 1.8), che
+  shadcn non distribuisce (cercato con l'MCP): sarebbe un componente nostro, gradino 4.
 - **L2 — righe raggruppate con un'intestazione di gruppo** in `tassullo-data-table`.
-  Candidata debole: si può comporre una tabella per gruppo, come fa oggi la pagina.
+  Candidata debole: si può comporre una tabella per gruppo, come fa oggi la pagina, o
+  usare l'**albero** che il blocco ha già (`getSottoRighe`, la categoria come riga madre).
+  Manca solo un'intestazione di gruppo su tutta la riga.
 - **L3 — una tavolozza di segnaposto da inserire in un testo.** Né `textarea` né
   `tassullo-rich-text-editor` la hanno. Candidata debole: probabilmente si compone con
   `dropdown-menu`, e la logica d'inserimento resta dell'app.
