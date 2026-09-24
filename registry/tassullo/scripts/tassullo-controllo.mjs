@@ -182,8 +182,9 @@ function shadcn(argomenti) {
 function righeDiDiffCheContano(testo) {
   return testo
     .split("\n")
-    .map((r) => r.replace(/^[\s│┌└├]+/, ""))
-    .filter((r) => /^[-+]/.test(r) && !/^(?:---|\+\+\+) /.test(r))
+    .filter((r) => /^\s*│ │ [-+]/.test(r))
+    .map((r) => r.replace(/^\s*│ │ /, ""))
+    .filter((r) => !/^(?:---|\+\+\+) /.test(r))
     .filter((r) => r.slice(1).trim() !== "" && r.slice(1).trim() !== '"use client"');
 }
 
@@ -384,7 +385,7 @@ function selfTest() {
       console.error(`  ✖ components.json: ${JSON.stringify(config)} doveva dare ${attesi} errori`);
     }
   }
-  const diff = '│ │ -"use client"\n│ │ -\n│ │  import * as React from "react"';
+  const diff = '- Resolving items.\n│ │ -"use client"\n│ │ -\n│ │  import * as React from "react"';
   if (righeDiDiffCheContano(diff).length !== 0) {
     falliti++;
     console.error("  ✖ un diff fatto della sola riga \"use client\" doveva essere ignorato");
