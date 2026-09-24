@@ -13216,3 +13216,30 @@ Via libera di Francesco. PR #51 unita col gate verde (5 min 27 s) sul commit `3b
 Verificato da fuori: `…/v2.0.1/public/r/` risponde per `use-mobile`, `tema`, `tassullo-app-shell`; un `add @tassullo/use-mobile` in un'app vuota fissata a `v2.0.1` scrive la versione su `useSyncExternalStore`, senza la testa di repo.
 
 Per Anagrafe il prompt di DS.6 è pronto fuori dal repository, in `transizione-anagrafe/anagrafe-md/prompt-ds6-v2.0.1.md`: nel ramo di DS.1, versione nuova, item reinstallati, il blocco di #49 sostituito dalle righe del passo 12.
+
+## 2026-09-24 — Proposta #50: nel rail i gruppi portano alle voci
+
+Ramo `fras/proposta-50-rail-gruppi`. Proposta di Anagrafe: con `collassa="icona"` e voci con `figli`, a colonna chiusa le icone dei gruppi non portano da nessuna parte. Stesso difetto in `sidebar-07` di shadcn. Francesco: forma 1 della proposta (menu laterale), voce attiva con la spunta, sfondo del menu che segue la modalità.
+
+#### Le scelte, a video
+
+- **Voce attiva**: rese tre varianti (sfondo, spunta, testo arancio) in chiaro e in scuro, anche col fuoco su un'altra voce. Lo sfondo si confonde col fuoco; scelta la spunta, come nel selettore del contesto.
+- **Sfondo del menu**: rese a confronto la versione che segue la modalità e quella sempre scura come la colonna, accanto a selettore, menu utente e tooltip della colonna chiusa. Tenuta la prima: i tre menu della colonna si aprono uguali, e i colori dentro i menu sono tarati sul loro sfondo. Ragioni in `DECISIONI.md` §68.
+
+#### Le modifiche
+
+- `blocks/app-shell.tsx`: nel rail (colonna chiusa a icone, non sul telefono) un gruppo è un `DropdownMenu` a destra, con nome del gruppo, voci con `render`/`href`, disabilitate spente, attiva con spunta e `aria-current="page"`. Altrove resta il `Collapsible`.
+- Stesso file: `pointer-events-none` nel rail sull'etichetta di sezione. Trovato misurando: trasparente e risalita di `-mt-8`, copriva la metà bassa dell'ultima icona della sezione sopra (16px su 32, 24 su 48 in touch). È nell'originale shadcn; corretto con una classe nel blocco. Rimisurato: 0px.
+- Story `Blocchi/App shell → Collassato, menu di un gruppo`, col menu aperto e dichiarato al gate. Pagina del blocco, JSDoc di `figli` e `collassa`, `docs` dell'item.
+
+#### Le prove
+
+In Chromium (Playwright dalla cartella del repo, contro lo Storybook di sviluppo): tooltip al passaggio, che sparisce aprendo; `Invio`/`Spazio` aprono col fuoco sulla prima voce, frecce, `Esc` chiude e riporta il fuoco sull'icona; clic e `Invio` su una voce arrivano all'ancora e chiudono il menu; la disabilitata non si attiva; `Ctrl`+`B` riporta i gruppi apribili; a 375px pannello con i gruppi apribili; console pulita. Fotografata `Pagine/Prodotti (Anagrafe)` a colonna chiusa col menu di «Qualifica» aperto, in chiaro e in scuro. `npm run check` verde.
+
+#### Limite noto
+
+Aprire e chiudere la colonna rimonta i gruppi, che tornano aperti.
+
+#### Prossimi passi
+
+PR con `Closes #50`; unione ed etichetta `v2.0.2` solo con la conferma di Francesco, poi gli indirizzi dei documenti per le app. In Anagrafe, con la versione nuova: reinstallare il guscio e tornare a `collassa="icona"`, togliendo il commento «in attesa».

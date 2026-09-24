@@ -67,7 +67,8 @@ import {
  *   attiva di questo tipo; come si divide il lavoro con la fascia in pagina
  *   lo spiega `Blocchi/Barra di contesto`.
  * - `collassa`: `"icona"`, il predefinito, chiude la colonna a una fila di
- *   icone; `"fuori"` la fa sparire, ed è la scelta per voci senza icona.
+ *   icone, e l'icona di una voce con `figli` apre un menu con le sue voci;
+ *   `"fuori"` la fa sparire, ed è la scelta per voci senza icona.
  * - `defaultAperta`: la colonna parte aperta o chiusa.
  * - `larghezza`: `"piena"`, il predefinito, dà al contenuto tutta la
  *   larghezza; `"pagina"` lo tiene entro `--container-page` e lo centra, per
@@ -94,7 +95,8 @@ import {
  *
  * **Tastiera e accessibilità.** `Ctrl`+`B` o `⌘`+`B` apre e chiude la colonna
  * da qualunque punto; lo fa anche il grilletto in fascia. A colonna chiusa i
- * nomi delle voci arrivano come tooltip, al passaggio e al fuoco; testata e
+ * nomi delle voci arrivano come tooltip, al passaggio e al fuoco, e l'icona di
+ * un gruppo apre un menu che si usa con le frecce e si chiude con `Esc`; testata e
  * utente hanno un nome accessibile anche quando il testo è nascosto. Sotto i
  * 768px la colonna esce dal DOM e il grilletto apre un pannello laterale: il
  * fuoco resta al suo interno, e `Esc` lo chiude al primo colpo. Il menu
@@ -252,10 +254,31 @@ export const Predefinito: Story = {
 
 /**
  * La colonna chiusa a icone: la T in cima, l'avatar in fondo, i sottolivelli
- * nascosti. I nomi delle voci compaiono come tooltip.
+ * nascosti. I nomi delle voci compaiono come tooltip, e l'icona di un gruppo
+ * apre un menu con le sue voci.
  */
 export const Collassato: Story = {
   args: { ...Predefinito.args, defaultAperta: false },
+}
+
+// Il grilletto si cerca dentro il contenuto della colonna: anche il menu
+// dell'utente è un `dropdown-menu-trigger`, e il primo gruppo è «Prodotti».
+/**
+ * La colonna chiusa, col menu di un gruppo aperto. A colonna chiusa i gruppi
+ * non possono aprirsi sotto la loro icona: l'icona apre un menu a destra con
+ * il nome del gruppo e le sue voci. La voce della pagina in cui si è porta la
+ * spunta; una voce non ancora pronta resta spenta, come a colonna aperta.
+ *
+ * Da tastiera è un menu: `Invio` o `Spazio` lo aprono, le frecce scorrono le
+ * voci, `Esc` lo chiude e riporta il fuoco sull'icona.
+ */
+export const CollassatoMenuGruppo: Story = {
+  name: 'Collassato, menu di un gruppo',
+  args: { ...Predefinito.args, defaultAperta: false },
+  play: apriCol(
+    '[data-slot="sidebar-content"] [data-slot="dropdown-menu-trigger"]',
+    'dropdown-menu-content'
+  ),
 }
 
 /**
