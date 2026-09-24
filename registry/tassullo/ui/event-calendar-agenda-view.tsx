@@ -7,11 +7,12 @@
  * installa accanto e che non si cancella.
  */
 
-import { CalendarIcon } from "lucide-react"
 // Title: Event Calendar Agenda View
 // Description: Chronological agenda grouped by day - a day header row plus a clean time / dot / title table.
 
 "use client"
+
+import { CalendarIcon } from "lucide-react"
 
 import { useMemo } from "react"
 import {

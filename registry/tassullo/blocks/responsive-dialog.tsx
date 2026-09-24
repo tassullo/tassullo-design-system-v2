@@ -125,19 +125,12 @@ import {
  * **guanto**, la soglia è la forma dello **schermo**. Un tablet da 800px in
  * densità touch resta un dispositivo su cui un dialogo centrato sta comodo.
  *
- * ── Il difetto che `useIsMobile` si porta dietro, e perché qui non morde ─
+ * ── Già giusto al primo render ─────────────────────────────────────────
  *
- * L'hook di shadcn legge `matchMedia` in un `useEffect` che chiama `setState`:
- * il primo render torna sempre `false`, cioè **scrivania**, e il valore vero
- * arriva un fotogramma dopo. `useSyncExternalStore` non avrebbe quel difetto.
- * Qui però il primo fotogramma è quello del pannello **chiuso** — non c'è niente
- * da vedere, e lo scambio avviene prima che qualcosa possa essere aperto.
- *
- * Morde in un caso solo: un dialogo già aperto al montaggio (`defaultOpen`, o
- * uno stato controllato che nasce `true`). Lì su un telefono si vedrebbe il
- * dialogo comparire e *diventare* cassetto. Se capita, il rimedio non è una
- * copia locale dell'hook: è correggerlo **qui**, in `use-mobile.ts`, dove
- * l'unico costo è che `sidebar` ne beneficia insieme a noi.
+ * `useIsMobile` legge la finestra durante il render (`useSyncExternalStore`),
+ * non in un effetto: anche un dialogo aperto al montaggio (`defaultOpen`, o
+ * uno stato controllato che nasce `true`) su un telefono nasce cassetto, e
+ * non si vede comparire come dialogo per poi cambiare forma.
  */
 type Forma = "dialog" | "drawer"
 

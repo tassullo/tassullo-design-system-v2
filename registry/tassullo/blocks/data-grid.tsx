@@ -169,6 +169,7 @@ import { cn } from "cn"
 import {
   DataTable,
   creaColonne,
+  type CaratteristicheTabella,
   type ColonnaTabella,
   type DataTableProps,
   type IstanzaTabella,
@@ -1200,7 +1201,7 @@ function accessorGriglia<TDato extends RowData>(col: ReturnType<typeof creaColon
       enableSorting: boolean
       enableColumnFilter: boolean
       enableGlobalFilter: boolean
-      cell: (info: CellContext<any, TDato, unknown>) => React.ReactNode
+      cell: (info: CellContext<CaratteristicheTabella, TDato, unknown>) => React.ReactNode
     }
   ) => ColonnaTabella<TDato>
 }
@@ -1254,7 +1255,7 @@ function CellaTestoGriglia<TDato extends RowData>({
   colonnaId,
   validazione,
 }: {
-  info: CellContext<any, TDato, unknown>
+  info: CellContext<CaratteristicheTabella, TDato, unknown>
   colonnaId: string
   validazione?: (valore: string) => string | undefined
 }) {
@@ -1371,7 +1372,7 @@ function CellaNumericaGriglia<TDato extends RowData>({
   validazione,
   valuta,
 }: {
-  info: CellContext<any, TDato, unknown>
+  info: CellContext<CaratteristicheTabella, TDato, unknown>
   colonnaId: string
   validazione?: (valore: string) => string | undefined
   valuta?: boolean
@@ -1546,7 +1547,7 @@ function CellaCheckboxGriglia<TDato extends RowData>({
   info,
   colonnaId,
 }: {
-  info: CellContext<any, TDato, unknown>
+  info: CellContext<CaratteristicheTabella, TDato, unknown>
   colonnaId: string
 }) {
   const riga = info.row.original
@@ -1619,7 +1620,7 @@ function CellaAzioneGriglia<TDato extends RowData>({
   etichetta,
   onAzione,
 }: {
-  info: CellContext<any, TDato, unknown>
+  info: CellContext<CaratteristicheTabella, TDato, unknown>
   colonnaId: string
   icona: React.ReactNode
   etichetta: (riga: TDato) => string
@@ -1713,7 +1714,7 @@ function CellaDataGriglia<TDato extends RowData>({
   colonnaId,
   validazione,
 }: {
-  info: CellContext<any, TDato, unknown>
+  info: CellContext<CaratteristicheTabella, TDato, unknown>
   colonnaId: string
   validazione?: (valore: string) => string | undefined
 }) {
@@ -1807,7 +1808,7 @@ function CellaSelectGriglia<TDato extends RowData>({
   colonnaId,
   opzioni,
 }: {
-  info: CellContext<any, TDato, unknown>
+  info: CellContext<CaratteristicheTabella, TDato, unknown>
   colonnaId: string
   opzioni: OpzioneSelectGriglia[]
 }) {

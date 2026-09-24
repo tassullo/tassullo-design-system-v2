@@ -67,7 +67,7 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 
 ## I gate
 
-`npm run check` esegue gli undici controlli che girano anche in CI:
+`npm run check` esegue i dodici controlli che girano anche in CI:
 
 | Comando | Cosa verifica |
 |---|---|
@@ -80,6 +80,7 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 | `check:storybook` | che la style guide si legga da fuori: nel testo che un visitatore vede — le descrizioni delle story, le pagine `.mdx`, la prosa delle pagine in `stories/`, le descrizioni dei componenti e delle prop che la tabella delle prop mostra, i commenti dentro il codice delle scene che «Show code» mostra — niente sigle di lavoro, rimandi ai documenti interni, date, nomi di persona, comandi del repo. Il canone di pagina è in testa a `scripts/check-storybook.ts` |
 | `check:spedito` | che il testo che arriva a chi installa — `title`, `description` e `docs` degli item, e i file spediti tolte le teste che `shadcn add` toglie — non porti sigle di lavoro, documenti interni, date, nomi di persona. Rimisura a ogni giro, con la CLI vera, quali commenti arrivano |
 | `check:controllo` | l'autotest di `tassullo-controllo`, lo script che le app installano per controllarsi da sé: che ogni sua regola segnali ciò che deve e solo quello |
+| `check:lint-app` | che i file del registry, installati con la CLI vera in un'app di prova, passino il lint di un'app Vite — ESLint con `react-hooks` 7 e `react-refresh`, e oxlint — con le sole righe del passo 12 di `docs/INTEGRAZIONE.md`; e che ognuna di quelle righe serva ancora |
 | `check:checklist` | che ogni riga di `CHECKLIST.md` stia entro **500 caratteri**: la checklist porta verdetto, numeri che contano e un rimando, il resto va in `WORKLOG.md` |
 
 Oggi sono tutti verdi, **0 violazioni**. C'è anche `npm run misura:bersagli`, che misura quanto sono grandi i bersagli in densità touch — una cosa che axe non guarda e che col guanto si sente.

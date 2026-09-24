@@ -1408,8 +1408,9 @@ export function Calendario<TData = unknown>({
   const verso = React.useCallback(
     (lista: CalendarEvent<TData>[]) =>
       lista.map((e) => {
-        const { color: _token, resourceId, ...resto } =
+        const { resourceId, ...resto } =
           e as CalendarEvent<TData> & { color?: string }
+        delete resto.color
         return {
           ...resto,
           ...(resourceId ? { calendarioId: resourceId } : {}),

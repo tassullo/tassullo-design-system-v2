@@ -309,6 +309,121 @@ eccezione porta un commento `tassullo-controllo: <il motivo>`. Vuole la rete
 per leggere il registry; `--solo-stile` fa solo le regole sul codice, senza
 rete. In un'app appena creata, alla fine del setup, deve passare pulito.
 
+### 12. Il lint dell'app sui file del design system (a mano)
+
+I file installati dal design system passano il lint di un'app Vite, comprese
+le regole di React 19 di `eslint-plugin-react-hooks` 7. Servono però alcune
+righe nella configurazione, perché qualche file ha una forma che il lint di
+serie segnala e che l'app non può cambiare: i file installati non si
+modificano.
+
+- **`buttonVariants`, `useSidebar` e simili.** Molti componenti esportano,
+  accanto al componente, le sue varianti o l'hook del suo contesto. È la forma
+  di shadcn, e le app li importano così. La regola
+  `only-export-components` lo segnala perché, in sviluppo, il ricaricamento
+  rapido di Vite ricarica la pagina intera quando cambia uno di quei file.
+  Nell'app quei file non cambiano mai, quindi il costo è zero: la regola si
+  spegne sulle sole cartelle `ui/` e `blocks/`.
+- **Codice di terzi.** Il carosello (shadcn), il calendario a eventi e lo
+  stepper (reui) hanno forme che le regole di React 19 segnalano. Sono copiati
+  tali e quali per poterli aggiornare quando escono versioni nuove: le regole
+  si spengono **solo su quei file, solo quelle regole**.
+
+Il design system verifica queste righe a ogni modifica: installa tutti i
+suoi file in un'app di prova e ci passa sopra il lint con la configurazione
+qui sotto, e controlla che ogni eccezione serva ancora. Cambiano solo con una
+versione nuova (vedi «Aggiornare»). Nessun'altra regola si spegne sui file del
+design system: se una segnala qualcosa, è una proposta per il design system,
+non una riga in più nell'app.
+
+**Con ESLint** (il template di Vite fino a `create-vite` 8), `eslint.config.js`
+completo. La parte del template è quella di serie; le righe da aggiungere sono
+quelle sotto il commento «Design System Tassullo 2.0»:
+
+<!-- lint-eslint -->
+```js
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+  // Design System Tassullo 2.0: i file installati non si modificano.
+  // Componenti che esportano anche varianti e hook (buttonVariants, useSidebar…).
+  {
+    name: 'tassullo/esportazioni',
+    files: ['src/components/ui/**/*.tsx', 'src/components/blocks/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  // Codice di terzi, copiato tale e quale: shadcn.
+  {
+    name: 'tassullo/carousel',
+    files: ['src/components/ui/carousel.tsx'],
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  // Codice di terzi, copiato tale e quale: reui.
+  {
+    name: 'tassullo/event-calendar',
+    files: ['src/components/ui/event-calendar*.tsx'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  {
+    name: 'tassullo/stepper',
+    files: ['src/components/ui/stepper.tsx'],
+    rules: {
+      'react-hooks/refs': 'off',
+    },
+  },
+])
+```
+
+**Con oxlint** (il template di Vite di oggi), `.oxlintrc.json`. Qui le regole
+di React 19 danno avvisi e non errori, quindi il lint passa anche senza
+eccezioni; la voce `overrides` toglie gli avvisi delle esportazioni, e restano
+una dozzina di avvisi sul codice di terzi:
+
+<!-- lint-oxlint -->
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  },
+  "overrides": [
+    {
+      "files": ["src/components/ui/**/*.tsx", "src/components/blocks/**/*.tsx"],
+      "rules": { "react/only-export-components": "off" }
+    }
+  ]
+}
+```
+
 ## Da dove partire: le pagine modello
 
 Una pagina nuova non si compone da zero: si parte dalla pagina modello che le
@@ -493,8 +608,9 @@ nell'indirizzo di `@tassullo` in `components.json` (per esempio da `v2.0.0` a
 npx shadcn@latest add @tassullo/<item> --overwrite
 ```
 
-Ogni comando riscrive anche gli item da cui quello dipende. Poi si guarda il
-diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
+Ogni comando riscrive anche gli item da cui quello dipende. Poi si
+ricopiano le righe del lint dal passo 12, che nella versione nuova possono
+essere cambiate. Poi si guarda il diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
 — ed è la ragione per cui non si modifica. Cosa è cambiato fra due versioni lo
 dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.0...v2.1.0`.
 
@@ -620,6 +736,11 @@ ultima; se una classe «non fa niente», si guarda il DOM.
 automatiche dell'app e deve passare: controlla i file del design system, le sue
 cartelle e le regole di questa sezione. Una riga che deve fare eccezione porta
 un commento `tassullo-controllo: <il motivo>`, e il motivo si scrive davvero.
+
+**Il lint.** Sui file del design system il lint dell'app spegne solo le regole
+che `docs/INTEGRAZIONE.md` del design system elenca (passo 12), copiate tali e
+quali: si aggiornano con la versione. Se il lint segnala altro in un file del
+design system, non si spegne la regola: si apre una proposta.
 
 **Aggiornare.**
 - La versione del design system sta nell'indirizzo di `@tassullo` in
