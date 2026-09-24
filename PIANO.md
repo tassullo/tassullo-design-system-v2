@@ -632,6 +632,12 @@ Dipendenze: FASE 4.
 Nella stessa sessione: workflow GitHub Actions che a ogni push fa `build-storybook` e pubblica su **GitHub Pages**. Da qui la style guide diventa un URL da mandare a chiunque debba valutare il design, senza che installi nulla.
 - Accettazione: install da GitHub riuscita in un'app fuori dal repo; Storybook raggiungibile all'URL di Pages e aggiornato dall'ultimo push.
 
+
+**M5.7 — Il controllo del design system per le app (1 sessione)** — *aggiunta e chiusa il 2026-09-24, su richiesta di Francesco. Entra nella versione `v2.0.0`, che si sposta sul commit che la contiene invece di diventare `v2.1.0` (Francesco).*
+- Prompt: "Le app non hanno più un controllo automatico dello stile: il v1 lo dava con la regola «solo variabili» e un linter, il v2 no. Scrivi il controllo **qui**, come item del registry, perché lo installino tutte le app invece di scriverselo ognuna: uno script senza dipendenze che la CI dell'app lancia a ogni push. Tre controlli: i file installati dal design system sono identici a quelli della versione in `components.json` (li confronta la CLI di shadcn, non un'imitazione); nelle cartelle del design system (`ui/`, `blocks/`, `pages/`) non entrano file che non vengono da `@tassullo`, cioè niente primitive fatte in casa e niente componenti presi da shadcn senza `@tassullo/`; il codice dell'app segue le regole del blocco per il `CLAUDE.md`. Con un autotest, e provato su un'app vera."
+- File: `registry/tassullo/scripts/tassullo-controllo.mjs`, `registry.json`, `public/r/*`, `scripts/check-riferimenti.ts` (legge anche gli import dei `.mjs`), `docs/INTEGRAZIONE.md` (passo 11 e blocco delle regole), `docs/GUIDA-MIGRAZIONE.md`, `docs/DECISIONI.md`.
+- Accettazione: autotest verde; in un'app di prova il controllo passa pulito, e fallisce su ciascuna violazione messa apposta; su un'app ancora sul v1, `--solo-stile` elenca le stesse cose trovate leggendola a mano.
+
 ---
 
 ## §1. Mappa del repo (a regime)

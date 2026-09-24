@@ -133,7 +133,7 @@ Dipendenze di fase: FASE 4. **Numeri di partenza**: `test:a11y` **1296 scansioni
 | M4ter.15 La faccia stretta di `Pagine/Prodotti` | **DONE** 2026-09-22 — validata da Francesco | M4ter.14 | **Schede**, non la forma D: un catalogo si sfoglia. `useSoglia` a **1024px**; sotto soglia Stato a chip e Famiglia come raggruppamento, nessun popover. Cinque difetti a video, fra cui il fianco destro della `Card` tagliato. Indice Storybook alfabetico. a11y 1532/0. → `WORKLOG.md` M4ter.15 |
 | M4ter.16 La faccia stretta di `Pagine/Lista` (Norme) | **DONE** 2026-09-22 | M4ter.15 | **Il bivio sta nel blocco**: `tassullo-pagina-lista` prende `facciaStretta`, `soglia` (1024px) e `faccia`; il blocco sceglie *quando*, la pagina scrive *cosa*. Raggruppa per Categoria, Stato a chip. `@tassullo/use-soglia` dichiarato. a11y 1540/0. → `WORKLOG.md` M4ter.16 |
 
-## FASE 5 — Registry, distribuzione e guida di adozione (11 sessioni) — **CHIUSA il 2026-09-24**
+## FASE 5 — Registry, distribuzione e guida di adozione (12 sessioni) — **CHIUSA il 2026-09-24**
 
 Gate: l'installazione in un'app vergine produce un'app in stile Tassullo che compila — **verificata in locale, prima di qualunque pubblicazione** — seguendo solo i documenti scritti qui.
 Dipendenze di fase: FASE 4.
@@ -155,6 +155,7 @@ Dipendenze di fase: FASE 4.
 | M5.5a Anagrafe letta, e la prova di convivenza | DONE 2026-09-24 | M5.4, **FASE 4ter** | Clone senza remoto. 19 pagine → blocco v2, 3 lacune candidate non aperte (`ANALISI-COPERTURA-APP.md` §9). Convivenza: 20 nomi in comune col tema di Tailwind, l'azzeramento sposta 976 elementi v1 su 1.454. **Strada D** (Francesco): v2 20/20, pagine v1 solo Inter e +1px → `DECISIONI.md` §64 |
 | M5.5b `GUIDA-MIGRAZIONE.md` e passo 0 | DONE 2026-09-24 | M5.5a | Guida per il passaggio in un colpo solo. **Passo 0 provato nel clone**: due file, MCP letto da una sessione vera di Claude Code, codice invariato; `.mcp.json` a mano (`mcp init` installa dipendenze, `--cwd` ignorato) → `DECISIONI.md` §65. Documenti di Anagrafe preparati in `transizione-anagrafe/`, non caricati. |
 | M5.6 Pubblicazione su GitHub + Pages | DONE 2026-09-24 | M5.5 | **Tag `v2.0.0`** sul commit `7222314` (gate e Pages verdi). Prova da fuori seguendo `INTEGRAZIONE.md`, ora fissato a `v2.0.0` e con `@tassullo/<item>`: 39 s di comandi, build pulita, 6 file su 6 identici all'etichetta, `v9.9.9` fallisce. Pages: 389 story, come il gate → `WORKLOG.md` |
+| M5.7 Il controllo del design system per le app | DONE 2026-09-24 | M5.6 | `tassullo-controllo`: file del design system intatti (confronto con la CLI), niente file estranei in `ui/`/`blocks/`/`pages/`, regole di stile. Autotest 34 casi; app di prova pulita e 13 violazioni volute prese; su Anagrafe v1 (`--solo-stile`) i conti di M5.5a. In `v2.0.0` → `DECISIONI.md` §66 |
 
 ## Decisioni
 

@@ -38,11 +38,12 @@ jobs:
       # si aspetta.
       - run: npx playwright install --with-deps chromium
 
-      # I dieci gate: i nove controlli statici — palette, aggiornabilità dei
+      # Gli undici gate: i dieci controlli statici — palette, aggiornabilità dei
       # componenti, allineamento di `public/r/` ai sorgenti, riferimenti e
       # import fra item, font, marchio, testo della style guide
       # (`check:storybook`), testo che arriva a chi installa (`check:spedito`),
-      # lunghezza delle righe di `CHECKLIST.md` (`check:checklist`) — e
+      # lunghezza delle righe di `CHECKLIST.md` (`check:checklist`), autotest
+      # del controllo che le app installano (`check:controllo`) — e
       # poi le quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto}.
       - run: npm run check
 
