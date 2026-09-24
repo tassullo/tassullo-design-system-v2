@@ -3535,3 +3535,16 @@ Scelta di Francesco fra le due strade: il gate guarda **solo ciò che arriva**, 
 **Le scene che mostrano la forma del telefono lo dichiarano** con `globals: { viewport: { value: 'telefono' } }`: `App shell → Telefono`, `Sidebar → Telefono`, `Foglio a gruppi → Due facce`, `Lista → Faccia stretta`, `Lista a due facce → Faccia stretta` (che prima simulava il telefono con un riquadro da 360px), `Prodotti → Faccia stretta`, `Dashboard → Attività, faccia stretta`, `Dialogo adattivo → Cassetto`. Le ultime quattro fissano la forma con una prop (`faccia`, `forma`): in Docs erano giuste nella forma, ma alla larghezza della pagina.
 
 **Il gate non cambia.** `test:a11y` e `misura:bersagli` aprono le scene per URL, fuori dalla pagina Docs, dove il decoratore non fa niente; e lì, come dice §46, il global `viewport` non cambia la finestra.
+
+## 60. Agganciare un'app nuova: cosa la prova da zero ha accertato (M5.2 + M5.3, 2026-09-24)
+
+`docs/INTEGRAZIONE.md` è stato collaudato seguendolo e basta, da una cartella vuota, con la scorciatoia `tassullo/tassullo-design-system-v2/<item>` su `main` e la CLI `shadcn@latest` (4.21.0). Quattro fatti nuovi, che il documento ora dice e che vanno ricordati alla prossima versione della CLI.
+
+- **`init` scrive già `"registries": {}`** in fondo a `components.json`. «Aggiungere il campo» produrrebbe una chiave doppia: il registry `@tassullo` si scrive **dentro** quel campo.
+- **`add` di un item `registry:theme` chiede conferma** («You are about to install a new theme… Continue? y/N»), anche su un'app appena nata. `< /dev/null` lo fa terminare senza installare e senza errore: in uno script serve `yes y |`. Il secondo `add` che porta il tema come dipendenza non chiede niente, perché i file sono identici.
+- **La palette di partenza da togliere è di quattro pezzi, non di due.** Il `docs` di `tema` (e il commento nella prima regola di `tassullo-theme.css`) diceva «il blocco `:root`/`.dark`, e le righe `--color-*` di `@theme inline`»: ma quell'`@theme inline` dichiara anche `--font-sans: 'Geist Variable'`, e sta dopo gli `@import` del tema, quindi seguendo alla lettera il carattere resterebbe Geist. Controllato che **ogni** variabile dell'`@theme inline` di `init` sia ridichiarata dal tema: nessuna manca, il blocco si toglie intero. Corretti il `docs` e lo script che genera il tema.
+- **`vite.config.ts` usa `import.meta.dirname`, non `__dirname`.** Vite 8 compila la configurazione con `__dirname`, ma avvisa che il caricatore nativo, destinato a diventare il predefinito, non lo supporta. `import.meta.dirname` passa `tsc -b` coi tipi di Node del template.
+
+**Il pin di versione funziona con la scorciatoia**: `…/button#<sha>` installa quella versione, un'etichetta che non esiste fallisce. Il pin va scritto in **due** posti allineati — il `#` nell'`add` e il ramo nell'URL di `components.json` —, perché il primo vale solo per l'item chiesto per nome e le dipendenze passano dal secondo. Il tag `v2.0.0` non esiste ancora (M5.6): il documento dice come si fissa e usa `main`.
+
+**La ricetta dell'identità diversa è provata**, non solo scritta: ridefinendo `--primary` e `--sidebar-primary` in `:root` e `.dark` dopo gli `@import`, il bottone primario prende il colore nuovo in chiaro, in scuro e in touch.

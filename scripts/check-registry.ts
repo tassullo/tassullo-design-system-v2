@@ -813,7 +813,11 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
 function tokenDelTema(): Set<string> {
   if (!existsSync(THEME_FILE)) return new Set();
   const css = readFileSync(THEME_FILE, "utf8");
-  const root = css.slice(css.indexOf(":root"), css.indexOf("@theme"));
+  // Le regole si cercano a inizio riga: le istruzioni per chi installa stanno
+  // in un commento dentro la prima regola, e possono nominare `@theme`.
+  const inizio = css.search(/^:root/m);
+  const fine = css.search(/^@theme\b/m);
+  const root = css.slice(inizio, fine);
   return new Set([...root.matchAll(/^\s+--([a-z0-9-]+):/gm)].map((m) => m[1]!));
 }
 

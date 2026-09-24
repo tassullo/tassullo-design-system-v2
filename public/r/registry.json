@@ -57,7 +57,7 @@
       "css": {
         "@import \"./tassullo-theme.css\"": {}
       },
-      "docs": "Tema Tassullo installato in src/tassullo-theme.css, con l'@import già aggiunto al CSS globale.\n\nUN PASSO A MANO, se l'app viene da `shadcn init`: nel CSS globale c'è ancora il blocco\n:root / .dark della palette di partenza. Sta DOPO l'@import e quindi vince — va tolto, o i\ncolori Tassullo non si vedono. Con esso vanno tolte le righe --color-* di @theme inline che\nil tema ridichiara.\n\nDensità touch (cantiere): <html data-density=\"touch\">.\nAggiornamento del tema: lo stesso comando con --overwrite.",
+      "docs": "Tema Tassullo installato in src/tassullo-theme.css, con l'@import già aggiunto al CSS globale.\n\nUN PASSO A MANO, se l'app viene da `shadcn init`: nel CSS globale c'è ancora la palette\ndi partenza — i blocchi @theme inline, :root e .dark, e l'@import del carattere Geist. Stanno\nDOPO gli @import del tema e quindi vincono: vanno tolti tutti e quattro, o i colori e il\ncarattere Tassullo non si vedono. Non manca niente: il tema ridichiara tutto ciò che serve.\n\nDensità touch (cantiere): <html data-density=\"touch\">.\nAggiornamento del tema: lo stesso comando con --overwrite.",
       "registryDependencies": [
         "@tassullo/tema-font",
         "@tassullo/tema-logo"
