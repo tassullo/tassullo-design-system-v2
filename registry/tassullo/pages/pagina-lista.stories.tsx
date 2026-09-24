@@ -728,6 +728,7 @@ export const ConDati: Story = {
  */
 export const FacciaStretta: Story = {
   name: 'Faccia stretta',
+  globals: { viewport: { value: 'telefono', isRotated: false } },
   render: () => <Guscio dati={NORME} faccia="schede" />,
 }
 

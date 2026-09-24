@@ -70,7 +70,10 @@ import { TooltipProvider } from '@/registry/tassullo/ui/tooltip'
  * il blocco `tassullo-app-shell` ha già la colonna, la testata di pagina e
  * tutte le regole qui sotto. La primitiva serve quando il guscio non basta.
  * Una navigazione dentro una pagina — schede di un dettaglio, passi di una
- * procedura — è `tabs` o `stepper`, non una seconda sidebar.
+ * procedura — è `tabs` o `stepper`, non una seconda sidebar. E il commutatore
+ * dell'entità su cui si lavora — una commessa, un cantiere — in cima alla
+ * colonna non si ricompone con `SidebarMenuButton`: è `SelettoreContesto` di
+ * `tassullo-barra-contesto`, che il guscio ospita con la prop `contesto`.
  *
  * ```bash
  * npx shadcn@latest add tassullo/tassullo-design-system-v2/sidebar
@@ -477,7 +480,8 @@ export const InCaricamento: Story = {
 
 /**
  * Alla larghezza del telefono: la colonna non c'è, e il grilletto in testata
- * apre il pannello laterale.
+ * apre il pannello laterale. In questa pagina la scena sta in un riquadro
+ * largo 375px, come lo schermo di un telefono.
  */
 export const Telefono: Story = {
   globals: { viewport: { value: 'telefono', isRotated: false } },
