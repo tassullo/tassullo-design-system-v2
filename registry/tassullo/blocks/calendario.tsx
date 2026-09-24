@@ -173,22 +173,20 @@ import type {
 /**
  * **I dieci colori del calendario sono i `--chart-*` del tema**, scelti per
  * nome e mai per valore. Un evento non porta un colore: porta il *nome* di un
- * colore, e la traduzione in token la fa questo file. È il modo in cui la
- * regola 3 si fa rispettare per costruzione invece che a memoria — `color` del
- * motore è una `string`, quindi accetterebbe `#F4AC3D` senza che nessun gate
- * se ne accorga (i valori nelle prop non sono classi di Tailwind).
+ * colore, e la traduzione in token la fa questo file. È il modo in cui il
+ * divieto degli esadecimali si fa rispettare per costruzione — `color` del
+ * motore è una `string`, quindi accetterebbe `#F4AC3D` senza che nessun
+ * controllo se ne accorga (i valori nelle prop non sono classi di Tailwind).
  *
  * Perché proprio i `--chart-*`: sono l'unica famiglia del tema pensata per
  * **distinguere categorie fra loro**, ed è lo stesso mestiere.
  *
- * **Da cinque a dieci il 2026-09-21** (M4ter.11): con cinque, un'app con più
- * di cinque tipi di intervento doveva riusarne uno — e Officina ne aveva già
- * bisogno, perché il «Guasto» vuole il **rosso** e nella scala vecchia il
- * rosso non c'era (M4ter.2 dovette dargli l'arancio). Ora c'è: `rosso`, ed è
+ * **Sono dieci**, perché un'app può avere più di cinque tipi di intervento,
+ * e un «Guasto» vuole il **rosso**: `rosso`, ed è
  * `--chart-10`, **non `--destructive`** — quello resta il colore dell'allarme,
  * e una categoria «Guasto» non è un'azione distruttiva.
  *
- * `grigio` è la sola tinta neutra e resta quella di prima: serve a dire
+ * `grigio` è la sola tinta neutra: serve a dire
  * «questo non è una categoria», per esempio un fermo chiuso o annullato.
  */
 export const COLORI_EVENTO = {
@@ -474,13 +472,9 @@ function creaChip<TData>(perPersona: Map<string, PersonaEvento>) {
               // base, invece, è `tailwind-merge` a sostituire `size-8`.
               //
               // Una **taglia `xs` dentro `avatar.tsx`** sarebbe più pulita,
-              // ed è stata provata: `check:registry` la rifiuta, perché
-              // aggiungere un valore all'union di `size` è una divergenza di
-              // **forma**, non una stringa di classi — gradino 4 della
-              // regola 4bis, non 2. Lo stesso muro dello `stepper` in
-              // M4ter.1: per passare servirebbe un meccanismo di
-              // «divergenza dichiarata» che il gate oggi non ha. Con **un**
-              // punto d'uso, la classe dal punto di chiamata costa meno
+              // ma aggiungere un valore all'union di `size` cambierebbe la
+              // **forma** della primitiva, che resta identica all'originale
+              // shadcn per poterla aggiornare. Con **un** punto d'uso, la classe dal punto di chiamata costa meno
               // della macchina.
               <Avatar key={x.id} className="size-5" title={x.nome}>
                 {x.immagine ? (
@@ -661,8 +655,7 @@ function CalendarioOpzioni({
  * La testata: titolo del periodo, «‹ Oggi ›» e il commutatore mese/agenda.
  * Sta dentro `<EventCalendar>` perché legge la navigazione dallo store.
  *
- * **Non è `event-calendar-nav`**, e la scelta è a verbale in
- * `docs/DECISIONI.md` §44: la loro sono 648 righe con un commutatore a sei
+ * **Non è `event-calendar-nav`**: la loro sono 648 righe con un commutatore a sei
  * viste e noi ne spediamo due, e Officina la testata la compone già così.
  */
 function CalendarioTestata({
@@ -886,8 +879,8 @@ function CalendarioDialogoEvento({
             </Field>
 
             {/*
-              **Il campo è «Calendario», non «Colore»** — rilievo di Francesco,
-              ed è il modello giusto: non si sceglie una tinta, si sceglie *a
+              **Il campo è «Calendario», non «Colore»**, ed è il modello
+              giusto: non si sceglie una tinta, si sceglie *a
               chi appartiene* l'evento, e il colore è la conseguenza. Nel caso
               di Officina il calendario è la persona a cui il fermo è
               affidato, quindi il menu mostra pallino, avatar e nome.
@@ -993,7 +986,7 @@ function CalendarioDialogoEvento({
                   pillole` — e non un gruppo di interruttori: una squadra di
                   manutenzione può essere di quindici persone, e un
                   `toggle-group` è un filtro che si clicca, non un campo che
-                  si cerca (CLAUDE.md, «il nome dice la funzione»).
+                  si cerca: il nome dice la funzione, non l'aspetto.
                 */}
                 <Combobox
                   multiple
@@ -1107,8 +1100,7 @@ function CalendarioDialogoEvento({
           <DialogFooter className="sm:justify-between">
             {modifica ? (
               // `variant="destructive"`, non `text-destructive`: quel token è
-              // il colore dei **fondi** e come testo dà 3.52:1 (CLAUDE.md,
-              // §Le due trappole). La demo di ReUI usa proprio la classe
+              // il colore dei **fondi** e come testo dà 3.52:1. La demo di ReUI usa proprio la classe
               // vietata — è uno dei punti in cui non la si copia.
               <Button variant="destructive" onClick={onElimina}>
                 Elimina
@@ -1192,7 +1184,7 @@ export interface CalendarioProps<TData = unknown> {
   /** Nodi in fondo alla testata, prima di «Nuovo» (filtri, una legenda). */
   azioni?: React.ReactNode
   // Cosa mostrare quando non c'è nessun evento. Il default è
-  // `tassullo-empty-state`, cioè lo standard unico del vuoto di M3.5 — **non**
+  // `tassullo-empty-state`, cioè lo standard unico del vuoto — **non**
   // lo stato vuoto di ReUI, che porterebbe una sua illustrazione e un suo
   // tono. Si passa un nodo per cambiare la frase o aggiungerci una CTA.
   /**
@@ -1219,7 +1211,7 @@ export interface CalendarioProps<TData = unknown> {
   legenda?: boolean
   // Mostrare sabato e domenica nelle viste **mese** e **settimana**.
   //
-  // **`false` di default, su indirizzo di Francesco (2026-09-21)**: quello
+  // **`false` di default**: quello
   // delle app Tassullo è un calendario **lavorativo**, da lunedì a venerdì, e
   // il fine settimana è rumore in cinque colonne su sette. Il motore non lo
   // legge in **agenda**, che continua a elencare tutto — verificato: con
@@ -1349,8 +1341,7 @@ export function Calendario<TData = unknown>({
    * Converge in un giro: `goTo` emette `onDateChange`, l'ancora diventa il
    * primo del mese, e alla passata dopo la condizione è falsa. La dipendenza
    * è il **millisecondo**, non l'oggetto `Date`: un `Date` è un riferimento
-   * nuovo a ogni render e l'effetto non si fermerebbe più (CLAUDE.md, §Le
-   * due trappole).
+   * nuovo a ogni render e l'effetto non si fermerebbe più.
    */
   const msAncora = ancoraCorrente.getTime()
   React.useEffect(() => {
@@ -1535,18 +1526,16 @@ export function Calendario<TData = unknown>({
         // Non è un valore arbitrario e non è un ri-stile: è una variabile
         // che il motore espone apposta, e il valore è un calcolo sul token.
         //
-        // **E `--ec-chip-h` è la stessa altezza per il chip con orario**
-        // (M4ter.11). La barra di tutto il giorno vale
+        // **E `--ec-chip-h` è la stessa altezza per il chip con orario**.
+        // La barra di tutto il giorno vale
         // `--ec-month-bar-h − 0.125rem` — la corsia meno i 2px di stacco fra
         // corsie — mentre il chip con orario non dichiara nessuna altezza e si
         // dimensiona sul contenuto: **30 contro 28 in normale, 46 contro 42 in
-        // touch**, e lo scarto non lo aveva deciso nessuno, era solo che in
-        // M4ter.2 uno dei due è stato alzato per gli avatar e l'altro no. Si
-        // alza il chip, non si abbassa la barra: la **corsia** che il motore
+        // touch** senza, uno scarto che nessuno ha scelto. Si alza il chip, non si abbassa la barra: la **corsia** che il motore
         // riserva vale già `--ec-month-bar-h`, e `monthRow` conta in corsie di
         // quella misura — quindi a non riempire il proprio posto era
         // il chip. Abbassare la barra rimetterebbe invece il difetto degli
-        // avatar che M4ter.2 aveva chiuso.
+        // avatar che sforano dal chip.
         style={{
           "--ec-month-bar-h": "calc(var(--spacing) * 8)",
           "--ec-chip-h": "calc(var(--ec-month-bar-h) - 0.125rem)",
@@ -1625,7 +1614,7 @@ export function Calendario<TData = unknown>({
         resources={calendari.map((c) => ({ id: c.id, title: c.nome }))}
         // **Il vuoto è il nostro, non quello di ReUI.** Il loro monta
         // `IconStack` con una sua illustrazione; da noi il vuoto ha uno
-        // standard unico — `tassullo-empty-state`, M3.5 — e un calendario
+        // standard unico — `tassullo-empty-state` — e un calendario
         // che se ne inventasse un altro sarebbe la deriva che il design
         // system esiste per non avere. Conseguenza da sapere: `icon-stack`
         // resta nel registry perché `event-calendar-agenda-view` lo importa,
@@ -1665,9 +1654,8 @@ export function Calendario<TData = unknown>({
           // senza l'important vincerebbe lui, e infatti la misura dava
           // ancora 24px.
           event: "py-1!",
-          // **Il pavimento è tre eventi, e da lì in su il mese cresce**
-          // (scelto da Francesco il 2026-09-21, M4ter.11, dopo tre giri a
-          // video). Queste due righe — il pavimento della cella e quello del
+          // **Il pavimento è tre eventi, e da lì in su il mese cresce**.
+          // Queste due righe — il pavimento della cella e quello del
           // corpo — sono l'unica leva: sotto c'è il meccanismo del motore, che
           // fa il resto da sé.
           //
@@ -1694,8 +1682,7 @@ export function Calendario<TData = unknown>({
           // sugli schermi bassi. Funzionava sui numeri e **non a vedersi**:
           // l'adattamento ragiona in corsie intere ma l'area della cella no,
           // quindi a metà strada fra due corsie l'ultimo elemento resta
-          // **tagliato a metà** — preso a video da Francesco su un «+4 altri»
-          // tranciato in orizzontale, con la cella a 85px (59 di area utile,
+          // **tagliato a metà** — un «+4 altri» tranciato in orizzontale, con la cella a 85px (59 di area utile,
           // cioè 1,8 corsie).
           //
           // Col pavimento a tre corsie quel caso non esiste: sotto soglia la
@@ -1722,11 +1709,11 @@ export function Calendario<TData = unknown>({
           //
           // ── Il difetto che queste due righe hanno chiuso ───────────────
           //
-          // Prima di M4ter.11 il pavimento c'era (128px) ma il **binario**
-          // della griglia è `minmax(0, 1fr)` e si accorciava col contenitore:
-          // la riga sbordava dal proprio binario e i chip finivano disegnati
-          // nella banda della settimana di sopra, sopra i numeri dei giorni.
-          // Misurato a 576px: passo di riga 77 contro celle da 128, **51px di
+          // Col solo pavimento della cella (128px) il **binario** della
+          // griglia, che è `minmax(0, 1fr)`, si accorcerebbe col contenitore:
+          // la riga sborderebbe dal proprio binario e i chip finirebbero
+          // disegnati nella banda della settimana di sopra, sopra i numeri
+          // dei giorni. Misurato a 576px: passo di riga 77 contro celle da 128, **51px di
           // invasione**, chip 20×12 sopra il numero — e il contenitore offriva
           // 51px di scorrimento contro i ~270 che servivano, cioè schiacciava
           // **e** scorreva.
@@ -1736,12 +1723,12 @@ export function Calendario<TData = unknown>({
           // scorrevole senza contenuto focalizzabile dentro e'
           // `scrollable-region-focusable`, *critical*, e con un mese vuoto e'
           // esattamente il caso: nessun chip, niente da mettere a fuoco.
-          // Provato prima su `monthBody` via `classNames`, e il gate l'ha
-          // preso sulla scena `Vuoto`.
+          // Su `monthBody` via `classNames` la regola scatta proprio col mese
+          // vuoto.
           //
           // `border-t-0` perche' il bordo in cima ce l'ha gia' il
           // contenitore: due tratti a 1px di distanza si leggono come un
-          // **doppio bordo**, ed e' il primo rilievo che si vede a video.
+          // **doppio bordo**, ed e' la prima cosa che si nota.
           monthView: "overflow-visible border-t-0",
           // **Il pavimento del corpo: `6 × 128`.** È questa riga a fare
           // scorrere il mese invece di lasciarlo schiacciare, e serve perché
@@ -1763,7 +1750,7 @@ export function Calendario<TData = unknown>({
           // a quelle altezze è comunque al limite.
           monthBody: "min-h-192",
           monthHeader: "bg-card sticky top-0 z-20",
-          // **I due tipi di chip alla stessa altezza** (M4ter.11). La colonna
+          // **I due tipi di chip alla stessa altezza**. La colonna
           // dei chip con orario contiene, in ordine: il distanziatore delle
           // corsie riservate alle barre (altezza **in linea**, quindi `*:` non
           // lo tocca), i chip con orario e il «+N altri». Dando a tutti

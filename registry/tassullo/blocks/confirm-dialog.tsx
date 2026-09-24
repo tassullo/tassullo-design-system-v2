@@ -167,8 +167,8 @@ export type ConfirmDialogProps = {
   //
   // Si compone **dal punto di chiamata** e non aggiunge nulla ad
   // `alert-dialog`: la primitiva è un `grid`, e un terzo figlio fra
-  // intestazione e piè è una riga in più della griglia. Vedi la regola 4bis di
-  // `CLAUDE.md`, gradino 2.
+  // intestazione e piè è una riga in più della griglia, senza toccare la
+  // primitiva.
   /**
    * Ciò che sta fra la spiegazione e i bottoni: un campo da compilare, l'elenco
    * di ciò che si sta per cancellare, un riepilogo. Non è una seconda
@@ -257,8 +257,7 @@ export function ConfirmDialog({
    *
    * `apertoOra` e `iniziale` sono due primitivi, non `campo`: `campo` è quasi
    * sempre un letterale, cioè un riferimento nuovo a ogni render, e
-   * confrontarlo rimetterebbe il campo a zero in continuo — la trappola delle
-   * dipendenze non primitive di `CLAUDE.md`, che qui non darebbe un ciclo ma
+   * confrontarlo rimetterebbe il campo a zero in continuo: non un ciclo, ma
    * un campo che si cancella mentre ci si scrive dentro.
    */
   const iniziale = campo?.iniziale ?? ""
@@ -399,9 +398,8 @@ export function ConfirmDialog({
           <AlertDialogCancel disabled={inCorso}>{annulla}</AlertDialogCancel>
           {/*
            * `variant`, non una classe di colore: `--destructive` è il colore
-           * dei fondi e come testo non regge il contrasto. È la seconda delle
-           * due trappole elencate in `CLAUDE.md`, e la variante è la risposta
-           * che il tema garantisce in tutte e due le modalità.
+           * dei fondi e come testo non regge il contrasto. La variante è la
+           * risposta che il tema garantisce in tutte e due le modalità.
            */}
           <AlertDialogAction
             variant={tono === "distruttivo" ? "destructive" : "default"}

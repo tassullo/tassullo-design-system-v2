@@ -180,10 +180,8 @@ type ProprietaComuni = {
 
 /**
  * La firma è un'**unione discriminata su `modo`**, non tre gestori
- * facoltativi: così una via dichiarata senza il suo gestore non compila. È
- * la lezione di M4ter.3 — quando una prop deve esserci, il solo controllo
- * che la vede è il **tipo** (`docs/DECISIONI.md` §45c), e da allora
- * `npm run build` gira in CI apposta.
+ * facoltativi: così una via dichiarata senza il suo gestore non compila.
+ * Quando una prop deve esserci, il solo controllo che la vede è il **tipo**.
  */
 type ViaMicrosoft = {
   modo?: "microsoft"
@@ -249,9 +247,8 @@ export function PaginaLogin({
   /*
    * **L'avviso dell'SSO sta accanto all'SSO**, e non in cima alla card.
    *
-   * Rilievo di Francesco, a video, il 2026-09-20: in cima quell'avviso
-   * finisce **sopra il campo Email**, e la posizione si legge prima delle
-   * parole — chi lo vede lì capisce «email sbagliata», che è la confusione
+   * In cima quell'avviso finirebbe **sopra il campo Email**, e la posizione
+   * si legge prima delle parole — chi lo vede lì capisce «email sbagliata», che è la confusione
    * che `statoDi` doveva togliere. Messo sopra il bottone Microsoft, invece,
    * è la posizione stessa a dire quale via ha fallito, e il titolo non deve
    * più reggere il peso da solo. (Studio lo mostra in cima, perché lo cattura
@@ -294,11 +291,7 @@ export function PaginaLogin({
            * `justify-self-center`, e non `items-center` sul `CardHeader`:
            * quello è una **griglia**, e `items-center` allinea sull'asse
            * verticale. Senza, il marchio resta incollato a sinistra sotto un
-           * titolo centrato — si vedeva su tutte e dieci le scene, e non è un
-           * difetto di M4ter.4: c'era dal primo giorno della pagina. Toccarlo
-           * lì avrebbe rotto la non-regressione di quella sessione, quindi è
-           * stato rimandato qui (M4ter.5), che è la sessione che rifà il
-           * guscio su altre cinque schermate e non poteva copiarlo storto.
+           * titolo centrato.
            */}
           <span aria-hidden className="marchio-t size-10 justify-self-center" />
           <CardTitle className="text-2xl">{applicazione}</CardTitle>

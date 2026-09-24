@@ -106,8 +106,8 @@ import {
  * ── La soglia non è scritta qui ─────────────────────────────────────────
  *
  * È `useIsMobile()` — l'hook che shadcn installa con `sidebar` e che il registry
- * ha già, a **768px**. Non se ne scrive un secondo, ed è la prima domanda della
- * scala di `CLAUDE.md` §4bis: quello che serve, shadcn ce l'ha già?
+ * ha già, a **768px**. Non se ne scrive un secondo: quello che serve, shadcn
+ * ce l'ha già.
  *
  * Il vantaggio non è risparmiare dieci righe, è che **il dialogo cambia forma
  * allo stesso pixel in cui la cambia il guscio**: sotto i 768 la colonna esce
@@ -177,8 +177,8 @@ export function useFormaDialogo(): Forma {
 export type ResponsiveDialogProps = ComponentProps<typeof Dialog> & {
   // `auto` sceglie con la larghezza. `dialog` e `drawer` la forzano — servono
   // a mettere in scena le due forme senza cambiare viewport, che è l'unico modo
-  // di **misurarle tutte e due** (l'imbracatura del gate la viewport non la
-  // cambia), e a quelle pagine che una forma la vogliono sempre.
+  // di **misurarle tutte e due** (un test automatico spesso la viewport non
+  // la cambia), e a quelle pagine che una forma la vogliono sempre.
   /**
    * `"auto"`, il predefinito, sceglie dalla larghezza della finestra: dialogo
    * sulla scrivania, cassetto sul telefono. `"dialog"` e `"drawer"` fissano
@@ -211,8 +211,8 @@ export function ResponsiveDialog({
 //
 // Il `data-slot` è **nostro** e non quello della primitiva sottostante, e non è
 // un vezzo: `dialog-trigger` e `drawer-trigger` sono due selettori diversi per
-// la stessa cosa, quindi un test — o l'imbracatura del gate, che i popup li
-// apre per selettore — dovrebbe sapere in che forma si sta rendendo prima di
+// la stessa cosa, quindi un test che apre il dialogo per selettore dovrebbe
+// sapere in che forma si sta rendendo prima di
 // poter cercare il grilletto. Con un nome solo non deve saperlo.
 /**
  * Il grilletto. Ha `data-slot="responsive-dialog-trigger"` in tutte e due

@@ -130,7 +130,7 @@ export type UtenteAdmin = {
 
 // Su `etichetta`:
 //
-// La parola italiana. Senza, la tabella renderebbe `valore` grezzo — lo stesso difetto preso in M3bis.11b sui filtri sfaccettati.
+// La parola italiana. Senza, la tabella renderebbe `valore` grezzo.
 export type RuoloAssegnabile = {
   /** La chiave — quella che compare in `UtenteAdmin.ruoli`. */
   valore: string
@@ -215,7 +215,7 @@ function RuoliUtente({ ruoli, mappa }: { ruoli: string[]; mappa: Map<string, Ruo
 
 /**
  * Il menu di riga — una sola definizione, montata sia nella tendina «⋯» sia
- * sul tasto destro (`tassullo-data-table`, M3bis.9). I due dialoghi vivono
+ * sul tasto destro (`menuRiga` di `tassullo-data-table`). I due dialoghi vivono
  * fuori, nel componente che segue: cliccando la voce il menu si chiude e li
  * smonterebbe (`confirm-dialog.tsx`, la stessa nota di `PaginaProdotti`).
  */
@@ -234,8 +234,8 @@ function MenuAzioniUtente({
         Ruoli…
       </RowMenuItem>
       <RowMenuSeparator />
-      {/* `variant="destructive"`, non una classe di colore — la trappola di
-          `CLAUDE.md` sul testo di `--destructive`. */}
+      {/* `variant="destructive"`, non una classe di colore: `--destructive`
+          è il colore dei fondi, e come testo non regge il contrasto. */}
       <RowMenuItem variant="destructive" onClick={() => onRimuovi(utente)}>
         <Trash2Icon aria-hidden />
         Rimuovi

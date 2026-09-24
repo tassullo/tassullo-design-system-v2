@@ -28,11 +28,10 @@
  * **Perché un gate a sé e non una settima fonte di `check:storybook`.** Tre
  * ragioni. Il lettore è un altro, e con lui cambia cosa è visibile (tutto,
  * qui). Si legge **l'artefatto** `public/r/`, non i sorgenti: è ciò che arriva
- * davvero — `shadcn build` scarta per esempio il primo commento dei CSS del
- * tema, che resta nel repo per chi ci lavora — e `check:registry-build`
- * garantisce già che l'artefatto corrisponda ai sorgenti. E durante la
- * ripulitura (M5.1a–c) serve un elenco di file ancora da fare, che la style
- * guide non ha mai avuto.
+ * davvero, tolte le teste che `shadcn add` toglie (§58) — e
+ * `check:registry-build` garantisce già che l'artefatto corrisponda ai
+ * sorgenti. E durante la ripulitura (M5.1a–c) è servito un elenco di file
+ * ancora da fare, che la style guide non ha mai avuto.
  *
  * **Cosa legge**, per ogni item di `registry.json`:
  *
@@ -43,17 +42,13 @@
  *     degli `import` e i tracciati SVG (`M3.59 3.59…` sembra una sigla); nei
  *     `.css` i commenti; negli altri file tutto il testo.
  *
- * **L'elenco dei file da ripulire** (`DA_RIPULIRE`) è transitorio e può solo
- * accorciarsi: ogni file ha il suo tetto di note, contato il giorno in cui è
- * entrato. Il gate fallisce se un file fuori elenco ha una nota, se un file in
- * elenco ne ha più del tetto, **e anche se ne ha meno**: allora il tetto va
- * abbassato, o tolto con la riga quando arriva a zero. Così l'elenco dice
- * sempre il vero, e una nota nuova non entra da nessuna parte. Non c'è
- * esenzione per le descrizioni degli item: quelle sono pulite da M5.1a.
+ * **Nessuna esenzione.** Durante la ripulitura c'era un elenco a tetto
+ * (`DA_RIPULIRE`) dei file ancora da fare, che poteva solo scendere; si è
+ * svuotato in M5.1c ed è stato tolto. Da allora una nota qualunque, in
+ * qualunque file spedito, fa fallire il gate.
  *
  * Uso:
  *   npm run check:spedito                  tutto; esce con 1 se qualcosa non va
- *   npm run check:spedito -- --elenca      stampa anche le note dei file in elenco
  *   npm run check:spedito -- --self-test   prova che sa fallire
  */
 
@@ -65,28 +60,6 @@ import ts from "typescript";
 import { note } from "./note-interne.ts";
 
 const RADICE = process.cwd();
-
-/**
- * I file ancora da ripulire, col loro tetto di note. La famiglia della
- * tabella è uscita in M5.1b; alla fine di M5.1c è vuoto, e questa costante si
- * toglie.
- */
-const DA_RIPULIRE: Record<string, number> = {
-  // M5.1c — gli altri blocchi e le pagine. Sei tetti alzati in M5.1b: il gate
-  // non leggeva i commenti JSX `{/* … */}`, e corretto ne ha trovati 13.
-  "registry/tassullo/blocks/app-shell.tsx": 15,
-  "registry/tassullo/blocks/barra-contesto.tsx": 15,
-  "registry/tassullo/blocks/calendario.tsx": 29,
-  "registry/tassullo/blocks/confirm-dialog.tsx": 5,
-  "registry/tassullo/blocks/form-field.tsx": 2,
-  "registry/tassullo/blocks/page-header.tsx": 16,
-  "registry/tassullo/blocks/responsive-dialog.tsx": 4,
-  "registry/tassullo/pages/pagina-admin.tsx": 3,
-  "registry/tassullo/pages/pagina-dashboard.tsx": 10,
-  "registry/tassullo/pages/pagina-errore.tsx": 1,
-  "registry/tassullo/pages/pagina-lista.tsx": 8,
-  "registry/tassullo/pages/pagina-login.tsx": 9,
-};
 
 type Item = { name: string; title?: string; description?: string; docs?: string; files?: { path: string }[] };
 type FileSpedito = { path: string; content: string; type?: string };
@@ -201,12 +174,10 @@ function noteItem(item: Item, spediti: FileSpedito[]): { campi: Nota[]; file: Ma
   return { campi, file };
 }
 
-type Esito = { errori: string[]; inElenco: number; noteInElenco: Nota[]; file: number };
+type Esito = { errori: string[]; file: number };
 
-function controlla(items: Item[], spediti: (i: Item) => FileSpedito[] | null, elenco: Record<string, number>): Esito {
+function controlla(items: Item[], spediti: (i: Item) => FileSpedito[] | null): Esito {
   const errori: string[] = [];
-  const noteInElenco: Nota[] = [];
-  const visti = new Set<string>();
   let file = 0;
 
   for (const item of items) {
@@ -218,30 +189,12 @@ function controlla(items: Item[], spediti: (i: Item) => FileSpedito[] | null, el
     const { campi, file: perFile } = noteItem(item, fs);
     for (const n of campi) errori.push(`${n.dove}, riga ${n.riga}: ${n.tipo} «${n.trovato}»`);
 
-    for (const [percorso, lista] of perFile) {
+    for (const lista of perFile.values()) {
       file++;
-      visti.add(percorso);
-      const tetto = elenco[percorso];
-      if (tetto === undefined) {
-        for (const n of lista) errori.push(`${n.dove}:${n.riga}  ${n.tipo} «${n.trovato}»`);
-      } else if (lista.length > tetto) {
-        errori.push(`${percorso}: ${lista.length} note, più del tetto di ${tetto}. Una nota nuova non entra.`);
-        for (const n of lista) errori.push(`  ${n.dove}:${n.riga}  ${n.tipo} «${n.trovato}»`);
-      } else if (lista.length < tetto) {
-        errori.push(
-          lista.length === 0
-            ? `${percorso}: ripulito. Si toglie la riga da \`DA_RIPULIRE\`.`
-            : `${percorso}: ${lista.length} note, sotto il tetto di ${tetto}. Si abbassa il tetto a ${lista.length}.`,
-        );
-      } else {
-        noteInElenco.push(...lista);
-      }
+      for (const n of lista) errori.push(`${n.dove}:${n.riga}  ${n.tipo} «${n.trovato}»`);
     }
   }
-  for (const percorso of Object.keys(elenco)) {
-    if (!visti.has(percorso)) errori.push(`${percorso}: è in \`DA_RIPULIRE\` e nessun item lo spedisce. Si toglie la riga.`);
-  }
-  return { errori, inElenco: Object.keys(elenco).length, noteInElenco, file };
+  return { errori, file };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -326,8 +279,7 @@ function provaCli(): string[] {
 /**
  * **L'autotest.** Un gate che non si è mai visto fallire non si sa se
  * funziona. Le prove mettono in scena le fonti che legge, quelle che salta
- * (percorsi di import, tracciati SVG) e i quattro modi in cui l'elenco può
- * mentire.
+ * (percorsi di import, tracciati SVG), le teste e i campi dell'item.
  */
 function autotest(): number {
   const sporco = `// La testa la toglie la CLI: M3.2, D14, Francesco, v1 non arrivano.
@@ -360,7 +312,7 @@ export function Finto() {
   });
   const con = (content: string, path = "ui/finto.tsx") => () => [{ path, content }];
 
-  const prove: { nome: string; items: Item[]; spediti: (i: Item) => FileSpedito[] | null; elenco?: Record<string, number>; attesi: number }[] = [
+  const prove: { nome: string; items: Item[]; spediti: (i: Item) => FileSpedito[] | null; attesi: number }[] = [
     { nome: "un file pulito", items: [item()], spediti: con(pulito), attesi: 0 },
     // Riga 5: persona, data, task, decisione, documento (5). Riga 7: v1 e
     // check:contrast (2). Riga 9: M4ter.4bis nel testo JSX (1) e la persona
@@ -381,17 +333,12 @@ export function Finto() {
       attesi: 2,
     },
     { nome: "l'artefatto manca", items: [item()], spediti: () => null, attesi: 1 },
-    { nome: "in elenco, al tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 9 }, attesi: 0 },
-    { nome: "in elenco, sopra il tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 8 }, attesi: 10 },
-    { nome: "in elenco, sotto il tetto", items: [item()], spediti: con(sporco), elenco: { "ui/finto.tsx": 10 }, attesi: 1 },
-    { nome: "in elenco e già ripulito", items: [item()], spediti: con(pulito), elenco: { "ui/finto.tsx": 3 }, attesi: 1 },
-    { nome: "in elenco e non spedito", items: [item()], spediti: con(pulito), elenco: { "ui/altro.tsx": 3 }, attesi: 1 },
   ];
 
   let falliti = 0;
   console.log("\n  Autotest — il gate sa fallire nei modi che dichiara\n");
   for (const p of prove) {
-    const { errori } = controlla(p.items, p.spediti, p.elenco ?? {});
+    const { errori } = controlla(p.items, p.spediti);
     const ok = errori.length === p.attesi;
     if (!ok) falliti++;
     console.log(`    ${ok ? "✔" : "✖"} ${p.nome.padEnd(52)} ${errori.length} errore/i (atteso ${p.attesi})`);
@@ -399,7 +346,7 @@ export function Finto() {
   }
   console.log(
     falliti === 0
-      ? "\n✔ L'autotest passa: il gate prende le note dove arrivano e l'elenco non può mentire.\n"
+      ? "\n✔ L'autotest passa: il gate prende le note dove arrivano.\n"
       : `\n✖ L'autotest fallisce su ${falliti} prova/e: il gate non fa quello che dice.\n`,
   );
   return falliti === 0 ? 0 : 1;
@@ -418,15 +365,13 @@ function main(): number {
   };
 
   const cli = provaCli();
-  const { errori, inElenco, noteInElenco, file } = controlla(registry.items, spediti, DA_RIPULIRE);
+  const { errori, file } = controlla(registry.items, spediti);
   errori.unshift(...cli.map((p) => `prova della CLI — ${p}`));
 
-  if (argomenti.includes("--elenca")) for (const n of noteInElenco) console.log(`  · ${n.dove}:${n.riga}  ${n.tipo} «${n.trovato}»`);
   for (const e of errori) console.log(`  ✖ ${e}`);
 
   console.log(`\n  ${registry.items.length} item, ${file} file spediti letti dall'artefatto, senza le teste che la CLI toglie`);
   if (!cli.length) console.log("  prova della CLI: le teste dei .ts/.tsx e dei CSS del tema cadono ancora, il resto arriva");
-  if (inElenco) console.log(`  ancora da ripulire: ${inElenco} file, ${noteInElenco.length} note (M5.1c)`);
 
   if (errori.length) {
     console.log(
@@ -436,7 +381,7 @@ function main(): number {
     );
     return 1;
   }
-  console.log(`\n✔ Nessuna nota interna fuori elenco nel testo che arriva a chi installa.\n`);
+  console.log(`\n✔ Nessuna nota interna nel testo che arriva a chi installa.\n`);
   return 0;
 }
 

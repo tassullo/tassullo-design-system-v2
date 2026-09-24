@@ -132,7 +132,7 @@ export type BarraContestoProps = {
   // vera di Studio comincia con 📍, e `MapPinIcon` è quel segnaposto disegnato
   // da noi.
   //
-  // **La sceglie l'app, da Lucide** (Francesco, 2026-09-21): il default resta
+  // **La sceglie l'app, da Lucide**: il default resta
   // `MapPinIcon` perché un default deve essere quello che non sbaglia mai —
   // «ecco dove sei» vale per una commessa, un impianto, una famiglia di
   // prodotti — mentre l'icona che *dice qualcosa* dipende da cosa sia il
@@ -195,9 +195,8 @@ export function BarraContesto({
 
   /*
    * `outline` più `bg-muted`, e il bordo non è ornamento: è ciò che fa
-   * leggere la fascia. La prima stesura usava `variant="muted"`, cioè
-   * `bg-muted/50` e `border-transparent`, ed è stata bocciata a video — «si
-   * fa fatica a vedere». Misurato col colore risolto su canvas (il browser
+   * leggere la fascia. Con `variant="muted"`, cioè `bg-muted/50` e
+   * `border-transparent`, la fascia si vede a fatica. Misurato col colore risolto su canvas (il browser
    * restituisce `oklch`: leggerlo come tre numeri RGB dà misure senza senso),
    * in modalità chiara: il fondo translucido sta a **1.053:1** dalla pagina,
    * il fondo pieno a **1.109**, e il bordo a **1.274**. È il bordo a portare
@@ -376,14 +375,10 @@ export type SelettoreContestoProps = Pick<
 // />
 // ```
 //
-// ── Perché due forme e non una (2026-09-21) ──────────────────────────────
+// ── Perché due forme e non una ───────────────────────────────────────────
 //
-// Studio ne ha **due**, e la scoperta è di Francesco guardando l'app vera in
-// M4ter.11: una nella colonna — il riquadro «PROGETTO ATTIVO» — e una in
-// pagina. Fino a quel momento il registry ne conosceva una sola, e
-// `docs/ANALISI-COPERTURA-APP.md` teneva lo slot del guscio **differito** con
-// l'innesco sbagliato («quando una seconda app avrà un contesto che attraversa
-// le pagine»): l'innesco vero era un altro, e era già scattato.
+// Un'app con un'entità attiva la mostra di solito **due** volte: una nella
+// colonna — un riquadro «PROGETTO ATTIVO» — e una in pagina.
 //
 // Le due non sono un doppione **se hanno ruoli diversi**, ed è la forma
 // scelta:
@@ -394,17 +389,17 @@ export type SelettoreContestoProps = Pick<
 //   porta il «Cambia»**: `BarraContesto` senza `voci` (o con una sola) è già
 //   di sola lettura da sé, non serve una prop nuova.
 //
-// Tenerle tutte e due col «Cambia» era il difetto che si vedeva nello
-// screenshot: «PROGETTO ATTIVO / Prova» e «Progetto attivo: Prova» a 60px di
-// distanza, con due grilletti che fanno la stessa cosa.
+// Tenerle tutte e due col «Cambia» vuol dire «PROGETTO ATTIVO / Prova» e
+// «Progetto attivo: Prova» a 60px di distanza, con due grilletti che fanno la
+// stessa cosa.
 //
 // ── La forma è quella di shadcn, non una nostra ──────────────────────────
 //
 // È il `TeamSwitcher` di `@shadcn/sidebar-07`, chiesto all'MCP e ricomposto
 // qui: `SidebarMenuButton size="lg"` dentro un `SidebarMenu`, con il riquadro
 // dell'icona a sinistra, due righe di testo al centro e `ChevronsUpDown` a
-// destra, e un `DropdownMenu` sopra. Gradino 1 della regola 4bis — la forma
-// esisteva già — e nessuna primitiva nuova: `componenti-propri.json` resta a 1.
+// destra, e un `DropdownMenu` sopra. La forma esisteva già, e non serve
+// nessuna primitiva nuova.
 //
 // L'unico scarto dal loro è il **menu a scelta esclusiva**
 // (`DropdownMenuRadioGroup`) invece di voci semplici: qui una delle entità è
@@ -426,7 +421,7 @@ export type SelettoreContestoProps = Pick<
 // colonna vale 383px e ci sta: il difetto c'è **solo** in densità normale, che
 // è il modo più facile di non accorgersene provando col guanto.)
 //
-// Provate tutte e tre, misurate, e scelta da Francesco il 2026-09-21:
+// Le tre forme possibili, misurate:
 //
 // | forma | righe rese | larghezza del testo | cosa si perde |
 // |---|---|---|---|
@@ -499,8 +494,7 @@ export function SelettoreContesto({
    * riga che shadcn scrive nel `TeamSwitcher` (`side={isMobile ? "bottom" :
    * "right"}`), e serve per un difetto che si vede solo a 375px: lì la
    * colonna è uno `Sheet` che copre quasi tutto lo schermo, e un pannello
-   * aperto alla sua destra **esce dallo schermo** — misurato a video da
-   * Francesco. `useSidebar()` è la primitiva a saperlo, non noi.
+   * aperto alla sua destra **esce dallo schermo**. `useSidebar()` è la primitiva a saperlo, non noi.
    */
   const { isMobile } = useSidebar()
   const contenuto = (
@@ -516,18 +510,15 @@ export function SelettoreContesto({
       </div>
       {/*
        * `min-w-0` sulla colonna del testo, o un nome lungo allarga il bottone
-       * invece di troncarsi: è lo stesso difetto misurato su `ItemTitle` in
-       * M4ter.9 (668.6px in un contenitore da 448), un livello più in là.
+       * invece di troncarsi: è lo stesso difetto di `ItemTitle` (668.6px in
+       * un contenitore da 448), un livello più in là.
        */}
       <div className="grid min-w-0 flex-1 text-left leading-tight">
         {/*
-         * **Niente opacità sul testo**, ed è un difetto preso dal gate appena
-         * scritto: `text-sidebar-foreground/70` sul fondo scuro della colonna
-         * dà **4.41:1**, cioè sotto i 4.5 per un soffio. È esattamente la
-         * trappola che `CLAUDE.md` mette in guardia — l'opacità cambia il
-         * colore *in composizione*, e nessun token la dichiara, quindi
-         * `check:contrast` non può vederla: la vede solo axe, e solo se una
-         * story la mette in scena.
+         * **Niente opacità sul testo**: `text-sidebar-foreground/70` sul
+         * fondo scuro della colonna dà **4.41:1**, cioè sotto i 4.5 per un
+         * soffio. L'opacità cambia il colore *in composizione*, e nessun
+         * token la dichiara: un controllo sulle coppie di token non la vede.
          *
          * La gerarchia la fa la **misura**, non la trasparenza: `text-xs`
          * contro `font-medium`, che è anche ciò che fa il `TeamSwitcher` di

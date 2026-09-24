@@ -606,7 +606,7 @@ Dipendenze: FASE 4.
 - Prompt: "Riscrivi i commenti **nel corpo** dei sei file della famiglia della tabella in `DA_RIPULIRE` di `scripts/check-spedito.ts` — `data-table.tsx` (148), `data-grid.tsx` (16), `foglio-gruppi.tsx` (14), i tre filtri (15) — perché dicano a chi usa il file cosa fa il codice e perché, non da quale sessione viene. Le teste non si toccano: all'app non arrivano, e lì le note di lavoro servono. Ogni misura o motivazione tolta dev'essere già in `WORKLOG.md` o `docs/DECISIONI.md`, o ci va portata. Poi, per ognuno di questi item, verifica che ciò che serve a **usarlo** stia nel campo `docs` di `registry.json` (che la CLI stampa a fine installazione) e non solo nella testa del file."
 - Accettazione: le sei righe tolte da `DA_RIPULIRE`; `docs` verificato item per item, con l'elenco di ciò che vi è stato portato; `registry:build` rilanciato; `npm run check` verde.
 
-**M5.1c — Il testo spedito degli altri blocchi e delle pagine (1 sessione)**
+**M5.1c — Il testo spedito degli altri blocchi e delle pagine (1 sessione)** — *chiusa il 2026-09-23.*
 - Prompt: "Come M5.1b, sui dodici file restanti di `DA_RIPULIRE` (117 note: 104 più 13 nei commenti JSX, che il gate leggeva solo da M5.1b): `calendario`, `page-header`, `app-shell`, `barra-contesto`, `confirm-dialog`, `responsive-dialog`, `form-field` e le cinque pagine modello. Stessa verifica del campo `docs`. A elenco vuoto, `DA_RIPULIRE` si toglie dallo script."
 - Accettazione: `DA_RIPULIRE` tolto; `docs` verificato item per item; `registry:build` rilanciato; `npm run check` verde.
 
