@@ -106,7 +106,9 @@ const ECCEZIONE = /tassullo-controllo:\s*(\S.{2,})/;
 
 /** Le violazioni di una riga, tolte quelle che portano un'eccezione motivata. */
 function regoleViolate(riga, precedente, estensione) {
-  if (ECCEZIONE.test(riga) || ECCEZIONE.test(precedente)) return { violate: [], eccezione: true };
+  // L'eccezione vale sulla riga che la porta, o sulla riga dopo un commento che sta da solo.
+  const soloCommento = /^\s*(?:\/\/|\/\*|\{\/\*|\*)/.test(precedente);
+  if (ECCEZIONE.test(riga) || (soloCommento && ECCEZIONE.test(precedente))) return { violate: [], eccezione: true };
   return {
     violate: REGOLE.filter((r) => r.dove.has(estensione) && r.cerca.test(riga)),
     eccezione: false,
@@ -295,9 +297,18 @@ async function controlla({ soloStile }) {
   }
 
   // Le regole di stile, sui file scritti dall'app.
+  // Nelle cartelle del design system non si leggono le regole di stile: un file che non è
+  // suo è già un errore a sé.
   const delDesignSystem = new Set(attesi.keys());
+  const sue = cartelle ? [cartelle.ui, `${cartelle.components}/blocks`, `${cartelle.components}/pages`].map((c) => `${c}/`) : [];
   const daLeggere = [
-    ...elenca("src").filter((f) => FILE_DI_CODICE.has(extname(f)) && !delDesignSystem.has(f) && !/\/tassullo-[^/]*\.css$/.test(f)),
+    ...elenca("src").filter(
+      (f) =>
+        FILE_DI_CODICE.has(extname(f)) &&
+        !delDesignSystem.has(f) &&
+        !sue.some((c) => f.startsWith(c)) &&
+        !/\/tassullo-[^/]*\.css$/.test(f)
+    ),
     ...["package.json", "index.html"].filter((f) => existsSync(join(RADICE, f))),
   ];
   const { violazioni, eccezioni } = controllaCodice(daLeggere);
@@ -373,6 +384,18 @@ function selfTest() {
       console.error(`  ✖ eccezione: «${testo}» ${atteso ? "doveva" : "non doveva"} essere segnalato`);
     }
   }
+  // Un'eccezione in fondo a una riga vale per quella riga, non per la successiva;
+  // un commento che sta da solo vale per la riga sotto.
+  const dopo = [
+    ['<div className="w-[1px]" /> {/* tassullo-controllo: misura imposta dal lettore */}', 'className="h-[37px]"', true],
+    ["// tassullo-controllo: misura imposta dal lettore di codici", 'className="h-[37px]"', false],
+  ];
+  for (const [prima, testo, atteso] of dopo) {
+    if (regoleViolate(testo, prima, ".tsx").violate.length > 0 !== atteso) {
+      falliti++;
+      console.error(`  ✖ eccezione: «${testo}» ${atteso ? "doveva" : "non doveva"} essere segnalato`);
+    }
+  }
   const configurazioni = [
     [{ style: "base-nova", registries: { "@tassullo": "https://esempio.it/x/v2.0.0/public/r/{name}.json" } }, 0],
     [{ style: "new-york", registries: { "@tassullo": "https://esempio.it/x/v2.0.0/public/r/{name}.json" } }, 1],
@@ -394,7 +417,7 @@ function selfTest() {
     falliti++;
     console.error("  ✖ un diff vero doveva essere segnalato");
   }
-  const totale = casi.length + eccezioni.length + configurazioni.length + 2;
+  const totale = casi.length + eccezioni.length + dopo.length + configurazioni.length + 2;
   if (falliti) {
     console.error(`\n✖ self-test: ${falliti} casi su ${totale} sbagliati.\n`);
     process.exit(1);
