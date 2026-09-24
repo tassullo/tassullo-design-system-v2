@@ -56,6 +56,7 @@ import type {
   ReactElement,
   ReactNode,
 } from "react"
+import { useState } from "react"
 import { CheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react"
 
 import { cn } from "cn"
@@ -367,7 +368,13 @@ function Utente({ utente, azioni }: { utente: UtenteShell; azioni?: ReactNode })
  * può essere un `<a>` (col `render` del router), e `disabled` su un ancoraggio
  * non vuol dire niente. Il preset veste tutti e due allo stesso modo.
  */
-function Voci({ voci, rail }: { voci: VoceNav[]; rail: boolean }) {
+/** Quali gruppi sono chiusi, e come cambiarlo. Lo tiene il guscio. */
+type GruppiChiusi = {
+  chiusi: ReadonlySet<string>
+  cambia: (titolo: string, aperto: boolean) => void
+}
+
+function Voci({ voci, rail, gruppi }: { voci: VoceNav[]; rail: boolean; gruppi: GruppiChiusi }) {
   const { isMobile } = useSidebar()
   /*
    * Il tooltip non si passa affatto sotto la soglia mobile. Il preset lo
@@ -430,13 +437,14 @@ function Voci({ voci, rail }: { voci: VoceNav[]; rail: boolean }) {
             <Collapsible
               key={voce.titolo}
               /*
-               * Aperto di default per **tutti** i gruppi, non solo quello
+               * Aperto di partenza per **tutti** i gruppi, non solo quello
                * attivo: legarlo ad `attiva` dava una via di mezzo — un solo
                * gruppo aperto e gli altri collassati — che non è né «tutto
                * visibile» né «tutto compatto», ed è la forma peggiore delle
                * due. `attiva` resta a governare solo l'evidenziazione.
                */
-              defaultOpen
+              open={!gruppi.chiusi.has(voce.titolo)}
+              onOpenChange={(aperto) => gruppi.cambia(voce.titolo, aperto)}
               className="group/collapsible"
               render={<SidebarMenuItem />}
             >
@@ -481,7 +489,15 @@ function Voci({ voci, rail }: { voci: VoceNav[]; rail: boolean }) {
 }
 
 /** Le sezioni, una `SidebarGroup` ciascuna con la sua etichetta. */
-function Navigazione({ sezioni, collassa }: { sezioni: SezioneNav[]; collassa: "icona" | "fuori" }) {
+function Navigazione({
+  sezioni,
+  collassa,
+  gruppi,
+}: {
+  sezioni: SezioneNav[]
+  collassa: "icona" | "fuori"
+  gruppi: GruppiChiusi
+}) {
   const { isMobile, state } = useSidebar()
   // Il rail c'è solo a colonna chiusa a icone e sulla scrivania: sotto la
   // soglia mobile la colonna è un pannello a scomparsa, sempre intera.
@@ -502,7 +518,7 @@ function Navigazione({ sezioni, collassa }: { sezioni: SezioneNav[]; collassa: "
               {sezione.titolo}
             </SidebarGroupLabel>
           ) : null}
-          <Voci voci={sezione.voci} rail={rail} />
+          <Voci voci={sezione.voci} rail={rail} gruppi={gruppi} />
         </SidebarGroup>
       ))}
     </>
@@ -635,6 +651,24 @@ export function AppShell({
   children,
   ...props
 }: AppShellProps) {
+  /*
+   * Quali gruppi della navigazione sono stati chiusi a mano. Sta qui, in
+   * cima, e non dentro il gruppo: il gruppo si smonta quando la colonna si
+   * chiude a icone (diventa un menu) e, sul telefono, ogni volta che il
+   * pannello si chiude. Con lo stato dentro di sé, riaprendo ogni gruppo
+   * tornava aperto. Si ricordano i **chiusi** perché ogni gruppo parte aperto.
+   */
+  const [chiusi, setChiusi] = useState<ReadonlySet<string>>(() => new Set())
+  const gruppi: GruppiChiusi = {
+    chiusi,
+    cambia: (titolo, aperto) =>
+      setChiusi((prima) => {
+        const dopo = new Set(prima)
+        if (aperto) dopo.delete(titolo)
+        else dopo.add(titolo)
+        return dopo
+      }),
+  }
   return (
     /*
      * Il provider dei tooltip sta QUI, una volta sola, e non è un dettaglio di
@@ -659,7 +693,7 @@ export function AppShell({
               {contesto}
             </SidebarHeader>
             <SidebarContent>
-              <Navigazione sezioni={sezioni} collassa={collassa} />
+              <Navigazione sezioni={sezioni} collassa={collassa} gruppi={gruppi} />
             </SidebarContent>
             {utente ? (
               <SidebarFooter>

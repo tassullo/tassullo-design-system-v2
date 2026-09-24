@@ -13236,9 +13236,13 @@ Ramo `fras/proposta-50-rail-gruppi`. Proposta di Anagrafe: con `collassa="icona"
 
 In Chromium (Playwright dalla cartella del repo, contro lo Storybook di sviluppo): tooltip al passaggio, che sparisce aprendo; `Invio`/`Spazio` aprono col fuoco sulla prima voce, frecce, `Esc` chiude e riporta il fuoco sull'icona; clic e `Invio` su una voce arrivano all'ancora e chiudono il menu; la disabilitata non si attiva; `Ctrl`+`B` riporta i gruppi apribili; a 375px pannello con i gruppi apribili; console pulita. Fotografata `Pagine/Prodotti (Anagrafe)` a colonna chiusa col menu di «Qualifica» aperto, in chiaro e in scuro. `npm run check` verde.
 
-#### Limite noto
+#### I gruppi ricordano se sono aperti
 
-Aprire e chiudere la colonna rimonta i gruppi, che tornano aperti.
+Alla prima consegna, chiudendo e riaprendo la colonna i gruppi tornavano tutti aperti. Francesco ha chiesto che se lo ricordino: lo stato è passato dal `Collapsible`, che si smonta, al guscio. Provato in Chromium sulla scrivania (`Ctrl`+`B` due volte) e sul telefono (pannello chiuso e riaperto). Non sopravvive a un ricaricamento.
+
+#### La versione
+
+Via libera di Francesco per unire e pubblicare `v2.0.2` a CI verde. Indirizzi dei documenti per le app (`INTEGRAZIONE.md`, `GUIDA-MIGRAZIONE.md`, `README`, introduzione della style guide) portati a `v2.0.2` nella stessa PR.
 
 #### Prossimi passi
 
