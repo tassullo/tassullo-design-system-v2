@@ -67,7 +67,7 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 
 ## I gate
 
-`npm run check` esegue i dieci controlli che girano anche in CI:
+`npm run check` esegue gli undici controlli che girano anche in CI:
 
 | Comando | Cosa verifica |
 |---|---|
@@ -75,10 +75,11 @@ Le utility Tailwind si usano **solo sui token del tema**: niente valori arbitrar
 | `check:registry` | che i componenti divergano dall'originale shadcn **solo nelle stringhe di classi** — cioè che restino aggiornabili |
 | `check:font` / `check:logo` | che i CSS generati siano allineati ai `.woff2` e agli `.svg` di partenza |
 | `test:a11y` | axe-core su ogni story: **4 passate** (chiaro/scuro × popup chiuso/aperto), 1540 scansioni su 385 story |
-| `check:riferimenti` | che ogni `registryDependencies` di `registry.json` risolva a un item dichiarato, che i file dichiarati esistano, che non ci siano cicli, e che ogni `import` dei file spediti sia coperto da ciò che `add` installa — le `dependencies` npm dell'item e della chiusura delle sue `registryDependencies` — **214 riferimenti e 510 import su 95 item**. È l'unico gate che vede un item ininstallabile o che nell'app non compila: `registry validate` no |
+| `check:riferimenti` | che ogni `registryDependencies` di `registry.json` risolva a un item dichiarato, che i file dichiarati esistano, che non ci siano cicli, e che ogni `import` dei file spediti sia coperto da ciò che `add` installa — le `dependencies` npm dell'item e della chiusura delle sue `registryDependencies` — **214 riferimenti e 513 import su 96 item**. È l'unico gate che vede un item ininstallabile o che nell'app non compila: `registry validate` no |
 | `check:registry-build` | che `public/r/` — l'artefatto che le app installano davvero — corrisponda ai sorgenti, rilanciando `shadcn build` in una cartella temporanea e confrontando byte per byte |
 | `check:storybook` | che la style guide si legga da fuori: nel testo che un visitatore vede — le descrizioni delle story, le pagine `.mdx`, la prosa delle pagine in `stories/`, le descrizioni dei componenti e delle prop che la tabella delle prop mostra, i commenti dentro il codice delle scene che «Show code» mostra — niente sigle di lavoro, rimandi ai documenti interni, date, nomi di persona, comandi del repo. Il canone di pagina è in testa a `scripts/check-storybook.ts` |
 | `check:spedito` | che il testo che arriva a chi installa — `title`, `description` e `docs` degli item, e i file spediti tolte le teste che `shadcn add` toglie — non porti sigle di lavoro, documenti interni, date, nomi di persona. Rimisura a ogni giro, con la CLI vera, quali commenti arrivano |
+| `check:controllo` | l'autotest di `tassullo-controllo`, lo script che le app installano per controllarsi da sé: che ogni sua regola segnali ciò che deve e solo quello |
 | `check:checklist` | che ogni riga di `CHECKLIST.md` stia entro **500 caratteri**: la checklist porta verdetto, numeri che contano e un rimando, il resto va in `WORKLOG.md` |
 
 Oggi sono tutti verdi, **0 violazioni**. C'è anche `npm run misura:bersagli`, che misura quanto sono grandi i bersagli in densità touch — una cosa che axe non guarda e che col guanto si sente.

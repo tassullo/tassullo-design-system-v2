@@ -13158,3 +13158,22 @@ Su richiesta di Francesco, dopo M5.6. Tutto fuori da questo repository, in `tran
 Verificato in sola lettura, con l'API di GitHub: `main` di Anagrafe è ancora al commit `9f0c4a5`, lo stesso su cui sono preparati i file.
 
 **Rettifica a M5.5b**: non serve avvisare Roberto del passaggio (Francesco). Tolto dal piano privato.
+
+## 2026-09-24 — M5.7 Il controllo del design system per le app
+
+Ramo `fras/m5-7-controllo`. Nasce dalla pianificazione di Anagrafe: il controllo di stile nella sua CI (DS.3) non va scritto nell'app, ma qui, come item che tutte le app installano. Francesco: si implementa subito, e la versione resta `v2.0.0`.
+
+- **L'item `tassullo-controllo`**: uno script `.mjs` senza dipendenze che arriva in `scripts/` dell'app. Tre controlli: file del design system intatti (confronto fatto dalla CLI di shadcn); niente file estranei in `ui/`, `blocks/`, `pages/`; dieci regole di stile più `components.json`. Dettaglio e ragioni in `docs/DECISIONI.md` §66.
+- **Una verifica preliminare**, prima di progettarlo: `shadcn add … --dry-run --diff` dice «No changes» su un file intatto e mostra il diff su uno ritoccato, ma esce con 0 in tutti e due i casi. E `dropdown-menu`, mai toccato, risulta «overwrite» per la sola riga `"use client"`.
+- **Le prove**:
+  - autotest 34 casi, messo nel gate come `check:controllo` (l'undicesimo);
+  - app di prova installata da GitHub, allo SHA del ramo: pulita passa; 13 violazioni volute su 13 prese, con l'eccezione motivata lasciata stare;
+  - copia di Anagrafe sul v1: i conti di M5.5a, più 232 esadecimali dentro i ripieghi dei CSS di pagina.
+- **Due difetti del primo giro, corretti.** Il primo: la riga d'avanzamento della CLI letta come diff (falsi positivi su `dropdown-menu` e `tooltip`). Il secondo: un'eccezione in fondo a una riga che esentava anche la successiva. Da un mio `sed` che su macOS non funziona, invece, una prova che non provava niente: il blocco non era stato davvero modificato. Rifatta.
+- **`check:riferimenti`** ora legge gli import dei `.mjs`. Provato con un import inventato: lo segnala.
+- **`check:spedito`** ha fermato «CI», «CLAUDE.md», «v1» e un nome di script simile ai nostri nel testo spedito. Riscritti i testi, non il gate.
+- **Documenti**:
+  - `INTEGRAZIONE.md`: passo 11, una regola nel blocco per il `CLAUDE.md`, l'item nel paragrafo della checklist;
+  - `GUIDA-MIGRAZIONE.md`: il controllo nella verifica finale, e `--solo-stile` come inventario;
+  - `CLAUDE.md`, `README.md`, `gate.yml`: gli undici gate;
+  - `PIANO.md` e `CHECKLIST.md`: M5.7.

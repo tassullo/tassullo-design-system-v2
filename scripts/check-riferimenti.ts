@@ -132,7 +132,7 @@ function controllaImport(registry: { items: Item[] }, leggi: Lettore): { errori:
     );
 
     for (const file of item.files ?? []) {
-      if (!/\.tsx?$/.test(file.path)) continue;
+      if (!/\.(?:tsx?|mjs)$/.test(file.path)) continue;
       const testo = leggi(file.path);
       if (testo === null) continue; // lo segnala già il controllo dei file presenti
       const { importedFiles } = ts.preProcessFile(testo, true, true);
@@ -156,6 +156,8 @@ function controllaImport(registry: { items: Item[] }, leggi: Lettore): { errori:
           }
           continue;
         }
+        // I moduli di Node (`node:fs`…) non si installano: li porta Node.
+        if (s.startsWith("node:")) continue;
         const p = pacchetto(s);
         if (DELL_APP.has(p) || pacchetti.has(p)) continue;
         errori.push(

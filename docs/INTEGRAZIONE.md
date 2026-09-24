@@ -284,6 +284,31 @@ manutenzione va nella roadmap e il paragrafo nella checklist (sezione «Nel
 piano dell'app»). È il passo che tiene l'app agganciata nel tempo, non solo
 al primo giorno.
 
+### 11. Il controllo, fra le verifiche automatiche dell'app (~10 s, più la CI)
+
+```bash
+npx shadcn@latest add @tassullo/tassullo-controllo
+```
+
+Arriva un file solo, `scripts/tassullo-controllo.mjs`, nella cartella di
+`components.json`. Si lancia con `node scripts/tassullo-controllo.mjs` e va
+fra i passi che la CI dell'app esegue a ogni push, accanto a `tsc` e alla
+build. Controlla tre cose:
+
+- i file installati dal design system sono identici a quelli della versione
+  scritta in `components.json` (li confronta la riga di comando di shadcn);
+- in `src/components/ui/`, `blocks/` e `pages/` stanno solo file del design
+  system: un componente scritto dall'app, o preso da shadcn senza `@tassullo/`,
+  lì dentro è un errore;
+- il codice dell'app segue le regole del blocco per il `CLAUDE.md` (valori
+  arbitrari, esadecimali, `text-primary`, finestre del browser, tendine
+  native, numeri…), e `components.json` ha `base-nova` e una versione fissata.
+
+Esce con errore alla prima violazione e dice perché. Una riga che deve fare
+eccezione porta un commento `tassullo-controllo: <il motivo>`. Vuole la rete
+per leggere il registry; `--solo-stile` fa solo le regole sul codice, senza
+rete. In un'app appena creata, alla fine del setup, deve passare pulito.
+
 ## Da dove partire: le pagine modello
 
 Una pagina nuova non si compone da zero: si parte dalla pagina modello che le
@@ -591,6 +616,11 @@ due utility dello stesso tipo vince l'ultima scritta, e l'altra sparisce dal
 DOM: `cn("mx-2 m-0")` perde `mx-2`. La classe che deve vincere si scrive per
 ultima; se una classe «non fa niente», si guarda il DOM.
 
+**Il controllo.** `node scripts/tassullo-controllo.mjs` è fra le verifiche
+automatiche dell'app e deve passare: controlla i file del design system, le sue
+cartelle e le regole di questa sezione. Una riga che deve fare eccezione porta
+un commento `tassullo-controllo: <il motivo>`, e il motivo si scrive davvero.
+
 **Aggiornare.**
 - La versione del design system sta nell'indirizzo di `@tassullo` in
   `components.json`: un'etichetta git come `v2.0.0` (l'elenco è nella pagina
@@ -638,7 +668,7 @@ ultima; se una classe «non fa niente», si guarda il DOM.
 > Lo stile viene dal Design System Tassullo 2.0
 > (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.0`**,
 > quella scritta in `components.json`. **Item installati per
-> nome**: `tema`, `tassullo-app-shell`, `tassullo-pagina-lista` — le primitive
+> nome**: `tema`, `tassullo-controllo`, `tassullo-app-shell`, `tassullo-pagina-lista` — le primitive
 > arrivano come dipendenze e non si elencano. Un item nuovo si aggiunge qui
 > quando si installa. Le regole stanno nel `CLAUDE.md`, sezione «Stile e
 > design system».

@@ -149,6 +149,10 @@ E ciò che a `grep` non si trova, e va cercato leggendo: le **azioni che cancell
 chiedere conferma**, gli **errori scritti dietro una finestra aperta**, le barre di tab
 scritte a mano. In Anagrafe erano 7, 6 e 5.
 
+Il controllo del design system (`tassullo-controllo`, vedi il passo 8 più sotto) aiuta già
+qui: con `components.json` del passo 0, `node scripts/tassullo-controllo.mjs --solo-stile`
+elenca le regole violate dal codice di oggi, cioè buona parte del lavoro da fare.
+
 Le variabili che il codice usa ma la versione del v1 installata non definisce (scritte con
 un ripiego, `var(--nome, #fff)`) vanno guardate a parte: se il v2 definisce quel nome, il
 ripiego smette di valere appena arriva il tema. In Anagrafe è successo con
@@ -217,6 +221,11 @@ ragione, e il ramo va riallineato spesso al principale.
      v1. Il valore resta un esadecimale (l'HTML non legge le variabili CSS): `#141414`, lo
      stesso fondo della colonna nel v2.
 8. **Verifica**:
+   - **il controllo del design system**: `npx shadcn@latest add @tassullo/tassullo-controllo`,
+     poi `node scripts/tassullo-controllo.mjs` deve passare pulito, e va fra le verifiche
+     automatiche dell'app (passo 11 di `docs/INTEGRAZIONE.md`). Trova da sé le classi e le
+     librerie del v1 rimaste, i file del design system ritoccati durante il lavoro e le
+     primitive scritte in casa;
    - nessun resto del v1. I `grep` dell'inventario, a questo punto, trovano anche il codice
      del design system (`bg-card` contiene `card`, e i blocchi hanno tabelle e dialoghi):
      si leggono **escludendo i file installati**, aggiungendo in coda
