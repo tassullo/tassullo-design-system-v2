@@ -13208,3 +13208,11 @@ Il template di Vite oggi usa oxlint; ESLint era quello fino a `create-vite` 8 (p
 #### Per Anagrafe (DS.6, da fare lì quando la versione è pubblicata)
 
 Il blocco «in attesa di tassullo-design-system-v2#49» in `frontend/eslint.config.js` non si toglie e basta: si **sostituisce** con le righe del passo 12, perché `button` e `sidebar` esportano ancora `buttonVariants` e `useSidebar`. `set-state-in-effect` e la cartella `hooks/` non servono più.
+
+#### La versione `v2.0.1`
+
+Via libera di Francesco. PR #51 unita col gate verde (5 min 27 s) sul commit `3b9aaf2`; l'unione `8731b5b` ha lo stesso contenuto, perché `main` non si era mosso. Etichetta `v2.0.1` su `8731b5b`, push della sola etichetta; `v2.0.0` resta dov'era. Prima dell'etichetta, gli indirizzi dei documenti per le app (`INTEGRAZIONE.md`, `GUIDA-MIGRAZIONE.md`, `README`, introduzione della style guide) sono passati a `v2.0.1`.
+
+Verificato da fuori: `…/v2.0.1/public/r/` risponde per `use-mobile`, `tema`, `tassullo-app-shell`; un `add @tassullo/use-mobile` in un'app vuota fissata a `v2.0.1` scrive la versione su `useSyncExternalStore`, senza la testa di repo.
+
+Per Anagrafe il prompt di DS.6 è pronto fuori dal repository, in `transizione-anagrafe/anagrafe-md/prompt-ds6-v2.0.1.md`: nel ramo di DS.1, versione nuova, item reinstallati, il blocco di #49 sostituito dalle righe del passo 12.
