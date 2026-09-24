@@ -12813,3 +12813,7 @@ Verificato in Chromium sulle pagine Docs di `app-shell`, `sidebar`, `foglio-a-gr
 
 - **`npm run check` verde sui dieci gate**, lanciato dopo l'ultima modifica ai sorgenti: `test:a11y` **1556 scansioni, 0 violazioni, 389 story** per passata (le due in più sono le scene «Con contesto»).
 - `tsc -b` a zero; `finestra.tsx` controllato a parte con `tsc --strict` (sta in `.storybook/`, fuori dai due `tsconfig`).
+
+## 2026-09-24 — Il ciclo di lavoro scritto in `CLAUDE.md`
+
+Su indirizzo di Francesco, in §Conduzione: un task, un ramo `claude/<task>`; a fine sessione, con `npm run check` verde e checklist e diario aggiornati, PR verso `main`; aperta la PR si accende la correzione automatica dell'app; si unisce a gate verde, con un commit di unione. Due cose accertate oggi e scritte lì perché non si ripetano: l'unione automatica di GitHub nel repository è disattivata («Auto merge is not allowed for this repository»), e cancellare da riga di comando il ramo di base di una PR impilata **chiude** la PR sopra invece di spostarla (#31, riaperta ricreando il ramo) — prima si sposta con `gh pr edit --base main`, poi si cancella. Per la correzione automatica non si è trovata un'impostazione che la accenda di default: si accende PR per PR.

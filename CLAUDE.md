@@ -76,6 +76,12 @@ Da sapere per non farci conto a sproposito: l'MCP è **solo lato consumo**. Non 
 
 ## §Conduzione
 
+- **Il ciclo di lavoro: un task, un ramo, una PR** (deciso da Francesco il 2026-09-24).
+  1. **Si comincia su un ramo nuovo** da `main` aggiornato, `claude/<task>` — mai lavoro diretto su `main`. Se il task dipende da una PR non ancora unita, il ramo parte da quello della PR.
+  2. **A fine sessione**, con `npm run check` verde e `CHECKLIST.md`/`WORKLOG.md` aggiornati: commit, push, **PR verso `main`**.
+  3. **Aperta la PR, si accende subito la correzione automatica** (se la sessione gira nell'app desktop): l'app sveglia la sessione quando il gate in CI fallisce, quando nasce un conflitto con `main` o quando arriva un commento di revisione. Si accende PR per PR; non esiste un'impostazione che la accenda da sé.
+  4. **Si unisce quando tutto è a posto**: gate verde in CI e verifiche della sessione chiuse. `gh pr merge --merge --delete-branch`, cioè un commit di unione, come la storia del repo. L'unione automatica di GitHub nel repository è **disattivata**: si aspetta il verde e si unisce a mano.
+  - **PR una sopra l'altra: prima si sposta, poi si cancella.** Unita la PR di base, quella che ci poggia sopra va riportata su `main` (`gh pr edit <n> --base main`) **prima** di cancellare il ramo di base. Cancellato il ramo da riga di comando, GitHub **chiude** la PR che ci poggiava invece di spostarla — successo con la #31 il 2026-09-24, riaperta ricreando il ramo per un momento.
 - **A fine task**: aggiornare la riga in `CHECKLIST.md` e aggiungere la voce in `WORKLOG.md` (attività svolte, modifiche, decisioni tecniche, problemi, test eseguiti, prossimi passi). Non è burocrazia: è ciò che permette alla sessione successiva di leggere tre file invece di ricostruire il contesto. **I due file non sono lo stesso file**: la riga in `CHECKLIST.md` è una **sintesi di due o tre righe** — verdetto, i numeri che contano, un rimando — e tutto il resto va nel diario. La checklist si legge a colpo d'occhio o non serve a niente, e `npm run check:checklist` tiene ogni riga entro **500 caratteri**.
 - Quando una decisione **D** si chiude, si scrive **nel WORKLOG con la motivazione** e si aggiorna la riga in `CHECKLIST.md`. Una decisione chiusa senza motivazione scritta si riapre da sola fra tre mesi.
 - Uno **scostamento** dal piano (un componente che non regge, una libreria scartata, un'eccezione a Base UI) o si corregge, o si annota nel WORKLOG con la ragione. Mai in silenzio.
