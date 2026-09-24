@@ -110,6 +110,20 @@
       "docs": "  import { decimale, intero, valuta } from '@/lib/numeri'\n\n  intero(15402)        // \"15.402\"\n  decimale(106.376)    // \"106,38\"\n  decimale(3.14159, 3) // \"3,142\"\n  valuta(2086.93)      // \"2.086,93 €\"\n\nPerche non basta Intl.NumberFormat('it-IT'): il CLDR italiano dichiara\nminimumGroupingDigits 2, cioe raggruppa solo da cinque cifre in su. Un\nimporto di quattro cifre esce quindi 2086,93 e uno di cinque 12.345,67 — il\nseparatore non e assente, e INTERMITTENTE, e proprio nella fascia fra mille\ne diecimila che in un computo o in un listino e la maggior parte delle\nrighe. Due numeri incolonnati, uno col punto e uno senza, si leggono di\nordini di grandezza diversi, e tabular-nums allinea le cifre ma non inventa\nun separatore che non c'e.\n\nLa convenzione Tassullo e quindi sempre il punto delle migliaia\n(useGrouping: 'always').\n\nPer un caso che le tre funzioni non coprono si parte da `formattatore`, che\ne la convenzione piu le opzioni che servono:\n\n  const PERCENTO = formattatore({ style: 'percent', maximumFractionDigits: 1 })\n\nLe istanze Intl sono costruite una volta sola e memorizzate: costruirne una\ndentro la cella di una tabella vuol dire costruirla una volta per riga a\nogni render.\n\nNON si formattano di qui un anno, un codice, un identificativo o un CAP:\nsono stringhe scritte con delle cifre, e 2026 diventerebbe 2.026. Se\nsommarne due non ha senso, non e un numero."
     },
     {
+      "name": "tassullo-controllo",
+      "type": "registry:item",
+      "title": "Controllo del design system",
+      "description": "Lo script che l'app lancia a ogni push, fra le sue verifiche automatiche: i file del design system sono identici a quelli della versione installata, nelle loro cartelle non entrano primitive fatte in casa, e il codice dell'app rispetta le regole di stile (niente valori arbitrari, esadecimali, text-primary, finestre del browser, tendine native, numeri senza @/lib/numeri). Esce con errore alla prima violazione.",
+      "files": [
+        {
+          "path": "registry/tassullo/scripts/tassullo-controllo.mjs",
+          "type": "registry:file",
+          "target": "~/scripts/tassullo-controllo.mjs"
+        }
+      ],
+      "docs": "Si lancia dalla cartella dell'app che contiene components.json, fra le verifiche automatiche che l'app fa a ogni push, accanto a tsc e alla build:\n\n  node scripts/tassullo-controllo.mjs\n\nNel package.json dell'app, per comodità:\n\n  \"scripts\": { \"design-system\": \"node scripts/tassullo-controllo.mjs\" }\n\nTre controlli. I file installati dal registry @tassullo si confrontano, con la riga di comando di shadcn, con quelli della versione scritta in components.json: una modifica fatta in casa è un errore, e si propone al design system. In src/components/ui/, blocks/ e pages/ stanno solo i file del design system: un componente dell'app va altrove. Il codice dell'app segue le regole del blocco «Stile e design system» delle sue istruzioni.\n\nUna riga che deve fare eccezione porta, sulla riga stessa o su quella sopra, un commento `tassullo-controllo: <il motivo>`; senza motivo non vale. --solo-stile salta il confronto col registry e lavora senza rete; --self-test prova che il controllo sa fallire.\n\nVuole Node 22 o successivo e la rete: legge il registry alla versione scritta in components.json."
+    },
+    {
       "name": "toni",
       "type": "registry:lib",
       "title": "Toni semantici",
