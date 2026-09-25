@@ -123,11 +123,11 @@ export const Stati: Story = {
       <Button {...args}>A riposo</Button>
       <Button {...args} disabled>Disabilitato</Button>
       <Button {...args} disabled>
-        <Spinner data-icon="inline-start" />
+        <Spinner data-icon="inline-start" aria-label="" />
         Salvataggio…
       </Button>
       <Button {...args} variant="outline" disabled>
-        <Spinner data-icon="inline-start" />
+        <Spinner data-icon="inline-start" aria-label="" />
         Caricamento…
       </Button>
     </div>

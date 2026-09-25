@@ -13255,3 +13255,25 @@ PR #53 unita col gate verde in CI (5 min 49 s) sul commit `2ad3f17`; l'unione `4
 Verificato da fuori: `…/v2.0.2/public/r/tassullo-app-shell.json` e `tema.json` rispondono, e il guscio servito contiene la versione con la memoria dei gruppi.
 
 Per Anagrafe il prompt di DS.6 è pronto fuori dal repository, in `transizione-anagrafe/anagrafe-md/prompt-ds6-v2.0.2.md`. Anagrafe nel frattempo ha tolto i gruppi (la sua D6, decisa il 2026-09-24 alle 20:35): della versione nuova le serve la correzione dei clic sull'ultima icona delle sezioni nel rail, che da lei sono Organismi notificati, Kit e Sistemi.
+
+## 2026-09-25 — Proposta #55: etichette accessibili in italiano
+
+Ramo `fras/proposta-55-etichette`. Proposta di Anagrafe: tre primitive avevano ancora il nome accessibile di shadcn, in inglese, mentre il resto del registry è in italiano.
+
+#### Le modifiche
+
+- `spinner`: `aria-label="Loading"` → `"Caricamento"`. Resta sovrascrivibile, `{...props}` viene dopo.
+- `dialog` e `sheet`: il testo nascosto della crocetta, `Close` → `Chiudi`.
+- Per coerenza, stessa famiglia di difetto trovata cercando nel resto di `ui/`: il bottone di chiusura che `DialogFooter showCloseButton` aggiunge in fondo (`Close` → `Chiudi`, e questo si **vede**), e titolo e descrizione nascosti di `CommandDialog` («Comandi», «Cerca un comando da eseguire…»). Il calendario a eventi ha ancora le etichette inglesi nel dizionario di serie, ma il blocco `calendario` passa il suo in italiano: non toccato.
+- Sono stringhe, non forma: `check:registry` le azzera nel confronto, come per `pagination`, `breadcrumb`, `carousel` e `sidebar`, già tradotti allo stesso modo.
+- Story dello `spinner`: tolto l'`aria-label="Caricamento"` passato a mano e la regola che diceva «il nome di serie è in inglese».
+- La regola della story dice che dentro un bottone **col testo** lo spinner porta `aria-label=""`, perché il nome lo dà il testo. La seguivano le story dello spinner, non quelle del bottone né `tassullo-pagina-login`: corrette le due story di `Primitive/Button → Stati` e i due spinner del login, dove il testo del bottone diventa «Accesso in corso…» (prima: «Loading Accesso in corso…»). In `tassullo-confirm-dialog` lo spinner tiene il suo nome: lì il testo del bottone non cambia durante l'operazione, e «Caricamento» è l'unico segnale che il lettore di schermo riceve.
+- Aggiunta una nota in `DECISIONI.md` accanto alla frase che dava lo spinner in inglese.
+
+#### Le prove
+
+`npm run check` verde, i dodici gate: `test:a11y` 1560 scansioni, 0 violazioni. Negli JSON di `public/r/` di `spinner`, `dialog`, `sheet` e `command` ci sono i testi italiani e nessun testo inglese dei tre.
+
+#### Prossimi passi
+
+PR con `Closes #55`. Se Francesco lo conferma, unione e pubblicazione di `v2.0.3`, poi gli indirizzi dei documenti per le app. In Anagrafe: `add --overwrite` di `spinner`, `dialog`, `sheet` (e del login), e via i commenti «in attesa di #55».
