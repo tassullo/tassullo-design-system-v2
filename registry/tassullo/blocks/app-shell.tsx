@@ -22,6 +22,10 @@
  * 6. il menù utente che si apre **in basso** sul telefono — `side="right"`
  *    fisso lo fa uscire dallo schermo da una colonna di 256px dentro 375.
  *
+ * Più una settima, dalla proposta #50 di Anagrafe: a colonna chiusa l'icona di
+ * un gruppo con `figli` in `sidebar-07` non porta da nessuna parte. Qui apre un
+ * menu con le voci del gruppo (vedi `Voci`).
+ *
  * ── Cosa NON c'è, e perché ───────────────────────────────────────────────
  *
  * **Il `SidebarRail`.** È la striscia invisibile a cavallo del bordo destro che
@@ -52,7 +56,8 @@ import type {
   ReactElement,
   ReactNode,
 } from "react"
-import { ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react"
+import { useState } from "react"
+import { CheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react"
 
 import { cn } from "cn"
 import { Avatar, AvatarFallback } from "@/registry/tassullo/ui/avatar"
@@ -65,6 +70,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -147,7 +153,13 @@ export type VoceNav = {
   disabilitata?: boolean
   badge?: ReactNode
   render?: ReactElement
-  /** Il sottomenu. Si decide **voce per voce**: basta passarlo, o non passarlo. */
+  /**
+   * Il sottomenu. Si decide **voce per voce**: basta passarlo, o non passarlo.
+   *
+   * A colonna aperta, e sul telefono, è un gruppo che si apre e si chiude. A
+   * colonna chiusa a icone l'icona del gruppo apre un menu a destra con le
+   * stesse voci: il nome del gruppo in cima, la voce attiva con la spunta.
+   */
   figli?: SottoVoceNav[]
 }
 
@@ -337,15 +349,32 @@ function Utente({ utente, azioni }: { utente: UtenteShell; azioni?: ReactNode })
  * Le voci di una sezione.
  *
  * Quelle con figli sono un `Collapsible` che *rende* il `SidebarMenuItem`: è la
- * forma di `sidebar-07`, e il vantaggio è che il sottolivello sparisce da sé
- * quando la colonna è collassata a icone — un albero dentro un rail da 48px non
- * si legge.
+ * forma di `sidebar-07`, e il sottolivello sparisce da sé quando la colonna è
+ * collassata a icone — un albero dentro un rail da 48px non si legge.
+ *
+ * **Nel rail, però, il gruppo diventa un menu.** In `sidebar-07` l'icona di un
+ * gruppo, a colonna chiusa, apre e chiude un sottolivello che non si vede: un
+ * clic che non fa niente, e l'unica strada per arrivare alle voci è riaprire la
+ * colonna. Qui l'icona apre un `DropdownMenu` a destra, con le voci del gruppo:
+ * è la forma che lo stesso `sidebar-07` usa per il menu utente, e da tastiera
+ * è un menu — frecce, `Invio`, `Esc` che riporta il fuoco sull'icona.
+ *
+ * La voce attiva porta la **spunta** e `aria-current="page"`, come la commessa
+ * attiva nel selettore del contesto. Non lo sfondo: nei menu lo sfondo è il
+ * segno del fuoco, e con due righe grigie non si capirebbe quale delle due è
+ * la pagina in cui si è.
  *
  * `disabilitata` si esprime con `aria-disabled` e non con `disabled`: la voce
  * può essere un `<a>` (col `render` del router), e `disabled` su un ancoraggio
  * non vuol dire niente. Il preset veste tutti e due allo stesso modo.
  */
-function Voci({ voci }: { voci: VoceNav[] }) {
+/** Quali gruppi sono chiusi, e come cambiarlo. Lo tiene il guscio. */
+type GruppiChiusi = {
+  chiusi: ReadonlySet<string>
+  cambia: (titolo: string, aperto: boolean) => void
+}
+
+function Voci({ voci, rail, gruppi }: { voci: VoceNav[]; rail: boolean; gruppi: GruppiChiusi }) {
   const { isMobile } = useSidebar()
   /*
    * Il tooltip non si passa affatto sotto la soglia mobile. Il preset lo
@@ -365,18 +394,57 @@ function Voci({ voci }: { voci: VoceNav[] }) {
           tooltip: suggerimento(voce.titolo),
         }
 
+        if (voce.figli && voce.figli.length > 0 && rail) {
+          return (
+            <SidebarMenuItem key={voce.titolo}>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <SidebarMenuButton
+                      {...comuni}
+                      className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
+                    />
+                  }
+                >
+                  {Icona ? <Icona /> : null}
+                  <span>{voce.titolo}</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="right" align="start" sideOffset={4} className="w-56">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>{voce.titolo}</DropdownMenuLabel>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  {voce.figli.map((figlio) => (
+                    <DropdownMenuItem
+                      key={figlio.titolo}
+                      render={figlio.render ?? (figlio.href ? <a href={figlio.href} /> : undefined)}
+                      disabled={figlio.disabilitata}
+                      aria-current={figlio.attiva ? "page" : undefined}
+                      className={cn(figlio.attiva && "font-medium")}
+                    >
+                      <span className="truncate">{figlio.titolo}</span>
+                      {figlio.attiva ? <CheckIcon className="ml-auto" /> : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          )
+        }
+
         if (voce.figli && voce.figli.length > 0) {
           return (
             <Collapsible
               key={voce.titolo}
               /*
-               * Aperto di default per **tutti** i gruppi, non solo quello
+               * Aperto di partenza per **tutti** i gruppi, non solo quello
                * attivo: legarlo ad `attiva` dava una via di mezzo — un solo
                * gruppo aperto e gli altri collassati — che non è né «tutto
                * visibile» né «tutto compatto», ed è la forma peggiore delle
                * due. `attiva` resta a governare solo l'evidenziazione.
                */
-              defaultOpen
+              open={!gruppi.chiusi.has(voce.titolo)}
+              onOpenChange={(aperto) => gruppi.cambia(voce.titolo, aperto)}
               className="group/collapsible"
               render={<SidebarMenuItem />}
             >
@@ -421,13 +489,36 @@ function Voci({ voci }: { voci: VoceNav[] }) {
 }
 
 /** Le sezioni, una `SidebarGroup` ciascuna con la sua etichetta. */
-function Navigazione({ sezioni }: { sezioni: SezioneNav[] }) {
+function Navigazione({
+  sezioni,
+  collassa,
+  gruppi,
+}: {
+  sezioni: SezioneNav[]
+  collassa: "icona" | "fuori"
+  gruppi: GruppiChiusi
+}) {
+  const { isMobile, state } = useSidebar()
+  // Il rail c'è solo a colonna chiusa a icone e sulla scrivania: sotto la
+  // soglia mobile la colonna è un pannello a scomparsa, sempre intera.
+  const rail = collassa === "icona" && !isMobile && state === "collapsed"
   return (
     <>
       {sezioni.map((sezione, i) => (
         <SidebarGroup key={sezione.titolo ?? i} className={sezione.className}>
-          {sezione.titolo ? <SidebarGroupLabel>{sezione.titolo}</SidebarGroupLabel> : null}
-          <Voci voci={sezione.voci} />
+          {/*
+           * Nel rail l'etichetta non sparisce: diventa trasparente e risale di
+           * tutta la sua altezza, e così copre la metà bassa dell'ultima icona
+           * della sezione sopra — misurato, 16px su 32, 24 su 48 in touch, dove
+           * il clic arrivava all'etichetta invece che alla voce. Trasparente,
+           * deve lasciar passare anche il puntatore.
+           */}
+          {sezione.titolo ? (
+            <SidebarGroupLabel className="group-data-[collapsible=icon]:pointer-events-none">
+              {sezione.titolo}
+            </SidebarGroupLabel>
+          ) : null}
+          <Voci voci={sezione.voci} rail={rail} gruppi={gruppi} />
         </SidebarGroup>
       ))}
     </>
@@ -479,7 +570,8 @@ export type AppShellProps = {
    */
   /**
    * Come si comprime la colonna. `icona` la riduce al rail delle sole icone —
-   * e presuppone che le voci **abbiano** un'icona; `fuori` la fa sparire del
+   * e presuppone che le voci **abbiano** un'icona; nel rail l'icona di una
+   * voce con `figli` apre un menu con le sue voci. `fuori` la fa sparire del
    * tutto. Sotto i 768px non cambia niente: in tutti e due i casi la colonna
    * esce dal DOM e il grilletto apre uno `Sheet`.
    */
@@ -559,6 +651,24 @@ export function AppShell({
   children,
   ...props
 }: AppShellProps) {
+  /*
+   * Quali gruppi della navigazione sono stati chiusi a mano. Sta qui, in
+   * cima, e non dentro il gruppo: il gruppo si smonta quando la colonna si
+   * chiude a icone (diventa un menu) e, sul telefono, ogni volta che il
+   * pannello si chiude. Con lo stato dentro di sé, riaprendo ogni gruppo
+   * tornava aperto. Si ricordano i **chiusi** perché ogni gruppo parte aperto.
+   */
+  const [chiusi, setChiusi] = useState<ReadonlySet<string>>(() => new Set())
+  const gruppi: GruppiChiusi = {
+    chiusi,
+    cambia: (titolo, aperto) =>
+      setChiusi((prima) => {
+        const dopo = new Set(prima)
+        if (aperto) dopo.delete(titolo)
+        else dopo.add(titolo)
+        return dopo
+      }),
+  }
   return (
     /*
      * Il provider dei tooltip sta QUI, una volta sola, e non è un dettaglio di
@@ -583,7 +693,7 @@ export function AppShell({
               {contesto}
             </SidebarHeader>
             <SidebarContent>
-              <Navigazione sezioni={sezioni} />
+              <Navigazione sezioni={sezioni} collassa={collassa} gruppi={gruppi} />
             </SidebarContent>
             {utente ? (
               <SidebarFooter>
