@@ -13247,3 +13247,11 @@ Via libera di Francesco per unire e pubblicare `v2.0.2` a CI verde. Indirizzi de
 #### Prossimi passi
 
 PR con `Closes #50`; unione ed etichetta `v2.0.2` solo con la conferma di Francesco, poi gli indirizzi dei documenti per le app. In Anagrafe, con la versione nuova: reinstallare il guscio e tornare a `collassa="icona"`, togliendo il commento «in attesa».
+
+## 2026-09-25 — `v2.0.2` pubblicata
+
+PR #53 unita col gate verde in CI (5 min 49 s) sul commit `2ad3f17`; l'unione `459875e` ha lo stesso contenuto. Etichetta `v2.0.2` su `459875e`, push della sola etichetta; `v2.0.0` e `v2.0.1` restano dove erano. La issue #50 si è chiusa con la PR.
+
+Verificato da fuori: `…/v2.0.2/public/r/tassullo-app-shell.json` e `tema.json` rispondono, e il guscio servito contiene la versione con la memoria dei gruppi.
+
+Per Anagrafe il prompt di DS.6 è pronto fuori dal repository, in `transizione-anagrafe/anagrafe-md/prompt-ds6-v2.0.2.md`. Anagrafe nel frattempo ha tolto i gruppi (la sua D6, decisa il 2026-09-24 alle 20:35): della versione nuova le serve la correzione dei clic sull'ultima icona delle sezioni nel rail, che da lei sono Organismi notificati, Kit e Sistemi.
