@@ -21,7 +21,8 @@ import { Spinner } from '@/registry/tassullo/ui/spinner'
  *
  * **Regole d'uso.**
  *
- * - Da solo porta `aria-label="Caricamento"`: il nome di serie è in inglese.
+ * - Da solo si chiama «Caricamento», e non serve passargli niente. Un nome più
+ *   preciso si dà con `aria-label`.
  * - Dentro un bottone con testo porta `aria-label=""` e
  *   `data-icon="inline-start"`: il nome lo dà il testo del bottone. Il bottone
  *   è `disabled` finché l'operazione non finisce.
@@ -40,10 +41,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /**
- * La rotella da sola, col nome in italiano.
+ * La rotella da sola, col suo nome di serie: «Caricamento».
  */
 export const Predefinito: Story = {
-  render: () => <Spinner aria-label="Caricamento" />,
+  render: () => <Spinner />,
 }
 
 /**
@@ -52,10 +53,10 @@ export const Predefinito: Story = {
 export const Taglie: Story = {
   render: () => (
     <div className="flex items-center gap-4">
-      <Spinner className="size-3" aria-label="Caricamento" />
-      <Spinner className="size-4" aria-label="Caricamento" />
-      <Spinner className="size-6" aria-label="Caricamento" />
-      <Spinner className="size-8" aria-label="Caricamento" />
+      <Spinner className="size-3" />
+      <Spinner className="size-4" />
+      <Spinner className="size-6" />
+      <Spinner className="size-8" />
     </div>
   ),
 }

@@ -380,7 +380,7 @@ export function PaginaLogin({
                   variant={viaPrincipale === "credenziali" ? "default" : "outline"}
                   disabled={!credenzialiAbilitate || inCorsoCredenziali}
                 >
-                  {inCorsoCredenziali ? <Spinner /> : null}
+                  {inCorsoCredenziali ? <Spinner aria-label="" /> : null}
                   {inCorsoCredenziali ? "Accesso in corso…" : "Accedi"}
                 </Button>
                 {!credenzialiAbilitate ? (
@@ -411,7 +411,7 @@ export function PaginaLogin({
                 onClick={onAccedi}
               >
                 {inCorsoMicrosoft ? (
-                  <Spinner />
+                  <Spinner aria-label="" />
                 ) : (
                   (logoMicrosoft ?? <LogInIcon />)
                 )}
