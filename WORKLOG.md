@@ -13276,4 +13276,4 @@ Ramo `fras/proposta-55-etichette`. Proposta di Anagrafe: tre primitive avevano a
 
 #### Prossimi passi
 
-PR con `Closes #55`. Se Francesco lo conferma, unione e pubblicazione di `v2.0.3`, poi gli indirizzi dei documenti per le app. In Anagrafe: `add --overwrite` di `spinner`, `dialog`, `sheet` (e del login), e via i commenti «in attesa di #55».
+PR #56 con `Closes #55`. Via libera di Francesco per unire e pubblicare `v2.0.3` a CI verde; gli indirizzi dei documenti per le app (`INTEGRAZIONE.md`, `GUIDA-MIGRAZIONE.md`, `README`, introduzione della style guide) portati a `v2.0.3` nella stessa PR. In Anagrafe: `add --overwrite` di `spinner`, `dialog`, `sheet` (e del login), e via i commenti «in attesa di #55».
