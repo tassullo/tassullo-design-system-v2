@@ -34,8 +34,9 @@ Il catalogo contiene quattro famiglie di cose:
 - i **blocchi**: pezzi applicativi già composti — il guscio con la colonna di
   navigazione, l'intestazione di pagina, la tabella dati, il calendario, gli
   stati vuoto ed errore;
-- le **pagine modello**: login, lista, scheda, cruscotto, amministrazione,
-  pagina d'errore. Sono il punto da cui parte una pagina nuova.
+- le **pagine d'esempio**: login, lista, scheda, cruscotto, amministrazione,
+  pagina d'errore. Mostrano come si compongono i blocchi: si leggono e si
+  ricompongono nell'app, non si installano.
 
 Perché un registry e non un pacchetto: i componenti di shadcn sono pensati per
 essere copiati e letti, non importati da una scatola chiusa. L'app vede il
@@ -424,36 +425,52 @@ una dozzina di avvisi sul codice di terzi:
 }
 ```
 
-## Da dove partire: le pagine modello
+## Da dove partire: il guscio e le pagine d'esempio
 
-Una pagina nuova non si compone da zero: si parte dalla pagina modello che le
-somiglia di più. Ognuna arriva **con tutti i blocchi e le primitive che le
-servono**.
+Una pagina nuova si compone con i blocchi e le primitive. Il guscio si monta
+una volta sola, attorno a tutta l'app; dentro, ogni pagina dichiara la sua
+intestazione e mette i suoi blocchi. Ogni blocco arriva **con tutte le
+primitive che gli servono**.
 
 | item | per cosa | comando |
 |---|---|---|
 | `tassullo-app-shell` | il guscio: colonna di navigazione, fascia in alto, menu dell'utente. Si monta una volta, attorno a tutta l'app | `npx shadcn@latest add @tassullo/tassullo-app-shell` |
-| `tassullo-pagina-lista` | un elenco da cercare, filtrare, aprire | `npx shadcn@latest add @tassullo/tassullo-pagina-lista` |
-| `tassullo-pagina-scheda` | il dettaglio di un record, a schede, con lo storico | `npx shadcn@latest add @tassullo/tassullo-pagina-scheda` |
-| `tassullo-pagina-dashboard` | il cruscotto: indicatori, due grafici, attività recenti | `npx shadcn@latest add @tassullo/tassullo-pagina-dashboard` |
-| `tassullo-pagina-admin` | utenti e ruoli | `npx shadcn@latest add @tassullo/tassullo-pagina-admin` |
-| `tassullo-pagina-login` | l'accesso, con Microsoft e/o credenziali | `npx shadcn@latest add @tassullo/tassullo-pagina-login` |
-| `tassullo-pagina-errore` | 404, accesso negato, errore del server, manutenzione | `npx shadcn@latest add @tassullo/tassullo-pagina-errore` |
+| `tassullo-page-header` | percorso e azioni della pagina, nella fascia del guscio | `npx shadcn@latest add @tassullo/tassullo-page-header` |
+| `tassullo-data-table` | la tabella: ricerca, ordinamento, paginazione, stati vuoti | `npx shadcn@latest add @tassullo/tassullo-data-table` |
 
 Anche qui prima `--dry-run`, poi il comando vero. Più item si installano
 insieme scrivendoli uno dopo l'altro nello stesso `add`. A fine installazione
 la CLI **stampa le istruzioni d'uso** di ogni item: vanno lette, sono scritte
-apposta per chi installa. Ogni pagina modello ha la sua pagina nella style
-guide, sezione *Pagine*, con le scene e il codice.
+apposta per chi installa.
 
 I file arrivano in `src/components/`: le primitive in `src/components/ui/`, i
-blocchi in `src/components/blocks/`, le pagine in `src/components/pages/`, e
-si importano con l'alias `@/components/…`.
+blocchi in `src/components/blocks/`, e si importano con l'alias
+`@/components/…`.
+
+**Le pagine d'esempio.** Per non partire da zero, il registry ha sei pagine
+d'esempio che mostrano come i blocchi stanno insieme:
+
+| pagina d'esempio | per cosa |
+|---|---|
+| `tassullo-pagina-lista` | un elenco da cercare, filtrare, aprire |
+| `tassullo-pagina-scheda` | il dettaglio di un record, a schede, con lo storico |
+| `tassullo-pagina-dashboard` | il cruscotto: indicatori, due grafici, attività recenti |
+| `tassullo-pagina-admin` | utenti e ruoli |
+| `tassullo-pagina-login` | l'accesso, con Microsoft e/o credenziali |
+| `tassullo-pagina-errore` | 404, accesso negato, errore del server, manutenzione |
+
+Si guardano nella style guide, sezione *Pagine*, e se ne legge il codice
+intero con `npx shadcn@latest view @tassullo/tassullo-pagina-lista`, o
+chiedendolo all'MCP. **Non si installano e non si importano**: nell'app la
+pagina si scrive nella cartella delle pagine (`src/pages/`), e si installano
+per nome i blocchi che usa. Una pagina installata con `add` finirebbe in
+`src/components/pages/`, dove un file del design system non si modifica:
+resterebbe lì senza servire.
 
 ### Esempio: una lista dentro il guscio
 
 ```bash
-npx shadcn@latest add @tassullo/tassullo-app-shell @tassullo/tassullo-pagina-lista
+npx shadcn@latest add @tassullo/tassullo-app-shell @tassullo/tassullo-page-header @tassullo/tassullo-data-table
 ```
 
 `src/App.tsx`:
@@ -462,8 +479,8 @@ npx shadcn@latest add @tassullo/tassullo-app-shell @tassullo/tassullo-pagina-lis
 import { PackageIcon, PlusIcon, TruckIcon } from "lucide-react"
 
 import { AppShell, type SezioneNav } from "@/components/blocks/app-shell"
-import { creaColonne } from "@/components/blocks/data-table"
-import { PaginaLista } from "@/components/pages/pagina-lista"
+import { creaColonne, DataTable } from "@/components/blocks/data-table"
+import { PageHeader } from "@/components/blocks/page-header"
 
 type Prodotto = { codice: string; nome: string; famiglia: string }
 
@@ -497,24 +514,37 @@ export default function App() {
       utente={{ nome: "Stefano", cognome: "Bertolini", email: "stefano.bertolini@esempio.it" }}
       contenuto="riempie"
     >
-      <PaginaLista
-        percorso={[{ titolo: "Prodotti" }]}
-        azioni={[{ titolo: "Nuovo prodotto", icona: PlusIcon, ruolo: "primaria" }]}
-        colonne={COLONNE}
-        dati={PRODOTTI}
-        cerca="Cerca codice, nome…"
-        perPagina={25}
-      />
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <PageHeader
+          percorso={[{ titolo: "Prodotti" }]}
+          azioni={[{ titolo: "Nuovo prodotto", icona: PlusIcon, ruolo: "primaria" }]}
+        />
+        <DataTable
+          colonne={COLONNE}
+          dati={PRODOTTI}
+          cerca="Cerca codice, nome…"
+          nomeRighe={{ singolare: "prodotto", plurale: "prodotti" }}
+          perPagina={25}
+          altezza="ferma"
+          className="min-h-0 flex-1"
+        />
+      </div>
     </AppShell>
   )
 }
 ```
 
 `contenuto="riempie"` serve alla lista: il guscio si ferma all'altezza della
-finestra e la tabella scorre al suo interno. Le voci di navigazione sono un
-dato: `attiva` la calcola l'app, e i collegamenti si passano con `render` (un
-`<NavLink>` di react-router, per esempio). Il resto delle prop è nelle
-istruzioni che la CLI stampa e nella style guide.
+finestra, la pagina è una colonna `flex h-full min-h-0 flex-col`, e la
+tabella con `altezza="ferma"` riempie lo spazio che resta e scorre al suo
+interno. Nel modo `contenuto="scorre"`, il predefinito, scorre invece la
+finestra, e la fascia in alto resta ferma in cima. `<PageHeader>` non occupa
+spazio dove sta scritta: percorso e azioni compaiono nella fascia del guscio.
+Le voci di navigazione sono un dato: `attiva` la calcola l'app, e i
+collegamenti si passano con `render` (un `<NavLink>` di react-router, per
+esempio). Il resto delle prop è nelle istruzioni che la CLI stampa e nella
+style guide; la stessa lista con gli stati di caricamento, errore e lista
+vuota è la pagina d'esempio `tassullo-pagina-lista`.
 
 Poi:
 
@@ -645,11 +675,13 @@ installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
   tutti. Ogni item installato per nome si annota nella checklist dell'app
   (`CHECKLIST.md`, sezione «Design system»): sono quelli da reinstallare a ogni
   aggiornamento, e le primitive arrivano con loro.
-- Una pagina nuova parte dalla pagina modello più vicina
-  (`tassullo-pagina-lista`, `-scheda`, `-dashboard`, `-admin`, `-login`,
-  `-errore`): si installa e si usa il suo componente (`PaginaLista`, …) con le
-  sue prop, senza copiarne il file. Se nessuna somiglia, si compone con i
-  blocchi e le primitive.
+- Una pagina nuova si compone con i blocchi, partendo dalla pagina d'esempio
+  più vicina (`tassullo-pagina-lista`, `-scheda`, `-dashboard`, `-admin`,
+  `-login`, `-errore`), che si guarda e non si importa: se ne legge il codice
+  con `npx shadcn@latest view @tassullo/<pagina>` o dall'MCP, la pagina si
+  scrive nella cartella delle pagine dell'app, e si installano per nome i
+  blocchi che usa. Se nessuna somiglia, si compone con i blocchi e le
+  primitive.
 
 **I file del design system non si modificano qui.**
 - Si aggiornano dal registry e non si correggono in casa: una modifica locale
@@ -789,7 +821,7 @@ design system, non si spegne la regola: si apre una proposta.
 > Lo stile viene dal Design System Tassullo 2.0
 > (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.4`**,
 > quella scritta in `components.json`. **Item installati per
-> nome**: `tema`, `tassullo-controllo`, `tassullo-app-shell`, `tassullo-pagina-lista` — le primitive
+> nome**: `tema`, `tassullo-controllo`, `tassullo-app-shell`, `tassullo-page-header`, `tassullo-data-table` — le primitive
 > arrivano come dipendenze e non si elencano. Un item nuovo si aggiunge qui
 > quando si installa. Le regole stanno nel `CLAUDE.md`, sezione «Stile e
 > design system».

@@ -97,7 +97,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/registry/tassullo/ui/breadcrumb"
-import { Button } from "@/registry/tassullo/ui/button"
+import { Button, buttonVariants } from "@/registry/tassullo/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -401,24 +401,41 @@ function Percorso({ livelli }: { livelli: LivelloPercorso[] }) {
  * **Taglia normale, non `sm`**: `sm` in densità touch fa 42px, cioè sotto i 44
  * di WCAG e sotto i 48 di un bottone in cantiere. La normale
  * fa 32px in normale e 48 in touch.
+ *
+ * **Un'azione con `href` è un collegamento, non un `Button`**: nella forma
+ * larga un `<a>` con le classi di `buttonVariants`, nella forma stretta una
+ * voce del menu resa come `<a>`. `Button` è un bottone, e col `render` di un
+ * `<a>` metterebbe `type="button"` sul collegamento. Disabilitata, torna un
+ * `Button` spento: un collegamento non ha uno stato disabilitato.
  */
 function Azioni({ azioni }: { azioni: AzionePagina[] }) {
   if (azioni.length === 0) return null
   return (
     <>
       <div className="ml-auto hidden shrink-0 items-center gap-2 @2xl/fascia:flex">
-        {azioni.map((a) => (
-          <Button
-            key={a.titolo}
-            variant={VARIANTE[a.ruolo ?? "secondaria"]}
-            disabled={a.disabilitata}
-            onClick={a.onClick}
-            {...(a.href ? { render: <a href={a.href} /> } : {})}
-          >
-            <a.icona />
-            {a.titolo}
-          </Button>
-        ))}
+        {azioni.map((a) =>
+          a.href && !a.disabilitata ? (
+            <a
+              key={a.titolo}
+              href={a.href}
+              onClick={a.onClick}
+              className={buttonVariants({ variant: VARIANTE[a.ruolo ?? "secondaria"] })}
+            >
+              <a.icona />
+              {a.titolo}
+            </a>
+          ) : (
+            <Button
+              key={a.titolo}
+              variant={VARIANTE[a.ruolo ?? "secondaria"]}
+              disabled={a.disabilitata}
+              onClick={a.onClick}
+            >
+              <a.icona />
+              {a.titolo}
+            </Button>
+          ),
+        )}
       </div>
       <div className="ml-auto shrink-0 @2xl/fascia:hidden">
         <DropdownMenu>
@@ -445,6 +462,7 @@ function Azioni({ azioni }: { azioni: AzionePagina[] }) {
                 disabled={a.disabilitata}
                 onClick={a.onClick}
                 variant={a.ruolo === "distruttiva" ? "destructive" : "default"}
+                {...(a.href && !a.disabilitata ? { render: <a href={a.href} /> } : {})}
               >
                 <a.icona />
                 {a.titolo}

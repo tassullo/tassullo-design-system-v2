@@ -87,7 +87,7 @@
  * esiste una forma sola, quindi `documenti` resta un `ReactNode` libero,
  * stessa scelta di `barra` in `tassullo-data-table`.
  */
-import { useState, type ReactNode } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { PencilIcon, XIcon } from "lucide-react"
 
 import { cn } from "cn"
@@ -99,6 +99,14 @@ import {
   type VersionTimelineEntry,
 } from "@/registry/tassullo/blocks/version-timeline"
 import { Card, CardContent } from "@/registry/tassullo/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/registry/tassullo/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/registry/tassullo/ui/tabs"
 
 export type SezioneStorico = {
@@ -160,10 +168,27 @@ export function PaginaScheda({
   className,
 }: PaginaSchedaProps) {
   const [modificaPropria, setModificaPropria] = useState(false)
+  const [tab, setTab] = useState("anagrafica")
+  const radiceTab = useRef<HTMLDivElement>(null)
+  const fasciaTab = useRef<HTMLDivElement>(null)
   const modifica = modificaControllata ?? modificaPropria
   function impostaModifica(v: boolean) {
     setModificaPropria(v)
     onModificaChange?.(v)
+  }
+
+  // Cambiando tab con le tab già ferme sotto la fascia, la finestra torna
+  // all'inizio del pannello: senza, il pannello nuovo si aprirebbe a metà, con
+  // l'inizio nascosto sotto le fasce. Le tab sono ferme quando stanno più in
+  // basso del punto in cui starebbero senza `sticky`, cioè della cima della
+  // radice delle tab. Il salto è immediato, senza animazione.
+  function cambiaTab(valore: string) {
+    const radice = radiceTab.current?.getBoundingClientRect()
+    const fascia = fasciaTab.current?.getBoundingClientRect()
+    if (radice && fascia && radice.top < fascia.top) {
+      window.scrollBy({ top: radice.top - fascia.top, behavior: "instant" })
+    }
+    setTab(valore)
   }
 
   if (stato === "caricamento") {
@@ -184,6 +209,13 @@ export function PaginaScheda({
     )
   }
 
+  // `value` e `label` sono i nomi che la `Select` legge in `items`.
+  const sezioni = [
+    { value: "anagrafica", label: etichetteTab?.anagrafica ?? "Anagrafica" },
+    { value: "documenti", label: etichetteTab?.documenti ?? "Documenti" },
+    { value: "storico", label: etichetteTab?.storico ?? "Storico" },
+  ]
+
   const toggleModifica: AzionePagina = modifica
     ? { titolo: "Annulla", icona: XIcon, ruolo: "secondaria", onClick: () => impostaModifica(false) }
     : { titolo: "Modifica", icona: PencilIcon, ruolo: "secondaria", onClick: () => impostaModifica(true) }
@@ -198,12 +230,54 @@ export function PaginaScheda({
       */}
       <PageHeader percorso={percorso} azioni={[...azioni, toggleModifica]} />
 
-      <Tabs defaultValue="anagrafica">
-        <TabsList>
-          <TabsTrigger value="anagrafica">{etichetteTab?.anagrafica ?? "Anagrafica"}</TabsTrigger>
-          <TabsTrigger value="documenti">{etichetteTab?.documenti ?? "Documenti"}</TabsTrigger>
-          <TabsTrigger value="storico">{etichetteTab?.storico ?? "Storico"}</TabsTrigger>
-        </TabsList>
+      <Tabs
+        ref={radiceTab}
+        value={tab}
+        onValueChange={(v) => cambiaTab(String(v))}
+        className="@container/scheda"
+      >
+        {/*
+          Le tab restano ferme sotto la fascia del guscio mentre la pagina
+          scorre: `top-12` è l'altezza della fascia, e `-mx-4 px-4` allarga il
+          fondo fino ai bordi dell'area del contenuto, perché ciò che scorre
+          sotto non si veda ai lati. `scroll-pt-24` è la somma delle due fasce:
+          un campo raggiunto con Maiusc+Tab si ferma sotto tutte e due.
+        */}
+        <div
+          ref={fasciaTab}
+          data-slot="pagina-scheda-tab"
+          className="sticky top-12 z-10 -mx-4 bg-background px-4 py-2 [html:has(&)]:scroll-pt-24"
+        >
+          {/*
+            Sotto `@sm` del contenitore (384px) la lista delle tab si spegne e
+            al suo posto c'è una `Select` che guida le stesse tab. Le tre
+            etichette di serie chiedono 228px, 259 in touch: la soglia lascia
+            margine a etichette più lunghe. Con altre tab o altre etichette la
+            soglia si sceglie di nuovo.
+          */}
+          <TabsList className="hidden @sm/scheda:inline-flex">
+            {sezioni.map((s) => (
+              <TabsTrigger key={s.value} value={s.value}>
+                {s.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <Select items={sezioni} value={tab} onValueChange={(v) => cambiaTab(String(v))}>
+            <SelectTrigger aria-label="Sezione" className="w-full @sm/scheda:hidden">
+              <span className="text-muted-foreground">Sezione:</span>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {sezioni.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
         <TabsContent value="anagrafica">
           <Card>
             <CardContent>{anagrafica(modifica)}</CardContent>
