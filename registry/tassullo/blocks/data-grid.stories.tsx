@@ -360,6 +360,42 @@ function ComputoTipizzato() {
   )
 }
 
+// Prova: il riquadro della cella scelta resta intero dove la tabella lo
+// taglierebbe. La cella con la casella di spunta non sborda a destra (la
+// tabella toglie il margine destro alle celle con una casella, e il
+// riquadro, che brucia quel margine, usciva di 8px sotto la colonna accanto).
+// Scendendo con le frecce la cella resta staccata dal fondo, dove l'angolo
+// arrotondato ne tagliava il bordo; risalendo non finisce sotto
+// l'intestazione ferma.
+async function riquadroIntero({ canvasElement }: { canvasElement: HTMLElement }) {
+  const griglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('[role="grid"]')
+    expect(trovata?.querySelector('[data-attiva]')).toBeTruthy()
+    return trovata!
+  })
+  const contenitore = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')!
+  const testata = contenitore.querySelector('thead')!
+
+  const spunta = griglia.querySelector<HTMLElement>('[data-riga-id][data-colonna-id="disponibile"]')!
+  const bordo = spunta.getBoundingClientRect().right - spunta.closest('td')!.getBoundingClientRect().right
+  expect(bordo).toBeLessThanOrEqual(0.5)
+
+  await userEvent.click(griglia.querySelector<HTMLElement>('[data-riga-id][data-colonna-id="descrizione"]')!)
+  const attiva = () => document.activeElement!.getBoundingClientRect()
+  for (let passo = 0; passo < 20; passo++) {
+    await userEvent.keyboard('{ArrowDown}')
+    await waitFor(() =>
+      expect(contenitore.getBoundingClientRect().bottom - attiva().bottom).toBeGreaterThanOrEqual(4)
+    )
+  }
+  for (let passo = 0; passo < 20; passo++) {
+    await userEvent.keyboard('{ArrowUp}')
+    await waitFor(() =>
+      expect(attiva().top - testata.getBoundingClientRect().bottom).toBeGreaterThanOrEqual(-1)
+    )
+  }
+}
+
 /**
  * Le sei celle tipizzate. «Quantità» e «Prezzo unitario» rifiutano un valore
  * non valido e restano in modifica; «Disp.» si spunta con un clic o con
@@ -367,6 +403,7 @@ function ComputoTipizzato() {
  */
 export const CelleTipizzate: Story = {
   render: () => <ComputoTipizzato />,
+  play: riquadroIntero,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

@@ -1592,7 +1592,7 @@ function CellaCheckboxGriglia<TDato extends RowData>({
           motore.onKeyDownCella(evento, id)
         }
       }}
-      className={classiVistaCella(selezionata, inAnteprima, "flex items-center justify-center")}
+      className={classiVistaCella(selezionata, inAnteprima, "mr-0 flex items-center justify-center")}
     >
       <Checkbox checked={spuntato} onCheckedChange={commuta} tabIndex={-1} aria-hidden />
     </div>

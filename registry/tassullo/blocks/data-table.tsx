@@ -4153,7 +4153,7 @@ export function DataTable<TDato extends RowData>({
         className={cn(
           "overflow-hidden rounded-lg border bg-card",
           fermo &&
-            "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity [&_[data-slot=table-container]]:scroll-pt-(--altezza-testata)"
+            "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity [&_[data-slot=table-container]]:scroll-pt-(--altezza-testata) [&_[data-slot=table-container]]:scroll-pb-2"
         )}
       >
         {/*
