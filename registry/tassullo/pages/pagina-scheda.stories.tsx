@@ -432,6 +432,15 @@ async function provaGrigliaDati({ canvasElement }: { canvasElement: HTMLElement 
  */
 export const ConDati: Story = {
   render: () => <Guscio />,
+}
+
+// Scena di misura di «Con Dati»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const ConDatiProva: Story = {
+  ...ConDati,
+  name: 'Con Dati, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaGrigliaDati,
 }
 

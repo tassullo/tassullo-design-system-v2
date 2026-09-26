@@ -446,5 +446,14 @@ export const DaUnDialogo: Story = {
       </DialogContent>
     </Dialog>
   ),
+}
+
+// Scena di misura di «Da un dialogo»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const DaUnDialogoProva: Story = {
+  ...DaUnDialogo,
+  name: 'Da un dialogo, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaDaUnDialogo,
 }

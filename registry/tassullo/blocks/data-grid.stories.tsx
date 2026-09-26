@@ -268,6 +268,15 @@ type Story = StoryObj
  */
 export const Editabile: Story = {
   render: () => <ComputoFinto />,
+}
+
+// Scena di misura di «Editabile»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const EditabileProva: Story = {
+  ...Editabile,
+  name: 'Editabile, prova',
+  tags: ['!dev', '!autodocs'],
   play: selezioneSoloColFuoco,
 }
 
@@ -403,6 +412,15 @@ async function riquadroIntero({ canvasElement }: { canvasElement: HTMLElement })
  */
 export const CelleTipizzate: Story = {
   render: () => <ComputoTipizzato />,
+}
+
+// Scena di misura di «Celle Tipizzate»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const CelleTipizzateProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, prova',
+  tags: ['!dev', '!autodocs'],
   play: riquadroIntero,
 }
 

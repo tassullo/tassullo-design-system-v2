@@ -119,6 +119,15 @@ export const Predefinito: Story = {
       <Pannelli />
     </Tabs>
   ),
+}
+
+// Scena di misura di «Predefinito»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const PredefinitoProva: Story = {
+  ...Predefinito,
+  name: 'Predefinito, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaFiloDentroLaLista,
 }
 
@@ -136,6 +145,15 @@ export const Filo: Story = {
       <Pannelli />
     </Tabs>
   ),
+}
+
+// Scena di misura di «Filo»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const FiloProva: Story = {
+  ...Filo,
+  name: 'Filo, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaFiloDentroLaLista,
 }
 

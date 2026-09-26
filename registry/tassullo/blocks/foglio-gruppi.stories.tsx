@@ -592,6 +592,15 @@ async function sfridoSoloSuiMateriali({ canvasElement }: { canvasElement: HTMLEl
 export const RigheDiTipoDiverso: Story = {
   name: 'Righe di tipo diverso',
   render: () => <AnalisiPrezzo />,
+}
+
+// Scena di misura di «Righe di tipo diverso»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const RigheDiTipoDiversoProva: Story = {
+  ...RigheDiTipoDiverso,
+  name: 'Righe di tipo diverso, prova',
+  tags: ['!dev', '!autodocs'],
   play: sfridoSoloSuiMateriali,
 }
 

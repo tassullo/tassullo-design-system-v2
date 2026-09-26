@@ -654,6 +654,15 @@ export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
     perPagina: 10,
     ridimensionabile: true,
   },
+}
+
+// Scena di misura di «Ridimensionabile»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const RidimensionabileProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...Ridimensionabile,
+  name: 'Ridimensionabile, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaSenzaScorrimentoLaterale,
 }
 
@@ -1128,6 +1137,15 @@ async function provaAlberoConRicerca({ canvasElement }: { canvasElement: HTMLEle
 export const AlberoConRicerca: StoryObj<typeof DataTable<RigaComputo>> = {
   name: 'Albero Con Ricerca',
   render: () => <AlberoConRicercaControlli />,
+}
+
+// Scena di misura di «Albero Con Ricerca»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const AlberoConRicercaProva: StoryObj<typeof DataTable<RigaComputo>> = {
+  ...AlberoConRicerca,
+  name: 'Albero Con Ricerca, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaAlberoConRicerca,
 }
 
@@ -1258,6 +1276,15 @@ async function provaEspansioneDopoRicarica({ canvasElement }: { canvasElement: H
 export const EspansioneDopoRicarica: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Espansione Con Ricarica',
   render: () => <EspansioneConRicarica />,
+}
+
+// Scena di misura di «Espansione Con Ricarica»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const EspansioneDopoRicaricaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...EspansioneDopoRicarica,
+  name: 'Espansione Con Ricarica, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaEspansioneDopoRicarica,
 }
 
@@ -1327,6 +1354,15 @@ export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
       <DataTable {...args} className="min-h-0 flex-1" />
     </div>
   ),
+}
+
+// Scena di misura di «Virtualizzata»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const VirtualizzataProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...Virtualizzata,
+  name: 'Virtualizzata, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaRigheMisurate,
 }
 
@@ -1383,6 +1419,15 @@ export const AltezzaFerma: StoryObj<typeof DataTable<Prodotto>> = {
       <DataTable {...args} className="min-h-0 flex-1" />
     </div>
   ),
+}
+
+// Scena di misura di «Altezza Ferma»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const AltezzaFermaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...AltezzaFerma,
+  name: 'Altezza Ferma, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaAltezzaFerma,
 }
 
@@ -1563,6 +1608,15 @@ async function provaFiltriConRicerca({ canvasElement }: { canvasElement: HTMLEle
 export const FiltriConRicerca: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Filtri Con Ricerca',
   render: () => <TabellaConFiltri />,
+}
+
+// Scena di misura di «Filtri Con Ricerca»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const FiltriConRicercaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...FiltriConRicerca,
+  name: 'Filtri Con Ricerca, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaFiltriConRicerca,
 }
 
@@ -1745,6 +1799,15 @@ export const RidimensionabileConMenuRiga: StoryObj<typeof DataTable<Prodotto>> =
     piePagina: false,
     ridimensionabile: true,
   },
+}
+
+// Scena di misura di «Ridimensionabile Con Menu Riga»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const RidimensionabileConMenuRigaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...RidimensionabileConMenuRiga,
+  name: 'Ridimensionabile Con Menu Riga, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaSenzaScorrimentoLaterale,
 }
 
@@ -2393,5 +2456,14 @@ export const FiltroVociComeNelDato: StoryObj<typeof DataTable<MisurazioneComputo
       )}
     />
   ),
+}
+
+// Scena di misura di «Filtro Voci Come Nel Dato»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const FiltroVociComeNelDatoProva: StoryObj<typeof DataTable<MisurazioneComputo>> = {
+  ...FiltroVociComeNelDato,
+  name: 'Filtro Voci Come Nel Dato, prova',
+  tags: ['!dev', '!autodocs'],
   play: provaVociComeNelDato,
 }

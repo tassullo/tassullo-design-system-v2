@@ -72,6 +72,15 @@ export const SchedaTecnica: Story = {
       <DiffView {...args} />
     </div>
   ),
+}
+
+// Scena di misura di «Scheda Tecnica»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const SchedaTecnicaProva: Story = {
+  ...SchedaTecnica,
+  name: 'Scheda Tecnica, prova',
+  tags: ['!dev', '!autodocs'],
   play: async ({ canvasElement }) => {
     expect(within(canvasElement).getAllByText('Tolto')).toHaveLength(1)
   },
@@ -94,6 +103,15 @@ export const Affiancato: Story = {
       <DiffView {...args} />
     </div>
   ),
+}
+
+// Scena di misura di «Affiancato»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const AffiancatoProva: Story = {
+  ...Affiancato,
+  name: 'Affiancato, prova',
+  tags: ['!dev', '!autodocs'],
   play: async ({ canvasElement }) => {
     expect(within(canvasElement).getAllByText('Tolto')).toHaveLength(1)
   },
@@ -150,6 +168,15 @@ export const CampoPerCampo: Story = {
       ))}
     </div>
   ),
+}
+
+// Scena di misura di «Campo Per Campo»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const CampoPerCampoProva: Story = {
+  ...CampoPerCampo,
+  name: 'Campo Per Campo, prova',
+  tags: ['!dev', '!autodocs'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(canvasElement.querySelectorAll('[data-slot="diff-view"]')).toHaveLength(3)
