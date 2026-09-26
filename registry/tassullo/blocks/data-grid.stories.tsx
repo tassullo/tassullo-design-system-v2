@@ -526,6 +526,165 @@ export const CelleTipizzateCalendarioProva: Story = {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Colonne miste — alcune si leggono, altre si scrivono
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Materiale = {
+  id: string
+  codice: string
+  descrizione: string
+  gruppo: string
+  finitura: string
+  quantita: string
+  prezzo: string
+  unita: string
+  disponibile: string
+  prova: string
+}
+
+const MATERIALI: Materiale[] = [
+  ['MAL-01', 'Malta bastarda M5', 'Malte', 'Rasato', '120', '14.5', 'kg', 'true', '2026-03-12'],
+  ['INT-02', 'Intonaco di fondo', 'Intonaci', 'Lisciato', '48', '22.1', 'm2', 'false', '2026-04-02'],
+  ['ADS-03', 'Adesivo cementizio C2', 'Adesivi', '', '', '9.8', 'kg', 'true', ''],
+  ['RAS-04', 'Rasante fibrorinforzato', 'Rasanti', 'Frattazzato', '300', '31.4', 'pz', 'true', '2026-05-20'],
+  ['MAL-05', 'Malta da muratura M10', 'Malte', 'Grezzo', '75', '12', 'kg', 'false', '2026-01-08'],
+].map((r, i) => ({
+  id: `materiale-${i}`,
+  codice: r[0]!,
+  descrizione: r[1]!,
+  gruppo: r[2]!,
+  finitura: r[3]!,
+  quantita: r[4]!,
+  prezzo: r[5]!,
+  unita: r[6]!,
+  disponibile: r[7]!,
+  prova: r[8]!,
+}))
+
+const colM = creaColonne<Materiale>()
+const COLONNE_MISTE = colM.columns([
+  colM.accessor('codice', { header: 'Codice', meta: { titolo: 'Codice' }, size: 90 }),
+  colM.accessor('descrizione', { header: 'Descrizione', meta: { titolo: 'Descrizione' }, size: 200 }),
+  colonnaTestoGriglia(colM, 'finitura', 'Finitura', { size: 110 }),
+  colM.accessor('gruppo', { header: 'Gruppo', meta: { titolo: 'Gruppo' }, size: 90 }),
+  colonnaNumeroGriglia(colM, 'quantita', 'Quantità', { size: 90 }),
+  colonnaValutaGriglia(colM, 'prezzo', 'Prezzo', { size: 100 }),
+  colonnaSelectGriglia(colM, 'unita', 'U.M.', UNITA_OPZIONI, { size: 80 }),
+  colonnaCheckboxGriglia(colM, 'disponibile', 'Disp.', { size: 64 }),
+  colonnaDataGriglia(colM, 'prova', 'Prova del', { size: 130 }),
+])
+
+function GrigliaColonneMiste() {
+  const motore = useDataGrid<Materiale>({
+    righeIniziali: MATERIALI,
+    colonneId: ['finitura', 'quantita', 'prezzo', 'unita', 'disponibile', 'prova'],
+    idRiga: (m) => m.id,
+    leggiCella: (m, c) => String(m[c as keyof Materiale] ?? ''),
+    scriviCella: (m, c, valore) => ({ ...m, [c]: valore }),
+  })
+  return (
+    <div className="flex h-100 flex-col">
+      <DataGrid
+        motore={motore}
+        colonne={COLONNE_MISTE}
+        nomeRighe={{ singolare: 'materiale', plurale: 'materiali' }}
+        className="min-h-0 flex-1"
+        ridimensionabile
+      >
+        <DataGridClipboard />
+      </DataGrid>
+    </div>
+  )
+}
+
+// Prova, in densità touch dove lo scarto era più grande: il testo delle celle
+// che si scrivono sta sulla stessa riga di quello delle celle che si leggono
+// (prima era 5px più in alto), e aprendo la modifica non si sposta né cambia
+// l'altezza della riga.
+function fondoDelTesto(nodo: Element): DOMRect | null {
+  const giro = document.createTreeWalker(nodo, NodeFilter.SHOW_TEXT)
+  for (let t = giro.nextNode(); t; t = giro.nextNode()) {
+    if (!t.textContent?.trim()) continue
+    const intervallo = document.createRange()
+    intervallo.selectNodeContents(t)
+    return intervallo.getBoundingClientRect()
+  }
+  return null
+}
+
+async function testoInLinea({ canvasElement }: { canvasElement: HTMLElement }) {
+  const griglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('[role="grid"]')
+    expect(trovata?.querySelector('[data-colonna-id="finitura"]')).toBeTruthy()
+    return trovata!
+  })
+  expect(getComputedStyle(document.documentElement).getPropertyValue('--spacing').trim()).toBe('0.375rem')
+  const riga = griglia.querySelector<HTMLElement>('tbody tr:has([data-riga-id="materiale-1"])')!
+  const letta = fondoDelTesto(riga.querySelector('td')!)!
+  for (const colonna of ['finitura', 'quantita', 'prezzo', 'unita', 'prova']) {
+    const scritta = fondoDelTesto(riga.querySelector(`[data-colonna-id="${colonna}"]`)!)!
+    expect(Math.abs(scritta.bottom - letta.bottom), colonna).toBeLessThan(0.5)
+  }
+
+  const altezze = () => [...griglia.querySelectorAll('tbody tr')].map((tr) => tr.getBoundingClientRect().height)
+  const prima = altezze()
+  // Misurato dal bordo della riga: il clic può far scorrere la pagina.
+  const centro = (r: DOMRect) => (r.top + r.bottom) / 2 - riga.getBoundingClientRect().top
+
+  const finitura = riga.querySelector<HTMLElement>('[data-colonna-id="finitura"]')!
+  // Il testo della vista sta a metà del suo riquadro; il campo deve stare a
+  // metà dello stesso riquadro.
+  const vistaFinitura = centro(finitura.getBoundingClientRect())
+  await userEvent.click(finitura)
+  await userEvent.keyboard('{Enter}')
+  const campo = await waitFor(() => {
+    const trovato = riga.querySelector<HTMLInputElement>('input[aria-label="finitura"]')
+    expect(trovato, 'campo della finitura').toBeTruthy()
+    return trovato!
+  })
+  expect(Math.abs(centro(campo.getBoundingClientRect()) - vistaFinitura)).toBeLessThan(0.5)
+  expect(altezze()).toEqual(prima)
+  await userEvent.keyboard('{Escape}')
+
+  const unita = await waitFor(() => {
+    const trovata = riga.querySelector<HTMLElement>('[data-colonna-id="unita"]')
+    expect(trovata, 'cella dell’unità').toBeTruthy()
+    return trovata!
+  })
+  const testoUnita = centro(fondoDelTesto(unita)!)
+  await userEvent.click(unita)
+  await userEvent.keyboard('{Enter}')
+  const valore = await waitFor(() => {
+    const trovato = riga.querySelector('[data-slot="select-value"]')
+    expect(trovato, 'tendina dell’unità').toBeTruthy()
+    return trovato!
+  })
+  expect(Math.abs(centro(fondoDelTesto(valore)!) - testoUnita)).toBeLessThan(0.5)
+  expect(altezze()).toEqual(prima)
+  await userEvent.keyboard('{Escape}')
+}
+
+/**
+ * Una griglia in cui solo alcune colonne si scrivono: codice, descrizione e
+ * gruppo si leggono, le altre si compilano. Le colonne che si leggono sono
+ * colonne normali della tabella, scritte con `creaColonne()`: le frecce le
+ * saltano, e copia, incolla e riempimento non le toccano. Il testo sta sulla
+ * stessa riga in tutte le celle, che si scrivano o no.
+ */
+export const ColonneMiste: Story = {
+  render: () => <GrigliaColonneMiste />,
+}
+
+// Scena di misura di «Colonne Miste», in densità touch.
+export const ColonneMisteProva: Story = {
+  ...ColonneMiste,
+  name: 'Colonne Miste, prova',
+  tags: ['!dev', '!autodocs'],
+  globals: { density: 'touch' },
+  play: testoInLinea,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Computo — sessione 3 di 3: persistenza e prova end-to-end
  *
  * Il criterio di accettazione di `PIANO.md` per M3bis.5 si verifica qui per

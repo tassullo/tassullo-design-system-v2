@@ -1287,7 +1287,11 @@ function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: st
     // modifica — le cifre di un numero salterebbero a destra aprendo la
     // modifica. A larghezza automatica il riquadro copre la cella intera,
     // bordo compreso, e il testo finisce dove finisce il campo.
-    "-m-2 block min-h-9 truncate p-2 outline-none",
+    // `content-center`: il testo sta a metà altezza del riquadro, come quello
+    // di una cella che si legge soltanto (`TableCell` è centrata). In cima,
+    // dove stava prima, in densità touch era 5px più in alto delle celle
+    // accanto.
+    "-m-2 block min-h-9 content-center truncate p-2 outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
     selezionata && "bg-accent/40",
     inAnteprima && "outline-primary outline-1 outline-dashed",
@@ -1553,8 +1557,8 @@ export function colonnaValutaGriglia<TDato extends RowData>(
  * (`-m-2 min-h-9 p-2`, v. `classiVistaCella`), così il testo non si sposta
  * aprendo la modifica: un campo messo direttamente nel `<td>`, centrato in
  * altezza, farebbe scendere il testo di un pixel. `flex` per il simbolo accanto
- * al campo di valuta; il campo, alto quanto la sua riga di testo, resta in
- * cima come il testo della cella chiusa.
+ * al campo di valuta; il campo, alto quanto la sua riga di testo, sta a metà
+ * altezza come il testo della cella chiusa.
  */
 function RiquadroModifica({
   erroreId,
@@ -1567,7 +1571,7 @@ function RiquadroModifica({
 }) {
   return (
     <>
-      <div className="-m-2 flex min-h-9 items-start p-2">{children}</div>
+      <div className="-m-2 flex min-h-9 items-center p-2">{children}</div>
       {nodoErroreCella(erroreId, errore)}
     </>
   )
@@ -2142,9 +2146,9 @@ function CellaSelectGriglia<TDato extends RowData>({
           // sola, non l'intera griglia, perché solo lì cresceva il
           // contenuto oltre l'altezza delle altre.
           // Lo stesso riquadro della cella chiusa (`-my-2 py-2 min-h-9`, testo
-          // in cima e al bordo del contenuto): prima il testo scendeva di un
-          // pixel e si spostava di 8px a destra aprendo la tendina.
-          className="-my-2 h-auto min-h-9 w-full min-w-0 items-start rounded-none border-0 px-0 py-2 data-[size=default]:h-auto"
+          // a metà altezza e al bordo del contenuto): prima il testo scendeva
+          // di un pixel e si spostava di 8px a destra aprendo la tendina.
+          className="-my-2 h-auto min-h-9 w-full min-w-0 items-center rounded-none border-0 px-0 py-2 data-[size=default]:h-auto"
           aria-label={colonnaId}
         >
           <SelectValue />
