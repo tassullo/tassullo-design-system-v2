@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "tabs",
   "title": "Tabs",
-  "description": "Schede che cambiano il pannello sotto, non la pagina. Due varianti: a pillole e a filo.",
+  "description": "Schede che cambiano il pannello sotto, non la pagina. Due varianti: a pillole e a filo. Quando le schede non stanno in riga, sotto una soglia del contenitore la lista lascia il posto a una Select che guida le stesse schede (la ricetta è nella scena «Molte Tab» della style guide).",
   "dependencies": [
     "@base-ui/react",
     "class-variance-authority",

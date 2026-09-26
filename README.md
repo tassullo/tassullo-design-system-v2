@@ -32,7 +32,7 @@ npx shadcn@latest add tassullo/tassullo-design-system-v2/button
 Con il pin di versione, che è la forma da preferire nelle app in produzione:
 
 ```bash
-npx shadcn@latest add tassullo/tassullo-design-system-v2/button#v2.0.4
+npx shadcn@latest add tassullo/tassullo-design-system-v2/button#v2.0.5
 ```
 
 Il tema si porta con un comando solo — `tema` dichiara fra le sue dipendenze `tema-font` (Inter in data URI, in un CSS che arriva in `public/` e si collega da `index.html`) e `tema-logo` (il marchio):
@@ -47,7 +47,7 @@ La procedura completa — da una cartella vuota a una pagina modello nel guscio,
 
 L'app non fa **nessuna richiesta di rete per la tipografia**: niente Google Fonts, il font viaggia dentro il CSS.
 
-> **Stato:** la versione in corso è `v2.0.4` (la prima, `v2.0.0`, più le correzioni per il lint delle app in `v2.0.1`, il menu dei gruppi nella colonna chiusa del guscio in `v2.0.2`, le etichette accessibili in italiano in `v2.0.3` e tredici correzioni proposte dalle app in `v2.0.4`): le app la fissano nell'indirizzo del registry (vedi [`docs/INTEGRAZIONE.md`](docs/INTEGRAZIONE.md), passo 4). Le app già sul v1 hanno la loro guida: [`docs/GUIDA-MIGRAZIONE.md`](docs/GUIDA-MIGRAZIONE.md).
+> **Stato:** la versione in corso è `v2.0.5` (la prima, `v2.0.0`, più le correzioni per il lint delle app in `v2.0.1`, il menu dei gruppi nella colonna chiusa del guscio in `v2.0.2`, le etichette accessibili in italiano in `v2.0.3`, tredici correzioni proposte dalle app in `v2.0.4` e la seconda ondata di proposte in `v2.0.5`): le app la fissano nell'indirizzo del registry (vedi [`docs/INTEGRAZIONE.md`](docs/INTEGRAZIONE.md), passo 4). Le app già sul v1 hanno la loro guida: [`docs/GUIDA-MIGRAZIONE.md`](docs/GUIDA-MIGRAZIONE.md).
 
 ## Consultare il registry senza installarlo
 
