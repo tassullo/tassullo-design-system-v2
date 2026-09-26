@@ -426,6 +426,47 @@ export const EditabileRiempimentoProva: Story = {
   play: anteprimaRiempimento,
 }
 
+// Prova: in una griglia più stretta delle sue colonne, che scorre di lato, la
+// maniglia di riempimento non esce dal riquadro della tabella quando la cella
+// attiva è scorsa fuori vista. Prima restava agganciata alla cella anche fuori
+// dal riquadro, e a 375 in touch faceva scorrere di lato la pagina intera.
+async function manigliaDentroIlRiquadro({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = (colonna: string) =>
+    canvasElement.querySelector<HTMLElement>(`[data-riga-id="voce-2"][data-colonna-id="${colonna}"]`)!
+  await waitFor(() => expect(cella('codice')).toBeTruthy())
+  const riquadro = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')!
+  await waitFor(() => expect(riquadro.scrollWidth).toBeGreaterThan(riquadro.clientWidth))
+
+  await userEvent.click(cella('codice'))
+  await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}')
+  await waitFor(() => expect(document.activeElement).toBe(cella('quantita')))
+  riquadro.scrollLeft = 0
+  riquadro.dispatchEvent(new Event('scroll'))
+  await new Promise((fatto) => requestAnimationFrame(() => requestAnimationFrame(fatto)))
+
+  const maniglia = canvasElement.querySelector<HTMLElement>('.cursor-crosshair')
+  const area = riquadro.getBoundingClientRect()
+  const cellaFuori = cella('quantita').getBoundingClientRect().left >= area.right
+  expect(cellaFuori, 'la cella attiva è scorsa fuori vista').toBe(true)
+  if (maniglia) {
+    const r = maniglia.getBoundingClientRect()
+    expect(r.left, 'maniglia a sinistra del riquadro').toBeGreaterThanOrEqual(area.left - 0.5)
+    expect(r.right, 'maniglia oltre il riquadro').toBeLessThanOrEqual(area.right + 0.5)
+  }
+}
+
+// Scena di misura: la griglia di «Editabile» in un riquadro stretto.
+export const EditabileStrettaProva: Story = {
+  name: 'Editabile, stretta, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="w-80">
+      <ComputoFinto />
+    </div>
+  ),
+  play: manigliaDentroIlRiquadro,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Celle tipizzate — sessione 2 di 3
  * ──────────────────────────────────────────────────────────────────────── */

@@ -2683,6 +2683,14 @@ export function DataGridFillHandle() {
           setPosizione(null)
           return
         }
+        // Lo stesso di lato: una griglia più stretta delle sue colonne scorre
+        // in orizzontale, e l'angolo della cella attiva scorsa fuori vista
+        // cadrebbe fuori dal riquadro — a destra, oltre il bordo della
+        // pagina, che scorrerebbe di lato per mostrare la sola maniglia.
+        if (box.right <= areaVisibile.left || box.right > areaVisibile.right + 1) {
+          setPosizione(null)
+          return
+        }
       }
       const cont = contenitore.getBoundingClientRect()
       setPosizione({ top: box.bottom - cont.top, left: box.right - cont.left })
