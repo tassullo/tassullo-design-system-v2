@@ -11,6 +11,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import * as React from 'react'
+import { expect, waitFor } from 'storybook/test'
 
 import { apriCol, apriColDestro } from '@/prove/apri'
 import {
@@ -1169,6 +1170,62 @@ export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
       <DataTable {...args} className="min-h-0 flex-1" />
     </div>
   ),
+}
+
+// La prova misura due cose del riquadro fermo, in un browser vero. Che
+// all'apertura non sia già scorso: lo snap delle righe agganciava la prima riga
+// sotto l'intestazione ferma, e la tabella partiva scorsa di un'intestazione.
+// E che il tetto sia a pixel interi, con la riga di fondo che finisce sotto il
+// bordo del riquadro: righe di testo alte una frazione di pixel davano un tetto
+// frazionario, e la riga di fondo lasciava il suo filo accanto al bordo.
+async function provaAltezzaFerma({ canvasElement }: { canvasElement: HTMLElement }) {
+  const scorre = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+    expect(el?.parentElement?.style.maxHeight).toMatch(/px$/)
+    return el as HTMLElement
+  })
+  const riquadro = scorre.parentElement as HTMLElement
+  await new Promise((fatto) => setTimeout(fatto, 300))
+  expect(scorre.scrollTop).toBe(0)
+  const tetto = parseFloat(riquadro.style.maxHeight)
+  expect(Number.isInteger(tetto)).toBe(true)
+  const fondoInterno = scorre.getBoundingClientRect().bottom
+  const righe = [...scorre.querySelectorAll('tbody tr')]
+  const inVista = righe.filter((r) => r.getBoundingClientRect().top < fondoInterno)
+  const fondoRiga = inVista[inVista.length - 1].getBoundingClientRect().bottom
+  // Il filo della riga è il suo ultimo pixel: sta sotto il bordo, fuori vista.
+  expect(fondoRiga - 1).toBeGreaterThanOrEqual(fondoInterno)
+}
+
+const COLONNE_TESTO = COLONNE.filter((c) =>
+  ['nome', 'famiglia', 'revisione', 'aggiornato'].includes(
+    'accessorKey' in c ? String(c.accessorKey) : ''
+  )
+)
+
+/**
+ * Il riquadro fermo in un contenitore alto 560px, con sessanta righe di solo
+ * testo. All'apertura la prima riga è in vista sotto l'intestazione, e il
+ * riquadro finisce sotto il filo dell'ultima riga intera: il suo bordo è
+ * l'unica linea in fondo.
+ */
+export const AltezzaFerma: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Altezza Ferma',
+  args: {
+    colonne: COLONNE_TESTO,
+    dati: PRODOTTI.slice(0, 60),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 100,
+    altezza: 'ferma',
+    nomeRighe: { singolare: 'prodotto', plurale: 'prodotti' },
+  },
+  render: (args) => (
+    <div className="flex h-140 flex-col">
+      <DataTable {...args} className="min-h-0 flex-1" />
+    </div>
+  ),
+  play: provaAltezzaFerma,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

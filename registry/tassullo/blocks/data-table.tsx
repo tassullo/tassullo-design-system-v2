@@ -3815,6 +3815,16 @@ export function DataTable<TDato extends RowData>({
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
   /**
+   * L'altezza dell'intestazione ferma, che diventa lo `scroll-padding-top` di
+   * `table-container`. Le righe sono `snap-start`, e senza questo margine lo
+   * snap le agganciava al bordo alto del riquadro, cioè **sotto** l'intestazione:
+   * all'apertura il browser portava da sé la prima riga lì, e la tabella
+   * partiva già scorsa di un'intestazione, con la prima riga nascosta. Col
+   * margine la prima riga si aggancia a scorrimento zero, e ogni riga
+   * agganciata cade subito sotto l'intestazione invece che dietro.
+   */
+  const [altezzaTestata, setAltezzaTestata] = React.useState<number | undefined>(undefined)
+  /**
    * Misura la tabella per intero, per la barra-guida del trascinamento (v.
    * `ManigliaRidimensiona`). `Table` (`ui/table.tsx`) non passa `ref` con
    * `forwardRef`, ma non ne ha bisogno: spande `{...props}` sul `<table>`, e
@@ -3892,6 +3902,7 @@ export function DataTable<TDato extends RowData>({
 
     const ricalcola = () => {
       const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
+      setAltezzaTestata(altezzaTestata)
       const contenitoreTop = contenitore.getBoundingClientRect().top
       const scarto = parseFloat(getComputedStyle(radice).rowGap) || 0
       const altezzaPiePagina = elPiePagina?.getBoundingClientRect().height ?? 0
@@ -3935,6 +3946,13 @@ export function DataTable<TDato extends RowData>({
         tetto = fondoRiga
       }
       if (tetto <= altezzaTestata) return
+      // **A pixel interi, per difetto.** Righe di solo testo sono alte una
+      // frazione di pixel (l'interlinea del corpo), e un tetto frazionario
+      // lasciava il filo della riga di fondo accanto al bordo del riquadro,
+      // due linee a un pixel di distanza. Per difetto, così il riquadro non
+      // supera mai lo spazio disponibile e il filo della riga resta sotto il
+      // bordo, fuori vista.
+      tetto = Math.floor(tetto)
 
       // Qualche pixel di margine sul confronto: due misure dello stesso
       // valore, prese in momenti diversi, possono differire di qualche
@@ -4022,11 +4040,18 @@ export function DataTable<TDato extends RowData>({
 
       <div
         ref={contenitoreRef}
-        style={fermo ? { maxHeight: altezzaMax } : undefined}
+        style={
+          fermo
+            ? ({
+                maxHeight: altezzaMax,
+                "--altezza-testata": altezzaTestata === undefined ? undefined : `${altezzaTestata}px`,
+              } as React.CSSProperties)
+            : undefined
+        }
         className={cn(
           "overflow-hidden rounded-lg border bg-card",
           fermo &&
-            "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity"
+            "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity [&_[data-slot=table-container]]:scroll-pt-(--altezza-testata)"
         )}
       >
         {/*
