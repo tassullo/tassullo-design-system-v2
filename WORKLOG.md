@@ -13340,6 +13340,8 @@ Aperta la PR, Francesco ha voluto rivedere ogni issue: problema, soluzione, prov
 
 - **Maniglie di ridimensionamento visibili a riposo** (Francesco): prima comparivano solo col puntatore sopra, e sul touch mai. Quattro forme rese affiancate (com'è, filo pieno, filo corto, solo col puntatore sulla testata); scelta la **filo corto**, in un grigio chiaro: a riposo un trattino alto metà intestazione (20px, 30 in touch), `border` in chiaro e `border-strong` in scuro, dove `border` sul fondo della testata quasi spariva; niente trattino sull'ultima colonna. Col puntatore, col fuoco o trascinando resta il filo arancio di prima.
 
+- **Le prove che aprono i popup restano nelle scene visibili** (Francesco): sono 37 `play` di prima dell'ondata che aprono un menu, un dialogo o un popover perché axe li misuri. A differenza delle 18 dell'ondata non fanno niente che confonda — scrivere, spostare il fuoco, scorrere —: aprono il popup, che è lo stato che la scena vuole mostrare, e in una style guide vedere subito il menu aperto è utile. Spostarle costerebbe ~35 scene gemelle e un controllo di `misura:bersagli`, che conta sui popup già aperti. Si sistema caso per caso la scena che desse fastidio. La regola di §69 vale quindi per le prove che **agiscono** sulla scena, non per quelle che aprono un popup.
+
 #### Per le app, in più rispetto a sopra
 
 - `tassullo-data-grid`: `add --overwrite` porta con sé `calendar` e `popover`. Le colonne data si scrivono `gg/mm/aaaa`; chi incolla da un foglio può incollare anche `AAAA-MM-GG`.
@@ -13347,7 +13349,6 @@ Aperta la PR, Francesco ha voluto rivedere ogni issue: problema, soluzione, prov
 
 #### Da decidere, per l'ondata 2
 
-- Le `play` più vecchie che aprono un menu o un dialogo nelle scene visibili (per il gate di accessibilità) registrano anch'esse interazioni: da portare in scene di misura? Domanda aperta a Francesco.
 - Foglio a gruppi: la colonna «Prezzo unit.» della scena nuova mostra i decimali come arrivano (0,62 / 38,5 / 1,8 / 4,2).
 - Griglia: il popover della data resta visibile sopra l'intestazione quando la cella ci scorre sotto ancora montata; nasconderlo farebbe perdere il fuoco.
 - Il gate gira solo in Chromium: il ciclo di Safari l'ha visto solo Francesco. Una passata WebKit sulle scene virtualizzate costerebbe poco.
