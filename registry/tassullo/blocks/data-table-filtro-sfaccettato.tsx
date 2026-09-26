@@ -208,16 +208,22 @@ export function righeSenzaFiltroColonna<TDato extends RowData>(
   const colonneRicerca = filtraGlobale
     ? tabella.getAllLeafColumns().filter((colonna) => colonna.getCanGlobalFilter())
     : []
+  // Il testo cercato passa per `resolveFilterValue`, come fa TanStack prima di
+  // filtrare: per la ricerca di serie è il minuscolo. Passato così com'è,
+  // «Calce» non corrispondeva a nessun valore (già in minuscolo dalla
+  // funzione) e il filtro restava senza voci mentre la tabella ne mostrava.
+  const ricercaRisolta = filtraGlobale?.resolveFilterValue?.(ricerca) ?? ricerca
 
   return righeCore.filter((riga) => {
     for (const filtro of altriFiltri) {
       const colonna = tabella.getColumn(filtro.id)
       const filtraColonna = colonna?.getFilterFn()
-      if (filtraColonna && !filtraColonna(riga, filtro.id, filtro.value, () => {})) return false
+      const valore = filtraColonna?.resolveFilterValue?.(filtro.value) ?? filtro.value
+      if (filtraColonna && !filtraColonna(riga, filtro.id, valore, () => {})) return false
     }
     if (
       filtraGlobale &&
-      !colonneRicerca.some((colonna) => filtraGlobale(riga, colonna.id, ricerca, () => {}))
+      !colonneRicerca.some((colonna) => filtraGlobale(riga, colonna.id, ricercaRisolta, () => {}))
     )
       return false
     return true

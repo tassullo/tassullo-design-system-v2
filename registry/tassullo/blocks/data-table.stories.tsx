@@ -1113,7 +1113,8 @@ function AlberoConRicercaControlli() {
 // livello), e lo trova. Prima la ricerca lavorava dall'alto: la voce madre non
 // conteneva il testo e veniva scartata con tutte le sue misurazioni, quindi
 // 0 righe e «Nessun risultato». Il conto in fondo dice voci e misurazioni
-// rimaste, anche prima di aprire le voci.
+// rimaste, anche prima di aprire le voci. Poi cerca una voce per nome: resta
+// con tutte le sue misurazioni, non con le sole che contengono il testo.
 async function provaAlberoConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
   const canvas = within(canvasElement)
   await userEvent.type(canvas.getByRole('searchbox'), 'corridoio')
@@ -1125,14 +1126,22 @@ async function provaAlberoConRicerca({ canvasElement }: { canvasElement: HTMLEle
   await waitFor(() =>
     expect(canvas.getAllByText(/corridoio/).length).toBeGreaterThan(0)
   )
+
+  // Una voce trovata per il suo nome porta con sé tutte le sue misurazioni.
+  const ricerca = canvas.getByRole('searchbox')
+  await userEvent.clear(ricerca)
+  await userEvent.type(ricerca, 'Scavo')
+  await waitFor(() =>
+    expect(canvas.getByRole('status').textContent).toMatch(/^1 voce, [1-9]\d* misurazion/)
+  )
 }
 
 /**
  * La ricerca in un albero guarda anche le righe figlie: cercando un ambiente,
  * che sta solo nelle misurazioni, restano le voci che ne hanno almeno una, e
- * sotto ciascuna le sole misurazioni che corrispondono. Una voce resta se lei
- * stessa o una sua discendente corrisponde. Con `nomeSottoRighe` il conto in
- * fondo dice le voci e le misurazioni rimaste.
+ * sotto ciascuna le sole misurazioni che corrispondono. Cercando una voce per
+ * nome, invece, la voce resta con tutte le sue misurazioni. Con
+ * `nomeSottoRighe` il conto in fondo dice le voci e le misurazioni rimaste.
  */
 export const AlberoConRicerca: StoryObj<typeof DataTable<RigaComputo>> = {
   name: 'Albero Con Ricerca',
@@ -1564,14 +1573,16 @@ export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <TabellaConFiltri statoIniziale={['bozza']} />,
 }
 
-// La prova cerca «calce» e apre il filtro Stato: le voci devono essere gli
+// La prova cerca «Calce» e apre il filtro Stato: le voci devono essere gli
 // stati dei prodotti che la ricerca lascia passare, scritte come nel dato,
 // con il loro conteggio.
 // Prima la ricerca si applicava con un id di colonna fittizio, che non legge
 // nessun valore: il filtro diceva «Nessun risultato.» (0 voci su 4).
 async function provaFiltriConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
   const canvas = within(canvasElement)
-  await userEvent.type(canvas.getByRole('searchbox'), 'calce')
+  // Con la maiuscola: la ricerca non distingue, e i conteggi dei filtri
+  // devono seguirla (una prima correzione confrontava il testo così com'era).
+  await userEvent.type(canvas.getByRole('searchbox'), 'Calce')
   const conteggi = new Map<string, number>()
   for (const p of PRODOTTI) {
     if (![p.nome, p.famiglia, p.stato].some((v) => v.toLowerCase().includes('calce'))) continue

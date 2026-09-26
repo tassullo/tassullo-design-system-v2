@@ -98,6 +98,7 @@ import {
   filterFn_inDateRange,
   filterFn_inNumberRange,
   filterFn_includesString,
+  constructFilterFn,
   globalFilteringFeature,
   rowExpandingFeature,
   rowPaginationFeature,
@@ -284,6 +285,24 @@ import {
  * la sola differenza dal filtro di `arrHas` è che il valore della colonna è
  * un numero o una data, non un valore da confrontare a un elenco.
  */
+/**
+ * La ricerca negli alberi: una riga corrisponde se corrisponde lei **o una
+ * sua antenata**. Col filtro dalle foglie (`filterFromLeafRows`) una voce
+ * madre resta già se lei o una figlia corrisponde; senza la seconda metà,
+ * sotto una madre trovata per il suo nome restavano le sole figlie che
+ * contengono anche loro il testo, cioè di solito nessuna, e la voce si
+ * apriva vuota. Così chi cerca una voce la trova con tutte le sue righe.
+ */
+const filterFn_includesStringInAlbero = constructFilterFn({
+  ...filterFn_includesString,
+  filter: (valore: string | undefined, cercato: string, riga, idColonna) =>
+    Boolean(valore?.includes(cercato)) ||
+    riga.getParentRows().some((antenata) => {
+      const suo = antenata.getValue(idColonna)
+      return suo != null && String(suo).toLowerCase().includes(cercato)
+    }),
+})
+
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
   columnOrderingFeature,
@@ -302,6 +321,7 @@ export const caratteristiche = tableFeatures({
   sortedRowModel: createSortedRowModel(),
   filterFns: {
     includesString: filterFn_includesString,
+    includesStringInAlbero: filterFn_includesStringInAlbero,
     arrHas: filterFn_arrHas,
     inNumberRange: filterFn_inNumberRange,
     inDateRange: filterFn_inDateRange,
@@ -3609,7 +3629,7 @@ export function DataTable<TDato extends RowData>({
     features: caratteristiche,
     data: dati,
     columns: colonneEffettive,
-    globalFilterFn: "includesString",
+    globalFilterFn: getSottoRighe ? "includesStringInAlbero" : "includesString",
     // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
     // predefinito, l'indice nell'array (v. il prop).
     getRowId: idRiga ? (riga) => idRiga(riga) : undefined,
@@ -3625,8 +3645,9 @@ export function DataTable<TDato extends RowData>({
     },
     getSubRows: getSottoRighe ? (riga) => getSottoRighe(riga) : undefined,
     // In un albero ricerca e filtri partono dalle foglie: una riga madre
-    // resta se lei o una sua discendente corrisponde, e sotto di lei restano
-    // le sole figlie che corrispondono. Dall'alto, il predefinito di TanStack,
+    // resta se lei o una sua discendente corrisponde; con la ricerca, una
+    // madre trovata porta con sé tutte le sue figlie
+    // (`includesStringInAlbero`). Dall'alto, il predefinito di TanStack,
     // una madre che non contiene il testo cercato veniva scartata con tutte
     // le figlie, e una voce di secondo livello non si trovava mai.
     filterFromLeafRows: !!getSottoRighe,
