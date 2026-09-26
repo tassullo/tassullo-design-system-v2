@@ -80,13 +80,31 @@ const COLONNE_GRIGLIA = col.columns([
   colonnaTestoGriglia(col, 'quantita', 'Quantità', { size: 100 }),
 ])
 
-// Prova: il fondo della selezione compare solo quando la griglia ha il fuoco.
-// All'apertura la cella attiva c'è (è il punto d'ingresso del Tab) ma non ha
-// ancora il segno; entrati con Tab la prima cella lo prende, Maiusc+Freccia
-// allarga il rettangolo e un clic sceglie un'altra cella, come prima.
+// Prova: il segno della selezione compare solo quando la griglia ha il fuoco,
+// e solo per un rettangolo di più celle. All'apertura la cella attiva c'è (è
+// il punto d'ingresso del Tab) ma non ha segno; entrati con Tab la prima cella
+// prende l'anello e nient'altro, perché una cella sola non ha né fondo né
+// filo. Maiusc+Freccia allarga il rettangolo a due celle: il filo le circonda
+// tutte e due, e il fondo tinto va sulla sola cella che non è l'attiva. Un
+// clic su un'altra cella torna a una cella sola, senza segno.
 function celleConFondo(radice: HTMLElement) {
   return [...radice.querySelectorAll<HTMLElement>('[data-riga-id][data-colonna-id]')].filter(
     (cella) => getComputedStyle(cella).backgroundColor !== 'rgba(0, 0, 0, 0)'
+  )
+}
+
+type Lato = 'Top' | 'Bottom' | 'Left' | 'Right'
+const LATI: Lato[] = ['Top', 'Bottom', 'Left', 'Right']
+
+/** I lati del filo della selezione (lo pseudo-elemento `::before`) di una cella. */
+function latiDelFilo(cella: HTMLElement): Lato[] {
+  const filo = getComputedStyle(cella, '::before')
+  return LATI.filter((lato) => filo.getPropertyValue(`border-${lato.toLowerCase()}-width`) === '1px')
+}
+
+function celleColFilo(radice: HTMLElement) {
+  return [...radice.querySelectorAll<HTMLElement>('[data-riga-id][data-colonna-id]')].filter(
+    (cella) => latiDelFilo(cella).length > 0
   )
 }
 
@@ -97,20 +115,81 @@ async function selezioneSoloColFuoco({ canvasElement }: { canvasElement: HTMLEle
     return trovata!
   })
   expect(celleConFondo(griglia)).toHaveLength(0)
+  expect(celleColFilo(griglia)).toHaveLength(0)
 
   for (let passi = 0; passi < 10 && !griglia.contains(document.activeElement); passi++) {
     await userEvent.tab()
   }
   const prima = griglia.querySelector<HTMLElement>('[data-attiva]')!
   expect(document.activeElement).toBe(prima)
-  await waitFor(() => expect(celleConFondo(griglia)).toEqual([prima]))
+  expect(celleConFondo(griglia)).toHaveLength(0)
+  expect(celleColFilo(griglia)).toHaveLength(0)
 
   await userEvent.keyboard('{Shift>}{ArrowDown}{/Shift}')
-  await waitFor(() => expect(celleConFondo(griglia)).toHaveLength(2))
+  await waitFor(() => {
+    expect(celleConFondo(griglia)).toEqual([prima])
+    expect(celleColFilo(griglia)).toHaveLength(2)
+  })
 
   const altra = griglia.querySelector<HTMLElement>('[data-riga-id="voce-2"][data-colonna-id="descrizione"]')!
   await userEvent.click(altra)
-  await waitFor(() => expect(celleConFondo(griglia)).toEqual([altra]))
+  await waitFor(() => {
+    expect(celleConFondo(griglia)).toHaveLength(0)
+    expect(celleColFilo(griglia)).toHaveLength(0)
+  })
+}
+
+// Prova: un rettangolo di tre righe per due colonne, fatto con Maiusc e le
+// frecce. Ogni cella ha il filo solo sui lati che stanno sul bordo del
+// rettangolo; la cella attiva non ha fondo, le altre sì. Il filo è del colore
+// del marchio col fuoco nelle celle, e grigio dopo un clic fuori dalla griglia.
+async function rettangoloSelezionato({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = (riga: number, colonna: string) =>
+    canvasElement.querySelector<HTMLElement>(`[data-riga-id="voce-${riga}"][data-colonna-id="${colonna}"]`)!
+  await waitFor(() => expect(cella(1, 'codice')).toBeTruthy())
+
+  await userEvent.click(cella(1, 'codice'))
+  await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowDown}{ArrowDown}{/Shift}')
+  await waitFor(() => expect(document.activeElement).toBe(cella(3, 'descrizione')))
+
+  const attese: [number, string, Lato[]][] = [
+    [1, 'codice', ['Top', 'Left']],
+    [1, 'descrizione', ['Top', 'Right']],
+    [2, 'codice', ['Left']],
+    [2, 'descrizione', ['Right']],
+    [3, 'codice', ['Bottom', 'Left']],
+    [3, 'descrizione', ['Bottom', 'Right']],
+  ]
+  for (const [riga, colonna, lati] of attese) {
+    expect(latiDelFilo(cella(riga, colonna)), `${riga} ${colonna}`).toEqual(lati)
+  }
+  expect(latiDelFilo(cella(1, 'unita'))).toEqual([])
+  expect(latiDelFilo(cella(4, 'codice'))).toEqual([])
+
+  const trasparente = 'rgba(0, 0, 0, 0)'
+  expect(getComputedStyle(cella(3, 'descrizione')).backgroundColor).toBe(trasparente)
+  for (const [riga, colonna] of attese.slice(0, -1)) {
+    expect(getComputedStyle(cella(riga, colonna)).backgroundColor, `${riga} ${colonna}`).not.toBe(trasparente)
+  }
+  expect(getComputedStyle(cella(4, 'codice')).backgroundColor).toBe(trasparente)
+
+  // Il colore di un token come lo risolve il motore di resa, nello stesso
+  // formato del filo.
+  const colore = (token: string) => {
+    const campione = document.createElement('div')
+    campione.style.borderTopColor = `var(${token})`
+    canvasElement.append(campione)
+    const risolto = getComputedStyle(campione).borderTopColor
+    campione.remove()
+    return risolto
+  }
+  const filo = () => getComputedStyle(cella(2, 'codice'), '::before').borderLeftColor
+  expect(filo()).toBe(colore('--primary'))
+
+  const conteggio = [...canvasElement.querySelectorAll('p')].find((p) => p.textContent === '60 voci')!
+  await userEvent.click(conteggio)
+  await waitFor(() => expect(filo()).toBe(colore('--muted-foreground')))
+  expect(latiDelFilo(cella(2, 'codice'))).toEqual(['Left'])
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -205,7 +284,10 @@ function ComputoFinto() {
  *   con l'ultimo salvataggio e dice `creati`, `aggiornati`, `cancellati` e
  *   `cePendente`, per un bottone «Salva». Il motore offre `aggiungiRiga` e
  *   `rimuoviRighe`, annullabili come ogni altra modifica.
- * - `useContestoDataGrid()` dà il motore a una cella scritta a mano.
+ * - `useContestoDataGrid()` dà il motore a una cella scritta a mano; per
+ *   segnarla come le altre, `motore.bordiSelezione(id)` dice quali suoi lati
+ *   stanno sul bordo del rettangolo selezionato e se il rettangolo ha più di
+ *   una cella.
  *
  * **Regole d'uso.**
  *
@@ -223,7 +305,15 @@ function ComputoFinto() {
  *   lavorando. Su una pagina appena aperta nessuna cella è segnata: bordo e
  *   fondo compaiono dal primo ingresso nella griglia, col `Tab` o col
  *   puntatore.
- * - La data è un campo nativo `<input type="date">`, non il calendario.
+ * - Una selezione di più celle ha un filo attorno al rettangolo e un fondo
+ *   appena tinto sulle celle, tranne l'attiva; il filo è arancio col fuoco
+ *   nella griglia e grigio col fuoco fuori, come il bordo della cella
+ *   attiva. Una cella sola non ha altro segno che il suo bordo.
+ * - La data si scrive `gg/mm/aaaa`, come si legge; in modifica `↓` o il
+ *   bottone nel campo aprono il calendario, e un giorno scelto conferma
+ *   subito. Se la cella scorre sotto la testata o oltre il fondo del
+ *   riquadro, il calendario si chiude e il fuoco torna al campo: `↓` lo
+ *   riapre.
  * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
  *   `numeri`, quindi col separatore delle migliaia sempre scritto
  *   (`2.086,93 €`), allineate a destra e con le cifre tabellari. In modifica
@@ -278,6 +368,62 @@ export const EditabileProva: Story = {
   name: 'Editabile, prova',
   tags: ['!dev', '!autodocs'],
   play: selezioneSoloColFuoco,
+}
+
+// Scena di misura del rettangolo selezionato: nascosta come quella sopra.
+export const EditabileRettangoloProva: Story = {
+  ...Editabile,
+  name: 'Editabile, rettangolo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: rettangoloSelezionato,
+}
+
+// Prova: trascinando la maniglia di riempimento, il tratteggio che anticipa
+// le celle da riempire si vede tutto. La cella della tabella taglia ciò che
+// sborda, e il tratteggio stava appena fuori dal riquadro della cella: c'era,
+// ma non se ne vedeva nemmeno un pixel.
+async function anteprimaRiempimento({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = (riga: number) =>
+    canvasElement.querySelector<HTMLElement>(`[data-riga-id="voce-${riga}"][data-colonna-id="descrizione"]`)!
+  await waitFor(() => expect(cella(1)).toBeTruthy())
+  await userEvent.click(cella(1))
+  await userEvent.keyboard('{Shift>}{ArrowDown}{/Shift}')
+  const maniglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('.cursor-crosshair')
+    expect(trovata).toBeTruthy()
+    return trovata!
+  })
+
+  // Il trascinamento a mano: la maniglia ascolta il `mousedown`, poi i
+  // movimenti del puntatore sul documento.
+  const centro = (el: Element) => {
+    const r = el.getBoundingClientRect()
+    return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true }
+  }
+  maniglia.dispatchEvent(new MouseEvent('mousedown', centro(maniglia)))
+  document.dispatchEvent(new MouseEvent('mousemove', centro(cella(5))))
+  await waitFor(() => expect(getComputedStyle(cella(5)).outlineStyle).toBe('dashed'))
+
+  for (const riga of [2, 3, 4, 5]) {
+    const div = cella(riga)
+    const stile = getComputedStyle(div)
+    const sporge = parseFloat(stile.outlineWidth) + parseFloat(stile.outlineOffset)
+    const r = div.getBoundingClientRect()
+    const taglio = div.closest('td')!.getBoundingClientRect()
+    expect(r.left - sporge, `riga ${riga}`).toBeGreaterThanOrEqual(taglio.left - 0.5)
+    expect(r.right + sporge, `riga ${riga}`).toBeLessThanOrEqual(taglio.right + 0.5)
+    expect(r.top - sporge, `riga ${riga}`).toBeGreaterThanOrEqual(taglio.top - 0.5)
+    expect(r.bottom + sporge, `riga ${riga}`).toBeLessThanOrEqual(taglio.bottom + 0.5)
+  }
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+}
+
+// Scena di misura della maniglia di riempimento: nascosta come quelle sopra.
+export const EditabileRiempimentoProva: Story = {
+  ...Editabile,
+  name: 'Editabile, riempimento, prova',
+  tags: ['!dev', '!autodocs'],
+  play: anteprimaRiempimento,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -473,6 +619,211 @@ export const CelleTipizzateDataProva: Story = {
   name: 'Celle Tipizzate, data, prova',
   tags: ['!dev', '!autodocs'],
   play: dataScrittaECalendario,
+}
+
+// Prova: il calendario di una cella si chiude quando la cella scorre sotto la
+// testata ferma, invece di restare sopra la testata o staccato dalla cella.
+// Aperto con `Invio` e `↓` sulla quarta riga, uno scorrimento di 180px porta la
+// cella sotto la testata: il calendario è chiuso, il fuoco è tornato al campo
+// della data senza far scorrere il riquadro, e `↓` lo riapre.
+async function calendarioSiChiudeScorrendo({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = () =>
+    canvasElement.querySelector<HTMLElement>('[data-riga-id="voce-t-3"][data-colonna-id="scadenza"]')
+  const campo = () => canvasElement.querySelector<HTMLInputElement>('input[aria-label="scadenza"]')
+  const calendario = () =>
+    document.querySelector('[data-slot="popover-content"][aria-label="Scegli la data"]')
+  await waitFor(() => expect(cella()).toBeTruthy())
+  const contenitore = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')!
+
+  await userEvent.click(cella()!)
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+  await userEvent.keyboard('{ArrowDown}')
+  await waitFor(() => {
+    expect(calendario()).toBeTruthy()
+    expect(document.activeElement?.hasAttribute('data-day')).toBe(true)
+  })
+
+  const partenza = contenitore.scrollTop
+  contenitore.scrollTop = partenza + 180
+  await waitFor(() => {
+    expect(calendario()).toBeNull()
+    expect(document.activeElement).toBe(campo())
+  })
+  expect(contenitore.scrollTop).toBe(partenza + 180)
+
+  contenitore.scrollTop = partenza
+  await userEvent.keyboard('{ArrowDown}')
+  await waitFor(() => expect(calendario()).toBeTruthy())
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+}
+
+// Scena di misura del calendario che scorre: nascosta come quelle sopra.
+export const CelleTipizzateCalendarioProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, calendario, prova',
+  tags: ['!dev', '!autodocs'],
+  play: calendarioSiChiudeScorrendo,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Colonne miste — alcune si leggono, altre si scrivono
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Materiale = {
+  id: string
+  codice: string
+  descrizione: string
+  gruppo: string
+  finitura: string
+  quantita: string
+  prezzo: string
+  unita: string
+  disponibile: string
+  prova: string
+}
+
+const MATERIALI: Materiale[] = [
+  ['MAL-01', 'Malta bastarda M5', 'Malte', 'Rasato', '120', '14.5', 'kg', 'true', '2026-03-12'],
+  ['INT-02', 'Intonaco di fondo', 'Intonaci', 'Lisciato', '48', '22.1', 'm2', 'false', '2026-04-02'],
+  ['ADS-03', 'Adesivo cementizio C2', 'Adesivi', '', '', '9.8', 'kg', 'true', ''],
+  ['RAS-04', 'Rasante fibrorinforzato', 'Rasanti', 'Frattazzato', '300', '31.4', 'pz', 'true', '2026-05-20'],
+  ['MAL-05', 'Malta da muratura M10', 'Malte', 'Grezzo', '75', '12', 'kg', 'false', '2026-01-08'],
+].map((r, i) => ({
+  id: `materiale-${i}`,
+  codice: r[0]!,
+  descrizione: r[1]!,
+  gruppo: r[2]!,
+  finitura: r[3]!,
+  quantita: r[4]!,
+  prezzo: r[5]!,
+  unita: r[6]!,
+  disponibile: r[7]!,
+  prova: r[8]!,
+}))
+
+const colM = creaColonne<Materiale>()
+const COLONNE_MISTE = colM.columns([
+  colM.accessor('codice', { header: 'Codice', meta: { titolo: 'Codice' }, size: 90 }),
+  colM.accessor('descrizione', { header: 'Descrizione', meta: { titolo: 'Descrizione' }, size: 200 }),
+  colonnaTestoGriglia(colM, 'finitura', 'Finitura', { size: 110 }),
+  colM.accessor('gruppo', { header: 'Gruppo', meta: { titolo: 'Gruppo' }, size: 90 }),
+  colonnaNumeroGriglia(colM, 'quantita', 'Quantità', { size: 90 }),
+  colonnaValutaGriglia(colM, 'prezzo', 'Prezzo', { size: 100 }),
+  colonnaSelectGriglia(colM, 'unita', 'U.M.', UNITA_OPZIONI, { size: 80 }),
+  colonnaCheckboxGriglia(colM, 'disponibile', 'Disp.', { size: 64 }),
+  colonnaDataGriglia(colM, 'prova', 'Prova del', { size: 130 }),
+])
+
+function GrigliaColonneMiste() {
+  const motore = useDataGrid<Materiale>({
+    righeIniziali: MATERIALI,
+    colonneId: ['finitura', 'quantita', 'prezzo', 'unita', 'disponibile', 'prova'],
+    idRiga: (m) => m.id,
+    leggiCella: (m, c) => String(m[c as keyof Materiale] ?? ''),
+    scriviCella: (m, c, valore) => ({ ...m, [c]: valore }),
+  })
+  return (
+    <div className="flex h-100 flex-col">
+      <DataGrid
+        motore={motore}
+        colonne={COLONNE_MISTE}
+        nomeRighe={{ singolare: 'materiale', plurale: 'materiali' }}
+        className="min-h-0 flex-1"
+        ridimensionabile
+      >
+        <DataGridClipboard />
+      </DataGrid>
+    </div>
+  )
+}
+
+// Prova, in densità touch dove lo scarto era più grande: il testo delle celle
+// che si scrivono sta sulla stessa riga di quello delle celle che si leggono
+// (prima era 5px più in alto), e aprendo la modifica non si sposta né cambia
+// l'altezza della riga.
+function fondoDelTesto(nodo: Element): DOMRect | null {
+  const giro = document.createTreeWalker(nodo, NodeFilter.SHOW_TEXT)
+  for (let t = giro.nextNode(); t; t = giro.nextNode()) {
+    if (!t.textContent?.trim()) continue
+    const intervallo = document.createRange()
+    intervallo.selectNodeContents(t)
+    return intervallo.getBoundingClientRect()
+  }
+  return null
+}
+
+async function testoInLinea({ canvasElement }: { canvasElement: HTMLElement }) {
+  const griglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('[role="grid"]')
+    expect(trovata?.querySelector('[data-colonna-id="finitura"]')).toBeTruthy()
+    return trovata!
+  })
+  expect(getComputedStyle(document.documentElement).getPropertyValue('--spacing').trim()).toBe('0.375rem')
+  const riga = griglia.querySelector<HTMLElement>('tbody tr:has([data-riga-id="materiale-1"])')!
+  const letta = fondoDelTesto(riga.querySelector('td')!)!
+  for (const colonna of ['finitura', 'quantita', 'prezzo', 'unita', 'prova']) {
+    const scritta = fondoDelTesto(riga.querySelector(`[data-colonna-id="${colonna}"]`)!)!
+    expect(Math.abs(scritta.bottom - letta.bottom), colonna).toBeLessThan(0.5)
+  }
+
+  const altezze = () => [...griglia.querySelectorAll('tbody tr')].map((tr) => tr.getBoundingClientRect().height)
+  const prima = altezze()
+  // Misurato dal bordo della riga: il clic può far scorrere la pagina.
+  const centro = (r: DOMRect) => (r.top + r.bottom) / 2 - riga.getBoundingClientRect().top
+
+  const finitura = riga.querySelector<HTMLElement>('[data-colonna-id="finitura"]')!
+  // Il testo della vista sta a metà del suo riquadro; il campo deve stare a
+  // metà dello stesso riquadro.
+  const vistaFinitura = centro(finitura.getBoundingClientRect())
+  await userEvent.click(finitura)
+  await userEvent.keyboard('{Enter}')
+  const campo = await waitFor(() => {
+    const trovato = riga.querySelector<HTMLInputElement>('input[aria-label="finitura"]')
+    expect(trovato, 'campo della finitura').toBeTruthy()
+    return trovato!
+  })
+  expect(Math.abs(centro(campo.getBoundingClientRect()) - vistaFinitura)).toBeLessThan(0.5)
+  expect(altezze()).toEqual(prima)
+  await userEvent.keyboard('{Escape}')
+
+  const unita = await waitFor(() => {
+    const trovata = riga.querySelector<HTMLElement>('[data-colonna-id="unita"]')
+    expect(trovata, 'cella dell’unità').toBeTruthy()
+    return trovata!
+  })
+  const testoUnita = centro(fondoDelTesto(unita)!)
+  await userEvent.click(unita)
+  await userEvent.keyboard('{Enter}')
+  const valore = await waitFor(() => {
+    const trovato = riga.querySelector('[data-slot="select-value"]')
+    expect(trovato, 'tendina dell’unità').toBeTruthy()
+    return trovato!
+  })
+  expect(Math.abs(centro(fondoDelTesto(valore)!) - testoUnita)).toBeLessThan(0.5)
+  expect(altezze()).toEqual(prima)
+  await userEvent.keyboard('{Escape}')
+}
+
+/**
+ * Una griglia in cui solo alcune colonne si scrivono: codice, descrizione e
+ * gruppo si leggono, le altre si compilano. Le colonne che si leggono sono
+ * colonne normali della tabella, scritte con `creaColonne()`: le frecce le
+ * saltano, e copia, incolla e riempimento non le toccano. Il testo sta sulla
+ * stessa riga in tutte le celle, che si scrivano o no.
+ */
+export const ColonneMiste: Story = {
+  render: () => <GrigliaColonneMiste />,
+}
+
+// Scena di misura di «Colonne Miste», in densità touch.
+export const ColonneMisteProva: Story = {
+  ...ColonneMiste,
+  name: 'Colonne Miste, prova',
+  tags: ['!dev', '!autodocs'],
+  globals: { density: 'touch' },
+  play: testoInLinea,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

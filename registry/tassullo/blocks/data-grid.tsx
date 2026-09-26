@@ -146,6 +146,10 @@
  *   componenti interni a ogni suo render, e la griglia si rende di nuovo
  *   quando il fuoco entra nel popover: senza il `memo` i giorni si
  *   rimonterebbero e il fuoco cadrebbe sul `body`.
+ * - **Il calendario si chiude quando la cella scorre fuori vista** (sotto la
+ *   testata ferma o oltre il fondo del riquadro), e il fuoco torna al campo:
+ *   la regola del menu «⋯» di riga della tabella, si chiude e non si sposta.
+ *   Scelta di Francesco fra quattro forme (`docs/DECISIONI.md` §70).
  * - **`data-griglia-popup`**: il popover sta in un portale, fuori dalla
  *   `<table>`, e `<DataGrid>` avrebbe letto il fuoco lì dentro come «fuori
  *   dalle celle» — e alla chiusura non l'avrebbe riportato sulla cella. Il
@@ -284,6 +288,16 @@ export type OpzioniDataGrid<TDato> = {
 
 const CRONOLOGIA_MAX = 100
 
+/** Dove sta una cella rispetto al rettangolo selezionato: v. `bordiSelezione`. */
+export type BordiSelezioneGriglia = {
+  su: boolean
+  giu: boolean
+  sx: boolean
+  dx: boolean
+  /** Il rettangolo ha più di una cella. */
+  multipla: boolean
+}
+
 export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
   righe: TDato[]
   cellaAttiva: CellaGrigliaId | null
@@ -295,6 +309,12 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
   eAttiva: (id: CellaGrigliaId) => boolean
   eInModifica: (id: CellaGrigliaId) => boolean
   eSelezionata: (id: CellaGrigliaId) => boolean
+  /**
+   * I lati di una cella che stanno sul bordo del rettangolo selezionato, e se
+   * il rettangolo ha più di una cella; `null` per una cella fuori dalla
+   * selezione. Serve a disegnare il bordo attorno al rettangolo.
+   */
+  bordiSelezione: (id: CellaGrigliaId) => BordiSelezioneGriglia | null
   eInAnteprimaRiempimento: (id: CellaGrigliaId) => boolean
   /** Aggiunge una riga in fondo — v. il commento sull'implementazione. */
   aggiungiRiga: (rigaVuota: TDato) => void
@@ -499,6 +519,19 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
   const eInModifica = (id: CellaGrigliaId) =>
     cellaInModifica?.rigaId === id.rigaId && cellaInModifica?.colonnaId === id.colonnaId
   const eSelezionata = (id: CellaGrigliaId) => dentroRettangolo(id, rettangoloSelezione)
+  const bordiSelezione = (id: CellaGrigliaId): BordiSelezioneGriglia | null => {
+    const rett = rettangoloSelezione
+    if (!rett || !dentroRettangolo(id, rett)) return null
+    const ri = indiceRiga.get(id.rigaId)!
+    const ci = indiceColonna.get(id.colonnaId)!
+    return {
+      su: ri === rett.rigaMin,
+      giu: ri === rett.rigaMax,
+      sx: ci === rett.colMin,
+      dx: ci === rett.colMax,
+      multipla: rett.rigaMin !== rett.rigaMax || rett.colMin !== rett.colMax,
+    }
+  }
   const eInAnteprimaRiempimento = (id: CellaGrigliaId) =>
     obiettivoRiempimento != null && dentroRettangolo(id, rettangoloAnteprima)
 
@@ -940,6 +973,7 @@ export function useDataGrid<TDato>(opzioni: OpzioniDataGrid<TDato>): DataGridEng
     eAttiva,
     eInModifica,
     eSelezionata,
+    bordiSelezione,
     eInAnteprimaRiempimento,
     aggiungiRiga,
     rimuoviRighe,
@@ -1139,10 +1173,11 @@ function useStatoCellaGriglia<TDato>(
     attiva,
     inModifica,
     // Il rettangolo di selezione parte sulla prima cella fin dal montaggio,
-    // perché è lì che `Tab` entra; il suo fondo però si vede solo da quando
+    // perché è lì che `Tab` entra; il suo segno però si vede solo da quando
     // il fuoco è passato dalle celle. Prima, su una pagina appena aperta, la
     // prima cella sembrerebbe già scelta mentre il fuoco è altrove.
-    selezionata: fuoco !== "mai" && motore.eSelezionata(id),
+    segnoSelezione:
+      fuoco === "mai" ? undefined : classiSelezione(fuoco, attiva, motore.bordiSelezione(id)),
     inAnteprima: motore.eInAnteprimaRiempimento(id),
     errore: inModifica ? validazione?.(motore.draftModifica) : undefined,
   }
@@ -1251,8 +1286,38 @@ function accessorGriglia<TDato extends RowData>(col: ReturnType<typeof creaColon
   ) => ColonnaTabella<TDato>
 }
 
+/**
+ * Il segno di una selezione di più celle, come nei fogli di calcolo e in
+ * ReUI: un filo di 1px attorno al rettangolo e un fondo appena tinto sulle
+ * celle, tranne l'attiva, che si riconosce così oltre che per il suo anello.
+ * Una cella sola non ha né fondo né filo: la segna già l'anello.
+ *
+ * Il filo è uno pseudo-elemento sopra la cella, non un bordo della cella: un
+ * bordo vero cambierebbe la misura della cella e spingerebbe il testo, e fra
+ * due celle vicine della tabella si sommerebbe al filo della griglia. Il suo
+ * colore segue il fuoco come l'anello della cella attiva: arancio col fuoco
+ * nelle celle, grigio col fuoco fuori. Il fondo tinto da solo si vede appena
+ * sul chiaro: il segno lo porta il filo.
+ */
+function classiSelezione(
+  fuoco: "dentro" | "fuori",
+  attiva: boolean,
+  bordi: BordiSelezioneGriglia | null
+): string | undefined {
+  if (!bordi?.multipla) return undefined
+  return cn(
+    !attiva && "bg-primary/4",
+    "relative before:pointer-events-none before:absolute before:inset-0",
+    fuoco === "dentro" ? "before:border-primary" : "before:border-muted-foreground",
+    bordi.su && "before:border-t",
+    bordi.giu && "before:border-b",
+    bordi.sx && "before:border-l",
+    bordi.dx && "before:border-r"
+  )
+}
+
 /** Le classi condivise dalla vista non-in-modifica di ogni cella. */
-function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: string) {
+function classiVistaCella(segnoSelezione: string | undefined, inAnteprima: boolean, extra?: string) {
   return cn(
     // `min-h-5`, non `h-full`: un'altezza in percentuale non si risolve
     // contro il `<td>` che contiene questo `<div>` — misurato, non
@@ -1283,10 +1348,17 @@ function classiVistaCella(selezionata: boolean, inAnteprima: boolean, extra?: st
     // modifica — le cifre di un numero salterebbero a destra aprendo la
     // modifica. A larghezza automatica il riquadro copre la cella intera,
     // bordo compreso, e il testo finisce dove finisce il campo.
-    "-m-2 block min-h-9 truncate p-2 outline-none",
+    // `content-center`: il testo sta a metà altezza del riquadro, come quello
+    // di una cella che si legge soltanto (`TableCell` è centrata). In cima,
+    // dove stava prima, in densità touch era 5px più in alto delle celle
+    // accanto.
+    "-m-2 block min-h-9 content-center truncate p-2 outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-    selezionata && "bg-accent/40",
-    inAnteprima && "outline-primary outline-1 outline-dashed",
+    segnoSelezione,
+    // Il tratteggio dentro il riquadro, non fuori: il riquadro copre la cella
+    // intera, e la cella della tabella (`overflow: hidden`) taglia ciò che sborda. Un
+    // contorno appena fuori c'era ma non si vedeva.
+    inAnteprima && "outline-primary outline-1 -outline-offset-1 outline-dashed",
     extra
   )
 }
@@ -1305,7 +1377,7 @@ function CellaTestoGriglia<TDato extends RowData>({
   validazione?: (valore: string) => string | undefined
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, segnoSelezione, inAnteprima, errore } =
     useStatoCellaGriglia(riga, colonnaId, validazione)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
@@ -1369,7 +1441,7 @@ function CellaTestoGriglia<TDato extends RowData>({
       // mai la selezione, perché il fuoco riassegnato dall'effetto azzerava
       // l'ancora un istante dopo che la tastiera l'aveva impostata.
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-      className={classiVistaCella(selezionata, inAnteprima)}
+      className={classiVistaCella(segnoSelezione, inAnteprima)}
     >
       {motore.leggiCella(riga, colonnaId)}
     </div>
@@ -1426,7 +1498,7 @@ function CellaNumericaGriglia<TDato extends RowData>({
   // L'errore a schermo si calcola su ciò che il motore scriverà, non sul testo
   // grezzo: `20,78` è valido, e `z.coerce.number()` da solo lo rifiuterebbe.
   const validazioneScritta = validazione && ((testo: string) => validazione(leggiNumero(testo)))
-  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
+  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, segnoSelezione, inAnteprima, errore } =
     useStatoCellaGriglia(riga, colonnaId, validazioneScritta)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
@@ -1496,7 +1568,7 @@ function CellaNumericaGriglia<TDato extends RowData>({
       onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-      className={classiVistaCella(selezionata, inAnteprima, "text-right tabular-nums")}
+      className={classiVistaCella(segnoSelezione, inAnteprima, "text-right tabular-nums")}
     >
       {numero === null || Number.isNaN(numero) ? raw : formatta(numero)}
     </div>
@@ -1549,8 +1621,8 @@ export function colonnaValutaGriglia<TDato extends RowData>(
  * (`-m-2 min-h-9 p-2`, v. `classiVistaCella`), così il testo non si sposta
  * aprendo la modifica: un campo messo direttamente nel `<td>`, centrato in
  * altezza, farebbe scendere il testo di un pixel. `flex` per il simbolo accanto
- * al campo di valuta; il campo, alto quanto la sua riga di testo, resta in
- * cima come il testo della cella chiusa.
+ * al campo di valuta; il campo, alto quanto la sua riga di testo, sta a metà
+ * altezza come il testo della cella chiusa.
  */
 function RiquadroModifica({
   erroreId,
@@ -1563,7 +1635,7 @@ function RiquadroModifica({
 }) {
   return (
     <>
-      <div className="-m-2 flex min-h-9 items-start p-2">{children}</div>
+      <div className="-m-2 flex min-h-9 items-center p-2">{children}</div>
       {nodoErroreCella(erroreId, errore)}
     </>
   )
@@ -1596,7 +1668,7 @@ function CellaCheckboxGriglia<TDato extends RowData>({
   colonnaId: string
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, rigaId, id, attiva, selezionata, inAnteprima } =
+  const { motore, interagitoRef, rigaId, id, attiva, segnoSelezione, inAnteprima } =
     useStatoCellaGriglia(riga, colonnaId)
   const divRef = React.useRef<HTMLDivElement>(null)
   useFuocoCellaGriglia(divRef, attiva, false, interagitoRef)
@@ -1630,7 +1702,7 @@ function CellaCheckboxGriglia<TDato extends RowData>({
           motore.onKeyDownCella(evento, id)
         }
       }}
-      className={classiVistaCella(selezionata, inAnteprima, "mr-0 flex items-center justify-center")}
+      className={classiVistaCella(segnoSelezione, inAnteprima, "mr-0 flex items-center justify-center")}
     >
       <Checkbox checked={spuntato} onCheckedChange={commuta} tabIndex={-1} aria-hidden />
     </div>
@@ -1871,7 +1943,7 @@ function CellaDataGriglia<TDato extends RowData>({
     id,
     attiva,
     inModifica,
-    selezionata,
+    segnoSelezione,
     inAnteprima,
     errore,
   } = useStatoCellaGriglia(riga, colonnaId, (testo) => validazioneData(interpretaData(testo)))
@@ -1921,6 +1993,32 @@ function CellaDataGriglia<TDato extends RowData>({
     calendarioApertoRef.current = true
     setCalendarioAperto(true)
   }
+
+  // **Il calendario si chiude quando la cella esce dalla vista.** Il popover
+  // insegue la cella mentre il riquadro scorre, ma non sa della testata
+  // ferma: la cella ci finiva sotto e il calendario restava sopra la testata,
+  // poi staccato da tutto. Appena la cella non sta più intera fra la testata
+  // e il fondo del riquadro, il calendario si chiude e il fuoco torna al campo
+  // (Base UI lo riporta senza far scorrere niente); `↓` lo riapre. È la regola
+  // del menu di riga della tabella: si chiude, non si sposta.
+  React.useEffect(() => {
+    if (!calendarioAperto) return
+    const riquadro = inputRef.current?.parentElement
+    const contenitore = riquadro?.closest<HTMLElement>('[data-slot="table-container"]')
+    if (!riquadro || !contenitore) return
+    const testata = contenitore.querySelector("thead")
+    const controlla = () => {
+      const cella = riquadro.getBoundingClientRect()
+      const vista = contenitore.getBoundingClientRect()
+      const alto = testata ? testata.getBoundingClientRect().bottom : vista.top
+      if (cella.top >= alto - 1 && cella.bottom <= vista.bottom + 1) return
+      tornaAlCampoRef.current = true
+      calendarioApertoRef.current = false
+      setCalendarioAperto(false)
+    }
+    contenitore.addEventListener("scroll", controlla, { passive: true })
+    return () => contenitore.removeEventListener("scroll", controlla)
+  }, [calendarioAperto])
 
   if (inModifica) {
     const scritto = interpretaData(motore.draftModifica)
@@ -2023,7 +2121,7 @@ function CellaDataGriglia<TDato extends RowData>({
       onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-      className={classiVistaCella(selezionata, inAnteprima, "tabular-nums")}
+      className={classiVistaCella(segnoSelezione, inAnteprima, "tabular-nums")}
     >
       {scriviData(raw)}
     </div>
@@ -2072,7 +2170,7 @@ function CellaSelectGriglia<TDato extends RowData>({
   opzioni: OpzioneSelectGriglia[]
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima } =
+  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, segnoSelezione, inAnteprima } =
     useStatoCellaGriglia(riga, colonnaId)
   const divRef = React.useRef<HTMLDivElement>(null)
   useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
@@ -2112,9 +2210,9 @@ function CellaSelectGriglia<TDato extends RowData>({
           // sola, non l'intera griglia, perché solo lì cresceva il
           // contenuto oltre l'altezza delle altre.
           // Lo stesso riquadro della cella chiusa (`-my-2 py-2 min-h-9`, testo
-          // in cima e al bordo del contenuto): prima il testo scendeva di un
-          // pixel e si spostava di 8px a destra aprendo la tendina.
-          className="-my-2 h-auto min-h-9 w-full min-w-0 items-start rounded-none border-0 px-0 py-2 data-[size=default]:h-auto"
+          // a metà altezza e al bordo del contenuto): prima il testo scendeva
+          // di un pixel e si spostava di 8px a destra aprendo la tendina.
+          className="-my-2 h-auto min-h-9 w-full min-w-0 items-center rounded-none border-0 px-0 py-2 data-[size=default]:h-auto"
           aria-label={colonnaId}
         >
           <SelectValue />
@@ -2140,7 +2238,7 @@ function CellaSelectGriglia<TDato extends RowData>({
       onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-      className={classiVistaCella(selezionata, inAnteprima)}
+      className={classiVistaCella(segnoSelezione, inAnteprima)}
     >
       {etichetta}
     </div>
