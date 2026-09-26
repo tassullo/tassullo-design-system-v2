@@ -295,6 +295,14 @@
      Esposta come container per poter scrivere max-w-page e non un
      valore arbitrario. */
   --container-page: 1180px;
+
+  /* ── Coppie termine–valore (`<dl>`).
+     Genera `grid-cols-termine`: la colonna del termine larga quanto serve,
+     il valore accanto. Si scrive `grid grid-cols-1 @sm:grid-cols-termine`
+     su un `<dl>` dentro un `@container`, e sotto la soglia va in colonna.
+     Con un tema che non lo dichiara la classe non emette niente, senza
+     errore: il termine e il valore finiscono uno sotto l'altro. */
+  --grid-template-columns-termine: auto 1fr;
 }
 
 /* ── Tipografia: perché sta in un `@theme` SEMPLICE e non in `@theme inline`
