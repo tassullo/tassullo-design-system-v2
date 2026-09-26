@@ -223,7 +223,11 @@ function ComputoFinto() {
  *   lavorando. Su una pagina appena aperta nessuna cella è segnata: bordo e
  *   fondo compaiono dal primo ingresso nella griglia, col `Tab` o col
  *   puntatore.
- * - La data è un campo nativo `<input type="date">`, non il calendario.
+ * - La data si scrive `gg/mm/aaaa`, come si legge; in modifica `↓` o il
+ *   bottone nel campo aprono il calendario, e un giorno scelto conferma
+ *   subito. Se la cella scorre sotto la testata o oltre il fondo del
+ *   riquadro, il calendario si chiude e il fuoco torna al campo: `↓` lo
+ *   riapre.
  * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
  *   `numeri`, quindi col separatore delle migliaia sempre scritto
  *   (`2.086,93 €`), allineate a destra e con le cifre tabellari. In modifica
@@ -473,6 +477,52 @@ export const CelleTipizzateDataProva: Story = {
   name: 'Celle Tipizzate, data, prova',
   tags: ['!dev', '!autodocs'],
   play: dataScrittaECalendario,
+}
+
+// Prova: il calendario di una cella si chiude quando la cella scorre sotto la
+// testata ferma, invece di restare sopra la testata o staccato dalla cella.
+// Aperto con `Invio` e `↓` sulla quarta riga, uno scorrimento di 180px porta la
+// cella sotto la testata: il calendario è chiuso, il fuoco è tornato al campo
+// della data senza far scorrere il riquadro, e `↓` lo riapre.
+async function calendarioSiChiudeScorrendo({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = () =>
+    canvasElement.querySelector<HTMLElement>('[data-riga-id="voce-t-3"][data-colonna-id="scadenza"]')
+  const campo = () => canvasElement.querySelector<HTMLInputElement>('input[aria-label="scadenza"]')
+  const calendario = () =>
+    document.querySelector('[data-slot="popover-content"][aria-label="Scegli la data"]')
+  await waitFor(() => expect(cella()).toBeTruthy())
+  const contenitore = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')!
+
+  await userEvent.click(cella()!)
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+  await userEvent.keyboard('{ArrowDown}')
+  await waitFor(() => {
+    expect(calendario()).toBeTruthy()
+    expect(document.activeElement?.hasAttribute('data-day')).toBe(true)
+  })
+
+  const partenza = contenitore.scrollTop
+  contenitore.scrollTop = partenza + 180
+  await waitFor(() => {
+    expect(calendario()).toBeNull()
+    expect(document.activeElement).toBe(campo())
+  })
+  expect(contenitore.scrollTop).toBe(partenza + 180)
+
+  contenitore.scrollTop = partenza
+  await userEvent.keyboard('{ArrowDown}')
+  await waitFor(() => expect(calendario()).toBeTruthy())
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+}
+
+// Scena di misura del calendario che scorre: nascosta come quelle sopra.
+export const CelleTipizzateCalendarioProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, calendario, prova',
+  tags: ['!dev', '!autodocs'],
+  play: calendarioSiChiudeScorrendo,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

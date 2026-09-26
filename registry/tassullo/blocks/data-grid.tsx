@@ -146,6 +146,10 @@
  *   componenti interni a ogni suo render, e la griglia si rende di nuovo
  *   quando il fuoco entra nel popover: senza il `memo` i giorni si
  *   rimonterebbero e il fuoco cadrebbe sul `body`.
+ * - **Il calendario si chiude quando la cella scorre fuori vista** (sotto la
+ *   testata ferma o oltre il fondo del riquadro), e il fuoco torna al campo:
+ *   la regola del menu «⋯» di riga della tabella, si chiude e non si sposta.
+ *   Scelta di Francesco fra quattro forme (`docs/DECISIONI.md` §70).
  * - **`data-griglia-popup`**: il popover sta in un portale, fuori dalla
  *   `<table>`, e `<DataGrid>` avrebbe letto il fuoco lì dentro come «fuori
  *   dalle celle» — e alla chiusura non l'avrebbe riportato sulla cella. Il
@@ -1921,6 +1925,32 @@ function CellaDataGriglia<TDato extends RowData>({
     calendarioApertoRef.current = true
     setCalendarioAperto(true)
   }
+
+  // **Il calendario si chiude quando la cella esce dalla vista.** Il popover
+  // insegue la cella mentre il riquadro scorre, ma non sa della testata
+  // ferma: la cella ci finiva sotto e il calendario restava sopra la testata,
+  // poi staccato da tutto. Appena la cella non sta più intera fra la testata
+  // e il fondo del riquadro, il calendario si chiude e il fuoco torna al campo
+  // (Base UI lo riporta senza far scorrere niente); `↓` lo riapre. È la regola
+  // del menu di riga della tabella: si chiude, non si sposta.
+  React.useEffect(() => {
+    if (!calendarioAperto) return
+    const riquadro = inputRef.current?.parentElement
+    const contenitore = riquadro?.closest<HTMLElement>('[data-slot="table-container"]')
+    if (!riquadro || !contenitore) return
+    const testata = contenitore.querySelector("thead")
+    const controlla = () => {
+      const cella = riquadro.getBoundingClientRect()
+      const vista = contenitore.getBoundingClientRect()
+      const alto = testata ? testata.getBoundingClientRect().bottom : vista.top
+      if (cella.top >= alto - 1 && cella.bottom <= vista.bottom + 1) return
+      tornaAlCampoRef.current = true
+      calendarioApertoRef.current = false
+      setCalendarioAperto(false)
+    }
+    contenitore.addEventListener("scroll", controlla, { passive: true })
+    return () => contenitore.removeEventListener("scroll", controlla)
+  }, [calendarioAperto])
 
   if (inModifica) {
     const scritto = interpretaData(motore.draftModifica)
