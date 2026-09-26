@@ -64,7 +64,7 @@ import { valoreIt } from '@/prove/numeri-tooltip'
  * `tassullo-page-skeleton` e `tassullo-error-state` per gli stati, e
  * `use-soglia` per la forma stretta delle attività.
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso` e `azioni` passano a `tassullo-page-header`.
  * - `indicatori`: la fila in cima, resa da `tassullo-indicatori`.

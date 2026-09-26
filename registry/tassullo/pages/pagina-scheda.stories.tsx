@@ -55,7 +55,7 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * lo storico, `tassullo-page-skeleton` e `tassullo-error-state` per gli
  * stati.
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso`: il suo ultimo livello è il nome dell'entità, ed è lì che si
  *   legge. La pagina non ha un titolo proprio.

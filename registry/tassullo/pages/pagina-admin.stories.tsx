@@ -47,7 +47,7 @@ type ArgsAdmin = { onCambiaStato?: (id: string, attivo: boolean) => void }
  * l'annullo, `badge` e `toni` per i ruoli, `alert` per l'avviso di sola lettura, `tassullo-page-skeleton`
  * e `tassullo-error-state` per gli stati.
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso` e `azioni` passano a `tassullo-page-header`.
  * - `utenti`: la gestione degli utenti, montata come prima scheda. Porta

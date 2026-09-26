@@ -68,20 +68,28 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * `tassullo-error-state` e `tassullo-page-skeleton` per i tre stati, e
  * `use-soglia` per la faccia stretta. La pagina non aggiunge CSS suo.
  *
+ * Nell'app la pagina si ricompone così, coi blocchi:
+ *
  * ```tsx
  * <AppShell contenuto="riempie" …>
- *   <PaginaLista
- *     percorso={[{ titolo: 'Norme' }]}
- *     azioni={[{ titolo: 'Nuova norma', icona: PlusIcon, ruolo: 'primaria' }]}
- *     colonne={colonne}
- *     dati={norme}
- *     cerca="Cerca codice, titolo…"
- *     perPagina={25}
- *   />
+ *   <div className="flex h-full min-h-0 flex-col gap-4">
+ *     <PageHeader
+ *       percorso={[{ titolo: 'Norme' }]}
+ *       azioni={[{ titolo: 'Nuova norma', icona: PlusIcon, ruolo: 'primaria' }]}
+ *     />
+ *     <DataTable
+ *       colonne={colonne}
+ *       dati={norme}
+ *       cerca="Cerca codice, titolo…"
+ *       perPagina={25}
+ *       altezza="ferma"
+ *       className="min-h-0 flex-1"
+ *     />
+ *   </div>
  * </AppShell>
  * ```
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso` e `azioni` passano a `tassullo-page-header`: il nome della
  *   pagina è l'ultimo livello del percorso, e fra le azioni una sola è

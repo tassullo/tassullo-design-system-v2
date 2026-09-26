@@ -28,7 +28,7 @@ import { Button } from '@/registry/tassullo/ui/button'
  * È composta sulla primitiva `empty`, la stessa di `tassullo-empty-state` e
  * `tassullo-error-state`, con i toni di `lib/toni`.
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `variante`: `"404"`, `"accesso-negato"`, `"errore-server"` o
  *   `"manutenzione"`. Sceglie icona, tono, titolo e messaggio di default.

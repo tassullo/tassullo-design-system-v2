@@ -25,14 +25,9 @@ import { PaginaLogin } from '@/registry/tassullo/pages/pagina-login'
  * È composta con `card`, `field`, `input`, `input-group`, `alert`,
  * `spinner` e `button`, da installare nell'app per nome.
  *
- * ```tsx
- * <PaginaLogin
- *   applicazione="Anagrafe"
- *   descrizione="Anagrafica tecnica e documentale di prodotto"
- *   stato={statoAccesso}
- *   onAccedi={() => instance.loginRedirect(loginRequest)}
- * />
- * ```
+ * **Com'è fatto l'esempio.** Il codice d'esempio è scritto come un componente
+ * con le prop qui sotto, così si vedono tutte le forme della schermata; nell'app
+ * se ne tiene la forma che serve.
  *
  * **Le vie, con `modo`.**
  *
