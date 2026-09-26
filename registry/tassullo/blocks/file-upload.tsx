@@ -96,7 +96,7 @@ export type FileUploadItem = {
   errore?: string
 }
 
-export type FileUploadProps = {
+type FileUploadComuni = {
   /** I file accettati dopo la validazione di tipo e dimensione. Non carica: l'app decide come. */
   onFile: (file: File[]) => void
   /** I file scartati, con il motivo già tradotto in italiano. */
@@ -106,11 +106,29 @@ export type FileUploadProps = {
   dimensioneMassima?: number
   multiplo?: boolean
   disabilitato?: boolean
-  etichetta?: string
-  descrizione?: string
   etichettaBottone?: string
   className?: string
 }
+
+export type FileUploadProps = FileUploadComuni &
+  (
+    | {
+        /**
+         * `"zona"`, di serie: la cornice dove trascinare i file, con titolo,
+         * descrizione e bottone. `"bottone"`: il solo bottone, per stare fra
+         * le azioni di una riga — «Sostituisci» accanto a un allegato che c'è
+         * già. Il file si può trascinare anche sul bottone.
+         */
+        forma?: "zona"
+        etichetta?: string
+        descrizione?: string
+      }
+    | {
+        forma: "bottone"
+        etichetta?: never
+        descrizione?: never
+      }
+  )
 
 export function FileUpload({
   onFile,
@@ -119,6 +137,7 @@ export function FileUpload({
   dimensioneMassima,
   multiplo = true,
   disabilitato,
+  forma = "zona",
   etichetta = "Trascina i file qui",
   descrizione,
   etichettaBottone = "Scegli dal computer",
@@ -150,17 +169,55 @@ export function FileUpload({
     getErrorMessage: (errore) => MESSAGGI_RIFIUTO[errore.code] ?? errore.message,
   })
 
+  // Il campo file nascosto sta fuori dal flusso: dentro la colonna della
+  // cornice aggiungeva un intervallo sopra il titolo, e accanto al bottone
+  // allargava il contenitore oltre la pagina in WebKit.
+  if (forma === "bottone") {
+    return (
+      <div
+        {...getRootProps()}
+        data-slot="file-upload-bottone"
+        data-drag-active={isDragActive}
+        className={cn("relative inline-flex", className)}
+      >
+        <input
+          {...getInputProps()}
+          data-slot="file-upload-input"
+          className="absolute"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={open}
+          disabled={disabilitato}
+          data-drag-active={isDragActive}
+          // Le stesse classi col prefisso `dark:`: in scuro il bordo del
+          // bottone `outline` è `dark:border-input`, che vincerebbe.
+          className="data-[drag-active=true]:border-primary data-[drag-active=true]:bg-muted dark:data-[drag-active=true]:border-primary dark:data-[drag-active=true]:bg-muted"
+        >
+          <UploadIcon data-icon="inline-start" />
+          {etichettaBottone}
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <Empty
       {...getRootProps()}
       data-slot="file-upload-dropzone"
       data-drag-active={isDragActive}
       className={cn(
-        "border transition-colors data-[drag-active=true]:border-primary data-[drag-active=true]:bg-muted",
+        "relative border transition-colors data-[drag-active=true]:border-primary data-[drag-active=true]:bg-muted",
         className
       )}
     >
-      <input {...getInputProps()} data-slot="file-upload-input" />
+      <input
+        {...getInputProps()}
+        data-slot="file-upload-input"
+        className="absolute"
+      />
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <UploadIcon />

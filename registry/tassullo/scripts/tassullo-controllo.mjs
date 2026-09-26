@@ -102,7 +102,80 @@ const REGOLE = [
   },
 ];
 
-const ECCEZIONE = /tassullo-controllo:\s*(\S.{2,})/;
+// ── Le regole sul tag intero ────────────────────────────────────────────────
+// Alcune forme non stanno su una riga: un `<Button` si scrive spesso con le
+// props a capo. Queste regole leggono il tag d'apertura intero, dal `<Nome`
+// al suo `>`, contando le graffe e saltando le stringhe. L'eccezione vale sulla
+// riga dove il tag comincia, o sul commento che sta da solo sopra.
+
+const REGOLE_TAG = [
+  {
+    id: "collegamento-come-bottone",
+    tag: "Button",
+    // `render` di un `<a>` o di un componente che finisce per `Link` (`Link`,
+    // `NavLink`…), scritto come prop o dentro un oggetto sparso nel tag.
+    cerca: /\brender\s*(?:=\s*\{|:)\s*<\s*(?:a|(?:[A-Z]\w*)?Link)\b/,
+    dove: new Set([".tsx", ".jsx"]),
+    perché:
+      "un collegamento non è un `Button`: `Button` col `render` di un `<a>` o di un `Link` scrive un errore " +
+      "in console e mette `type=\"button\"` sul link, e con `nativeButton={false}` il link diventa un bottone. " +
+      "Si usa il `Link` del router (o un `<a>`) con l'aspetto preso da `buttonVariants`: " +
+      "`<Link to=\"…\" className={buttonVariants({ variant: \"outline\" })}>`.",
+  },
+];
+
+/** I tag d'apertura `<Nome …>` di un testo, ciascuno con la riga dove comincia. */
+function tagDApertura(testo, nome) {
+  const trovati = [];
+  const re = new RegExp(`<${nome}(?![\\w.])`, "g");
+  let m;
+  while ((m = re.exec(testo))) {
+    let i = m.index + nome.length + 1;
+    let graffe = 0;
+    let stringa = null;
+    for (; i < testo.length; i++) {
+      const c = testo[i];
+      if (stringa) {
+        if (c === stringa && testo[i - 1] !== "\\") stringa = null;
+        continue;
+      }
+      if (c === '"' || c === "'" || c === "`") stringa = c;
+      else if (c === "{") graffe++;
+      else if (c === "}") graffe--;
+      else if (c === ">" && graffe === 0) break;
+    }
+    const inizioRiga = testo.lastIndexOf("\n", m.index) + 1;
+    // Un tag dentro un commento non è codice.
+    if (/^\s*(?:\/\/|\*|\/\*)/.test(testo.slice(inizioRiga, m.index))) continue;
+    trovati.push({ riga: testo.slice(0, m.index).split("\n").length, tag: testo.slice(m.index, i + 1) });
+  }
+  return trovati;
+}
+
+/** Le violazioni delle regole sul tag in un file, tolte quelle con un'eccezione motivata. */
+function tagViolati(testo, estensione) {
+  const righe = testo.split("\n");
+  const violazioni = [];
+  let eccezioni = 0;
+  for (const regola of REGOLE_TAG) {
+    if (!regola.dove.has(estensione)) continue;
+    for (const { riga, tag } of tagDApertura(testo, regola.tag)) {
+      if (!regola.cerca.test(tag)) continue;
+      const qui = righe[riga - 1] ?? "";
+      const sopra = riga > 1 ? righe[riga - 2] : "";
+      const soloCommento = /^\s*(?:\/\/|\/\*|\{\/\*|\*)/.test(sopra);
+      if (ECCEZIONE.test(qui) || (soloCommento && ECCEZIONE.test(sopra))) {
+        eccezioni++;
+        continue;
+      }
+      violazioni.push({ riga, regola, testo: tag.replace(/\s+/g, " ") });
+    }
+  }
+  return { violazioni, eccezioni };
+}
+
+// Il motivo è testo: la chiusura di un commento subito dopo i due punti non conta.
+const ECCEZIONE = /tassullo-controllo:\s*(?!\*\/)(\S.{2,})/;
 
 /** Le violazioni di una riga, tolte quelle che portano un'eccezione motivata. */
 function regoleViolate(riga, precedente, estensione) {
@@ -240,14 +313,77 @@ function controllaCodice(fileDaLeggere) {
   let eccezioni = 0;
   for (const file of fileDaLeggere) {
     const est = extname(file);
-    const righe = readFileSync(join(RADICE, file), "utf8").split("\n");
+    const testo = readFileSync(join(RADICE, file), "utf8");
+    const righe = testo.split("\n");
     righe.forEach((riga, i) => {
       const { violate, eccezione } = regoleViolate(riga, i > 0 ? righe[i - 1] : "", est);
       if (eccezione) eccezioni++;
       for (const r of violate) violazioni.push({ file, riga: i + 1, regola: r, testo: riga.trim() });
     });
+    const sulTag = tagViolati(testo, est);
+    eccezioni += sulTag.eccezioni;
+    for (const v of sulTag.violazioni) violazioni.push({ file, ...v });
   }
   return { violazioni, eccezioni };
+}
+
+// ── Il carattere ────────────────────────────────────────────────────────────
+// Inter arriva in `public/tassullo-inter-<versione>.css` e si collega da
+// `index.html`. Importato dal CSS globale, Vite lo fonderebbe nel CSS
+// dell'app, che cambia nome a ogni rilascio: 200 KB riscaricati per una
+// classe cambiata. E se il collegamento manca il testo esce nel carattere di
+// sistema senza nessun errore: per questo lo verifica il controllo.
+
+const FILE_CARATTERE = /^tassullo-inter-[^/]*\.css$/;
+const IMPORT_CARATTERE = /@import\s+(?:url\(\s*)?["']?[^"')\s;]*tassullo-inter[^"')\s;]*\.css/;
+
+/**
+ * Gli errori sul carattere. `atteso` è il nome del file che il registry
+ * installa in `public/` (null se non si sa: senza rete); `pubblici` i file che
+ * ci sono in `public/`; `cssApp` i CSS dell'app; `temaInstallato` se l'app ha
+ * il tema.
+ */
+function controllaCarattere({ indexHtml, cssApp, pubblici, atteso, temaInstallato, vecchioInSrc }) {
+  const errori = [];
+  for (const { file, testo } of cssApp) {
+    const riga = testo.split("\n").findIndex((r) => IMPORT_CARATTERE.test(r));
+    if (riga >= 0)
+      errori.push(
+        `${file}:${riga + 1}: il carattere non si importa dal CSS dell'app. Vite lo fonderebbe nel CSS ` +
+          "dell'app, che cambia nome a ogni rilascio; si toglie l'`@import` e si collega il file da index.html."
+      );
+  }
+  if (vecchioInSrc)
+    errori.push(
+      "src/tassullo-inter.css: è il file del carattere nella posizione di prima. Il carattere ora arriva in " +
+        "`public/`: si cancellano src/tassullo-inter.css e src/tassullo-inter-OFL.txt."
+    );
+  const installati = pubblici.filter((f) => FILE_CARATTERE.test(f));
+  const nome = atteso ?? (installati.length === 1 ? installati[0] : null);
+  if (atteso && !installati.includes(atteso))
+    errori.push(
+      `manca public/${atteso}, il carattere del tema: si reinstalla il tema (\`npx shadcn@latest add @tassullo/tema --overwrite\`).`
+    );
+  else if (!atteso && temaInstallato && installati.length === 0)
+    errori.push("manca in public/ il carattere del tema (tassullo-inter-….css): si reinstalla il tema con --overwrite.");
+  if (!nome || indexHtml === null) {
+    if (nome && indexHtml === null) errori.push(`manca index.html, da cui si collega /${nome}.`);
+    return errori;
+  }
+  const collegati = [...indexHtml.matchAll(/<link\b[^>]*>/g)]
+    .map((m) => m[0])
+    .filter((l) => /\brel\s*=\s*["']?stylesheet/.test(l))
+    .map((l) => /\bhref\s*=\s*["']([^"']+)["']/.exec(l)?.[1] ?? "")
+    .filter((h) => /tassullo-inter[^/]*\.css$/.test(h));
+  const giusto = (h) => h === `/${nome}` || h === nome || h === `./${nome}` || h === `%BASE_URL%${nome}`;
+  if (collegati.length === 0)
+    errori.push(
+      `index.html non collega il carattere: nel <head> va <link rel="stylesheet" href="/${nome}" />. ` +
+        "Senza, il testo esce nel carattere di sistema senza nessun errore."
+    );
+  for (const h of collegati.filter((h) => !giusto(h)))
+    errori.push(`index.html collega \`${h}\`, ma il carattere installato è public/${nome}: il collegamento va a \`/${nome}\`.`);
+  return errori;
 }
 
 // ── Il controllo completo ───────────────────────────────────────────────────
@@ -313,6 +449,21 @@ async function controlla({ soloStile }) {
   ];
   const { violazioni, eccezioni } = controllaCodice(daLeggere);
 
+  const pubblici = existsSync(join(RADICE, "public")) ? readdirSync(join(RADICE, "public")) : [];
+  const atteso = [...attesi.keys()].find((p) => /^public\/tassullo-inter-[^/]*\.css$/.test(p))?.slice("public/".length) ?? null;
+  errori.push(
+    ...controllaCarattere({
+      indexHtml: existsSync(join(RADICE, "index.html")) ? readFileSync(join(RADICE, "index.html"), "utf8") : null,
+      cssApp: elenca("src")
+        .filter((f) => f.endsWith(".css") && !/\/tassullo-inter[^/]*\.css$/.test(f))
+        .map((file) => ({ file, testo: readFileSync(join(RADICE, file), "utf8") })),
+      pubblici,
+      atteso,
+      temaInstallato: elenca("src").some((f) => f.endsWith("/tassullo-theme.css")),
+      vecchioInSrc: existsSync(join(RADICE, "src", "tassullo-inter.css")),
+    })
+  );
+
   console.log(`  ${daLeggere.length} file dell'app letti con le regole di stile${eccezioni ? `, ${eccezioni} righe con un'eccezione motivata` : ""}.`);
   if (errori.length === 0 && violazioni.length === 0) {
     console.log("\n✔ L'app rispetta il Design System Tassullo 2.0.\n");
@@ -377,6 +528,7 @@ function selfTest() {
   const eccezioni = [
     ['className="h-[37px]" // tassullo-controllo: misura imposta dal lettore di codici', false],
     ['className="h-[37px]" // tassullo-controllo:', true],
+    ['className="h-[37px]" {/* tassullo-controllo: */}', true],
   ];
   for (const [testo, atteso] of eccezioni) {
     if (regoleViolate(testo, "", ".tsx").violate.length > 0 !== atteso) {
@@ -394,6 +546,59 @@ function selfTest() {
     if (regoleViolate(testo, prima, ".tsx").violate.length > 0 !== atteso) {
       falliti++;
       console.error(`  ✖ eccezione: «${testo}» ${atteso ? "doveva" : "non doveva"} essere segnalato`);
+    }
+  }
+  // Le regole sul tag intero: il tag su una riga e su più righe, la prop dentro
+  // un oggetto sparso, un `NavLink`; e le forme che non devono scattare.
+  const sulTag = [
+    ['<Button variant="link" render={<a href="/prodotti" />}>Prodotti</Button>', 1],
+    ['<Button\n  variant="outline"\n  nativeButton={false}\n  render={<Link to="/prodotti" />}\n>\n  Torna\n</Button>', 1],
+    ['<Button size="sm" {...(href ? { render: <a href={href} /> } : {})}>Apri</Button>', 1],
+    ['<Button render={<NavLink to="/" />} className="has-[>svg]:px-2">Home</Button>', 1],
+    ['<DropdownMenuTrigger render={<Button variant="ghost" />}>Azioni</DropdownMenuTrigger>', 0],
+    ['<BreadcrumbLink render={<Link to="/" />}>Home</BreadcrumbLink>', 0],
+    ['<Button render={<div />} nativeButton={false}>Trascina</Button>', 0],
+    ['<Button onClick={() => apri(x > 1)} variant="link">Apri</Button>', 0],
+    ['<ButtonGroup render={<a href="#" />} />', 0],
+    ['// tassullo-controllo: il link apre un file scaricato dal server\n<Button render={<a href="/f" />}>Scarica</Button>', 0],
+    ['<Button render={<a href="/f" />}>Scarica</Button> {/* tassullo-controllo: */}', 1],
+  ];
+  for (const [testo, attese] of sulTag) {
+    if (tagViolati(testo, ".tsx").violazioni.length !== attese) {
+      falliti++;
+      console.error(`  ✖ collegamento-come-bottone: «${testo.replace(/\n/g, "⏎")}» doveva dare ${attese} violazioni`);
+    }
+  }
+  // Il carattere: collegato da index.html col nome installato, mai importato dal CSS.
+  const html = (href) => `<head><link rel="stylesheet" href="${href}" /><title>App</title></head>`;
+  const base = {
+    indexHtml: html("/tassullo-inter-4.1.css"),
+    cssApp: [{ file: "src/index.css", testo: '@import "tailwindcss";\n@import "./tassullo-theme.css";' }],
+    pubblici: ["tassullo-inter-4.1.css", "tassullo-inter-OFL.txt"],
+    atteso: "tassullo-inter-4.1.css",
+    temaInstallato: true,
+    vecchioInSrc: false,
+  };
+  const sulCarattere = [
+    ["collegato come si deve", base, 0],
+    ["collegato, senza rete", { ...base, atteso: null }, 0],
+    ["collegamento mancante", { ...base, indexHtml: "<head><title>App</title></head>" }, 1],
+    ["collegamento a un'altra versione", { ...base, indexHtml: html("/tassullo-inter-4.0.css") }, 1],
+    [
+      "importato dal CSS globale",
+      { ...base, cssApp: [{ file: "src/index.css", testo: '@import "tailwindcss";\n@import "./tassullo-inter.css";' }] },
+      1,
+    ],
+    ["file di prima rimasto in src/", { ...base, vecchioInSrc: true }, 1],
+    ["file installato mancante in public/", { ...base, pubblici: [] }, 1],
+    ["tema senza carattere, senza rete", { ...base, atteso: null, pubblici: [], indexHtml: "<head></head>" }, 1],
+    ["app senza tema", { ...base, atteso: null, pubblici: [], temaInstallato: false, indexHtml: "<head></head>" }, 0],
+  ];
+  for (const [nome, dati, attesi] of sulCarattere) {
+    const trovati = controllaCarattere(dati).length;
+    if (trovati !== attesi) {
+      falliti++;
+      console.error(`  ✖ carattere, ${nome}: ${trovati} errori invece di ${attesi}`);
     }
   }
   const configurazioni = [
@@ -417,7 +622,7 @@ function selfTest() {
     falliti++;
     console.error("  ✖ un diff vero doveva essere segnalato");
   }
-  const totale = casi.length + eccezioni.length + dopo.length + configurazioni.length + 2;
+  const totale = casi.length + eccezioni.length + dopo.length + sulTag.length + sulCarattere.length + configurazioni.length + 2;
   if (falliti) {
     console.error(`\n✖ self-test: ${falliti} casi su ${totale} sbagliati.\n`);
     process.exit(1);

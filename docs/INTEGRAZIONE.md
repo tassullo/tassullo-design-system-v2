@@ -206,13 +206,26 @@ variables and components will be overwritten. Continue?* Si risponde **`y`**.
 In un'app appena creata non c'è niente di nostro da perdere: la palette di
 partenza che la CLI sta per coprire è proprio quella che il passo 7 toglie.
 
-Arrivano tre file in `src/` — `tassullo-theme.css` (i colori, i raggi, la
-densità), `tassullo-inter.css` (il carattere) con la sua licenza
-`tassullo-inter-OFL.txt`, e `tassullo-logo.css` (il marchio) — e i loro
-`@import` in `src/index.css`. Il carattere viaggia **dentro** il CSS: l'app
-non fa nessuna richiesta di rete per la tipografia, né a Google né altrove.
-Nessuno dei tre file si modifica a mano: al prossimo aggiornamento verrebbero
-riscritti.
+Arrivano due file in `src/` — `tassullo-theme.css` (i colori, i raggi, la
+densità) e `tassullo-logo.css` (il marchio), con i loro `@import` in
+`src/index.css` — e due in `public/`: `tassullo-inter-4.1.css` (il carattere)
+con la sua licenza `tassullo-inter-OFL.txt`. Il carattere viaggia **dentro** il
+CSS: l'app non fa nessuna richiesta di rete per la tipografia, né a Google né
+altrove. Nessuno di questi file si modifica a mano: al prossimo aggiornamento
+verrebbero riscritti.
+
+**Il carattere si collega a mano**, in `index.html`, nel `<head>`:
+
+```html
+<link rel="stylesheet" href="/tassullo-inter-4.1.css" />
+```
+
+Non si importa da `src/index.css`: Vite lo fonderebbe nel CSS dell'app, che
+cambia nome a ogni rilascio, e i 200 KB del carattere si riscaricherebbero per
+una classe cambiata. Da `public/`, col nome che cambia solo quando cambia il
+carattere, resta nella cache del browser (a un rilascio si riscaricano circa
+21 KB invece di 174). Se il collegamento manca il testo esce nel carattere di
+sistema senza nessun errore: `tassullo-controllo` (passo 11) lo verifica.
 
 ### 7. Via la palette di partenza di shadcn (a mano)
 
@@ -263,6 +276,8 @@ getComputedStyle(document.body).fontFamily       // comincia con "Inter"
 
 Se lo sfondo è bianco puro e il carattere è Geist, il passo 7 non è stato
 fatto per intero.
+Se lo sfondo è giusto ma il carattere è quello di sistema, manca il
+collegamento del passo 6 in `index.html`.
 
 ### 9. Densità «touch», solo se l'app si usa in campo
 
@@ -294,7 +309,7 @@ npx shadcn@latest add @tassullo/tassullo-controllo
 Arriva un file solo, `scripts/tassullo-controllo.mjs`, nella cartella di
 `components.json`. Si lancia con `node scripts/tassullo-controllo.mjs` e va
 fra i passi che la CI dell'app esegue a ogni push, accanto a `tsc` e alla
-build. Controlla tre cose:
+build. Controlla quattro cose:
 
 - i file installati dal design system sono identici a quelli della versione
   scritta in `components.json` (li confronta la riga di comando di shadcn);
@@ -303,7 +318,10 @@ build. Controlla tre cose:
   lì dentro è un errore;
 - il codice dell'app segue le regole del blocco per il `CLAUDE.md` (valori
   arbitrari, esadecimali, `text-primary`, finestre del browser, tendine
-  native, numeri…), e `components.json` ha `base-nova` e una versione fissata.
+  native, numeri, `Button` usati come collegamento…), e `components.json` ha
+  `base-nova` e una versione fissata;
+- il carattere è collegato da `index.html` col nome del file installato in
+  `public/`, e nessun CSS dell'app lo importa.
 
 Esce con errore alla prima violazione e dice perché. Una riga che deve fare
 eccezione porta un commento `tassullo-controllo: <il motivo>`. Vuole la rete
@@ -640,7 +658,15 @@ npx shadcn@latest add @tassullo/<item> --overwrite
 
 Ogni comando riscrive anche gli item da cui quello dipende. Poi si
 ricopiano le righe del lint dal passo 12, che nella versione nuova possono
-essere cambiate. Poi si guarda il diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
+essere cambiate.
+
+**Da una versione che installava il carattere in `src/`** (fino a `v2.0.4`):
+dopo l'aggiornamento del tema si cancellano `src/tassullo-inter.css` e
+`src/tassullo-inter-OFL.txt`, si toglie da `src/index.css` la riga
+`@import "./tassullo-inter.css";` e si aggiunge in `index.html` il
+collegamento del passo 6. Se il nome del file del carattere cambia (cambia
+solo con una versione nuova di Inter), il collegamento si aggiorna allo stesso
+modo; `tassullo-controllo` segnala le tre cose. Poi si guarda il diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
 — ed è la ragione per cui non si modifica. Cosa è cambiato fra due versioni lo
 dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.3...v2.0.4`.
 
@@ -728,12 +754,31 @@ installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
   `data-density="normale"` riporta un pezzo di pagina alla densità da
   scrivania. Con la densità crescono bersagli e testi; raggi, bordi, larghezze
   massime e la larghezza della colonna laterale restano uguali.
-- Il carattere è Inter e arriva col tema: niente altri font, niente Google
+- Il carattere è Inter e arriva col tema, in `public/`, collegato da
+  `index.html` e mai importato dal CSS: niente altri font, niente Google
   Fonts. `font-mono` solo per il codice sorgente mostrato in pagina.
 
 **Il nome dice la funzione, non l'aspetto.** `badge` è un'etichetta che si
 legge; `toggle-group` è un filtro che si clicca. Prima di scegliere un
 componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
+
+**Un collegamento non è un `Button`.** Ciò che porta a un'altra pagina —
+«Torna a…», «Apri sul sito», il nome che apre la scheda — è il `Link` del
+router o un `<a>`, con l'aspetto preso da `buttonVariants({ variant, size })`:
+
+```tsx
+<Link to="/prodotti" className={buttonVariants({ variant: "outline" })}>
+  Torna ai prodotti
+</Link>
+```
+
+`Button` è il bottone di Base UI: col `render` di un collegamento scrive un
+errore in console e mette `type="button"` sull'`<a>`; con
+`nativeButton={false}` il collegamento diventa un bottone (`role="button"`:
+`getByRole("link")` non lo trova, `Spazio` lo apre). È la forma che shadcn
+documenta per il Button («As Link»). Un collegamento non si disabilita: se la
+destinazione non c'è, non si rende. `tassullo-controllo` rifiuta un `Button`
+col `render` di un `<a>` o di un `…Link`.
 
 **Numeri.**
 - I numeri da confrontare in colonna hanno `tabular-nums`, non un altro
@@ -755,8 +800,10 @@ componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
   resto della riga; fuori dalle tabelle, un codice accanto a un nome prende
   `text-sm text-muted-foreground`.
 - Se una riga di tabella apre una pagina, il collegamento sta su una colonna
-  sola — il codice o il nome — ed è un `Button variant="link"` col `render` del
-  collegamento (`<a>` o il `Link` del router), non un testo colorato a mano.
+  sola — il codice o il nome — ed è il `Link` del router (o un `<a>`) con
+  l'aspetto del bottone `link`, non un testo colorato a mano né un `Button`
+  (vedi «Un collegamento non è un `Button`», sopra):
+  `className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0 font-medium")}`.
 
 **Classi con `cn`.** Nel codice dell'app si importa da `@/lib/utils`; i file
 del design system la prendono dal pacchetto `cn`, ed è la stessa funzione. Fra

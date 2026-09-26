@@ -1,18 +1,26 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { ArrowRightIcon, PlusIcon, TrashIcon } from 'lucide-react'
+import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, TrashIcon } from 'lucide-react'
+import { expect, within } from 'storybook/test'
 
-import { Button } from '@/registry/tassullo/ui/button'
+import { Button, buttonVariants } from '@/registry/tassullo/ui/button'
 import { Spinner } from '@/registry/tassullo/ui/spinner'
 
 /**
  * Il bottone: fa succedere qualcosa quando lo si preme — salvare, aprire,
  * confermare, eliminare.
  *
- * **Quando sì, quando no.** Per un'azione. Se l'elemento porta a un'altra
- * pagina ma deve avere l'aspetto di un bottone, si usa `render` con un link o
- * la variante `link`; se si sceglie fra alternative che restano premute, è
- * `toggle` o `toggle-group`. Più azioni imparentate vanno in un
- * `button-group`.
+ * **Quando sì, quando no.** Per un'azione. Se si sceglie fra alternative che
+ * restano premute, è `toggle` o `toggle-group`. Più azioni imparentate vanno
+ * in un `button-group`.
+ *
+ * **Un collegamento non è un `Button`.** Ciò che porta a un'altra pagina —
+ * «Torna a…», «Apri sul sito», il nome che apre la scheda — è il `Link` del
+ * router o un `<a>`, con l'aspetto preso da `buttonVariants({ variant, size })`
+ * (la scena «Come Collegamento»). `Button` col `render` di un collegamento
+ * scrive un errore in console e mette `type="button"` sul link; con
+ * `nativeButton={false}` il link diventa un bottone per la tastiera e per chi
+ * cerca i collegamenti. Un collegamento non si disabilita: se la destinazione
+ * non c'è, non si rende.
  *
  * ```bash
  * npx shadcn@latest add tassullo/tassullo-design-system-v2/button
@@ -135,6 +143,53 @@ export const Stati: Story = {
 }
 
 export const Disabilitato: Story = { args: { disabled: true } }
+
+/**
+ * Un collegamento con l'aspetto di un bottone: niente `Button`, la classe da
+ * `buttonVariants` sul `Link` del router o su un `<a>`. Resta un link — si
+ * apre con `Invio`, non con `Spazio`, e compare fra i collegamenti della
+ * pagina — e si vede identico al bottone della stessa variante.
+ *
+ * ```tsx
+ * <Link to="/prodotti" className={buttonVariants({ variant: "outline" })}>
+ *   Torna ai prodotti
+ * </Link>
+ * ```
+ */
+export const ComeCollegamento: Story = {
+  name: 'Come Collegamento',
+  render: () => (
+    <div className="flex flex-wrap items-center gap-3">
+      <a href="#prodotti" className={buttonVariants({ variant: 'outline' })}>
+        <ArrowLeftIcon data-icon="inline-start" />
+        Torna ai prodotti
+      </a>
+      <a href="#scheda" className={buttonVariants({ variant: 'link' })}>
+        Apri la scheda
+      </a>
+    </div>
+  ),
+}
+
+// Scena di misura di «Come Collegamento»: né l'occhio né axe distinguono un
+// link reso come `Button` da un link vero (0 pixel e 0 violazioni di
+// differenza), quindi lo dice la prova. `!dev` la toglie dalla barra e da
+// Docs; il gate la esegue.
+export const ComeCollegamentoProva: Story = {
+  ...ComeCollegamento,
+  name: 'Come Collegamento, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const link = within(canvasElement).getAllByRole('link')
+    await expect(link).toHaveLength(2)
+    for (const a of link) {
+      await expect(a.tagName).toBe('A')
+      await expect(a).not.toHaveAttribute('type')
+      await expect(a).not.toHaveAttribute('role')
+    }
+    await expect(within(canvasElement).queryAllByRole('button')).toHaveLength(0)
+  },
+}
 
 /**
  * Tutte le varianti per tutte le taglie. È la vista da tenere aperta mentre si
