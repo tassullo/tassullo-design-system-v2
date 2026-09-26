@@ -129,14 +129,16 @@ export const ConManiglia: Story = {
             Confezionato il 17 aprile 2024 — sacco da 25 kg.
           </DrawerDescription>
         </DrawerHeader>
-        <dl className="grid grid-cols-2 gap-y-2 p-4 text-sm">
-          <dt className="text-muted-foreground">Resa</dt>
-          <dd className="text-right tabular-nums">12,40 kg/m²</dd>
-          <dt className="text-muted-foreground">Spessore minimo</dt>
-          <dd className="text-right tabular-nums">20,00 mm</dd>
-          <dt className="text-muted-foreground">Conformità</dt>
-          <dd className="text-right tabular-nums">98,75 %</dd>
-        </dl>
+        <div className="@container p-4 text-sm">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+            <dt className="text-muted-foreground">Resa</dt>
+            <dd className="tabular-nums">12,40 kg/m²</dd>
+            <dt className="text-muted-foreground">Spessore minimo</dt>
+            <dd className="tabular-nums">20,00 mm</dd>
+            <dt className="text-muted-foreground">Conformità</dt>
+            <dd className="tabular-nums">98,75 %</dd>
+          </dl>
+        </div>
         <DrawerFooter>
           <DrawerClose render={<Button variant="outline" />}>Chiudi</DrawerClose>
         </DrawerFooter>

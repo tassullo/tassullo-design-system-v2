@@ -471,13 +471,13 @@ function DettaglioMacchina({ macchina }: { macchina: Macchina }) {
     ['Prossima revisione', DATA.format(macchina.prossimaRevisione)],
   ]
   return (
-    <div className="@container/dettaglio flex flex-col gap-3">
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm @md/dettaglio:grid-cols-4">
+    <div className="@container flex flex-col gap-3">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm @sm:grid-cols-termine">
         {voci.map(([chiave, valore]) => (
-          <div key={chiave} className="flex flex-col">
-            <dt className="text-xs text-muted-foreground">{chiave}</dt>
-            <dd className="font-medium">{valore}</dd>
-          </div>
+          <React.Fragment key={chiave}>
+            <dt className="text-muted-foreground">{chiave}</dt>
+            <dd>{valore}</dd>
+          </React.Fragment>
         ))}
       </dl>
       <div className="flex flex-wrap gap-2">

@@ -517,6 +517,14 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   conto sulla riga madre. `pannelloRiga` apre invece, sotto la riga, un
  *   dettaglio con contenuto libero; per una riga senza dettaglio restituisce
  *   `null`.
+ * - Un dettaglio fatto di coppie termine–valore è un `dl` dentro un
+ *   contenitore: `<div className="@container">` e dentro
+ *   `<dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">`,
+ *   col termine in un `dt` `text-muted-foreground` e il valore in un `dd`.
+ *   La colonna dei termini è larga quanto il termine più lungo; in un
+ *   contenitore stretto termine e valore vanno uno sotto l'altro.
+ *   `grid-cols-termine` viene dal tema: con un tema che non lo dichiara la
+ *   classe non fa niente, senza errore.
  * - `piede` accende una riga di totali dentro la tabella. Ogni colonna scrive
  *   la sua cella in `meta.piede`, che riceve le righe che filtri e ricerca
  *   lasciano passare, non quelle della pagina: il totale cambia col filtro e
@@ -1251,14 +1259,16 @@ function EspansioneConControlli() {
         perPagina={10}
         pannelloRiga={(prodotto: Prodotto) =>
           prodotto.stato === 'archiviato' ? null : (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
-              <dt className="text-muted-foreground">Famiglia</dt>
-              <dd>{prodotto.famiglia}</dd>
-              <dt className="text-muted-foreground">Stato</dt>
-              <dd>{prodotto.stato}</dd>
-              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
-              <dd>{DATA.format(prodotto.aggiornato)}</dd>
-            </dl>
+            <div className="@container py-1 text-sm">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+                <dt className="text-muted-foreground">Famiglia</dt>
+                <dd>{prodotto.famiglia}</dd>
+                <dt className="text-muted-foreground">Stato</dt>
+                <dd>{prodotto.stato}</dd>
+                <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+                <dd>{DATA.format(prodotto.aggiornato)}</dd>
+              </dl>
+            </div>
           )
         }
         onTabellaPronta={(t) => {
@@ -1271,10 +1281,59 @@ function EspansioneConControlli() {
 
 /**
  * Il dettaglio sotto la riga, aperto dalla freccia. I prodotti archiviati non
- * hanno dettaglio, e la loro riga resta senza freccia.
+ * hanno dettaglio, e la loro riga resta senza freccia. Il dettaglio è una
+ * coppia termine–valore: un `dl` su `grid-cols-termine`, dentro un
+ * contenitore `@container`.
  */
 export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <EspansioneConControlli />,
+}
+
+// La prova apre il dettaglio della prima riga e guarda la coppia termine–valore:
+// nessuna classe fra parentesi quadre (un valore arbitrario, che il controllo
+// delle app rifiuta) e la colonna dei termini larga quanto il termine più
+// lungo, col valore accanto. Prima il `dl` era `grid-cols-[auto_1fr]`.
+async function provaEspansione({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const [freccia] = await canvas.findAllByRole('button', { name: 'Espandi dettaglio riga' })
+  await userEvent.click(freccia)
+  const elenco = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLElement>('[id^="pannello-riga-"] dl')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  const classi = [elenco, ...elenco.querySelectorAll<HTMLElement>('*')].flatMap((el) =>
+    [...el.classList].filter((c) => c.includes('['))
+  )
+  expect(classi).toEqual([])
+  const termini = [...elenco.querySelectorAll<HTMLElement>('dt')]
+  const valori = [...elenco.querySelectorAll<HTMLElement>('dd')]
+  const testoLargo = (el: HTMLElement) => {
+    const r = document.createRange()
+    r.selectNodeContents(el)
+    return r.getBoundingClientRect().width
+  }
+  const piuLungo = Math.max(...termini.map(testoLargo))
+  for (const dt of termini) {
+    expect(Math.abs(dt.getBoundingClientRect().width - piuLungo)).toBeLessThan(1)
+  }
+  for (const [i, dd] of valori.entries()) {
+    const dt = termini[i].getBoundingClientRect()
+    const r = dd.getBoundingClientRect()
+    expect(r.top).toBeCloseTo(dt.top, 0)
+    expect(r.left).toBeGreaterThan(dt.right)
+  }
+  await userEvent.click(freccia)
+}
+
+// Scena di misura di «Espansione»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const EspansioneProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...Espansione,
+  name: 'Espansione, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaEspansione,
 }
 
 function EspansioneConRicarica() {
@@ -1305,12 +1364,14 @@ function EspansioneConRicarica() {
         perPagina={10}
         pannelloRiga={(prodotto: Prodotto) =>
           prodotto.stato === 'archiviato' ? null : (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
-              <dt className="text-muted-foreground">Famiglia</dt>
-              <dd>{prodotto.famiglia}</dd>
-              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
-              <dd>{DATA.format(prodotto.aggiornato)}</dd>
-            </dl>
+            <div className="@container py-1 text-sm">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+                <dt className="text-muted-foreground">Famiglia</dt>
+                <dd>{prodotto.famiglia}</dd>
+                <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+                <dd>{DATA.format(prodotto.aggiornato)}</dd>
+              </dl>
+            </div>
           )
         }
       />
