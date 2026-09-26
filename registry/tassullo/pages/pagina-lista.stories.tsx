@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { cn } from 'cn'
 import {
   BookOpenIcon,
   ChevronDownIcon,
@@ -26,7 +27,7 @@ import { PaginaLista } from '@/registry/tassullo/pages/pagina-lista'
 import { apriCol } from '@/prove/apri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
-import { Button } from '@/registry/tassullo/ui/button'
+import { Button, buttonVariants } from '@/registry/tassullo/ui/button'
 import { Card } from '@/registry/tassullo/ui/card'
 import {
   Collapsible,
@@ -246,18 +247,14 @@ const COLONNE = col.columns([
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
-    // Il codice è il varco alla scheda di norma — `variant="link"` e non un
-    // colore a mano, stessa forma della colonna "Nome" di Prodotti: senza una
-    // pagina scheda da aprire in Storybook resta un `#`, qui conta la forma.
+    // Il codice è il varco alla scheda di norma: un collegamento con le
+    // classi di `buttonVariants({ variant: "link" })`, non un colore a mano e
+    // non un `Button`, che è un bottone. Nell'app è il `Link` del router; qui,
+    // senza una scheda da aprire, resta un `#`.
     cell: ({ getValue }) => (
-      <Button
-        variant="link"
-        size="sm"
-        className="h-auto p-0 text-sm"
-        render={<a href="#" />}
-      >
+      <a href="#" className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'h-auto p-0 text-sm')}>
         {getValue<string>()}
-      </Button>
+      </a>
     ),
   }),
   col.accessor('titolo', {
