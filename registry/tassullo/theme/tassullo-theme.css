@@ -269,8 +269,9 @@
      **Inter** è il carattere delle interfacce, scelto su un confronto
      misurato di cinque candidati. Ha i quattro pesi che il design system
      usa — 400/500/600/700 — le cifre tabellari, e i corsivi; è SIL Open
-     Font, quindi gratuito e ridistribuibile. Arriva col tema, in
-     tassullo-inter.css, senza nessuna richiesta di rete.
+     Font, quindi gratuito e ridistribuibile. Arriva col tema, in un CSS a
+     parte che l'app tiene in public/ e collega da index.html, senza
+     nessuna richiesta di rete.
 
      **Replicall NON è più nello stack.** Resta il carattere del marchio e
      resta nelle stampe PDF, ma per lo schermo non si usa più: tenerlo qui
@@ -295,6 +296,14 @@
      Esposta come container per poter scrivere max-w-page e non un
      valore arbitrario. */
   --container-page: 1180px;
+
+  /* ── Coppie termine–valore (`<dl>`).
+     Genera `grid-cols-termine`: la colonna del termine larga quanto serve,
+     il valore accanto. Si scrive `grid grid-cols-1 @sm:grid-cols-termine`
+     su un `<dl>` dentro un `@container`, e sotto la soglia va in colonna.
+     Con un tema che non lo dichiara la classe non emette niente, senza
+     errore: il termine e il valore finiscono uno sotto l'altro. */
+  --grid-template-columns-termine: auto 1fr;
 }
 
 /* ── Tipografia: perché sta in un `@theme` SEMPLICE e non in `@theme inline`

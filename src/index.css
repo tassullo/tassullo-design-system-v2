@@ -8,13 +8,12 @@
    se ne serve uno nuovo si aggiunge alla palette dello script. */
 @import "../registry/tassullo/theme/tassullo-theme.css";
 
-/* Inter, con i file inlinati in data URI. È GENERATO da
-   scripts/build-font-css.ts (npm run font:build) dai .woff2 in
-   registry/tassullo/theme/fonts/, e viaggia come item `tema-font`.
-   Importato **da qui e non da un <link> a Google**: il workbench deve
-   provare esattamente il file che ricevono le app, o si svilupperebbe
-   contro una copia e si spedirebbe l'altra (D3, chiusa il 2026-09-08). */
-@import "../registry/tassullo/theme/inter.css";
+/* Inter NON si importa da qui: come nelle app, si collega da `index.html`
+   con un <link> allo stesso file che ricevono le app
+   (registry/tassullo/theme/inter.css, GENERATO da scripts/build-font-css.ts).
+   Importato qui, Vite lo fonderebbe nel CSS dell'app, che cambia nome a ogni
+   rilascio (#79, docs/DECISIONI.md §70). Storybook lo importa in
+   `.storybook/preview.tsx`, che non passa da `index.html`. */
 
 /* Il marchio Tassullo, come maschera CSS. È GENERATO da
    scripts/build-logo-css.ts (npm run logo:build) dagli .svg in
@@ -27,9 +26,9 @@
    IL CARATTERE — Inter sullo schermo, Replica nelle stampe
 
    Deciso l'8 settembre 2026 (docs/DECISIONI.md §14 e §15). Le @font-face
-   stavano qui e ora stanno nel registry, in `theme/inter.css`, importato
-   sopra: **il carattere fa parte del tema e si installa con lui**, non è
-   qualcosa che ogni app si arrangia a caricare.
+   stavano qui e ora stanno nel registry, in `theme/inter.css`, collegato da
+   `index.html`: **il carattere fa parte del tema e si installa con lui**,
+   non è qualcosa che ogni app si arrangia a caricare.
 
    Niente `<link>` a Google Fonts, né qui né in `index.html`: servire i font
    da un terzo significa mandargli l'indirizzo IP di ogni visitatore. I file

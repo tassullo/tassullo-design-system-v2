@@ -52,13 +52,14 @@ type Misurazione = {
 
 /**
  * I numeri del dato sono stringhe col punto (`'0.5'`), la forma che `Number()`
- * legge; si scrivono con la virgola (`0,5`), e `leggiNumero` accetta tutte e
- * due — serve anche al cassetto, dove il parziale si ricalcola su ciò che si
- * sta scrivendo.
+ * legge: il dato salvato si legge con `Number()`. `leggiNumero` è per il testo
+ * scritto, con la virgola (`0,5`), e su un dato salvato sbaglierebbe: il punto
+ * di `'2.375'` per lui separa le migliaia, e il prezzo diventerebbe
+ * duemilatrecentosettantacinque.
  */
 const numero = (v: string) => {
   if (v.trim() === '') return null
-  const n = Number(leggiNumero(v))
+  const n = Number(v)
   return Number.isNaN(n) ? null : n
 }
 
@@ -336,6 +337,10 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   si scrive arriva a `valida` e a `scrivi` già col punto, `20.78`. Il punto
  *   vale come separatore delle migliaia se raggruppa tre cifre (`1.234`),
  *   altrimenti come decimale.
+ * - Dove la pagina rilegge il dato per un calcolo — una quantità, un importo —
+ *   lo legge con `Number()`: il dato ha già il punto decimale. `leggiNumero` è
+ *   solo per il testo scritto, e su un dato salvato sbaglia: prende `2.375`
+ *   per duemilatrecentosettantacinque.
  * - **Una cella aperta si legge come una chiusa**: stesso posto, stesso
  *   aspetto. Lo stile del valore — corsivo, grassetto, rientro, colore — va
  *   in `classiTesto`, che vale per la cella chiusa e per il campo aperto;
@@ -400,6 +405,34 @@ export const Computo: Story = {
   render: () => <ComputoFoglio />,
 }
 
+// Scena di misura di «Computo»: la stessa resa, con la prova. `!dev` la toglie
+// dalla barra e da Docs, così la scena qui sopra si apre a riposo; il
+// controllo automatico la esegue lo stesso.
+export const ComputoProva: Story = {
+  ...Computo,
+  name: 'Computo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: prezzoConTreDecimali,
+}
+
+// Prova: un prezzo scritto con tre decimali resta quello. «2,375» si salva come
+// «2.375»; rileggerlo come testo scritto lo faceva diventare
+// duemilatrecentosettantacinque, e la voce mostrava «2.375,00 €» con un importo
+// mille volte più grande.
+async function prezzoConTreDecimali({ canvasElement }: { canvasElement: HTMLElement }) {
+  const piede = await waitFor(() => {
+    const trovato = [...canvasElement.querySelectorAll<HTMLElement>('tbody tr')].find((tr) =>
+      within(tr).queryByRole('button', { name: /^Prezzo unit\.:/ })
+    )
+    expect(trovato).toBeTruthy()
+    return trovato!
+  })
+  await scriviPrezzo(piede, '2,375')
+  // SOMMANO della prima voce: 10 × 1 × 0,5 + 5 × 3,5 − 0,9 × 2,1 = 20,61.
+  await waitFor(() => expect(piede.textContent).toContain('48,95\u00a0€'))
+  expect(piede.textContent).toContain('2,38\u00a0€')
+}
+
 /**
  * Un gruppo senza misure: testata e piede ci sono comunque, e le frecce
  * verticali passano dalla testata direttamente al SOMMANO.
@@ -426,8 +459,8 @@ export const Validazione: Story = {
       gruppiIniziali={[
         {
           id: 'v1',
-          testata: { designazione: 'RASATURA ARMATA — Tradizionale', unita: 'm²', prezzo: '28,82' },
-          righe: [{ descrizione: 'Piano terra', parti: '1', lunghezza: '10', larghezza: '1', altezza: '0,5' }],
+          testata: { designazione: 'RASATURA ARMATA — Tradizionale', unita: 'm²', prezzo: '28.82' },
+          righe: [{ descrizione: 'Piano terra', parti: '1', lunghezza: '10', larghezza: '1', altezza: '0.5' }],
         },
       ]}
     />
@@ -511,9 +544,12 @@ const COLONNE_ANALISI: ColonnaFoglio<VoceAnalisi, Componente>[] = [
   { id: 'quantita', titolo: 'Quantità', larghezza: 'w-24', allineamento: 'destra',
     corpo: { tipo: 'scrivibile', leggi: (c) => c.quantita, scrivi: (c, v) => ({ ...c, quantita: v }), valida: soloNumero,
       formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
+  // Il prezzo in euro, come l'importo accanto: due decimali, le virgole in
+  // colonna. In modifica il simbolo resta accanto al campo.
   { id: 'prezzo', titolo: 'Prezzo unit.', larghezza: 'w-28', allineamento: 'destra',
     corpo: { tipo: 'scrivibile', leggi: (c) => c.prezzo, scrivi: (c, v) => ({ ...c, prezzo: v }), valida: soloNumero,
-      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
+      formato: SCRITTURA_NUMERO, suffisso: '\u00a0€',
+      mostra: (valore) => (valore === '' ? ' ' : valuta(numero(valore) ?? 0)) } },
   {
     id: 'sfrido',
     titolo: 'Sfrido',
@@ -602,6 +638,73 @@ export const RigheDiTipoDiversoProva: Story = {
   name: 'Righe di tipo diverso, prova',
   tags: ['!dev', '!autodocs'],
   play: sfridoSoloSuiMateriali,
+}
+
+// Scrive un prezzo nella prima cella «Prezzo unit.» di una riga, dalla
+// tastiera: `Invio` apre il campo, si sostituisce il testo, `Invio` conferma.
+async function scriviPrezzo(riga: HTMLElement, testo: string) {
+  within(riga).getByRole('button', { name: /^Prezzo unit\.:/ }).focus()
+  await userEvent.keyboard('{Enter}')
+  const campo = await waitFor(() => {
+    const trovato = riga.querySelector('input')
+    expect(trovato).toBeTruthy()
+    return trovato!
+  })
+  await userEvent.clear(campo)
+  await userEvent.type(campo, testo)
+  await userEvent.keyboard('{Enter}')
+}
+
+/** Il bordo sinistro della virgola nel testo di un nodo. */
+function virgola(nodo: Element): number {
+  const giro = document.createTreeWalker(nodo, NodeFilter.SHOW_TEXT)
+  for (let t = giro.nextNode(); t; t = giro.nextNode()) {
+    const i = t.textContent?.indexOf(',') ?? -1
+    if (i < 0) continue
+    const intervallo = document.createRange()
+    intervallo.setStart(t, i)
+    intervallo.setEnd(t, i + 1)
+    return intervallo.getBoundingClientRect().left
+  }
+  throw new Error(`Nessuna virgola in «${nodo.textContent}»`)
+}
+
+// Prova: il prezzo unitario si legge in euro, con le virgole in colonna, e un
+// prezzo scritto con tre decimali resta quello. «2,375» si salva come «2.375»,
+// e rileggerlo come testo scritto lo faceva diventare duemilatrecentosettantacinque:
+// l'importo del Premiscelato (18 × 2,375 × 1,05) era 44.887,50 € invece di 44,89 €.
+async function prezziInEuro({ canvasElement }: { canvasElement: HTMLElement }) {
+  const tabella = canvasElement.querySelector('table')!
+  const titoli = [...tabella.querySelectorAll('thead th')].map((th) => th.textContent?.trim())
+  const colonna = (titolo: string) => titoli.indexOf(titolo)
+  const righe = () =>
+    [...tabella.querySelectorAll<HTMLElement>('tbody tr')].filter((tr) =>
+      Object.values(TIPI_COMPONENTE).includes(tr.children[colonna('Tipo')]?.textContent ?? '')
+    )
+  await waitFor(() => expect(righe()).toHaveLength(4))
+  expect(righe().map((tr) => tr.children[colonna('Prezzo unit.')]!.textContent)).toEqual([
+    '0,62\u00a0€',
+    '38,50\u00a0€',
+    '1,80\u00a0€',
+    '4,20\u00a0€',
+  ])
+  const virgole = righe().map((tr) => virgola(tr.children[colonna('Prezzo unit.')]!))
+  expect(Math.max(...virgole) - Math.min(...virgole)).toBeLessThan(0.5)
+
+  const premiscelato = righe().find((tr) => tr.textContent?.includes('Premiscelato'))!
+  await scriviPrezzo(premiscelato, '2,375')
+  await waitFor(() =>
+    expect(premiscelato.children[colonna('Importo')]!.textContent).toBe('44,89\u00a0€')
+  )
+  expect(premiscelato.children[colonna('Prezzo unit.')]!.textContent).toBe('2,38\u00a0€')
+}
+
+// Scena di misura dei prezzi di «Righe di tipo diverso»: nascosta come quella sopra.
+export const RigheDiTipoDiversoPrezzoProva: Story = {
+  ...RigheDiTipoDiverso,
+  name: 'Righe di tipo diverso, prezzo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: prezziInEuro,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -738,6 +841,17 @@ function SchedeComputo({
     setMisuraAperta({ g: gi, m: gruppi[gi]!.righe.length })
   }
 
+  // Nel cassetto i fattori sono testo scritto, con la virgola: si leggono con
+  // `leggiNumero`, sia per il parziale che si aggiorna mentre si scrive sia
+  // alla conferma, e diventano il dato col punto.
+  const misuraScritta = (m: Misurazione): Misurazione => ({
+    ...m,
+    parti: leggiNumero(m.parti),
+    lunghezza: leggiNumero(m.lunghezza),
+    larghezza: leggiNumero(m.larghezza),
+    altezza: leggiNumero(m.altezza),
+  })
+
   const fattori = (m: Misurazione) =>
     [m.parti, m.lunghezza, m.larghezza, m.altezza].filter(Boolean).map(scriviNumero).join(' × ')
 
@@ -793,28 +907,31 @@ function SchedeComputo({
               + misurazione
             </Button>
 
-            {/* **Ogni riga è una riga**, non due celle di una griglia. Con
-                `grid-cols-[1fr_auto] gap-x-4` il `border-t` cadeva su `dt` e
-                `dd` separatamente e **il gap in mezzo non ne aveva**: la linea
-                si spezzava nel vuoto e ripartiva sopra i numeri a destra
-                (rilievo di Francesco, 2026-09-22). Un separatore che divide due
-                cose deve attraversarle tutte e due, quindi sta sulla riga. */}
-            <dl className="mt-1 text-sm">
-              <div className="flex justify-between gap-4">
+            {/* Il riepilogo è una lista di coppie termine–valore, scritta sul
+                token di griglia del tema (`grid-cols-termine`: il termine largo
+                quanto serve, il valore accanto). Qui le coppie restano sempre
+                affiancate, senza andare in colonna sotto una soglia: i valori
+                sono cifre corte allineate a destra, e il riepilogo di una voce
+                si legge come uno scontrino. **Ogni coppia è una riga**
+                (`grid-cols-subgrid` su due colonne), così il filo sopra
+                l'importo attraversa termine, valore e lo spazio in mezzo: su
+                `dt` e `dd` separati si spezzerebbe nel vuoto fra i due. */}
+            <dl className="mt-1 grid grid-cols-termine gap-x-6 text-sm">
+              <div className="col-span-2 grid grid-cols-subgrid">
                 <dt className="text-muted-foreground">Sommano</dt>
-                <dd className="tabular-nums">
+                <dd className="text-right tabular-nums">
                   {decimale(sommano(gruppo.righe))} {gruppo.testata.unita}
                 </dd>
               </div>
-              <div className="flex justify-between gap-4">
+              <div className="col-span-2 grid grid-cols-subgrid">
                 <dt className="text-muted-foreground">Prezzo unit.</dt>
-                <dd className="tabular-nums">
+                <dd className="text-right tabular-nums">
                   {gruppo.testata.prezzo ? valuta(numero(gruppo.testata.prezzo) ?? 0) : 'da prezzare'}
                 </dd>
               </div>
-              <div className="mt-1 flex justify-between gap-4 border-t pt-1 font-semibold">
+              <div className="col-span-2 mt-1 grid grid-cols-subgrid border-t pt-1 font-semibold">
                 <dt>Importo</dt>
-                <dd className="tabular-nums">
+                <dd className="text-right tabular-nums">
                   {(() => {
                     const i = importo(gruppo.testata, gruppo.righe)
                     return i == null ? '—' : valuta(i)
@@ -874,15 +991,7 @@ function SchedeComputo({
             larghezza: scriviNumero(misuraCorrente.larghezza),
             altezza: scriviNumero(misuraCorrente.altezza),
           }}
-          onConferma={(m) =>
-            aggiornaMisura(misuraAperta!.g, misuraAperta!.m, {
-              ...m,
-              parti: leggiNumero(m.parti),
-              lunghezza: leggiNumero(m.lunghezza),
-              larghezza: leggiNumero(m.larghezza),
-              altezza: leggiNumero(m.altezza),
-            })
-          }
+          onConferma={(m) => aggiornaMisura(misuraAperta!.g, misuraAperta!.m, misuraScritta(m))}
           campi={(bozza, scriviBozza) => (
             <>
               <CampoCassetto
@@ -911,7 +1020,7 @@ function SchedeComputo({
                 </div>
               </div>
               <p className="text-right text-sm text-muted-foreground">
-                Parziale <strong className="tabular-nums">{decimale(parziale(bozza))}</strong>
+                Parziale <strong className="tabular-nums">{decimale(parziale(misuraScritta(bozza)))}</strong>
               </p>
             </>
           )}

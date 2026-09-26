@@ -25,8 +25,10 @@ codice sorgente** dentro l'app. Le primitive sono costruite su
 - **Blocchi** — i pattern ricorrenti delle app, composti dalle primitive: il
   guscio dell'applicazione, la tabella dati, gli stati vuoti, il caricamento
   di file, il calendario.
-- **Pagine** — pagine intere già composte: accesso, elenco, scheda, cruscotto,
-  amministrazione, errore. Sono il punto di partenza di una pagina nuova.
+- **Pagine** — pagine d'esempio: accesso, elenco, scheda, cruscotto,
+  amministrazione, errore. Mostrano come si compongono i blocchi, e sono il
+  punto di partenza di una pagina nuova: se ne legge il codice e la pagina si
+  ricompone nell'app. Non si installano e non si importano.
 
 Ogni pagina di componente risponde, nell'ordine, alle stesse domande: **cos'è**
 e a cosa serve, **quando** si usa e quando no, **come si installa**, quali
@@ -61,11 +63,18 @@ pagina:
 npx shadcn@latest add tassullo/tassullo-design-system-v2/button
 ```
 
+Le pagine d'esempio no: se ne legge il codice, e si installano i blocchi che
+usano.
+
+```bash
+npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-lista
+```
+
 In produzione conviene fissare la versione con un tag, così nessuna app si
 aggiorna da sola:
 
 ```bash
-npx shadcn@latest add tassullo/tassullo-design-system-v2/button#v2.0.4
+npx shadcn@latest add tassullo/tassullo-design-system-v2/button#v2.0.5
 ```
 
 Un'app nuova ha bisogno, prima del primo comando, di Tailwind v4, dell'alias

@@ -41,16 +41,21 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * arriva è `tassullo-pagina-lista`; un modulo da compilare una volta sola,
  * senza storico, è un dialogo.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-scheda
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-scheda
  * ```
  *
- * **I blocchi che la compongono**, e che arrivano con lei:
+ * **I blocchi che la compongono**, da installare nell'app per nome:
  * `tassullo-page-header`, `tabs`, `card`, `tassullo-version-timeline` per
  * lo storico, `tassullo-page-skeleton` e `tassullo-error-state` per gli
  * stati.
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso`: il suo ultimo livello è il nome dell'entità, ed è lì che si
  *   legge. La pagina non ha un titolo proprio.
@@ -79,9 +84,19 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  *   modifica fa saltare la scheda intera.
  * - Il contenuto di ogni scheda sta dentro una `Card`, staccato dal fondo
  *   della pagina.
+ * - Le schede restano ferme sotto la fascia mentre la pagina scorre, in una
+ *   fascia loro `sticky top-12` col fondo della pagina; cambiando scheda, la
+ *   pagina torna all'inizio del pannello. Come si comporta una scheda più
+ *   alta della finestra si vede in `Blocchi/App shell › Scheda Lunga`.
+ * - Sotto una larghezza del contenitore le schede lasciano il posto a una
+ *   `Select` «Sezione: …» che le guida: qui sotto i 384px, cioè sul
+ *   telefono. La soglia si sceglie per ogni scheda, dalla larghezza delle
+ *   sue schede in densità touch: la ricetta è in `Primitive/Tabs › Molte
+ *   Tab`.
  *
  * **Tastiera e accessibilità.** Le schede si scorrono con le frecce, come in
- * `tabs`. I campi disabilitati si leggono ma non prendono il fuoco.
+ * `tabs`; nella forma stretta la `Select` si apre con `Invio`, `Spazio` o le
+ * frecce. I campi disabilitati si leggono ma non prendono il fuoco.
  */
 const meta = {
   title: 'Pagine/Scheda',

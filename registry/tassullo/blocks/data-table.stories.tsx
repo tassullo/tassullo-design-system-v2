@@ -354,9 +354,13 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * serve è la sua: `creaColonne<T>()` è il suo `createColumnHelper`, già
  * tipizzato sulle caratteristiche del blocco. Il blocco legge in più, dal
  * campo `meta` di ogni colonna: `titolo`, il nome usato dal menu «Colonne»;
- * `larghezza`, una utility Tailwind come `w-28`; `sottototale`, `piede` e
- * `azioniProprie`, descritti sotto. Una colonna va lasciata senza larghezza:
- * è quella che prende lo spazio che avanza. L'intestazione ordinabile è
+ * `larghezza`, una utility Tailwind come `w-28`; `testo`, `'tronca'` di serie
+ * o `'aCapo'`; `sottototale`, `piede` e `azioniProprie`, descritti sotto. Una
+ * colonna va lasciata senza larghezza: è quella che prende lo spazio che
+ * avanza, e non scende sotto 160px (240 in touch). Quando le colonne non
+ * stanno, la tabella non le stringe: il suo riquadro scorre di lato. Per una
+ * lista pensata anche per il telefono c'è la faccia a schede, nella pagina
+ * «Lista a due facce». L'intestazione ordinabile è
  * `IntestazioneColonna`, con `allinea="fine"` sulle colonne di numeri.
  * `sortFn` dice come si ordina: `alphanumeric` per i codici, perché `IN-9`
  * venga prima di `IN-10`; `text`; `basic` per i numeri; `datetime` per le
@@ -477,11 +481,21 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   separatore delle migliaia. Le cifre tabellari, `tabular-nums`, le dà già
  *   la tabella. Un codice o un anno non si formattano.
  * - I codici si scrivono nel carattere e nel colore del testo, come il resto
- *   della riga; uno stato è un `badge` coi toni dell'item `toni`.
+ *   della riga; uno stato è un `badge` coi toni dell'item `toni`. In una
+ *   colonna stretta il badge si scrive
+ *   `<Badge className="max-w-full"><span className="truncate">…</span></Badge>`,
+ *   o esce dalla cella.
+ * - Un testo più lungo della colonna finisce coi puntini. Una colonna di testi
+ *   descrittivi, che vanno letti interi, dichiara `meta.testo: 'aCapo'` e una
+ *   `larghezza`; nella tabella virtualizzata l'opzione non vale.
  * - Se la riga apre una pagina, il collegamento sta su una colonna sola — il
- *   codice o il nome, lo sceglie la pagina — scritto come `Button`
- *   `variant="link"` col `render` del collegamento (`<a>` o il `Link` del
- *   router).
+ *   codice o il nome, lo sceglie la pagina. Il collegamento è il `Link` del
+ *   router, o un `<a>`, con l'aspetto preso da
+ *   `buttonVariants({ variant: "link", size: "sm" })`:
+ *   `<Link to={…} className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0 font-medium")}>`.
+ *   Un collegamento non è un `Button`: il `Button` è il bottone di Base UI,
+ *   e col `render` di un collegamento gli porta i comportamenti di un
+ *   bottone.
  * - La selezione esce dalla tabella solo attraverso `barra` nella forma a
  *   funzione, `(scelti, tabella) => …`, che riceve le righe scelte e l'istanza
  *   della tabella. Non c'è una `onSelezione`, e non si ricostruisce con un
@@ -507,6 +521,21 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   conto sulla riga madre. `pannelloRiga` apre invece, sotto la riga, un
  *   dettaglio con contenuto libero; per una riga senza dettaglio restituisce
  *   `null`.
+ * - Un dettaglio fatto di coppie termine–valore è un `dl` dentro un
+ *   contenitore: `<div className="@container">` e dentro
+ *   `<dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">`,
+ *   col termine in un `dt` `text-muted-foreground` e il valore in un `dd`.
+ *   La colonna dei termini è larga quanto il termine più lungo; in un
+ *   contenitore stretto termine e valore vanno uno sotto l'altro. Il valore
+ *   comincia a sinistra, accanto al suo termine, anche quando è un numero:
+ *   con `tabular-nums` le cifre si incolonnano già, e allineati a destra
+ *   valori con unità di misura diverse (kg/m², mm, %) incolonnerebbero le
+ *   unità invece delle virgole, lontano dal termine in un contenitore largo.
+ *   In un riquadro piccolo e fisso con valori corti — un'anteprima, un
+ *   riepilogo di cifre — le coppie restano affiancate anche sotto la soglia:
+ *   `grid grid-cols-termine`, senza `@container` e senza `grid-cols-1`.
+ *   `grid-cols-termine` viene dal tema: con un tema che non lo dichiara la
+ *   classe non fa niente, senza errore.
  * - `piede` accende una riga di totali dentro la tabella. Ogni colonna scrive
  *   la sua cella in `meta.piede`, che riceve le righe che filtri e ricerca
  *   lasciano passare, non quelle della pagina: il totale cambia col filtro e
@@ -571,7 +600,8 @@ export const Prodotti: Story = {
  * La stessa tabella in un riquadro da 320px, la larghezza utile di un
  * telefono. La tabella scorre in orizzontale, e la casella e il codice restano
  * fermi a sinistra (`bloccaPrimaColonna`): si legge sempre di quale prodotto è
- * una riga.
+ * una riga. La colonna senza larghezza, «Famiglia», non scende sotto il suo
+ * minimo: la tabella resta larga quanto le sue colonne, e scorre.
  */
 export const Stretta: Story = {
   args: {
@@ -590,11 +620,56 @@ export const Stretta: Story = {
         colonna del guscio non c&apos;è. Stretto di proposito: le soglie di una
         tabella guardano la tabella, non lo schermo.
       </p>
-      <div className="w-80 rounded-lg border border-dashed p-2">
+      <div className="w-full max-w-80 rounded-lg border border-dashed p-2">
         <DataTable {...args} />
       </div>
     </div>
   ),
+}
+
+// La prova misura la colonna senza larghezza, «Famiglia»: nel riquadro
+// stretto la tabella non ci sta, e prima del minimo la colonna andava a 0px
+// e il suo titolo finiva sopra quello accanto. Ora non scende sotto 40 unità
+// di `--spacing` (160px in normale, 240 in touch) e il riquadro scorre di
+// lato. La prova misura tutte e due le densità.
+async function provaStretta({ canvasElement }: { canvasElement: HTMLElement }) {
+  const famiglia = await waitFor(() => {
+    const th = [...canvasElement.querySelectorAll<HTMLElement>('thead th')].find(
+      (el) => el.textContent?.trim() === 'Famiglia'
+    )
+    expect(th).toBeTruthy()
+    return th as HTMLElement
+  })
+  const radice = document.documentElement
+  // Il minimo è 40 unità di `--spacing`, letto dalla radice nella densità del
+  // momento: 160px in normale, 240 in touch.
+  const misura = () => {
+    const passo = parseFloat(getComputedStyle(radice).getPropertyValue('--spacing')) * 16
+    return { larghezza: Math.round(famiglia.getBoundingClientRect().width), minimo: 40 * passo }
+  }
+  const normale = misura()
+  const prima = radice.getAttribute('data-density')
+  radice.setAttribute('data-density', 'touch')
+  let touch: ReturnType<typeof misura>
+  try {
+    await new Promise((fatto) => setTimeout(fatto, 100))
+    touch = misura()
+  } finally {
+    if (prima === null) radice.removeAttribute('data-density')
+    else radice.setAttribute('data-density', prima)
+  }
+  expect(normale.larghezza).toBeGreaterThanOrEqual(normale.minimo)
+  expect(touch.larghezza).toBeGreaterThanOrEqual(touch.minimo)
+}
+
+// Scena di misura di «Stretta»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const StrettaProva: Story = {
+  ...Stretta,
+  name: 'Stretta, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaStretta,
 }
 
 /**
@@ -1195,14 +1270,16 @@ function EspansioneConControlli() {
         perPagina={10}
         pannelloRiga={(prodotto: Prodotto) =>
           prodotto.stato === 'archiviato' ? null : (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
-              <dt className="text-muted-foreground">Famiglia</dt>
-              <dd>{prodotto.famiglia}</dd>
-              <dt className="text-muted-foreground">Stato</dt>
-              <dd>{prodotto.stato}</dd>
-              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
-              <dd>{DATA.format(prodotto.aggiornato)}</dd>
-            </dl>
+            <div className="@container py-1 text-sm">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+                <dt className="text-muted-foreground">Famiglia</dt>
+                <dd>{prodotto.famiglia}</dd>
+                <dt className="text-muted-foreground">Stato</dt>
+                <dd>{prodotto.stato}</dd>
+                <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+                <dd>{DATA.format(prodotto.aggiornato)}</dd>
+              </dl>
+            </div>
           )
         }
         onTabellaPronta={(t) => {
@@ -1215,10 +1292,59 @@ function EspansioneConControlli() {
 
 /**
  * Il dettaglio sotto la riga, aperto dalla freccia. I prodotti archiviati non
- * hanno dettaglio, e la loro riga resta senza freccia.
+ * hanno dettaglio, e la loro riga resta senza freccia. Il dettaglio è una
+ * coppia termine–valore: un `dl` su `grid-cols-termine`, dentro un
+ * contenitore `@container`.
  */
 export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <EspansioneConControlli />,
+}
+
+// La prova apre il dettaglio della prima riga e guarda la coppia termine–valore:
+// nessuna classe fra parentesi quadre (un valore arbitrario, che il controllo
+// delle app rifiuta) e la colonna dei termini larga quanto il termine più
+// lungo, col valore accanto. Prima il `dl` era `grid-cols-[auto_1fr]`.
+async function provaEspansione({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const [freccia] = await canvas.findAllByRole('button', { name: 'Espandi dettaglio riga' })
+  await userEvent.click(freccia)
+  const elenco = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLElement>('[id^="pannello-riga-"] dl')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  const classi = [elenco, ...elenco.querySelectorAll<HTMLElement>('*')].flatMap((el) =>
+    [...el.classList].filter((c) => c.includes('['))
+  )
+  expect(classi).toEqual([])
+  const termini = [...elenco.querySelectorAll<HTMLElement>('dt')]
+  const valori = [...elenco.querySelectorAll<HTMLElement>('dd')]
+  const testoLargo = (el: HTMLElement) => {
+    const r = document.createRange()
+    r.selectNodeContents(el)
+    return r.getBoundingClientRect().width
+  }
+  const piuLungo = Math.max(...termini.map(testoLargo))
+  for (const dt of termini) {
+    expect(Math.abs(dt.getBoundingClientRect().width - piuLungo)).toBeLessThan(1)
+  }
+  for (const [i, dd] of valori.entries()) {
+    const dt = termini[i].getBoundingClientRect()
+    const r = dd.getBoundingClientRect()
+    expect(r.top).toBeCloseTo(dt.top, 0)
+    expect(r.left).toBeGreaterThan(dt.right)
+  }
+  await userEvent.click(freccia)
+}
+
+// Scena di misura di «Espansione»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const EspansioneProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...Espansione,
+  name: 'Espansione, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaEspansione,
 }
 
 function EspansioneConRicarica() {
@@ -1249,12 +1375,14 @@ function EspansioneConRicarica() {
         perPagina={10}
         pannelloRiga={(prodotto: Prodotto) =>
           prodotto.stato === 'archiviato' ? null : (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
-              <dt className="text-muted-foreground">Famiglia</dt>
-              <dd>{prodotto.famiglia}</dd>
-              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
-              <dd>{DATA.format(prodotto.aggiornato)}</dd>
-            </dl>
+            <div className="@container py-1 text-sm">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+                <dt className="text-muted-foreground">Famiglia</dt>
+                <dd>{prodotto.famiglia}</dd>
+                <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+                <dd>{DATA.format(prodotto.aggiornato)}</dd>
+              </dl>
+            </div>
           )
         }
       />
@@ -2477,4 +2605,286 @@ export const FiltroVociComeNelDatoProva: StoryObj<typeof DataTable<MisurazioneCo
   name: 'Filtro Voci Come Nel Dato, prova',
   tags: ['!dev', '!autodocs'],
   play: provaVociComeNelDato,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il testo nelle celle — la colonna a capo e il Badge in una cella stretta
+ *
+ * Dati inventati: caratteristiche di prova con testi descrittivi lunghi e di
+ * lunghezza diversa, sempre gli stessi a ogni apertura.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Caratteristica = {
+  id: string
+  codice: string
+  caratteristica: string
+  metodo: string
+  valore: number
+  esito: 'conforme' | 'da verificare' | 'non conforme'
+  norma: string
+}
+
+const NOMI_CARATTERISTICA = [
+  'Resistenza a compressione',
+  'Resistenza a compressione dopo 28 giorni di maturazione in ambiente normalizzato',
+  'Adesione al supporto',
+  'Assorbimento d’acqua per capillarità, misurato sulla faccia a contatto con il supporto',
+  'Permeabilità al vapore acqueo',
+  'Massa volumica apparente della malta indurita',
+  'Reazione al fuoco',
+  'Conducibilità termica dichiarata a 10 °C, in condizioni asciutte, su provini essiccati in stufa',
+  'Durabilità ai cicli di gelo e disgelo',
+  'Ritiro',
+]
+
+const METODI = [
+  'Prova su tre provini prismatici',
+  'Prova a trazione diretta con piastrina incollata, su supporto di laterizio normalizzato',
+  'Immersione parziale per 90 minuti',
+  'Metodo della coppa asciutta e della coppa umida, a 23 °C',
+  'Pesata e misura dimensionale dei provini dopo essiccazione',
+  'Classificazione senza prova',
+  'Piastra calda con anello di guardia, su provini di spessore ridotto',
+  'Venticinque cicli, poi prova di adesione sui provini invecchiati confrontata con quella dei provini di riferimento',
+]
+
+const NORME = [
+  'EN 998-1',
+  'EN 998-2 / CEN TR 15225',
+  'EN 1015-11',
+  'EN 13139 / EN 12620 appendice nazionale',
+  'EN 1745',
+  'EN 13501-1 classificazione',
+]
+
+const ESITI: Caratteristica['esito'][] = ['conforme', 'conforme', 'da verificare', 'non conforme']
+
+function generaCaratteristiche(quante: number, seme = 20260926): Caratteristica[] {
+  const caso = seminato(seme)
+  const scegli = <T,>(v: T[]): T => v[Math.floor(caso() * v.length)]
+  return Array.from({ length: quante }, (_, i) => ({
+    id: String(i + 1),
+    codice: `CR-${String(100 + i)}`,
+    caratteristica: NOMI_CARATTERISTICA[i % NOMI_CARATTERISTICA.length],
+    metodo: scegli(METODI),
+    valore: Math.round(caso() * 3000) / 100,
+    esito: scegli(ESITI),
+    norma: scegli(NORME),
+  }))
+}
+
+const CARATTERISTICHE = generaCaratteristiche(10)
+
+const TONO_ESITO: Record<Caratteristica['esito'], string> = {
+  conforme: TONO.success,
+  'da verificare': TONO.warning,
+  'non conforme': TONO.neutro,
+}
+
+const colCar = creaColonne<Caratteristica>()
+
+const COLONNE_A_CAPO = colCar.columns([
+  colCar.accessor('codice', {
+    header: 'Codice',
+    meta: { titolo: 'Codice', larghezza: 'w-28' } satisfies MetaColonna<Caratteristica>,
+  }),
+  colCar.accessor('caratteristica', {
+    header: 'Caratteristica',
+    meta: { titolo: 'Caratteristica' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+  }),
+  colCar.accessor('metodo', {
+    header: 'Metodo di prova',
+    meta: {
+      titolo: 'Metodo di prova',
+      larghezza: 'w-64',
+      testo: 'aCapo',
+    } satisfies MetaColonna<Caratteristica>,
+  }),
+  colCar.accessor('valore', {
+    header: () => <div className="text-right">Valore</div>,
+    meta: { titolo: 'Valore', larghezza: 'w-24' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => <div className="text-right">{decimale(getValue<number>())}</div>,
+  }),
+  colCar.accessor('esito', {
+    header: 'Esito',
+    meta: { titolo: 'Esito', larghezza: 'w-32' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => {
+      const esito = getValue<Caratteristica['esito']>()
+      return (
+        <Badge className={`${TONO_ESITO[esito]} max-w-full`}>
+          <span className="truncate">{esito}</span>
+        </Badge>
+      )
+    },
+  }),
+])
+
+// La prova conta le celle tagliate della colonna «Metodo di prova»: una cella
+// è tagliata quando il suo contenuto è più largo di lei. Prima di
+// `meta.testo` la colonna troncava sempre (9 celle su 10); a capo, nessuna.
+// La colonna «Caratteristica», che resta `'tronca'`, tiene i puntini.
+async function provaColonnaACapo({ canvasElement }: { canvasElement: HTMLElement }) {
+  const tabella = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+    expect(el).toBeTruthy()
+    return el as HTMLTableElement
+  })
+  const titoli = [...tabella.querySelectorAll('thead th')].map((th) => th.textContent?.trim())
+  const colonna = titoli.indexOf('Metodo di prova')
+  expect(colonna).toBeGreaterThan(-1)
+  const celle = [...tabella.querySelectorAll<HTMLTableCellElement>('tbody tr')]
+    .map((tr) => tr.children[colonna] as HTMLTableCellElement | undefined)
+    .filter((td): td is HTMLTableCellElement => td != null)
+  expect(celle).toHaveLength(10)
+  const tagliate = celle.filter((td) => td.scrollWidth > td.clientWidth + 1)
+  expect(tagliate).toHaveLength(0)
+  for (const td of celle) expect(getComputedStyle(td).whiteSpace).toBe('normal')
+  const tronca = tabella.querySelector<HTMLTableCellElement>(
+    `tbody tr > td:nth-child(${titoli.indexOf('Caratteristica') + 1})`
+  )
+  expect(getComputedStyle(tronca as HTMLElement).textOverflow).toBe('ellipsis')
+  // Anche qui i Badge dell'esito seguono la ricetta della cella stretta. Oggi
+  // ci stanno tutti (7px di margine a densità normale): è una guardia, non
+  // la prova di un difetto.
+  await badgeDentroLeCelle(canvasElement)
+}
+
+/**
+ * Una colonna di testi descrittivi che va a capo invece di tagliarsi:
+ * `meta.testo: 'aCapo'`. Di serie una cella è `'tronca'`, cioè resta su una
+ * riga e finisce coi puntini, e le righe restano tutte alte uguali. A capo
+ * conviene solo dove il testo intero serve a chi legge la riga, come il metodo
+ * di prova qui sotto; la colonna dichiara una `larghezza`, o in una finestra
+ * stretta il testo diventerebbe una colonna di poche lettere. Nella tabella
+ * virtualizzata l'opzione non vale: lì tutte le righe devono avere la stessa
+ * altezza, e le celle restano tagliate.
+ */
+export const ColonnaACapo: StoryObj<typeof DataTable<Caratteristica>> = {
+  name: 'Colonna A Capo',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_A_CAPO}
+      dati={CARATTERISTICHE}
+      cerca={false}
+      colonneNascondibili={false}
+      perPagina={10}
+      piePagina={false}
+    />
+  ),
+}
+
+// Scena di misura di «Colonna A Capo»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const ColonnaACapoProva: StoryObj<typeof DataTable<Caratteristica>> = {
+  ...ColonnaACapo,
+  name: 'Colonna A Capo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaColonnaACapo,
+}
+
+const COLONNE_BADGE_STRETTE = colCar.columns([
+  colCar.accessor('codice', {
+    header: 'Codice',
+    meta: { titolo: 'Codice', larghezza: 'w-24' } satisfies MetaColonna<Caratteristica>,
+  }),
+  colCar.accessor('norma', {
+    header: 'Norma',
+    meta: { titolo: 'Norma', larghezza: 'w-32' } satisfies MetaColonna<Caratteristica>,
+    // La ricetta: il Badge non più largo della cella, il testo in uno `span`
+    // che finisce coi puntini.
+    cell: ({ getValue }) => (
+      <Badge variant="outline" className="max-w-full">
+        <span className="truncate">{getValue<string>()}</span>
+      </Badge>
+    ),
+  }),
+  colCar.accessor('esito', {
+    header: 'Esito',
+    meta: { titolo: 'Esito', larghezza: 'w-24' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => {
+      const esito = getValue<Caratteristica['esito']>()
+      return (
+        <Badge className={`${TONO_ESITO[esito]} max-w-full`}>
+          <span className="truncate">{esito}</span>
+        </Badge>
+      )
+    },
+  }),
+  colCar.accessor('caratteristica', {
+    header: 'Caratteristica',
+    meta: { titolo: 'Caratteristica' } satisfies MetaColonna<Caratteristica>,
+  }),
+])
+
+// Ogni Badge della tabella resta dentro la sua cella e ha il testo in uno
+// `span` che finisce coi puntini; restituisce quanti Badge li mostrano.
+async function badgeDentroLeCelle(canvasElement: HTMLElement) {
+  const badge = await waitFor(() => {
+    const el = [...canvasElement.querySelectorAll<HTMLElement>('tbody [data-slot="badge"]')]
+    expect(el.length).toBeGreaterThan(0)
+    return el
+  })
+  let conPuntini = 0
+  for (const b of badge) {
+    const td = b.closest('td') as HTMLTableCellElement
+    const stile = getComputedStyle(td)
+    const bordoUtile = td.getBoundingClientRect().right - parseFloat(stile.paddingRight)
+    expect(b.getBoundingClientRect().right).toBeLessThanOrEqual(bordoUtile + 0.5)
+    const testo = b.querySelector('span')
+    expect(testo).toBeTruthy()
+    const s = testo as HTMLElement
+    expect(getComputedStyle(s).textOverflow).toBe('ellipsis')
+    if (s.scrollWidth > s.clientWidth) conPuntini += 1
+  }
+  return conPuntini
+}
+
+// La prova guarda ogni Badge della tabella: non deve uscire dalla sua cella,
+// e se il testo non ci sta deve finire coi puntini. Il Badge nudo, senza la
+// ricetta, sborda dalla cella stretta ed è tagliato di netto dal bordo.
+async function provaBadgeInCellaStretta({ canvasElement }: { canvasElement: HTMLElement }) {
+  const conPuntini = await badgeDentroLeCelle(canvasElement)
+  // Le norme lunghe non ci stanno in `w-32`: almeno una finisce coi puntini.
+  expect(conPuntini).toBeGreaterThan(0)
+}
+
+/**
+ * Un Badge in una colonna stretta. Il Badge si allarga quanto il suo testo, e
+ * in una cella più stretta uscirebbe dal bordo, tagliato di netto. La ricetta
+ * è dare al Badge al massimo la larghezza della cella e mettere il testo in
+ * uno `span` che finisce coi puntini:
+ *
+ * ```tsx
+ * <Badge variant="outline" className="max-w-full">
+ *   <span className="truncate">{norma}</span>
+ * </Badge>
+ * ```
+ *
+ * `truncate` scritto sul Badge stesso non basta: il Badge centra il suo
+ * contenuto, e il testo verrebbe tagliato ai due lati.
+ */
+export const BadgeInCellaStretta: StoryObj<typeof DataTable<Caratteristica>> = {
+  name: 'Badge In Cella Stretta',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_BADGE_STRETTE}
+      dati={generaCaratteristiche(6, 7)}
+      cerca={false}
+      colonneNascondibili={false}
+      perPagina={10}
+      piePagina={false}
+    />
+  ),
+}
+
+// Scena di misura di «Badge In Cella Stretta»: la stessa resa, con la prova.
+// `!dev` la toglie dalla barra e da Docs, così la scena qui sopra si apre a
+// riposo; il controllo automatico la esegue lo stesso.
+export const BadgeInCellaStrettaProva: StoryObj<typeof DataTable<Caratteristica>> = {
+  ...BadgeInCellaStretta,
+  name: 'Badge In Cella Stretta, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaBadgeInCellaStretta,
 }

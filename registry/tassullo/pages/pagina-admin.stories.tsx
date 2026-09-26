@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { PlusIcon, ShieldIcon } from 'lucide-react'
+import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol } from '@/prove/apri'
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
@@ -8,6 +9,7 @@ import { PaginaAdmin, type RuoloAssegnabile, type UtenteAdmin } from '@/registry
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
+import { Toaster } from '@/registry/tassullo/ui/sonner'
 import {
   Table,
   TableBody,
@@ -16,6 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/registry/tassullo/ui/table'
+
+// La chiamata all'app, da osservare nelle prove.
+type ArgsAdmin = { onCambiaStato?: (id: string, attivo: boolean) => void }
 
 /**
  * La pagina di amministrazione: una fila di schede per le sezioni, e in
@@ -26,26 +31,32 @@ import {
  * entra e con quali ruoli, più le sezioni proprie dell'app. Un elenco di
  * dati qualunque è `tassullo-pagina-lista`.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-admin
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-admin
  * ```
  *
- * **I blocchi che la compongono**, e che arrivano con lei:
+ * **I blocchi che la compongono**, da installare nell'app per nome:
  * `tassullo-page-header`, `tabs`, `tassullo-data-table` per la tabella degli
  * utenti, `tassullo-responsive-dialog` con `toggle-group` per cambiare i
- * ruoli, `tassullo-confirm-dialog` per togliere un utente, `badge` e `toni`
- * per i ruoli, `alert` per l'avviso di sola lettura, `tassullo-page-skeleton`
+ * ruoli, `tassullo-toast-con-annullo` per disattivare un utente con
+ * l'annullo, `badge` e `toni` per i ruoli, `alert` per l'avviso di sola lettura, `tassullo-page-skeleton`
  * e `tassullo-error-state` per gli stati.
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso` e `azioni` passano a `tassullo-page-header`.
  * - `utenti`: la gestione degli utenti, montata come prima scheda. Porta
  *   `dati` (ogni utente ha `id`, `nome`, `email`, `ruoli` — più di uno — e
  *   `attivo`), `ruoli` (quelli assegnabili: `valore`, `etichetta` e un
  *   `tono` facoltativo), e le due chiamate `onCambiaRuoli(id, ruoli)` e
- *   `onRimuovi(id)`. `titolo` e `cerca` cambiano l'etichetta della scheda e
- *   il testo della ricerca. Assente, la scheda utenti non c'è.
+ *   `onCambiaStato(id, attivo)`. `titolo` e `cerca` cambiano l'etichetta
+ *   della scheda e il testo della ricerca, di serie «Cerca nome, email o
+ *   ruolo…». Assente, la scheda utenti non c'è.
  * - `sezioni`: le altre schede, dopo quella degli utenti. Ognuna ha `value`,
  *   `titolo`, `icona` facoltativa e `contenuto`, una funzione che riceve
  *   `soloLettura`.
@@ -62,8 +73,18 @@ import {
  *   forma in ogni app. Le altre sezioni sono dell'app, perché il loro
  *   contenuto cambia da un'app all'altra.
  * - I dati li tiene l'app. Il blocco chiama `onCambiaRuoli` al «Salva» del
- *   dialogo, con l'elenco intero dei ruoli, e `onRimuovi` dopo la conferma;
- *   cosa scrivere sul server lo decide l'app.
+ *   dialogo, con l'elenco intero dei ruoli, e `onCambiaStato`: subito per
+ *   «Riattiva», alla chiusura dell'avviso per «Disattiva»; cosa scrivere sul
+ *   server lo decide l'app.
+ * - «Disattiva» non chiede conferma: la riga dice subito «Disattivato», e
+ *   l'avviso offre «Annulla» per 5 secondi. Se si annulla, o si sceglie
+ *   «Riattiva» prima che l'avviso si chiuda, l'app non riceve niente. Un
+ *   utente non si cancella: si disattiva, e i suoi ruoli restano.
+ * - L'app monta `<Toaster />`, una volta sola in cima: senza, l'avviso non
+ *   compare e la disattivazione non parte.
+ * - La ricerca trova nome, email e ruoli, con le parole che la tabella
+ *   mostra. Il numero degli utenti sta nel piè della tabella, e segue la
+ *   ricerca.
  * - Ogni ruolo ha la sua `etichetta` in italiano: senza, la tabella
  *   mostrerebbe la chiave grezza.
  * - Con `soloLettura` la pagina resta leggibile: l'avviso in cima, la
@@ -73,16 +94,17 @@ import {
  *
  * **Tastiera e accessibilità.** Le schede si scorrono con le frecce, come
  * in `tabs`. Sulla tabella degli utenti il menu di riga si apre dalla
- * tendina «⋯» o col tasto destro; i due dialoghi tengono il fuoco al loro
- * interno finché sono aperti.
+ * tendina «⋯» o col tasto destro; il dialogo dei ruoli tiene il fuoco al suo
+ * interno finché è aperto. `Alt`+`T` porta il fuoco sull'avviso, e da lì
+ * `Tab` raggiunge «Annulla».
  */
 const meta = {
   title: 'Pagine/Admin',
   parameters: { layout: 'fullscreen' },
-} satisfies Meta
+} satisfies Meta<ArgsAdmin>
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Meta<ArgsAdmin>>
 
 const SEZIONI_NAV: SezioneNav[] = [
   {
@@ -177,7 +199,7 @@ function SezioneRuoli({ utenti, soloLettura }: { utenti: UtenteAdmin[]; soloLett
               <TableHead>Ruolo</TableHead>
               <TableHead>Descrizione</TableHead>
               {/* Contato sul vivo (`utenti`, lo stato della story), non sui dati
-                  iniziali — «Ruoli…» e «Rimuovi» nel tab Utenti lo cambiano
+                  iniziali — «Ruoli…» nel tab Utenti lo cambia
                   davvero, e questo conto deve muoversi con loro. */}
               <TableHead className="text-right">Utenti</TableHead>
             </TableRow>
@@ -204,9 +226,11 @@ function SezioneRuoli({ utenti, soloLettura }: { utenti: UtenteAdmin[]; soloLett
 function Guscio({
   soloLettura,
   stato,
+  onCambiaStato,
 }: {
   soloLettura?: boolean
   stato?: 'pronto' | 'caricamento' | 'errore'
+  onCambiaStato?: (id: string, attivo: boolean) => void
 }) {
   const [utenti, setUtenti] = useState(UTENTI_INIZIALI)
 
@@ -218,7 +242,10 @@ function Guscio({
         utenti={{
           dati: utenti,
           ruoli: RUOLI,
-          onRimuovi: (id) => setUtenti((righe) => righe.filter((r) => r.id !== id)),
+          onCambiaStato: (id, attivo) => {
+            onCambiaStato?.(id, attivo)
+            setUtenti((righe) => righe.map((r) => (r.id === id ? { ...r, attivo } : r)))
+          },
           onCambiaRuoli: (id, ruoli) =>
             setUtenti((righe) => righe.map((r) => (r.id === id ? { ...r, ruoli } : r))),
         }}
@@ -233,17 +260,20 @@ function Guscio({
         soloLettura={soloLettura}
         stato={stato}
       />
+      <Toaster />
     </AppShell>
   )
 }
 
 /**
  * Il caso comune: la scheda Utenti con il menu di riga — «Ruoli…» apre il
- * dialogo dei ruoli, «Rimuovi» chiede conferma, e tutte e due cambiano
- * davvero la tabella — e la scheda Ruoli, un elenco da consultare.
+ * dialogo dei ruoli, «Disattiva» disattiva l'utente subito e offre «Annulla»
+ * nell'avviso, «Riattiva» lo riattiva — e la scheda Ruoli, un elenco da
+ * consultare. La ricerca trova anche i ruoli, e il numero degli utenti sta
+ * nel piè della tabella.
  */
 export const ConDati: Story = {
-  render: () => <Guscio />,
+  render: (args) => <Guscio onCambiaStato={args.onCambiaStato} />,
   // Il grilletto di riga vive dentro il `<tbody>` del tab Utenti, aperto di
   // default (`tuttiITab[0]` in `pagina-admin.tsx`) — stessa nota di
   // `pagina-lista.stories.tsx`/`PaginaProdotti.stories.tsx`.
@@ -257,6 +287,93 @@ export const ConDati: Story = {
  */
 export const SenzaPermessi: Story = {
   render: () => <Guscio soloLettura />,
+}
+
+/*
+ * Le prove della tabella degli utenti, sulla stessa resa di «Con Dati». Alla
+ * fine di ognuna la ricerca torna vuota e la tabella com'era, perché la
+ * scansione guardi la scena a riposo.
+ */
+const ricerca = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLInputElement>('input[type="search"]')!
+
+const righeUtenti = (canvasElement: HTMLElement) =>
+  [...canvasElement.querySelectorAll('tbody tr')].filter((r) => r.textContent?.includes('@esempio.it'))
+
+// Cercando «zzz» non resta nessun utente: il numero degli utenti deve
+// comparire una volta sola, nel piè della tabella, e seguire la ricerca.
+async function provaUnConteggio({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => expect(ricerca(canvasElement)).toBeTruthy())
+  try {
+    await userEvent.type(ricerca(canvasElement), 'zzz')
+    await waitFor(() => expect(righeUtenti(canvasElement)).toHaveLength(0))
+    const conteggi = [...canvasElement.querySelectorAll('p')]
+      .map((p) => p.textContent?.trim() ?? '')
+      .filter((t) => /^\d+ utent[ei]$/.test(t))
+    expect(conteggi).toEqual(['0 utenti'])
+  } finally {
+    await userEvent.clear(ricerca(canvasElement))
+  }
+}
+
+// La ricerca guarda anche i ruoli, con le parole che la tabella mostra:
+// «editor» trova i due utenti che hanno il ruolo Editor.
+async function provaRicercaRuoli({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => expect(ricerca(canvasElement)).toBeTruthy())
+  try {
+    await userEvent.type(ricerca(canvasElement), 'editor')
+    await waitFor(() => expect(`righe ${righeUtenti(canvasElement).length}`).toBe('righe 2'))
+  } finally {
+    await userEvent.clear(ricerca(canvasElement))
+  }
+}
+
+// «Disattiva» dal menu della riga: la riga dice subito «Disattivato» e
+// l'avviso offre «Annulla»; annullando, la riga torna «Attivo» e la chiamata
+// all'app non parte.
+async function provaDisattivaConAnnullo({
+  canvasElement,
+  args,
+}: {
+  canvasElement: HTMLElement
+  args: { onCambiaStato?: (id: string, attivo: boolean) => void }
+}) {
+  const riga = () =>
+    righeUtenti(canvasElement).find((r) => r.textContent?.includes('Giorgio Pedrotti')) as HTMLElement
+  await waitFor(() => expect(riga()).toBeTruthy())
+  await userEvent.click(within(riga()).getByRole('button', { name: 'Azioni su Giorgio Pedrotti' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Disattiva' }))
+  await waitFor(() => expect(within(riga()).getByText('Disattivato')).toBeVisible())
+  const annulla = await screen.findByRole('button', { name: 'Annulla' })
+  await userEvent.click(annulla)
+  await waitFor(() => expect(within(riga()).getByText('Attivo')).toBeVisible())
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Annulla' })).toBeNull())
+  expect(args.onCambiaStato).not.toHaveBeenCalled()
+}
+
+// Scene di misura di «Con Dati»: la stessa resa, con le prove. `!dev` le
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo; il
+// controllo automatico le esegue lo stesso.
+export const ConDatiConteggioProva: Story = {
+  ...ConDati,
+  name: 'Con Dati, un conteggio, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaUnConteggio,
+}
+
+export const ConDatiRicercaRuoliProva: Story = {
+  ...ConDati,
+  name: 'Con Dati, ricerca sui ruoli, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaRicercaRuoli,
+}
+
+export const ConDatiDisattivaProva: Story = {
+  ...ConDati,
+  name: 'Con Dati, disattiva e annulla, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { onCambiaStato: fn() },
+  play: provaDisattivaConAnnullo,
 }
 
 /** `stato="caricamento"`: lo scheletro di una tabella, con la fascia già montata. */

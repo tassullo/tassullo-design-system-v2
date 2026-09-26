@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, waitFor } from 'storybook/test'
 
 import { cn } from 'cn'
 
@@ -404,8 +405,13 @@ export const AltezzaVariabile: Story = {
         const altre = [...padre.children]
           .filter((c) => c !== nodo)
           .reduce((somma, c) => somma + c.getBoundingClientRect().height, 0)
-        const scarto = parseFloat(getComputedStyle(padre).rowGap) || 0
-        const h = Math.max(192, Math.round(padre.clientHeight - altre - scarto * 2))
+        const stile = getComputedStyle(padre)
+        const scarto = parseFloat(stile.rowGap) || 0
+        // `clientHeight` comprende il margine interno del banco: si toglie,
+        // o il riquadro sarebbe più alto dello spazio che resta.
+        const interno =
+          padre.clientHeight - parseFloat(stile.paddingTop) - parseFloat(stile.paddingBottom)
+        const h = Math.max(192, Math.round(interno - altre - scarto * 2))
         nostraAltezza.current = h
         nodo.style.height = `${h}px`
       }
@@ -485,7 +491,8 @@ export const AltezzaVariabile: Story = {
       <div className="flex h-svh flex-col gap-3 p-4">
         <p className="text-muted-foreground max-w-prose shrink-0 text-xs">
           Trascina il bordo in basso a destra del riquadro per cambiarne
-          l&apos;altezza.
+          l&apos;altezza. Le letture sotto il calendario valgono nella vista
+          mese.
         </p>
         {/*
           `resize-y` vuole un `overflow` diverso da `visible` per mostrare la
@@ -511,28 +518,51 @@ export const AltezzaVariabile: Story = {
         >
           <Calendario {...args} eventi={eventi} onEventiChange={setEventi} />
         </div>
-        <dl className="flex shrink-0 flex-wrap gap-x-6 gap-y-1 text-xs">
-          {letture ? (
-            <>
-              <Lettura voce="contenitore" valore={`${intero(letture.contenitore)}px`} />
-              <Lettura voce="cella" valore={`${intero(letture.cella)}px`} />
-              <Lettura voce="passo di riga" valore={`${intero(letture.passo)}px`} />
-              <Lettura
-                voce="sovrapposizione"
-                valore={`${intero(letture.sovrapposizione)}px`}
-                allarme={letture.sovrapposizione > 0}
-              />
-              <Lettura voce="eventi visibili" valore={intero(letture.eventi)} />
-              <Lettura voce="«+N altri»" valore={intero(letture.piuAltri)} />
-              <Lettura voce="scorre" valore={letture.scorre ? 'sì' : 'no'} />
-            </>
-          ) : (
-            <span className="text-muted-foreground">Passa alla vista mese per misurare.</span>
-          )}
-        </dl>
+        {/*
+          Misure del banco, non una scheda: stanno su una riga, così il
+          calendario tiene l'altezza. Le sette voci ci sono sempre, con «—»
+          fuori dalla vista mese: una riga che cambiasse passando da una vista
+          all'altra sposterebbe il fondo della pagina.
+        */}
+        <div className="shrink-0 text-xs">
+          <dl className="flex flex-wrap gap-x-6 gap-y-1">
+            <Lettura voce="contenitore" valore={letture && `${intero(letture.contenitore)}px`} />
+            <Lettura voce="cella" valore={letture && `${intero(letture.cella)}px`} />
+            <Lettura voce="passo di riga" valore={letture && `${intero(letture.passo)}px`} />
+            <Lettura
+              voce="sovrapposizione"
+              valore={letture && `${intero(letture.sovrapposizione)}px`}
+              allarme={!!letture && letture.sovrapposizione > 0}
+            />
+            <Lettura voce="eventi visibili" valore={letture && intero(letture.eventi)} />
+            <Lettura voce="«+N altri»" valore={letture && intero(letture.piuAltri)} />
+            <Lettura voce="scorre" valore={letture && (letture.scorre ? 'sì' : 'no')} />
+          </dl>
+        </div>
       </div>
     )
   },
+}
+
+// Prova: le letture del banco stanno su una riga sotto il calendario, e il
+// riquadro tiene l'altezza che resta. Scritte una per riga, sette righe
+// toglievano al calendario 168px a 1440 e l'ultima settimana non si vedeva.
+async function lettureSuUnaRiga({ canvasElement }: { canvasElement: HTMLElement }) {
+  const termini = await waitFor(() => {
+    const el = [...canvasElement.querySelectorAll<HTMLElement>('dl dt')]
+    expect(el).toHaveLength(7)
+    return el
+  })
+  const cime = new Set(termini.map((dt) => Math.round(dt.getBoundingClientRect().top)))
+  expect(cime.size, 'righe occupate dalle letture').toBe(1)
+}
+
+// Scena di misura di «Altezza variabile»: la stessa resa, con la prova.
+export const AltezzaVariabileProva: Story = {
+  ...AltezzaVariabile,
+  name: 'Altezza variabile, prova',
+  tags: ['!dev', '!autodocs'],
+  play: lettureSuUnaRiga,
 }
 
 function Lettura({
@@ -541,7 +571,7 @@ function Lettura({
   allarme,
 }: {
   voce: string
-  valore: string
+  valore: string | null
   allarme?: boolean
 }) {
   return (
@@ -553,7 +583,7 @@ function Lettura({
           allarme && 'text-destructive-subtle-foreground',
         )}
       >
-        {valore}
+        {valore ?? '—'}
       </dd>
     </div>
   )

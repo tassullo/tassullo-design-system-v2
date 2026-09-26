@@ -7,6 +7,10 @@ import { temaStorybook } from './tema-storybook'
 
 // Tailwind + i token del tema, che `src/index.css` importa dal registry.
 import '../src/index.css'
+// Inter: lo stesso file che le app ricevono in `public/` e collegano da
+// `index.html`. Il canvas di Storybook non passa da `index.html`, e il
+// workbench non passa da qui: ognuno lo carica nella forma che ha.
+import '../registry/tassullo/theme/inter.css'
 // Il canvas di Storybook dipinto coi token, non col bianco di Storybook.
 import './preview.css'
 import { withFinestraDocs } from './prove/finestra'

@@ -378,6 +378,14 @@ export function creaColonne<TDato extends RowData>() {
  * rese (misurato: `w-48` che valeva 288 rendeva 279). Non è un guasto, è un
  * modo silenzioso di non ottenere ciò che si è chiesto.
  *
+ * **Una colonna senza larghezza non scende sotto 160px** (40 unità di
+ * `--spacing`, 240px in touch). La tabella non si stringe sotto la somma
+ * delle larghezze dichiarate più quel minimo per ogni colonna senza: sotto,
+ * il riquadro scorre di lato. Vale solo se ogni `larghezza` è nella forma
+ * `w-<n>`; con `w-1/4` o simili il minimo non si calcola. Per una lista
+ * pensata anche per il telefono, la risposta non è stringere le colonne ma
+ * una faccia a schede, scelta con `useSoglia`.
+ *
  * `larghezza` **si ignora** su una tabella `ridimensionabile`/`colonneBloccabili`:
  * lì la larghezza di partenza si dichiara con `size` — il campo
  * *di TanStack*, sulla colonna stessa (`col.accessor("nome", { size: 220 })`),
@@ -425,6 +433,45 @@ export type MetaColonna<TDato = unknown> = {
    * stessi — spegne solo l'icona che il blocco aggiungerebbe da sé.
    */
   azioniProprie?: boolean
+  /**
+   * Come si comporta un testo più lungo della colonna. Di serie `"tronca"`:
+   * la cella resta su una riga e finisce coi puntini, e le righe restano
+   * tutte alte uguali. Con `"aCapo"` il testo va a capo e la riga cresce
+   * quanto serve: per i testi descrittivi che chi legge la riga deve vedere
+   * interi (un metodo di prova, una nota).
+   *
+   * **Una colonna a capo dichiara `larghezza`.** Senza, in una finestra
+   * stretta la colonna prende solo il minimo che le resta e il testo diventa
+   * una colonna di poche parole per riga.
+   *
+   * **Con `perPagina="virtuale"` l'opzione si ignora**, come `pannelloRiga`:
+   * la finestra di righe si calcola su righe di altezza uguale, e con righe
+   * alte il doppio l'altezza dell'elenco salterebbe mentre si scorre. Le celle
+   * restano tagliate.
+   *
+   * Un campo a valori e non un sì/no, così un terzo modo non chiederà un
+   * secondo interruttore che contraddice il primo.
+   */
+  testo?: "tronca" | "aCapo"
+}
+
+/**
+ * Il minimo di una colonna senza larghezza, in unità di `--spacing` (come
+ * `w-40`): 160px in densità normale, 240 in touch. Si somma alle larghezze
+ * dichiarate per dare alla tabella la sua larghezza minima (v.
+ * `larghezzaMinima` in `DataTable`).
+ */
+const MINIMO_ELASTICA = 40
+
+/**
+ * Le classi del testo di una cella del corpo, da `meta.testo`. `truncate` è il
+ * prezzo di `table-fixed`: con le larghezze decise dalle intestazioni, un
+ * testo più lungo della colonna **sborda** nella colonna accanto invece di
+ * allargarla, e si taglia coi puntini. A capo, `break-words` spezza anche una
+ * parola sola più larga della colonna (un codice lungo, un indirizzo).
+ */
+function classeTestoCella(meta: Pick<MetaColonna, "testo"> | undefined) {
+  return meta?.testo === "aCapo" ? "whitespace-normal break-words" : "truncate"
 }
 
 /** Una colonna già tipizzata sulle caratteristiche di casa. */
@@ -2369,14 +2416,12 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
             ? ancoraggioColonna(tabella, cella.column, "cella")
             : undefined
           return (
-            // `truncate` è il prezzo di `table-fixed`: con le larghezze
-            // decise dalle intestazioni, un testo più lungo della sua
-            // colonna **sborda** nella colonna accanto invece di allargarla:
-            // meglio tagliarlo coi puntini.
+            // Tagliato coi puntini o a capo, secondo `meta.testo`
+            // (`classeTestoCella`).
             <TableCell
               key={cella.id}
               className={cn(
-                "truncate",
+                classeTestoCella(cella.column.columnDef.meta as MetaColonna<TDato> | undefined),
                 bloccoLegacy && classiBloccate(indice, selezione),
                 ancoraCella?.className
               )}
@@ -2837,6 +2882,9 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
                 ? ancoraggioColonna(tabella, cella.column, "cella")
                 : undefined
               return (
+                // Sempre `truncate`, anche con `meta.testo: "aCapo"`: la
+                // finestra di righe vuole righe di altezza uguale (v. `testo`
+                // in `MetaColonna`).
                 <TableCell
                   key={cella.id}
                   className={cn(
@@ -3741,6 +3789,47 @@ export function DataTable<TDato extends RowData>({
   const colonneVisibili = tabella.getVisibleFlatColumns().length
 
   /**
+   * La larghezza sotto cui la tabella non scende. Con `table-fixed`, quando
+   * le colonne dichiarate non stanno nel riquadro, la colonna senza
+   * larghezza andava a 0px e il suo titolo finiva sopra quello accanto. Qui
+   * la tabella non scende sotto la somma delle larghezze dichiarate più
+   * `MINIMO_ELASTICA` unità di `--spacing` per ogni colonna senza larghezza;
+   * sotto quella somma il riquadro scorre di lato, con lo scorrimento che
+   * `Table` ha già. Dove la tabella ci sta, non cambia niente.
+   *
+   * La somma è in unità di `--spacing`, la stessa delle utility `w-*`
+   * (`w-28` vale 28 unità), quindi segue la densità da sé. Con
+   * `ridimensionabile`/`colonneBloccabili` le larghezze sono i `size` di
+   * TanStack, in pixel, e le due parti si sommano. Una `larghezza` che non è
+   * `w-<n>` (`w-1/4`, `w-auto`) non si può sommare: allora il minimo non si
+   * calcola, e la tabella si comporta come prima.
+   */
+  const larghezzaMinima = (() => {
+    let unita = 0
+    let px = 0
+    for (const colonna of tabella.getVisibleLeafColumns()) {
+      if (conDimensioni) {
+        if (colonna.columnDef.size != null || dimensioni[colonna.id] != null) {
+          px += colonna.getSize()
+        } else {
+          unita += MINIMO_ELASTICA
+        }
+        continue
+      }
+      const larghezza = (colonna.columnDef.meta as MetaColonna | undefined)?.larghezza
+      if (!larghezza) {
+        unita += MINIMO_ELASTICA
+        continue
+      }
+      const passi = /^w-(\d+(?:\.\d+)?)$/.exec(larghezza.trim())
+      if (!passi) return undefined
+      unita += Number(passi[1])
+    }
+    if (unita === 0) return px > 0 ? `${px}px` : undefined
+    return px > 0 ? `calc(${px}px + var(--spacing) * ${unita})` : `calc(var(--spacing) * ${unita})`
+  })()
+
+  /**
    * L'ordine di intestazioni e celle. **Nessuna caratteristica di
    * raggruppamento è registrata** (`caratteristiche`, sopra), quindi
    * `getHeaderGroups()` torna sempre un gruppo solo — le stesse colonne di
@@ -4276,6 +4365,11 @@ export function DataTable<TDato extends RowData>({
               "[&_td]:border-e [&_td]:border-border [&_th]:border-e [&_th]:border-border [&_td:last-child]:border-e-0 [&_th:last-child]:border-e-0"
           )}
           {...attributiTabella}
+          style={
+            larghezzaMinima === undefined
+              ? attributiTabella?.style
+              : { ...attributiTabella?.style, minWidth: larghezzaMinima }
+          }
         >
           {/*
             Il `<colgroup>` di `ridimensionabile`/`colonneBloccabili`: qui la

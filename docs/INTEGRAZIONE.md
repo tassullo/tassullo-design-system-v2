@@ -34,8 +34,9 @@ Il catalogo contiene quattro famiglie di cose:
 - i **blocchi**: pezzi applicativi già composti — il guscio con la colonna di
   navigazione, l'intestazione di pagina, la tabella dati, il calendario, gli
   stati vuoto ed errore;
-- le **pagine modello**: login, lista, scheda, cruscotto, amministrazione,
-  pagina d'errore. Sono il punto da cui parte una pagina nuova.
+- le **pagine d'esempio**: login, lista, scheda, cruscotto, amministrazione,
+  pagina d'errore. Mostrano come si compongono i blocchi: si leggono e si
+  ricompongono nell'app, non si installano.
 
 Perché un registry e non un pacchetto: i componenti di shadcn sono pensati per
 essere copiati e letti, non importati da una scatola chiusa. L'app vede il
@@ -154,7 +155,7 @@ Senza questa riga i componenti che dipendono da altri componenti del catalogo
 — quasi tutti i blocchi e tutte le pagine — falliscono con
 `Unknown registry "@tassullo"`, e l'MCP del passo 5 non vede il catalogo.
 
-**La versione sta nell'indirizzo.** `v2.0.4` è l'etichetta della versione: fissata
+**La versione sta nell'indirizzo.** `v2.0.5` è l'etichetta della versione: fissata
 lì, l'app riceve sempre gli stessi file, e non cambia niente finché non si decide di
 aggiornare. Le etichette sono elencate nella pagina *Tags* del repository su GitHub;
 una versione più recente si adotta cambiando l'etichetta nell'indirizzo (vedi
@@ -205,13 +206,26 @@ variables and components will be overwritten. Continue?* Si risponde **`y`**.
 In un'app appena creata non c'è niente di nostro da perdere: la palette di
 partenza che la CLI sta per coprire è proprio quella che il passo 7 toglie.
 
-Arrivano tre file in `src/` — `tassullo-theme.css` (i colori, i raggi, la
-densità), `tassullo-inter.css` (il carattere) con la sua licenza
-`tassullo-inter-OFL.txt`, e `tassullo-logo.css` (il marchio) — e i loro
-`@import` in `src/index.css`. Il carattere viaggia **dentro** il CSS: l'app
-non fa nessuna richiesta di rete per la tipografia, né a Google né altrove.
-Nessuno dei tre file si modifica a mano: al prossimo aggiornamento verrebbero
-riscritti.
+Arrivano due file in `src/` — `tassullo-theme.css` (i colori, i raggi, la
+densità) e `tassullo-logo.css` (il marchio), con i loro `@import` in
+`src/index.css` — e due in `public/`: `tassullo-inter-4.1.css` (il carattere)
+con la sua licenza `tassullo-inter-OFL.txt`. Il carattere viaggia **dentro** il
+CSS: l'app non fa nessuna richiesta di rete per la tipografia, né a Google né
+altrove. Nessuno di questi file si modifica a mano: al prossimo aggiornamento
+verrebbero riscritti.
+
+**Il carattere si collega a mano**, in `index.html`, nel `<head>`:
+
+```html
+<link rel="stylesheet" href="/tassullo-inter-4.1.css" />
+```
+
+Non si importa da `src/index.css`: Vite lo fonderebbe nel CSS dell'app, che
+cambia nome a ogni rilascio, e i 200 KB del carattere si riscaricherebbero per
+una classe cambiata. Da `public/`, col nome che cambia solo quando cambia il
+carattere, resta nella cache del browser (a un rilascio si riscaricano circa
+21 KB invece di 174). Se il collegamento manca il testo esce nel carattere di
+sistema senza nessun errore: `tassullo-controllo` (passo 11) lo verifica.
 
 ### 7. Via la palette di partenza di shadcn (a mano)
 
@@ -262,6 +276,8 @@ getComputedStyle(document.body).fontFamily       // comincia con "Inter"
 
 Se lo sfondo è bianco puro e il carattere è Geist, il passo 7 non è stato
 fatto per intero.
+Se lo sfondo è giusto ma il carattere è quello di sistema, manca il
+collegamento del passo 6 in `index.html`.
 
 ### 9. Densità «touch», solo se l'app si usa in campo
 
@@ -293,7 +309,7 @@ npx shadcn@latest add @tassullo/tassullo-controllo
 Arriva un file solo, `scripts/tassullo-controllo.mjs`, nella cartella di
 `components.json`. Si lancia con `node scripts/tassullo-controllo.mjs` e va
 fra i passi che la CI dell'app esegue a ogni push, accanto a `tsc` e alla
-build. Controlla tre cose:
+build. Controlla quattro cose:
 
 - i file installati dal design system sono identici a quelli della versione
   scritta in `components.json` (li confronta la riga di comando di shadcn);
@@ -302,7 +318,10 @@ build. Controlla tre cose:
   lì dentro è un errore;
 - il codice dell'app segue le regole del blocco per il `CLAUDE.md` (valori
   arbitrari, esadecimali, `text-primary`, finestre del browser, tendine
-  native, numeri…), e `components.json` ha `base-nova` e una versione fissata.
+  native, numeri, `Button` usati come collegamento…), e `components.json` ha
+  `base-nova` e una versione fissata;
+- il carattere è collegato da `index.html` col nome del file installato in
+  `public/`, e nessun CSS dell'app lo importa.
 
 Esce con errore alla prima violazione e dice perché. Una riga che deve fare
 eccezione porta un commento `tassullo-controllo: <il motivo>`. Vuole la rete
@@ -424,36 +443,52 @@ una dozzina di avvisi sul codice di terzi:
 }
 ```
 
-## Da dove partire: le pagine modello
+## Da dove partire: il guscio e le pagine d'esempio
 
-Una pagina nuova non si compone da zero: si parte dalla pagina modello che le
-somiglia di più. Ognuna arriva **con tutti i blocchi e le primitive che le
-servono**.
+Una pagina nuova si compone con i blocchi e le primitive. Il guscio si monta
+una volta sola, attorno a tutta l'app; dentro, ogni pagina dichiara la sua
+intestazione e mette i suoi blocchi. Ogni blocco arriva **con tutte le
+primitive che gli servono**.
 
 | item | per cosa | comando |
 |---|---|---|
 | `tassullo-app-shell` | il guscio: colonna di navigazione, fascia in alto, menu dell'utente. Si monta una volta, attorno a tutta l'app | `npx shadcn@latest add @tassullo/tassullo-app-shell` |
-| `tassullo-pagina-lista` | un elenco da cercare, filtrare, aprire | `npx shadcn@latest add @tassullo/tassullo-pagina-lista` |
-| `tassullo-pagina-scheda` | il dettaglio di un record, a schede, con lo storico | `npx shadcn@latest add @tassullo/tassullo-pagina-scheda` |
-| `tassullo-pagina-dashboard` | il cruscotto: indicatori, due grafici, attività recenti | `npx shadcn@latest add @tassullo/tassullo-pagina-dashboard` |
-| `tassullo-pagina-admin` | utenti e ruoli | `npx shadcn@latest add @tassullo/tassullo-pagina-admin` |
-| `tassullo-pagina-login` | l'accesso, con Microsoft e/o credenziali | `npx shadcn@latest add @tassullo/tassullo-pagina-login` |
-| `tassullo-pagina-errore` | 404, accesso negato, errore del server, manutenzione | `npx shadcn@latest add @tassullo/tassullo-pagina-errore` |
+| `tassullo-page-header` | percorso e azioni della pagina, nella fascia del guscio | `npx shadcn@latest add @tassullo/tassullo-page-header` |
+| `tassullo-data-table` | la tabella: ricerca, ordinamento, paginazione, stati vuoti | `npx shadcn@latest add @tassullo/tassullo-data-table` |
 
 Anche qui prima `--dry-run`, poi il comando vero. Più item si installano
 insieme scrivendoli uno dopo l'altro nello stesso `add`. A fine installazione
 la CLI **stampa le istruzioni d'uso** di ogni item: vanno lette, sono scritte
-apposta per chi installa. Ogni pagina modello ha la sua pagina nella style
-guide, sezione *Pagine*, con le scene e il codice.
+apposta per chi installa.
 
 I file arrivano in `src/components/`: le primitive in `src/components/ui/`, i
-blocchi in `src/components/blocks/`, le pagine in `src/components/pages/`, e
-si importano con l'alias `@/components/…`.
+blocchi in `src/components/blocks/`, e si importano con l'alias
+`@/components/…`.
+
+**Le pagine d'esempio.** Per non partire da zero, il registry ha sei pagine
+d'esempio che mostrano come i blocchi stanno insieme:
+
+| pagina d'esempio | per cosa |
+|---|---|
+| `tassullo-pagina-lista` | un elenco da cercare, filtrare, aprire |
+| `tassullo-pagina-scheda` | il dettaglio di un record, a schede, con lo storico |
+| `tassullo-pagina-dashboard` | il cruscotto: indicatori, due grafici, attività recenti |
+| `tassullo-pagina-admin` | utenti e ruoli |
+| `tassullo-pagina-login` | l'accesso, con Microsoft e/o credenziali |
+| `tassullo-pagina-errore` | 404, accesso negato, errore del server, manutenzione |
+
+Si guardano nella style guide, sezione *Pagine*, e se ne legge il codice
+intero con `npx shadcn@latest view @tassullo/tassullo-pagina-lista`, o
+chiedendolo all'MCP. **Non si installano e non si importano**: nell'app la
+pagina si scrive nella cartella delle pagine (`src/pages/`), e si installano
+per nome i blocchi che usa. Una pagina installata con `add` finirebbe in
+`src/components/pages/`, dove un file del design system non si modifica:
+resterebbe lì senza servire.
 
 ### Esempio: una lista dentro il guscio
 
 ```bash
-npx shadcn@latest add @tassullo/tassullo-app-shell @tassullo/tassullo-pagina-lista
+npx shadcn@latest add @tassullo/tassullo-app-shell @tassullo/tassullo-page-header @tassullo/tassullo-data-table
 ```
 
 `src/App.tsx`:
@@ -462,8 +497,8 @@ npx shadcn@latest add @tassullo/tassullo-app-shell @tassullo/tassullo-pagina-lis
 import { PackageIcon, PlusIcon, TruckIcon } from "lucide-react"
 
 import { AppShell, type SezioneNav } from "@/components/blocks/app-shell"
-import { creaColonne } from "@/components/blocks/data-table"
-import { PaginaLista } from "@/components/pages/pagina-lista"
+import { creaColonne, DataTable } from "@/components/blocks/data-table"
+import { PageHeader } from "@/components/blocks/page-header"
 
 type Prodotto = { codice: string; nome: string; famiglia: string }
 
@@ -497,24 +532,37 @@ export default function App() {
       utente={{ nome: "Stefano", cognome: "Bertolini", email: "stefano.bertolini@esempio.it" }}
       contenuto="riempie"
     >
-      <PaginaLista
-        percorso={[{ titolo: "Prodotti" }]}
-        azioni={[{ titolo: "Nuovo prodotto", icona: PlusIcon, ruolo: "primaria" }]}
-        colonne={COLONNE}
-        dati={PRODOTTI}
-        cerca="Cerca codice, nome…"
-        perPagina={25}
-      />
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <PageHeader
+          percorso={[{ titolo: "Prodotti" }]}
+          azioni={[{ titolo: "Nuovo prodotto", icona: PlusIcon, ruolo: "primaria" }]}
+        />
+        <DataTable
+          colonne={COLONNE}
+          dati={PRODOTTI}
+          cerca="Cerca codice, nome…"
+          nomeRighe={{ singolare: "prodotto", plurale: "prodotti" }}
+          perPagina={25}
+          altezza="ferma"
+          className="min-h-0 flex-1"
+        />
+      </div>
     </AppShell>
   )
 }
 ```
 
 `contenuto="riempie"` serve alla lista: il guscio si ferma all'altezza della
-finestra e la tabella scorre al suo interno. Le voci di navigazione sono un
-dato: `attiva` la calcola l'app, e i collegamenti si passano con `render` (un
-`<NavLink>` di react-router, per esempio). Il resto delle prop è nelle
-istruzioni che la CLI stampa e nella style guide.
+finestra, la pagina è una colonna `flex h-full min-h-0 flex-col`, e la
+tabella con `altezza="ferma"` riempie lo spazio che resta e scorre al suo
+interno. Nel modo `contenuto="scorre"`, il predefinito, scorre invece la
+finestra, e la fascia in alto resta ferma in cima. `<PageHeader>` non occupa
+spazio dove sta scritta: percorso e azioni compaiono nella fascia del guscio.
+Le voci di navigazione sono un dato: `attiva` la calcola l'app, e i
+collegamenti si passano con `render` (un `<NavLink>` di react-router, per
+esempio). Il resto delle prop è nelle istruzioni che la CLI stampa e nella
+style guide; la stessa lista con gli stati di caricamento, errore e lista
+vuota è la pagina d'esempio `tassullo-pagina-lista`.
 
 Poi:
 
@@ -602,7 +650,7 @@ propone al design system come variante del tema.
 
 Una versione nuova si adotta in due gesti. Prima si cambia l'etichetta
 nell'indirizzo di `@tassullo` in `components.json` (per esempio da `v2.0.1` a
-`v2.0.4`); poi si reinstallano gli item installati per nome, il tema per primo:
+`v2.0.5`); poi si reinstallano gli item installati per nome, il tema per primo:
 
 ```bash
 npx shadcn@latest add @tassullo/<item> --overwrite
@@ -610,9 +658,17 @@ npx shadcn@latest add @tassullo/<item> --overwrite
 
 Ogni comando riscrive anche gli item da cui quello dipende. Poi si
 ricopiano le righe del lint dal passo 12, che nella versione nuova possono
-essere cambiate. Poi si guarda il diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
+essere cambiate.
+
+**Da una versione che installava il carattere in `src/`** (fino a `v2.0.4`):
+dopo l'aggiornamento del tema si cancellano `src/tassullo-inter.css` e
+`src/tassullo-inter-OFL.txt`, si toglie da `src/index.css` la riga
+`@import "./tassullo-inter.css";` e si aggiunge in `index.html` il
+collegamento del passo 6. Se il nome del file del carattere cambia (cambia
+solo con una versione nuova di Inter), il collegamento si aggiorna allo stesso
+modo; `tassullo-controllo` segnala le tre cose. Poi si guarda il diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
 — ed è la ragione per cui non si modifica. Cosa è cambiato fra due versioni lo
-dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.3...v2.0.4`.
+dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.4...v2.0.5`.
 
 ## Regole da inserire nel CLAUDE.md della nuova app
 
@@ -645,11 +701,13 @@ installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
   tutti. Ogni item installato per nome si annota nella checklist dell'app
   (`CHECKLIST.md`, sezione «Design system»): sono quelli da reinstallare a ogni
   aggiornamento, e le primitive arrivano con loro.
-- Una pagina nuova parte dalla pagina modello più vicina
-  (`tassullo-pagina-lista`, `-scheda`, `-dashboard`, `-admin`, `-login`,
-  `-errore`): si installa e si usa il suo componente (`PaginaLista`, …) con le
-  sue prop, senza copiarne il file. Se nessuna somiglia, si compone con i
-  blocchi e le primitive.
+- Una pagina nuova si compone con i blocchi, partendo dalla pagina d'esempio
+  più vicina (`tassullo-pagina-lista`, `-scheda`, `-dashboard`, `-admin`,
+  `-login`, `-errore`), che si guarda e non si importa: se ne legge il codice
+  con `npx shadcn@latest view @tassullo/<pagina>` o dall'MCP, la pagina si
+  scrive nella cartella delle pagine dell'app, e si installano per nome i
+  blocchi che usa. Se nessuna somiglia, si compone con i blocchi e le
+  primitive.
 
 **I file del design system non si modificano qui.**
 - Si aggiornano dal registry e non si correggono in casa: una modifica locale
@@ -696,12 +754,36 @@ installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
   `data-density="normale"` riporta un pezzo di pagina alla densità da
   scrivania. Con la densità crescono bersagli e testi; raggi, bordi, larghezze
   massime e la larghezza della colonna laterale restano uguali.
-- Il carattere è Inter e arriva col tema: niente altri font, niente Google
+- Il carattere è Inter e arriva col tema, in `public/`, collegato da
+  `index.html` e mai importato dal CSS: niente altri font, niente Google
   Fonts. `font-mono` solo per il codice sorgente mostrato in pagina.
 
 **Il nome dice la funzione, non l'aspetto.** `badge` è un'etichetta che si
 legge; `toggle-group` è un filtro che si clicca. Prima di scegliere un
 componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
+
+**Un collegamento non è un `Button`.** Ciò che porta a un'altra pagina —
+«Torna a…», «Apri sul sito», il nome che apre la scheda — è il `Link` del
+router o un `<a>`, con l'aspetto preso da `buttonVariants({ variant, size })`:
+
+```tsx
+<Link to="/prodotti" className={cn(buttonVariants({ variant: "outline" }))}>
+  Torna ai prodotti
+</Link>
+```
+
+Le classi passano per `cn`: da solo `buttonVariants` lascia il bordo
+trasparente della base accanto a quello della variante, vince il primo, e un
+link `outline` esce senza bordo, senza nessun errore. `Button` il `cn` lo fa
+da sé.
+
+`Button` è il bottone di Base UI: col `render` di un collegamento scrive un
+errore in console e mette `type="button"` sull'`<a>`; con
+`nativeButton={false}` il collegamento diventa un bottone (`role="button"`:
+`getByRole("link")` non lo trova, `Spazio` lo apre). È la forma che shadcn
+documenta per il Button («As Link»). Un collegamento non si disabilita: se la
+destinazione non c'è, non si rende. `tassullo-controllo` rifiuta un `Button`
+col `render` di un `<a>` o di un `…Link`.
 
 **Numeri.**
 - I numeri da confrontare in colonna hanno `tabular-nums`, non un altro
@@ -723,8 +805,10 @@ componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
   resto della riga; fuori dalle tabelle, un codice accanto a un nome prende
   `text-sm text-muted-foreground`.
 - Se una riga di tabella apre una pagina, il collegamento sta su una colonna
-  sola — il codice o il nome — ed è un `Button variant="link"` col `render` del
-  collegamento (`<a>` o il `Link` del router), non un testo colorato a mano.
+  sola — il codice o il nome — ed è il `Link` del router (o un `<a>`) con
+  l'aspetto del bottone `link`, non un testo colorato a mano né un `Button`
+  (vedi «Un collegamento non è un `Button`», sopra):
+  `className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0 font-medium")}`.
 
 **Classi con `cn`.** Nel codice dell'app si importa da `@/lib/utils`; i file
 del design system la prendono dal pacchetto `cn`, ed è la stessa funzione. Fra
@@ -744,7 +828,7 @@ design system, non si spegne la regola: si apre una proposta.
 
 **Aggiornare.**
 - La versione del design system sta nell'indirizzo di `@tassullo` in
-  `components.json`: un'etichetta git come `v2.0.4` (l'elenco è nella pagina
+  `components.json`: un'etichetta git come `v2.0.5` (l'elenco è nella pagina
   *Tags* del repository su GitHub). `main`, l'ultima versione pubblicata, serve
   solo a provare.
 - Un item si aggiorna reinstallandolo, poi si legge il diff:
@@ -754,7 +838,7 @@ design system, non si spegne la regola: si apre una proposta.
 - La forma lunga, `tassullo/tassullo-design-system-v2/<item>`, qui non serve.
   Senza `#` prende `main` qualunque cosa dica `components.json`, e un solo
   `add` porterebbe file di due versioni; se proprio si usa, porta `#` e la
-  stessa versione (`…/badge#v2.0.4`).
+  stessa versione (`…/badge#v2.0.5`).
 ```
 
 ## Nel piano dell'app
@@ -787,9 +871,9 @@ design system, non si spegne la regola: si apre una proposta.
 ## Design system
 
 > Lo stile viene dal Design System Tassullo 2.0
-> (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.4`**,
+> (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.5`**,
 > quella scritta in `components.json`. **Item installati per
-> nome**: `tema`, `tassullo-controllo`, `tassullo-app-shell`, `tassullo-pagina-lista` — le primitive
+> nome**: `tema`, `tassullo-controllo`, `tassullo-app-shell`, `tassullo-page-header`, `tassullo-data-table` — le primitive
 > arrivano come dipendenze e non si elencano. Un item nuovo si aggiunge qui
 > quando si installa. Le regole stanno nel `CLAUDE.md`, sezione «Stile e
 > design system».

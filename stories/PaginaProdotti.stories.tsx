@@ -1,5 +1,8 @@
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { reset as azzeraAvvisiBaseUI } from '@base-ui/utils/error'
+import { cn } from 'cn'
+import { expect, waitFor, within } from 'storybook/test'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
@@ -50,7 +53,7 @@ import {
 import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
-import { Button } from '@/registry/tassullo/ui/button'
+import { Button, buttonVariants } from '@/registry/tassullo/ui/button'
 import { Card } from '@/registry/tassullo/ui/card'
 import {
   Collapsible,
@@ -350,10 +353,13 @@ const COLONNE = col.columns([
     // `text-accent-ink` nel resto del tema (`--primary` non è mai testo).
     // Senza una pagina scheda da aprire in Storybook resta un `#`: qui conta
     // la forma, non la destinazione — è la FASE 4 a costruire la pagina vera.
+    // Un collegamento, non un `Button` col `render` di un `<a>`: quello
+    // scriveva un errore di Base UI in console e metteva `type="button"` sul
+    // link (40 su 40). Nell'app, al posto dell'`<a>`, il `Link` del router.
     cell: ({ getValue }) => (
-      <Button variant="link" size="sm" className="h-auto p-0 font-medium" render={<a href="#" />}>
+      <a href="#" className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'h-auto p-0 font-medium')}>
         {getValue<string>()}
-      </Button>
+      </a>
     ),
   }),
   col.accessor('variante', {
@@ -1095,6 +1101,44 @@ export const ConDati: Story = {
   // e nemmeno quello del menu colonna, in `thead`. Il grilletto di riga
   // vive dentro il `<tbody>` (stessa nota di `pagina-lista.stories.tsx`).
   play: apriCol('tbody [data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+// Scena di misura di «Con dati»: il nome di ogni riga resta un collegamento.
+// Le 40 righe caricate all'apertura sono 40 link senza `type` e senza
+// `role="button"`, e Base UI non scrive in console l'errore del bottone
+// che rende un non-bottone. Il registro degli avvisi di Base UI si svuota
+// prima del render, perché ogni messaggio lo scrive una volta per pagina e
+// una scena precedente lo avrebbe già consumato. `!dev` la toglie dalla
+// barra e da Docs; il gate la esegue.
+const erroriConsole: string[] = []
+
+export const ConDatiProva: Story = {
+  ...ConDati,
+  name: 'Con dati, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: () => {
+    azzeraAvvisiBaseUI()
+    erroriConsole.length = 0
+    const originale = console.error
+    console.error = (...argomenti: unknown[]) => {
+      erroriConsole.push(argomenti.map(String).join(' '))
+      originale(...argomenti)
+    }
+    return () => {
+      console.error = originale
+    }
+  },
+  play: async ({ canvasElement }) => {
+    const corpo = await waitFor(() => {
+      const t = canvasElement.querySelector('tbody')
+      if (!t || t.querySelectorAll('tr').length < 40) throw new Error('righe non ancora rese')
+      return t as HTMLElement
+    })
+    const link = within(corpo).getAllByRole('link')
+    await expect(link).toHaveLength(40)
+    await expect(link.filter((a) => a.hasAttribute('type'))).toHaveLength(0)
+    await expect(erroriConsole.filter((m) => m.includes('nativeButton'))).toHaveLength(0)
+  },
 }
 
 /**

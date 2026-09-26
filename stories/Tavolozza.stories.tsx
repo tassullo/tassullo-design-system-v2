@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import {
   differenceCiede2000,
@@ -189,41 +189,45 @@ function Tavola({ modalita }: { modalita: 'chiaro' | 'scuro' }) {
         </div>
       ))}
 
-      <dl className="flex flex-col gap-1 text-xs">
-        {lette
-          ? VISIONI.map((v) => {
-              const { dE: d, coppia } = coppiaPiuVicina(lette.tinte, v.f)
-              const sottoSoglia = d < 5
-              return (
-                <div key={v.id} className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted-foreground">{v.nome}</dt>
-                  <dd className="tabular-nums">
-                    {coppia[0]} e {coppia[1]} ·{' '}
-                    <span
-                      className={cn(
-                        'font-medium',
-                        sottoSoglia && 'text-destructive-subtle-foreground',
-                      )}
-                    >
-                      ΔE {decimale(d, 1)}
-                    </span>
-                  </dd>
-                </div>
-              )
-            })
-          : null}
-        {lette ? (
-          <div className="border-border/60 flex items-baseline justify-between gap-4 border-t pt-1">
-            <dt className="text-muted-foreground">contrasto dal fondo</dt>
-            <dd className="tabular-nums">
-              da {decimale(Math.min(...contrasti), 2)} a {decimale(Math.max(...contrasti), 2)} ·{' '}
-              <span className="font-medium">
-                {contrasti.filter((r) => r >= 3).length} su 10 sopra 3:1
-              </span>
-            </dd>
-          </div>
-        ) : null}
-      </dl>
+      <div className="@container text-xs">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+          {lette
+            ? VISIONI.map((v) => {
+                const { dE: d, coppia } = coppiaPiuVicina(lette.tinte, v.f)
+                const sottoSoglia = d < 5
+                return (
+                  <Fragment key={v.id}>
+                    <dt className="text-muted-foreground">{v.nome}</dt>
+                    <dd className="tabular-nums">
+                      {coppia[0]} e {coppia[1]} ·{' '}
+                      <span
+                        className={cn(
+                          'font-medium',
+                          sottoSoglia && 'text-destructive-subtle-foreground',
+                        )}
+                      >
+                        ΔE {decimale(d, 1)}
+                      </span>
+                    </dd>
+                  </Fragment>
+                )
+              })
+            : null}
+          {lette ? (
+            <>
+              <dt className="border-border/60 text-muted-foreground border-t pt-1">
+                contrasto dal fondo
+              </dt>
+              <dd className="border-border/60 tabular-nums @sm:border-t @sm:pt-1">
+                da {decimale(Math.min(...contrasti), 2)} a {decimale(Math.max(...contrasti), 2)} ·{' '}
+                <span className="font-medium">
+                  {contrasti.filter((r) => r >= 3).length} su 10 sopra 3:1
+                </span>
+              </dd>
+            </>
+          ) : null}
+        </dl>
+      </div>
     </div>
   )
 }

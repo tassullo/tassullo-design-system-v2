@@ -16,14 +16,19 @@ import { Button } from '@/registry/tassullo/ui/button'
  * funziona, è `tassullo-error-state`; un elenco ancora vuoto è
  * `tassullo-empty-state`.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-errore
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-errore
  * ```
  *
  * È composta sulla primitiva `empty`, la stessa di `tassullo-empty-state` e
  * `tassullo-error-state`, con i toni di `lib/toni`.
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `variante`: `"404"`, `"accesso-negato"`, `"errore-server"` o
  *   `"manutenzione"`. Sceglie icona, tono, titolo e messaggio di default.

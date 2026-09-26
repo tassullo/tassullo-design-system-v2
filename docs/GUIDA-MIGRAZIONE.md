@@ -68,7 +68,7 @@ shadcn, invece di riscriverli. Installarli richiede la migrazione; consultarli n
        "hooks": "@/hooks"
      },
      "registries": {
-       "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.4/public/r/{name}.json"
+       "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.5/public/r/{name}.json"
      }
    }
    ```
@@ -124,7 +124,7 @@ niente: le regole di stile restano quelle del v1.»
 ## Prima del ramo: l'inventario
 
 La migrazione si pianifica leggendo le pagine una per una: per ognuna, che cosa è (lista,
-scheda, dialogo, cruscotto) e quale pagina modello o quale blocco del v2 la sostituisce.
+scheda, dialogo, cruscotto) e quale pagina d'esempio o quale blocco del v2 la sostituisce.
 L'MCP del passo 0 serve proprio a questo. L'esempio fatto è Anagrafe:
 `docs/ANALISI-COPERTURA-APP.md` §9, 19 pagine.
 
@@ -187,8 +187,11 @@ ragione, e il ramo va riallineato spesso al principale.
    come nel passo 3 di `docs/INTEGRAZIONE.md`, e il registry si rimette come al passo 4.
 3. **Il tema** e **via la palette di partenza**: passi 6 e 7 di `docs/INTEGRAZIONE.md`.
    Alla domanda della CLI («Existing CSS variables and components will be overwritten») si
-   risponde `y`: in un `index.css` pieno di regole v1 aggiunge i tre `@import` del tema e
-   non tocca le regole che ci sono (provato su Anagrafe). Da qui le pagine non ancora
+   risponde `y`: in un `index.css` pieno di regole v1 aggiunge i due `@import` del tema e
+   non tocca le regole che ci sono (provato su Anagrafe). Il carattere arriva in
+   `public/tassullo-inter-4.1.css` e si collega da `index.html` con
+   `<link rel="stylesheet" href="/tassullo-inter-4.1.css" />`, come dice il passo 6: non si
+   importa da `index.css`. Da qui le pagine non ancora
    migrate cambiano aspetto (l'azzeramento, vedi sopra): è atteso, ed è il motivo per cui il
    ramo non va in produzione a metà.
 
@@ -201,11 +204,18 @@ ragione, e il ramo va riallineato spesso al principale.
    e del suo layout. Le voci diventano dati (`sezioni`), la voce attiva la calcola l'app, i
    collegamenti passano con `render`. Accanto al guscio, una volta sola in cima all'app, si
    monta `<Toaster />` (primitiva `sonner`): senza, i `toast` non compaiono e non danno
-   errore.
-5. **Le pagine**, dalla pagina modello più vicina (`tassullo-pagina-lista`, `-scheda`,
-   `-dashboard`, `-admin`, `-login`, `-errore`) o componendo i blocchi. Si installa con
-   `npx shadcn@latest add @tassullo/<item>`, e si tiene l'elenco degli item installati per
-   nome: finirà nel paragrafo «Design system» della checklist (punto 9). Due librerie non
+   errore. Nel modo `contenuto="scorre"`, il predefinito, scorre la finestra e la fascia in
+   alto resta ferma: un'area che scorre scritta a mano sotto la fascia, per tenerla ferma,
+   non serve più e si toglie. Le tab di una scheda si tengono ferme sotto la fascia come
+   nella pagina d'esempio `tassullo-pagina-scheda`.
+5. **Le pagine**, ricomposte con i blocchi e le primitive, partendo dalla pagina d'esempio
+   più vicina (`tassullo-pagina-lista`, `-scheda`, `-dashboard`, `-admin`, `-login`,
+   `-errore`): la si guarda nella style guide e se ne legge il codice con
+   `npx shadcn@latest view @tassullo/<pagina>`, poi la pagina si riscrive nella cartella
+   delle pagine dell'app. Le pagine d'esempio non si installano e non si importano: si
+   installano i blocchi che usano, con `npx shadcn@latest add @tassullo/<item>`, e si tiene
+   l'elenco degli item installati per nome: finirà nel paragrafo «Design system» della
+   checklist (punto 9). Due librerie non
    arrivano con nessun item e si installano da sé quando servono: `@tassullo/toni` (i toni
    di `Badge` e `Alert`) e `@tassullo/numeri`. Il file `.css` della pagina si cancella con
    la pagina.
@@ -253,7 +263,7 @@ ragione, e il ramo va riallineato spesso al principale.
 | `.btn-danger` | `Button variant="destructive"` | |
 | `.btn-lg`, `.btn-icon` | `Button size="lg"`, `size="icon"` | |
 | `.btn-block` | `Button` con `className="w-full"` | |
-| `.link` | `Button variant="link"` (col `render` del collegamento) | |
+| `.link` | il `Link` del router (o un `<a>`) con `cn(buttonVariants({ variant: "link" }))`: un collegamento non è un `Button` | |
 | `.input` su `<input>` | `Input` dentro `Field` | o dentro `tassullo-form-field`, che però vuole **react-hook-form**: se l'app non lo usa, adottarlo vuol dire riscrivere i moduli |
 | `.input` su `<select>` | `select` (lista corta) o `combobox` (lista lunga) | mai il `<select>` nativo |
 | `.input` su `<textarea>` | `Textarea` | |
@@ -271,7 +281,7 @@ ragione, e il ramo va riallineato spesso al principale.
 | stato vuoto a mano | `tassullo-empty-state` | |
 | `.sidebar`, `.sidebar-item` e il layout dell'app | `tassullo-app-shell` | |
 | breadcrumb «← Elenco» | `tassullo-page-header` (il `percorso`) | |
-| barra di tab a mano | `Tabs`, o `tassullo-pagina-scheda` | |
+| barra di tab a mano | `Tabs` | come nella pagina d'esempio `tassullo-pagina-scheda`; con più tab di quante ne stiano in riga, la ricetta «Molte Tab» con la `Select` |
 | finestra modale a mano | `tassullo-responsive-dialog` | Esc, fuoco, clic fuori, e il cassetto sul telefono |
 | `window.confirm(…)` | `tassullo-confirm-dialog` | |
 | `window.prompt(…)` | `tassullo-confirm-dialog` col campo obbligatorio | |
@@ -365,8 +375,8 @@ Vanno decise nell'app, durante la migrazione.
   `@/hooks/use-soglia`). Come si sceglie: si apre la
   pagina, si restringe la finestra, e la soglia è la larghezza sotto cui una colonna che
   serve va a capo o si tronca. Si scrive come `(min-width: …)` nella pagina.
-- **Il logo Microsoft** del bottone d'accesso resta dell'app: `tassullo-pagina-login` lo
-  prende come nodo.
+- **Il logo Microsoft** del bottone d'accesso resta dell'app: nella pagina d'esempio
+  `tassullo-pagina-login` arriva come nodo, `logoMicrosoft`.
 - **Il calendario a eventi** vuole dal backend, per ogni evento, un inizio e una fine
   (`end` esclusivo: un fermo del solo 9 settembre finisce alle 00:00 del 10), le mezzanotti
   del fuso di visualizzazione per gli eventi di un giorno intero, e un `id` stabile.

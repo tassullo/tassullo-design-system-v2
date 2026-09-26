@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { cn } from 'cn'
 import {
   BookOpenIcon,
   ChevronDownIcon,
@@ -26,7 +27,7 @@ import { PaginaLista } from '@/registry/tassullo/pages/pagina-lista'
 import { apriCol } from '@/prove/apri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
-import { Button } from '@/registry/tassullo/ui/button'
+import { Button, buttonVariants } from '@/registry/tassullo/ui/button'
 import { Card } from '@/registry/tassullo/ui/card'
 import {
   Collapsible,
@@ -52,30 +53,43 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * `tassullo-data-table`; per correggere i dati cella per cella c'è
  * `tassullo-data-grid`.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-lista
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-lista
  * ```
  *
- * **I blocchi che la compongono**, e che arrivano con lei:
+ * **I blocchi che la compongono**, da installare nell'app per nome:
  * `tassullo-page-header` per il percorso e le azioni nella fascia,
  * `tassullo-data-table` per la tabella, `tassullo-empty-state`,
  * `tassullo-error-state` e `tassullo-page-skeleton` per i tre stati, e
  * `use-soglia` per la faccia stretta. La pagina non aggiunge CSS suo.
  *
+ * Nell'app la pagina si ricompone così, coi blocchi:
+ *
  * ```tsx
  * <AppShell contenuto="riempie" …>
- *   <PaginaLista
- *     percorso={[{ titolo: 'Norme' }]}
- *     azioni={[{ titolo: 'Nuova norma', icona: PlusIcon, ruolo: 'primaria' }]}
- *     colonne={colonne}
- *     dati={norme}
- *     cerca="Cerca codice, titolo…"
- *     perPagina={25}
- *   />
+ *   <div className="flex h-full min-h-0 flex-col gap-4">
+ *     <PageHeader
+ *       percorso={[{ titolo: 'Norme' }]}
+ *       azioni={[{ titolo: 'Nuova norma', icona: PlusIcon, ruolo: 'primaria' }]}
+ *     />
+ *     <DataTable
+ *       colonne={colonne}
+ *       dati={norme}
+ *       cerca="Cerca codice, titolo…"
+ *       perPagina={25}
+ *       altezza="ferma"
+ *       className="min-h-0 flex-1"
+ *     />
+ *   </div>
  * </AppShell>
  * ```
  *
- * **Le prop.**
+ * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso` e `azioni` passano a `tassullo-page-header`: il nome della
  *   pagina è l'ultimo livello del percorso, e fra le azioni una sola è
@@ -241,18 +255,14 @@ const COLONNE = col.columns([
     sortFn: 'alphanumeric',
     size: 140,
     minSize: 90,
-    // Il codice è il varco alla scheda di norma — `variant="link"` e non un
-    // colore a mano, stessa forma della colonna "Nome" di Prodotti: senza una
-    // pagina scheda da aprire in Storybook resta un `#`, qui conta la forma.
+    // Il codice è il varco alla scheda di norma: un collegamento con le
+    // classi di `buttonVariants({ variant: "link" })`, non un colore a mano e
+    // non un `Button`, che è un bottone. Nell'app è il `Link` del router; qui,
+    // senza una scheda da aprire, resta un `#`.
     cell: ({ getValue }) => (
-      <Button
-        variant="link"
-        size="sm"
-        className="h-auto p-0 text-sm"
-        render={<a href="#" />}
-      >
+      <a href="#" className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'h-auto p-0 text-sm')}>
         {getValue<string>()}
-      </Button>
+      </a>
     ),
   }),
   col.accessor('titolo', {

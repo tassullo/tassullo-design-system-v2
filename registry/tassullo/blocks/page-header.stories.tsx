@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { PlusIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
+import { ExternalLinkIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol } from '@/prove/apri'
 import {
@@ -50,6 +51,9 @@ import { Badge } from '@/registry/tassullo/ui/badge'
  *   non è un collegamento.
  * - `azioni`: ogni azione ha `titolo`, `icona`, `ruolo` (`"primaria"`,
  *   `"secondaria"`, `"distruttiva"`), `onClick` o `href`, `disabilitata`.
+ *   Con `href` l'azione è un collegamento con l'aspetto di un bottone, nella
+ *   fascia larga e nel menu «⋮», e come ogni collegamento si può aprire in
+ *   una scheda nuova.
  * - `titolo`: il titolo della pagina per chi non vede lo schermo, un `h1`
  *   nascosto alla vista. Se non si passa, è l'ultimo livello del percorso.
  * - Fuori dal guscio, `IntestazioneProvider` e `FasciaIntestazione` montano la
@@ -280,4 +284,74 @@ export const Contatore: Story = {
       <PageHeader {...args} />
     </Banco>
   ),
+}
+
+/**
+ * Un'azione che porta a un indirizzo invece di fare qualcosa: con `href`, «Apri
+ * sul sito» è un collegamento con l'aspetto di un bottone. Resta un
+ * collegamento in tutte e due le forme: nella fascia larga, e come voce del
+ * menu «⋮» nella fascia stretta.
+ */
+export const AzioneCollegamento: Story = {
+  name: 'Azione con collegamento',
+  args: {
+    percorso: PERCORSO,
+    azioni: [
+      { titolo: 'Apri sul sito', icona: ExternalLinkIcon, ruolo: 'secondaria', href: 'https://www.esempio.it/prodotti' },
+      AZIONI[1]!,
+    ],
+  },
+  render: (args) => (
+    <Banco didascalia="Fascia larga — «Apri sul sito» è un collegamento.">
+      <PageHeader {...args} />
+    </Banco>
+  ),
+}
+
+/*
+ * La prova che un'azione con `href` resta un collegamento. Nella fascia larga
+ * è un link (il ruolo e l'indirizzo), senza l'attributo `type` di un bottone;
+ * poi il riquadro si stringe a 20rem, le azioni entrano nel menu «⋮», e la
+ * voce «Apri sul sito» deve avere lo stesso indirizzo. Alla fine il menu si
+ * chiude e il riquadro torna com'era, perché la scansione guardi la scena a
+ * riposo.
+ */
+async function provaAzioneCollegamento({ canvasElement }: { canvasElement: HTMLElement }) {
+  const indirizzo = 'https://www.esempio.it/prodotti'
+  const fascia = await waitFor(() => {
+    const f = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"]')
+    expect(f).toBeTruthy()
+    return f!
+  })
+  const link = await within(fascia).findByRole('link', { name: 'Apri sul sito' })
+  expect(link).toHaveAttribute('href', indirizzo)
+  expect(`type: ${link.getAttribute('type')}`).toBe('type: null')
+  // Ha il bordo dell'azione secondaria, cioè del bottone `outline`.
+  expect(getComputedStyle(link).borderTopColor, 'bordo del collegamento').not.toBe('rgba(0, 0, 0, 0)')
+
+  const riquadro = fascia.parentElement!
+  riquadro.style.width = '20rem'
+  try {
+    const altre = await within(fascia).findByRole('button', { name: 'Altre azioni' })
+    await waitFor(() => expect(altre).toBeVisible())
+    await userEvent.click(altre)
+    const voce = await screen.findByRole('menuitem', { name: 'Apri sul sito' })
+    expect(`href della voce: ${voce.closest('a')?.getAttribute('href') ?? null}`).toBe(
+      `href della voce: ${indirizzo}`,
+    )
+  } finally {
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    riquadro.style.width = ''
+  }
+}
+
+// Scena di misura di «Azione con collegamento»: la stessa resa, con la prova.
+// `!dev` la toglie dalla barra e da Docs, così la scena qui sopra si apre a
+// riposo; il controllo automatico la esegue lo stesso.
+export const AzioneCollegamentoProva: Story = {
+  ...AzioneCollegamento,
+  name: 'Azione con collegamento, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaAzioneCollegamento,
 }

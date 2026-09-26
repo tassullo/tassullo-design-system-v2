@@ -102,6 +102,15 @@ const SHADCN_TOKENS = new Set([
 ]);
 
 /**
+ * I token di disposizione del tema: stanno nel blocco `@theme` e generano
+ * un'utility con un nome nostro (`--grid-template-columns-termine` →
+ * `grid-cols-termine`, la ricetta delle coppie termine–valore). Con un tema
+ * che ne perde uno la classe non emette niente, senza errore, come un
+ * `text-md`: il gate deve saperlo.
+ */
+const TOKEN_DISPOSIZIONE = ["grid-template-columns-termine"];
+
+/**
  * Un valore arbitrario è una parentesi quadra che NON apre una variante.
  * Con i due punti dopo è una VARIANTE (`has-data-[icon=inline-end]:pr-2`,
  * `not-aria-[haspopup]:translate-y-px`): legittima, inevitabile, e non è ciò
@@ -927,6 +936,17 @@ function main(): void {
         "Un componente non ancora ri-stilato che li usa renderebbe senza colore.",
     );
   }
+  const cssTema = existsSync(THEME_FILE) ? readFileSync(THEME_FILE, "utf8") : "";
+  const disposizioneMancanti = TOKEN_DISPOSIZIONE.filter(
+    (t) => !new RegExp(`^\\s+--${t}\\s*:`, "m").test(cssTema),
+  );
+  if (disposizioneMancanti.length > 0) {
+    err(
+      THEME_FILE,
+      `il tema non definisce più ${disposizioneMancanti.map((t) => `--${t}`).join(", ")}: ` +
+        "l'utility che ne nasce non emette niente, e le ricette che la usano si sfanno senza errore.",
+    );
+  }
   const custom = [...tema].filter((t) => !SHADCN_TOKENS.has(t)).sort();
 
   // Solo i nomi che hanno la FORMA di un token: le utility Tailwind non-colore
@@ -939,6 +959,9 @@ function main(): void {
   console.log(`\nToken\n`);
   console.log(`  ${tema.size} definiti dal tema, di cui ${custom.length} custom Tassullo`);
   console.log(`  ${SHADCN_TOKENS.size - mancanti.length}/${SHADCN_TOKENS.size} token standard shadcn presenti`);
+  console.log(
+    `  ${TOKEN_DISPOSIZIONE.length - disposizioneMancanti.length}/${TOKEN_DISPOSIZIONE.length} token di disposizione presenti`,
+  );
   console.log(
     `  ${suCustom.length} token custom usati DENTRO i componenti` +
       (suCustom.length > 0 ? `: ${suCustom.join(", ")}` : " — nessuno"),
