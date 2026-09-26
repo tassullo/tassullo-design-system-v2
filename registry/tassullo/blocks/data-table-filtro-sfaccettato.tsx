@@ -177,11 +177,6 @@ export type OpzioneFiltro = {
   count?: number
 }
 
-/** `"pubblicato"` → `"Pubblicato"`. Solo la prima lettera: sono già parole. */
-function formattaEtichetta(valore: string): string {
-  return valore.length > 0 ? valore.charAt(0).toUpperCase() + valore.slice(1) : valore
-}
-
 /**
  * Le righe che passano ogni filtro **tranne** quello della colonna
  * `chiaveColonna` — colonna per colonna, più la ricerca globale. Porting di
@@ -205,14 +200,32 @@ export function righeSenzaFiltroColonna<TDato extends RowData>(
   if (altriFiltri.length === 0 && !ricerca) return righeCore
 
   const filtraGlobale = ricerca ? tabella.getGlobalFilterFn() : undefined
+  // La ricerca si applica come la applica TanStack: la funzione globale lavora
+  // **per colonna** (legge `riga.getValue(id)`), e una riga passa se almeno
+  // una delle colonne che la ricerca guarda corrisponde. Chiamata con un id
+  // che non è una colonna leggerebbe `undefined`, scarterebbe ogni riga e
+  // lascerebbe il filtro senza voci.
+  const colonneRicerca = filtraGlobale
+    ? tabella.getAllLeafColumns().filter((colonna) => colonna.getCanGlobalFilter())
+    : []
+  // Il testo cercato passa per `resolveFilterValue`, come fa TanStack prima di
+  // filtrare: per la ricerca di serie è il minuscolo. Passato così com'è,
+  // «Calce» non corrispondeva a nessun valore (già in minuscolo dalla
+  // funzione) e il filtro restava senza voci mentre la tabella ne mostrava.
+  const ricercaRisolta = filtraGlobale?.resolveFilterValue?.(ricerca) ?? ricerca
 
   return righeCore.filter((riga) => {
     for (const filtro of altriFiltri) {
       const colonna = tabella.getColumn(filtro.id)
       const filtraColonna = colonna?.getFilterFn()
-      if (filtraColonna && !filtraColonna(riga, filtro.id, filtro.value, () => {})) return false
+      const valore = filtraColonna?.resolveFilterValue?.(filtro.value) ?? filtro.value
+      if (filtraColonna && !filtraColonna(riga, filtro.id, valore, () => {})) return false
     }
-    if (filtraGlobale && !filtraGlobale(riga, "__globale__", ricerca, () => {})) return false
+    if (
+      filtraGlobale &&
+      !colonneRicerca.some((colonna) => filtraGlobale(riga, colonna.id, ricercaRisolta, () => {}))
+    )
+      return false
     return true
   })
 }
@@ -260,7 +273,10 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
     }
 
     return Array.from(conteggi.entries())
-      .map(([value, count]) => ({ value, label: formattaEtichetta(value), count }))
+      // L'etichetta è il valore com'è scritto nel dato, maiuscole e minuscole
+      // comprese: il filtro dice la stessa cosa della tabella, e «mm» non
+      // diventa «Mm». Un testo diverso dal valore si dà con `opzioni`.
+      .map(([value, count]) => ({ value, label: value, count }))
       .sort((a, b) => a.label.localeCompare(b.label, "it"))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabella, righeCore, chiaveColonna, filtriColonna, ricerca, opzioniStatiche])
@@ -279,7 +295,9 @@ export type FiltroSfaccettatoProps<TDato extends RowData> = {
   /**
    * Elenco fisso delle opzioni, invece di derivarle dai dati. Utile quando i
    * valori possibili sono più dei valori presenti nella pagina corrente di
-   * dati finti/di prova, o quando l'ordine non deve essere alfabetico.
+   * dati finti/di prova, quando l'ordine non deve essere alfabetico, o quando
+   * l'etichetta deve essere diversa dal valore: senza `opzioni` ogni voce è
+   * il valore com'è scritto nel dato, maiuscole e minuscole comprese.
    */
   opzioni?: OpzioneFiltro[]
 }

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { RowData } from '@tanstack/react-table'
+import type { ExpandedState, RowData } from '@tanstack/react-table'
 import {
   CheckIcon,
   ChevronsDownUpIcon,
@@ -7,10 +7,12 @@ import {
   CopyIcon,
   EllipsisVerticalIcon,
   PencilIcon,
+  RefreshCwIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react'
 import * as React from 'react'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol, apriColDestro } from '@/prove/apri'
 import {
@@ -392,7 +394,10 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * - Le colonne: `bloccaPrimaColonna`, `ridimensionabile`, `colonneBloccabili`,
  *   `colonneRiordinabili`, `bordiColonna`.
  * - Le righe: `idRiga`, `getSottoRighe`, `pannelloRiga`, `menuRiga`,
- *   `riordinabile`, `chiaveMemoRiga`, `piede`.
+ *   `riordinabile`, `chiaveMemoRiga`, `piede`. Le righe aperte, dell'albero o
+ *   del dettaglio, le tiene il blocco; la pagina che le vuole tenere lei passa
+ *   `righeEspanse` e `onRigheEspanseChange`. Con `idRiga` le righe aperte
+ *   restano aperte anche quando cambiano i `dati`.
  * - `onTabellaPronta` consegna l'istanza di TanStack, per un comando che il
  *   blocco non traduce in una prop: `toggleAllRowsExpanded()`, per esempio.
  *
@@ -623,6 +628,18 @@ export const MenuDelleColonne: Story = {
   play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 }
 
+// La prova: la maniglia dell'ultima intestazione sta dentro la tabella. A
+// cavallo del bordo sporgeva di 4px, e il riquadro scorreva di lato anche con
+// le colonne che ci stavano largamente (scrollWidth 994 su 990).
+async function provaSenzaScorrimentoLaterale({ canvasElement }: { canvasElement: HTMLElement }) {
+  const scorre = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+    expect(el?.querySelector('thead [role="separator"]')).toBeTruthy()
+    return el as HTMLElement
+  })
+  expect(scorre.scrollWidth).toBe(scorre.clientWidth)
+}
+
 /**
  * Colonne ridimensionabili: il filo sul bordo destro di ogni intestazione si
  * trascina, o si comanda con `Alt`+`←`/`→` dall'intestazione. «Famiglia»
@@ -637,6 +654,16 @@ export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
     perPagina: 10,
     ridimensionabile: true,
   },
+}
+
+// Scena di misura di «Ridimensionabile»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const RidimensionabileProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...Ridimensionabile,
+  name: 'Ridimensionabile, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaSenzaScorrimentoLaterale,
 }
 
 /**
@@ -1059,6 +1086,78 @@ export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
   render: () => <AlberoConControlli />,
 }
 
+function AlberoConRicercaControlli() {
+  const tabellaRef = React.useRef<IstanzaTabella<RigaComputo> | null>(null)
+  return (
+    <div className="flex flex-col gap-3">
+      <BottoniEspansione tabellaRef={tabellaRef} />
+      <DataTable
+        colonne={COLONNE_ALBERO}
+        dati={COMPUTO}
+        idRiga={(riga) => riga.id}
+        cerca="Cerca una voce o un ambiente…"
+        colonneNascondibili={false}
+        getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+        nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+        nomeSottoRighe={{ singolare: 'misurazione', plurale: 'misurazioni' }}
+        vuoto={{ titolo: 'Nessuna voce nel computo' }}
+        onTabellaPronta={(t) => {
+          tabellaRef.current = t
+        }}
+      />
+    </div>
+  )
+}
+
+// La prova cerca un ambiente, che sta solo nelle misurazioni (secondo
+// livello), e lo trova. Prima la ricerca lavorava dall'alto: la voce madre non
+// conteneva il testo e veniva scartata con tutte le sue misurazioni, quindi
+// 0 righe e «Nessun risultato». Il conto in fondo dice voci e misurazioni
+// rimaste, anche prima di aprire le voci. Poi cerca una voce per nome: resta
+// con tutte le sue misurazioni, non con le sole che contengono il testo.
+async function provaAlberoConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  await userEvent.type(canvas.getByRole('searchbox'), 'corridoio')
+  await waitFor(() => expect(canvas.queryByText('Nessun risultato')).toBeNull())
+  await waitFor(() =>
+    expect(canvas.getByRole('status')).toHaveTextContent('4 voci, 5 misurazioni')
+  )
+  await userEvent.click(canvas.getByRole('button', { name: 'Espandi tutto' }))
+  await waitFor(() =>
+    expect(canvas.getAllByText(/corridoio/).length).toBeGreaterThan(0)
+  )
+
+  // Una voce trovata per il suo nome porta con sé tutte le sue misurazioni.
+  const ricerca = canvas.getByRole('searchbox')
+  await userEvent.clear(ricerca)
+  await userEvent.type(ricerca, 'Scavo')
+  await waitFor(() =>
+    expect(canvas.getByRole('status').textContent).toMatch(/^1 voce, [1-9]\d* misurazion/)
+  )
+}
+
+/**
+ * La ricerca in un albero guarda anche le righe figlie: cercando un ambiente,
+ * che sta solo nelle misurazioni, restano le voci che ne hanno almeno una, e
+ * sotto ciascuna le sole misurazioni che corrispondono. Cercando una voce per
+ * nome, invece, la voce resta con tutte le sue misurazioni. Con
+ * `nomeSottoRighe` il conto in fondo dice le voci e le misurazioni rimaste.
+ */
+export const AlberoConRicerca: StoryObj<typeof DataTable<RigaComputo>> = {
+  name: 'Albero Con Ricerca',
+  render: () => <AlberoConRicercaControlli />,
+}
+
+// Scena di misura di «Albero Con Ricerca»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const AlberoConRicercaProva: StoryObj<typeof DataTable<RigaComputo>> = {
+  ...AlberoConRicerca,
+  name: 'Albero Con Ricerca, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaAlberoConRicerca,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * L'espansione (M3bis.2) — pannello di dettaglio per riga
  *
@@ -1122,6 +1221,82 @@ export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <EspansioneConControlli />,
 }
 
+function EspansioneConRicarica() {
+  const [prodotti, setProdotti] = React.useState(() => PRODOTTI.slice(0, 10))
+  const [espanse, setEspanse] = React.useState<ExpandedState>({})
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          // Gli stessi prodotti in oggetti nuovi, come dopo un salvataggio.
+          onClick={() => setProdotti((prima) => prima.map((p) => ({ ...p })))}
+        >
+          <RefreshCwIcon aria-hidden />
+          Ricarica i dati
+        </Button>
+      </div>
+      <DataTable
+        colonne={COLONNE.filter((c) => c.id !== 'azioni')}
+        dati={prodotti}
+        idRiga={(p) => p.id}
+        righeEspanse={espanse}
+        onRigheEspanseChange={setEspanse}
+        cerca={false}
+        colonneNascondibili={false}
+        perPagina={10}
+        pannelloRiga={(prodotto: Prodotto) =>
+          prodotto.stato === 'archiviato' ? null : (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
+              <dt className="text-muted-foreground">Famiglia</dt>
+              <dd>{prodotto.famiglia}</dd>
+              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+              <dd>{DATA.format(prodotto.aggiornato)}</dd>
+            </dl>
+          )
+        }
+      />
+    </div>
+  )
+}
+
+// La prova apre il dettaglio della prima riga, ricarica i dati e conta i
+// pannelli aperti: prima della coppia `righeEspanse`/`onRigheEspanseChange`
+// il cambio di `dati` li richiudeva tutti (1 prima, 0 dopo).
+async function provaEspansioneDopoRicarica({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const pannelli = () => canvasElement.querySelectorAll('[id^="pannello-riga-"]').length
+  const [freccia] = await canvas.findAllByRole('button', { name: 'Espandi dettaglio riga' })
+  await userEvent.click(freccia)
+  await waitFor(() => expect(pannelli()).toBe(1))
+  await userEvent.click(canvas.getByRole('button', { name: 'Ricarica i dati' }))
+  await new Promise((fatto) => setTimeout(fatto, 200))
+  expect(pannelli()).toBe(1)
+}
+
+/**
+ * Le righe aperte restano aperte quando i dati cambiano: dopo un salvataggio,
+ * un caricamento, un filtro fatto dalla pagina. La pagina tiene lo stato con
+ * `righeEspanse` e `onRigheEspanseChange`, e le righe hanno un'identità loro
+ * con `idRiga`. «Ricarica i dati» rimette gli stessi prodotti in oggetti nuovi.
+ */
+export const EspansioneDopoRicarica: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Espansione Con Ricarica',
+  render: () => <EspansioneConRicarica />,
+}
+
+// Scena di misura di «Espansione Con Ricarica»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const EspansioneDopoRicaricaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...EspansioneDopoRicarica,
+  name: 'Espansione Con Ricarica, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaEspansioneDopoRicarica,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * La virtualizzazione (M3bis.4) — `perPagina="virtuale"`
  * ──────────────────────────────────────────────────────────────────────── */
@@ -1150,6 +1325,25 @@ export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
  */
 const PRODOTTI_VIRTUALIZZAZIONE = generaProdotti(10000)
 
+// La prova confronta lo spazio sotto le righe montate con le righe che
+// restano per l'altezza vera di una riga. Senza l'indice sulla riga il
+// virtualizzatore non misurava niente, e contava ogni riga alla stima di
+// 44px: 439.076px sotto 21 righe da 37, cioè 69.853px di troppo.
+async function provaRigheMisurate({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => {
+    const scorre = canvasElement.querySelector('[data-slot="table-container"]')
+    const righe = [...(scorre?.querySelectorAll('tbody tr') ?? [])]
+    const montate = righe.filter((r) => !r.hasAttribute('aria-hidden'))
+    expect(montate.length).toBeGreaterThan(0)
+    const altezza = montate[0].getBoundingClientRect().height
+    const indice = righe.indexOf(montate[montate.length - 1])
+    const sopra = indice > montate.length - 1 ? righe[0].getBoundingClientRect().height : 0
+    const sotto = righe[indice + 1]?.getBoundingClientRect().height ?? 0
+    const restano = PRODOTTI_VIRTUALIZZAZIONE.length - Math.round(sopra / altezza) - montate.length
+    expect(Math.abs(sotto - restano * altezza)).toBeLessThan(altezza)
+  })
+}
+
 /**
  * Diecimila prodotti in un riquadro fermo, con nel DOM solo le righe in vista.
  * Col fuoco su una riga, `Fine` porta all'ultima dell'elenco.
@@ -1169,6 +1363,81 @@ export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
       <DataTable {...args} className="min-h-0 flex-1" />
     </div>
   ),
+}
+
+// Scena di misura di «Virtualizzata»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const VirtualizzataProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...Virtualizzata,
+  name: 'Virtualizzata, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaRigheMisurate,
+}
+
+// La prova misura due cose del riquadro fermo, in un browser vero. Che
+// all'apertura non sia già scorso: lo snap delle righe agganciava la prima riga
+// sotto l'intestazione ferma, e la tabella partiva scorsa di un'intestazione.
+// E che il tetto sia a pixel interi, con la riga di fondo che finisce sotto il
+// bordo del riquadro: righe di testo alte una frazione di pixel davano un tetto
+// frazionario, e la riga di fondo lasciava il suo filo accanto al bordo.
+async function provaAltezzaFerma({ canvasElement }: { canvasElement: HTMLElement }) {
+  const scorre = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+    expect(el?.parentElement?.style.maxHeight).toMatch(/px$/)
+    return el as HTMLElement
+  })
+  const riquadro = scorre.parentElement as HTMLElement
+  await new Promise((fatto) => setTimeout(fatto, 300))
+  expect(scorre.scrollTop).toBe(0)
+  const tetto = parseFloat(riquadro.style.maxHeight)
+  expect(Number.isInteger(tetto)).toBe(true)
+  const fondoInterno = scorre.getBoundingClientRect().bottom
+  const righe = [...scorre.querySelectorAll('tbody tr')]
+  const inVista = righe.filter((r) => r.getBoundingClientRect().top < fondoInterno)
+  const fondoRiga = inVista[inVista.length - 1].getBoundingClientRect().bottom
+  // Il filo della riga è il suo ultimo pixel: sta sotto il bordo, fuori vista.
+  expect(fondoRiga - 1).toBeGreaterThanOrEqual(fondoInterno)
+}
+
+const COLONNE_TESTO = COLONNE.filter((c) =>
+  ['nome', 'famiglia', 'revisione', 'aggiornato'].includes(
+    'accessorKey' in c ? String(c.accessorKey) : ''
+  )
+)
+
+/**
+ * Il riquadro fermo in un contenitore alto 560px, con sessanta righe di solo
+ * testo. All'apertura la prima riga è in vista sotto l'intestazione, e il
+ * riquadro finisce sotto il filo dell'ultima riga intera: il suo bordo è
+ * l'unica linea in fondo.
+ */
+export const AltezzaFerma: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Altezza Ferma',
+  args: {
+    colonne: COLONNE_TESTO,
+    dati: PRODOTTI.slice(0, 60),
+    cerca: false,
+    colonneNascondibili: false,
+    perPagina: 100,
+    altezza: 'ferma',
+    nomeRighe: { singolare: 'prodotto', plurale: 'prodotti' },
+  },
+  render: (args) => (
+    <div className="flex h-140 flex-col">
+      <DataTable {...args} className="min-h-0 flex-1" />
+    </div>
+  ),
+}
+
+// Scena di misura di «Altezza Ferma»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const AltezzaFermaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...AltezzaFerma,
+  name: 'Altezza Ferma, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaAltezzaFerma,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1295,13 +1564,71 @@ export const Filtri: StoryObj<typeof DataTable<Prodotto>> = {
 }
 
 /**
- * Con «Bozza» già scelto: il grilletto mostra il valore scelto, le opzioni di
+ * Con «bozza» già scelto: il grilletto mostra il valore scelto, le opzioni di
  * Famiglia restano tutte, e il bottone che azzera i filtri è in vista.
  */
 export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Filtri Con Filtro Attivo',
   play: apriCol('[data-slot="popover-trigger"]', 'popover-content'),
   render: () => <TabellaConFiltri statoIniziale={['bozza']} />,
+}
+
+// La prova cerca «Calce» e apre il filtro Stato: le voci devono essere gli
+// stati dei prodotti che la ricerca lascia passare, scritte come nel dato,
+// con il loro conteggio.
+// Prima la ricerca si applicava con un id di colonna fittizio, che non legge
+// nessun valore: il filtro diceva «Nessun risultato.» (0 voci su 4).
+async function provaFiltriConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  // Con la maiuscola: la ricerca non distingue, e i conteggi dei filtri
+  // devono seguirla (una prima correzione confrontava il testo così com'era).
+  await userEvent.type(canvas.getByRole('searchbox'), 'Calce')
+  const conteggi = new Map<string, number>()
+  for (const p of PRODOTTI) {
+    if (![p.nome, p.famiglia, p.stato].some((v) => v.toLowerCase().includes('calce'))) continue
+    conteggi.set(p.stato, (conteggi.get(p.stato) ?? 0) + 1)
+  }
+  await userEvent.click(canvas.getByRole('button', { name: /^Stato/ }))
+  const pannello = await waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="popover-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  await waitFor(() => {
+    const voci = within(pannello).queryAllByRole('option')
+    expect(voci.map((v) => v.textContent)).toEqual(
+      [...conteggi]
+        .sort(([a], [b]) => a.localeCompare(b, 'it'))
+        .map(([stato, quanti]) => `${stato}${quanti}`)
+    )
+  })
+  // Chiuso del tutto, non solo avviato a chiudersi: finché il pannello c'è,
+  // lo sfondo resta inerte e la misura della pagina a riposo non vale.
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() =>
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeNull()
+  )
+}
+
+/**
+ * Ricerca e filtri insieme: si cerca «calce», e il filtro Stato propone gli
+ * stati dei prodotti che la ricerca lascia passare, ciascuno col suo
+ * conteggio. I conteggi di ogni filtro tengono conto della ricerca e degli
+ * altri filtri, mai del proprio.
+ */
+export const FiltriConRicerca: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Filtri Con Ricerca',
+  render: () => <TabellaConFiltri />,
+}
+
+// Scena di misura di «Filtri Con Ricerca»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const FiltriConRicercaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...FiltriConRicerca,
+  name: 'Filtri Con Ricerca, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaFiltriConRicerca,
 }
 
 // Il quarto grilletto della barra è quello del filtro per date: la scena
@@ -1461,6 +1788,38 @@ export const MenuRigaCondiviso: StoryObj<typeof DataTable<Prodotto>> = {
   // manca ancora una misura del popup nuovo.
   play: apriColDestro('[data-slot="context-menu-trigger"]', 'context-menu-content'),
   render: () => <MenuRigaCondivisoConControlli />,
+}
+
+/**
+ * Colonne ridimensionabili con il menu di riga: l'ultima colonna è quella del
+ * «⋯», che il blocco aggiunge da sé. La sua maniglia sta dentro la tabella come
+ * quella di ogni ultima colonna, e il riquadro non scorre di lato.
+ */
+export const RidimensionabileConMenuRiga: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Ridimensionabile Con Menu Riga',
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 8),
+    idRiga: (p: Prodotto) => p.id,
+    menuRiga: {
+      menu: <MenuAzioniProdotto />,
+      ariaLabel: (p: Prodotto) => `Azioni su ${p.nome}`,
+    },
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    ridimensionabile: true,
+  },
+}
+
+// Scena di misura di «Ridimensionabile Con Menu Riga»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const RidimensionabileConMenuRigaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...RidimensionabileConMenuRiga,
+  name: 'Ridimensionabile Con Menu Riga, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaSenzaScorrimentoLaterale,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -2029,4 +2388,93 @@ export const PiedeVirtualizzato: StoryObj<typeof DataTable<MisurazioneComputo>> 
       />
     </div>
   ),
+}
+
+const colUnita = creaColonne<MisurazioneComputo>()
+
+const COLONNE_UNITA = colUnita.columns([
+  colUnita.accessor('voce', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Voce" />,
+    meta: { titolo: 'Voce', larghezza: 'w-24' },
+    sortFn: 'alphanumeric',
+  }),
+  colUnita.accessor('ambiente', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Ambiente" />,
+    meta: { titolo: 'Ambiente' },
+    sortFn: 'text',
+  }),
+  colUnita.accessor('udm', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="U.M." />,
+    meta: { titolo: 'U.M.', larghezza: 'w-16' },
+    filterFn: 'arrHas',
+    enableGlobalFilter: false,
+  }),
+  colUnita.accessor('quantita', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Quantità" allinea="fine" />
+    ),
+    meta: { titolo: 'Quantità', larghezza: 'w-28' },
+    sortFn: 'basic',
+    cell: ({ getValue }) => <div className="text-right">{decimale(getValue<number>())}</div>,
+    enableGlobalFilter: false,
+  }),
+])
+
+// La prova apre il filtro U.M. e legge le voci: devono essere scritte come
+// nel dato, «m²» e «m³». Prima il filtro metteva la maiuscola alla prima
+// lettera, «M²» e «M³», e un'unità di misura cambiava significato.
+async function provaVociComeNelDato({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const conteggi = new Map<string, number>()
+  for (const m of MISURAZIONI) conteggi.set(m.udm, (conteggi.get(m.udm) ?? 0) + 1)
+  await userEvent.click(canvas.getByRole('button', { name: /^U\.M\./ }))
+  const pannello = await waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="popover-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  await waitFor(() => {
+    const voci = within(pannello).queryAllByRole('option')
+    expect(voci.map((v) => v.textContent)).toEqual(
+      [...conteggi]
+        .sort(([a], [b]) => a.localeCompare(b, 'it'))
+        .map(([udm, quante]) => `${udm}${quante}`)
+    )
+  })
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() =>
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeNull()
+  )
+}
+
+/**
+ * Le voci del filtro sono i valori della colonna scritti come nel dato:
+ * «m²» resta «m²», una sigla resta in maiuscolo, una parola in minuscolo resta
+ * in minuscolo. Per un'etichetta diversa dal valore, il filtro accetta
+ * `opzioni`, con il testo da mostrare per ogni valore.
+ */
+export const FiltroVociComeNelDato: StoryObj<typeof DataTable<MisurazioneComputo>> = {
+  name: 'Filtro Voci Come Nel Dato',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_UNITA}
+      dati={MISURAZIONI}
+      cerca="Cerca per voce o ambiente…"
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'misurazione', plurale: 'misurazioni' }}
+      barra={(_scelte, tabella) => (
+        <FiltroSfaccettato tabella={tabella} accessore="udm" titolo="U.M." />
+      )}
+    />
+  ),
+}
+
+// Scena di misura di «Filtro Voci Come Nel Dato»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const FiltroVociComeNelDatoProva: StoryObj<typeof DataTable<MisurazioneComputo>> = {
+  ...FiltroVociComeNelDato,
+  name: 'Filtro Voci Come Nel Dato, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaVociComeNelDato,
 }

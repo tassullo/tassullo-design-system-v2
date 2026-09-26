@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { PlusIcon, Trash2Icon } from 'lucide-react'
 import * as React from 'react'
+import { expect, userEvent, waitFor } from 'storybook/test'
 import * as z from 'zod'
 
 import {
@@ -78,6 +79,39 @@ const COLONNE_GRIGLIA = col.columns([
   colonnaTestoGriglia(col, 'unita', 'U.M.', { size: 80 }),
   colonnaTestoGriglia(col, 'quantita', 'Quantità', { size: 100 }),
 ])
+
+// Prova: il fondo della selezione compare solo quando la griglia ha il fuoco.
+// All'apertura la cella attiva c'è (è il punto d'ingresso del Tab) ma non ha
+// ancora il segno; entrati con Tab la prima cella lo prende, Maiusc+Freccia
+// allarga il rettangolo e un clic sceglie un'altra cella, come prima.
+function celleConFondo(radice: HTMLElement) {
+  return [...radice.querySelectorAll<HTMLElement>('[data-riga-id][data-colonna-id]')].filter(
+    (cella) => getComputedStyle(cella).backgroundColor !== 'rgba(0, 0, 0, 0)'
+  )
+}
+
+async function selezioneSoloColFuoco({ canvasElement }: { canvasElement: HTMLElement }) {
+  const griglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('[role="grid"]')
+    expect(trovata?.querySelector('[data-attiva]')).toBeTruthy()
+    return trovata!
+  })
+  expect(celleConFondo(griglia)).toHaveLength(0)
+
+  for (let passi = 0; passi < 10 && !griglia.contains(document.activeElement); passi++) {
+    await userEvent.tab()
+  }
+  const prima = griglia.querySelector<HTMLElement>('[data-attiva]')!
+  expect(document.activeElement).toBe(prima)
+  await waitFor(() => expect(celleConFondo(griglia)).toEqual([prima]))
+
+  await userEvent.keyboard('{Shift>}{ArrowDown}{/Shift}')
+  await waitFor(() => expect(celleConFondo(griglia)).toHaveLength(2))
+
+  const altra = griglia.querySelector<HTMLElement>('[data-riga-id="voce-2"][data-colonna-id="descrizione"]')!
+  await userEvent.click(altra)
+  await waitFor(() => expect(celleConFondo(griglia)).toEqual([altra]))
+}
 
 /* ────────────────────────────────────────────────────────────────────────
  * La story
@@ -185,7 +219,10 @@ function ComputoFinto() {
  *   su quale riga si stava lavorando. Un comando fuori dalla griglia che
  *   agisce sulla riga attiva si legge così. Il `Tab` segue l'ordine della
  *   pagina: arriva alla griglia dopo i controlli che la precedono, come la
- *   barra, ed entra proprio sulla cella segnata.
+ *   barra, ed entra sulla cella attiva: la prima, o quella su cui si stava
+ *   lavorando. Su una pagina appena aperta nessuna cella è segnata: bordo e
+ *   fondo compaiono dal primo ingresso nella griglia, col `Tab` o col
+ *   puntatore.
  * - La data è un campo nativo `<input type="date">`, non il calendario.
  * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
  *   `numeri`, quindi col separatore delle migliaia sempre scritto
@@ -231,6 +268,16 @@ type Story = StoryObj
  */
 export const Editabile: Story = {
   render: () => <ComputoFinto />,
+}
+
+// Scena di misura di «Editabile»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const EditabileProva: Story = {
+  ...Editabile,
+  name: 'Editabile, prova',
+  tags: ['!dev', '!autodocs'],
+  play: selezioneSoloColFuoco,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -322,13 +369,110 @@ function ComputoTipizzato() {
   )
 }
 
+// Prova: il riquadro della cella scelta resta intero dove la tabella lo
+// taglierebbe. La cella con la casella di spunta non sborda a destra (la
+// tabella toglie il margine destro alle celle con una casella, e il
+// riquadro, che brucia quel margine, usciva di 8px sotto la colonna accanto).
+// Scendendo con le frecce la cella resta staccata dal fondo, dove l'angolo
+// arrotondato ne tagliava il bordo; risalendo non finisce sotto
+// l'intestazione ferma.
+async function riquadroIntero({ canvasElement }: { canvasElement: HTMLElement }) {
+  const griglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('[role="grid"]')
+    expect(trovata?.querySelector('[data-attiva]')).toBeTruthy()
+    return trovata!
+  })
+  const contenitore = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')!
+  const testata = contenitore.querySelector('thead')!
+
+  const spunta = griglia.querySelector<HTMLElement>('[data-riga-id][data-colonna-id="disponibile"]')!
+  const bordo = spunta.getBoundingClientRect().right - spunta.closest('td')!.getBoundingClientRect().right
+  expect(bordo).toBeLessThanOrEqual(0.5)
+
+  await userEvent.click(griglia.querySelector<HTMLElement>('[data-riga-id][data-colonna-id="descrizione"]')!)
+  const attiva = () => document.activeElement!.getBoundingClientRect()
+  for (let passo = 0; passo < 20; passo++) {
+    await userEvent.keyboard('{ArrowDown}')
+    await waitFor(() =>
+      expect(contenitore.getBoundingClientRect().bottom - attiva().bottom).toBeGreaterThanOrEqual(4)
+    )
+  }
+  for (let passo = 0; passo < 20; passo++) {
+    await userEvent.keyboard('{ArrowUp}')
+    await waitFor(() =>
+      expect(attiva().top - testata.getBoundingClientRect().bottom).toBeGreaterThanOrEqual(-1)
+    )
+  }
+}
+
 /**
  * Le sei celle tipizzate. «Quantità» e «Prezzo unitario» rifiutano un valore
  * non valido e restano in modifica; «Disp.» si spunta con un clic o con
- * `Spazio`; «U.M.» apre un `select`; «Scadenza» è un campo data nativo.
+ * `Spazio`; «U.M.» apre un `select`; «Scadenza» si scrive `gg/mm/aaaa`, e in
+ * modifica `↓` o il bottone nel campo aprono il calendario.
  */
 export const CelleTipizzate: Story = {
   render: () => <ComputoTipizzato />,
+}
+
+// Scena di misura di «Celle Tipizzate»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const CelleTipizzateProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, prova',
+  tags: ['!dev', '!autodocs'],
+  play: riquadroIntero,
+}
+
+// Prova: la data si scrive come le altre celle, e il calendario è la seconda
+// strada. `Invio` apre il campo; `25/12/2026` più `Invio` scrive; `↓` apre il
+// calendario col fuoco su un giorno, `Esc` torna al campo; un testo che non è
+// una data resta in modifica con l'errore. La scena finisce lì, col testo in
+// errore a schermo, perché il controllo di accessibilità, che misura dopo la
+// prova, ne misuri il contrasto.
+async function dataScrittaECalendario({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = (riga: string) =>
+    canvasElement.querySelector<HTMLElement>(`[data-riga-id="${riga}"][data-colonna-id="scadenza"]`)
+  const campo = () => canvasElement.querySelector<HTMLInputElement>('input[aria-label="scadenza"]')
+  await waitFor(() => expect(cella('voce-t-0')).toBeTruthy())
+
+  await userEvent.click(cella('voce-t-0')!)
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+  await userEvent.clear(campo()!)
+  await userEvent.type(campo()!, '25/12/2026')
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(cella('voce-t-0')?.textContent).toBe('25/12/2026'))
+
+  await waitFor(() => expect(document.activeElement).toBe(cella('voce-t-1')))
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+  await userEvent.keyboard('{ArrowDown}')
+  await waitFor(() => {
+    expect(document.querySelector('[data-slot="popover-content"][aria-label="Scegli la data"]')).toBeTruthy()
+    expect(document.activeElement?.hasAttribute('data-day')).toBe(true)
+  })
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+
+  await userEvent.clear(campo()!)
+  await userEvent.type(campo()!, '31/02/2026')
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => {
+    expect(campo()?.getAttribute('aria-invalid')).toBe('true')
+    expect(canvasElement.querySelector('[role="alert"]')?.textContent).toBe(
+      'Data non valida: si scrive gg/mm/aaaa'
+    )
+  })
+}
+
+// Scena di misura della data di «Celle Tipizzate»: nascosta come quella sopra.
+export const CelleTipizzateDataProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, data, prova',
+  tags: ['!dev', '!autodocs'],
+  play: dataScrittaECalendario,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, within } from 'storybook/test'
 
 import { DiffView } from '@/registry/tassullo/blocks/diff-view'
 
@@ -26,15 +27,20 @@ import { DiffView } from '@/registry/tassullo/blocks/diff-view'
  * il predefinito, fonde il confronto in un paragrafo solo, con il tolto
  * barrato e l'aggiunto colorato; `"affiancato"` mette le due versioni in due
  * colonne che scorrono insieme, e che in un contenitore stretto si
- * impilano.
+ * impilano; `legenda`, di serie sì, mostra sopra il confronto la legenda
+ * «Tolto / Aggiunto».
  *
  * **Regole d'uso.** Il confronto è fra testi: un documento salvato in un
  * formato strutturato si converte prima in testo. Due testi uguali danno un
- * paragrafo senza segni.
+ * paragrafo senza segni. La legenda si tiene quando il confronto è uno solo,
+ * o nella vista affiancata; si toglie con `legenda={false}` nella vista
+ * combinata quando i confronti sono molti — uno per campo, in un dettaglio —
+ * e la si dice una volta sola sopra tutti.
  *
  * **Tastiera e accessibilità.** Il testo tolto e quello aggiunto sono
  * `<del>` e `<ins>`, non soltanto colori; la legenda sopra dice quale è
- * quale.
+ * quale, e dove la si toglie la stessa frase va detta una volta per tutti i
+ * confronti.
  */
 const meta = {
   title: 'Blocchi/Confronto testi',
@@ -68,6 +74,18 @@ export const SchedaTecnica: Story = {
   ),
 }
 
+// Scena di misura di «Scheda Tecnica»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const SchedaTecnicaProva: Story = {
+  ...SchedaTecnica,
+  name: 'Scheda Tecnica, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getAllByText('Tolto')).toHaveLength(1)
+  },
+}
+
 /**
  * La stessa coppia in due colonne: il tolto a sinistra, l'aggiunto a destra,
  * lo scorrimento insieme.
@@ -87,6 +105,18 @@ export const Affiancato: Story = {
   ),
 }
 
+// Scena di misura di «Affiancato»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const AffiancatoProva: Story = {
+  ...Affiancato,
+  name: 'Affiancato, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getAllByText('Tolto')).toHaveLength(1)
+  },
+}
+
 /**
  * Due testi uguali: il paragrafo esce senza segni.
  */
@@ -100,4 +130,57 @@ export const NessunaDifferenza: Story = {
       <DiffView {...args} />
     </div>
   ),
+}
+
+const campiRev3 = [
+  { campo: 'Descrizione', testo: 'Membrana armata in poliestere per coperture piane e inclinate.' },
+  { campo: 'Posa', testo: 'Doppio strato incrociato, sovrapposizione 80 mm.' },
+  { campo: 'Norma', testo: 'UNI EN 13707.' },
+]
+const campiRev4 = [
+  { campo: 'Descrizione', testo: 'Membrana armata in poliestere per coperture piane, inclinate e giardini pensili.' },
+  { campo: 'Posa', testo: 'Doppio strato incrociato, sovrapposizione 100 mm.' },
+  { campo: 'Norma', testo: 'UNI EN 13707:2024.' },
+]
+
+/**
+ * Un dettaglio con un confronto per campo. La legenda sta una volta sola in
+ * testa e ogni confronto la toglie con `legenda={false}`: nel paragrafo il
+ * tolto è già barrato e l'aggiunto colorato, e ripeterla sopra ogni campo
+ * sarebbe solo rumore.
+ */
+export const CampoPerCampo: Story = {
+  args: {
+    prima: '',
+    dopo: '',
+    legenda: false,
+  },
+  render: (args) => (
+    <div className="flex max-w-2xl flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        Il tolto è barrato, l'aggiunto è sul fondo verde.
+      </p>
+      {campiRev3.map((voce, indice) => (
+        <section key={voce.campo} className="flex flex-col gap-1.5">
+          <h3 className="text-sm font-medium">{voce.campo}</h3>
+          <DiffView {...args} prima={voce.testo} dopo={campiRev4[indice]!.testo} />
+        </section>
+      ))}
+    </div>
+  ),
+}
+
+// Scena di misura di «Campo Per Campo»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const CampoPerCampoProva: Story = {
+  ...CampoPerCampo,
+  name: 'Campo Per Campo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvasElement.querySelectorAll('[data-slot="diff-view"]')).toHaveLength(3)
+    expect(canvas.queryAllByText('Tolto')).toHaveLength(0)
+    expect(canvas.queryAllByText('Aggiunto')).toHaveLength(0)
+  },
 }

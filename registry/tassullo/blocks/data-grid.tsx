@@ -112,20 +112,46 @@
  * quello di sessione 1: `useDataGrid` non sa cos'è un numero o una data,
  * conosce solo `leggiCella`/`scriviCella` come confine di **stringhe** — è
  * la cella tipizzata a formattare per la vista (`lib/numeri` per numero e
- * valuta, col punto delle migliaia sempre; `toLocaleDateString('it-IT')`
- * per la data) e a
+ * valuta, col punto delle migliaia sempre; `gg/mm/aaaa` per la data) e a
  * interpretare ciò che l'utente scrive. Il checkbox e il select non passano
  * da `apriModifica`/`commitModifica` — un gesto solo (spuntare, scegliere)
  * si scrive subito con `impostaValore`, senza un testo intermedio da
  * confermare.
  *
- * **La data usa `<input type="date">`**, non il `Calendar` del registry: la
- * tastiera di un calendario a griglia dentro una griglia è un problema a
- * sé — la stessa `D15` di `CLAUDE.md` (zero violazioni axe su una griglia
- * del tutto non navigabile) è il motivo per cui non si presume che regga
- * senza misurarlo apposta, e questa sessione non è quella misura. Il
- * controllo nativo tiene comunque la stringa grezza in `AAAA-MM-GG`, la
- * stessa forma con cui la colonna la conserva.
+ * **La data si scrive, e il calendario è la seconda strada.** La cella in
+ * modifica è un campo di testo `gg/mm/aaaa` che si comporta come le altre
+ * (Invio conferma e scende, Tab conferma e passa accanto, Esc annulla, un
+ * testo che non è una data vera resta aperto con l'errore); il valore resta
+ * la stringa `AAAA-MM-GG`, la stessa di prima. Era `<input type="date">`,
+ * cioè il calendario del sistema operativo, diverso per ogni browser e fuori
+ * dal tema. Fra le due forme provate — solo calendario, o testo più
+ * calendario — Francesco ha scelto la seconda (2026-09-26, issue #66): chi
+ * carica dati la data la sa, e sei cifre sono più veloci di un riquadro.
+ * Le scelte, ognuna misurata in Chromium e WebKit:
+ *
+ * - **Il calendario si apre con `↓` o col bottone nel campo**, come nella
+ *   story «Date picker con campo da scrivere» del calendario. Il bottone è
+ *   fuori dall'ordine di `Tab`, che in modifica conferma e passa oltre: senza
+ *   `↓` da tastiera non ci si arriverebbe. `Esc` nel calendario torna al
+ *   campo, un secondo `Esc` annulla la modifica.
+ * - **Un giorno scelto conferma subito**, senza un Invio dopo: è lo stesso
+ *   gesto unico del `select` della griglia, e chi clicca un giorno ha già
+ *   scelto.
+ * - **`GiornoCalendarioGriglia` attacca il `ref` al bottone del giorno.**
+ *   `CalendarDayButton` di shadcn lo dichiara e lo usa ma non lo attacca
+ *   (D15): le frecce muovono il giorno segnato e non il fuoco. La correzione
+ *   sta qui, in composizione (`components={{ DayButton }}`), e
+ *   `ui/calendar.tsx` resta intatto.
+ * - **`CalendarioCella` è in `React.memo`.** `Calendar` dichiara i propri
+ *   componenti interni a ogni suo render, e la griglia si rende di nuovo
+ *   quando il fuoco entra nel popover: senza il `memo` i giorni si
+ *   rimonterebbero e il fuoco cadrebbe sul `body`.
+ * - **`data-griglia-popup`**: il popover sta in un portale, fuori dalla
+ *   `<table>`, e `<DataGrid>` avrebbe letto il fuoco lì dentro come «fuori
+ *   dalle celle» — e alla chiusura non l'avrebbe riportato sulla cella. Il
+ *   popup porta l'id della sua griglia, e il fuoco o il clic dentro contano
+ *   come nelle celle. Dentro il popover i tasti non arrivano ai gestori della
+ *   griglia: nessun antenato React della cella ne ha.
  *
  * **Validazione — `validaConZod`, coerente con `tassullo-form-field`
  * (M3.4)**: come `FormField` collega `aria-invalid`/`data-invalid`/
@@ -138,6 +164,12 @@
  * stringa grezza della cella — non serve un adattatore che la converta
  * prima: è la stessa ragione per cui i validatori si passano allo schema, non
  * al valore già interpretato.
+ *
+ * Il testo in errore è `text-destructive-subtle-foreground`, non
+ * `text-destructive`, che è il colore dei fondi: misurato sul campo in
+ * modifica, 4.75:1 in chiaro e **3.53:1 in scuro** prima, 8.17:1 e 10.45:1
+ * dopo. La prova `Celle Tipizzate, data, prova` finisce col testo in errore a
+ * schermo, così il controllo di accessibilità lo misura a ogni giro.
  *
  * ── Sessione 3: persistenza e prova end-to-end ───────────────────────────
  *
@@ -162,7 +194,8 @@
  */
 import * as React from "react"
 import type { CellContext, RowData } from "@tanstack/react-table"
-import { Redo2Icon, Undo2Icon } from "lucide-react"
+import { CalendarIcon, Redo2Icon, Undo2Icon } from "lucide-react"
+import { it } from "react-day-picker/locale"
 import type { ZodType } from "zod"
 
 import { cn } from "cn"
@@ -181,7 +214,9 @@ import {
   valuta as valutaFormattata,
 } from "@/registry/tassullo/lib/numeri"
 import { Button } from "@/registry/tassullo/ui/button"
+import { Calendar, CalendarDayButton } from "@/registry/tassullo/ui/calendar"
 import { Checkbox } from "@/registry/tassullo/ui/checkbox"
+import { Popover, PopoverContent, PopoverTrigger } from "@/registry/tassullo/ui/popover"
 import {
   Select,
   SelectContent,
@@ -327,7 +362,7 @@ export type DataGridEngine<TDato> = OpzioniDataGrid<TDato> & {
 function capoDelCampo(evento: React.KeyboardEvent): boolean {
   if (evento.key !== "Home" && evento.key !== "End") return false
   const campo = evento.target
-  if (!(campo instanceof HTMLInputElement) || campo.type === "date") return false
+  if (!(campo instanceof HTMLInputElement)) return false
   evento.preventDefault()
   const capo = evento.key === "End" ? campo.value.length : 0
   if (evento.shiftKey) {
@@ -1018,6 +1053,10 @@ type ContestoDataGridValore = {
   interagitoRef: React.RefObject<boolean>
   /** `true` quando il fuoco ha lasciato le celle — v. lo stato `fuoco` di `<DataGrid>`. */
   fuoriRef: React.RefObject<boolean>
+  /** Dove sta il fuoco rispetto alle celle — lo stato `fuoco` di `<DataGrid>`. */
+  fuoco: "mai" | "dentro" | "fuori"
+  /** Segna i popup delle celle (`data-griglia-popup`): il fuoco lì dentro conta come nelle celle. */
+  idGriglia: string
 }
 
 const ContestoDataGrid = React.createContext<ContestoDataGridValore | null>(null)
@@ -1067,6 +1106,7 @@ function useStatoCellaGriglia<TDato>(
   validazione?: (valore: string) => string | undefined
 ) {
   const { motore, interagitoRef, fuoriRef } = useContestoDataGrid<TDato>()
+  const { fuoco, idGriglia } = React.useContext(ContestoDataGrid)!
   const rigaId = motore.idRiga(riga)
   const id: CellaGrigliaId = { rigaId, colonnaId }
   const inModifica = motore.eInModifica(id)
@@ -1093,11 +1133,16 @@ function useStatoCellaGriglia<TDato>(
     },
     motore,
     interagitoRef,
+    idGriglia,
     rigaId,
     id,
     attiva,
     inModifica,
-    selezionata: motore.eSelezionata(id),
+    // Il rettangolo di selezione parte sulla prima cella fin dal montaggio,
+    // perché è lì che `Tab` entra; il suo fondo però si vede solo da quando
+    // il fuoco è passato dalle celle. Prima, su una pagina appena aperta, la
+    // prima cella sembrerebbe già scelta mentre il fuoco è altrove.
+    selezionata: fuoco !== "mai" && motore.eSelezionata(id),
     inAnteprima: motore.eInAnteprimaRiempimento(id),
     errore: inModifica ? validazione?.(motore.draftModifica) : undefined,
   }
@@ -1287,7 +1332,7 @@ function CellaTestoGriglia<TDato extends RowData>({
           aria-describedby={errore ? erroreId : undefined}
           className={cn(
             "block w-full truncate bg-transparent outline-none",
-            errore && "text-destructive"
+            errore && "text-destructive-subtle-foreground"
           )}
           aria-label={colonnaId}
         />
@@ -1417,7 +1462,7 @@ function CellaNumericaGriglia<TDato extends RowData>({
         className={cn(
           "block truncate bg-transparent text-right tabular-nums outline-none",
           "min-w-0 flex-1",
-          errore && "text-destructive"
+          errore && "text-destructive-subtle-foreground"
         )}
         aria-label={colonnaId}
       />
@@ -1585,7 +1630,7 @@ function CellaCheckboxGriglia<TDato extends RowData>({
           motore.onKeyDownCella(evento, id)
         }
       }}
-      className={classiVistaCella(selezionata, inAnteprima, "flex items-center justify-center")}
+      className={classiVistaCella(selezionata, inAnteprima, "mr-0 flex items-center justify-center")}
     >
       <Checkbox checked={spuntato} onCheckedChange={commuta} tabIndex={-1} aria-hidden />
     </div>
@@ -1706,8 +1751,105 @@ export function colonnaAzioneGriglia<TDato extends RowData>(
 }
 
 /* ────────────────────────────────────────────────────────────────────────
- * Data — `<input type="date">`, v. il commento in testa al file
+ * Data — un campo `gg/mm/aaaa`, col calendario del registry come seconda
+ * strada. V. il commento in testa al file.
  * ──────────────────────────────────────────────────────────────────────── */
+
+/** `AAAA-MM-GG` → la data, a mezzogiorno, o `undefined` se non è una data vera. */
+function leggiIso(valore: string): Date | undefined {
+  const parti = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valore)
+  if (!parti) return undefined
+  const mese = Number(parti[2]) - 1
+  const giorno = Number(parti[3])
+  // Mezzogiorno e non mezzanotte: la data resta lo stesso giorno in ogni fuso
+  // plausibile per le app Tassullo. E il 31/02 non passa: `Date` lo porterebbe
+  // al 3 marzo, e il confronto lo scarta.
+  const data = new Date(Number(parti[1]), mese, giorno, 12)
+  return data.getMonth() === mese && data.getDate() === giorno ? data : undefined
+}
+
+function scriviIso(data: Date): string {
+  const mese = String(data.getMonth() + 1).padStart(2, "0")
+  const giorno = String(data.getDate()).padStart(2, "0")
+  return `${data.getFullYear()}-${mese}-${giorno}`
+}
+
+/** `AAAA-MM-GG` → `gg/mm/aaaa`, come si legge e come si scrive. */
+function scriviData(valore: string): string {
+  const data = leggiIso(valore)
+  if (!data) return valore
+  const mese = String(data.getMonth() + 1).padStart(2, "0")
+  const giorno = String(data.getDate()).padStart(2, "0")
+  return `${giorno}/${mese}/${data.getFullYear()}`
+}
+
+/**
+ * Da ciò che si è scritto o incollato a `AAAA-MM-GG`: `24/07/2026`, anche
+ * `24/7/2026` o col punto o il trattino, sempre giorno prima del mese. Un
+ * testo che non è una data resta com'è, e la validazione lo rifiuta.
+ */
+function interpretaData(testo: string): string {
+  const pulito = testo.trim()
+  if (pulito === "" || leggiIso(pulito)) return pulito
+  const parti = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(pulito)
+  if (!parti) return pulito
+  const iso = `${parti[3]}-${parti[2]!.padStart(2, "0")}-${parti[1]!.padStart(2, "0")}`
+  return leggiIso(iso) ? iso : pulito
+}
+
+const FORMATO_DATA: FormatoCellaGriglia = { perScrivere: scriviData, interpreta: interpretaData }
+
+function controllaData(valore: string): string | undefined {
+  return valore === "" || leggiIso(valore) ? undefined : "Data non valida: si scrive gg/mm/aaaa"
+}
+
+/**
+ * Il giorno del calendario, col fuoco che segue le frecce. `CalendarDayButton`
+ * sposta il fuoco su un `ref` che non attacca al bottone, quindi le frecce
+ * muovono il giorno segnato ma non il fuoco; qui il `ref` c'è.
+ */
+function GiornoCalendarioGriglia(props: React.ComponentProps<typeof CalendarDayButton>) {
+  const ref = React.useRef<HTMLButtonElement>(null)
+  const aFuoco = props.modifiers.focused
+  React.useEffect(() => {
+    if (aFuoco) ref.current?.focus()
+  }, [aFuoco])
+  // Il tipo delle prop di `CalendarDayButton` non dichiara `ref`, ma il
+  // componente lo passa al bottone insieme alle altre.
+  const conRef = { ...props, locale: it, ref } as React.ComponentProps<typeof CalendarDayButton>
+  return <CalendarDayButton {...conRef} />
+}
+
+/**
+ * Il calendario di una cella, fermo finché il valore non cambia. `Calendar`
+ * dichiara i propri componenti interni a ogni suo render: se ripartisse con la
+ * griglia — che si rende di nuovo quando il fuoco entra nel popover — i giorni
+ * si rimonterebbero e il fuoco cadrebbe sul `body`.
+ */
+const CalendarioCella = React.memo(function CalendarioCella({
+  valore,
+  onScegli,
+}: {
+  valore: string
+  onScegli: (iso: string) => void
+}) {
+  const data = leggiIso(valore)
+  return (
+    <Calendar
+      mode="single"
+      locale={it}
+      selected={data}
+      defaultMonth={data}
+      onSelect={(_, giorno) => onScegli(scriviIso(giorno))}
+      components={{ DayButton: GiornoCalendarioGriglia }}
+    />
+  )
+})
+
+/** Il fuoco, aprendo il calendario, va sul giorno scelto (o su oggi). */
+function giornoDiPartenza(popup: HTMLElement | null) {
+  return popup?.querySelector<HTMLElement>('button[data-day][tabindex="0"]') ?? true
+}
 
 function CellaDataGriglia<TDato extends RowData>({
   info,
@@ -1719,48 +1861,158 @@ function CellaDataGriglia<TDato extends RowData>({
   validazione?: (valore: string) => string | undefined
 }) {
   const riga = info.row.original
-  const { motore, interagitoRef, alPremere, rigaId, id, attiva, inModifica, selezionata, inAnteprima, errore } =
-    useStatoCellaGriglia(riga, colonnaId, validazione)
+  const validazioneData = (valore: string) => controllaData(valore) ?? validazione?.(valore)
+  const {
+    motore,
+    interagitoRef,
+    idGriglia,
+    alPremere,
+    rigaId,
+    id,
+    attiva,
+    inModifica,
+    selezionata,
+    inAnteprima,
+    errore,
+  } = useStatoCellaGriglia(riga, colonnaId, (testo) => validazioneData(interpretaData(testo)))
   const inputRef = React.useRef<HTMLInputElement>(null)
   const divRef = React.useRef<HTMLDivElement>(null)
+  const popupRef = React.useRef<HTMLDivElement>(null)
   const erroreId = React.useId()
 
-  useValidatoreCellaGriglia(motore, colonnaId, validazione)
+  // Il calendario si apre e si chiude dentro una modifica che resta aperta.
+  const [calendarioAperto, setCalendarioAperto] = React.useState(false)
+  if (calendarioAperto && !inModifica) setCalendarioAperto(false)
+  // Letti nei gestori, non nel render: il `blur` del campo arriva mentre il
+  // calendario si sta aprendo, e `finalFocus` mentre si sta chiudendo.
+  const calendarioApertoRef = React.useRef(false)
+  const tornaAlCampoRef = React.useRef(true)
+
+  useValidatoreCellaGriglia(motore, colonnaId, validazioneData)
+  React.useEffect(() => {
+    motore.registraFormato(colonnaId, FORMATO_DATA)
+  }, [motore, colonnaId])
   useFuocoCellaGriglia(divRef, attiva, inModifica, interagitoRef)
   React.useEffect(() => {
     if (inModifica) inputRef.current?.focus()
   }, [inModifica])
 
+  const raw = motore.leggiCella(riga, colonnaId)
+
+  // La scelta di un giorno passa da una `ref` aggiornata a ogni render, perché
+  // `CalendarioCella` non si renda di nuovo col motore (v. sopra).
+  const scegliRef = React.useRef<(iso: string) => void>(() => {})
+  React.useLayoutEffect(() => {
+    scegliRef.current = (iso) => {
+      calendarioApertoRef.current = false
+      setCalendarioAperto(false)
+      if (iso === raw) {
+        motore.annullaModifica()
+      } else if (!motore.impostaValore(id, iso)) {
+        // La validazione della colonna rifiuta il giorno: resta nel campo,
+        // con l'errore, come se l'avesse scritto.
+        motore.aggiornaDraft(scriviData(iso))
+      }
+    }
+  })
+  const onScegli = React.useCallback((iso: string) => scegliRef.current(iso), [])
+
+  const apriCalendario = () => {
+    calendarioApertoRef.current = true
+    setCalendarioAperto(true)
+  }
+
   if (inModifica) {
+    const scritto = interpretaData(motore.draftModifica)
     return (
       <RiquadroModifica erroreId={erroreId} errore={errore}>
         <input
           ref={inputRef}
-          type="date"
           value={motore.draftModifica}
+          placeholder="gg/mm/aaaa"
           onChange={(evento) => motore.aggiornaDraft(evento.target.value)}
-          onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-          onBlur={() => {
+          onKeyDown={(evento) => {
+            // `↓` apre il calendario, come nel date picker con campo da
+            // scrivere: dal campo il bottone non si raggiunge col `Tab`, che in
+            // modifica conferma e passa alla cella accanto.
+            if (evento.key === "ArrowDown" && !evento.metaKey && !evento.ctrlKey && !evento.shiftKey) {
+              evento.preventDefault()
+              apriCalendario()
+              return
+            }
+            motore.onKeyDownCella(evento, id)
+          }}
+          onBlur={(evento) => {
+            // Il fuoco che entra nel calendario non chiude la modifica.
+            if (calendarioApertoRef.current) return
+            const verso = evento.relatedTarget
+            if (verso instanceof Node && popupRef.current?.contains(verso)) return
             if (!motore.commitModifica()) motore.annullaModifica()
           }}
           aria-invalid={!!errore}
           aria-describedby={errore ? erroreId : undefined}
           className={cn(
-            "block w-full bg-transparent outline-none",
-            errore && "text-destructive"
+            "block min-w-0 flex-1 truncate bg-transparent tabular-nums outline-none",
+            errore && "text-destructive-subtle-foreground"
           )}
           aria-label={colonnaId}
         />
+        <Popover
+          open={calendarioAperto}
+          onOpenChange={(aperto, dettagli) => {
+            if (aperto) {
+              apriCalendario()
+              return
+            }
+            calendarioApertoRef.current = false
+            setCalendarioAperto(false)
+            const bersaglio = dettagli.event?.target
+            const nelCampo =
+              bersaglio instanceof Node && !!inputRef.current?.parentElement?.contains(bersaglio)
+            // Un clic fuori dalla cella vale come il `blur` del campo: conferma
+            // ciò che è scritto, o lo scarta se non è una data. Ogni altra
+            // chiusura — `Esc`, il bottone, un clic nel campo — torna al campo.
+            if (dettagli.reason === "outside-press" && !nelCampo) {
+              tornaAlCampoRef.current = false
+              if (!motore.commitModifica()) motore.annullaModifica()
+            } else {
+              tornaAlCampoRef.current = true
+            }
+          }}
+        >
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                tabIndex={-1}
+                aria-label="Scegli la data"
+                // Il campo tiene il fuoco: senza, il clic sul bottone lo
+                // farebbe uscire, e l'uscita conferma e chiude la modifica.
+                onMouseDown={(evento) => evento.preventDefault()}
+                className="-my-0.5 shrink-0"
+              />
+            }
+          >
+            <CalendarIcon aria-hidden />
+          </PopoverTrigger>
+          <PopoverContent
+            ref={popupRef}
+            data-griglia-popup={idGriglia}
+            align="end"
+            aria-label="Scegli la data"
+            className="w-auto p-0"
+            initialFocus={() => giornoDiPartenza(popupRef.current)}
+            finalFocus={() => (tornaAlCampoRef.current ? inputRef.current : false)}
+          >
+            <CalendarioCella valore={leggiIso(scritto) ? scritto : raw} onScegli={onScegli} />
+          </PopoverContent>
+        </Popover>
       </RiquadroModifica>
     )
   }
 
-  const raw = motore.leggiCella(riga, colonnaId)
-  // Mezzogiorno e non mezzanotte: `new Date("AAAA-MM-GG")` la legge in UTC,
-  // e un fuso indietro rispetto a UTC la farebbe cadere sul giorno prima
-  // una volta formattata in locale — mezzogiorno resta lo stesso giorno in
-  // ogni fuso plausibile per le app Tassullo.
-  const testo = raw ? new Date(`${raw}T12:00:00`).toLocaleDateString("it-IT") : ""
   return (
     <div
       ref={divRef}
@@ -1771,13 +2023,20 @@ function CellaDataGriglia<TDato extends RowData>({
       onMouseDown={alPremere}
       onDoubleClick={() => motore.apriModifica(id)}
       onKeyDown={(evento) => motore.onKeyDownCella(evento, id)}
-      className={classiVistaCella(selezionata, inAnteprima)}
+      className={classiVistaCella(selezionata, inAnteprima, "tabular-nums")}
     >
-      {testo}
+      {scriviData(raw)}
     </div>
   )
 }
 
+/**
+ * Una colonna di date. Il dato è la stringa `AAAA-MM-GG` (vuota se manca);
+ * la cella la mostra e la fa scrivere come `gg/mm/aaaa`, e un testo che non è
+ * una data vera resta in modifica con l'errore. In modifica, `↓` o il bottone
+ * nel campo aprono il calendario: un giorno scelto si scrive e conferma.
+ * `validazione` si aggiunge al controllo della data e riceve `AAAA-MM-GG`.
+ */
 export function colonnaDataGriglia<TDato extends RowData>(
   col: ReturnType<typeof creaColonne<TDato>>,
   id: Extract<keyof TDato, string>,
@@ -1984,8 +2243,9 @@ export function DataGrid<TDato extends RowData>({
    * «Salva», un filtro, la barra: il motore la ricorda sempre (è così che
    * `Tab` ci rientra), ma senza un segno chi ha cliccato fuori non sa più
    * su quale riga stava lavorando. È la convenzione dei fogli di calcolo: la
-   * selezione resta visibile, attenuata. `"mai"` non segna niente, o la
-   * prima riga comparirebbe scelta su una pagina appena aperta.
+   * selezione resta visibile, attenuata. `"mai"` non segna niente — né il
+   * bordo né il fondo della selezione —, o la prima cella comparirebbe
+   * scelta su una pagina appena aperta.
    *
    * «Dentro» vuol dire dentro la `<table>`, non dentro `contenitoreRef`, che
    * contiene anche la barra. `focusout` arriva prima che il fuoco sia
@@ -1997,11 +2257,20 @@ export function DataGrid<TDato extends RowData>({
   // **prima** di `setFuoco`, perché il render che quello provoca è proprio
   // quello in cui la cella non deve riprendersi il fuoco.
   const fuoriRef = React.useRef(false)
+  const idGriglia = React.useId()
   React.useEffect(() => {
     let attesa: ReturnType<typeof setTimeout> | undefined
-    const aggiorna = () => {
+    // Dentro le celle, o in un popup aperto da una cella (il calendario della
+    // data), che sta in un portale fuori dalla tabella.
+    const nelleCelle = (nodo: EventTarget | null) => {
       const tabella = contenitoreRef.current?.querySelector("table")
-      const dentro = !!tabella && tabella.contains(document.activeElement)
+      if (!tabella || !(nodo instanceof Node)) return false
+      if (tabella.contains(nodo)) return true
+      const popup = nodo instanceof Element ? nodo.closest("[data-griglia-popup]") : null
+      return popup?.getAttribute("data-griglia-popup") === idGriglia
+    }
+    const aggiorna = () => {
+      const dentro = nelleCelle(document.activeElement)
       fuoriRef.current = !dentro
       setFuoco((prima) => (dentro ? "dentro" : prima === "mai" ? "mai" : "fuori"))
     }
@@ -2017,8 +2286,7 @@ export function DataGrid<TDato extends RowData>({
     // chiude da sé con `Invio` o `Esc`, e lì il fuoco deve tornare alla cella.
     // In cattura, per arrivare prima dei gestori di React.
     const premuto = (evento: PointerEvent) => {
-      const tabella = contenitoreRef.current?.querySelector("table")
-      if (tabella && !tabella.contains(evento.target as Node)) fuoriRef.current = true
+      if (!nelleCelle(evento.target)) fuoriRef.current = true
     }
     document.addEventListener("focusin", aggiorna)
     document.addEventListener("focusout", dopo)
@@ -2029,7 +2297,7 @@ export function DataGrid<TDato extends RowData>({
       document.removeEventListener("focusout", dopo)
       document.removeEventListener("pointerdown", premuto, true)
     }
-  }, [])
+  }, [idGriglia])
 
   const alVirtualizzatore = React.useCallback((v: (indice: number) => void) => {
     vaiAVirtualeRef.current = v
@@ -2037,7 +2305,14 @@ export function DataGrid<TDato extends RowData>({
 
   return (
     <ContestoDataGrid.Provider
-      value={{ motore: motore as DataGridEngine<unknown>, contenitoreRef, interagitoRef, fuoriRef }}
+      value={{
+        motore: motore as DataGridEngine<unknown>,
+        contenitoreRef,
+        interagitoRef,
+        fuoriRef,
+        fuoco,
+        idGriglia,
+      }}
     >
       <div
         ref={contenitoreRef}

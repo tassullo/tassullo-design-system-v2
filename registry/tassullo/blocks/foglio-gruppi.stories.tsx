@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol } from '@/prove/apri'
 
@@ -308,9 +309,9 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  * - Ogni colonna dichiara `id`, `titolo`, `larghezza`, `allineamento` e una
  *   cella per zona: `testata`, `corpo`, `piede`. Una cella è `scrivibile` —
  *   `leggi`, `scrivi`, e a scelta `mostra`, `valida`, `segnaposto`,
- *   `formato`, `prefisso`, `suffisso`, `classiTesto`, `allineamento` — oppure
- *   `calcolata`, con `rendi`, oppure `fissa`. Una zona senza cella resta
- *   vuota.
+ *   `formato`, `prefisso`, `suffisso`, `classiTesto`, `allineamento`,
+ *   `abilitata` — oppure `calcolata`, con `rendi`, oppure `fissa`. Una zona
+ *   senza cella resta vuota.
  * - `azione` è il comando frequente del gruppo, su una riga propria fra corpo
  *   e piede — nel computo, «+ misurazione». È una sola, e il motore va
  *   costruito con `conRigaAzioni: true`, o la riga si vede e le frecce non la
@@ -347,6 +348,13 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   le cifre allineate a destra si spostano aprendo la modifica.
  * - `valida` restituisce il messaggio d'errore, o `undefined` se il valore va
  *   bene.
+ * - Quando nello stesso gruppo convivono righe di tipo diverso e una colonna
+ *   si scrive solo su alcune — lo sfrido sui materiali, non sulla manodopera —
+ *   la cella scrivibile riceve `abilitata: (riga) => boolean`. Sulle righe
+ *   dove è falsa la cella mostra il valore come testo, non prende il fuoco e
+ *   un clic non la apre: senza, il campo accetterebbe un valore che `scrivi`
+ *   poi ignora, e chi scrive crederebbe di aver cambiato qualcosa. La scena
+ *   «Righe di tipo diverso» è la ricetta.
  * - Un gruppo senza righe mostra comunque testata e piede: è la voce appena
  *   aggiunta, che ha un prezzo e non ha ancora misure.
  * - Quando il fuoco lascia il foglio — un clic su «Salva», su un filtro,
@@ -362,7 +370,8 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  * **Tastiera e accessibilità.** Il foglio è un solo fermo di tabulazione:
  * `Tab` entra sulla cella attiva — la prima scrivibile, all'inizio — e il
  * `Tab` seguente esce. Dentro, le frecce si muovono fra le celle saltando
- * quelle che non esistono: dall'ultima misura di un gruppo `↓` entra nel
+ * quelle che non si scrivono — calcolate, fisse, o non abilitate su quella
+ * riga: dall'ultima misura di un gruppo `↓` entra nel
  * gruppo dopo, e dalla colonna della designazione si arriva al piede e, a
  * destra, al prezzo. `Invio`, `F2` o un carattere qualsiasi aprono la
  * modifica, e anche un clic solo. Mentre si scrive, `Invio` conferma e scende,
@@ -432,6 +441,167 @@ export const Validazione: Story = {
 export const Comandi: Story = {
   render: () => <ComputoFoglio />,
   play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Righe di tipo diverso nello stesso gruppo
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type VoceAnalisi = { designazione: string; unita: string }
+
+type Componente = {
+  tipo: 'materiale' | 'manodopera' | 'prezzo'
+  descrizione: string
+  quantita: string
+  prezzo: string
+  sfrido: string
+}
+
+const TIPI_COMPONENTE: Record<Componente['tipo'], string> = {
+  materiale: 'Materiale',
+  manodopera: 'Manodopera',
+  prezzo: 'Prezzo',
+}
+
+// Lo sfrido vale solo per i materiali: sulle altre righe il fattore è 1.
+const importoComponente = (c: Componente) => {
+  const q = numero(c.quantita) ?? 0
+  const p = numero(c.prezzo) ?? 0
+  const f = c.tipo === 'materiale' ? (numero(c.sfrido) ?? 1) : 1
+  return Math.round(q * p * f * 100) / 100
+}
+
+const ANALISI: GruppoFoglio<VoceAnalisi, Componente>[] = [
+  {
+    id: 'a1',
+    testata: { designazione: 'INTONACO DEUMIDIFICANTE — analisi al m²', unita: 'm²' },
+    righe: [
+      { tipo: 'materiale', descrizione: 'Premiscelato deumidificante', quantita: '18', prezzo: '0.62', sfrido: '1.05' },
+      { tipo: 'manodopera', descrizione: 'Operaio specializzato', quantita: '0.35', prezzo: '38.5', sfrido: '' },
+      { tipo: 'materiale', descrizione: 'Rete in fibra di vetro', quantita: '1.1', prezzo: '1.8', sfrido: '1.1' },
+      { tipo: 'prezzo', descrizione: 'Ponteggio, dal prezzario', quantita: '1', prezzo: '4.2', sfrido: '' },
+    ],
+  },
+]
+
+const COLONNE_ANALISI: ColonnaFoglio<VoceAnalisi, Componente>[] = [
+  {
+    id: 'tipo',
+    titolo: 'Tipo',
+    larghezza: 'w-32',
+    corpo: { tipo: 'calcolata', rendi: (c) => TIPI_COMPONENTE[c.tipo] },
+  },
+  {
+    id: 'designazione',
+    titolo: 'Designazione',
+    testata: {
+      tipo: 'scrivibile',
+      leggi: (v) => v.designazione,
+      scrivi: (v, valore) => ({ ...v, designazione: valore }),
+      classiTesto: 'font-semibold',
+    },
+    corpo: {
+      tipo: 'scrivibile',
+      leggi: (c) => c.descrizione,
+      scrivi: (c, valore) => ({ ...c, descrizione: valore }),
+      classiTesto: 'pl-4',
+    },
+    piede: { tipo: 'fissa', rendi: () => 'Prezzo di analisi' },
+  },
+  { id: 'quantita', titolo: 'Quantità', larghezza: 'w-24', allineamento: 'destra',
+    corpo: { tipo: 'scrivibile', leggi: (c) => c.quantita, scrivi: (c, v) => ({ ...c, quantita: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
+  { id: 'prezzo', titolo: 'Prezzo unit.', larghezza: 'w-28', allineamento: 'destra',
+    corpo: { tipo: 'scrivibile', leggi: (c) => c.prezzo, scrivi: (c, v) => ({ ...c, prezzo: v }), valida: soloNumero,
+      formato: SCRITTURA_NUMERO, mostra: mostraMisura } },
+  {
+    id: 'sfrido',
+    titolo: 'Sfrido',
+    larghezza: 'w-24',
+    allineamento: 'destra',
+    corpo: {
+      tipo: 'scrivibile',
+      leggi: (c) => c.sfrido,
+      scrivi: (c, v) => ({ ...c, sfrido: v }),
+      valida: soloNumero,
+      formato: SCRITTURA_NUMERO,
+      mostra: mostraMisura,
+      abilitata: (c) => c.tipo === 'materiale',
+    },
+  },
+  {
+    id: 'importo',
+    titolo: 'Importo',
+    larghezza: 'w-28',
+    allineamento: 'destra',
+    corpo: { tipo: 'calcolata', rendi: (c) => valuta(importoComponente(c)) },
+    piede: {
+      tipo: 'calcolata',
+      rendi: (_v, righe: Componente[]) => (
+        <span className="font-semibold">
+          {valuta(righe.reduce((tot, c) => tot + importoComponente(c), 0))}
+        </span>
+      ),
+    },
+  },
+]
+
+function AnalisiPrezzo() {
+  const motore = useFoglioGruppi<VoceAnalisi, Componente>({
+    gruppiIniziali: ANALISI,
+    colonne: COLONNE_ANALISI,
+  })
+  return <FoglioGruppi motore={motore} didascalia="Analisi del prezzo" />
+}
+
+// Prova: la cella dello sfrido esiste su ogni riga, ma si scrive e prende il
+// fuoco solo sui materiali. Sulle altre è testo: niente ruolo di bottone,
+// niente tabindex, un clic non apre il campo, e le frecce la scavalcano come
+// una cella calcolata.
+async function sfridoSoloSuiMateriali({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const scrivibili = canvas.getAllByRole('button', { name: /^Sfrido:/ })
+  expect(scrivibili).toHaveLength(2)
+
+  const righe = canvasElement.querySelectorAll('tbody tr')
+  const manodopera = [...righe].find((r) => r.textContent?.includes('Operaio specializzato'))!
+  const cellaSpenta = manodopera.children[4] as HTMLElement
+  expect(cellaSpenta.querySelector('[tabindex], [role="button"]')).toBeNull()
+  await userEvent.click(cellaSpenta)
+  expect(cellaSpenta.querySelector('input')).toBeNull()
+
+  scrivibili[0]!.focus()
+  await userEvent.keyboard('{ArrowDown}')
+  await waitFor(() =>
+    expect(document.activeElement?.closest('tr')?.textContent).toContain('Rete in fibra di vetro')
+  )
+  expect(document.activeElement?.getAttribute('aria-label')).toMatch(/^Sfrido:/)
+
+  const prezzoManodopera = within(manodopera as HTMLElement).getByRole('button', { name: /^Prezzo unit\.:/ })
+  prezzoManodopera.focus()
+  await userEvent.keyboard('{ArrowRight}')
+  expect(document.activeElement).toBe(prezzoManodopera)
+}
+
+/**
+ * Righe di tipo diverso nello stesso gruppo: un'analisi del prezzo con
+ * materiali, manodopera e un prezzo dal prezzario. Lo sfrido si scrive solo
+ * sui materiali: sulle altre righe la cella è testo, non prende il fuoco e le
+ * frecce la scavalcano.
+ */
+export const RigheDiTipoDiverso: Story = {
+  name: 'Righe di tipo diverso',
+  render: () => <AnalisiPrezzo />,
+}
+
+// Scena di misura di «Righe di tipo diverso»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const RigheDiTipoDiversoProva: Story = {
+  ...RigheDiTipoDiverso,
+  name: 'Righe di tipo diverso, prova',
+  tags: ['!dev', '!autodocs'],
+  play: sfridoSoloSuiMateriali,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

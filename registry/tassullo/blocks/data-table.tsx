@@ -98,6 +98,7 @@ import {
   filterFn_inDateRange,
   filterFn_inNumberRange,
   filterFn_includesString,
+  constructFilterFn,
   globalFilteringFeature,
   rowExpandingFeature,
   rowPaginationFeature,
@@ -119,6 +120,7 @@ import {
   type Row,
   type ColumnFiltersState,
   type ColumnVisibilityState,
+  type ExpandedState,
   type RowData,
   type SortingState,
 } from "@tanstack/react-table"
@@ -283,6 +285,24 @@ import {
  * la sola differenza dal filtro di `arrHas` è che il valore della colonna è
  * un numero o una data, non un valore da confrontare a un elenco.
  */
+/**
+ * La ricerca negli alberi: una riga corrisponde se corrisponde lei **o una
+ * sua antenata**. Col filtro dalle foglie (`filterFromLeafRows`) una voce
+ * madre resta già se lei o una figlia corrisponde; senza la seconda metà,
+ * sotto una madre trovata per il suo nome restavano le sole figlie che
+ * contengono anche loro il testo, cioè di solito nessuna, e la voce si
+ * apriva vuota. Così chi cerca una voce la trova con tutte le sue righe.
+ */
+const filterFn_includesStringInAlbero = constructFilterFn({
+  ...filterFn_includesString,
+  filter: (valore: string | undefined, cercato: string, riga, idColonna) =>
+    Boolean(valore?.includes(cercato)) ||
+    riga.getParentRows().some((antenata) => {
+      const suo = antenata.getValue(idColonna)
+      return suo != null && String(suo).toLowerCase().includes(cercato)
+    }),
+})
+
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
   columnOrderingFeature,
@@ -301,6 +321,7 @@ export const caratteristiche = tableFeatures({
   sortedRowModel: createSortedRowModel(),
   filterFns: {
     includesString: filterFn_includesString,
+    includesStringInAlbero: filterFn_includesStringInAlbero,
     arrHas: filterFn_arrHas,
     inNumberRange: filterFn_inNumberRange,
     inDateRange: filterFn_inDateRange,
@@ -1356,6 +1377,7 @@ function PaginazioneTabella<TDato extends RowData>({
   conSelezione,
   infinito,
   nomeRighe,
+  nomeSottoRighe,
 }: {
   tabella: IstanzaTabella<TDato>
   conSelezione: boolean
@@ -1366,6 +1388,8 @@ function PaginazioneTabella<TDato extends RowData>({
    */
   infinito: boolean
   nomeRighe: NomeRighe
+  /** Negli alberi: il nome delle foglie, contate accanto alle righe di primo livello. */
+  nomeSottoRighe?: NomeRighe
 }) {
   const perPagina = tabella.state.pagination?.pageSize ?? 10
   const pagina = (tabella.state.pagination?.pageIndex ?? 0) + 1
@@ -1373,6 +1397,18 @@ function PaginazioneTabella<TDato extends RowData>({
   const filtrate = tabella.getFilteredRowModel().rows.length
   const scelte = tabella.getFilteredSelectedRowModel().rows.length
   const nome = filtrate === 1 ? nomeRighe.singolare : nomeRighe.plurale
+  // Le foglie si contano su `flatRows`, che col filtro dalle foglie porta
+  // tutti i livelli rimasti: il numero segue la ricerca anche a righe chiuse.
+  const foglie = nomeSottoRighe
+    ? tabella
+        .getFilteredRowModel()
+        .flatRows.filter((riga) => riga.depth > 0 && riga.subRows.length === 0).length
+    : 0
+  const nomeFoglie = nomeSottoRighe
+    ? foglie === 1
+      ? nomeSottoRighe.singolare
+      : nomeSottoRighe.plurale
+    : ""
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -1383,7 +1419,9 @@ function PaginazioneTabella<TDato extends RowData>({
       >
         {conSelezione
           ? `${scelte} di ${filtrate} ${nomeRighe.plurale} selezionate`
-          : `${filtrate} ${nome}`}
+          : nomeSottoRighe
+            ? `${filtrate} ${nome}, ${foglie} ${nomeFoglie}`
+            : `${filtrate} ${nome}`}
       </p>
 
       {infinito ? null : (
@@ -1648,11 +1686,14 @@ function ManigliaRidimensiona<TDato extends RowData>({
   tabellaRef,
   header,
   titolo,
+  ultima,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
   header: Header<CaratteristicheTabella, TDato, unknown>
   titolo: string
+  /** L'intestazione è l'ultima a destra, nell'ordine in cui è resa. */
+  ultima: boolean
 }) {
   const colonna = header.column
   const min = colonna.columnDef.minSize ?? 20
@@ -1718,16 +1759,34 @@ function ManigliaRidimensiona<TDato extends RowData>({
       // (bersaglio da puntatore), il segno visivo è **solo** il filo centrato
       // — mai la zona intera, che coprirebbe la colonna accanto di un tocco
       // di colore appena sfiorata.
-      className="group/maniglia absolute inset-y-0 -right-1 z-20 w-2 shrink-0 cursor-col-resize touch-none focus-visible:outline-none"
+      //
+      // A cavallo del bordo (`-right-1`) fra due colonne; **dentro** la
+      // colonna (`right-0`) sull'ultima intestazione, qualunque colonna sia —
+      // anche quella del «⋯» di `menuRiga`. Lì la metà esterna usciva dalla
+      // tabella, e i suoi 4px allargavano `table-container`: la barra di
+      // scorrimento orizzontale compariva su ogni tabella ridimensionabile,
+      // anche con le colonne che ci stavano largamente.
+      className={cn(
+        "group/maniglia absolute inset-y-0 z-20 w-2 shrink-0 cursor-col-resize touch-none focus-visible:outline-none",
+        ultima ? "right-0" : "-right-1"
+      )}
     >
       <span
         aria-hidden
         style={inTrascinamento ? { height: altezzaGuida } : undefined}
+        // A riposo un trattino corto e chiaro, a metà altezza: dice che il
+        // bordo si trascina anche su uno schermo senza puntatore, senza
+        // dividere la testata in caselle. In scuro `border` quasi sparisce
+        // sul fondo della testata, e il trattino prende `border-strong`.
+        // Niente trattino sull'ultima intestazione, dove farebbe doppia riga
+        // col bordo della tabella. Col puntatore, col fuoco o trascinando
+        // diventa il filo arancio a tutta altezza.
         className={cn(
-          "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors",
-          "group-hover/maniglia:w-1 group-hover/maniglia:bg-primary/60",
-          "group-focus-visible/maniglia:w-1 group-focus-visible/maniglia:bg-primary/60",
-          inTrascinamento && "w-1 bg-primary"
+          "absolute left-1/2 w-px -translate-x-1/2 transition-colors",
+          ultima ? "inset-y-0 bg-transparent" : "inset-y-1/4 bg-border dark:bg-border-strong",
+          "group-hover/maniglia:inset-y-0 group-hover/maniglia:w-1 group-hover/maniglia:bg-primary/60",
+          "group-focus-visible/maniglia:inset-y-0 group-focus-visible/maniglia:w-1 group-focus-visible/maniglia:bg-primary/60",
+          inTrascinamento && "inset-y-0 w-1 bg-primary"
         )}
       />
     </span>
@@ -1837,11 +1896,14 @@ function CellaIntestazione<TDato extends RowData>({
   bloccoLegacy,
   conDimensioni,
   selezione,
+  ultima,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
   intestazione: Header<CaratteristicheTabella, TDato, unknown>
   indice: number
+  /** L'ultima intestazione resa: la sua maniglia sta dentro la tabella. */
+  ultima: boolean
   trascinabile: boolean
   ridimensionabile: boolean
   colonneBloccabili: boolean
@@ -1963,6 +2025,7 @@ function CellaIntestazione<TDato extends RowData>({
             tabellaRef={tabellaRef}
             header={intestazione}
             titolo={titoloColonna}
+            ultima={ultima}
           />
         ) : null}
       </TableHead>
@@ -2505,12 +2568,13 @@ export function DataTableBody<TDato extends RowData>({
 // resta da scorrere»), alte quanto lo spazio delle righe non montate.
 //
 // **`estimateSize` è un segnaposto, non una misura**: 44 è un valore di
-// partenza plausibile (vicino all'altezza di riga in densità normale), corretto
-// subito dalla misura vera — `measureElement`, passato come `ref` a ogni riga
-// — che legge l'altezza reale resa, densità compresa. La stessa disciplina di
-// `altezzaMax` più sotto in `DataTable`: si misura, non si assume; qui la
-// stima iniziale non è mai quella che l'utente vede a riposo, per più di un
-// fotogramma.
+// partenza plausibile (vicino all'altezza di riga in densità normale). Le righe
+// montate si misurano davvero — `measureElement`, passato come `ref` a ogni
+// riga, che trova l'indice in `data-index` —, e la stima delle righe non
+// ancora montate diventa l'altezza misurata della prima riga resa, densità
+// compresa. Senza il secondo passo lo spazio sotto le righe montate resterebbe
+// contato a 44px per riga: su diecimila righe da 37, settantamila pixel di
+// troppo, e una barra di scorrimento che mente.
 /**
  * Il corpo virtualizzato, per `perPagina="virtuale"`: monta solo le righe
  * in vista, e regge decine di migliaia di righe senza tenerle tutte nel
@@ -2564,10 +2628,11 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
    */
   alVirtualizzatore?: (vaiA: (indice: number) => void) => void
 }) {
+  const stimaRef = React.useRef(44)
   const virtualizzatore = useVirtualizer({
     count: righe.length,
     getScrollElement: () => scrollEl,
-    estimateSize: () => 44,
+    estimateSize: () => stimaRef.current,
     overscan: 10,
   })
 
@@ -2607,6 +2672,41 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
    */
   const rigaRefs = React.useRef(new Map<number, HTMLTableRowElement>())
   const interagitoRef = React.useRef(false)
+
+  // La stima delle righe non montate è l'altezza vera di una riga resa,
+  // tenuta aggiornata da un `ResizeObserver` su **una** riga: così segue la
+  // densità, il carattere caricato e le transizioni fino al valore finale.
+  // Sempre la stessa riga finché resta montata, e non «la prima» a ogni
+  // render: con righe alte mezza unità (36,5px) WebKit ne arrotonda una a 36
+  // e la successiva a 37, e ogni `measure()` spostava di una riga la finestra,
+  // cambiava la prima riga e ne ripartiva un altro, fino al limite di React.
+  const osservatoreRef = React.useRef<ResizeObserver | null>(null)
+  const osservataRef = React.useRef<Element | null>(null)
+  const osservaUnaRiga = React.useCallback(() => {
+    const osservatore = osservatoreRef.current
+    if (!osservatore || osservataRef.current?.isConnected) return
+    const nodo = [...rigaRefs.current.values()].find((riga) => riga.isConnected)
+    if (!nodo) return
+    osservatore.disconnect()
+    osservatore.observe(nodo)
+    osservataRef.current = nodo
+  }, [])
+  React.useEffect(() => {
+    const osservatore = new ResizeObserver(([voce]) => {
+      const altezza = voce?.target.getBoundingClientRect().height
+      if (!altezza || Math.abs(altezza - stimaRef.current) < 0.5) return
+      stimaRef.current = altezza
+      virtualizzatore.measure()
+    })
+    osservatoreRef.current = osservatore
+    osservaUnaRiga()
+    return () => {
+      osservatore.disconnect()
+      osservatoreRef.current = null
+      osservataRef.current = null
+    }
+  }, [virtualizzatore, osservaUnaRiga])
+  React.useLayoutEffect(osservaUnaRiga)
   React.useEffect(() => {
     if (senzaFocoRiga || !interagitoRef.current) return
     const nodo = rigaRefs.current.get(focoValido)
@@ -2707,6 +2807,10 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
         return (
           <TableRow
             key={riga.id}
+            // L'indice da cui il virtualizzatore sa **quale** riga ha appena
+            // misurato: senza, `measureElement` scrive un avviso in console e
+            // non misura niente, e ogni riga resta alla stima.
+            data-index={elemento.index}
             ref={(nodo: HTMLTableRowElement | null) => {
               virtualizzatore.measureElement(nodo)
               if (nodo) rigaRefs.current.set(elemento.index, nodo)
@@ -2825,6 +2929,13 @@ export type DataTableProps<TDato extends RowData> = {
    * elenca lo dichiara.
    */
   nomeRighe?: NomeRighe
+  /**
+   * Negli alberi (`getSottoRighe`), il nome delle righe figlie: il conto in
+   * fondo dice allora le righe di primo livello e le foglie, «4 voci, 5
+   * misurazioni», e segue la ricerca anche a righe chiuse. Senza, conta le
+   * sole righe di primo livello. Fuori da un albero non ha effetto.
+   */
+  nomeSottoRighe?: NomeRighe
   // Righe per pagina. Una di 10, 25, 50, 100 — oppure **`"infinito"`**: niente
   // pagine, si carica altro scorrendo.
   //
@@ -3220,6 +3331,24 @@ export type DataTableProps<TDato extends RowData> = {
    * `perPagina="virtuale"`.
    */
   pannelloRiga?: (riga: TDato) => React.ReactNode
+  // La coppia valore/`on…Change` delle righe aperte, come `aperto`/
+  // `onApertoChange` di `confirm-dialog`. Senza la coppia lo stato resta del
+  // blocco. Un cambio di `dati` fa ripartire il modello di righe di TanStack,
+  // che di suo richiude tutte le righe aperte: qui succede solo quando le
+  // righe non hanno un'identità stabile, cioè senza `idRiga` e senza la
+  // coppia — l'id di riga è allora l'indice nell'array, e dopo un caricamento
+  // la stessa posizione può essere un altro record.
+  /**
+   * Le righe aperte, dell'albero di `getSottoRighe` o del dettaglio di
+   * `pannelloRiga`: `true` per tutte, oppure `{ [id della riga]: true }`.
+   * Insieme a `onRigheEspanseChange` lo stato è della pagina, e un cambio di
+   * `dati` non richiude niente. Senza, lo tiene il blocco: le righe restano
+   * aperte fra un caricamento e l'altro se c'è `idRiga`, altrimenti si
+   * richiudono a ogni cambio di `dati`.
+   */
+  righeEspanse?: ExpandedState
+  /** Riceve le righe aperte a ogni apertura o chiusura. Vedi `righeEspanse`. */
+  onRigheEspanseChange?: (righeEspanse: ExpandedState) => void
   // Il menu di riga condiviso:
   // `menu` sono le voci — scritte una sola volta con `RowMenuItem`/
   // `RowMenuSeparator`/`RowMenuSub`, che leggono la riga da
@@ -3395,6 +3524,7 @@ export function DataTable<TDato extends RowData>({
   cerca = "Cerca…",
   vuoto = { titolo: "Non c'è ancora niente" },
   nomeRighe = { singolare: "riga", plurale: "righe" },
+  nomeSottoRighe,
   perPagina = 25,
   altezza = "naturale",
   piePagina = true,
@@ -3409,6 +3539,8 @@ export function DataTable<TDato extends RowData>({
   riordinabile,
   getSottoRighe,
   pannelloRiga,
+  righeEspanse,
+  onRigheEspanseChange,
   menuRiga,
   chiaveMemoRiga,
   barra,
@@ -3464,6 +3596,14 @@ export function DataTable<TDato extends RowData>({
    * (`columnOrderingFeature` è registrata sempre, v. `caratteristiche`).
    */
   const [ordineColonne, setOrdineColonne] = React.useState<ColumnOrderState>([])
+  /**
+   * Le righe aperte. Della pagina quando passa `righeEspanse`, altrimenti di
+   * questo stato. La pagina riceve ogni cambio in `onRigheEspanseChange` in
+   * tutti e due i casi.
+   */
+  const [espanseInterne, setEspanseInterne] = React.useState<ExpandedState>({})
+  const espanseControllate = righeEspanse !== undefined
+  const espanse = espanseControllate ? righeEspanse : espanseInterne
 
   /**
    * Quante righe sono caricate. Solo `perPagina="infinito"`: cresce di
@@ -3497,15 +3637,28 @@ export function DataTable<TDato extends RowData>({
     features: caratteristiche,
     data: dati,
     columns: colonneEffettive,
-    globalFilterFn: "includesString",
+    globalFilterFn: getSottoRighe ? "includesStringInAlbero" : "includesString",
     // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
     // predefinito, l'indice nell'array (v. il prop).
     getRowId: idRiga ? (riga) => idRiga(riga) : undefined,
-    // `expanded` non è fra gli `onChange`/`state` sotto: resta uno stato
-    // interno di TanStack (come `columnOrder`), perché nessun calcolo di
-    // questo componente ha bisogno di leggerlo — a differenza di
-    // `rowSelection`, letto per il conto in `PaginazioneTabella`.
+    // Le righe aperte non si richiudono a un cambio di `dati` quando le righe
+    // hanno un'identità stabile (v. `righeEspanse`). Con la coppia controllata
+    // è anche l'unico modo giusto: la richiusura automatica passa da
+    // `onExpandedChange`, e svuoterebbe lo stato della pagina.
+    autoResetExpanded: !(espanseControllate || idRiga),
+    onExpandedChange: (aggiorna) => {
+      const nuove = typeof aggiorna === "function" ? aggiorna(espanse) : aggiorna
+      if (!espanseControllate) setEspanseInterne(nuove)
+      onRigheEspanseChange?.(nuove)
+    },
     getSubRows: getSottoRighe ? (riga) => getSottoRighe(riga) : undefined,
+    // In un albero ricerca e filtri partono dalle foglie: una riga madre
+    // resta se lei o una sua discendente corrisponde; con la ricerca, una
+    // madre trovata porta con sé tutte le sue figlie
+    // (`includesStringInAlbero`). Dall'alto, il predefinito di TanStack,
+    // una madre che non contiene il testo cercato veniva scartata con tutte
+    // le figlie, e una voce di secondo livello non si trovava mai.
+    filterFromLeafRows: !!getSottoRighe,
     // Senza `pannelloRiga` resta `undefined`: `getCanExpand()` ricade sul
     // predefinito di TanStack (righe con `subRows`, l'albero).
     getRowCanExpand: pannelloRiga
@@ -3561,6 +3714,7 @@ export function DataTable<TDato extends RowData>({
       columnSizing: dimensioni,
       columnPinning: ancoraggio,
       columnOrder: ordineColonne,
+      expanded: espanse,
     },
   })
 
@@ -3815,6 +3969,16 @@ export function DataTable<TDato extends RowData>({
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
   /**
+   * L'altezza dell'intestazione ferma, che diventa lo `scroll-padding-top` di
+   * `table-container`. Le righe sono `snap-start`, e senza questo margine lo
+   * snap le agganciava al bordo alto del riquadro, cioè **sotto** l'intestazione:
+   * all'apertura il browser portava da sé la prima riga lì, e la tabella
+   * partiva già scorsa di un'intestazione, con la prima riga nascosta. Col
+   * margine la prima riga si aggancia a scorrimento zero, e ogni riga
+   * agganciata cade subito sotto l'intestazione invece che dietro.
+   */
+  const [altezzaTestata, setAltezzaTestata] = React.useState<number | undefined>(undefined)
+  /**
    * Misura la tabella per intero, per la barra-guida del trascinamento (v.
    * `ManigliaRidimensiona`). `Table` (`ui/table.tsx`) non passa `ref` con
    * `forwardRef`, ma non ne ha bisogno: spande `{...props}` sul `<table>`, e
@@ -3892,6 +4056,7 @@ export function DataTable<TDato extends RowData>({
 
     const ricalcola = () => {
       const altezzaTestata = testataRef.current?.getBoundingClientRect().height ?? 0
+      setAltezzaTestata(altezzaTestata)
       const contenitoreTop = contenitore.getBoundingClientRect().top
       const scarto = parseFloat(getComputedStyle(radice).rowGap) || 0
       const altezzaPiePagina = elPiePagina?.getBoundingClientRect().height ?? 0
@@ -3935,6 +4100,13 @@ export function DataTable<TDato extends RowData>({
         tetto = fondoRiga
       }
       if (tetto <= altezzaTestata) return
+      // **A pixel interi, per difetto.** Righe di solo testo sono alte una
+      // frazione di pixel (l'interlinea del corpo), e un tetto frazionario
+      // lasciava il filo della riga di fondo accanto al bordo del riquadro,
+      // due linee a un pixel di distanza. Per difetto, così il riquadro non
+      // supera mai lo spazio disponibile e il filo della riga resta sotto il
+      // bordo, fuori vista.
+      tetto = Math.floor(tetto)
 
       // Qualche pixel di margine sul confronto: due misure dello stesso
       // valore, prese in momenti diversi, possono differire di qualche
@@ -4022,11 +4194,18 @@ export function DataTable<TDato extends RowData>({
 
       <div
         ref={contenitoreRef}
-        style={fermo ? { maxHeight: altezzaMax } : undefined}
+        style={
+          fermo
+            ? ({
+                maxHeight: altezzaMax,
+                "--altezza-testata": altezzaTestata === undefined ? undefined : `${altezzaTestata}px`,
+              } as React.CSSProperties)
+            : undefined
+        }
         className={cn(
           "overflow-hidden rounded-lg border bg-card",
           fermo &&
-            "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity"
+            "flex min-h-0 flex-col [&_[data-slot=table-container]]:snap-y [&_[data-slot=table-container]]:snap-proximity [&_[data-slot=table-container]]:scroll-pt-(--altezza-testata) [&_[data-slot=table-container]]:scroll-pb-2"
         )}
       >
         {/*
@@ -4171,6 +4350,7 @@ export function DataTable<TDato extends RowData>({
                   tabellaRef={tabellaRef}
                   intestazione={intestazione}
                   indice={indice}
+                  ultima={indice === intestazioni.length - 1}
                   trascinabile={
                     colonneRiordinabili && !COLONNE_UTILITY.has(intestazione.column.id)
                   }
@@ -4314,6 +4494,7 @@ export function DataTable<TDato extends RowData>({
             // `trascinamento`: stessa ragione, una pagina sola.
             infinito={infinito || virtualizzata || trascinamento}
             nomeRighe={nomeRighe}
+            nomeSottoRighe={getSottoRighe ? nomeSottoRighe : undefined}
           />
         </div>
       ) : null}

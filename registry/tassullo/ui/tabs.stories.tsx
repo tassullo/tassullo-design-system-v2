@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { FileTextIcon, ImageIcon, ListChecksIcon } from 'lucide-react'
+import { expect } from 'storybook/test'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui/tabs'
 
@@ -61,6 +62,48 @@ function Pannelli() {
   )
 }
 
+/*
+ * La prova che il filo della scheda attiva resta dentro la lista, eseguita a
+ * ogni giro del controllo di accessibilità. Il filo è un `::after` sotto la
+ * scheda; se sporge anche di un pixel, la lista ha un contenuto più alto di
+ * sé, e appena le si dà `overflow-x-auto` — il modo ovvio di non far
+ * sbordare molte schede — il browser le calcola anche lo scorrimento
+ * verticale e compare una barra accanto alle schede.
+ *
+ * Si misura in tutte e due le densità, mettendo `data-density` sulla radice
+ * delle schede, e con e senza `overflow-x-auto`: altezza del contenuto
+ * uguale all'altezza della lista; e con `overflow-x-auto` la lista non
+ * scorre in verticale (`scrollTop` resta a zero). La larghezza della barra
+ * non è una misura: dove le barre sono sovrapposte vale zero anche quando
+ * la barra c'è. Alla fine la scena torna com'era, perché la scansione la
+ * guardi a riposo.
+ */
+function provaFiloDentroLaLista({ canvasElement }: { canvasElement: HTMLElement }) {
+  const lista = canvasElement.querySelector<HTMLElement>('[data-slot="tabs-list"]')
+  const radice = canvasElement.querySelector<HTMLElement>('[data-slot="tabs"]')
+  if (!lista || !radice) throw new Error('Nessuna lista di schede in questa scena')
+  try {
+    for (const densita of ['normale', 'touch']) {
+      radice.setAttribute('data-density', densita)
+      for (const scorrimento of ['', 'auto']) {
+        lista.style.overflowX = scorrimento
+        const misura = `${densita}, overflow-x ${scorrimento || 'visible'}`
+        expect(`${misura}: ${lista.scrollHeight}/${lista.clientHeight}`).toBe(
+          `${misura}: ${lista.clientHeight}/${lista.clientHeight}`,
+        )
+        if (scorrimento) {
+          lista.scrollTop = 10
+          expect(`${misura}: scrollTop ${lista.scrollTop}`).toBe(`${misura}: scrollTop 0`)
+          lista.scrollTop = 0
+        }
+      }
+    }
+  } finally {
+    radice.removeAttribute('data-density')
+    lista.style.overflowX = ''
+  }
+}
+
 /**
  * Tre schede a pillole su una larghezza fissa: cambiando scheda la lista non
  * si sposta.
@@ -78,6 +121,16 @@ export const Predefinito: Story = {
   ),
 }
 
+// Scena di misura di «Predefinito»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const PredefinitoProva: Story = {
+  ...Predefinito,
+  name: 'Predefinito, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaFiloDentroLaLista,
+}
+
 /**
  * La variante `line`: un filo sotto la scheda attiva, senza pillola.
  */
@@ -92,6 +145,16 @@ export const Filo: Story = {
       <Pannelli />
     </Tabs>
   ),
+}
+
+// Scena di misura di «Filo»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const FiloProva: Story = {
+  ...Filo,
+  name: 'Filo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaFiloDentroLaLista,
 }
 
 /**

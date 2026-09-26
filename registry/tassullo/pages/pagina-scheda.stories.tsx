@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, waitFor } from 'storybook/test'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
@@ -218,78 +219,88 @@ function AnagraficaForm({
         `@lg` del `FieldGroup`, cioè una **container query**: la stessa scheda
         dentro un pannello stretto torna a una colonna senza sapere quanto è
         larga la finestra.
+
+        La griglia sta su un `<div>` **dentro** il `FieldGroup`, non sul
+        `FieldGroup` stesso. È il `FieldGroup` a dichiarare
+        `@container/field-group`, e un elemento non interroga sé stesso:
+        `@lg/field-group:` scritto sul `FieldGroup` cercherebbe un contenitore
+        sopra di lui, che non c'è, e la griglia non scatterebbe mai: resterebbe
+        a una colonna, con tre colonne implicite di larghezza automatica
+        aperte dai `col-span-3` di Titolo e Note.
       */}
-      <FieldGroup className="grid grid-cols-1 gap-4 @lg/field-group:grid-cols-3">
-        <FormField control={form.control} nome="codice" etichetta="Codice">
-          {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
-        </FormField>
-        <FormField control={form.control} nome="ente" etichetta="Ente">
-          {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
-        </FormField>
-        {/*
-          **Lo stato è un campo, e si modifica** (2026-09-21, indirizzo di
-          Francesco). Prima era un `<Badge>` appeso al titolo: l'unico dato
-          della pagina senza un'etichetta che dicesse di che cosa fosse il
-          valore, e per giunta in sola lettura in una pagina che ha un
-          «Modifica». Qui è un `FormField` come gli altri, con lo stesso
-          `disabled={!modifica}`: in lettura mostra il valore, in modifica si
-          apre. È anche la ragione per cui non può stare nel blocco — v. il
-          commento su `STATI`.
-        */}
-        <FormField control={form.control} nome="stato" etichetta="Stato">
-          {({ onChange, value, ...campo }) => (
-            <Select value={value} onValueChange={onChange} disabled={!modifica}>
-              <SelectTrigger {...campo}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATI.map((s) => (
-                  <SelectItem key={s.valore} value={s.valore}>
-                    {s.etichetta}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </FormField>
-        <div className="@lg/field-group:col-span-3">
-          <FormField control={form.control} nome="titolo" etichetta="Titolo">
+      <FieldGroup>
+        <div className="grid grid-cols-1 gap-4 @lg/field-group:grid-cols-3">
+          <FormField control={form.control} nome="codice" etichetta="Codice">
             {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
           </FormField>
-        </div>
-        <div className="@lg/field-group:col-span-3">
+          <FormField control={form.control} nome="ente" etichetta="Ente">
+            {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
+          </FormField>
           {/*
-            **Niente riga d'aiuto col limite** (2026-09-21, indirizzo di
-            Francesco). Il limite c'è — `z.string().max(2048)` — e si fa vivo
-            **quando serve**, come errore sotto il campo, con il testo che lo
-            schema già scrive. Dirlo in anticipo sotto ogni campo è una riga
-            che chi compila salta dopo la seconda volta e che intanto raddoppia
-            l'altezza del modulo: è esattamente il «quasi sempre non si usa»
-            che `form-field.tsx` scrive su `descrizione`.
+            **Lo stato è un campo, e si modifica** (2026-09-21, indirizzo di
+            Francesco). Prima era un `<Badge>` appeso al titolo: l'unico dato
+            della pagina senza un'etichetta che dicesse di che cosa fosse il
+            valore, e per giunta in sola lettura in una pagina che ha un
+            «Modifica». Qui è un `FormField` come gli altri, con lo stesso
+            `disabled={!modifica}`: in lettura mostra il valore, in modifica si
+            apre. È anche la ragione per cui non può stare nel blocco — v. il
+            commento su `STATI`.
           */}
-          <FormField control={form.control} nome="note" etichetta="Note">
-            {(campo) => (
-              <Textarea
-                {...campo}
-                rows={3}
-                disabled={!modifica}
-                // **In lettura l'altezza tirata a mano si butta via.**
-                // `textarea` ha la maniglia di ridimensionamento, e il browser
-                // scrive l'altezza scelta in uno `style` **in linea** che
-                // sopravvive all'uscita dalla modifica. Finché la si allarga
-                // non fa danni; tirandola **sotto** il contenuto il testo
-                // resta tagliato — misurato: maniglia a 43px, `min-h-16` la
-                // riporta a 64, contenuto 72, **10px fuori** — e in lettura il
-                // campo è `disabled`, quindi la maniglia non c'è più e da
-                // tastiera non ci si scorre dentro. `h-auto!` scavalca lo
-                // stile in linea (una classe `!important` vince su uno stile
-                // in linea non importante) e lascia lavorare
-                // `field-sizing-content`, che la primitiva ha già: in lettura
-                // il campo è sempre alto quanto il suo testo.
-                className={modifica ? undefined : 'h-auto!'}
-              />
+          <FormField control={form.control} nome="stato" etichetta="Stato">
+            {({ onChange, value, ...campo }) => (
+              <Select value={value} onValueChange={onChange} disabled={!modifica}>
+                <SelectTrigger {...campo}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATI.map((s) => (
+                    <SelectItem key={s.valore} value={s.valore}>
+                      {s.etichetta}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </FormField>
+          <div className="@lg/field-group:col-span-3">
+            <FormField control={form.control} nome="titolo" etichetta="Titolo">
+              {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
+            </FormField>
+          </div>
+          <div className="@lg/field-group:col-span-3">
+            {/*
+              **Niente riga d'aiuto col limite** (2026-09-21, indirizzo di
+              Francesco). Il limite c'è — `z.string().max(2048)` — e si fa vivo
+              **quando serve**, come errore sotto il campo, con il testo che lo
+              schema già scrive. Dirlo in anticipo sotto ogni campo è una riga
+              che chi compila salta dopo la seconda volta e che intanto raddoppia
+              l'altezza del modulo: è esattamente il «quasi sempre non si usa»
+              che `form-field.tsx` scrive su `descrizione`.
+            */}
+            <FormField control={form.control} nome="note" etichetta="Note">
+              {(campo) => (
+                <Textarea
+                  {...campo}
+                  rows={3}
+                  disabled={!modifica}
+                  // **In lettura l'altezza tirata a mano si butta via.**
+                  // `textarea` ha la maniglia di ridimensionamento, e il browser
+                  // scrive l'altezza scelta in uno `style` **in linea** che
+                  // sopravvive all'uscita dalla modifica. Finché la si allarga
+                  // non fa danni; tirandola **sotto** il contenuto il testo
+                  // resta tagliato — misurato: maniglia a 43px, `min-h-16` la
+                  // riporta a 64, contenuto 72, **10px fuori** — e in lettura il
+                  // campo è `disabled`, quindi la maniglia non c'è più e da
+                  // tastiera non ci si scorre dentro. `h-auto!` scavalca lo
+                  // stile in linea (una classe `!important` vince su uno stile
+                  // in linea non importante) e lascia lavorare
+                  // `field-sizing-content`, che la primitiva ha già: in lettura
+                  // il campo è sempre alto quanto il suo testo.
+                  className={modifica ? undefined : 'h-auto!'}
+                />
+              )}
+            </FormField>
+          </div>
         </div>
       </FieldGroup>
       {modifica ? (
@@ -379,6 +390,41 @@ function Guscio({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
   )
 }
 
+/*
+ * La prova che la griglia dei dati scatta davvero a tre colonne, eseguita a
+ * ogni giro del controllo di accessibilità. La soglia è una container query
+ * sul `FieldGroup`, quindi dipende dalla larghezza del modulo e non da quella
+ * della finestra: il modulo si porta per la misura a una larghezza fissa ben
+ * sopra la soglia, e poi torna com'era.
+ *
+ * A quella larghezza Codice, Ente e Stato stanno sulla stessa riga, con tre
+ * colonne uguali; Titolo e Note prendono la riga intera.
+ */
+async function provaGrigliaDati({ canvasElement }: { canvasElement: HTMLElement }) {
+  const campo = (etichetta: string) =>
+    [...canvasElement.querySelectorAll('label')]
+      .find((l) => l.textContent?.trim() === etichetta)
+      ?.closest<HTMLElement>('[data-slot="field"]') ?? null
+  await waitFor(() => expect(campo('Codice')).not.toBeNull())
+  const codice = campo('Codice')!
+  const modulo = codice.closest('form')!
+  const larghezza = modulo.style.width
+  modulo.style.width = '72rem'
+  try {
+    const griglia = codice.parentElement!.getBoundingClientRect()
+    const [c, e, s, t, n] = ['Codice', 'Ente', 'Stato', 'Titolo', 'Note'].map((x) =>
+      campo(x)!.getBoundingClientRect(),
+    )
+    const px = (r: DOMRect) => Math.round(r.width)
+    expect(`righe ${Math.round(e.top - c.top)}/${Math.round(s.top - c.top)}`).toBe('righe 0/0')
+    expect(`colonne ${px(c)}/${px(e)}/${px(s)}`).toBe(`colonne ${px(c)}/${px(c)}/${px(c)}`)
+    expect(px(c)).toBeLessThan(px(griglia) / 2)
+    expect(`titolo ${px(t)}, note ${px(n)}`).toBe(`titolo ${px(griglia)}, note ${px(griglia)}`)
+  } finally {
+    modulo.style.width = larghezza
+  }
+}
+
 /**
  * Il caso comune: il nome della norma nell'ultimo livello del percorso,
  * «Elimina» e «Modifica» accanto, i campi disabilitati — lo stato è uno di
@@ -386,6 +432,16 @@ function Guscio({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
  */
 export const ConDati: Story = {
   render: () => <Guscio />,
+}
+
+// Scena di misura di «Con Dati»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const ConDatiProva: Story = {
+  ...ConDati,
+  name: 'Con Dati, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaGrigliaDati,
 }
 
 /** `stato="caricamento"`: `PageSkeleton` (`variante="scheda"`) al posto del contenuto. */
