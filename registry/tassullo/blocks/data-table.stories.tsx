@@ -1504,7 +1504,7 @@ export const Filtri: StoryObj<typeof DataTable<Prodotto>> = {
 }
 
 /**
- * Con «Bozza» già scelto: il grilletto mostra il valore scelto, le opzioni di
+ * Con «bozza» già scelto: il grilletto mostra il valore scelto, le opzioni di
  * Famiglia restano tutte, e il bottone che azzera i filtri è in vista.
  */
 export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
@@ -1514,7 +1514,8 @@ export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
 }
 
 // La prova cerca «calce» e apre il filtro Stato: le voci devono essere gli
-// stati dei prodotti che la ricerca lascia passare, con il loro conteggio.
+// stati dei prodotti che la ricerca lascia passare, scritte come nel dato,
+// con il loro conteggio.
 // Prima la ricerca si applicava con un id di colonna fittizio, che non legge
 // nessun valore: il filtro diceva «Nessun risultato.» (0 voci su 4).
 async function provaFiltriConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
@@ -1533,7 +1534,7 @@ async function provaFiltriConRicerca({ canvasElement }: { canvasElement: HTMLEle
   })
   await waitFor(() => {
     const voci = within(pannello).queryAllByRole('option')
-    expect(voci.map((v) => v.textContent?.toLowerCase())).toEqual(
+    expect(voci.map((v) => v.textContent)).toEqual(
       [...conteggi]
         .sort(([a], [b]) => a.localeCompare(b, 'it'))
         .map(([stato, quanti]) => `${stato}${quanti}`)
@@ -2307,4 +2308,84 @@ export const PiedeVirtualizzato: StoryObj<typeof DataTable<MisurazioneComputo>> 
       />
     </div>
   ),
+}
+
+const colUnita = creaColonne<MisurazioneComputo>()
+
+const COLONNE_UNITA = colUnita.columns([
+  colUnita.accessor('voce', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Voce" />,
+    meta: { titolo: 'Voce', larghezza: 'w-24' },
+    sortFn: 'alphanumeric',
+  }),
+  colUnita.accessor('ambiente', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Ambiente" />,
+    meta: { titolo: 'Ambiente' },
+    sortFn: 'text',
+  }),
+  colUnita.accessor('udm', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="U.M." />,
+    meta: { titolo: 'U.M.', larghezza: 'w-16' },
+    filterFn: 'arrHas',
+    enableGlobalFilter: false,
+  }),
+  colUnita.accessor('quantita', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Quantità" allinea="fine" />
+    ),
+    meta: { titolo: 'Quantità', larghezza: 'w-28' },
+    sortFn: 'basic',
+    cell: ({ getValue }) => <div className="text-right">{decimale(getValue<number>())}</div>,
+    enableGlobalFilter: false,
+  }),
+])
+
+// La prova apre il filtro U.M. e legge le voci: devono essere scritte come
+// nel dato, «m²» e «m³». Prima il filtro metteva la maiuscola alla prima
+// lettera, «M²» e «M³», e un'unità di misura cambiava significato.
+async function provaVociComeNelDato({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const conteggi = new Map<string, number>()
+  for (const m of MISURAZIONI) conteggi.set(m.udm, (conteggi.get(m.udm) ?? 0) + 1)
+  await userEvent.click(canvas.getByRole('button', { name: /^U\.M\./ }))
+  const pannello = await waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="popover-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  await waitFor(() => {
+    const voci = within(pannello).queryAllByRole('option')
+    expect(voci.map((v) => v.textContent)).toEqual(
+      [...conteggi]
+        .sort(([a], [b]) => a.localeCompare(b, 'it'))
+        .map(([udm, quante]) => `${udm}${quante}`)
+    )
+  })
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() =>
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeNull()
+  )
+}
+
+/**
+ * Le voci del filtro sono i valori della colonna scritti come nel dato:
+ * «m²» resta «m²», una sigla resta in maiuscolo, una parola in minuscolo resta
+ * in minuscolo. Per un'etichetta diversa dal valore, il filtro accetta
+ * `opzioni`, con il testo da mostrare per ogni valore.
+ */
+export const FiltroVociComeNelDato: StoryObj<typeof DataTable<MisurazioneComputo>> = {
+  name: 'Filtro Voci Come Nel Dato',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_UNITA}
+      dati={MISURAZIONI}
+      cerca="Cerca per voce o ambiente…"
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'misurazione', plurale: 'misurazioni' }}
+      barra={(_scelte, tabella) => (
+        <FiltroSfaccettato tabella={tabella} accessore="udm" titolo="U.M." />
+      )}
+    />
+  ),
+  play: provaVociComeNelDato,
 }

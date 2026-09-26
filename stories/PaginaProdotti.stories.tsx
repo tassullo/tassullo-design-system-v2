@@ -960,8 +960,8 @@ function PaginaProdotti({
                 a sé) — di default nessuna opzione scelta, tutti i prodotti
                 compaiono, esattamente come Famiglia/Tipo. `opzioni` statiche
                 perché il valore grezzo è un booleano: la label la scrive la
-                pagina («Attivo»/«Disattivo»), non `formattaEtichetta` che
-                renderebbe «True»/«False». Il filtro stesso è una funzione
+                pagina («Attivo»/«Disattivo»): il filtro mostra i valori
+                come sono nel dato, e si leggerebbe «true»/«false». Il filtro stesso è una funzione
                 scritta a mano sulla colonna (sopra, non `arrHas`): `arrHas`
                 confronta con `===` senza stringificare, e un booleano contro
                 le stringhe delle opzioni non troverebbe mai un pari.

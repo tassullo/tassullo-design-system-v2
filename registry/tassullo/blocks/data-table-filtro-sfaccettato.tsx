@@ -177,11 +177,6 @@ export type OpzioneFiltro = {
   count?: number
 }
 
-/** `"pubblicato"` → `"Pubblicato"`. Solo la prima lettera: sono già parole. */
-function formattaEtichetta(valore: string): string {
-  return valore.length > 0 ? valore.charAt(0).toUpperCase() + valore.slice(1) : valore
-}
-
 /**
  * Le righe che passano ogni filtro **tranne** quello della colonna
  * `chiaveColonna` — colonna per colonna, più la ricerca globale. Porting di
@@ -272,7 +267,10 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
     }
 
     return Array.from(conteggi.entries())
-      .map(([value, count]) => ({ value, label: formattaEtichetta(value), count }))
+      // L'etichetta è il valore com'è scritto nel dato, maiuscole e minuscole
+      // comprese: il filtro dice la stessa cosa della tabella, e «mm» non
+      // diventa «Mm». Un testo diverso dal valore si dà con `opzioni`.
+      .map(([value, count]) => ({ value, label: value, count }))
       .sort((a, b) => a.label.localeCompare(b.label, "it"))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabella, righeCore, chiaveColonna, filtriColonna, ricerca, opzioniStatiche])
@@ -291,7 +289,9 @@ export type FiltroSfaccettatoProps<TDato extends RowData> = {
   /**
    * Elenco fisso delle opzioni, invece di derivarle dai dati. Utile quando i
    * valori possibili sono più dei valori presenti nella pagina corrente di
-   * dati finti/di prova, o quando l'ordine non deve essere alfabetico.
+   * dati finti/di prova, quando l'ordine non deve essere alfabetico, o quando
+   * l'etichetta deve essere diversa dal valore: senza `opzioni` ogni voce è
+   * il valore com'è scritto nel dato, maiuscole e minuscole comprese.
    */
   opzioni?: OpzioneFiltro[]
 }
