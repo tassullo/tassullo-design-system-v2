@@ -337,7 +337,7 @@ function BarraFiltri({ tabella }: { tabella: IstanzaTabella<Norma> }) {
     <>
       <FiltroSfaccettato tabella={tabella} accessore="categoria" titolo="Categoria" />
       {/* `opzioni` statiche perché il valore grezzo è un booleano: l'etichetta
-          la scrive la pagina, o si leggerebbe «True»/«False». */}
+          la scrive la pagina, o si leggerebbe «true»/«false». */}
       <FiltroSfaccettato
         tabella={tabella}
         accessore="vigente"
