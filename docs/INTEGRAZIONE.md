@@ -703,6 +703,24 @@ installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
 legge; `toggle-group` è un filtro che si clicca. Prima di scegliere un
 componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
 
+**Un collegamento non è un `Button`.** Ciò che porta a un'altra pagina —
+«Torna a…», «Apri sul sito», il nome che apre la scheda — è il `Link` del
+router o un `<a>`, con l'aspetto preso da `buttonVariants({ variant, size })`:
+
+```tsx
+<Link to="/prodotti" className={buttonVariants({ variant: "outline" })}>
+  Torna ai prodotti
+</Link>
+```
+
+`Button` è il bottone di Base UI: col `render` di un collegamento scrive un
+errore in console e mette `type="button"` sull'`<a>`; con
+`nativeButton={false}` il collegamento diventa un bottone (`role="button"`:
+`getByRole("link")` non lo trova, `Spazio` lo apre). È la forma che shadcn
+documenta per il Button («As Link»). Un collegamento non si disabilita: se la
+destinazione non c'è, non si rende. `tassullo-controllo` rifiuta un `Button`
+col `render` di un `<a>` o di un `…Link`.
+
 **Numeri.**
 - I numeri da confrontare in colonna hanno `tabular-nums`, non un altro
   carattere. `Table` e le tabelle dei blocchi lo hanno già; fuori (totali,
@@ -723,8 +741,10 @@ componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
   resto della riga; fuori dalle tabelle, un codice accanto a un nome prende
   `text-sm text-muted-foreground`.
 - Se una riga di tabella apre una pagina, il collegamento sta su una colonna
-  sola — il codice o il nome — ed è un `Button variant="link"` col `render` del
-  collegamento (`<a>` o il `Link` del router), non un testo colorato a mano.
+  sola — il codice o il nome — ed è il `Link` del router (o un `<a>`) con
+  l'aspetto del bottone `link`, non un testo colorato a mano né un `Button`
+  (vedi «Un collegamento non è un `Button`», sopra):
+  `className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0 font-medium")}`.
 
 **Classi con `cn`.** Nel codice dell'app si importa da `@/lib/utils`; i file
 del design system la prendono dal pacchetto `cn`, ed è la stessa funzione. Fra
