@@ -1090,6 +1090,7 @@ function AlberoConRicercaControlli() {
         colonneNascondibili={false}
         getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
         nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+        nomeSottoRighe={{ singolare: 'misurazione', plurale: 'misurazioni' }}
         vuoto={{ titolo: 'Nessuna voce nel computo' }}
         onTabellaPronta={(t) => {
           tabellaRef.current = t
@@ -1102,11 +1103,15 @@ function AlberoConRicercaControlli() {
 // La prova cerca un ambiente, che sta solo nelle misurazioni (secondo
 // livello), e lo trova. Prima la ricerca lavorava dall'alto: la voce madre non
 // conteneva il testo e veniva scartata con tutte le sue misurazioni, quindi
-// 0 righe e «Nessun risultato».
+// 0 righe e «Nessun risultato». Il conto in fondo dice voci e misurazioni
+// rimaste, anche prima di aprire le voci.
 async function provaAlberoConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
   const canvas = within(canvasElement)
   await userEvent.type(canvas.getByRole('searchbox'), 'corridoio')
   await waitFor(() => expect(canvas.queryByText('Nessun risultato')).toBeNull())
+  await waitFor(() =>
+    expect(canvas.getByRole('status')).toHaveTextContent('4 voci, 5 misurazioni')
+  )
   await userEvent.click(canvas.getByRole('button', { name: 'Espandi tutto' }))
   await waitFor(() =>
     expect(canvas.getAllByText(/corridoio/).length).toBeGreaterThan(0)
@@ -1117,7 +1122,8 @@ async function provaAlberoConRicerca({ canvasElement }: { canvasElement: HTMLEle
  * La ricerca in un albero guarda anche le righe figlie: cercando un ambiente,
  * che sta solo nelle misurazioni, restano le voci che ne hanno almeno una, e
  * sotto ciascuna le sole misurazioni che corrispondono. Una voce resta se lei
- * stessa o una sua discendente corrisponde.
+ * stessa o una sua discendente corrisponde. Con `nomeSottoRighe` il conto in
+ * fondo dice le voci e le misurazioni rimaste.
  */
 export const AlberoConRicerca: StoryObj<typeof DataTable<RigaComputo>> = {
   name: 'Albero Con Ricerca',

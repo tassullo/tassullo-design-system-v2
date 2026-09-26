@@ -135,7 +135,8 @@ export const Filo: Story = {
       </TabsList>
       <Pannelli />
     </Tabs>
-  ),  play: provaFiloDentroLaLista,
+  ),
+  play: provaFiloDentroLaLista,
 }
 
 /**

@@ -1357,6 +1357,7 @@ function PaginazioneTabella<TDato extends RowData>({
   conSelezione,
   infinito,
   nomeRighe,
+  nomeSottoRighe,
 }: {
   tabella: IstanzaTabella<TDato>
   conSelezione: boolean
@@ -1367,6 +1368,8 @@ function PaginazioneTabella<TDato extends RowData>({
    */
   infinito: boolean
   nomeRighe: NomeRighe
+  /** Negli alberi: il nome delle foglie, contate accanto alle righe di primo livello. */
+  nomeSottoRighe?: NomeRighe
 }) {
   const perPagina = tabella.state.pagination?.pageSize ?? 10
   const pagina = (tabella.state.pagination?.pageIndex ?? 0) + 1
@@ -1374,6 +1377,18 @@ function PaginazioneTabella<TDato extends RowData>({
   const filtrate = tabella.getFilteredRowModel().rows.length
   const scelte = tabella.getFilteredSelectedRowModel().rows.length
   const nome = filtrate === 1 ? nomeRighe.singolare : nomeRighe.plurale
+  // Le foglie si contano su `flatRows`, che col filtro dalle foglie porta
+  // tutti i livelli rimasti: il numero segue la ricerca anche a righe chiuse.
+  const foglie = nomeSottoRighe
+    ? tabella
+        .getFilteredRowModel()
+        .flatRows.filter((riga) => riga.depth > 0 && riga.subRows.length === 0).length
+    : 0
+  const nomeFoglie = nomeSottoRighe
+    ? foglie === 1
+      ? nomeSottoRighe.singolare
+      : nomeSottoRighe.plurale
+    : ""
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -1384,7 +1399,9 @@ function PaginazioneTabella<TDato extends RowData>({
       >
         {conSelezione
           ? `${scelte} di ${filtrate} ${nomeRighe.plurale} selezionate`
-          : `${filtrate} ${nome}`}
+          : nomeSottoRighe
+            ? `${filtrate} ${nome}, ${foglie} ${nomeFoglie}`
+            : `${filtrate} ${nome}`}
       </p>
 
       {infinito ? null : (
@@ -2861,6 +2878,13 @@ export type DataTableProps<TDato extends RowData> = {
    * elenca lo dichiara.
    */
   nomeRighe?: NomeRighe
+  /**
+   * Negli alberi (`getSottoRighe`), il nome delle righe figlie: il conto in
+   * fondo dice allora le righe di primo livello e le foglie, «4 voci, 5
+   * misurazioni», e segue la ricerca anche a righe chiuse. Senza, conta le
+   * sole righe di primo livello. Fuori da un albero non ha effetto.
+   */
+  nomeSottoRighe?: NomeRighe
   // Righe per pagina. Una di 10, 25, 50, 100 — oppure **`"infinito"`**: niente
   // pagine, si carica altro scorrendo.
   //
@@ -3449,6 +3473,7 @@ export function DataTable<TDato extends RowData>({
   cerca = "Cerca…",
   vuoto = { titolo: "Non c'è ancora niente" },
   nomeRighe = { singolare: "riga", plurale: "righe" },
+  nomeSottoRighe,
   perPagina = 25,
   altezza = "naturale",
   piePagina = true,
@@ -4417,6 +4442,7 @@ export function DataTable<TDato extends RowData>({
             // `trascinamento`: stessa ragione, una pagina sola.
             infinito={infinito || virtualizzata || trascinamento}
             nomeRighe={nomeRighe}
+            nomeSottoRighe={getSottoRighe ? nomeSottoRighe : undefined}
           />
         </div>
       ) : null}
