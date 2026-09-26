@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { RowData } from '@tanstack/react-table'
+import type { ExpandedState, RowData } from '@tanstack/react-table'
 import {
   CheckIcon,
   ChevronsDownUpIcon,
@@ -7,11 +7,12 @@ import {
   CopyIcon,
   EllipsisVerticalIcon,
   PencilIcon,
+  RefreshCwIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { expect, waitFor } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol, apriColDestro } from '@/prove/apri'
 import {
@@ -393,7 +394,10 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * - Le colonne: `bloccaPrimaColonna`, `ridimensionabile`, `colonneBloccabili`,
  *   `colonneRiordinabili`, `bordiColonna`.
  * - Le righe: `idRiga`, `getSottoRighe`, `pannelloRiga`, `menuRiga`,
- *   `riordinabile`, `chiaveMemoRiga`, `piede`.
+ *   `riordinabile`, `chiaveMemoRiga`, `piede`. Le righe aperte, dell'albero o
+ *   del dettaglio, le tiene il blocco; la pagina che le vuole tenere lei passa
+ *   `righeEspanse` e `onRigheEspanseChange`. Con `idRiga` le righe aperte
+ *   restano aperte anche quando cambiano i `dati`.
  * - `onTabellaPronta` consegna l'istanza di TanStack, per un comando che il
  *   blocco non traduce in una prop: `toggleAllRowsExpanded()`, per esempio.
  *
@@ -1134,6 +1138,73 @@ function EspansioneConControlli() {
  */
 export const Espansione: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <EspansioneConControlli />,
+}
+
+function EspansioneConRicarica() {
+  const [prodotti, setProdotti] = React.useState(() => PRODOTTI.slice(0, 10))
+  const [espanse, setEspanse] = React.useState<ExpandedState>({})
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          // Gli stessi prodotti in oggetti nuovi, come dopo un salvataggio.
+          onClick={() => setProdotti((prima) => prima.map((p) => ({ ...p })))}
+        >
+          <RefreshCwIcon aria-hidden />
+          Ricarica i dati
+        </Button>
+      </div>
+      <DataTable
+        colonne={COLONNE.filter((c) => c.id !== 'azioni')}
+        dati={prodotti}
+        idRiga={(p) => p.id}
+        righeEspanse={espanse}
+        onRigheEspanseChange={setEspanse}
+        cerca={false}
+        colonneNascondibili={false}
+        perPagina={10}
+        pannelloRiga={(prodotto: Prodotto) =>
+          prodotto.stato === 'archiviato' ? null : (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 py-1 text-sm">
+              <dt className="text-muted-foreground">Famiglia</dt>
+              <dd>{prodotto.famiglia}</dd>
+              <dt className="text-muted-foreground">Ultimo aggiornamento</dt>
+              <dd>{DATA.format(prodotto.aggiornato)}</dd>
+            </dl>
+          )
+        }
+      />
+    </div>
+  )
+}
+
+// La prova apre il dettaglio della prima riga, ricarica i dati e conta i
+// pannelli aperti: prima della coppia `righeEspanse`/`onRigheEspanseChange`
+// il cambio di `dati` li richiudeva tutti (1 prima, 0 dopo).
+async function provaEspansioneDopoRicarica({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const pannelli = () => canvasElement.querySelectorAll('[id^="pannello-riga-"]').length
+  const [freccia] = await canvas.findAllByRole('button', { name: 'Espandi dettaglio riga' })
+  await userEvent.click(freccia)
+  await waitFor(() => expect(pannelli()).toBe(1))
+  await userEvent.click(canvas.getByRole('button', { name: 'Ricarica i dati' }))
+  await new Promise((fatto) => setTimeout(fatto, 200))
+  expect(pannelli()).toBe(1)
+}
+
+/**
+ * Le righe aperte restano aperte quando i dati cambiano: dopo un salvataggio,
+ * un caricamento, un filtro fatto dalla pagina. La pagina tiene lo stato con
+ * `righeEspanse` e `onRigheEspanseChange`, e le righe hanno un'identità loro
+ * con `idRiga`. «Ricarica i dati» rimette gli stessi prodotti in oggetti nuovi.
+ */
+export const EspansioneDopoRicarica: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Espansione Con Ricarica',
+  render: () => <EspansioneConRicarica />,
+  play: provaEspansioneDopoRicarica,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

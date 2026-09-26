@@ -119,6 +119,7 @@ import {
   type Row,
   type ColumnFiltersState,
   type ColumnVisibilityState,
+  type ExpandedState,
   type RowData,
   type SortingState,
 } from "@tanstack/react-table"
@@ -3237,6 +3238,24 @@ export type DataTableProps<TDato extends RowData> = {
    * `perPagina="virtuale"`.
    */
   pannelloRiga?: (riga: TDato) => React.ReactNode
+  // La coppia valore/`on…Change` delle righe aperte, come `aperto`/
+  // `onApertoChange` di `confirm-dialog`. Senza la coppia lo stato resta del
+  // blocco. Un cambio di `dati` fa ripartire il modello di righe di TanStack,
+  // che di suo richiude tutte le righe aperte: qui succede solo quando le
+  // righe non hanno un'identità stabile, cioè senza `idRiga` e senza la
+  // coppia — l'id di riga è allora l'indice nell'array, e dopo un caricamento
+  // la stessa posizione può essere un altro record.
+  /**
+   * Le righe aperte, dell'albero di `getSottoRighe` o del dettaglio di
+   * `pannelloRiga`: `true` per tutte, oppure `{ [id della riga]: true }`.
+   * Insieme a `onRigheEspanseChange` lo stato è della pagina, e un cambio di
+   * `dati` non richiude niente. Senza, lo tiene il blocco: le righe restano
+   * aperte fra un caricamento e l'altro se c'è `idRiga`, altrimenti si
+   * richiudono a ogni cambio di `dati`.
+   */
+  righeEspanse?: ExpandedState
+  /** Riceve le righe aperte a ogni apertura o chiusura. Vedi `righeEspanse`. */
+  onRigheEspanseChange?: (righeEspanse: ExpandedState) => void
   // Il menu di riga condiviso:
   // `menu` sono le voci — scritte una sola volta con `RowMenuItem`/
   // `RowMenuSeparator`/`RowMenuSub`, che leggono la riga da
@@ -3426,6 +3445,8 @@ export function DataTable<TDato extends RowData>({
   riordinabile,
   getSottoRighe,
   pannelloRiga,
+  righeEspanse,
+  onRigheEspanseChange,
   menuRiga,
   chiaveMemoRiga,
   barra,
@@ -3481,6 +3502,14 @@ export function DataTable<TDato extends RowData>({
    * (`columnOrderingFeature` è registrata sempre, v. `caratteristiche`).
    */
   const [ordineColonne, setOrdineColonne] = React.useState<ColumnOrderState>([])
+  /**
+   * Le righe aperte. Della pagina quando passa `righeEspanse`, altrimenti di
+   * questo stato. La pagina riceve ogni cambio in `onRigheEspanseChange` in
+   * tutti e due i casi.
+   */
+  const [espanseInterne, setEspanseInterne] = React.useState<ExpandedState>({})
+  const espanseControllate = righeEspanse !== undefined
+  const espanse = espanseControllate ? righeEspanse : espanseInterne
 
   /**
    * Quante righe sono caricate. Solo `perPagina="infinito"`: cresce di
@@ -3518,10 +3547,16 @@ export function DataTable<TDato extends RowData>({
     // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
     // predefinito, l'indice nell'array (v. il prop).
     getRowId: idRiga ? (riga) => idRiga(riga) : undefined,
-    // `expanded` non è fra gli `onChange`/`state` sotto: resta uno stato
-    // interno di TanStack (come `columnOrder`), perché nessun calcolo di
-    // questo componente ha bisogno di leggerlo — a differenza di
-    // `rowSelection`, letto per il conto in `PaginazioneTabella`.
+    // Le righe aperte non si richiudono a un cambio di `dati` quando le righe
+    // hanno un'identità stabile (v. `righeEspanse`). Con la coppia controllata
+    // è anche l'unico modo giusto: la richiusura automatica passa da
+    // `onExpandedChange`, e svuoterebbe lo stato della pagina.
+    autoResetExpanded: !(espanseControllate || idRiga),
+    onExpandedChange: (aggiorna) => {
+      const nuove = typeof aggiorna === "function" ? aggiorna(espanse) : aggiorna
+      if (!espanseControllate) setEspanseInterne(nuove)
+      onRigheEspanseChange?.(nuove)
+    },
     getSubRows: getSottoRighe ? (riga) => getSottoRighe(riga) : undefined,
     // Senza `pannelloRiga` resta `undefined`: `getCanExpand()` ricade sul
     // predefinito di TanStack (righe con `subRows`, l'albero).
@@ -3578,6 +3613,7 @@ export function DataTable<TDato extends RowData>({
       columnSizing: dimensioni,
       columnPinning: ancoraggio,
       columnOrder: ordineColonne,
+      expanded: espanse,
     },
   })
 
