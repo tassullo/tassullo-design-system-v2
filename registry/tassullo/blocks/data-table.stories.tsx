@@ -624,6 +624,18 @@ export const MenuDelleColonne: Story = {
   play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
 }
 
+// La prova: la maniglia dell'ultima intestazione sta dentro la tabella. A
+// cavallo del bordo sporgeva di 4px, e il riquadro scorreva di lato anche con
+// le colonne che ci stavano largamente (scrollWidth 994 su 990).
+async function provaSenzaScorrimentoLaterale({ canvasElement }: { canvasElement: HTMLElement }) {
+  const scorre = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+    expect(el?.querySelector('thead [role="separator"]')).toBeTruthy()
+    return el as HTMLElement
+  })
+  expect(scorre.scrollWidth).toBe(scorre.clientWidth)
+}
+
 /**
  * Colonne ridimensionabili: il filo sul bordo destro di ogni intestazione si
  * trascina, o si comanda con `Alt`+`←`/`→` dall'intestazione. «Famiglia»
@@ -638,6 +650,7 @@ export const Ridimensionabile: StoryObj<typeof DataTable<Prodotto>> = {
     perPagina: 10,
     ridimensionabile: true,
   },
+  play: provaSenzaScorrimentoLaterale,
 }
 
 /**
@@ -1518,6 +1531,29 @@ export const MenuRigaCondiviso: StoryObj<typeof DataTable<Prodotto>> = {
   // manca ancora una misura del popup nuovo.
   play: apriColDestro('[data-slot="context-menu-trigger"]', 'context-menu-content'),
   render: () => <MenuRigaCondivisoConControlli />,
+}
+
+/**
+ * Colonne ridimensionabili con il menu di riga: l'ultima colonna è quella del
+ * «⋯», che il blocco aggiunge da sé. La sua maniglia sta dentro la tabella come
+ * quella di ogni ultima colonna, e il riquadro non scorre di lato.
+ */
+export const RidimensionabileConMenuRiga: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Ridimensionabile Con Menu Riga',
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 8),
+    idRiga: (p: Prodotto) => p.id,
+    menuRiga: {
+      menu: <MenuAzioniProdotto />,
+      ariaLabel: (p: Prodotto) => `Azioni su ${p.nome}`,
+    },
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    ridimensionabile: true,
+  },
+  play: provaSenzaScorrimentoLaterale,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

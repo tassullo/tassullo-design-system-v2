@@ -1648,11 +1648,14 @@ function ManigliaRidimensiona<TDato extends RowData>({
   tabellaRef,
   header,
   titolo,
+  ultima,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
   header: Header<CaratteristicheTabella, TDato, unknown>
   titolo: string
+  /** L'intestazione è l'ultima a destra, nell'ordine in cui è resa. */
+  ultima: boolean
 }) {
   const colonna = header.column
   const min = colonna.columnDef.minSize ?? 20
@@ -1718,7 +1721,17 @@ function ManigliaRidimensiona<TDato extends RowData>({
       // (bersaglio da puntatore), il segno visivo è **solo** il filo centrato
       // — mai la zona intera, che coprirebbe la colonna accanto di un tocco
       // di colore appena sfiorata.
-      className="group/maniglia absolute inset-y-0 -right-1 z-20 w-2 shrink-0 cursor-col-resize touch-none focus-visible:outline-none"
+      //
+      // A cavallo del bordo (`-right-1`) fra due colonne; **dentro** la
+      // colonna (`right-0`) sull'ultima intestazione, qualunque colonna sia —
+      // anche quella del «⋯» di `menuRiga`. Lì la metà esterna usciva dalla
+      // tabella, e i suoi 4px allargavano `table-container`: la barra di
+      // scorrimento orizzontale compariva su ogni tabella ridimensionabile,
+      // anche con le colonne che ci stavano largamente.
+      className={cn(
+        "group/maniglia absolute inset-y-0 z-20 w-2 shrink-0 cursor-col-resize touch-none focus-visible:outline-none",
+        ultima ? "right-0" : "-right-1"
+      )}
     >
       <span
         aria-hidden
@@ -1837,11 +1850,14 @@ function CellaIntestazione<TDato extends RowData>({
   bloccoLegacy,
   conDimensioni,
   selezione,
+  ultima,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
   intestazione: Header<CaratteristicheTabella, TDato, unknown>
   indice: number
+  /** L'ultima intestazione resa: la sua maniglia sta dentro la tabella. */
+  ultima: boolean
   trascinabile: boolean
   ridimensionabile: boolean
   colonneBloccabili: boolean
@@ -1963,6 +1979,7 @@ function CellaIntestazione<TDato extends RowData>({
             tabellaRef={tabellaRef}
             header={intestazione}
             titolo={titoloColonna}
+            ultima={ultima}
           />
         ) : null}
       </TableHead>
@@ -4196,6 +4213,7 @@ export function DataTable<TDato extends RowData>({
                   tabellaRef={tabellaRef}
                   intestazione={intestazione}
                   indice={indice}
+                  ultima={indice === intestazioni.length - 1}
                   trascinabile={
                     colonneRiordinabili && !COLONNE_UTILITY.has(intestazione.column.id)
                   }
