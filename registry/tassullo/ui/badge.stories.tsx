@@ -27,6 +27,21 @@ import { Badge } from '@/registry/tassullo/ui/badge'
  * gli stati si mappano tutti dalla stessa `TONO`, così nessuno arriva per
  * un'altra strada. Un'icona è ammessa, ma il testo la spiega: il colore da
  * solo non basta.
+ *
+ * In una cella stretta il badge non si restringe da sé: si allarga quanto il
+ * suo testo, esce dal bordo della cella ed è tagliato di netto. Il badge
+ * prende al massimo la larghezza della cella, e il testo va in uno `span` che
+ * finisce coi puntini:
+ *
+ * ```tsx
+ * <Badge variant="outline" className="max-w-full">
+ *   <span className="truncate">{norma}</span>
+ * </Badge>
+ * ```
+ *
+ * `truncate` sul badge stesso non basta, perché il badge centra il contenuto
+ * e il testo verrebbe tagliato ai due lati. La tabella di dati lo mostra
+ * nella scena «Badge In Cella Stretta».
  */
 const meta = {
   title: 'Primitive/Badge',

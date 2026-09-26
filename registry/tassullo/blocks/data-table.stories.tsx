@@ -354,9 +354,10 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * serve è la sua: `creaColonne<T>()` è il suo `createColumnHelper`, già
  * tipizzato sulle caratteristiche del blocco. Il blocco legge in più, dal
  * campo `meta` di ogni colonna: `titolo`, il nome usato dal menu «Colonne»;
- * `larghezza`, una utility Tailwind come `w-28`; `sottototale`, `piede` e
- * `azioniProprie`, descritti sotto. Una colonna va lasciata senza larghezza:
- * è quella che prende lo spazio che avanza. L'intestazione ordinabile è
+ * `larghezza`, una utility Tailwind come `w-28`; `testo`, `'tronca'` di serie
+ * o `'aCapo'`; `sottototale`, `piede` e `azioniProprie`, descritti sotto. Una
+ * colonna va lasciata senza larghezza: è quella che prende lo spazio che
+ * avanza. L'intestazione ordinabile è
  * `IntestazioneColonna`, con `allinea="fine"` sulle colonne di numeri.
  * `sortFn` dice come si ordina: `alphanumeric` per i codici, perché `IN-9`
  * venga prima di `IN-10`; `text`; `basic` per i numeri; `datetime` per le
@@ -477,7 +478,13 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   separatore delle migliaia. Le cifre tabellari, `tabular-nums`, le dà già
  *   la tabella. Un codice o un anno non si formattano.
  * - I codici si scrivono nel carattere e nel colore del testo, come il resto
- *   della riga; uno stato è un `badge` coi toni dell'item `toni`.
+ *   della riga; uno stato è un `badge` coi toni dell'item `toni`. In una
+ *   colonna stretta il badge si scrive
+ *   `<Badge className="max-w-full"><span className="truncate">…</span></Badge>`,
+ *   o esce dalla cella.
+ * - Un testo più lungo della colonna finisce coi puntini. Una colonna di testi
+ *   descrittivi, che vanno letti interi, dichiara `meta.testo: 'aCapo'` e una
+ *   `larghezza`; nella tabella virtualizzata l'opzione non vale.
  * - Se la riga apre una pagina, il collegamento sta su una colonna sola — il
  *   codice o il nome, lo sceglie la pagina — scritto come `Button`
  *   `variant="link"` col `render` del collegamento (`<a>` o il `Link` del
@@ -2477,4 +2484,271 @@ export const FiltroVociComeNelDatoProva: StoryObj<typeof DataTable<MisurazioneCo
   name: 'Filtro Voci Come Nel Dato, prova',
   tags: ['!dev', '!autodocs'],
   play: provaVociComeNelDato,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il testo nelle celle — la colonna a capo e il Badge in una cella stretta
+ *
+ * Dati inventati: caratteristiche di prova con testi descrittivi lunghi e di
+ * lunghezza diversa, sempre gli stessi a ogni apertura.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Caratteristica = {
+  id: string
+  codice: string
+  caratteristica: string
+  metodo: string
+  valore: number
+  esito: 'conforme' | 'da verificare' | 'non conforme'
+  norma: string
+}
+
+const NOMI_CARATTERISTICA = [
+  'Resistenza a compressione',
+  'Resistenza a compressione dopo 28 giorni di maturazione in ambiente normalizzato',
+  'Adesione al supporto',
+  'Assorbimento d’acqua per capillarità, misurato sulla faccia a contatto con il supporto',
+  'Permeabilità al vapore acqueo',
+  'Massa volumica apparente della malta indurita',
+  'Reazione al fuoco',
+  'Conducibilità termica dichiarata a 10 °C, in condizioni asciutte, su provini essiccati in stufa',
+  'Durabilità ai cicli di gelo e disgelo',
+  'Ritiro',
+]
+
+const METODI = [
+  'Prova su tre provini prismatici',
+  'Prova a trazione diretta con piastrina incollata, su supporto di laterizio normalizzato',
+  'Immersione parziale per 90 minuti',
+  'Metodo della coppa asciutta e della coppa umida, a 23 °C',
+  'Pesata e misura dimensionale dei provini dopo essiccazione',
+  'Classificazione senza prova',
+  'Piastra calda con anello di guardia, su provini di spessore ridotto',
+  'Venticinque cicli, poi prova di adesione sui provini invecchiati confrontata con quella dei provini di riferimento',
+]
+
+const NORME = [
+  'EN 998-1',
+  'EN 998-2 / CEN TR 15225',
+  'EN 1015-11',
+  'EN 13139 / EN 12620 appendice nazionale',
+  'EN 1745',
+  'EN 13501-1 classificazione',
+]
+
+const ESITI: Caratteristica['esito'][] = ['conforme', 'conforme', 'da verificare', 'non conforme']
+
+function generaCaratteristiche(quante: number, seme = 20260926): Caratteristica[] {
+  const caso = seminato(seme)
+  const scegli = <T,>(v: T[]): T => v[Math.floor(caso() * v.length)]
+  return Array.from({ length: quante }, (_, i) => ({
+    id: String(i + 1),
+    codice: `CR-${String(100 + i)}`,
+    caratteristica: NOMI_CARATTERISTICA[i % NOMI_CARATTERISTICA.length],
+    metodo: scegli(METODI),
+    valore: Math.round(caso() * 3000) / 100,
+    esito: scegli(ESITI),
+    norma: scegli(NORME),
+  }))
+}
+
+const CARATTERISTICHE = generaCaratteristiche(10)
+
+const TONO_ESITO: Record<Caratteristica['esito'], string> = {
+  conforme: TONO.success,
+  'da verificare': TONO.warning,
+  'non conforme': TONO.neutro,
+}
+
+const colCar = creaColonne<Caratteristica>()
+
+const COLONNE_A_CAPO = colCar.columns([
+  colCar.accessor('codice', {
+    header: 'Codice',
+    meta: { titolo: 'Codice', larghezza: 'w-28' } satisfies MetaColonna<Caratteristica>,
+  }),
+  colCar.accessor('caratteristica', {
+    header: 'Caratteristica',
+    meta: { titolo: 'Caratteristica' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+  }),
+  colCar.accessor('metodo', {
+    header: 'Metodo di prova',
+    meta: {
+      titolo: 'Metodo di prova',
+      larghezza: 'w-64',
+      testo: 'aCapo',
+    } satisfies MetaColonna<Caratteristica>,
+  }),
+  colCar.accessor('valore', {
+    header: () => <div className="text-right">Valore</div>,
+    meta: { titolo: 'Valore', larghezza: 'w-24' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => <div className="text-right">{decimale(getValue<number>())}</div>,
+  }),
+  colCar.accessor('esito', {
+    header: 'Esito',
+    meta: { titolo: 'Esito', larghezza: 'w-32' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => {
+      const esito = getValue<Caratteristica['esito']>()
+      return <Badge className={TONO_ESITO[esito]}>{esito}</Badge>
+    },
+  }),
+])
+
+// La prova conta le celle tagliate della colonna «Metodo di prova»: una cella
+// è tagliata quando il suo contenuto è più largo di lei. Prima di
+// `meta.testo` la colonna troncava sempre (9 celle su 10); a capo, nessuna.
+// La colonna «Caratteristica», che resta `'tronca'`, tiene i puntini.
+async function provaColonnaACapo({ canvasElement }: { canvasElement: HTMLElement }) {
+  const tabella = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+    expect(el).toBeTruthy()
+    return el as HTMLTableElement
+  })
+  const titoli = [...tabella.querySelectorAll('thead th')].map((th) => th.textContent?.trim())
+  const colonna = titoli.indexOf('Metodo di prova')
+  expect(colonna).toBeGreaterThan(-1)
+  const celle = [...tabella.querySelectorAll<HTMLTableCellElement>('tbody tr')]
+    .map((tr) => tr.children[colonna] as HTMLTableCellElement | undefined)
+    .filter((td): td is HTMLTableCellElement => td != null)
+  expect(celle).toHaveLength(10)
+  const tagliate = celle.filter((td) => td.scrollWidth > td.clientWidth + 1)
+  expect(tagliate).toHaveLength(0)
+  for (const td of celle) expect(getComputedStyle(td).whiteSpace).toBe('normal')
+  const tronca = tabella.querySelector<HTMLTableCellElement>(
+    `tbody tr > td:nth-child(${titoli.indexOf('Caratteristica') + 1})`
+  )
+  expect(getComputedStyle(tronca as HTMLElement).textOverflow).toBe('ellipsis')
+}
+
+/**
+ * Una colonna di testi descrittivi che va a capo invece di tagliarsi:
+ * `meta.testo: 'aCapo'`. Di serie una cella è `'tronca'`, cioè resta su una
+ * riga e finisce coi puntini, e le righe restano tutte alte uguali. A capo
+ * conviene solo dove il testo intero serve a chi legge la riga, come il metodo
+ * di prova qui sotto; la colonna dichiara una `larghezza`, o in una finestra
+ * stretta il testo diventerebbe una colonna di poche lettere. Nella tabella
+ * virtualizzata l'opzione non vale: lì tutte le righe devono avere la stessa
+ * altezza, e le celle restano tagliate.
+ */
+export const ColonnaACapo: StoryObj<typeof DataTable<Caratteristica>> = {
+  name: 'Colonna A Capo',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_A_CAPO}
+      dati={CARATTERISTICHE}
+      cerca={false}
+      colonneNascondibili={false}
+      perPagina={10}
+      piePagina={false}
+    />
+  ),
+}
+
+// Scena di misura di «Colonna A Capo»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const ColonnaACapoProva: StoryObj<typeof DataTable<Caratteristica>> = {
+  ...ColonnaACapo,
+  name: 'Colonna A Capo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaColonnaACapo,
+}
+
+const COLONNE_BADGE_STRETTE = colCar.columns([
+  colCar.accessor('codice', {
+    header: 'Codice',
+    meta: { titolo: 'Codice', larghezza: 'w-24' } satisfies MetaColonna<Caratteristica>,
+  }),
+  colCar.accessor('norma', {
+    header: 'Norma',
+    meta: { titolo: 'Norma', larghezza: 'w-32' } satisfies MetaColonna<Caratteristica>,
+    // La ricetta: il Badge non più largo della cella, il testo in uno `span`
+    // che finisce coi puntini.
+    cell: ({ getValue }) => (
+      <Badge variant="outline" className="max-w-full">
+        <span className="truncate">{getValue<string>()}</span>
+      </Badge>
+    ),
+  }),
+  colCar.accessor('esito', {
+    header: 'Esito',
+    meta: { titolo: 'Esito', larghezza: 'w-24' } satisfies MetaColonna<Caratteristica>,
+    cell: ({ getValue }) => {
+      const esito = getValue<Caratteristica['esito']>()
+      return (
+        <Badge className={`${TONO_ESITO[esito]} max-w-full`}>
+          <span className="truncate">{esito}</span>
+        </Badge>
+      )
+    },
+  }),
+  colCar.accessor('caratteristica', {
+    header: 'Caratteristica',
+    meta: { titolo: 'Caratteristica' } satisfies MetaColonna<Caratteristica>,
+  }),
+])
+
+// La prova guarda ogni Badge della tabella: non deve uscire dalla sua cella,
+// e se il testo non ci sta deve finire coi puntini. Il Badge nudo, senza la
+// ricetta, sborda dalla cella stretta ed è tagliato di netto dal bordo.
+async function provaBadgeInCellaStretta({ canvasElement }: { canvasElement: HTMLElement }) {
+  const badge = await waitFor(() => {
+    const el = [...canvasElement.querySelectorAll<HTMLElement>('tbody [data-slot="badge"]')]
+    expect(el.length).toBeGreaterThan(0)
+    return el
+  })
+  let conPuntini = 0
+  for (const b of badge) {
+    const td = b.closest('td') as HTMLTableCellElement
+    const stile = getComputedStyle(td)
+    const bordoUtile = td.getBoundingClientRect().right - parseFloat(stile.paddingRight)
+    expect(b.getBoundingClientRect().right).toBeLessThanOrEqual(bordoUtile + 0.5)
+    const testo = b.querySelector('span')
+    expect(testo).toBeTruthy()
+    const s = testo as HTMLElement
+    expect(getComputedStyle(s).textOverflow).toBe('ellipsis')
+    if (s.scrollWidth > s.clientWidth) conPuntini += 1
+  }
+  // Le norme lunghe non ci stanno in `w-32`: almeno una finisce coi puntini.
+  expect(conPuntini).toBeGreaterThan(0)
+}
+
+/**
+ * Un Badge in una colonna stretta. Il Badge si allarga quanto il suo testo, e
+ * in una cella più stretta uscirebbe dal bordo, tagliato di netto. La ricetta
+ * è dare al Badge al massimo la larghezza della cella e mettere il testo in
+ * uno `span` che finisce coi puntini:
+ *
+ * ```tsx
+ * <Badge variant="outline" className="max-w-full">
+ *   <span className="truncate">{norma}</span>
+ * </Badge>
+ * ```
+ *
+ * `truncate` scritto sul Badge stesso non basta: il Badge centra il suo
+ * contenuto, e il testo verrebbe tagliato ai due lati.
+ */
+export const BadgeInCellaStretta: StoryObj<typeof DataTable<Caratteristica>> = {
+  name: 'Badge In Cella Stretta',
+  render: () => (
+    <DataTable
+      colonne={COLONNE_BADGE_STRETTE}
+      dati={generaCaratteristiche(6, 7)}
+      cerca={false}
+      colonneNascondibili={false}
+      perPagina={10}
+      piePagina={false}
+    />
+  ),
+}
+
+// Scena di misura di «Badge In Cella Stretta»: la stessa resa, con la prova.
+// `!dev` la toglie dalla barra e da Docs, così la scena qui sopra si apre a
+// riposo; il controllo automatico la esegue lo stesso.
+export const BadgeInCellaStrettaProva: StoryObj<typeof DataTable<Caratteristica>> = {
+  ...BadgeInCellaStretta,
+  name: 'Badge In Cella Stretta, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaBadgeInCellaStretta,
 }

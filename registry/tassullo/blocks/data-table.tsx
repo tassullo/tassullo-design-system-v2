@@ -425,6 +425,37 @@ export type MetaColonna<TDato = unknown> = {
    * stessi — spegne solo l'icona che il blocco aggiungerebbe da sé.
    */
   azioniProprie?: boolean
+  /**
+   * Come si comporta un testo più lungo della colonna. Di serie `"tronca"`:
+   * la cella resta su una riga e finisce coi puntini, e le righe restano
+   * tutte alte uguali. Con `"aCapo"` il testo va a capo e la riga cresce
+   * quanto serve: per i testi descrittivi che chi legge la riga deve vedere
+   * interi (un metodo di prova, una nota).
+   *
+   * **Una colonna a capo dichiara `larghezza`.** Senza, in una finestra
+   * stretta la colonna prende solo il minimo che le resta e il testo diventa
+   * una colonna di poche parole per riga.
+   *
+   * **Con `perPagina="virtuale"` l'opzione si ignora**, come `pannelloRiga`:
+   * la finestra di righe si calcola su righe di altezza uguale, e con righe
+   * alte il doppio l'altezza dell'elenco salterebbe mentre si scorre. Le celle
+   * restano tagliate.
+   *
+   * Un campo a valori e non un sì/no, così un terzo modo non chiederà un
+   * secondo interruttore che contraddice il primo.
+   */
+  testo?: "tronca" | "aCapo"
+}
+
+/**
+ * Le classi del testo di una cella del corpo, da `meta.testo`. `truncate` è il
+ * prezzo di `table-fixed`: con le larghezze decise dalle intestazioni, un
+ * testo più lungo della colonna **sborda** nella colonna accanto invece di
+ * allargarla, e si taglia coi puntini. A capo, `break-words` spezza anche una
+ * parola sola più larga della colonna (un codice lungo, un indirizzo).
+ */
+function classeTestoCella(meta: Pick<MetaColonna, "testo"> | undefined) {
+  return meta?.testo === "aCapo" ? "whitespace-normal break-words" : "truncate"
 }
 
 /** Una colonna già tipizzata sulle caratteristiche di casa. */
@@ -2369,14 +2400,12 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
             ? ancoraggioColonna(tabella, cella.column, "cella")
             : undefined
           return (
-            // `truncate` è il prezzo di `table-fixed`: con le larghezze
-            // decise dalle intestazioni, un testo più lungo della sua
-            // colonna **sborda** nella colonna accanto invece di allargarla:
-            // meglio tagliarlo coi puntini.
+            // Tagliato coi puntini o a capo, secondo `meta.testo`
+            // (`classeTestoCella`).
             <TableCell
               key={cella.id}
               className={cn(
-                "truncate",
+                classeTestoCella(cella.column.columnDef.meta as MetaColonna<TDato> | undefined),
                 bloccoLegacy && classiBloccate(indice, selezione),
                 ancoraCella?.className
               )}
@@ -2837,6 +2866,9 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
                 ? ancoraggioColonna(tabella, cella.column, "cella")
                 : undefined
               return (
+                // Sempre `truncate`, anche con `meta.testo: "aCapo"`: la
+                // finestra di righe vuole righe di altezza uguale (v. `testo`
+                // in `MetaColonna`).
                 <TableCell
                   key={cella.id}
                   className={cn(
