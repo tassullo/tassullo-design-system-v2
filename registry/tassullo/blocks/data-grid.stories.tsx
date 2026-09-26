@@ -80,13 +80,31 @@ const COLONNE_GRIGLIA = col.columns([
   colonnaTestoGriglia(col, 'quantita', 'Quantità', { size: 100 }),
 ])
 
-// Prova: il fondo della selezione compare solo quando la griglia ha il fuoco.
-// All'apertura la cella attiva c'è (è il punto d'ingresso del Tab) ma non ha
-// ancora il segno; entrati con Tab la prima cella lo prende, Maiusc+Freccia
-// allarga il rettangolo e un clic sceglie un'altra cella, come prima.
+// Prova: il segno della selezione compare solo quando la griglia ha il fuoco,
+// e solo per un rettangolo di più celle. All'apertura la cella attiva c'è (è
+// il punto d'ingresso del Tab) ma non ha segno; entrati con Tab la prima cella
+// prende l'anello e nient'altro, perché una cella sola non ha né fondo né
+// filo. Maiusc+Freccia allarga il rettangolo a due celle: il filo le circonda
+// tutte e due, e il fondo tinto va sulla sola cella che non è l'attiva. Un
+// clic su un'altra cella torna a una cella sola, senza segno.
 function celleConFondo(radice: HTMLElement) {
   return [...radice.querySelectorAll<HTMLElement>('[data-riga-id][data-colonna-id]')].filter(
     (cella) => getComputedStyle(cella).backgroundColor !== 'rgba(0, 0, 0, 0)'
+  )
+}
+
+type Lato = 'Top' | 'Bottom' | 'Left' | 'Right'
+const LATI: Lato[] = ['Top', 'Bottom', 'Left', 'Right']
+
+/** I lati del filo della selezione (lo pseudo-elemento `::before`) di una cella. */
+function latiDelFilo(cella: HTMLElement): Lato[] {
+  const filo = getComputedStyle(cella, '::before')
+  return LATI.filter((lato) => filo.getPropertyValue(`border-${lato.toLowerCase()}-width`) === '1px')
+}
+
+function celleColFilo(radice: HTMLElement) {
+  return [...radice.querySelectorAll<HTMLElement>('[data-riga-id][data-colonna-id]')].filter(
+    (cella) => latiDelFilo(cella).length > 0
   )
 }
 
@@ -97,20 +115,81 @@ async function selezioneSoloColFuoco({ canvasElement }: { canvasElement: HTMLEle
     return trovata!
   })
   expect(celleConFondo(griglia)).toHaveLength(0)
+  expect(celleColFilo(griglia)).toHaveLength(0)
 
   for (let passi = 0; passi < 10 && !griglia.contains(document.activeElement); passi++) {
     await userEvent.tab()
   }
   const prima = griglia.querySelector<HTMLElement>('[data-attiva]')!
   expect(document.activeElement).toBe(prima)
-  await waitFor(() => expect(celleConFondo(griglia)).toEqual([prima]))
+  expect(celleConFondo(griglia)).toHaveLength(0)
+  expect(celleColFilo(griglia)).toHaveLength(0)
 
   await userEvent.keyboard('{Shift>}{ArrowDown}{/Shift}')
-  await waitFor(() => expect(celleConFondo(griglia)).toHaveLength(2))
+  await waitFor(() => {
+    expect(celleConFondo(griglia)).toEqual([prima])
+    expect(celleColFilo(griglia)).toHaveLength(2)
+  })
 
   const altra = griglia.querySelector<HTMLElement>('[data-riga-id="voce-2"][data-colonna-id="descrizione"]')!
   await userEvent.click(altra)
-  await waitFor(() => expect(celleConFondo(griglia)).toEqual([altra]))
+  await waitFor(() => {
+    expect(celleConFondo(griglia)).toHaveLength(0)
+    expect(celleColFilo(griglia)).toHaveLength(0)
+  })
+}
+
+// Prova: un rettangolo di tre righe per due colonne, fatto con Maiusc e le
+// frecce. Ogni cella ha il filo solo sui lati che stanno sul bordo del
+// rettangolo; la cella attiva non ha fondo, le altre sì. Il filo è del colore
+// del marchio col fuoco nelle celle, e grigio dopo un clic fuori dalla griglia.
+async function rettangoloSelezionato({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = (riga: number, colonna: string) =>
+    canvasElement.querySelector<HTMLElement>(`[data-riga-id="voce-${riga}"][data-colonna-id="${colonna}"]`)!
+  await waitFor(() => expect(cella(1, 'codice')).toBeTruthy())
+
+  await userEvent.click(cella(1, 'codice'))
+  await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowDown}{ArrowDown}{/Shift}')
+  await waitFor(() => expect(document.activeElement).toBe(cella(3, 'descrizione')))
+
+  const attese: [number, string, Lato[]][] = [
+    [1, 'codice', ['Top', 'Left']],
+    [1, 'descrizione', ['Top', 'Right']],
+    [2, 'codice', ['Left']],
+    [2, 'descrizione', ['Right']],
+    [3, 'codice', ['Bottom', 'Left']],
+    [3, 'descrizione', ['Bottom', 'Right']],
+  ]
+  for (const [riga, colonna, lati] of attese) {
+    expect(latiDelFilo(cella(riga, colonna)), `${riga} ${colonna}`).toEqual(lati)
+  }
+  expect(latiDelFilo(cella(1, 'unita'))).toEqual([])
+  expect(latiDelFilo(cella(4, 'codice'))).toEqual([])
+
+  const trasparente = 'rgba(0, 0, 0, 0)'
+  expect(getComputedStyle(cella(3, 'descrizione')).backgroundColor).toBe(trasparente)
+  for (const [riga, colonna] of attese.slice(0, -1)) {
+    expect(getComputedStyle(cella(riga, colonna)).backgroundColor, `${riga} ${colonna}`).not.toBe(trasparente)
+  }
+  expect(getComputedStyle(cella(4, 'codice')).backgroundColor).toBe(trasparente)
+
+  // Il colore di un token come lo risolve il motore di resa, nello stesso
+  // formato del filo.
+  const colore = (token: string) => {
+    const campione = document.createElement('div')
+    campione.style.borderTopColor = `var(${token})`
+    canvasElement.append(campione)
+    const risolto = getComputedStyle(campione).borderTopColor
+    campione.remove()
+    return risolto
+  }
+  const filo = () => getComputedStyle(cella(2, 'codice'), '::before').borderLeftColor
+  expect(filo()).toBe(colore('--primary'))
+
+  const conteggio = [...canvasElement.querySelectorAll('p')].find((p) => p.textContent === '60 voci')!
+  await userEvent.click(conteggio)
+  await waitFor(() => expect(filo()).toBe(colore('--muted-foreground')))
+  expect(latiDelFilo(cella(2, 'codice'))).toEqual(['Left'])
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -205,7 +284,10 @@ function ComputoFinto() {
  *   con l'ultimo salvataggio e dice `creati`, `aggiornati`, `cancellati` e
  *   `cePendente`, per un bottone «Salva». Il motore offre `aggiungiRiga` e
  *   `rimuoviRighe`, annullabili come ogni altra modifica.
- * - `useContestoDataGrid()` dà il motore a una cella scritta a mano.
+ * - `useContestoDataGrid()` dà il motore a una cella scritta a mano; per
+ *   segnarla come le altre, `motore.bordiSelezione(id)` dice quali suoi lati
+ *   stanno sul bordo del rettangolo selezionato e se il rettangolo ha più di
+ *   una cella.
  *
  * **Regole d'uso.**
  *
@@ -223,6 +305,10 @@ function ComputoFinto() {
  *   lavorando. Su una pagina appena aperta nessuna cella è segnata: bordo e
  *   fondo compaiono dal primo ingresso nella griglia, col `Tab` o col
  *   puntatore.
+ * - Una selezione di più celle ha un filo attorno al rettangolo e un fondo
+ *   appena tinto sulle celle, tranne l'attiva; il filo è arancio col fuoco
+ *   nella griglia e grigio col fuoco fuori, come il bordo della cella
+ *   attiva. Una cella sola non ha altro segno che il suo bordo.
  * - La data si scrive `gg/mm/aaaa`, come si legge; in modifica `↓` o il
  *   bottone nel campo aprono il calendario, e un giorno scelto conferma
  *   subito. Se la cella scorre sotto la testata o oltre il fondo del
@@ -282,6 +368,14 @@ export const EditabileProva: Story = {
   name: 'Editabile, prova',
   tags: ['!dev', '!autodocs'],
   play: selezioneSoloColFuoco,
+}
+
+// Scena di misura del rettangolo selezionato: nascosta come quella sopra.
+export const EditabileRettangoloProva: Story = {
+  ...Editabile,
+  name: 'Editabile, rettangolo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: rettangoloSelezionato,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
