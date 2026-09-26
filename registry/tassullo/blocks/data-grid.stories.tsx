@@ -408,7 +408,8 @@ async function riquadroIntero({ canvasElement }: { canvasElement: HTMLElement })
 /**
  * Le sei celle tipizzate. «Quantità» e «Prezzo unitario» rifiutano un valore
  * non valido e restano in modifica; «Disp.» si spunta con un clic o con
- * `Spazio`; «U.M.» apre un `select`; «Scadenza» è un campo data nativo.
+ * `Spazio`; «U.M.» apre un `select`; «Scadenza» si scrive `gg/mm/aaaa`, e in
+ * modifica `↓` o il bottone nel campo aprono il calendario.
  */
 export const CelleTipizzate: Story = {
   render: () => <ComputoTipizzato />,
@@ -422,6 +423,56 @@ export const CelleTipizzateProva: Story = {
   name: 'Celle Tipizzate, prova',
   tags: ['!dev', '!autodocs'],
   play: riquadroIntero,
+}
+
+// Prova: la data si scrive come le altre celle, e il calendario è la seconda
+// strada. `Invio` apre il campo; `25/12/2026` più `Invio` scrive; `↓` apre il
+// calendario col fuoco su un giorno, `Esc` torna al campo; un testo che non è
+// una data resta in modifica con l'errore. La scena finisce lì, col testo in
+// errore a schermo, perché il controllo di accessibilità, che misura dopo la
+// prova, ne misuri il contrasto.
+async function dataScrittaECalendario({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = (riga: string) =>
+    canvasElement.querySelector<HTMLElement>(`[data-riga-id="${riga}"][data-colonna-id="scadenza"]`)
+  const campo = () => canvasElement.querySelector<HTMLInputElement>('input[aria-label="scadenza"]')
+  await waitFor(() => expect(cella('voce-t-0')).toBeTruthy())
+
+  await userEvent.click(cella('voce-t-0')!)
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+  await userEvent.clear(campo()!)
+  await userEvent.type(campo()!, '25/12/2026')
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(cella('voce-t-0')?.textContent).toBe('25/12/2026'))
+
+  await waitFor(() => expect(document.activeElement).toBe(cella('voce-t-1')))
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+  await userEvent.keyboard('{ArrowDown}')
+  await waitFor(() => {
+    expect(document.querySelector('[data-slot="popover-content"][aria-label="Scegli la data"]')).toBeTruthy()
+    expect(document.activeElement?.hasAttribute('data-day')).toBe(true)
+  })
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+
+  await userEvent.clear(campo()!)
+  await userEvent.type(campo()!, '31/02/2026')
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => {
+    expect(campo()?.getAttribute('aria-invalid')).toBe('true')
+    expect(canvasElement.querySelector('[role="alert"]')?.textContent).toBe(
+      'Data non valida: si scrive gg/mm/aaaa'
+    )
+  })
+}
+
+// Scena di misura della data di «Celle Tipizzate»: nascosta come quella sopra.
+export const CelleTipizzateDataProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, data, prova',
+  tags: ['!dev', '!autodocs'],
+  play: dataScrittaECalendario,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
