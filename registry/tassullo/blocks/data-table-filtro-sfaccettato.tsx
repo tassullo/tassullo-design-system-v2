@@ -205,6 +205,14 @@ export function righeSenzaFiltroColonna<TDato extends RowData>(
   if (altriFiltri.length === 0 && !ricerca) return righeCore
 
   const filtraGlobale = ricerca ? tabella.getGlobalFilterFn() : undefined
+  // La ricerca si applica come la applica TanStack: la funzione globale lavora
+  // **per colonna** (legge `riga.getValue(id)`), e una riga passa se almeno
+  // una delle colonne che la ricerca guarda corrisponde. Chiamata con un id
+  // che non è una colonna leggerebbe `undefined`, scarterebbe ogni riga e
+  // lascerebbe il filtro senza voci.
+  const colonneRicerca = filtraGlobale
+    ? tabella.getAllLeafColumns().filter((colonna) => colonna.getCanGlobalFilter())
+    : []
 
   return righeCore.filter((riga) => {
     for (const filtro of altriFiltri) {
@@ -212,7 +220,11 @@ export function righeSenzaFiltroColonna<TDato extends RowData>(
       const filtraColonna = colonna?.getFilterFn()
       if (filtraColonna && !filtraColonna(riga, filtro.id, filtro.value, () => {})) return false
     }
-    if (filtraGlobale && !filtraGlobale(riga, "__globale__", ricerca, () => {})) return false
+    if (
+      filtraGlobale &&
+      !colonneRicerca.some((colonna) => filtraGlobale(riga, colonna.id, ricerca, () => {}))
+    )
+      return false
     return true
   })
 }

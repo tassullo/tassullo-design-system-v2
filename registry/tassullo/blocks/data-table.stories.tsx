@@ -1513,6 +1513,52 @@ export const FiltriConFiltroAttivo: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <TabellaConFiltri statoIniziale={['bozza']} />,
 }
 
+// La prova cerca «calce» e apre il filtro Stato: le voci devono essere gli
+// stati dei prodotti che la ricerca lascia passare, con il loro conteggio.
+// Prima la ricerca si applicava con un id di colonna fittizio, che non legge
+// nessun valore: il filtro diceva «Nessun risultato.» (0 voci su 4).
+async function provaFiltriConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  await userEvent.type(canvas.getByRole('searchbox'), 'calce')
+  const conteggi = new Map<string, number>()
+  for (const p of PRODOTTI) {
+    if (![p.nome, p.famiglia, p.stato].some((v) => v.toLowerCase().includes('calce'))) continue
+    conteggi.set(p.stato, (conteggi.get(p.stato) ?? 0) + 1)
+  }
+  await userEvent.click(canvas.getByRole('button', { name: /^Stato/ }))
+  const pannello = await waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="popover-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  await waitFor(() => {
+    const voci = within(pannello).queryAllByRole('option')
+    expect(voci.map((v) => v.textContent?.toLowerCase())).toEqual(
+      [...conteggi]
+        .sort(([a], [b]) => a.localeCompare(b, 'it'))
+        .map(([stato, quanti]) => `${stato}${quanti}`)
+    )
+  })
+  // Chiuso del tutto, non solo avviato a chiudersi: finché il pannello c'è,
+  // lo sfondo resta inerte e la misura della pagina a riposo non vale.
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() =>
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeNull()
+  )
+}
+
+/**
+ * Ricerca e filtri insieme: si cerca «calce», e il filtro Stato propone gli
+ * stati dei prodotti che la ricerca lascia passare, ciascuno col suo
+ * conteggio. I conteggi di ogni filtro tengono conto della ricerca e degli
+ * altri filtri, mai del proprio.
+ */
+export const FiltriConRicerca: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Filtri Con Ricerca',
+  render: () => <TabellaConFiltri />,
+  play: provaFiltriConRicerca,
+}
+
 // Il quarto grilletto della barra è quello del filtro per date: la scena
 // apre il suo riquadro, col filtro già impostato, perché il gate misuri anche
 // «Cancella» attivo e non solo il primo filtro.
