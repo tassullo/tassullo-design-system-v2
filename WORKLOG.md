@@ -13277,3 +13277,11 @@ Ramo `fras/proposta-55-etichette`. Proposta di Anagrafe: tre primitive avevano a
 #### Prossimi passi
 
 PR #56 con `Closes #55`. Via libera di Francesco per unire e pubblicare `v2.0.3` a CI verde; gli indirizzi dei documenti per le app (`INTEGRAZIONE.md`, `GUIDA-MIGRAZIONE.md`, `README`, introduzione della style guide) portati a `v2.0.3` nella stessa PR. In Anagrafe: `add --overwrite` di `spinner`, `dialog`, `sheet` (e del login), e via i commenti «in attesa di #55».
+
+## 2026-09-25 — `v2.0.3` pubblicata
+
+PR #56 unita col gate verde in CI (4 min 46 s) sul commit `98299d5`; l'unione `428e3f1` ha lo stesso contenuto. Etichetta `v2.0.3` su `428e3f1`, push della sola etichetta; le versioni precedenti restano dove erano. La issue #55 si è chiusa con la PR.
+
+Verificato da fuori: `…/v2.0.3/public/r/` risponde per `spinner` («Caricamento»), `dialog` e `sheet` («Chiudi»), `command` e `tassullo-pagina-login` (spinner senza nome nei bottoni col testo), e nessuno dei testi inglesi di prima.
+
+Per Anagrafe, con la versione nuova: `add --overwrite` di `spinner`, `dialog`, `sheet` e, se installata, della pagina di accesso; via i commenti «in attesa di tassullo-design-system-v2#55».
