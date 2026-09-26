@@ -489,9 +489,13 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   descrittivi, che vanno letti interi, dichiara `meta.testo: 'aCapo'` e una
  *   `larghezza`; nella tabella virtualizzata l'opzione non vale.
  * - Se la riga apre una pagina, il collegamento sta su una colonna sola — il
- *   codice o il nome, lo sceglie la pagina — scritto come `Button`
- *   `variant="link"` col `render` del collegamento (`<a>` o il `Link` del
- *   router).
+ *   codice o il nome, lo sceglie la pagina. Il collegamento è il `Link` del
+ *   router, o un `<a>`, con l'aspetto preso da
+ *   `buttonVariants({ variant: "link", size: "sm" })`:
+ *   `<Link to={…} className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0 font-medium")}>`.
+ *   Un collegamento non è un `Button`: il `Button` è il bottone di Base UI,
+ *   e col `render` di un collegamento gli porta i comportamenti di un
+ *   bottone.
  * - La selezione esce dalla tabella solo attraverso `barra` nella forma a
  *   funzione, `(scelti, tabella) => …`, che riceve le righe scelte e l'istanza
  *   della tabella. Non c'è una `onSelezione`, e non si ricostruisce con un
