@@ -48,6 +48,8 @@ export type DiffViewProps = {
   etichettaDopo?: string
   /** `inline` fonde il confronto in un paragrafo solo; `affiancato` usa due colonne sincronizzate. */
   modo?: "inline" | "affiancato"
+  /** Mostra la legenda «Tolto / Aggiunto» sopra il confronto. Di serie sì. */
+  legenda?: boolean
   className?: string
 }
 
@@ -72,6 +74,7 @@ export function DiffView({
   etichettaPrima = "Prima",
   etichettaDopo = "Dopo",
   modo = "inline",
+  legenda = true,
   className,
 }: DiffViewProps) {
   const segmenti = useMemo(() => diffWords(prima, dopo), [prima, dopo])
@@ -79,7 +82,7 @@ export function DiffView({
   if (modo === "affiancato") {
     return (
       <div data-slot="diff-view" className={cn("flex flex-col gap-3", className)}>
-        <Legenda />
+        {legenda ? <Legenda /> : null}
         <SplitView
           sinistra={
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -127,7 +130,7 @@ export function DiffView({
 
   return (
     <div data-slot="diff-view" className={cn("flex flex-col gap-3", className)}>
-      <Legenda />
+      {legenda ? <Legenda /> : null}
       <p className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap">
         {segmenti.map((segmento, indice) => {
           if (segmento.added) {

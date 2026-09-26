@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { PlusIcon, Trash2Icon } from 'lucide-react'
 import * as React from 'react'
+import { expect, userEvent, waitFor } from 'storybook/test'
 import * as z from 'zod'
 
 import {
@@ -78,6 +79,39 @@ const COLONNE_GRIGLIA = col.columns([
   colonnaTestoGriglia(col, 'unita', 'U.M.', { size: 80 }),
   colonnaTestoGriglia(col, 'quantita', 'Quantità', { size: 100 }),
 ])
+
+// Prova: il fondo della selezione compare solo quando la griglia ha il fuoco.
+// All'apertura la cella attiva c'è (è il punto d'ingresso del Tab) ma non ha
+// ancora il segno; entrati con Tab la prima cella lo prende, Maiusc+Freccia
+// allarga il rettangolo e un clic sceglie un'altra cella, come prima.
+function celleConFondo(radice: HTMLElement) {
+  return [...radice.querySelectorAll<HTMLElement>('[data-riga-id][data-colonna-id]')].filter(
+    (cella) => getComputedStyle(cella).backgroundColor !== 'rgba(0, 0, 0, 0)'
+  )
+}
+
+async function selezioneSoloColFuoco({ canvasElement }: { canvasElement: HTMLElement }) {
+  const griglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('[role="grid"]')
+    expect(trovata?.querySelector('[data-attiva]')).toBeTruthy()
+    return trovata!
+  })
+  expect(celleConFondo(griglia)).toHaveLength(0)
+
+  for (let passi = 0; passi < 10 && !griglia.contains(document.activeElement); passi++) {
+    await userEvent.tab()
+  }
+  const prima = griglia.querySelector<HTMLElement>('[data-attiva]')!
+  expect(document.activeElement).toBe(prima)
+  await waitFor(() => expect(celleConFondo(griglia)).toEqual([prima]))
+
+  await userEvent.keyboard('{Shift>}{ArrowDown}{/Shift}')
+  await waitFor(() => expect(celleConFondo(griglia)).toHaveLength(2))
+
+  const altra = griglia.querySelector<HTMLElement>('[data-riga-id="voce-2"][data-colonna-id="descrizione"]')!
+  await userEvent.click(altra)
+  await waitFor(() => expect(celleConFondo(griglia)).toEqual([altra]))
+}
 
 /* ────────────────────────────────────────────────────────────────────────
  * La story
@@ -185,7 +219,10 @@ function ComputoFinto() {
  *   su quale riga si stava lavorando. Un comando fuori dalla griglia che
  *   agisce sulla riga attiva si legge così. Il `Tab` segue l'ordine della
  *   pagina: arriva alla griglia dopo i controlli che la precedono, come la
- *   barra, ed entra proprio sulla cella segnata.
+ *   barra, ed entra sulla cella attiva: la prima, o quella su cui si stava
+ *   lavorando. Su una pagina appena aperta nessuna cella è segnata: bordo e
+ *   fondo compaiono dal primo ingresso nella griglia, col `Tab` o col
+ *   puntatore.
  * - La data è un campo nativo `<input type="date">`, non il calendario.
  * - Le colonne numeriche e di valuta formattano da sé la vista con l'item
  *   `numeri`, quindi col separatore delle migliaia sempre scritto
@@ -231,6 +268,7 @@ type Story = StoryObj
  */
 export const Editabile: Story = {
   render: () => <ComputoFinto />,
+  play: selezioneSoloColFuoco,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

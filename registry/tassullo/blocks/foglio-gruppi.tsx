@@ -153,6 +153,12 @@ export type CellaScrivibile<TDato> = {
   classiTesto?: string
   /** L'allineamento di questa cella, se non è quello della colonna. */
   allineamento?: "sinistra" | "destra"
+  /**
+   * Se la cella si scrive su questa riga. Di serie sì. Una cella non
+   * abilitata si mostra come testo e non prende il fuoco: le frecce la
+   * scavalcano come una cella calcolata.
+   */
+  abilitata?: (dato: TDato) => boolean
 }
 
 export type CellaCalcolata<TDato, TAltro = never> = {
@@ -205,6 +211,17 @@ const stessaPosizione = (a: PosizioneFoglio | null, b: PosizioneFoglio | null) =
   a.zona === b.zona &&
   a.riga === b.riga &&
   a.colonna === b.colonna
+
+/**
+ * Se una cella scrivibile si scrive sul dato della sua riga. Senza
+ * `abilitata` sì; senza dato — una riga che non c'è più — no. Il dato arriva
+ * senza tipo perché la zona lo decide a runtime: chi chiama passa sempre
+ * quello della zona della cella, come per `leggi` e `scrivi`.
+ */
+function abilitataSu(cella: { abilitata?: (dato: never) => boolean }, dato: unknown): boolean {
+  if (dato === undefined) return false
+  return cella.abilitata ? (cella.abilitata as (d: unknown) => boolean)(dato) : true
+}
 
 export type OpzioniFoglioGruppi<TTestata, TRiga> = {
   gruppiIniziali: GruppoFoglio<TTestata, TRiga>[]
@@ -300,10 +317,12 @@ export function useFoglioGruppi<TTestata, TRiga>({
         colonne.map((col, ci) => {
           const cella =
             zona === "testata" ? col.testata : zona === "corpo" ? col.corpo : col.piede
+          const dato = zona === "corpo" ? gruppo.righe[riga] : gruppo.testata
           // Solo le celle scrivibili prendono il fuoco: una cella calcolata o
           // fissa non ha niente da fare quando ci arrivi, e fermarcisi sopra
-          // allunga il cammino senza dare niente in cambio.
-          return cella?.tipo === "scrivibile"
+          // allunga il cammino senza dare niente in cambio. Lo stesso vale per
+          // una scrivibile che su questa riga non si scrive.
+          return cella?.tipo === "scrivibile" && abilitataSu(cella, dato)
             ? { gruppo: gi, zona, riga, colonna: ci }
             : null
         })
@@ -343,18 +362,18 @@ export function useFoglioGruppi<TTestata, TRiga>({
     [gruppi, conRigaAzioni]
   )
 
+  const datoDi = (p: PosizioneFoglio) => {
+    const gruppo = gruppi[p.gruppo]
+    if (!gruppo) return undefined
+    return p.zona === "corpo" ? gruppo.righe[p.riga] : gruppo.testata
+  }
+
   const cellaScrivibile = (p: PosizioneFoglio) => {
     const col = colonne[p.colonna]
     if (!col) return undefined
     if (p.zona === "azioni") return undefined
     const cella = p.zona === "testata" ? col.testata : p.zona === "corpo" ? col.corpo : col.piede
-    return cella?.tipo === "scrivibile" ? cella : undefined
-  }
-
-  const datoDi = (p: PosizioneFoglio) => {
-    const gruppo = gruppi[p.gruppo]
-    if (!gruppo) return undefined
-    return p.zona === "corpo" ? gruppo.righe[p.riga] : gruppo.testata
+    return cella?.tipo === "scrivibile" && abilitataSu(cella, datoDi(p)) ? cella : undefined
   }
 
   const valoreDi = (p: PosizioneFoglio): string => {
@@ -687,6 +706,7 @@ function CellaFoglio<TTestata, TRiga>({
   }
 
   const valore = (cella.leggi as (d: unknown) => string)(dato)
+  const abilitata = abilitataSu(cella, dato)
 
   /**
    * **Cella chiusa e cella aperta hanno lo stesso riquadro e lo stesso testo.**
@@ -699,6 +719,23 @@ function CellaFoglio<TTestata, TRiga>({
   const riquadro = cn("px-2 py-1", RIGA, destra && "justify-end")
   const classiValore = cn(destra ? "text-right tabular-nums" : "text-left", cella.classiTesto)
   const prefisso = cella.prefisso ? <span className="me-2 shrink-0">{cella.prefisso}</span> : null
+  const testoValore = cella.mostra
+    ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
+    : valore
+
+  // Su una riga dove non si scrive, la cella è testo: lo stesso riquadro e le
+  // stesse classi della vista, così la colonna resta allineata, ma senza
+  // fuoco, ruolo né gestori — e senza segnaposto, che inviterebbe a scrivere.
+  if (!abilitata) {
+    return (
+      <TableCell className="p-0">
+        <div className={riquadro}>
+          {prefisso}
+          <span className={cn("min-w-0 truncate", classiValore)}>{testoValore}</span>
+        </div>
+      </TableCell>
+    )
+  }
 
   if (inModifica) {
     const errore = motore.errore
@@ -777,9 +814,7 @@ function CellaFoglio<TTestata, TRiga>({
             sborda è la designazione, cioè la colonna elastica. Meglio i
             puntini: il testo intero resta leggibile aprendo la modifica. */}
         <span className={cn("min-w-0 truncate", classiValore)}>
-          {cella.mostra
-            ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
-            : valore || cella.segnaposto || " "}
+          {cella.mostra ? testoValore : valore || cella.segnaposto || " "}
         </span>
       </div>
     </TableCell>

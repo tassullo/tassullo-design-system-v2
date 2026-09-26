@@ -1018,6 +1018,8 @@ type ContestoDataGridValore = {
   interagitoRef: React.RefObject<boolean>
   /** `true` quando il fuoco ha lasciato le celle — v. lo stato `fuoco` di `<DataGrid>`. */
   fuoriRef: React.RefObject<boolean>
+  /** Dove sta il fuoco rispetto alle celle — lo stato `fuoco` di `<DataGrid>`. */
+  fuoco: "mai" | "dentro" | "fuori"
 }
 
 const ContestoDataGrid = React.createContext<ContestoDataGridValore | null>(null)
@@ -1067,6 +1069,7 @@ function useStatoCellaGriglia<TDato>(
   validazione?: (valore: string) => string | undefined
 ) {
   const { motore, interagitoRef, fuoriRef } = useContestoDataGrid<TDato>()
+  const { fuoco } = React.useContext(ContestoDataGrid)!
   const rigaId = motore.idRiga(riga)
   const id: CellaGrigliaId = { rigaId, colonnaId }
   const inModifica = motore.eInModifica(id)
@@ -1097,7 +1100,11 @@ function useStatoCellaGriglia<TDato>(
     id,
     attiva,
     inModifica,
-    selezionata: motore.eSelezionata(id),
+    // Il rettangolo di selezione parte sulla prima cella fin dal montaggio,
+    // perché è lì che `Tab` entra; il suo fondo però si vede solo da quando
+    // il fuoco è passato dalle celle. Prima, su una pagina appena aperta, la
+    // prima cella sembrerebbe già scelta mentre il fuoco è altrove.
+    selezionata: fuoco !== "mai" && motore.eSelezionata(id),
     inAnteprima: motore.eInAnteprimaRiempimento(id),
     errore: inModifica ? validazione?.(motore.draftModifica) : undefined,
   }
@@ -1984,8 +1991,9 @@ export function DataGrid<TDato extends RowData>({
    * «Salva», un filtro, la barra: il motore la ricorda sempre (è così che
    * `Tab` ci rientra), ma senza un segno chi ha cliccato fuori non sa più
    * su quale riga stava lavorando. È la convenzione dei fogli di calcolo: la
-   * selezione resta visibile, attenuata. `"mai"` non segna niente, o la
-   * prima riga comparirebbe scelta su una pagina appena aperta.
+   * selezione resta visibile, attenuata. `"mai"` non segna niente — né il
+   * bordo né il fondo della selezione —, o la prima cella comparirebbe
+   * scelta su una pagina appena aperta.
    *
    * «Dentro» vuol dire dentro la `<table>`, non dentro `contenitoreRef`, che
    * contiene anche la barra. `focusout` arriva prima che il fuoco sia
@@ -2037,7 +2045,7 @@ export function DataGrid<TDato extends RowData>({
 
   return (
     <ContestoDataGrid.Provider
-      value={{ motore: motore as DataGridEngine<unknown>, contenitoreRef, interagitoRef, fuoriRef }}
+      value={{ motore: motore as DataGridEngine<unknown>, contenitoreRef, interagitoRef, fuoriRef, fuoco }}
     >
       <div
         ref={contenitoreRef}
