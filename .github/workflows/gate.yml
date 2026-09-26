@@ -32,20 +32,28 @@ jobs:
 
       - run: npm ci
 
-      # Solo Chromium: il gate misura il contrasto e il comportamento dei
-      # popup, non la compatibilità fra browser. `--with-deps` serve perché
-      # l'immagine di GitHub non porta le librerie di sistema che Chromium
-      # si aspetta.
+      # Chromium per le quattro passate di axe: il gate misura il contrasto e
+      # il comportamento dei popup, non la compatibilità fra browser.
+      # `--with-deps` serve perché l'immagine di GitHub non porta le librerie
+      # di sistema che i browser si aspettano.
       - run: npx playwright install --with-deps chromium
 
-      # I dodici gate: gli undici controlli statici — palette, aggiornabilità dei
+      # WebKit per la sola passata `test:webkit`: le scene di misura che
+      # scorrono e cambiano densità sulle righe virtualizzate. Il ciclo di
+      # aggiornamenti che la passata cerca esisteva solo in WebKit
+      # (`docs/DECISIONI.md` §69 e §70). Con le dipendenze di sistema sono
+      # circa 107 MB e 52 pacchetti; il tempo si misura alla prima PR.
+      - run: npx playwright install --with-deps webkit
+
+      # I tredici gate: gli undici controlli statici — palette, aggiornabilità dei
       # componenti, allineamento di `public/r/` ai sorgenti, riferimenti e
       # import fra item, font, marchio, testo della style guide
       # (`check:storybook`), testo che arriva a chi installa (`check:spedito`),
       # lunghezza delle righe di `CHECKLIST.md` (`check:checklist`), autotest
       # del controllo che le app installano (`check:controllo`), lint di
       # un'app Vite sui file installati (`check:lint-app`) — e
-      # poi le quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto}.
+      # poi le quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto},
+      # e la passata WebKit sulle scene etichettate `webkit` (`test:webkit`).
       - run: npm run check
 
       # La style guide deve anche **costruirsi**: una story che compila nel
