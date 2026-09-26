@@ -52,11 +52,16 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * `tassullo-data-table`; per correggere i dati cella per cella c'è
  * `tassullo-data-grid`.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-lista
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-lista
  * ```
  *
- * **I blocchi che la compongono**, e che arrivano con lei:
+ * **I blocchi che la compongono**, da installare nell'app per nome:
  * `tassullo-page-header` per il percorso e le azioni nella fascia,
  * `tassullo-data-table` per la tabella, `tassullo-empty-state`,
  * `tassullo-error-state` e `tassullo-page-skeleton` per i tre stati, e

@@ -13,12 +13,17 @@ import { PaginaLogin } from '@/registry/tassullo/pages/pagina-login'
  * dimenticata, verifica dell'email — non sono sue scene: si compongono con
  * le primitive, come mostra `Pagine/Schermate d'accesso`.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-login
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-login
  * ```
  *
  * È composta con `card`, `field`, `input`, `input-group`, `alert`,
- * `spinner` e `button`, che arrivano con lei.
+ * `spinner` e `button`, da installare nell'app per nome.
  *
  * ```tsx
  * <PaginaLogin

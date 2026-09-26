@@ -41,11 +41,16 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * arriva è `tassullo-pagina-lista`; un modulo da compilare una volta sola,
  * senza storico, è un dialogo.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-scheda
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-scheda
  * ```
  *
- * **I blocchi che la compongono**, e che arrivano con lei:
+ * **I blocchi che la compongono**, da installare nell'app per nome:
  * `tassullo-page-header`, `tabs`, `card`, `tassullo-version-timeline` per
  * lo storico, `tassullo-page-skeleton` e `tassullo-error-state` per gli
  * stati.

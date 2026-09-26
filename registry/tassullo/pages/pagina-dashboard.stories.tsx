@@ -49,11 +49,16 @@ import { valoreIt } from '@/prove/numeri-tooltip'
  * chi entra. Una fila di indicatori da sola, dentro un'altra pagina, è
  * `tassullo-indicatori`; un grafico da solo è la primitiva `chart`.
  *
+ * **È una pagina d'esempio**: mostra come si compongono i blocchi. Non si
+ * installa e non si importa: se ne legge il codice con il comando che segue,
+ * o chiedendolo all'MCP, e la si ricompone nell'app, nella cartella delle
+ * pagine.
+ *
  * ```bash
- * npx shadcn@latest add tassullo/tassullo-design-system-v2/tassullo-pagina-dashboard
+ * npx shadcn@latest view tassullo/tassullo-design-system-v2/tassullo-pagina-dashboard
  * ```
  *
- * **I blocchi che la compongono**, e che arrivano con lei:
+ * **I blocchi che la compongono**, da installare nell'app per nome:
  * `tassullo-page-header`, `tassullo-indicatori`, `tassullo-data-table` per
  * le attività, `alert` e `toni` per gli avvisi, `card`, `button`,
  * `tassullo-page-skeleton` e `tassullo-error-state` per gli stati, e
