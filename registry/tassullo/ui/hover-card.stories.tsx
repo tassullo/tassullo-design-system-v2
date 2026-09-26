@@ -65,12 +65,14 @@ export const Predefinito: Story = {
               naturale.
             </p>
             <Separator />
-            <dl className="grid grid-cols-2 gap-y-1 text-xs">
-              <dt className="text-muted-foreground">Resa</dt>
-              <dd className="text-right tabular-nums">12,40 kg/m²</dd>
-              <dt className="text-muted-foreground">Spessore minimo</dt>
-              <dd className="text-right tabular-nums">20,00 mm</dd>
-            </dl>
+            <div className="@container text-xs">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+                <dt className="text-muted-foreground">Resa</dt>
+                <dd className="tabular-nums">12,40 kg/m²</dd>
+                <dt className="text-muted-foreground">Spessore minimo</dt>
+                <dd className="tabular-nums">20,00 mm</dd>
+              </dl>
+            </div>
           </div>
         </HoverCardContent>
       </HoverCard>{' '}
