@@ -2645,17 +2645,40 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
   const rigaRefs = React.useRef(new Map<number, HTMLTableRowElement>())
   const interagitoRef = React.useRef(false)
 
-  // La stima delle righe non montate è l'altezza vera della prima riga resa.
-  // Dopo ogni render, senza dipendenze: la densità o il carattere cambiano
-  // l'altezza delle righe senza cambiare niente che React veda. Mezzo pixel
-  // di tolleranza, o l'arrotondamento del motore ricalcolerebbe a ogni giro.
-  React.useLayoutEffect(() => {
-    const nodo = rigaRefs.current.values().next().value
-    const altezza = nodo?.getBoundingClientRect().height
-    if (!altezza || Math.abs(altezza - stimaRef.current) < 0.5) return
-    stimaRef.current = altezza
-    virtualizzatore.measure()
-  })
+  // La stima delle righe non montate è l'altezza vera di una riga resa,
+  // tenuta aggiornata da un `ResizeObserver` su **una** riga: così segue la
+  // densità, il carattere caricato e le transizioni fino al valore finale.
+  // Sempre la stessa riga finché resta montata, e non «la prima» a ogni
+  // render: con righe alte mezza unità (36,5px) WebKit ne arrotonda una a 36
+  // e la successiva a 37, e ogni `measure()` spostava di una riga la finestra,
+  // cambiava la prima riga e ne ripartiva un altro, fino al limite di React.
+  const osservatoreRef = React.useRef<ResizeObserver | null>(null)
+  const osservataRef = React.useRef<Element | null>(null)
+  const osservaUnaRiga = React.useCallback(() => {
+    const osservatore = osservatoreRef.current
+    if (!osservatore || osservataRef.current?.isConnected) return
+    const nodo = [...rigaRefs.current.values()].find((riga) => riga.isConnected)
+    if (!nodo) return
+    osservatore.disconnect()
+    osservatore.observe(nodo)
+    osservataRef.current = nodo
+  }, [])
+  React.useEffect(() => {
+    const osservatore = new ResizeObserver(([voce]) => {
+      const altezza = voce?.target.getBoundingClientRect().height
+      if (!altezza || Math.abs(altezza - stimaRef.current) < 0.5) return
+      stimaRef.current = altezza
+      virtualizzatore.measure()
+    })
+    osservatoreRef.current = osservatore
+    osservaUnaRiga()
+    return () => {
+      osservatore.disconnect()
+      osservatoreRef.current = null
+      osservataRef.current = null
+    }
+  }, [virtualizzatore, osservaUnaRiga])
+  React.useLayoutEffect(osservaUnaRiga)
   React.useEffect(() => {
     if (senzaFocoRiga || !interagitoRef.current) return
     const nodo = rigaRefs.current.get(focoValido)
