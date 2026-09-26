@@ -13338,6 +13338,8 @@ Aperta la PR, Francesco ha voluto rivedere ogni issue: problema, soluzione, prov
 - **Filtri con la ricerca in maiuscolo**, nato da #59: il testo cercato non passava per `resolveFilterValue`, e con «Calce» il filtro restava vuoto mentre la tabella mostrava 30 prodotti. Ora si risolve come fa TanStack, anche per i filtri di colonna.
 - **Voci dell'albero trovate per nome** (#80, scelta di Francesco): una voce trovata restava con le sole figlie che contenevano il testo, cioè vuota. Ora la ricerca negli alberi tiene una riga se corrisponde lei o un'antenata: «Scavo» → «1 voce, 3 misurazioni».
 
+- **Maniglie di ridimensionamento visibili a riposo** (Francesco): prima comparivano solo col puntatore sopra, e sul touch mai. Quattro forme rese affiancate (com'è, filo pieno, filo corto, solo col puntatore sulla testata); scelta la **filo corto**, in un grigio chiaro: a riposo un trattino alto metà intestazione (20px, 30 in touch), `border` in chiaro e `border-strong` in scuro, dove `border` sul fondo della testata quasi spariva; niente trattino sull'ultima colonna. Col puntatore, col fuoco o trascinando resta il filo arancio di prima.
+
 #### Per le app, in più rispetto a sopra
 
 - `tassullo-data-grid`: `add --overwrite` porta con sé `calendar` e `popover`. Le colonne data si scrivono `gg/mm/aaaa`; chi incolla da un foglio può incollare anche `AAAA-MM-GG`.
@@ -13345,7 +13347,6 @@ Aperta la PR, Francesco ha voluto rivedere ogni issue: problema, soluzione, prov
 
 #### Da decidere, per l'ondata 2
 
-- Le maniglie di ridimensionamento sono invisibili a riposo (compaiono al passaggio del puntatore): renderle visibili è una scelta di forma per tutte le tabelle. Domanda aperta a Francesco.
 - Le `play` più vecchie che aprono un menu o un dialogo nelle scene visibili (per il gate di accessibilità) registrano anch'esse interazioni: da portare in scene di misura? Domanda aperta a Francesco.
 - Foglio a gruppi: la colonna «Prezzo unit.» della scena nuova mostra i decimali come arrivano (0,62 / 38,5 / 1,8 / 4,2).
 - Griglia: il popover della data resta visibile sopra l'intestazione quando la cella ci scorre sotto ancora montata; nasconderlo farebbe perdere il fuoco.

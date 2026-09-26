@@ -1774,11 +1774,19 @@ function ManigliaRidimensiona<TDato extends RowData>({
       <span
         aria-hidden
         style={inTrascinamento ? { height: altezzaGuida } : undefined}
+        // A riposo un trattino corto e chiaro, a metà altezza: dice che il
+        // bordo si trascina anche su uno schermo senza puntatore, senza
+        // dividere la testata in caselle. In scuro `border` quasi sparisce
+        // sul fondo della testata, e il trattino prende `border-strong`.
+        // Niente trattino sull'ultima intestazione, dove farebbe doppia riga
+        // col bordo della tabella. Col puntatore, col fuoco o trascinando
+        // diventa il filo arancio a tutta altezza.
         className={cn(
-          "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors",
-          "group-hover/maniglia:w-1 group-hover/maniglia:bg-primary/60",
-          "group-focus-visible/maniglia:w-1 group-focus-visible/maniglia:bg-primary/60",
-          inTrascinamento && "w-1 bg-primary"
+          "absolute left-1/2 w-px -translate-x-1/2 transition-colors",
+          ultima ? "inset-y-0 bg-transparent" : "inset-y-1/4 bg-border dark:bg-border-strong",
+          "group-hover/maniglia:inset-y-0 group-hover/maniglia:w-1 group-hover/maniglia:bg-primary/60",
+          "group-focus-visible/maniglia:inset-y-0 group-focus-visible/maniglia:w-1 group-focus-visible/maniglia:bg-primary/60",
+          inTrascinamento && "inset-y-0 w-1 bg-primary"
         )}
       />
     </span>

@@ -3733,3 +3733,4 @@ Tredici proposte arrivate da Anagrafe il 2026-09-25 con causa e rimedio già scr
 
 **La data della griglia (scelta di Francesco, forma b).** Il `<input type="date">` apriva il calendario del sistema operativo, diverso per ogni macchina. Ora la cella si scrive `gg/mm/aaaa` e il `calendar` del registry si apre in un popover (`↓` o il bottone): chi compila una griglia scrive, e il calendario è la seconda strada. Scartata la forma «solo calendario», che toglieva la scrittura. Il testo in errore delle celle passa a `destructive-subtle-foreground` (3,53:1 → 10,45:1 in scuro).
 
+**Le maniglie di ridimensionamento si vedono a riposo (scelta di Francesco).** Un trattino corto e chiaro a metà altezza dell'intestazione, fra le colonne: dice che il bordo si trascina anche dove il puntatore non c'è, senza dividere la testata in caselle come farebbe un filo pieno. Scartate: niente a riposo (sul touch non si scopre mai), filo pieno, filo solo col puntatore sulla testata.
