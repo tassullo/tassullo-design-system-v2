@@ -172,6 +172,16 @@ Dipendenze di fase: FASE 4.
 | #76 Proposta: righe virtualizzate senza `data-index` | DONE 2026-09-26 — **`v2.0.4`** | — | `data-index` sulla riga e stima dall'altezza vera: scarto 69.853px → meno di una riga, avvisi 42 → 0. In verifica: ciclo infinito in Safari, ora `ResizeObserver` su una riga. PR #81. |
 | #77 Proposta: scena `Pagine/Scheda`, griglia a tre colonne | DONE 2026-09-26 — **`v2.0.4`** | — | Griglia su un `div` dentro il `FieldGroup`: colonne 863/170/87 → 363/363/363 a 1440 → `DECISIONI.md` §69 PR #81. |
 | #80 Proposta: data-table ad albero, la ricerca scarta le madri | DONE 2026-09-26 — **`v2.0.4`** | — | `filterFromLeafRows` negli alberi; piè «4 voci, 5 misurazioni» con `nomeSottoRighe`, scelto da Francesco fra tre. Scena `Albero Con Ricerca`. Voce trovata per nome con tutte le figlie (Francesco). PR #81. |
+| #61 Proposta: file-upload, forma compatta per «Sostituisci» | IN_PROGRESS — ondata 2 | — | Forma da decidere con Francesco su varianti rese. |
+| #62 Proposta: le pagine sono esempi da ricomporre | IN_PROGRESS — ondata 2 | — | Item installabili o solo scene: da decidere con Francesco. |
+| #63 Proposta: tabs, forma stretta quando non stanno in riga | IN_PROGRESS — ondata 2 | — | `Select` sotto `sm` o scorrimento con segno: forma da decidere su varianti rese. |
+| #65 Proposta: pagina-admin, un conteggio e ricerca nei ruoli | IN_PROGRESS — ondata 2 | #62 | Dipende da come resta la pagina (#62). |
+| #68 Proposta: data-table, colonne a capo e badge che tronca | IN_PROGRESS — ondata 2 | — | Opzione di colonna per andare a capo; badge in cella stretta (ricetta o forma): da decidere. |
+| #69 Proposta: app-shell, fascia ferma e tab ferme di una scheda | IN_PROGRESS — ondata 2 | — | Fascia `sticky` o area di scorrimento del guscio: forma da decidere su varianti rese. |
+| #70 Proposta: data-grid, celle scrivibili riconoscibili | IN_PROGRESS — ondata 2 | — | Segno delle celle scrivibili e riga d'aiuto: forma da decidere su varianti rese. |
+| #73 Proposta: Button col render di un link | IN_PROGRESS — ondata 2 | — | `buttonVariants` sul link o altra forma; riconferma di D14: da decidere. |
+| #78 Proposta: forma termine–valore sui token | IN_PROGRESS — ondata 2 | — | Ricetta o componente nostro (4bis): da decidere. |
+| #79 Proposta: tema-font, il carattere fuori dal CSS dell'app | IN_PROGRESS — ondata 2 | — | Da pesare contro `DECISIONI.md` §15 con misure su una build vera. |
 
 ## Decisioni
 
