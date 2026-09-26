@@ -1355,7 +1355,10 @@ function classiVistaCella(segnoSelezione: string | undefined, inAnteprima: boole
     "-m-2 block min-h-9 content-center truncate p-2 outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
     segnoSelezione,
-    inAnteprima && "outline-primary outline-1 outline-dashed",
+    // Il tratteggio dentro il riquadro, non fuori: il riquadro copre la cella
+    // intera, e la cella della tabella (`overflow: hidden`) taglia ciò che sborda. Un
+    // contorno appena fuori c'era ma non si vedeva.
+    inAnteprima && "outline-primary outline-1 -outline-offset-1 outline-dashed",
     extra
   )
 }

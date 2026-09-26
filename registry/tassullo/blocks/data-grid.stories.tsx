@@ -378,6 +378,54 @@ export const EditabileRettangoloProva: Story = {
   play: rettangoloSelezionato,
 }
 
+// Prova: trascinando la maniglia di riempimento, il tratteggio che anticipa
+// le celle da riempire si vede tutto. La cella della tabella taglia ciò che
+// sborda, e il tratteggio stava appena fuori dal riquadro della cella: c'era,
+// ma non se ne vedeva nemmeno un pixel.
+async function anteprimaRiempimento({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = (riga: number) =>
+    canvasElement.querySelector<HTMLElement>(`[data-riga-id="voce-${riga}"][data-colonna-id="descrizione"]`)!
+  await waitFor(() => expect(cella(1)).toBeTruthy())
+  await userEvent.click(cella(1))
+  await userEvent.keyboard('{Shift>}{ArrowDown}{/Shift}')
+  const maniglia = await waitFor(() => {
+    const trovata = canvasElement.querySelector<HTMLElement>('.cursor-crosshair')
+    expect(trovata).toBeTruthy()
+    return trovata!
+  })
+
+  // Il trascinamento a mano: la maniglia ascolta il `mousedown`, poi i
+  // movimenti del puntatore sul documento.
+  const centro = (el: Element) => {
+    const r = el.getBoundingClientRect()
+    return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true }
+  }
+  maniglia.dispatchEvent(new MouseEvent('mousedown', centro(maniglia)))
+  document.dispatchEvent(new MouseEvent('mousemove', centro(cella(5))))
+  await waitFor(() => expect(getComputedStyle(cella(5)).outlineStyle).toBe('dashed'))
+
+  for (const riga of [2, 3, 4, 5]) {
+    const div = cella(riga)
+    const stile = getComputedStyle(div)
+    const sporge = parseFloat(stile.outlineWidth) + parseFloat(stile.outlineOffset)
+    const r = div.getBoundingClientRect()
+    const taglio = div.closest('td')!.getBoundingClientRect()
+    expect(r.left - sporge, `riga ${riga}`).toBeGreaterThanOrEqual(taglio.left - 0.5)
+    expect(r.right + sporge, `riga ${riga}`).toBeLessThanOrEqual(taglio.right + 0.5)
+    expect(r.top - sporge, `riga ${riga}`).toBeGreaterThanOrEqual(taglio.top - 0.5)
+    expect(r.bottom + sporge, `riga ${riga}`).toBeLessThanOrEqual(taglio.bottom + 0.5)
+  }
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+}
+
+// Scena di misura della maniglia di riempimento: nascosta come quelle sopra.
+export const EditabileRiempimentoProva: Story = {
+  ...Editabile,
+  name: 'Editabile, riempimento, prova',
+  tags: ['!dev', '!autodocs'],
+  play: anteprimaRiempimento,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Celle tipizzate — sessione 2 di 3
  * ──────────────────────────────────────────────────────────────────────── */
