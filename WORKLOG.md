@@ -13322,5 +13322,31 @@ Corretta una riga di `tabs.stories.tsx` fusa col `play`. `docs` degli item aggio
 
 - `tassullo-confirm-dialog` tiene una copia delle classi di `AlertDialogContent`: da riallineare a mano a ogni versione di shadcn (§69).
 - Foglio a gruppi: se la posizione salvata del fuoco punta a una cella che non lo accetta più (resa non abilitata o riga tolta), nessuna cella ha `tabIndex=0` e `Tab` non entra finché non si clicca. Succedeva già eliminando una voce.
-- Albero: una madre che corrisponde resta con le sole figlie che corrispondono. Tenere tutto il sotto-albero sarebbe una scelta di forma.
+- Albero: una madre che corrisponde restava con le sole figlie che corrispondono (chiuso nella verifica, sotto).
 - Le corsie hanno condiviso una cartella temporanea e uno script di prova si è sovrascritto: i numeri riportati sono stati rifatti nel proprio worktree. La prossima volta, una sottocartella per corsia.
+
+#### La verifica con Francesco, issue per issue
+
+Aperta la PR, Francesco ha voluto rivedere ogni issue: problema, soluzione, prova, con le scene «prima» e «dopo» affiancate (6006 per `v2.0.3`, 6007 per il ramo; per le scene nuove, il blocco di `v2.0.3` rimesso per un momento, o servito su 6008 da una copia a parte). Misure in Chromium di Playwright, e in WebKit dove contava. Tutte e tredici confermate. Sono emersi sette difetti, cinque nati dall'ondata stessa; tutti corretti nella PR, ciascuno con una prova che fallisce sul codice di prima:
+
+- **Le prove muovevano le scene** (Francesco): le `play` aggiunte dall'ondata giravano nelle scene visibili, e aprendo Editabile il fuoco entrava da solo nella griglia. Ognuna delle 18 è passata in una **scena di misura** gemella nascosta (`tags: ['!dev', '!autodocs']`, la forma del calendario): fuori dalla barra e da Docs, eseguita dal gate. Le scene visibili si aprono a riposo.
+- **Ciclo infinito in Safari** (Francesco, `Maximum update depth exceeded` su Editabile), nato da #76: la stima rileggeva «la prima riga montata» dopo ogni render, e WebKit arrotonda righe da 36,5px a 36 e 37 alternati, quindi ogni `measure()` cambiava la prima riga e ne ripartiva un altro. Riprodotto in WebKit a 1× dopo scorrimento e cambio di densità, mai in Chromium, l'unico motore del gate. Ora un `ResizeObserver` osserva **una** riga finché resta montata: nessun ciclo in WebKit e Chromium, 1× e 2×, cinque scene; e la stima segue anche le transizioni (con una prima correzione a chiave, in Chromium si fermava a 55 invece di 61 nel Computo in touch).
+- **Riquadro della cella con la casella di spunta** (Francesco): la tabella di shadcn toglie `pr` alle celle con una casella, e il riquadro della griglia, che brucia il margine con `-m-2`, usciva di 8px (12 in touch) sotto la colonna accanto. `mr-0` su quella cella. C'era già in `v2.0.3`.
+- **Riquadro tagliato in fondo** (Francesco), nato da #58: scendendo con le frecce la cella finiva a filo del fondo (0,5px) e l'angolo arrotondato ne tagliava bordo e maniglia. `scroll-pb-2` sul riquadro che scorre (8px, 12 in touch). Misurando è emerso anche il rovescio, già in `v2.0.3`: risalendo, una cella finiva sotto l'intestazione (fino a 40px); lo chiude lo `scroll-padding-top` di #58.
+- **Il calendario del sistema nella griglia** (Francesco): la cella data usava `<input type="date">`. Il calendario del registry c'è, quindi nessuna proposta: rese affiancate e provate due forme, (a) solo calendario e (b) testo più calendario; **Francesco ha scelto la (b)**. Si scrive `gg/mm/aaaa`, `↓` o il bottone aprono `calendar` in un popover, scegliere un giorno conferma. La griglia riconosce il popover come parte di sé (`data-griglia-popup`); il calendario passa un `DayButton` che attacca il `ref`, così le frecce muovono il fuoco (la strada di D15). La vista mostra `24/07/2026` con gli zeri; si incolla anche `AAAA-MM-GG`; il valore salvato non cambia. Provata a mano in Chromium e WebKit, 24 controlli per motore.
+- **Testo in errore illeggibile nelle celle**: `text-destructive` sul testo (la trappola di `CLAUDE.md`), 3,53:1 in scuro. Ora `text-destructive-subtle-foreground` in tutte le celle: 8,17:1 in chiaro, 10,45:1 in scuro. La scena di misura della data finisce con un errore aperto, così axe lo misura.
+- **Filtri con la ricerca in maiuscolo**, nato da #59: il testo cercato non passava per `resolveFilterValue`, e con «Calce» il filtro restava vuoto mentre la tabella mostrava 30 prodotti. Ora si risolve come fa TanStack, anche per i filtri di colonna.
+- **Voci dell'albero trovate per nome** (#80, scelta di Francesco): una voce trovata restava con le sole figlie che contenevano il testo, cioè vuota. Ora la ricerca negli alberi tiene una riga se corrisponde lei o un'antenata: «Scavo» → «1 voce, 3 misurazioni».
+
+#### Per le app, in più rispetto a sopra
+
+- `tassullo-data-grid`: `add --overwrite` porta con sé `calendar` e `popover`. Le colonne data si scrivono `gg/mm/aaaa`; chi incolla da un foglio può incollare anche `AAAA-MM-GG`.
+- In un albero con `cerca`, una voce trovata per nome si apre con tutte le figlie: se l'app contava sul comportamento di prima, è un cambio.
+
+#### Da decidere, per l'ondata 2
+
+- Le maniglie di ridimensionamento sono invisibili a riposo (compaiono al passaggio del puntatore): renderle visibili è una scelta di forma per tutte le tabelle. Domanda aperta a Francesco.
+- Le `play` più vecchie che aprono un menu o un dialogo nelle scene visibili (per il gate di accessibilità) registrano anch'esse interazioni: da portare in scene di misura? Domanda aperta a Francesco.
+- Foglio a gruppi: la colonna «Prezzo unit.» della scena nuova mostra i decimali come arrivano (0,62 / 38,5 / 1,8 / 4,2).
+- Griglia: il popover della data resta visibile sopra l'intestazione quando la cella ci scorre sotto ancora montata; nasconderlo farebbe perdere il fuoco.
+- Il gate gira solo in Chromium: il ciclo di Safari l'ha visto solo Francesco. Una passata WebKit sulle scene virtualizzate costerebbe poco.
