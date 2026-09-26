@@ -526,7 +526,11 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   `<dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">`,
  *   col termine in un `dt` `text-muted-foreground` e il valore in un `dd`.
  *   La colonna dei termini è larga quanto il termine più lungo; in un
- *   contenitore stretto termine e valore vanno uno sotto l'altro.
+ *   contenitore stretto termine e valore vanno uno sotto l'altro. Il valore
+ *   comincia a sinistra, accanto al suo termine, anche quando è un numero:
+ *   con `tabular-nums` le cifre si incolonnano già, e allineati a destra
+ *   valori con unità di misura diverse (kg/m², mm, %) incolonnerebbero le
+ *   unità invece delle virgole, lontano dal termine in un contenitore largo.
  *   `grid-cols-termine` viene dal tema: con un tema che non lo dichiara la
  *   classe non fa niente, senza errore.
  * - `piede` accende una riga di totali dentro la tabella. Ogni colonna scrive
