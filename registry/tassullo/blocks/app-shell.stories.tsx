@@ -31,6 +31,14 @@ import {
 } from '@/registry/tassullo/ui/dropdown-menu'
 import { Field, FieldGroup, FieldLabel } from '@/registry/tassullo/ui/field'
 import { Input } from '@/registry/tassullo/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/registry/tassullo/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui/tabs'
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 import { SelettoreContesto, type VoceContesto } from '@/registry/tassullo/blocks/barra-contesto'
@@ -506,7 +514,10 @@ function PannelloScheda({ value, titolo }: { value: string; titolo: string }) {
  *   due fasce: un campo raggiunto con Maiusc+Tab si ferma sotto tutte e due;
  * - cambiando tab, se le tab sono già ferme, la finestra torna all'inizio del
  *   pannello. Senza, il pannello nuovo si aprirebbe a metà, con l'inizio
- *   nascosto sotto le fasce. Il salto è immediato: nessuna animazione.
+ *   nascosto sotto le fasce. Il salto è immediato: nessuna animazione;
+ * - sotto `@md` del contenitore (448px) le quattro tab non stanno più in riga
+ *   — ne chiedono 331, 375 in touch — e al loro posto c'è una `Select` che
+ *   guida le stesse tab: la ricetta di `Primitive/Tabs › Molte Tab`.
  */
 function PaginaSchedaLunga() {
   const [tab, setTab] = useState('anagrafica')
@@ -528,19 +539,43 @@ function PaginaSchedaLunga() {
         percorso={[{ titolo: 'Prodotti', href: '#' }, { titolo: 'Membrana armata 4 mm' }]}
         azioni={[{ titolo: 'Modifica', icona: PencilIcon, ruolo: 'secondaria' }]}
       />
-      <Tabs ref={radice} value={tab} onValueChange={(v) => cambia(String(v))}>
+      <Tabs
+        ref={radice}
+        value={tab}
+        onValueChange={(v) => cambia(String(v))}
+        className="@container/scheda"
+      >
         <div
           ref={fasciaTab}
           data-slot="fascia-tab"
           className="sticky top-12 z-10 -mx-4 bg-background px-4 py-2 [html:has(&)]:scroll-pt-24"
         >
-          <TabsList aria-label="Sezioni">
+          <TabsList aria-label="Sezioni" className="hidden @md/scheda:inline-flex">
             {SEZIONI_SCHEDA.map((t) => (
               <TabsTrigger key={t.value} value={t.value}>
                 {t.titolo}
               </TabsTrigger>
             ))}
           </TabsList>
+          <Select
+            items={SEZIONI_SCHEDA.map((t) => ({ value: t.value, label: t.titolo }))}
+            value={tab}
+            onValueChange={(v) => cambia(String(v))}
+          >
+            <SelectTrigger aria-label="Sezione" className="w-full @md/scheda:hidden">
+              <span className="text-muted-foreground">Sezione:</span>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {SEZIONI_SCHEDA.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.titolo}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
         {SEZIONI_SCHEDA.map((t) => (
           <TabsContent key={t.value} value={t.value}>
@@ -559,8 +594,9 @@ function PaginaSchedaLunga() {
  * Scorre la finestra, quindi PaginaGiù funziona appena aperta la pagina.
  *
  * Le tab ferme sono della pagina, non del guscio: una fascia `sticky top-12`
- * col fondo della pagina, attorno alla `TabsList`. Nel codice della scena c'è
- * la ricetta intera.
+ * col fondo della pagina, attorno alla `TabsList`. Sul telefono le tab non
+ * stanno in riga e al loro posto c'è una `Select` «Sezione: …». Nel codice
+ * della scena c'è la ricetta intera.
  */
 export const SchedaLunga: Story = {
   name: 'Scheda Lunga',

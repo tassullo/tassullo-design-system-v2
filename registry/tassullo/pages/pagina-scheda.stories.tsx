@@ -83,9 +83,15 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  *   fascia loro `sticky top-12` col fondo della pagina; cambiando scheda, la
  *   pagina torna all'inizio del pannello. Come si comporta una scheda più
  *   alta della finestra si vede in `Blocchi/App shell › Scheda Lunga`.
+ * - Sotto una larghezza del contenitore le schede lasciano il posto a una
+ *   `Select` «Sezione: …» che le guida: qui sotto i 384px, cioè sul
+ *   telefono. La soglia si sceglie per ogni scheda, dalla larghezza delle
+ *   sue schede in densità touch: la ricetta è in `Primitive/Tabs › Molte
+ *   Tab`.
  *
  * **Tastiera e accessibilità.** Le schede si scorrono con le frecce, come in
- * `tabs`. I campi disabilitati si leggono ma non prendono il fuoco.
+ * `tabs`; nella forma stretta la `Select` si apre con `Invio`, `Spazio` o le
+ * frecce. I campi disabilitati si leggono ma non prendono il fuoco.
  */
 const meta = {
   title: 'Pagine/Scheda',

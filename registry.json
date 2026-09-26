@@ -678,7 +678,7 @@
       "name": "tabs",
       "type": "registry:ui",
       "title": "Tabs",
-      "description": "Schede che cambiano il pannello sotto, non la pagina. Due varianti: a pillole e a filo.",
+      "description": "Schede che cambiano il pannello sotto, non la pagina. Due varianti: a pillole e a filo. Quando le schede non stanno in riga, sotto una soglia del contenitore la lista lascia il posto a una Select che guida le stesse schede (la ricetta è nella scena «Molte Tab» della style guide).",
       "dependencies": [
         "@base-ui/react",
         "class-variance-authority",
@@ -1712,11 +1712,12 @@
       ],
       "registryDependencies": [
         "@tassullo/card",
+        "@tassullo/select",
+        "@tassullo/tabs",
         "@tassullo/tassullo-error-state",
         "@tassullo/tassullo-page-header",
         "@tassullo/tassullo-page-skeleton",
         "@tassullo/tassullo-version-timeline",
-        "@tassullo/tabs",
         "@tassullo/tema"
       ],
       "docs": "La pagina intera, non uno spezzone:\n\n  <PaginaScheda\n    percorso={[{ titolo: \"Norme\", href: \"/norme\" }, { titolo: norma.codice }]}\n    titolo={norma.codice}\n    distintivo={<Badge className={TONO.success}>Vigente</Badge>}\n    azioni={[{ titolo: \"Elimina\", icona: TrashIcon, ruolo: \"distruttiva\", onClick: elimina }]}\n    modifica={inModifica}\n    onModificaChange={setInModifica}\n    anagrafica={(modifica) => <FormNorma dati={norma} modifica={modifica} onSalva={salva} />}\n    documenti={<ElencoAllegati />}\n    storico={{ revisioni }}\n  />\n\nA differenza di `tassullo-page-header`, che toglie deliberatamente il titolo\ndalla fascia in alto, qui titolo/distintivo/azioni **si vedono**: sono\nl'intestazione della pagina, non del guscio, e su una scheda il nome\ndell'entità è l'unica cosa scritta grande da qualche parte. `distintivo` è\nun nodo già composto (`<Badge>`), non un `variant` chiuso — Prodotto,\nNorma, Sistema e Famiglia hanno vocabolari di stato incompatibili fra loro.\nOgni tab rende dentro `Card`/`CardContent`, non a diretto contatto con lo\nsfondo della pagina — lo stesso riquadro bianco che Anagrafe usa già.\n\n`anagrafica` è una **funzione di `modifica`**, non due alberi: lo stesso\n`<form>` con `tassullo-form-field` resta montato sia in lettura sia in\nmodifica, e i campi si disabilitano (`disabled={!modifica}`) invece di\ncambiare componente — un campo che muta forma al clic su \"Modifica\"\nsposterebbe l'intera scheda, cosa che un form vero non fa. Il blocco\npossiede solo il passaggio — un bottone \"Modifica\"/\"Annulla\" — e lo lascia\nanche **controllabile** (`modifica`/`onModificaChange`): senza, non avrebbe\nmodo di tornare alla lettura al successo di un salvataggio, che lo sa solo\nil `<form>` dell'app, opaco al blocco.\n\n`documenti` resta un `ReactNode` libero — un allegato di Norma è un PDF,\nuno di Prodotto una foto, nessuna forma sola — mentre `storico` monta\nsempre `VersionTimeline` da sé, in coda, perché lo\nstorico delle revisioni è la stessa forma per ogni entità."
