@@ -35,7 +35,7 @@ Con il pin di versione, che è la forma da preferire nelle app in produzione:
 npx shadcn@latest add tassullo/tassullo-design-system-v2/button#v2.0.4
 ```
 
-Il tema si porta con un comando solo — `tema` dichiara fra le sue dipendenze `tema-font` (Inter in data URI) e `tema-logo` (il marchio):
+Il tema si porta con un comando solo — `tema` dichiara fra le sue dipendenze `tema-font` (Inter in data URI, in un CSS che arriva in `public/` e si collega da `index.html`) e `tema-logo` (il marchio):
 
 ```bash
 npx shadcn@latest add tassullo/tassullo-design-system-v2/tema

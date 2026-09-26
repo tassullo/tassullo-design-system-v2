@@ -187,8 +187,11 @@ ragione, e il ramo va riallineato spesso al principale.
    come nel passo 3 di `docs/INTEGRAZIONE.md`, e il registry si rimette come al passo 4.
 3. **Il tema** e **via la palette di partenza**: passi 6 e 7 di `docs/INTEGRAZIONE.md`.
    Alla domanda della CLI («Existing CSS variables and components will be overwritten») si
-   risponde `y`: in un `index.css` pieno di regole v1 aggiunge i tre `@import` del tema e
-   non tocca le regole che ci sono (provato su Anagrafe). Da qui le pagine non ancora
+   risponde `y`: in un `index.css` pieno di regole v1 aggiunge i due `@import` del tema e
+   non tocca le regole che ci sono (provato su Anagrafe). Il carattere arriva in
+   `public/tassullo-inter-4.1.css` e si collega da `index.html` con
+   `<link rel="stylesheet" href="/tassullo-inter-4.1.css" />`, come dice il passo 6: non si
+   importa da `index.css`. Da qui le pagine non ancora
    migrate cambiano aspetto (l'azzeramento, vedi sopra): è atteso, ed è il motivo per cui il
    ramo non va in produzione a metà.
 

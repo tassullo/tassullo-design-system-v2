@@ -241,6 +241,9 @@ function provaCli(): string[] {
       { path: "registry/p/blocks/p-blocco.tsx", type: "registry:component", target: "components/blocks/p-blocco.tsx", content: js, testa: false },
       { path: "registry/p/p-tema.css", type: "registry:theme", target: "src/p-tema.css", content: css, testa: false },
       { path: "registry/p/p-file.css", type: "registry:file", target: "src/p-file.css", content: css, testa: true },
+      // Il carattere del tema sta in `public/`, fuori da `src/`: un `registry:file`
+      // arriva intero anche lì, e il file generato non ha una testa di note.
+      { path: "registry/p/p-pubblico.css", type: "registry:file", target: "~/public/p-pubblico.css", content: css, testa: true },
     ];
     scrivi("prova.json", JSON.stringify({ name: "prova", type: "registry:block", files: file.map((f) => ({ path: f.path, type: f.type, target: f.target, content: f.content })) }));
     execFileSync(cli, ["add", "./prova.json", "--yes", "--overwrite"], { cwd: dir, stdio: "pipe" });

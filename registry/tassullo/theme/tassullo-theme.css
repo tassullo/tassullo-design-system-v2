@@ -269,8 +269,9 @@
      **Inter** è il carattere delle interfacce, scelto su un confronto
      misurato di cinque candidati. Ha i quattro pesi che il design system
      usa — 400/500/600/700 — le cifre tabellari, e i corsivi; è SIL Open
-     Font, quindi gratuito e ridistribuibile. Arriva col tema, in
-     tassullo-inter.css, senza nessuna richiesta di rete.
+     Font, quindi gratuito e ridistribuibile. Arriva col tema, in un CSS a
+     parte che l'app tiene in public/ e collega da index.html, senza
+     nessuna richiesta di rete.
 
      **Replicall NON è più nello stack.** Resta il carattere del marchio e
      resta nelle stampe PDF, ma per lo schermo non si usa più: tenerlo qui

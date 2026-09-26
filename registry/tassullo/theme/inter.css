@@ -1,30 +1,24 @@
-/* ── NOTA DI REPO — questo commento NON arriva alle app ───────────────
-   `shadcn add` toglie TUTTI i commenti di testa di un CSS `registry:theme`
-   (docs/DECISIONI.md §58; `npm run check:spedito` lo rimisura a ogni
-   giro). Qui stanno le note di repo; ciò che deve leggere chi installa sta
-   DENTRO la prima regola, dove arriva.
-
-   GENERATO da scripts/build-font-css.ts dai .woff2 in theme/fonts/.
-   Non modificare a mano: `npm run check:font` fallisce se diverge.
-
-     npm run font:build     rigenera questo file
-     npm run check:font     verifica che sia allineato ai .woff2
-
-   In data URI perché il registry NON sa portare binari: `shadcn build`
-   legge i file come UTF-8 e un .woff2 arriverebbe corrotto, senza errore.
-   Misura in docs/DECISIONI.md §15.
-   ────────────────────────────────────────────────────────────────────── */
-
 @font-face {
   /* ══════════════════════════════════════════════════════════════════════
      INTER — il carattere delle interfacce Tassullo
 
      Installato insieme al tema:  npx shadcn@latest add @tassullo/tema
 
+     Si collega da index.html, nel <head>, e non si importa dal CSS:
+
+       <link rel="stylesheet" href="/tassullo-inter-4.1.css" />
+
+     Importato dal CSS dell'app, finirebbe fuso nel suo file, che cambia
+     nome a ogni rilascio: 200 KB di carattere riscaricati per una classe
+     cambiata. Da qui, col nome che cambia solo con il carattere, resta
+     nella cache del browser. Se il collegamento manca, il testo esce nel
+     carattere di sistema senza nessun errore.
+
      I file del carattere sono **dentro questo CSS**, in data URI: l'app non
-     fa nessuna richiesta di rete per la tipografia, né a Google né a noi.
+     fa nessuna richiesta di rete per la tipografia, né a Google né altrove.
      È una scelta deliberata — servire i font da un terzo significa mandargli
-     l'indirizzo IP di ogni visitatore.
+     l'indirizzo IP di ogni visitatore. Il file non si modifica: si aggiorna
+     reinstallando il tema con --overwrite.
 
      Sottoinsieme `latin`: copre italiano e tedesco. Variabile, un file per
      stile copre tutti i pesi da 300 a 900.

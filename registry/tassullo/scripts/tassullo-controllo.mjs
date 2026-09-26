@@ -327,6 +327,65 @@ function controllaCodice(fileDaLeggere) {
   return { violazioni, eccezioni };
 }
 
+// ── Il carattere ────────────────────────────────────────────────────────────
+// Inter arriva in `public/tassullo-inter-<versione>.css` e si collega da
+// `index.html`. Importato dal CSS globale, Vite lo fonderebbe nel CSS
+// dell'app, che cambia nome a ogni rilascio: 200 KB riscaricati per una
+// classe cambiata. E se il collegamento manca il testo esce nel carattere di
+// sistema senza nessun errore: per questo lo verifica il controllo.
+
+const FILE_CARATTERE = /^tassullo-inter-[^/]*\.css$/;
+const IMPORT_CARATTERE = /@import\s+(?:url\(\s*)?["']?[^"')\s;]*tassullo-inter[^"')\s;]*\.css/;
+
+/**
+ * Gli errori sul carattere. `atteso` è il nome del file che il registry
+ * installa in `public/` (null se non si sa: senza rete); `pubblici` i file che
+ * ci sono in `public/`; `cssApp` i CSS dell'app; `temaInstallato` se l'app ha
+ * il tema.
+ */
+function controllaCarattere({ indexHtml, cssApp, pubblici, atteso, temaInstallato, vecchioInSrc }) {
+  const errori = [];
+  for (const { file, testo } of cssApp) {
+    const riga = testo.split("\n").findIndex((r) => IMPORT_CARATTERE.test(r));
+    if (riga >= 0)
+      errori.push(
+        `${file}:${riga + 1}: il carattere non si importa dal CSS dell'app. Vite lo fonderebbe nel CSS ` +
+          "dell'app, che cambia nome a ogni rilascio; si toglie l'`@import` e si collega il file da index.html."
+      );
+  }
+  if (vecchioInSrc)
+    errori.push(
+      "src/tassullo-inter.css: è il file del carattere nella posizione di prima. Il carattere ora arriva in " +
+        "`public/`: si cancellano src/tassullo-inter.css e src/tassullo-inter-OFL.txt."
+    );
+  const installati = pubblici.filter((f) => FILE_CARATTERE.test(f));
+  const nome = atteso ?? (installati.length === 1 ? installati[0] : null);
+  if (atteso && !installati.includes(atteso))
+    errori.push(
+      `manca public/${atteso}, il carattere del tema: si reinstalla il tema (\`npx shadcn@latest add @tassullo/tema --overwrite\`).`
+    );
+  else if (!atteso && temaInstallato && installati.length === 0)
+    errori.push("manca in public/ il carattere del tema (tassullo-inter-….css): si reinstalla il tema con --overwrite.");
+  if (!nome || indexHtml === null) {
+    if (nome && indexHtml === null) errori.push(`manca index.html, da cui si collega /${nome}.`);
+    return errori;
+  }
+  const collegati = [...indexHtml.matchAll(/<link\b[^>]*>/g)]
+    .map((m) => m[0])
+    .filter((l) => /\brel\s*=\s*["']?stylesheet/.test(l))
+    .map((l) => /\bhref\s*=\s*["']([^"']+)["']/.exec(l)?.[1] ?? "")
+    .filter((h) => /tassullo-inter[^/]*\.css$/.test(h));
+  const giusto = (h) => h === `/${nome}` || h === nome || h === `./${nome}` || h === `%BASE_URL%${nome}`;
+  if (collegati.length === 0)
+    errori.push(
+      `index.html non collega il carattere: nel <head> va <link rel="stylesheet" href="/${nome}" />. ` +
+        "Senza, il testo esce nel carattere di sistema senza nessun errore."
+    );
+  for (const h of collegati.filter((h) => !giusto(h)))
+    errori.push(`index.html collega \`${h}\`, ma il carattere installato è public/${nome}: il collegamento va a \`/${nome}\`.`);
+  return errori;
+}
+
 // ── Il controllo completo ───────────────────────────────────────────────────
 
 async function controlla({ soloStile }) {
@@ -389,6 +448,21 @@ async function controlla({ soloStile }) {
     ...["package.json", "index.html"].filter((f) => existsSync(join(RADICE, f))),
   ];
   const { violazioni, eccezioni } = controllaCodice(daLeggere);
+
+  const pubblici = existsSync(join(RADICE, "public")) ? readdirSync(join(RADICE, "public")) : [];
+  const atteso = [...attesi.keys()].find((p) => /^public\/tassullo-inter-[^/]*\.css$/.test(p))?.slice("public/".length) ?? null;
+  errori.push(
+    ...controllaCarattere({
+      indexHtml: existsSync(join(RADICE, "index.html")) ? readFileSync(join(RADICE, "index.html"), "utf8") : null,
+      cssApp: elenca("src")
+        .filter((f) => f.endsWith(".css") && !/\/tassullo-inter[^/]*\.css$/.test(f))
+        .map((file) => ({ file, testo: readFileSync(join(RADICE, file), "utf8") })),
+      pubblici,
+      atteso,
+      temaInstallato: elenca("src").some((f) => f.endsWith("/tassullo-theme.css")),
+      vecchioInSrc: existsSync(join(RADICE, "src", "tassullo-inter.css")),
+    })
+  );
 
   console.log(`  ${daLeggere.length} file dell'app letti con le regole di stile${eccezioni ? `, ${eccezioni} righe con un'eccezione motivata` : ""}.`);
   if (errori.length === 0 && violazioni.length === 0) {
@@ -495,6 +569,38 @@ function selfTest() {
       console.error(`  ✖ collegamento-come-bottone: «${testo.replace(/\n/g, "⏎")}» doveva dare ${attese} violazioni`);
     }
   }
+  // Il carattere: collegato da index.html col nome installato, mai importato dal CSS.
+  const html = (href) => `<head><link rel="stylesheet" href="${href}" /><title>App</title></head>`;
+  const base = {
+    indexHtml: html("/tassullo-inter-4.1.css"),
+    cssApp: [{ file: "src/index.css", testo: '@import "tailwindcss";\n@import "./tassullo-theme.css";' }],
+    pubblici: ["tassullo-inter-4.1.css", "tassullo-inter-OFL.txt"],
+    atteso: "tassullo-inter-4.1.css",
+    temaInstallato: true,
+    vecchioInSrc: false,
+  };
+  const sulCarattere = [
+    ["collegato come si deve", base, 0],
+    ["collegato, senza rete", { ...base, atteso: null }, 0],
+    ["collegamento mancante", { ...base, indexHtml: "<head><title>App</title></head>" }, 1],
+    ["collegamento a un'altra versione", { ...base, indexHtml: html("/tassullo-inter-4.0.css") }, 1],
+    [
+      "importato dal CSS globale",
+      { ...base, cssApp: [{ file: "src/index.css", testo: '@import "tailwindcss";\n@import "./tassullo-inter.css";' }] },
+      1,
+    ],
+    ["file di prima rimasto in src/", { ...base, vecchioInSrc: true }, 1],
+    ["file installato mancante in public/", { ...base, pubblici: [] }, 1],
+    ["tema senza carattere, senza rete", { ...base, atteso: null, pubblici: [], indexHtml: "<head></head>" }, 1],
+    ["app senza tema", { ...base, atteso: null, pubblici: [], temaInstallato: false, indexHtml: "<head></head>" }, 0],
+  ];
+  for (const [nome, dati, attesi] of sulCarattere) {
+    const trovati = controllaCarattere(dati).length;
+    if (trovati !== attesi) {
+      falliti++;
+      console.error(`  ✖ carattere, ${nome}: ${trovati} errori invece di ${attesi}`);
+    }
+  }
   const configurazioni = [
     [{ style: "base-nova", registries: { "@tassullo": "https://esempio.it/x/v2.0.0/public/r/{name}.json" } }, 0],
     [{ style: "new-york", registries: { "@tassullo": "https://esempio.it/x/v2.0.0/public/r/{name}.json" } }, 1],
@@ -516,7 +622,7 @@ function selfTest() {
     falliti++;
     console.error("  ✖ un diff vero doveva essere segnalato");
   }
-  const totale = casi.length + eccezioni.length + dopo.length + sulTag.length + configurazioni.length + 2;
+  const totale = casi.length + eccezioni.length + dopo.length + sulTag.length + sulCarattere.length + configurazioni.length + 2;
   if (falliti) {
     console.error(`\n✖ self-test: ${falliti} casi su ${totale} sbagliati.\n`);
     process.exit(1);

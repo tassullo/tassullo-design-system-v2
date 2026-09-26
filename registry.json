@@ -7,23 +7,20 @@
       "name": "tema-font",
       "type": "registry:theme",
       "title": "Inter (carattere del tema)",
-      "description": "Inter, sottoinsieme latin, tondo e corsivo, inlinato in data URI: l'app non fa nessuna richiesta di rete per la tipografia. SIL Open Font License.",
+      "description": "Inter, sottoinsieme latin, tondo e corsivo, inlinato in data URI in un CSS che l'app mette in public/ e collega da index.html: nessuna richiesta di rete per la tipografia, e il carattere resta nella cache del browser da un rilascio all'altro. SIL Open Font License.",
       "files": [
         {
           "path": "registry/tassullo/theme/inter.css",
-          "type": "registry:theme",
-          "target": "src/tassullo-inter.css"
+          "type": "registry:file",
+          "target": "~/public/tassullo-inter-4.1.css"
         },
         {
           "path": "registry/tassullo/theme/tassullo-inter-OFL.txt",
           "type": "registry:file",
-          "target": "src/tassullo-inter-OFL.txt"
+          "target": "~/public/tassullo-inter-OFL.txt"
         }
       ],
-      "css": {
-        "@import \"./tassullo-inter.css\"": {}
-      },
-      "docs": "Inter installato in src/tassullo-inter.css, con l'@import già aggiunto al CSS globale.\n\nI file del carattere sono DENTRO quel CSS, in data URI: nessuna richiesta di rete per la\ntipografia, né a Google né altrove. Sottoinsieme latin (italiano e tedesco), variabile,\nun file per stile che copre i pesi da 300 a 900.\n\nsrc/tassullo-inter-OFL.txt è la licenza SIL Open Font e deve restare accanto al font:\nnon si cancella. Il font è libero di essere usato, modificato e ridistribuito."
+      "docs": "Inter installato in public/tassullo-inter-4.1.css. UN PASSO A MANO: si collega da\nindex.html, nel <head>:\n\n  <link rel=\"stylesheet\" href=\"/tassullo-inter-4.1.css\" />\n\nNon si importa dal CSS globale: Vite lo fonderebbe nel CSS dell'app, che cambia nome a\nogni rilascio, e 200 KB di carattere si riscaricherebbero per una classe cambiata. Il\nnome del file cambia solo quando cambia il carattere. Senza il collegamento il testo esce\nnel carattere di sistema senza nessun errore: tassullo-controllo lo verifica.\n\nI file del carattere sono DENTRO quel CSS, in data URI: nessuna richiesta di rete per la\ntipografia, né a Google né altrove. Sottoinsieme latin (italiano e tedesco), variabile,\nun file per stile che copre i pesi da 300 a 900.\n\npublic/tassullo-inter-OFL.txt è la licenza SIL Open Font e deve restare accanto al font:\nnon si cancella. Il font è libero di essere usato, modificato e ridistribuito.\n\nDa una versione precedente, che installava src/tassullo-inter.css: si cancellano\nsrc/tassullo-inter.css e src/tassullo-inter-OFL.txt, si toglie dal CSS globale\n@import \"./tassullo-inter.css\" e si aggiunge il collegamento qui sopra."
     },
     {
       "name": "tema-logo",
@@ -46,7 +43,7 @@
       "name": "tema",
       "type": "registry:theme",
       "title": "Tema Tassullo",
-      "description": "Identità visiva Tassullo: palette chiara e scura, raggi, tipografia, ombre e le due densità. Porta con sé il carattere (Inter). Unico canale di distribuzione del tema.",
+      "description": "Identità visiva Tassullo: palette chiara e scura, raggi, tipografia, ombre e le due densità. Porta con sé il carattere (Inter, in public/, da collegare in index.html). Unico canale di distribuzione del tema.",
       "files": [
         {
           "path": "registry/tassullo/theme/tassullo-theme.css",
@@ -57,7 +54,7 @@
       "css": {
         "@import \"./tassullo-theme.css\"": {}
       },
-      "docs": "Tema Tassullo installato in src/tassullo-theme.css, con l'@import già aggiunto al CSS globale.\n\nUN PASSO A MANO, se l'app viene da `shadcn init`: nel CSS globale c'è ancora la palette\ndi partenza — i blocchi @theme inline, :root e .dark, e l'@import del carattere Geist. Stanno\nDOPO gli @import del tema e quindi vincono: vanno tolti tutti e quattro, o i colori e il\ncarattere Tassullo non si vedono. Non manca niente: il tema ridichiara tutto ciò che serve.\n\nDensità touch (cantiere): <html data-density=\"touch\">.\nAggiornamento del tema: lo stesso comando con --overwrite.",
+      "docs": "Tema Tassullo installato in src/tassullo-theme.css, con l'@import già aggiunto al CSS globale.\n\nIl carattere arriva in public/tassullo-inter-4.1.css e si collega A MANO da index.html,\nnel <head>: <link rel=\"stylesheet\" href=\"/tassullo-inter-4.1.css\" />. Senza, il testo\nesce nel carattere di sistema senza errori.\n\nUN PASSO A MANO, se l'app viene da `shadcn init`: nel CSS globale c'è ancora la palette\ndi partenza — i blocchi @theme inline, :root e .dark, e l'@import del carattere Geist. Stanno\nDOPO gli @import del tema e quindi vincono: vanno tolti tutti e quattro, o i colori e il\ncarattere Tassullo non si vedono. Non manca niente: il tema ridichiara tutto ciò che serve.\n\nDensità touch (cantiere): <html data-density=\"touch\">.\nAggiornamento del tema: lo stesso comando con --overwrite.",
       "registryDependencies": [
         "@tassullo/tema-font",
         "@tassullo/tema-logo"
@@ -113,7 +110,7 @@
       "name": "tassullo-controllo",
       "type": "registry:item",
       "title": "Controllo del design system",
-      "description": "Lo script che l'app lancia a ogni push, fra le sue verifiche automatiche: i file del design system sono identici a quelli della versione installata, nelle loro cartelle non entrano primitive fatte in casa, e il codice dell'app rispetta le regole di stile (niente valori arbitrari, esadecimali, text-primary, finestre del browser, tendine native, numeri senza @/lib/numeri, Button usati come collegamento). Esce con errore alla prima violazione.",
+      "description": "Lo script che l'app lancia a ogni push, fra le sue verifiche automatiche: i file del design system sono identici a quelli della versione installata, nelle loro cartelle non entrano primitive fatte in casa, e il codice dell'app rispetta le regole di stile (niente valori arbitrari, esadecimali, text-primary, finestre del browser, tendine native, numeri senza @/lib/numeri, Button usati come collegamento), e il carattere è collegato da index.html. Esce con errore alla prima violazione.",
       "files": [
         {
           "path": "registry/tassullo/scripts/tassullo-controllo.mjs",
@@ -121,7 +118,7 @@
           "target": "~/scripts/tassullo-controllo.mjs"
         }
       ],
-      "docs": "Si lancia dalla cartella dell'app che contiene components.json, fra le verifiche automatiche che l'app fa a ogni push, accanto a tsc e alla build:\n\n  node scripts/tassullo-controllo.mjs\n\nNel package.json dell'app, per comodità:\n\n  \"scripts\": { \"design-system\": \"node scripts/tassullo-controllo.mjs\" }\n\nTre controlli. I file installati dal registry @tassullo si confrontano, con la riga di comando di shadcn, con quelli della versione scritta in components.json: una modifica fatta in casa è un errore, e si propone al design system. In src/components/ui/, blocks/ e pages/ stanno solo i file del design system: un componente dell'app va altrove. Il codice dell'app segue le regole del blocco «Stile e design system» delle sue istruzioni. Alcune regole leggono il tag intero, anche scritto su più righe: un `<Button …>` col `render` di un `<a>` o di un `Link` è un errore, e il collegamento si scrive come `Link` con `buttonVariants`.\n\nUna riga che deve fare eccezione (per un tag, la riga dove il tag comincia) porta, sulla riga stessa o su quella sopra, un commento `tassullo-controllo: <il motivo>`; senza motivo non vale. --solo-stile salta il confronto col registry e lavora senza rete; --self-test prova che il controllo sa fallire.\n\nVuole Node 22 o successivo e la rete: legge il registry alla versione scritta in components.json."
+      "docs": "Si lancia dalla cartella dell'app che contiene components.json, fra le verifiche automatiche che l'app fa a ogni push, accanto a tsc e alla build:\n\n  node scripts/tassullo-controllo.mjs\n\nNel package.json dell'app, per comodità:\n\n  \"scripts\": { \"design-system\": \"node scripts/tassullo-controllo.mjs\" }\n\nQuattro controlli. I file installati dal registry @tassullo si confrontano, con la riga di comando di shadcn, con quelli della versione scritta in components.json: una modifica fatta in casa è un errore, e si propone al design system. In src/components/ui/, blocks/ e pages/ stanno solo i file del design system: un componente dell'app va altrove. Il codice dell'app segue le regole del blocco «Stile e design system» delle sue istruzioni. Alcune regole leggono il tag intero, anche scritto su più righe: un `<Button …>` col `render` di un `<a>` o di un `Link` è un errore, e il collegamento si scrive come `Link` con `buttonVariants`. Il carattere del tema è collegato da index.html col nome del file installato in public/, e nessun CSS dell'app lo importa.\n\nUna riga che deve fare eccezione (per un tag, la riga dove il tag comincia) porta, sulla riga stessa o su quella sopra, un commento `tassullo-controllo: <il motivo>`; senza motivo non vale. --solo-stile salta il confronto col registry e lavora senza rete; --self-test prova che il controllo sa fallire.\n\nVuole Node 22 o successivo e la rete: legge il registry alla versione scritta in components.json."
     },
     {
       "name": "toni",
