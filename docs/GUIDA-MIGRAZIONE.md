@@ -201,7 +201,10 @@ ragione, e il ramo va riallineato spesso al principale.
    e del suo layout. Le voci diventano dati (`sezioni`), la voce attiva la calcola l'app, i
    collegamenti passano con `render`. Accanto al guscio, una volta sola in cima all'app, si
    monta `<Toaster />` (primitiva `sonner`): senza, i `toast` non compaiono e non danno
-   errore.
+   errore. Nel modo `contenuto="scorre"`, il predefinito, scorre la finestra e la fascia in
+   alto resta ferma: un'area che scorre scritta a mano sotto la fascia, per tenerla ferma,
+   non serve più e si toglie. Le tab di una scheda si tengono ferme sotto la fascia come
+   nella pagina d'esempio `tassullo-pagina-scheda`.
 5. **Le pagine**, ricomposte con i blocchi e le primitive, partendo dalla pagina d'esempio
    più vicina (`tassullo-pagina-lista`, `-scheda`, `-dashboard`, `-admin`, `-login`,
    `-errore`): la si guarda nella style guide e se ne legge il codice con
