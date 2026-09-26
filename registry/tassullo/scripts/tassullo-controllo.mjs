@@ -95,6 +95,15 @@ const REGOLE = [
     perché: "`@tassullo/theme` è il design system precedente: l'app usa solo il Design System Tassullo 2.0.",
   },
   {
+    id: "classi-del-bottone-senza-cn",
+    cerca: /className=\{\s*(?:`[^`]*\$\{\s*)?buttonVariants\(/,
+    dove: new Set([".tsx", ".jsx"]),
+    perché:
+      "le classi di `buttonVariants` passano per `cn`: `className={cn(buttonVariants({ variant }))}`. " +
+      "Da sole lasciano il bordo trasparente della base accanto a quello della variante, e un link " +
+      "`outline` esce senza bordo, senza nessun errore.",
+  },
+  {
     id: "carattere-esterno",
     cerca: /@fontsource|fonts\.googleapis\.com|fonts\.gstatic\.com/,
     dove: new Set([...FILE_DI_CODICE, ".json", ".html"]),
@@ -515,6 +524,11 @@ function selfTest() {
     ["tendina-nativa", '<Select value={x}>', false],
     ["design-system-precedente", "@import '@tassullo/theme/theme.css';", true],
     ["carattere-esterno", '<link href="https://fonts.googleapis.com/css2?family=Inter">', true],
+    ["classi-del-bottone-senza-cn", '<Link to="/prodotti" className={buttonVariants({ variant: "outline" })}>', true],
+    ["classi-del-bottone-senza-cn", '<a href="#" className={buttonVariants({ variant: "link", size: "sm" })}>', true],
+    ["classi-del-bottone-senza-cn", "<a className={`${buttonVariants({ variant: \"outline\" })} w-full`}>", true],
+    ["classi-del-bottone-senza-cn", '<Link className={cn(buttonVariants({ variant: "outline" }), "h-auto")}>', false],
+    ["classi-del-bottone-senza-cn", "const classi = cn(buttonVariants({ variant: \"ghost\" }))", false],
   ];
   const est = (testo) => (testo.startsWith("<link") ? ".html" : testo.includes("@import") || /^color:/.test(testo) ? ".css" : ".tsx");
   let falliti = 0;
