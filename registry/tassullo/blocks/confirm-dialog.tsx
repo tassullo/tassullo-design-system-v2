@@ -78,17 +78,47 @@
  * questo blocco esiste per togliere. Chi non usa `campo` continua a scrivere
  * `onConferma={() => …}`: una funzione che ignora il suo argomento è
  * assegnabile, e nessun punto d'uso esistente cambia.
+ *
+ * ── Da un dialogo: la conferma annidata, e il velo ──────────────────────
+ *
+ * Proposta #60 di Anagrafe. Il caso più comune dopo il menu di riga è il
+ * bottone «Elimina» nel piè di un dialogo di modifica. La forma è **una**:
+ * la conferma si rende **dentro** il contenuto del dialogo, col grilletto al
+ * suo posto. Così Base UI la tratta come dialogo annidato: `Esc` chiude la
+ * sola conferma, il dialogo sotto non si chiude, e alla chiusura il fuoco
+ * torna su «Elimina». Resa accanto al dialogo, come fratello, `Esc`
+ * chiuderebbe il dialogo sotto e lascerebbe aperta la conferma.
+ *
+ * Mancava il velo. Base UI non rende il `Backdrop` di un dialogo annidato,
+ * a meno di `forceRender` (`@base-ui/react` 1.8.0, `DialogBackdrop`:
+ * `enabled: forceRender || !nested`), e `AlertDialogContent` monta
+ * `<AlertDialogOverlay />` senza quella prop: i due riquadri si vedevano
+ * insieme a piena luce, con due «Elimina» uno sopra l'altro. Misurato nella
+ * scena «Da un dialogo»: nell'angolo del dialogo sotto il primo elemento
+ * era il dialogo stesso, non un velo.
+ *
+ * Aggiungere `forceRender` in `ui/alert-dialog.tsx` è una divergenza di
+ * forma dall'originale shadcn, e `check:registry` la rifiuta (provato).
+ * Perciò il blocco compone da sé portale, velo e pannello — come
+ * `PopoverContentFerma` in `data-table-filtro-sfaccettato` — con le classi
+ * del pannello **copiate da `AlertDialogContent`**. È il prezzo, dichiarato:
+ * quando shadcn ri-stila `AlertDialogContent`, `ContenutoConferma` qui sotto
+ * va riallineato a mano. Fuori da un dialogo `forceRender` non cambia
+ * niente: il velo c'è comunque.
  */
-import { useId, useState, type ComponentProps, type ReactNode } from "react"
+import { useId, useState, type ReactNode } from "react"
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
+import { cn } from "cn"
 
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogOverlay,
+  AlertDialogPortal,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/registry/tassullo/ui/alert-dialog"
@@ -209,7 +239,35 @@ export type ConfirmDialogProps = {
   aperto?: boolean
   /** Cambio di apertura, nella forma controllata. */
   onApertoChange?: (aperto: boolean) => void
-} & Pick<ComponentProps<typeof AlertDialogContent>, "className">
+} & Pick<AlertDialogPrimitive.Popup.Props, "className">
+
+/*
+ * Il pannello della conferma: le stesse classi di `AlertDialogContent`, col
+ * velo reso **anche dentro un altro dialogo**. Base UI non rende il velo di
+ * un dialogo annidato se non glielo si chiede con `forceRender`; senza,
+ * aperta da un dialogo, la conferma comparirebbe sopra il dialogo sotto a
+ * piena luce, e si vedrebbero insieme i campi dell'uno e i bottoni
+ * dell'altra. Fuori da un dialogo `forceRender` non cambia niente.
+ */
+function ContenutoConferma({
+  className,
+  ...props
+}: AlertDialogPrimitive.Popup.Props) {
+  return (
+    <AlertDialogPortal>
+      <AlertDialogOverlay forceRender />
+      <AlertDialogPrimitive.Popup
+        data-slot="alert-dialog-content"
+        data-size="default"
+        className={cn(
+          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          className
+        )}
+        {...props}
+      />
+    </AlertDialogPortal>
+  )
+}
 
 export function ConfirmDialog({
   titolo,
@@ -332,7 +390,7 @@ export function ConfirmDialog({
           render={children as never}
         />
       ) : null}
-      <AlertDialogContent
+      <ContenutoConferma
         data-slot="confirm-dialog-content"
         className={className}
       >
@@ -344,8 +402,8 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         {campo || corpo ? (
           /*
-           * Il terzo posto. `AlertDialogContent` è un `grid gap-4`, quindi
-           * questo `<div>` è semplicemente la riga in mezzo — nessuna riga di
+           * Il terzo posto. Il pannello è un `grid gap-4`, quindi questo
+           * `<div>` è semplicemente la riga in mezzo — nessuna riga di
            * `alert-dialog` è stata toccata.
            *
            * `text-left`, esplicito. L'intestazione della primitiva è centrata
@@ -410,7 +468,7 @@ export function ConfirmDialog({
             {conferma}
           </AlertDialogAction>
         </AlertDialogFooter>
-      </AlertDialogContent>
+      </ContenutoConferma>
     </AlertDialog>
   )
 }

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import {
   ArchiveIcon,
   EllipsisVerticalIcon,
@@ -12,12 +13,25 @@ import { apriCol } from '@/prove/apri'
 import { ConfirmDialog } from '@/registry/tassullo/blocks/confirm-dialog'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/registry/tassullo/ui/dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/registry/tassullo/ui/dropdown-menu'
+import { Field, FieldLabel } from '@/registry/tassullo/ui/field'
+import { Input } from '@/registry/tassullo/ui/input'
+import { Textarea } from '@/registry/tassullo/ui/textarea'
 
 /**
  * La domanda «sei sicuro?» prima di un'azione: titolo, spiegazione, due
@@ -80,12 +94,18 @@ import {
  * - Da una voce di un menu si usa la forma controllata, con il dialogo reso
  *   fuori dal menu: cliccata la voce il menu si chiude, e un grilletto dentro
  *   il menu si porterebbe via anche il dialogo.
+ * - Da un dialogo, per esempio il bottone «Elimina» nel piè di un dialogo di
+ *   modifica, la conferma si rende **dentro** il contenuto del dialogo, col
+ *   grilletto al suo posto. Il dialogo sotto resta aperto e coperto dal velo;
+ *   `Esc` chiude solo la conferma. Resa accanto al dialogo, invece che
+ *   dentro, `Esc` chiuderebbe il dialogo sotto.
  * - Un campo non va in `descrizione`, che il lettore di schermo legge tutta
  *   di fila all'apertura: sta in `campo` o in `corpo`.
  * - Il campo torna al valore iniziale a ogni apertura.
  *
  * **Tastiera e accessibilità.** Il fuoco entra nel dialogo e ci resta;
- * `Esc` chiude come «Annulla», tranne durante l'attesa. Titolo e
+ * `Esc` chiude come «Annulla», tranne durante l'attesa; alla chiusura il
+ * fuoco torna al bottone che l'ha aperta, anche dentro un altro dialogo. Titolo e
  * descrizione sono il nome e la descrizione del dialogo. L'aiuto del campo è
  * collegato con `aria-describedby`, e con `parolaAttesa` dice quale parola
  * scrivere prima che la si debba scrivere.
@@ -328,4 +348,103 @@ export const MotivoDaScrivere: Story = {
       </div>
     )
   },
+}
+
+/*
+ * La prova della conferma annidata, eseguita a ogni giro del controllo di
+ * accessibilità: apre il dialogo di modifica, poi la conferma dal suo bottone
+ * «Elimina», e verifica tre cose.
+ *
+ *   1. Il velo: nell'angolo del dialogo sotto, fuori dalla conferma, il primo
+ *      elemento sotto il puntatore è il velo della conferma, non il dialogo.
+ *   2. `Esc` chiude la sola conferma: il dialogo sotto resta aperto.
+ *   3. Il fuoco torna al bottone «Elimina» del dialogo.
+ *
+ * Alla fine riapre la conferma, perché la scansione di accessibilità guardi
+ * i due dialoghi insieme. Nella passata «chiuso» `apriCol` non apre niente, e
+ * la prova si ferma lì: il dialogo è la scena a riposo.
+ */
+async function provaDaUnDialogo({ canvasElement }: { canvasElement: HTMLElement }) {
+  await apriCol('[data-slot="dialog-trigger"]', 'dialog-content')({ canvasElement })
+  const dialogo = document.querySelector<HTMLElement>('[data-slot="dialog-content"]')
+  if (!dialogo) return
+
+  const elimina = within(dialogo).getByRole('button', { name: 'Elimina' })
+  const conferma = () =>
+    document.querySelector('[data-slot="confirm-dialog-content"]')
+
+  await userEvent.click(elimina)
+  await waitFor(() => expect(conferma()).toBeInTheDocument())
+
+  await waitFor(() => {
+    const r = dialogo.getBoundingClientRect()
+    const sopra = document.elementFromPoint(r.left + 8, r.top + 8)
+    expect(sopra?.getAttribute('data-slot')).toBe('alert-dialog-overlay')
+  })
+
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(conferma()).not.toBeInTheDocument())
+  expect(dialogo.isConnected).toBe(true)
+  await waitFor(() => expect(document.activeElement).toBe(elimina))
+
+  await userEvent.click(elimina)
+  await waitFor(() => expect(conferma()).toBeInTheDocument())
+}
+
+/**
+ * La conferma aperta da un dialogo di modifica: resa dentro il dialogo, col
+ * grilletto nel suo piè di pagina. Il velo copre il dialogo sotto, `Esc`
+ * chiude solo la conferma e il fuoco torna su «Elimina».
+ */
+export const DaUnDialogo: Story = {
+  name: 'Da un dialogo',
+  args: {
+    titolo: 'Eliminare il prodotto?',
+    descrizione:
+      'La scheda «Malta R4 fibrorinforzata» e i suoi allegati non si possono recuperare.',
+    conferma: 'Elimina',
+    tono: 'distruttivo',
+    onConferma: () => {},
+  },
+  render: (args) => (
+    <Dialog>
+      <DialogTrigger render={<Button variant="outline" />}>
+        <PencilIcon />
+        Modifica
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Modifica prodotto</DialogTitle>
+          <DialogDescription>
+            Le modifiche valgono dalla prossima revisione della scheda.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <Field>
+            <FieldLabel htmlFor="cd-nome">Nome</FieldLabel>
+            <Input id="cd-nome" defaultValue="Malta R4 fibrorinforzata" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="cd-codice">Codice</FieldLabel>
+            <Input id="cd-codice" defaultValue="MS-R4-01" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="cd-note">Note</FieldLabel>
+            <Textarea id="cd-note" rows={3} />
+          </Field>
+        </div>
+        <DialogFooter>
+          <ConfirmDialog {...args}>
+            <Button variant="destructive" className="sm:mr-auto">
+              <Trash2Icon />
+              Elimina
+            </Button>
+          </ConfirmDialog>
+          <DialogClose render={<Button variant="outline" />}>Annulla</DialogClose>
+          <Button>Salva</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: provaDaUnDialogo,
 }
