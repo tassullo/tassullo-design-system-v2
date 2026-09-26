@@ -3558,6 +3558,12 @@ export function DataTable<TDato extends RowData>({
       onRigheEspanseChange?.(nuove)
     },
     getSubRows: getSottoRighe ? (riga) => getSottoRighe(riga) : undefined,
+    // In un albero ricerca e filtri partono dalle foglie: una riga madre
+    // resta se lei o una sua discendente corrisponde, e sotto di lei restano
+    // le sole figlie che corrispondono. Dall'alto, il predefinito di TanStack,
+    // una madre che non contiene il testo cercato veniva scartata con tutte
+    // le figlie, e una voce di secondo livello non si trovava mai.
+    filterFromLeafRows: !!getSottoRighe,
     // Senza `pannelloRiga` resta `undefined`: `getCanExpand()` ricade sul
     // predefinito di TanStack (righe con `subRows`, l'albero).
     getRowCanExpand: pannelloRiga

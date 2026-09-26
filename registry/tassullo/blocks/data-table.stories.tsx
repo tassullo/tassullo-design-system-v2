@@ -1077,6 +1077,54 @@ export const Albero: StoryObj<typeof DataTable<RigaComputo>> = {
   render: () => <AlberoConControlli />,
 }
 
+function AlberoConRicercaControlli() {
+  const tabellaRef = React.useRef<IstanzaTabella<RigaComputo> | null>(null)
+  return (
+    <div className="flex flex-col gap-3">
+      <BottoniEspansione tabellaRef={tabellaRef} />
+      <DataTable
+        colonne={COLONNE_ALBERO}
+        dati={COMPUTO}
+        idRiga={(riga) => riga.id}
+        cerca="Cerca una voce o un ambiente…"
+        colonneNascondibili={false}
+        getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+        nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+        vuoto={{ titolo: 'Nessuna voce nel computo' }}
+        onTabellaPronta={(t) => {
+          tabellaRef.current = t
+        }}
+      />
+    </div>
+  )
+}
+
+// La prova cerca un ambiente, che sta solo nelle misurazioni (secondo
+// livello), e lo trova. Prima la ricerca lavorava dall'alto: la voce madre non
+// conteneva il testo e veniva scartata con tutte le sue misurazioni, quindi
+// 0 righe e «Nessun risultato».
+async function provaAlberoConRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  await userEvent.type(canvas.getByRole('searchbox'), 'corridoio')
+  await waitFor(() => expect(canvas.queryByText('Nessun risultato')).toBeNull())
+  await userEvent.click(canvas.getByRole('button', { name: 'Espandi tutto' }))
+  await waitFor(() =>
+    expect(canvas.getAllByText(/corridoio/).length).toBeGreaterThan(0)
+  )
+}
+
+/**
+ * La ricerca in un albero guarda anche le righe figlie: cercando un ambiente,
+ * che sta solo nelle misurazioni, restano le voci che ne hanno almeno una, e
+ * sotto ciascuna le sole misurazioni che corrispondono. Una voce resta se lei
+ * stessa o una sua discendente corrisponde.
+ */
+export const AlberoConRicerca: StoryObj<typeof DataTable<RigaComputo>> = {
+  name: 'Albero Con Ricerca',
+  render: () => <AlberoConRicercaControlli />,
+  play: provaAlberoConRicerca,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * L'espansione (M3bis.2) — pannello di dettaglio per riga
  *
