@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, waitFor } from 'storybook/test'
 
 import { cn } from 'cn'
 
@@ -518,14 +519,13 @@ export const AltezzaVariabile: Story = {
           <Calendario {...args} eventi={eventi} onEventiChange={setEventi} />
         </div>
         {/*
-          Le letture sono coppie termine–valore, e si scrivono con la ricetta
-          delle coppie. Le sette righe ci sono sempre, con «—» fuori dalla
-          vista mese: il riquadro qui sopra prende l'altezza che resta, e un
-          elenco che cambiasse altezza passando da una vista all'altra
-          sposterebbe il fondo della pagina.
+          Misure del banco, non una scheda: stanno su una riga, così il
+          calendario tiene l'altezza. Le sette voci ci sono sempre, con «—»
+          fuori dalla vista mese: una riga che cambiasse passando da una vista
+          all'altra sposterebbe il fondo della pagina.
         */}
-        <div className="@container shrink-0 text-xs">
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
+        <div className="shrink-0 text-xs">
+          <dl className="flex flex-wrap gap-x-6 gap-y-1">
             <Lettura voce="contenitore" valore={letture && `${intero(letture.contenitore)}px`} />
             <Lettura voce="cella" valore={letture && `${intero(letture.cella)}px`} />
             <Lettura voce="passo di riga" valore={letture && `${intero(letture.passo)}px`} />
@@ -544,6 +544,27 @@ export const AltezzaVariabile: Story = {
   },
 }
 
+// Prova: le letture del banco stanno su una riga sotto il calendario, e il
+// riquadro tiene l'altezza che resta. Scritte una per riga, sette righe
+// toglievano al calendario 168px a 1440 e l'ultima settimana non si vedeva.
+async function lettureSuUnaRiga({ canvasElement }: { canvasElement: HTMLElement }) {
+  const termini = await waitFor(() => {
+    const el = [...canvasElement.querySelectorAll<HTMLElement>('dl dt')]
+    expect(el).toHaveLength(7)
+    return el
+  })
+  const cime = new Set(termini.map((dt) => Math.round(dt.getBoundingClientRect().top)))
+  expect(cime.size, 'righe occupate dalle letture').toBe(1)
+}
+
+// Scena di misura di «Altezza variabile»: la stessa resa, con la prova.
+export const AltezzaVariabileProva: Story = {
+  ...AltezzaVariabile,
+  name: 'Altezza variabile, prova',
+  tags: ['!dev', '!autodocs'],
+  play: lettureSuUnaRiga,
+}
+
 function Lettura({
   voce,
   valore,
@@ -554,7 +575,7 @@ function Lettura({
   allarme?: boolean
 }) {
   return (
-    <>
+    <div className="flex items-baseline gap-1.5">
       <dt className="text-muted-foreground">{voce}</dt>
       <dd
         className={cn(
@@ -564,6 +585,6 @@ function Lettura({
       >
         {valore ?? '—'}
       </dd>
-    </>
+    </div>
   )
 }

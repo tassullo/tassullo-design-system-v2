@@ -1,5 +1,6 @@
 import { apriPassandoci } from '@/prove/apri'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect } from 'storybook/test'
 
 import { Avatar, AvatarFallback } from '@/registry/tassullo/ui/avatar'
 import { Badge } from '@/registry/tassullo/ui/badge'
@@ -39,6 +40,22 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+// Prova per le coppie termine–valore dentro l'anteprima: il riquadro è stretto
+// e fisso e i valori sono corti, quindi termine e valore stanno sulla stessa
+// riga anche sotto la soglia della ricetta, invece di andare in colonna.
+async function coppieAffiancate(contesto: { canvasElement: HTMLElement }) {
+  await apriPassandoci('[data-slot="hover-card-trigger"]', 'hover-card-content')(contesto)
+  const contenuto = document.querySelector<HTMLElement>('[data-slot="hover-card-content"]')
+  if (!contenuto) return
+  const termini = [...contenuto.querySelectorAll<HTMLElement>('dt')]
+  const valori = [...contenuto.querySelectorAll<HTMLElement>('dd')]
+  expect(termini.length).toBeGreaterThan(0)
+  termini.forEach((dt, i) => {
+    const alto = (el: HTMLElement) => el.getBoundingClientRect().top
+    expect(Math.abs(alto(valori[i]) - alto(dt)), dt.textContent ?? '').toBeLessThan(1)
+  })
+}
+
 export const Predefinito: Story = {
   render: () => (
     <p className="max-w-md text-sm">
@@ -65,20 +82,28 @@ export const Predefinito: Story = {
               naturale.
             </p>
             <Separator />
-            <div className="@container text-xs">
-              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 @sm:grid-cols-termine">
-                <dt className="text-muted-foreground">Resa</dt>
-                <dd className="tabular-nums">12,40 kg/m²</dd>
-                <dt className="text-muted-foreground">Spessore minimo</dt>
-                <dd className="tabular-nums">20,00 mm</dd>
-              </dl>
-            </div>
+            {/* Un riquadro stretto e fisso, con valori corti: le coppie
+                restano affiancate, senza la soglia della ricetta. */}
+            <dl className="grid grid-cols-termine gap-x-6 gap-y-1 text-xs">
+              <dt className="text-muted-foreground">Resa</dt>
+              <dd className="tabular-nums">12,40 kg/m²</dd>
+              <dt className="text-muted-foreground">Spessore minimo</dt>
+              <dd className="tabular-nums">20,00 mm</dd>
+            </dl>
           </div>
         </HoverCardContent>
       </HoverCard>{' '}
       steso a cazzuola, e lasciato maturare per almeno quarantotto ore.
     </p>
   ),
+}
+
+// Scena di misura di «Predefinito»: la stessa resa, con la prova.
+export const PredefinitoProva: Story = {
+  ...Predefinito,
+  name: 'Predefinito, prova',
+  tags: ['!dev', '!autodocs'],
+  play: coppieAffiancate,
 }
 
 /**

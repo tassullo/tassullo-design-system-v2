@@ -531,6 +531,9 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   con `tabular-nums` le cifre si incolonnano già, e allineati a destra
  *   valori con unità di misura diverse (kg/m², mm, %) incolonnerebbero le
  *   unità invece delle virgole, lontano dal termine in un contenitore largo.
+ *   In un riquadro piccolo e fisso con valori corti — un'anteprima, un
+ *   riepilogo di cifre — le coppie restano affiancate anche sotto la soglia:
+ *   `grid grid-cols-termine`, senza `@container` e senza `grid-cols-1`.
  *   `grid-cols-termine` viene dal tema: con un tema che non lo dichiara la
  *   classe non fa niente, senza errore.
  * - `piede` accende una riga di totali dentro la tabella. Ogni colonna scrive
