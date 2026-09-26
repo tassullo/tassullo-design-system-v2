@@ -1283,6 +1283,25 @@ export const EspansioneDopoRicarica: StoryObj<typeof DataTable<Prodotto>> = {
  */
 const PRODOTTI_VIRTUALIZZAZIONE = generaProdotti(10000)
 
+// La prova confronta lo spazio sotto le righe montate con le righe che
+// restano per l'altezza vera di una riga. Senza l'indice sulla riga il
+// virtualizzatore non misurava niente, e contava ogni riga alla stima di
+// 44px: 439.076px sotto 21 righe da 37, cioè 69.853px di troppo.
+async function provaRigheMisurate({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => {
+    const scorre = canvasElement.querySelector('[data-slot="table-container"]')
+    const righe = [...(scorre?.querySelectorAll('tbody tr') ?? [])]
+    const montate = righe.filter((r) => !r.hasAttribute('aria-hidden'))
+    expect(montate.length).toBeGreaterThan(0)
+    const altezza = montate[0].getBoundingClientRect().height
+    const indice = righe.indexOf(montate[montate.length - 1])
+    const sopra = indice > montate.length - 1 ? righe[0].getBoundingClientRect().height : 0
+    const sotto = righe[indice + 1]?.getBoundingClientRect().height ?? 0
+    const restano = PRODOTTI_VIRTUALIZZAZIONE.length - Math.round(sopra / altezza) - montate.length
+    expect(Math.abs(sotto - restano * altezza)).toBeLessThan(altezza)
+  })
+}
+
 /**
  * Diecimila prodotti in un riquadro fermo, con nel DOM solo le righe in vista.
  * Col fuoco su una riga, `Fine` porta all'ultima dell'elenco.
@@ -1302,6 +1321,7 @@ export const Virtualizzata: StoryObj<typeof DataTable<Prodotto>> = {
       <DataTable {...args} className="min-h-0 flex-1" />
     </div>
   ),
+  play: provaRigheMisurate,
 }
 
 // La prova misura due cose del riquadro fermo, in un browser vero. Che

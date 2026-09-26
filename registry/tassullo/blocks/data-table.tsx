@@ -2523,12 +2523,13 @@ export function DataTableBody<TDato extends RowData>({
 // resta da scorrere»), alte quanto lo spazio delle righe non montate.
 //
 // **`estimateSize` è un segnaposto, non una misura**: 44 è un valore di
-// partenza plausibile (vicino all'altezza di riga in densità normale), corretto
-// subito dalla misura vera — `measureElement`, passato come `ref` a ogni riga
-// — che legge l'altezza reale resa, densità compresa. La stessa disciplina di
-// `altezzaMax` più sotto in `DataTable`: si misura, non si assume; qui la
-// stima iniziale non è mai quella che l'utente vede a riposo, per più di un
-// fotogramma.
+// partenza plausibile (vicino all'altezza di riga in densità normale). Le righe
+// montate si misurano davvero — `measureElement`, passato come `ref` a ogni
+// riga, che trova l'indice in `data-index` —, e la stima delle righe non
+// ancora montate diventa l'altezza misurata della prima riga resa, densità
+// compresa. Senza il secondo passo lo spazio sotto le righe montate resterebbe
+// contato a 44px per riga: su diecimila righe da 37, settantamila pixel di
+// troppo, e una barra di scorrimento che mente.
 /**
  * Il corpo virtualizzato, per `perPagina="virtuale"`: monta solo le righe
  * in vista, e regge decine di migliaia di righe senza tenerle tutte nel
@@ -2582,10 +2583,11 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
    */
   alVirtualizzatore?: (vaiA: (indice: number) => void) => void
 }) {
+  const stimaRef = React.useRef(44)
   const virtualizzatore = useVirtualizer({
     count: righe.length,
     getScrollElement: () => scrollEl,
-    estimateSize: () => 44,
+    estimateSize: () => stimaRef.current,
     overscan: 10,
   })
 
@@ -2625,6 +2627,18 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
    */
   const rigaRefs = React.useRef(new Map<number, HTMLTableRowElement>())
   const interagitoRef = React.useRef(false)
+
+  // La stima delle righe non montate è l'altezza vera della prima riga resa.
+  // Dopo ogni render, senza dipendenze: la densità o il carattere cambiano
+  // l'altezza delle righe senza cambiare niente che React veda. Mezzo pixel
+  // di tolleranza, o l'arrotondamento del motore ricalcolerebbe a ogni giro.
+  React.useLayoutEffect(() => {
+    const nodo = rigaRefs.current.values().next().value
+    const altezza = nodo?.getBoundingClientRect().height
+    if (!altezza || Math.abs(altezza - stimaRef.current) < 0.5) return
+    stimaRef.current = altezza
+    virtualizzatore.measure()
+  })
   React.useEffect(() => {
     if (senzaFocoRiga || !interagitoRef.current) return
     const nodo = rigaRefs.current.get(focoValido)
@@ -2725,6 +2739,10 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
         return (
           <TableRow
             key={riga.id}
+            // L'indice da cui il virtualizzatore sa **quale** riga ha appena
+            // misurato: senza, `measureElement` scrive un avviso in console e
+            // non misura niente, e ogni riga resta alla stima.
+            data-index={elemento.index}
             ref={(nodo: HTMLTableRowElement | null) => {
               virtualizzatore.measureElement(nodo)
               if (nodo) rigaRefs.current.set(elemento.index, nodo)
