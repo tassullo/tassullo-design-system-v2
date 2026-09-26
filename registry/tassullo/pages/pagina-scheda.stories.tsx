@@ -79,6 +79,10 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  *   modifica fa saltare la scheda intera.
  * - Il contenuto di ogni scheda sta dentro una `Card`, staccato dal fondo
  *   della pagina.
+ * - Le schede restano ferme sotto la fascia mentre la pagina scorre, in una
+ *   fascia loro `sticky top-12` col fondo della pagina; cambiando scheda, la
+ *   pagina torna all'inizio del pannello. Come si comporta una scheda più
+ *   alta della finestra si vede in `Blocchi/App shell › Scheda Lunga`.
  *
  * **Tastiera e accessibilità.** Le schede si scorrono con le frecce, come in
  * `tabs`. I campi disabilitati si leggono ma non prendono il fuoco.

@@ -614,7 +614,8 @@ export type AppShellProps = {
    * Se la pagina scorre o riempie la finestra.
    *
    * `"scorre"`, il predefinito: il guscio è alto almeno quanto la finestra e
-   * cresce col contenuto.
+   * cresce col contenuto. Scorre la finestra, e la fascia in alto resta ferma
+   * in cima mentre il contenuto le passa sotto.
    *
    * `"riempie"`: il guscio è alto esattamente quanto la finestra. Serve a una
    * pagina che è una lista con lo scorrimento interno, cioè una
@@ -725,7 +726,25 @@ export function AppShell({
              * percorso e azioni, lo dichiara la **pagina** con `<PageHeader>`,
              * che ci rende attraverso un portale.
              */}
-            <FasciaIntestazione grilletto={<SidebarTrigger />} />
+            {/*
+             * Nel modo `scorre` la fascia resta ferma in cima, col fondo della
+             * pagina perché il contenuto le passi sotto senza vedersi. Scorre
+             * ancora la finestra: PaginaGiù funziona appena aperta la pagina,
+             * e il browser ricorda dove si era tornando indietro.
+             *
+             * `scroll-pt-12` sulla radice del documento, alto quanto la fascia:
+             * senza, un campo raggiunto con Maiusc+Tab mentre si risale
+             * finirebbe sotto la fascia, dove non si vede. Nel modo `riempie`
+             * la fascia non scorre, e non serve niente.
+             */}
+            <FasciaIntestazione
+              grilletto={<SidebarTrigger />}
+              className={
+                contenuto === "scorre"
+                  ? "sticky top-0 z-10 bg-background [html:has(&)]:scroll-pt-12"
+                  : undefined
+              }
+            />
 
             {/*
              * L'area di contenuto. **Una utility soltanto** di suo — `p-4` — ed è
@@ -749,11 +768,17 @@ export function AppShell({
              * `landmark-no-duplicate-main`, `landmark-main-is-top-level`. La fascia in alto sta dentro il
              * `main` come nel `sidebar-07` di shadcn: è la loro forma, non una
              * nostra deriva.
+             *
+             * `isolate` nel modo `scorre`: chiude in un piano solo tutto ciò che
+             * la pagina mette uno sopra l'altro — la colonna bloccata di una
+             * tabella, una testata ferma — così niente passa sopra la fascia
+             * quando le scorre sotto.
              */}
             <div
               className={cn(
                 "min-w-0 flex-1 p-4",
                 larghezza === "pagina" && "mx-auto w-full max-w-page",
+                contenuto === "scorre" && "isolate",
                 contenuto === "riempie" && "flex min-h-0 flex-col overflow-hidden",
                 className,
               )}

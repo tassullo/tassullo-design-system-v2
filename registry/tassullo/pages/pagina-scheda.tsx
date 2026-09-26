@@ -87,7 +87,7 @@
  * esiste una forma sola, quindi `documenti` resta un `ReactNode` libero,
  * stessa scelta di `barra` in `tassullo-data-table`.
  */
-import { useState, type ReactNode } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { PencilIcon, XIcon } from "lucide-react"
 
 import { cn } from "cn"
@@ -160,10 +160,27 @@ export function PaginaScheda({
   className,
 }: PaginaSchedaProps) {
   const [modificaPropria, setModificaPropria] = useState(false)
+  const [tab, setTab] = useState("anagrafica")
+  const radiceTab = useRef<HTMLDivElement>(null)
+  const fasciaTab = useRef<HTMLDivElement>(null)
   const modifica = modificaControllata ?? modificaPropria
   function impostaModifica(v: boolean) {
     setModificaPropria(v)
     onModificaChange?.(v)
+  }
+
+  // Cambiando tab con le tab già ferme sotto la fascia, la finestra torna
+  // all'inizio del pannello: senza, il pannello nuovo si aprirebbe a metà, con
+  // l'inizio nascosto sotto le fasce. Le tab sono ferme quando stanno più in
+  // basso del punto in cui starebbero senza `sticky`, cioè della cima della
+  // radice delle tab. Il salto è immediato, senza animazione.
+  function cambiaTab(valore: string) {
+    const radice = radiceTab.current?.getBoundingClientRect()
+    const fascia = fasciaTab.current?.getBoundingClientRect()
+    if (radice && fascia && radice.top < fascia.top) {
+      window.scrollBy({ top: radice.top - fascia.top, behavior: "instant" })
+    }
+    setTab(valore)
   }
 
   if (stato === "caricamento") {
@@ -198,12 +215,25 @@ export function PaginaScheda({
       */}
       <PageHeader percorso={percorso} azioni={[...azioni, toggleModifica]} />
 
-      <Tabs defaultValue="anagrafica">
-        <TabsList>
-          <TabsTrigger value="anagrafica">{etichetteTab?.anagrafica ?? "Anagrafica"}</TabsTrigger>
-          <TabsTrigger value="documenti">{etichetteTab?.documenti ?? "Documenti"}</TabsTrigger>
-          <TabsTrigger value="storico">{etichetteTab?.storico ?? "Storico"}</TabsTrigger>
-        </TabsList>
+      <Tabs ref={radiceTab} value={tab} onValueChange={(v) => cambiaTab(String(v))}>
+        {/*
+          Le tab restano ferme sotto la fascia del guscio mentre la pagina
+          scorre: `top-12` è l'altezza della fascia, e `-mx-4 px-4` allarga il
+          fondo fino ai bordi dell'area del contenuto, perché ciò che scorre
+          sotto non si veda ai lati. `scroll-pt-24` è la somma delle due fasce:
+          un campo raggiunto con Maiusc+Tab si ferma sotto tutte e due.
+        */}
+        <div
+          ref={fasciaTab}
+          data-slot="pagina-scheda-tab"
+          className="sticky top-12 z-10 -mx-4 bg-background px-4 py-2 [html:has(&)]:scroll-pt-24"
+        >
+          <TabsList>
+            <TabsTrigger value="anagrafica">{etichetteTab?.anagrafica ?? "Anagrafica"}</TabsTrigger>
+            <TabsTrigger value="documenti">{etichetteTab?.documenti ?? "Documenti"}</TabsTrigger>
+            <TabsTrigger value="storico">{etichetteTab?.storico ?? "Storico"}</TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="anagrafica">
           <Card>
             <CardContent>{anagrafica(modifica)}</CardContent>
