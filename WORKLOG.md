@@ -13352,3 +13352,11 @@ Aperta la PR, Francesco ha voluto rivedere ogni issue: problema, soluzione, prov
 - Foglio a gruppi: la colonna «Prezzo unit.» della scena nuova mostra i decimali come arrivano (0,62 / 38,5 / 1,8 / 4,2).
 - Griglia: il popover della data resta visibile sopra l'intestazione quando la cella ci scorre sotto ancora montata; nasconderlo farebbe perdere il fuoco.
 - Il gate gira solo in Chromium: il ciclo di Safari l'ha visto solo Francesco. Una passata WebKit sulle scene virtualizzate costerebbe poco.
+
+## 2026-09-26 — `v2.0.4` pubblicata
+
+Via libera di Francesco a CI verde. PR #81 unita col gate verde in CI (6 min 19 s) sul commit `038757c`; l'unione `eab7a7e` ha lo stesso contenuto, perché `main` non si era mosso. Etichetta `v2.0.4` su `eab7a7e`, push della sola etichetta; le versioni precedenti restano dove erano. Le tredici issue (#58, #59, #60, #64, #66, #67, #71, #72, #74, #75, #76, #77, #80) si sono chiuse con la PR.
+
+Verificato da fuori: `…/v2.0.4/public/r/` risponde per `tassullo-data-table`, `tassullo-data-grid`, i filtri, `tassullo-confirm-dialog`, `tabs`, `tassullo-diff-view`, `tassullo-foglio-gruppi` e `tema`. Nel `tassullo-data-table` servito ci sono `data-index`, `nomeSottoRighe`, `righeEspanse`, la ricerca negli alberi, `scroll-pb-2`, il trattino delle maniglie e il `ResizeObserver`; `tassullo-data-grid` dichiara `@tassullo/calendar` e usa `text-destructive-subtle-foreground`; `tabs` ha `-translate-y-px`, `tassullo-confirm-dialog` il velo con `forceRender`.
+
+Per Anagrafe, con la versione nuova (il DS.6 è un task di Anagrafe): cosa reinstallare e quali aggiramenti togliere è nella voce dell'ondata 1, sezioni «Tabelle e filtri», «Dialoghi, tab, scene», «Griglie e fogli» e «Per le app, in più rispetto a sopra».
