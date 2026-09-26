@@ -357,7 +357,10 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * `larghezza`, una utility Tailwind come `w-28`; `testo`, `'tronca'` di serie
  * o `'aCapo'`; `sottototale`, `piede` e `azioniProprie`, descritti sotto. Una
  * colonna va lasciata senza larghezza: è quella che prende lo spazio che
- * avanza. L'intestazione ordinabile è
+ * avanza, e non scende sotto 160px (240 in touch). Quando le colonne non
+ * stanno, la tabella non le stringe: il suo riquadro scorre di lato. Per una
+ * lista pensata anche per il telefono c'è la faccia a schede, nella pagina
+ * «Lista a due facce». L'intestazione ordinabile è
  * `IntestazioneColonna`, con `allinea="fine"` sulle colonne di numeri.
  * `sortFn` dice come si ordina: `alphanumeric` per i codici, perché `IN-9`
  * venga prima di `IN-10`; `text`; `basic` per i numeri; `datetime` per le
@@ -578,7 +581,8 @@ export const Prodotti: Story = {
  * La stessa tabella in un riquadro da 320px, la larghezza utile di un
  * telefono. La tabella scorre in orizzontale, e la casella e il codice restano
  * fermi a sinistra (`bloccaPrimaColonna`): si legge sempre di quale prodotto è
- * una riga.
+ * una riga. La colonna senza larghezza, «Famiglia», non scende sotto il suo
+ * minimo: la tabella resta larga quanto le sue colonne, e scorre.
  */
 export const Stretta: Story = {
   args: {
@@ -597,11 +601,56 @@ export const Stretta: Story = {
         colonna del guscio non c&apos;è. Stretto di proposito: le soglie di una
         tabella guardano la tabella, non lo schermo.
       </p>
-      <div className="w-80 rounded-lg border border-dashed p-2">
+      <div className="w-full max-w-80 rounded-lg border border-dashed p-2">
         <DataTable {...args} />
       </div>
     </div>
   ),
+}
+
+// La prova misura la colonna senza larghezza, «Famiglia»: nel riquadro
+// stretto la tabella non ci sta, e prima del minimo la colonna andava a 0px
+// e il suo titolo finiva sopra quello accanto. Ora non scende sotto 40 unità
+// di `--spacing` (160px in normale, 240 in touch) e il riquadro scorre di
+// lato. La prova misura tutte e due le densità.
+async function provaStretta({ canvasElement }: { canvasElement: HTMLElement }) {
+  const famiglia = await waitFor(() => {
+    const th = [...canvasElement.querySelectorAll<HTMLElement>('thead th')].find(
+      (el) => el.textContent?.trim() === 'Famiglia'
+    )
+    expect(th).toBeTruthy()
+    return th as HTMLElement
+  })
+  const radice = document.documentElement
+  // Il minimo è 40 unità di `--spacing`, letto dalla radice nella densità del
+  // momento: 160px in normale, 240 in touch.
+  const misura = () => {
+    const passo = parseFloat(getComputedStyle(radice).getPropertyValue('--spacing')) * 16
+    return { larghezza: Math.round(famiglia.getBoundingClientRect().width), minimo: 40 * passo }
+  }
+  const normale = misura()
+  const prima = radice.getAttribute('data-density')
+  radice.setAttribute('data-density', 'touch')
+  let touch: ReturnType<typeof misura>
+  try {
+    await new Promise((fatto) => setTimeout(fatto, 100))
+    touch = misura()
+  } finally {
+    if (prima === null) radice.removeAttribute('data-density')
+    else radice.setAttribute('data-density', prima)
+  }
+  expect(normale.larghezza).toBeGreaterThanOrEqual(normale.minimo)
+  expect(touch.larghezza).toBeGreaterThanOrEqual(touch.minimo)
+}
+
+// Scena di misura di «Stretta»: la stessa resa, con la prova. `!dev` la
+// toglie dalla barra e da Docs, così la scena qui sopra si apre a riposo;
+// il controllo automatico la esegue lo stesso.
+export const StrettaProva: Story = {
+  ...Stretta,
+  name: 'Stretta, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaStretta,
 }
 
 /**

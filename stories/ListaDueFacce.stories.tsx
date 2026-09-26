@@ -79,11 +79,11 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * - La soglia la sceglie l'app, ed è la larghezza a cui l'interfaccia cambia
  *   modo di mostrare il contenuto. Non si ricava da quanto spazio vuole la
  *   tabella: una tabella che non ci sta scorre in orizzontale.
- * - Ogni colonna della tabella dichiara la sua larghezza. In una tabella a
- *   larghezze fisse una colonna senza larghezza non allarga mai la tabella:
- *   prende l'avanzo, e quando l'avanzo manca scende a zero, con
- *   l'intestazione che finisce sopra quella accanto. Lo scorrimento funziona
- *   solo se la somma delle larghezze è un minimo vero.
+ * - Una colonna senza larghezza prende l'avanzo e non scende sotto 160px
+ *   (240 in touch). Sotto la somma delle larghezze dichiarate più quel
+ *   minimo, la tabella non si stringe: il suo riquadro scorre di lato. Per
+ *   una lista pensata anche per il telefono, la risposta non è stringere le
+ *   colonne ma la faccia a schede, che è questa pagina.
  * - Con `pannelloRiga` la prima colonna è quella del chevron, che la tabella
  *   aggiunge da sé: `bloccaPrimaColonna` bloccherebbe il chevron, non la
  *   colonna che identifica la riga. Qui non si usa.
