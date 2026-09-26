@@ -159,19 +159,19 @@ Dipendenze di fase: FASE 4.
 | #49 Proposta: i file installati passano il lint dell'app | DONE 2026-09-24 — **`v2.0.1`** | M5.7 | `use-mobile` su `useSyncExternalStore`: giusto al primo render (Chromium, 375px: 1 render invece di 2). Eccezioni al lint nel passo 12 di `INTEGRAZIONE.md`; corretti 4 blocchi nostri. Gate `check:lint-app`, il dodicesimo. PR #51, etichetta `v2.0.1` su `8731b5b` → `DECISIONI.md` §67 |
 | #50 Proposta: nel rail i gruppi portano alle voci | DONE 2026-09-25 — **`v2.0.2`** | #49 | A colonna chiusa l'icona di un gruppo apre un menu con le sue voci (attiva con la spunta); i gruppi ricordano se sono aperti. Corretta l'etichetta di sezione che copriva mezza icona nel rail (16px su 32). PR #53, etichetta `v2.0.2` su `459875e` → `DECISIONI.md` §68 |
 | #55 Proposta: etichette accessibili in italiano | DONE 2026-09-25 — **`v2.0.3`** | — | `spinner` «Caricamento», crocette di `dialog` e `sheet` «Chiudi»; per coerenza il bottone in fondo a `dialog` e i titoli nascosti di `command`. Nel login lo spinner dentro un bottone col testo passa `aria-label=""`. PR #56, etichetta `v2.0.3` su `428e3f1` |
-| #58 Proposta: data-table ad altezza ferma, prima riga nascosta e doppio bordo | IN_PROGRESS | — | ondata 1. `scroll-padding-top` pari alla testata; tetto del riquadro a pixel interi. |
-| #59 Proposta: filtri con la ricerca attiva senza opzioni | IN_PROGRESS | — | ondata 1. Ricerca globale applicata colonna per colonna nei conteggi di sfaccettato, intervallo e data. |
-| #60 Proposta: conferma aperta da un dialogo | IN_PROGRESS | — | ondata 1. Velo sopra il dialogo sotto; una forma sola, documentata con una scena. |
-| #64 Proposta: il filo della tab attiva sporge di 1px | IN_PROGRESS | — | ondata 1. Filo dentro la lista: `scrollHeight` = `clientHeight`, 32/32. |
-| #66 Proposta: data-grid, prima cella evidenziata senza fuoco | IN_PROGRESS | — | ondata 1. Il segno della cella scelta solo col fuoco nella griglia o dopo un'interazione. |
-| #67 Proposta: data-table ridimensionabile, maniglia dell'ultima colonna | IN_PROGRESS | — | ondata 1. Maniglia dell'ultima intestazione dentro il bordo: `scrollWidth` = `clientWidth`. |
-| #71 Proposta: data-table, righe aperte che si richiudono | IN_PROGRESS | — | ondata 1. Stato di espansione controllabile o `autoResetExpanded` esposto; scena «Ricarica i dati». |
-| #72 Proposta: filtro sfaccettato senza maiuscola automatica | IN_PROGRESS | — | ondata 1. Le voci si mostrano come il dato: «mm» resta «mm». |
-| #74 Proposta: diff-view, legenda facoltativa | IN_PROGRESS | — | ondata 1. Prop `legenda`, di serie accesa, in tutti e due i modi. |
-| #75 Proposta: foglio a gruppi, cella scrivibile solo su alcune righe | IN_PROGRESS | — | ondata 1. `abilitata?: (dato) => boolean` su `CellaScrivibile`; scena con righe di tipo diverso. |
-| #76 Proposta: righe virtualizzate senza `data-index` | IN_PROGRESS | — | ondata 1. `data-index` sulle righe misurate: spazio sotto = righe × altezza vera, niente avvisi. |
-| #77 Proposta: scena `Pagine/Scheda`, griglia a tre colonne | IN_PROGRESS | — | ondata 1. La griglia su un elemento dentro il `FieldGroup`: 363/363/363. |
-| #80 Proposta: data-table ad albero, la ricerca scarta le madri | IN_PROGRESS | — | ondata 1. `filterFromLeafRows` negli alberi; piè che dice cosa conta (forma da far scegliere a Francesco); scena «Albero con ricerca». |
+| #58 Proposta: data-table ad altezza ferma, prima riga nascosta e doppio bordo | REVIEW 2026-09-26 — per **`v2.0.4`** | — | `scroll-padding-top` pari all'intestazione, tetto a pixel interi: `scrollTop` all'apertura 40 → 0. Scena `Altezza Ferma`. |
+| #59 Proposta: filtri con la ricerca attiva senza opzioni | REVIEW 2026-09-26 — per **`v2.0.4`** | — | Ricerca applicata colonna per colonna nei tre filtri: voci con «calce» 0 → 4, avvisi `__globale__` 660 → 0. Scena `Filtri Con Ricerca`. |
+| #60 Proposta: conferma aperta da un dialogo | REVIEW 2026-09-26 — per **`v2.0.4`** | — | `forceRender` in `ui/` rifiutato dal gate: il velo lo mette `tassullo-confirm-dialog`. Forma: la conferma dentro il dialogo. Scena `Da un dialogo` → `DECISIONI.md` §69 |
+| #64 Proposta: il filo della tab attiva sporge di 1px | REVIEW 2026-09-26 — per **`v2.0.4`** | — | `-translate-y-px` sul valore di shadcn (`bottom-[-4px]` rifiutato dal gate): lista 33/32 → 32/32, touch 49/48 → 48/48 → `DECISIONI.md` §69 |
+| #66 Proposta: data-grid, prima cella evidenziata senza fuoco | REVIEW 2026-09-26 — per **`v2.0.4`** | — | Segno della selezione legato al fuoco della griglia: celle segnate all'apertura 1 → 0, dopo `Tab` la prima. |
+| #67 Proposta: data-table ridimensionabile, maniglia dell'ultima colonna | REVIEW 2026-09-26 — per **`v2.0.4`** | — | Maniglia dell'ultima intestazione resa a `right-0`, anche con `menuRiga`: `scrollWidth`/`clientWidth` 1442/1438 → 1438/1438. |
+| #71 Proposta: data-table, righe aperte che si richiudono | REVIEW 2026-09-26 — per **`v2.0.4`** | — | Coppia `righeEspanse`/`onRigheEspanseChange`; con `idRiga` le righe aperte restano (cambio di comportamento). Scena `Espansione Con Ricarica`, 0 → 1. |
+| #72 Proposta: filtro sfaccettato senza maiuscola automatica | REVIEW 2026-09-26 — per **`v2.0.4`** | — | Voci come nel dato, tolta `formattaEtichetta`: «M²» → «m²». Scena `Filtro Voci Come Nel Dato`. |
+| #74 Proposta: diff-view, legenda facoltativa | REVIEW 2026-09-26 — per **`v2.0.4`** | — | Prop `legenda` (di serie accesa), nei due modi. Scena `Campo Per Campo`, legende 3 → 0. |
+| #75 Proposta: foglio a gruppi, cella scrivibile solo su alcune righe | REVIEW 2026-09-26 — per **`v2.0.4`** | — | `abilitata` su `CellaScrivibile`: la cella è testo, fuori dalle frecce. Scena `Righe di tipo diverso`, celle scrivibili 4 → 2. |
+| #76 Proposta: righe virtualizzate senza `data-index` | REVIEW 2026-09-26 — per **`v2.0.4`** | — | `data-index` sulla riga e stima dall'altezza vera: scarto 69.853px → meno di una riga, avvisi 42 → 0. |
+| #77 Proposta: scena `Pagine/Scheda`, griglia a tre colonne | REVIEW 2026-09-26 — per **`v2.0.4`** | — | Griglia su un `div` dentro il `FieldGroup`: colonne 863/170/87 → 363/363/363 a 1440 → `DECISIONI.md` §69 |
+| #80 Proposta: data-table ad albero, la ricerca scarta le madri | REVIEW 2026-09-26 — per **`v2.0.4`** | — | `filterFromLeafRows` negli alberi; piè «4 voci, 5 misurazioni» con `nomeSottoRighe`, scelto da Francesco fra tre. Scena `Albero Con Ricerca`. |
 
 ## Decisioni
 

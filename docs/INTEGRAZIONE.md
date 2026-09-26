@@ -146,7 +146,7 @@ quello Base UI.
 
 ```json
 "registries": {
-  "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.3/public/r/{name}.json"
+  "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.4/public/r/{name}.json"
 }
 ```
 
@@ -154,7 +154,7 @@ Senza questa riga i componenti che dipendono da altri componenti del catalogo
 — quasi tutti i blocchi e tutte le pagine — falliscono con
 `Unknown registry "@tassullo"`, e l'MCP del passo 5 non vede il catalogo.
 
-**La versione sta nell'indirizzo.** `v2.0.3` è l'etichetta della versione: fissata
+**La versione sta nell'indirizzo.** `v2.0.4` è l'etichetta della versione: fissata
 lì, l'app riceve sempre gli stessi file, e non cambia niente finché non si decide di
 aggiornare. Le etichette sono elencate nella pagina *Tags* del repository su GitHub;
 una versione più recente si adotta cambiando l'etichetta nell'indirizzo (vedi
@@ -602,7 +602,7 @@ propone al design system come variante del tema.
 
 Una versione nuova si adotta in due gesti. Prima si cambia l'etichetta
 nell'indirizzo di `@tassullo` in `components.json` (per esempio da `v2.0.1` a
-`v2.0.3`); poi si reinstallano gli item installati per nome, il tema per primo:
+`v2.0.4`); poi si reinstallano gli item installati per nome, il tema per primo:
 
 ```bash
 npx shadcn@latest add @tassullo/<item> --overwrite
@@ -612,7 +612,7 @@ Ogni comando riscrive anche gli item da cui quello dipende. Poi si
 ricopiano le righe del lint dal passo 12, che nella versione nuova possono
 essere cambiate. Poi si guarda il diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
 — ed è la ragione per cui non si modifica. Cosa è cambiato fra due versioni lo
-dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.2...v2.0.3`.
+dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.3...v2.0.4`.
 
 ## Regole da inserire nel CLAUDE.md della nuova app
 
@@ -744,7 +744,7 @@ design system, non si spegne la regola: si apre una proposta.
 
 **Aggiornare.**
 - La versione del design system sta nell'indirizzo di `@tassullo` in
-  `components.json`: un'etichetta git come `v2.0.3` (l'elenco è nella pagina
+  `components.json`: un'etichetta git come `v2.0.4` (l'elenco è nella pagina
   *Tags* del repository su GitHub). `main`, l'ultima versione pubblicata, serve
   solo a provare.
 - Un item si aggiorna reinstallandolo, poi si legge il diff:
@@ -754,7 +754,7 @@ design system, non si spegne la regola: si apre una proposta.
 - La forma lunga, `tassullo/tassullo-design-system-v2/<item>`, qui non serve.
   Senza `#` prende `main` qualunque cosa dica `components.json`, e un solo
   `add` porterebbe file di due versioni; se proprio si usa, porta `#` e la
-  stessa versione (`…/badge#v2.0.3`).
+  stessa versione (`…/badge#v2.0.4`).
 ```
 
 ## Nel piano dell'app
@@ -787,7 +787,7 @@ design system, non si spegne la regola: si apre una proposta.
 ## Design system
 
 > Lo stile viene dal Design System Tassullo 2.0
-> (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.3`**,
+> (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.4`**,
 > quella scritta in `components.json`. **Item installati per
 > nome**: `tema`, `tassullo-controllo`, `tassullo-app-shell`, `tassullo-pagina-lista` — le primitive
 > arrivano come dipendenze e non si elencano. Un item nuovo si aggiunge qui
