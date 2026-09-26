@@ -326,6 +326,8 @@ async function provaAzioneCollegamento({ canvasElement }: { canvasElement: HTMLE
   const link = await within(fascia).findByRole('link', { name: 'Apri sul sito' })
   expect(link).toHaveAttribute('href', indirizzo)
   expect(`type: ${link.getAttribute('type')}`).toBe('type: null')
+  // Ha il bordo dell'azione secondaria, cioè del bottone `outline`.
+  expect(getComputedStyle(link).borderTopColor, 'bordo del collegamento').not.toBe('rgba(0, 0, 0, 0)')
 
   const riquadro = fascia.parentElement!
   riquadro.style.width = '20rem'

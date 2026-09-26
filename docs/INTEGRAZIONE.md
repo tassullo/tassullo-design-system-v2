@@ -767,10 +767,15 @@ componente ci si chiede cosa fa l'elemento, non a cosa somiglia.
 router o un `<a>`, con l'aspetto preso da `buttonVariants({ variant, size })`:
 
 ```tsx
-<Link to="/prodotti" className={buttonVariants({ variant: "outline" })}>
+<Link to="/prodotti" className={cn(buttonVariants({ variant: "outline" }))}>
   Torna ai prodotti
 </Link>
 ```
+
+Le classi passano per `cn`: da solo `buttonVariants` lascia il bordo
+trasparente della base accanto a quello della variante, vince il primo, e un
+link `outline` esce senza bordo, senza nessun errore. `Button` il `cn` lo fa
+da sé.
 
 `Button` è il bottone di Base UI: col `render` di un collegamento scrive un
 errore in console e mette `type="button"` sull'`<a>`; con

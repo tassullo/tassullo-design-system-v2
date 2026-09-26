@@ -419,7 +419,7 @@ function Azioni({ azioni }: { azioni: AzionePagina[] }) {
               key={a.titolo}
               href={a.href}
               onClick={a.onClick}
-              className={buttonVariants({ variant: VARIANTE[a.ruolo ?? "secondaria"] })}
+              className={cn(buttonVariants({ variant: VARIANTE[a.ruolo ?? "secondaria"] }))}
             >
               <a.icona />
               {a.titolo}

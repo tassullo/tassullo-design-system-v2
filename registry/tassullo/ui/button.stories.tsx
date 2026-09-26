@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, TrashIcon } from 'lucide-react'
+import { cn } from 'cn'
 import { expect, within } from 'storybook/test'
 
 import { Button, buttonVariants } from '@/registry/tassullo/ui/button'
@@ -15,7 +16,7 @@ import { Spinner } from '@/registry/tassullo/ui/spinner'
  *
  * **Un collegamento non è un `Button`.** Ciò che porta a un'altra pagina —
  * «Torna a…», «Apri sul sito», il nome che apre la scheda — è il `Link` del
- * router o un `<a>`, con l'aspetto preso da `buttonVariants({ variant, size })`
+ * router o un `<a>`, con l'aspetto preso da `cn(buttonVariants({ variant, size }))`
  * (la scena «Come Collegamento»). `Button` col `render` di un collegamento
  * scrive un errore in console e mette `type="button"` sul link; con
  * `nativeButton={false}` il link diventa un bottone per la tastiera e per chi
@@ -146,12 +147,14 @@ export const Disabilitato: Story = { args: { disabled: true } }
 
 /**
  * Un collegamento con l'aspetto di un bottone: niente `Button`, la classe da
- * `buttonVariants` sul `Link` del router o su un `<a>`. Resta un link — si
+ * `buttonVariants` sul `Link` del router o su un `<a>`, passata per `cn`:
+ * da solo `buttonVariants` lascia il `border-transparent` della base accanto
+ * al bordo della variante, e il link `outline` esce senza bordo. Resta un link — si
  * apre con `Invio`, non con `Spazio`, e compare fra i collegamenti della
  * pagina — e si vede identico al bottone della stessa variante.
  *
  * ```tsx
- * <Link to="/prodotti" className={buttonVariants({ variant: "outline" })}>
+ * <Link to="/prodotti" className={cn(buttonVariants({ variant: "outline" }))}>
  *   Torna ai prodotti
  * </Link>
  * ```
@@ -160,11 +163,11 @@ export const ComeCollegamento: Story = {
   name: 'Come Collegamento',
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
-      <a href="#prodotti" className={buttonVariants({ variant: 'outline' })}>
+      <a href="#prodotti" className={cn(buttonVariants({ variant: 'outline' }))}>
         <ArrowLeftIcon data-icon="inline-start" />
         Torna ai prodotti
       </a>
-      <a href="#scheda" className={buttonVariants({ variant: 'link' })}>
+      <a href="#scheda" className={cn(buttonVariants({ variant: 'link' }))}>
         Apri la scheda
       </a>
     </div>
@@ -188,6 +191,11 @@ export const ComeCollegamentoProva: Story = {
       await expect(a).not.toHaveAttribute('role')
     }
     await expect(within(canvasElement).queryAllByRole('button')).toHaveLength(0)
+    // Il link `outline` ha il bordo del bottone `outline`. `buttonVariants`
+    // da solo lascia nella stringa anche il `border-transparent` della base,
+    // che vince: il bordo va scritto passando per `cn`, come fa `Button`.
+    const bordo = getComputedStyle(link[0]).borderTopColor
+    await expect(bordo, 'bordo del link outline').not.toBe('rgba(0, 0, 0, 0)')
   },
 }
 

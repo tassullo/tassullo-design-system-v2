@@ -263,7 +263,7 @@ ragione, e il ramo va riallineato spesso al principale.
 | `.btn-danger` | `Button variant="destructive"` | |
 | `.btn-lg`, `.btn-icon` | `Button size="lg"`, `size="icon"` | |
 | `.btn-block` | `Button` con `className="w-full"` | |
-| `.link` | il `Link` del router (o un `<a>`) con `buttonVariants({ variant: "link" })`: un collegamento non è un `Button` | |
+| `.link` | il `Link` del router (o un `<a>`) con `cn(buttonVariants({ variant: "link" }))`: un collegamento non è un `Button` | |
 | `.input` su `<input>` | `Input` dentro `Field` | o dentro `tassullo-form-field`, che però vuole **react-hook-form**: se l'app non lo usa, adottarlo vuol dire riscrivere i moduli |
 | `.input` su `<select>` | `select` (lista corta) o `combobox` (lista lunga) | mai il `<select>` nativo |
 | `.input` su `<textarea>` | `Textarea` | |

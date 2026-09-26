@@ -120,7 +120,7 @@ const REGOLE_TAG = [
       "un collegamento non è un `Button`: `Button` col `render` di un `<a>` o di un `Link` scrive un errore " +
       "in console e mette `type=\"button\"` sul link, e con `nativeButton={false}` il link diventa un bottone. " +
       "Si usa il `Link` del router (o un `<a>`) con l'aspetto preso da `buttonVariants`: " +
-      "`<Link to=\"…\" className={buttonVariants({ variant: \"outline\" })}>`.",
+      "`<Link to=\"…\" className={cn(buttonVariants({ variant: \"outline\" }))}>`.",
   },
 ];
 
