@@ -2704,7 +2704,11 @@ const COLONNE_A_CAPO = colCar.columns([
     meta: { titolo: 'Esito', larghezza: 'w-32' } satisfies MetaColonna<Caratteristica>,
     cell: ({ getValue }) => {
       const esito = getValue<Caratteristica['esito']>()
-      return <Badge className={TONO_ESITO[esito]}>{esito}</Badge>
+      return (
+        <Badge className={`${TONO_ESITO[esito]} max-w-full`}>
+          <span className="truncate">{esito}</span>
+        </Badge>
+      )
     },
   }),
 ])
@@ -2733,6 +2737,10 @@ async function provaColonnaACapo({ canvasElement }: { canvasElement: HTMLElement
     `tbody tr > td:nth-child(${titoli.indexOf('Caratteristica') + 1})`
   )
   expect(getComputedStyle(tronca as HTMLElement).textOverflow).toBe('ellipsis')
+  // Anche qui i Badge dell'esito seguono la ricetta della cella stretta. Oggi
+  // ci stanno tutti (7px di margine a densità normale): è una guardia, non
+  // la prova di un difetto.
+  await badgeDentroLeCelle(canvasElement)
 }
 
 /**
@@ -2803,10 +2811,9 @@ const COLONNE_BADGE_STRETTE = colCar.columns([
   }),
 ])
 
-// La prova guarda ogni Badge della tabella: non deve uscire dalla sua cella,
-// e se il testo non ci sta deve finire coi puntini. Il Badge nudo, senza la
-// ricetta, sborda dalla cella stretta ed è tagliato di netto dal bordo.
-async function provaBadgeInCellaStretta({ canvasElement }: { canvasElement: HTMLElement }) {
+// Ogni Badge della tabella resta dentro la sua cella e ha il testo in uno
+// `span` che finisce coi puntini; restituisce quanti Badge li mostrano.
+async function badgeDentroLeCelle(canvasElement: HTMLElement) {
   const badge = await waitFor(() => {
     const el = [...canvasElement.querySelectorAll<HTMLElement>('tbody [data-slot="badge"]')]
     expect(el.length).toBeGreaterThan(0)
@@ -2824,6 +2831,14 @@ async function provaBadgeInCellaStretta({ canvasElement }: { canvasElement: HTML
     expect(getComputedStyle(s).textOverflow).toBe('ellipsis')
     if (s.scrollWidth > s.clientWidth) conPuntini += 1
   }
+  return conPuntini
+}
+
+// La prova guarda ogni Badge della tabella: non deve uscire dalla sua cella,
+// e se il testo non ci sta deve finire coi puntini. Il Badge nudo, senza la
+// ricetta, sborda dalla cella stretta ed è tagliato di netto dal bordo.
+async function provaBadgeInCellaStretta({ canvasElement }: { canvasElement: HTMLElement }) {
+  const conPuntini = await badgeDentroLeCelle(canvasElement)
   // Le norme lunghe non ci stanno in `w-32`: almeno una finisce coi puntini.
   expect(conPuntini).toBeGreaterThan(0)
 }
