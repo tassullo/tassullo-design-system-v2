@@ -102,7 +102,80 @@ const REGOLE = [
   },
 ];
 
-const ECCEZIONE = /tassullo-controllo:\s*(\S.{2,})/;
+// ── Le regole sul tag intero ────────────────────────────────────────────────
+// Alcune forme non stanno su una riga: un `<Button` si scrive spesso con le
+// props a capo. Queste regole leggono il tag d'apertura intero, dal `<Nome`
+// al suo `>`, contando le graffe e saltando le stringhe. L'eccezione vale sulla
+// riga dove il tag comincia, o sul commento che sta da solo sopra.
+
+const REGOLE_TAG = [
+  {
+    id: "collegamento-come-bottone",
+    tag: "Button",
+    // `render` di un `<a>` o di un componente che finisce per `Link` (`Link`,
+    // `NavLink`…), scritto come prop o dentro un oggetto sparso nel tag.
+    cerca: /\brender\s*(?:=\s*\{|:)\s*<\s*(?:a|(?:[A-Z]\w*)?Link)\b/,
+    dove: new Set([".tsx", ".jsx"]),
+    perché:
+      "un collegamento non è un `Button`: `Button` col `render` di un `<a>` o di un `Link` scrive un errore " +
+      "in console e mette `type=\"button\"` sul link, e con `nativeButton={false}` il link diventa un bottone. " +
+      "Si usa il `Link` del router (o un `<a>`) con l'aspetto preso da `buttonVariants`: " +
+      "`<Link to=\"…\" className={buttonVariants({ variant: \"outline\" })}>`.",
+  },
+];
+
+/** I tag d'apertura `<Nome …>` di un testo, ciascuno con la riga dove comincia. */
+function tagDApertura(testo, nome) {
+  const trovati = [];
+  const re = new RegExp(`<${nome}(?![\\w.])`, "g");
+  let m;
+  while ((m = re.exec(testo))) {
+    let i = m.index + nome.length + 1;
+    let graffe = 0;
+    let stringa = null;
+    for (; i < testo.length; i++) {
+      const c = testo[i];
+      if (stringa) {
+        if (c === stringa && testo[i - 1] !== "\\") stringa = null;
+        continue;
+      }
+      if (c === '"' || c === "'" || c === "`") stringa = c;
+      else if (c === "{") graffe++;
+      else if (c === "}") graffe--;
+      else if (c === ">" && graffe === 0) break;
+    }
+    const inizioRiga = testo.lastIndexOf("\n", m.index) + 1;
+    // Un tag dentro un commento non è codice.
+    if (/^\s*(?:\/\/|\*|\/\*)/.test(testo.slice(inizioRiga, m.index))) continue;
+    trovati.push({ riga: testo.slice(0, m.index).split("\n").length, tag: testo.slice(m.index, i + 1) });
+  }
+  return trovati;
+}
+
+/** Le violazioni delle regole sul tag in un file, tolte quelle con un'eccezione motivata. */
+function tagViolati(testo, estensione) {
+  const righe = testo.split("\n");
+  const violazioni = [];
+  let eccezioni = 0;
+  for (const regola of REGOLE_TAG) {
+    if (!regola.dove.has(estensione)) continue;
+    for (const { riga, tag } of tagDApertura(testo, regola.tag)) {
+      if (!regola.cerca.test(tag)) continue;
+      const qui = righe[riga - 1] ?? "";
+      const sopra = riga > 1 ? righe[riga - 2] : "";
+      const soloCommento = /^\s*(?:\/\/|\/\*|\{\/\*|\*)/.test(sopra);
+      if (ECCEZIONE.test(qui) || (soloCommento && ECCEZIONE.test(sopra))) {
+        eccezioni++;
+        continue;
+      }
+      violazioni.push({ riga, regola, testo: tag.replace(/\s+/g, " ") });
+    }
+  }
+  return { violazioni, eccezioni };
+}
+
+// Il motivo è testo: la chiusura di un commento subito dopo i due punti non conta.
+const ECCEZIONE = /tassullo-controllo:\s*(?!\*\/)(\S.{2,})/;
 
 /** Le violazioni di una riga, tolte quelle che portano un'eccezione motivata. */
 function regoleViolate(riga, precedente, estensione) {
@@ -240,12 +313,16 @@ function controllaCodice(fileDaLeggere) {
   let eccezioni = 0;
   for (const file of fileDaLeggere) {
     const est = extname(file);
-    const righe = readFileSync(join(RADICE, file), "utf8").split("\n");
+    const testo = readFileSync(join(RADICE, file), "utf8");
+    const righe = testo.split("\n");
     righe.forEach((riga, i) => {
       const { violate, eccezione } = regoleViolate(riga, i > 0 ? righe[i - 1] : "", est);
       if (eccezione) eccezioni++;
       for (const r of violate) violazioni.push({ file, riga: i + 1, regola: r, testo: riga.trim() });
     });
+    const sulTag = tagViolati(testo, est);
+    eccezioni += sulTag.eccezioni;
+    for (const v of sulTag.violazioni) violazioni.push({ file, ...v });
   }
   return { violazioni, eccezioni };
 }
@@ -377,6 +454,7 @@ function selfTest() {
   const eccezioni = [
     ['className="h-[37px]" // tassullo-controllo: misura imposta dal lettore di codici', false],
     ['className="h-[37px]" // tassullo-controllo:', true],
+    ['className="h-[37px]" {/* tassullo-controllo: */}', true],
   ];
   for (const [testo, atteso] of eccezioni) {
     if (regoleViolate(testo, "", ".tsx").violate.length > 0 !== atteso) {
@@ -394,6 +472,27 @@ function selfTest() {
     if (regoleViolate(testo, prima, ".tsx").violate.length > 0 !== atteso) {
       falliti++;
       console.error(`  ✖ eccezione: «${testo}» ${atteso ? "doveva" : "non doveva"} essere segnalato`);
+    }
+  }
+  // Le regole sul tag intero: il tag su una riga e su più righe, la prop dentro
+  // un oggetto sparso, un `NavLink`; e le forme che non devono scattare.
+  const sulTag = [
+    ['<Button variant="link" render={<a href="/prodotti" />}>Prodotti</Button>', 1],
+    ['<Button\n  variant="outline"\n  nativeButton={false}\n  render={<Link to="/prodotti" />}\n>\n  Torna\n</Button>', 1],
+    ['<Button size="sm" {...(href ? { render: <a href={href} /> } : {})}>Apri</Button>', 1],
+    ['<Button render={<NavLink to="/" />} className="has-[>svg]:px-2">Home</Button>', 1],
+    ['<DropdownMenuTrigger render={<Button variant="ghost" />}>Azioni</DropdownMenuTrigger>', 0],
+    ['<BreadcrumbLink render={<Link to="/" />}>Home</BreadcrumbLink>', 0],
+    ['<Button render={<div />} nativeButton={false}>Trascina</Button>', 0],
+    ['<Button onClick={() => apri(x > 1)} variant="link">Apri</Button>', 0],
+    ['<ButtonGroup render={<a href="#" />} />', 0],
+    ['// tassullo-controllo: il link apre un file scaricato dal server\n<Button render={<a href="/f" />}>Scarica</Button>', 0],
+    ['<Button render={<a href="/f" />}>Scarica</Button> {/* tassullo-controllo: */}', 1],
+  ];
+  for (const [testo, attese] of sulTag) {
+    if (tagViolati(testo, ".tsx").violazioni.length !== attese) {
+      falliti++;
+      console.error(`  ✖ collegamento-come-bottone: «${testo.replace(/\n/g, "⏎")}» doveva dare ${attese} violazioni`);
     }
   }
   const configurazioni = [
@@ -417,7 +516,7 @@ function selfTest() {
     falliti++;
     console.error("  ✖ un diff vero doveva essere segnalato");
   }
-  const totale = casi.length + eccezioni.length + dopo.length + configurazioni.length + 2;
+  const totale = casi.length + eccezioni.length + dopo.length + sulTag.length + configurazioni.length + 2;
   if (falliti) {
     console.error(`\n✖ self-test: ${falliti} casi su ${totale} sbagliati.\n`);
     process.exit(1);
