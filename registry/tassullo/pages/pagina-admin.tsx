@@ -5,7 +5,7 @@
  * pagina con la stessa struttura: una fascia di tab per le sezioni
  * dell'amministrazione, e in testa la gestione utenti. Il blocco compone ciò
  * che il registry ha già — `tassullo-page-header`, `tabs`, `alert`,
- * `tassullo-data-table`, `tassullo-confirm-dialog`, `tassullo-responsive-
+ * `tassullo-data-table`, `tassullo-toast-con-annullo`, `tassullo-responsive-
  * dialog`, `toggle-group`, `badge`, `tassullo-page-skeleton`,
  * `tassullo-error-state` — zero primitive nuove, zero CSS di pagina.
  *
@@ -26,9 +26,9 @@
  *
  *   - **la tabella utenti** sta dalla parte di `storico`: forma fissa (nome,
  *     email, ruoli, stato), quindi il blocco la possiede — `utenti`, sotto,
- *     la monta come **primo tab**, con `data-table` + `menuRiga` + i due
- *     dialoghi (`ResponsiveDialog`/`ToggleGroup multiple` per i ruoli,
- *     `ConfirmDialog` per la rimozione) già dentro.
+ *     la monta come **primo tab**, con `data-table` + `menuRiga`, il
+ *     dialogo dei ruoli (`ResponsiveDialog`/`ToggleGroup multiple`) e la
+ *     disattivazione con l'annullo differito già dentro.
  *   - **le altre sezioni** (Ruoli, o una terza che un domani si aggiunga)
  *     stanno dalla parte di `documenti`: una tabella ruoli non ha le stesse
  *     colonne di una tabella utenti, e imporne una forma qui vorrebbe dire
@@ -49,14 +49,27 @@
  * distinguere «Amministratore» da «Lettore» lo dichiara senza dover importare
  * `lib/toni` per costruirsi la classe a mano.
  *
- * ── `onRimuovi`/`onCambiaRuoli` sono callback, non stato interno ──────────
+ * ── `onCambiaStato`/`onCambiaRuoli` sono callback, non stato interno ──────
  *
  * Stessa ragione di `onChiudiAvviso` in `tassullo-pagina-dashboard` e di
- * `modifica` in `tassullo-pagina-scheda`: il blocco non sa se una rimozione
- * vada scritta sul server, né se debba passare da una richiesta di conferma
- * a un'altra pagina. Tiene solo lo stato **di interazione** (quale dialogo è
- * aperto, la bozza di ruoli prima del salvataggio) — mai i dati veri, che
- * restano dell'app.
+ * `modifica` in `tassullo-pagina-scheda`: il blocco non sa come una
+ * disattivazione vada scritta sul server. Tiene solo lo stato **di
+ * interazione** (quale dialogo è aperto, la bozza di ruoli prima del
+ * salvataggio, la disattivazione in attesa che l'avviso si chiuda) — mai i
+ * dati veri, che restano dell'app.
+ *
+ * ── Disattivare, non rimuovere (proposta #65 di Anagrafe, ondata 2) ───────
+ *
+ * «Rimuovi» chiedeva conferma e faceva sparire la riga. Ora la voce è
+ * «Disattiva» (o «Riattiva» per chi è già disattivato), senza dialogo: la
+ * riga dice subito «Disattivato» e l'avviso offre «Annulla» per 5 secondi; la
+ * chiamata all'app parte quando l'avviso si chiude (annullo differito, lo
+ * stesso di `tassullo-toast-con-annullo`). «Riattiva» è immediata, ed è la
+ * seconda strada per tornare indietro. `onRimuovi(id)` è diventata
+ * `onCambiaStato(id, attivo)`. L'app deve montare `<Toaster />`, o l'avviso non
+ * compare e la chiamata non parte. Il conteggio sopra la tabella è tolto: il
+ * piè della tabella lo dà già, e segue la ricerca. La ricerca trova anche i
+ * ruoli, per le parole che la tabella mostra.
  *
  * ── `soloLettura` degrada anche il tab utenti che ora è del blocco ────────
  *
@@ -65,11 +78,11 @@
  * la colonna azioni in meno è il solo segnale della degradazione, non un
  * `if` che sostituisce l'intera sezione con un'altra vista.
  */
-import { useMemo, useState, type ComponentType, type ReactNode } from "react"
-import { TriangleAlertIcon, Trash2Icon, UserCogIcon, UsersIcon } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react"
+import { TriangleAlertIcon, UserCheckIcon, UserCogIcon, UserXIcon, UsersIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { cn } from "cn"
-import { ConfirmDialog } from "@/registry/tassullo/blocks/confirm-dialog"
 import {
   DataTable,
   IntestazioneColonna,
@@ -81,6 +94,7 @@ import {
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
 import { PageHeader, type AzionePagina, type LivelloPercorso } from "@/registry/tassullo/blocks/page-header"
 import { PageSkeleton } from "@/registry/tassullo/blocks/page-skeleton"
+import { toastConAnnullo } from "@/registry/tassullo/blocks/toast-con-annullo"
 import {
   ResponsiveDialog,
   ResponsiveDialogBody,
@@ -144,13 +158,18 @@ export type SezioneUtentiAdmin = {
   dati: UtenteAdmin[]
   /** I ruoli assegnabili — anche quando un utente ne porta uno che non è più in lista (v. `RuoliUtente`, che ricade sul valore grezzo solo in quel caso limite). */
   ruoli: RuoloAssegnabile[]
-  /** Chiamata dopo la conferma di `ConfirmDialog` — il blocco non sa se debba toccare il server. */
-  onRimuovi: (id: string) => void
+  /**
+   * Chiamata quando un utente va disattivato (`attivo` falso) o riattivato
+   * (`attivo` vero): l'app aggiorna `dati`. La riattivazione parte subito; la
+   * disattivazione quando si chiude l'avviso con «Annulla», e non parte se
+   * qualcuno annulla. Serve `<Toaster />` montato nell'app.
+   */
+  onCambiaStato: (id: string, attivo: boolean) => void
   /** Chiamata al «Salva» del dialogo Ruoli, con l'elenco intero (non la differenza). */
   onCambiaRuoli: (id: string, ruoli: string[]) => void
   /** L'etichetta del tab. Di default "Utenti". */
   titolo?: string
-  /** Il placeholder della ricerca. */
+  /** Il segnaposto della ricerca. Di serie «Cerca nome, email o ruolo…». */
   cerca?: string
 }
 
@@ -213,18 +232,29 @@ function RuoliUtente({ ruoli, mappa }: { ruoli: string[]; mappa: Map<string, Ruo
   )
 }
 
+/** Lo stato di un utente, come `Badge`: «Attivo» o «Disattivato». */
+function BadgeStato({ attivo }: { attivo: boolean }) {
+  return attivo ? (
+    <Badge className={TONO.success}>Attivo</Badge>
+  ) : (
+    <Badge className={TONO.neutro}>Disattivato</Badge>
+  )
+}
+
 /**
  * Il menu di riga — una sola definizione, montata sia nella tendina «⋯» sia
- * sul tasto destro (`menuRiga` di `tassullo-data-table`). I due dialoghi vivono
- * fuori, nel componente che segue: cliccando la voce il menu si chiude e li
- * smonterebbe (`confirm-dialog.tsx`, la stessa nota di `PaginaProdotti`).
+ * sul tasto destro (`menuRiga` di `tassullo-data-table`). Il dialogo dei ruoli
+ * vive fuori, nel componente che segue: cliccando la voce il menu si chiude e
+ * lo smonterebbe.
  */
 function MenuAzioniUtente({
   onCambiaRuoli,
-  onRimuovi,
+  onDisattiva,
+  onRiattiva,
 }: {
   onCambiaRuoli: (utente: UtenteAdmin) => void
-  onRimuovi: (utente: UtenteAdmin) => void
+  onDisattiva: (utente: UtenteAdmin) => void
+  onRiattiva: (utente: UtenteAdmin) => void
 }) {
   const utente = useDataTableRow<UtenteAdmin>()
   return (
@@ -234,12 +264,19 @@ function MenuAzioniUtente({
         Ruoli…
       </RowMenuItem>
       <RowMenuSeparator />
-      {/* `variant="destructive"`, non una classe di colore: `--destructive`
-          è il colore dei fondi, e come testo non regge il contrasto. */}
-      <RowMenuItem variant="destructive" onClick={() => onRimuovi(utente)}>
-        <Trash2Icon aria-hidden />
-        Rimuovi
-      </RowMenuItem>
+      {utente.attivo ? (
+        // `variant="destructive"`, non una classe di colore: `--destructive`
+        // è il colore dei fondi, e come testo non regge il contrasto.
+        <RowMenuItem variant="destructive" onClick={() => onDisattiva(utente)}>
+          <UserXIcon aria-hidden />
+          Disattiva
+        </RowMenuItem>
+      ) : (
+        <RowMenuItem onClick={() => onRiattiva(utente)}>
+          <UserCheckIcon aria-hidden />
+          Riattiva
+        </RowMenuItem>
+      )}
     </>
   )
 }
@@ -250,11 +287,76 @@ const colUtenti = creaColonne<UtenteAdmin>()
 function TabUtenti({ sezione, soloLettura }: { sezione: SezioneUtentiAdmin; soloLettura: boolean }) {
   const [inModificaRuoli, setInModificaRuoli] = useState<UtenteAdmin | null>(null)
   const [ruoliBozza, setRuoliBozza] = useState<string[]>([])
-  const [inRimozione, setInRimozione] = useState<UtenteAdmin | null>(null)
+  // Gli utenti disattivati e in attesa che l'avviso si chiuda: la riga li
+  // mostra già disattivati, la chiamata all'app non è ancora partita.
+  const [sospesi, setSospesi] = useState<ReadonlySet<string>>(() => new Set())
+  // Per ogni utente in attesa, l'avviso che lo riguarda. Se nel frattempo lo
+  // si riattiva dal menu, l'avviso si chiude senza chiamare l'app.
+  const inAttesa = useRef(new Map<string, string | number>())
+  // L'ultima `onCambiaStato` ricevuta: la disattivazione la chiama alla
+  // chiusura dell'avviso, anche se nel frattempo l'app ne ha passata un'altra.
+  const cambiaStato = useRef(sezione.onCambiaStato)
+  useEffect(() => {
+    cambiaStato.current = sezione.onCambiaStato
+  })
 
   const mappaRuoli = useMemo(
     () => new Map(sezione.ruoli.map((r) => [r.valore, r])),
     [sezione.ruoli],
+  )
+
+  const togliSospeso = useCallback((id: string) => {
+    setSospesi((prima) => {
+      const dopo = new Set(prima)
+      dopo.delete(id)
+      return dopo
+    })
+  }, [])
+
+  const disattiva = useCallback(
+    (utente: UtenteAdmin) => {
+      setSospesi((prima) => new Set(prima).add(utente.id))
+      const avviso = toastConAnnullo(
+        () => {
+          // Partita solo se l'utente è ancora in attesa di questo avviso:
+          // «Riattiva» dal menu lo toglie prima di chiudere l'avviso.
+          if (inAttesa.current.get(utente.id) !== avviso) return
+          inAttesa.current.delete(utente.id)
+          cambiaStato.current(utente.id, false)
+          togliSospeso(utente.id)
+        },
+        {
+          messaggio: `${utente.nome} disattivato`,
+          descrizione: "Non può più accedere. I ruoli restano assegnati.",
+          onAnnulla: () => {
+            inAttesa.current.delete(utente.id)
+            togliSospeso(utente.id)
+          },
+        },
+      )
+      inAttesa.current.set(utente.id, avviso)
+    },
+    [togliSospeso],
+  )
+
+  const riattiva = useCallback(
+    (utente: UtenteAdmin) => {
+      const avviso = inAttesa.current.get(utente.id)
+      if (avviso !== undefined) {
+        // Ancora in attesa: si annulla la disattivazione, e l'app non sa niente.
+        inAttesa.current.delete(utente.id)
+        toast.dismiss(avviso)
+        togliSospeso(utente.id)
+        return
+      }
+      cambiaStato.current(utente.id, true)
+    },
+    [togliSospeso],
+  )
+
+  const dati = useMemo(
+    () => (sospesi.size === 0 ? sezione.dati : sezione.dati.map((u) => (sospesi.has(u.id) ? { ...u, attivo: false } : u))),
+    [sezione.dati, sospesi],
   )
 
   /**
@@ -278,21 +380,22 @@ function TabUtenti({ sezione, soloLettura }: { sezione: SezioneUtentiAdmin; solo
       sortFn: "text",
       cell: ({ getValue }) => <span className="text-muted-foreground">{getValue<string>()}</span>,
     }),
-    colUtenti.accessor("ruoli", {
+    // Il valore della colonna è il testo delle etichette dei ruoli, così la
+    // ricerca li trova con le parole che la tabella mostra; la cella disegna i
+    // badge dai ruoli della riga.
+    colUtenti.accessor((u) => u.ruoli.map((r) => mappaRuoli.get(r)?.etichetta ?? r).join(" "), {
+      id: "ruoli",
       header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Ruoli" />,
       meta: { titolo: "Ruoli" },
-      cell: ({ getValue }) => <RuoliUtente ruoli={getValue<string[]>()} mappa={mappaRuoli} />,
+      sortFn: "text",
+      cell: ({ row }) => <RuoliUtente ruoli={row.original.ruoli} mappa={mappaRuoli} />,
     }),
     colUtenti.accessor("attivo", {
       header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
       meta: { titolo: "Stato" },
       sortFn: "basic",
-      cell: ({ getValue }) =>
-        getValue<boolean>() ? (
-          <Badge className={TONO.success}>Attivo</Badge>
-        ) : (
-          <Badge className={TONO.neutro}>Disattivo</Badge>
-        ),
+      enableGlobalFilter: false,
+      cell: ({ getValue }) => <BadgeStato attivo={getValue<boolean>()} />,
     }),
   ]), [mappaRuoli])
 
@@ -301,10 +404,12 @@ function TabUtenti({ sezione, soloLettura }: { sezione: SezioneUtentiAdmin; solo
       soloLettura
         ? undefined
         : {
-            menu: <MenuAzioniUtente onCambiaRuoli={apriRuoli} onRimuovi={setInRimozione} />,
+            menu: (
+              <MenuAzioniUtente onCambiaRuoli={apriRuoli} onDisattiva={disattiva} onRiattiva={riattiva} />
+            ),
             ariaLabel: (u: UtenteAdmin) => `Azioni su ${u.nome}`,
           },
-    [soloLettura],
+    [soloLettura, disattiva, riattiva],
   )
 
   function apriRuoli(utente: UtenteAdmin) {
@@ -314,21 +419,17 @@ function TabUtenti({ sezione, soloLettura }: { sezione: SezioneUtentiAdmin; solo
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        {sezione.dati.length} {sezione.dati.length === 1 ? "utente" : "utenti"}
-      </p>
-
       <DataTable
         colonne={colonne}
-        dati={sezione.dati}
+        dati={dati}
         idRiga={(u) => u.id}
-        cerca={sezione.cerca ?? "Cerca nome o email…"}
+        cerca={sezione.cerca ?? "Cerca nome, email o ruolo…"}
         nomeRighe={{ singolare: "utente", plurale: "utenti" }}
         menuRiga={menuRiga}
       />
 
-      {/* Il grilletto non può stare dentro la voce di menu: v. il commento
-          di testa di `confirm-dialog`. Stato tenuto qui, dialoghi controllati. */}
+      {/* Il grilletto non può stare dentro la voce di menu, che chiudendosi lo
+          smonterebbe: lo stato sta qui, e il dialogo è controllato. */}
       <ResponsiveDialog
         open={!!inModificaRuoli}
         onOpenChange={(aperto) => {
@@ -373,21 +474,6 @@ function TabUtenti({ sezione, soloLettura }: { sezione: SezioneUtentiAdmin; solo
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      <ConfirmDialog
-        titolo="Rimuovere l'utente?"
-        descrizione={inRimozione ? `${inRimozione.nome} perderà l'accesso subito.` : undefined}
-        conferma="Rimuovi"
-        tono="distruttivo"
-        aperto={!!inRimozione}
-        onApertoChange={(aperto) => {
-          if (!aperto) setInRimozione(null)
-        }}
-        onConferma={() => {
-          if (!inRimozione) return
-          sezione.onRimuovi(inRimozione.id)
-          setInRimozione(null)
-        }}
-      />
     </div>
   )
 }
