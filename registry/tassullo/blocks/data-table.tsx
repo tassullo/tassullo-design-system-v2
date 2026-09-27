@@ -3156,7 +3156,9 @@ export type DataTableProps<TDato extends RowData> = {
    * fra altre. `"ferma"`: il riquadro prende lo spazio che il genitore
    * concede, la testata resta ferma, le righe scorrono dentro e il piè resta
    * sempre in vista — per una tabella che è la pagina, con qualunque
-   * `perPagina`. Con poche righe il riquadro si restringe al contenuto.
+   * `perPagina`. Con poche righe, che entrano tutte, il riquadro è alto quanto
+   * la tabella e non scorre; con molte, finisce sul bordo dell'ultima riga
+   * intera.
    */
   altezza?: "naturale" | "ferma"
   /**
@@ -4142,6 +4144,9 @@ export function DataTable<TDato extends RowData>({
 
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
+  // Se `altezzaMax` è l'altezza intera della tabella, che ci sta tutta (v.
+  // l'effetto del tetto, sotto).
+  const tettoInteroRef = React.useRef(false)
   /**
    * L'altezza dell'intestazione ferma, che diventa lo `scroll-padding-top` di
    * `table-container`. Le righe sono `snap-start`, e senza questo margine lo
@@ -4242,6 +4247,33 @@ export function DataTable<TDato extends RowData>({
       )
       if (righeVere.length === 0) return
 
+      // **Se la tabella entra tutta, il riquadro è alto quanto lei**, per
+      // eccesso e coi bordi del riquadro: non c'è niente sotto da raggiungere
+      // scorrendo, e un tetto più basso anche di un pixel faceva scorrere il
+      // riquadro di quel pixel e tagliava l'ultima riga. Il `max-height` conta
+      // anche i bordi (`border-box`), 2px che il tetto per righe qui sotto non
+      // somma. Il margine dei 4px tiene il valore di prima solo se non è più
+      // basso: un tetto più alto del contenuto non allunga il riquadro.
+      const altezzaTabella = tabellaRef.current?.getBoundingClientRect().height ?? 0
+      const stileRiquadro = getComputedStyle(contenitore)
+      const bordi =
+        (parseFloat(stileRiquadro.borderTopWidth) || 0) +
+        (parseFloat(stileRiquadro.borderBottomWidth) || 0)
+      const intera = Math.ceil(altezzaTabella + bordi)
+      if (altezzaTabella > 0 && intera <= disponibileTotale) {
+        tettoInteroRef.current = true
+        setAltezzaMax((prima) =>
+          prima !== undefined && prima >= intera && prima - intera < 4 ? prima : intera
+        )
+        return
+      }
+      // Da un tetto intero a uno per righe (una riga in più, una finestra più
+      // bassa) il valore di prima non si tiene nemmeno se è vicino: era alto
+      // quanto la tabella intera, e lascerebbe in vista il filo della riga di
+      // fondo e un bordo della riga dopo.
+      const daIntero = tettoInteroRef.current
+      tettoInteroRef.current = false
+
       /**
        * **Le righe si misurano fra loro, non contro il contenitore**, o
        * con un filtro messo e poi tolto il riquadro resterebbe basso come
@@ -4274,7 +4306,8 @@ export function DataTable<TDato extends RowData>({
         tetto = fondoRiga
       }
       if (tetto <= altezzaTestata) return
-      // **A pixel interi, per difetto.** Righe di solo testo sono alte una
+      // **A pixel interi, per difetto**, quando le righe non entrano tutte.
+      // Righe di solo testo sono alte una
       // frazione di pixel (l'interlinea del corpo), e un tetto frazionario
       // lasciava il filo della riga di fondo accanto al bordo del riquadro,
       // due linee a un pixel di distanza. Per difetto, così il riquadro non
@@ -4289,7 +4322,9 @@ export function DataTable<TDato extends RowData>({
       // paio di pixel mentre si scorreva. Resta ben sotto un'altezza di riga vera
       // (30 px e oltre), quindi non nasconde mai una riga che è davvero
       // entrata o uscita.
-      setAltezzaMax((prima) => (prima !== undefined && Math.abs(prima - tetto) < 4 ? prima : tetto))
+      setAltezzaMax((prima) =>
+        !daIntero && prima !== undefined && Math.abs(prima - tetto) < 4 ? prima : tetto
+      )
     }
 
     ricalcola()

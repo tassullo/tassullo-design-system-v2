@@ -1671,6 +1671,101 @@ export const AltezzaFermaProva: StoryObj<typeof DataTable<Prodotto>> = {
   play: provaAltezzaFerma,
 }
 
+// Le tabelle ferme con poche righe, e una che cresce di una riga alla volta.
+function AltezzaFermaPocheRighe() {
+  const [quante, setQuante] = React.useState(6)
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        {[4, 5, 10].map((n) => (
+          <div key={n} data-righe={n} className="flex h-140 flex-col">
+            <DataTable
+              colonne={COLONNE_TESTO}
+              dati={PRODOTTI.slice(0, n)}
+              cerca={false}
+              colonneNascondibili={false}
+              perPagina={100}
+              altezza="ferma"
+              className="min-h-0 flex-1"
+            />
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => setQuante((q) => q + 1)}>
+        Una riga in più
+      </Button>
+      <div data-righe="cresce" className="flex h-140 flex-col">
+        <DataTable
+          colonne={COLONNE_TESTO}
+          dati={PRODOTTI.slice(0, quante)}
+          cerca={false}
+          colonneNascondibili={false}
+          perPagina={100}
+          altezza="ferma"
+          className="min-h-0 flex-1"
+        />
+      </div>
+    </div>
+  )
+}
+
+// Il riquadro di una tabella in un contenitore, e l'elemento che scorre.
+function riquadroFermo(contenitore: Element) {
+  const scorre = contenitore.querySelector<HTMLElement>('[data-slot="table-container"]')
+  expect(scorre?.parentElement?.style.maxHeight).toMatch(/px$/)
+  return scorre as HTMLElement
+}
+
+// La prova guarda il riquadro fermo quando le righe entrano tutte. Con 4, 5 e
+// 10 righe il riquadro è alto quanto la tabella e non scorre: prima il tetto,
+// per difetto e senza i 2px del bordo, lo lasciava 2–3px più basso, e
+// l'ultima riga si poteva scorrere di quei pixel. Poi la tabella che cresce:
+// il suo contenitore si stringe finché la tabella ci sta appena, e con una
+// riga in più il riquadro torna al tetto per righe, col filo della riga di
+// fondo fuori vista, invece di tenere l'altezza intera di prima.
+async function provaAltezzaFermaPocheRighe({ canvasElement }: { canvasElement: HTMLElement }) {
+  for (const n of [4, 5, 10]) {
+    const contenitore = canvasElement.querySelector(`[data-righe="${n}"]`) as HTMLElement
+    const scorre = await waitFor(() => riquadroFermo(contenitore))
+    await waitFor(() => {
+      expect(scorre.querySelectorAll('tbody tr')).toHaveLength(n)
+      expect(scorre.scrollHeight).toBe(scorre.clientHeight)
+    })
+    expect(scorre.scrollTop).toBe(0)
+  }
+
+  const cresce = canvasElement.querySelector('[data-righe="cresce"]') as HTMLElement
+  const scorre = await waitFor(() => riquadroFermo(cresce))
+  await waitFor(() => expect(scorre.scrollHeight).toBe(scorre.clientHeight))
+  // Il contenitore si stringe fino a lasciare 2px di spazio sotto il piè
+  // della tabella: le righe entrano ancora tutte, ma una in più no.
+  const radice = cresce.firstElementChild as HTMLElement
+  const avanzo =
+    radice.getBoundingClientRect().bottom -
+    (radice.lastElementChild as HTMLElement).getBoundingClientRect().bottom
+  cresce.style.height = `${cresce.getBoundingClientRect().height - avanzo + 2}px`
+  await waitFor(() => expect(scorre.scrollHeight).toBe(scorre.clientHeight))
+  await userEvent.click(within(canvasElement).getByRole('button', { name: 'Una riga in più' }))
+  await waitFor(() => expect(scorre.scrollHeight).toBeGreaterThan(scorre.clientHeight))
+  await new Promise((fatto) => setTimeout(fatto, 300))
+  expect(scorre.scrollTop).toBe(0)
+  const fondoInterno = scorre.getBoundingClientRect().bottom
+  const righe = [...scorre.querySelectorAll('tbody tr')]
+  const inVista = righe.filter((r) => r.getBoundingClientRect().top < fondoInterno)
+  const fondoRiga = inVista[inVista.length - 1].getBoundingClientRect().bottom
+  expect(fondoRiga - 1).toBeGreaterThanOrEqual(fondoInterno)
+}
+
+// Scena di misura del riquadro fermo con poche righe. Solo per il controllo
+// automatico, fuori dalla barra e da Docs; gira anche in WebKit, dove le
+// righe si arrotondano a pixel interi.
+export const AltezzaFermaPocheRigheProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Altezza Ferma, poche righe, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <AltezzaFermaPocheRighe />,
+  play: provaAltezzaFermaPocheRighe,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * I filtri (M3bis.6) — sfaccettato, intervallo numerico, intervallo di
  * date, reset di tutti insieme.
