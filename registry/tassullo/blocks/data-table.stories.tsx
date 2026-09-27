@@ -1023,12 +1023,24 @@ const colAlbero = creaColonne<RigaComputo>()
 const COLONNE_ALBERO = colAlbero.columns([
   colAlbero.accessor('voce', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Voce / misurazione" />,
-    meta: { titolo: 'Voce' },
+    // Le voci del computo sono righe di raggruppamento: nome e conteggio, le
+    // cifre nei sottototali. La fascia copre Voce e U.M. e si ferma a Quantità.
+    meta: { titolo: 'Voce', madreSuTuttaLaRiga: true },
     sortFn: 'text',
     // Il rientro e lo `chevron` stanno **dentro** questa colonna, non in una
     // colonna a sé: è la colonna che identifica la riga, la stessa scelta di
     // un esploratore di file.
-    cell: ({ row, getValue }) => <CellaAlbero riga={row}>{getValue<string>()}</CellaAlbero>,
+    cell: ({ row, getValue }) => (
+      <CellaAlbero riga={row}>
+        {getValue<string>()}
+        {row.subRows.length > 0 ? (
+          <span className="text-muted-foreground">
+            {' · '}
+            {row.subRows.length} {row.subRows.length === 1 ? 'misurazione' : 'misurazioni'}
+          </span>
+        ) : null}
+      </CellaAlbero>
+    ),
   }),
   colAlbero.accessor('udm', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="U.M." />,
@@ -1154,7 +1166,8 @@ function AlberoConControlli() {
 
 /**
  * Righe annidate con subtotale: un computo in cui ogni voce porta le sue
- * misurazioni. La casella di una voce sceglie anche le misurazioni sotto;
+ * misurazioni. Le voci sono righe di raggruppamento su tutta la riga
+ * (`meta.madreSuTuttaLaRiga`), fino alla prima colonna col sottototale. La casella di una voce sceglie anche le misurazioni sotto;
  * «Espandi tutto» e «Comprimi tutto» comandano la tabella attraverso
  * `onTabellaPronta`.
  */
@@ -1236,11 +1249,15 @@ export const AlberoConRicercaProva: StoryObj<typeof DataTable<RigaComputo>> = {
 
 // Le colonne dell'albero con la colonna «Voce» stretta, a capo o troncata.
 // Con tutte le colonne larghe a misura la tabella distribuirebbe l'avanzo
-// fra tutte, e «Voce» non sarebbe più stretta: l'avanzo va a «U.M.».
+// fra tutte, e «Voce» non sarebbe più stretta: l'avanzo va a «U.M.». Senza
+// la fascia delle voci: qui si misura il testo dentro la colonna stretta.
 function colonneAlberoStrette(testo: 'aCapo' | 'tronca') {
   return COLONNE_ALBERO.map((colonna, indice) =>
     indice === 0
-      ? { ...colonna, meta: { ...colonna.meta, larghezza: 'w-60', testo } }
+      ? {
+          ...colonna,
+          meta: { ...colonna.meta, larghezza: 'w-60', testo, madreSuTuttaLaRiga: false },
+        }
       : indice === 1
         ? { ...colonna, meta: { ...colonna.meta, larghezza: undefined } }
         : colonna
