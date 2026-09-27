@@ -13467,5 +13467,14 @@ Ogni prova è una `play` in una scena di misura nascosta (§69) e fallisce sul c
 - **Per Anagrafe**: l'elenco delle lingue supportate (oggi EN, DE, FR) e la mappa sigla → nome esteso (DE → Tedesco) vanno definite; Francesco propone un controllo nel pannello di amministrazione dell'app. Da scrivere anche nella issue #89 alla chiusura.
 - Una colonna con valori-array ma senza `meta.elenco` torna ai conteggi rotti senza avviso. Si potrebbe avvisare quando il filtro trova un array su una colonna non dichiarata: non deciso.
 - La puntina di blocco compare nell'intestazione della colonna di selezione, sovrapposta alla casella; con la regola nuova «Non bloccare» sulla casella non fa niente finché c'è una colonna di dati bloccata. `enablePinning: false` sulla colonna di selezione la toglierebbe. Già in `v2.0.5`.
-- Già presenti e non toccati: nelle intestazioni ridimensionabili strette la puntina copre il titolo («Campioni/anno»); il piè dice «0 di 2 prodotti selezionate».
+- Già presente e non toccato: il piè dice «0 di 2 prodotti selezionate», con l'accordo sbagliato.
 - In Chromium axe lascia 1–3 *incomplete* «elmPartiallyObscuring» sui conteggi delle madri: controllati a mano, 24 punti su 24 cadono sul testo.
+
+#### La verifica con Francesco, issue per issue
+
+A PR aperta, Francesco ha rivisto ogni issue: problema, soluzione, misura prima e dopo, scene affiancate. Per avere le stesse scene nelle due versioni, 6006 serviva una copia del ramo con `data-table.tsx` e il filtro sfaccettato di `main`, e 6007 il ramo. Tutte e cinque confermate, con le due correzioni in più della #90. Tre cose emerse e corrette nella PR, le ultime due con una prova che fallisce sul codice di prima:
+
+- **La scena «Albero» mostra la fascia** (Francesco): aprendo la prova della #86 si aspettava le voci su tutta la riga, cioè la forma della #90. La fascia resta chiesta dalla pagina, perché dove la madre ha valori propri li coprirebbe; ma la scena d'esempio del computo ora la accende, con il conteggio delle misurazioni, e si ferma a Quantità. La prova di `aCapo` resta senza fascia.
+- **La puntina copriva il titolo** (Francesco, foto): «Campioni/anno» con la freccia è largo 134px in una colonna da 128, e allineato a destra usciva dal `<th>` finendo sotto la puntina della colonna accanto; allineata a sinistra, la freccia di «Frequenza» copriva la sua puntina di 9px. Il bottone dell'ordinamento ora si stringe e il titolo tronca; nella scena la colonna è larga 192px. Prova `Intestazioni Strette, prova`. Vale per tutte le tabelle con `colonneBloccabili`. Già in `v2.0.5`.
+- **La guida di ridimensionamento sottile sulla colonna bloccata** (Francesco, foto da Safari): trascinando il bordo di «Controllo», la guida arancio era larga 4px sulle madri e 2px sulle foglie. L'intestazione bloccata era `sticky z-10` come le celle bloccate del corpo, che venendo dopo ne coprivano la metà; su `main` succedeva su tutte le righe. Ora l'intestazione bloccata è `z-20`: 0 pixel coperti su 4 in Chromium e WebKit. Prova `Guida Colonna Bloccata, prova`. Controllato anche che la guida non resti accesa dopo il rilascio: torna il trattino in entrambi i motori.
+
