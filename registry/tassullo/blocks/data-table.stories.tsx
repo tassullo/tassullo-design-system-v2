@@ -2186,12 +2186,29 @@ async function provaColonnaElastica(contesto: { canvasElement: HTMLElement }) {
 
 // Una colonna senza `size` bloccata a un bordo prende una larghezza, perché
 // la posizione delle colonne bloccate accanto si calcola dalle larghezze di
-// TanStack. La prova blocca «Famiglia» e «Codice» a sinistra, scorre di lato
-// e controlla che «Codice» cominci dove finisce «Famiglia». Se «Famiglia»
-// restasse elastica, sarebbe larga il minimo della colonna elastica (160px)
-// e «Codice», posata a 150px, la coprirebbe di 10px (90 in touch).
+// TanStack. La prova parte da «Famiglia» elastica (nessuna `width` nel
+// `<colgroup>`), la blocca a sinistra con «Codice», controlla che ora abbia
+// una `width`, scorre di lato e controlla che «Codice» cominci dove finisce
+// «Famiglia». Se «Famiglia» restasse elastica anche bloccata, sarebbe larga
+// il minimo della colonna elastica (160px) e «Codice», posata a 150px, la
+// coprirebbe di 10px (90 in touch).
+// La precondizione non è un di più: senza, la prova passerebbe anche su un
+// codice in cui «Famiglia» non è mai elastica (tutte le colonne con la `size`
+// di serie di TanStack, 150px), dove la sovrapposizione non può nascere e il
+// controllo sullo scarto sarebbe vuoto.
 async function provaColonnaElasticaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
   const canvas = within(canvasElement)
+  const larghezzaFamiglia = () => {
+    const t = canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+    expect(t).toBeTruthy()
+    const intestazioni = [...(t as HTMLTableElement).querySelectorAll('thead tr:first-child th')]
+    const col = [...(t as HTMLTableElement).querySelectorAll<HTMLTableColElement>('colgroup col')]
+    expect(col).toHaveLength(intestazioni.length)
+    const i = intestazioni.findIndex((th) => th.textContent?.includes('Famiglia'))
+    expect(i).toBeGreaterThan(-1)
+    return col[i].style.width
+  }
+  expect(larghezzaFamiglia()).toBe('')
   for (const nome of ['Famiglia', 'Codice']) {
     await userEvent.click(await canvas.findByRole('button', { name: `Blocca colonna «${nome}»` }))
     await userEvent.click(
@@ -2203,6 +2220,7 @@ async function provaColonnaElasticaBloccata({ canvasElement }: { canvasElement: 
       expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
     )
   }
+  expect(larghezzaFamiglia()).not.toBe('')
   const scorre = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
   expect(scorre).toBeTruthy()
   const s = scorre as HTMLElement
