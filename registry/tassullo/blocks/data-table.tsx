@@ -692,11 +692,14 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
         // Il margine negativo pareggia il `px-2.5` del bottone col `px-2` del
         // `<th>`, così l'intestazione si incolonna con le celle sotto invece di
         // stare rientrata di due pixel.
-        "h-7 font-medium",
+        // `shrink min-w-0 max-w-full` e il titolo che tronca: in una colonna
+        // più stretta del titolo il bottone resta dentro il `<th>` invece di
+        // uscirne e finire sotto la puntina della colonna accanto.
+        "h-7 max-w-full min-w-0 shrink font-medium",
         allinea === "fine" ? "-mr-2" : "-ml-2"
       )}
     >
-      <span>{titolo}</span>
+      <span className="min-w-0 truncate">{titolo}</span>
       {ordine === "asc" ? (
         <ArrowUpIcon aria-hidden />
       ) : ordine === "desc" ? (
@@ -712,7 +715,7 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
   // distribuire. Per mandare a destra l'intestazione di una colonna di numeri
   // serve che a essere flex sia il contenitore.
   return allinea === "fine" ? (
-    <div className="flex justify-end">{bottone}</div>
+    <div className="flex min-w-0 justify-end">{bottone}</div>
   ) : (
     bottone
   )

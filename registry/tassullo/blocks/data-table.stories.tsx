@@ -1507,14 +1507,14 @@ const COLONNE_CONTROLLI = colControlli.columns([
     ),
     meta: {
       titolo: 'Campioni/anno',
-      larghezza: 'w-32',
+      larghezza: 'w-48',
       sottototale: (figli: Controllo[]) => (
         <div className="text-right font-medium">
           {intero(figli.reduce((tot, f) => tot + sommaCampioni(f), 0))}
         </div>
       ),
     },
-    size: 128,
+    size: 192,
     cell: ({ getValue }) => {
       const v = getValue<number | undefined>()
       return <div className="text-right">{v === undefined ? null : intero(v)}</div>
@@ -1773,6 +1773,62 @@ export const AlberoConRigheMadriLargheProva: StoryObj<typeof DataTable<Controllo
     </div>
   ),
   play: provaRigheMadriLarghe,
+}
+
+// La prova delle intestazioni strette: con `colonneBloccabili` ogni
+// intestazione porta titolo, freccia e puntina. In una colonna più stretta
+// del titolo, il bottone dell'ordinamento usciva dal `<th>` verso sinistra e
+// finiva sotto la puntina della colonna accanto (a 128px, 134px di bottone);
+// allineato a sinistra, copriva la propria puntina («Frequenza», 9px). Ora il
+// titolo tronca e ogni bottone resta dentro la sua intestazione.
+const COLONNE_CONTROLLI_STRETTE = COLONNE_CONTROLLI.map((colonna) =>
+  'accessorKey' in colonna && colonna.accessorKey === 'campioni' ? { ...colonna, size: 112 } : colonna
+) as typeof COLONNE_CONTROLLI
+
+async function provaIntestazioniStrette({ canvasElement }: { canvasElement: HTMLElement }) {
+  const intestazioni = await waitFor(() => {
+    const th = [...canvasElement.querySelectorAll<HTMLTableCellElement>('thead th')]
+    expect(th.length).toBeGreaterThan(4)
+    return th
+  })
+  for (const th of intestazioni) {
+    const bordo = th.getBoundingClientRect()
+    const bottoni = [...th.querySelectorAll<HTMLElement>('button')]
+    for (const bottone of bottoni) {
+      const r = bottone.getBoundingClientRect()
+      expect(r.left, bottone.getAttribute('aria-label') ?? '').toBeGreaterThanOrEqual(bordo.left - 0.5)
+      expect(r.right, bottone.getAttribute('aria-label') ?? '').toBeLessThanOrEqual(bordo.right + 0.5)
+    }
+    // Titolo e puntina, uno accanto all'altro: la freccia dell'ordinamento,
+    // che chiude il titolo, non finisce sopra la puntina. Si misura il segno e
+    // non il bottone, il cui margine negativo (per incolonnarsi con le celle)
+    // può stare sotto il bordo trasparente della puntina.
+    for (let i = 1; i < bottoni.length; i++) {
+      const freccia = bottoni[i - 1].querySelector('svg')?.getBoundingClientRect()
+      const puntina = bottoni[i].querySelector('svg')?.getBoundingClientRect()
+      if (!freccia || !puntina) continue
+      expect(freccia.right, bottoni[i].getAttribute('aria-label') ?? '').toBeLessThanOrEqual(puntina.left + 0.5)
+    }
+  }
+}
+
+// Scena di misura delle intestazioni strette. Solo per il controllo
+// automatico, fuori dalla barra e da Docs.
+export const IntestazioniStretteProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Intestazioni Strette, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <DataTable
+      colonne={COLONNE_CONTROLLI_STRETTE}
+      dati={PIANO_CONTROLLI}
+      cerca={false}
+      colonneNascondibili={false}
+      getSottoRighe={(riga) => riga.figli}
+      colonneBloccabili
+      ridimensionabile
+    />
+  ),
+  play: provaIntestazioniStrette,
 }
 
 // La prova del fondo: sulla riga madre aperta la cella della casella,
