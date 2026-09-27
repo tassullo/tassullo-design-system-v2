@@ -102,7 +102,12 @@ import {
 import { Popover, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/registry/tassullo/ui/popover"
 import { Separator } from "@/registry/tassullo/ui/separator"
 
-import type { CaratteristicheTabella, IstanzaTabella } from "./data-table"
+import {
+  caratteristiche,
+  type CaratteristicheTabella,
+  type IstanzaTabella,
+  type MetaColonna,
+} from "./data-table"
 
 /**
  * Il bordo tratteggiato del grilletto di un filtro — non una variante di
@@ -237,6 +242,11 @@ export function righeSenzaFiltroColonna<TDato extends RowData>(
  * — è la forma giusta per `stato`/`famiglia`, dove l'elenco possibile non è
  * dichiarato altrove. Un valore già scelto resta in elenco anche a conteggio
  * zero: toglierlo lo renderebbe impossibile da deselezionare.
+ *
+ * Su una colonna con `meta.elenco` la riga conta sotto **ogni** valore del
+ * suo elenco, una volta sola anche se l'elenco lo ripete: la somma dei
+ * conteggi può quindi superare le righe. Una riga con l'elenco vuoto, o senza
+ * il campo, non conta sotto nessuna voce.
  */
 export function useOpzioniSfaccettate<TDato extends RowData>(
   tabella: IstanzaTabella<TDato>,
@@ -249,6 +259,7 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
 
   return React.useMemo((): OpzioneFiltro[] => {
     const righeFiltrate = righeSenzaFiltroColonna(tabella, righeCore, chiaveColonna)
+    const elenco = colonnaElenco(tabella, chiaveColonna)
     const selezionate = new Set(
       (filtriColonna.find((filtro) => filtro.id === chiaveColonna)?.value as string[] | undefined) ?? []
     )
@@ -257,9 +268,16 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
     for (const riga of righeFiltrate) {
       const grezzo = riga.getValue(chiaveColonna) as unknown
       if (grezzo == null) continue
-      const valore = String(grezzo)
-      if (!valore) continue
-      conteggi.set(valore, (conteggi.get(valore) ?? 0) + 1)
+      // Un elenco conta la riga sotto ciascuno dei suoi valori; il `Set` la
+      // conta una volta sola sotto un valore che l'elenco ripete.
+      const valori =
+        elenco && Array.isArray(grezzo)
+          ? new Set(grezzo.filter((voce) => voce != null).map(String))
+          : [String(grezzo)]
+      for (const valore of valori) {
+        if (!valore) continue
+        conteggi.set(valore, (conteggi.get(valore) ?? 0) + 1)
+      }
     }
 
     if (opzioniStatiche) {
@@ -282,13 +300,22 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
   }, [tabella, righeCore, chiaveColonna, filtriColonna, ricerca, opzioniStatiche])
 }
 
+/** Se la colonna dichiara `meta.elenco`. */
+function colonnaElenco<TDato extends RowData>(tabella: IstanzaTabella<TDato>, chiaveColonna: string) {
+  return (tabella.getColumn(chiaveColonna)?.columnDef.meta as MetaColonna | undefined)?.elenco === true
+}
+
 export type FiltroSfaccettatoProps<TDato extends RowData> = {
   /**
    * L'istanza della tabella: il secondo argomento di `barra` nella forma a
    * funzione. Non da `onTabellaPronta`, che la consegna un render indietro.
    */
   tabella: IstanzaTabella<TDato>
-  /** La colonna su cui filtrare. Deve dichiarare `filterFn: "arrHas"`. */
+  /**
+   * La colonna su cui filtrare. Deve dichiarare `filterFn: "arrHas"`, o
+   * `filterFn: "arrHasAny"` se porta un elenco di valori per riga
+   * (`meta.elenco`).
+   */
   accessore: string
   /** Il nome del filtro sul grilletto («Stato», «Famiglia»…). */
   titolo: string
@@ -315,6 +342,14 @@ export type FiltroSfaccettatoProps<TDato extends RowData> = {
  * stato dei filtri che cambia da fuori (un'altra faccetta sulla stessa
  * barra, la ricerca globale) — ma ora la fonte giusta è l'argomento, non un
  * ref. V. il commento su `barra` in `data-table.tsx`.
+ *
+ * Su una colonna che porta un **elenco** di valori per riga (le lingue di una
+ * scheda) la colonna dichiara `meta: { elenco: true }` e
+ * `filterFn: "arrHasAny"`: le voci sono i singoli valori, ognuna col numero
+ * di righe che lo contengono. Un filtro «Completa / Incompleta» (la riga ha
+ * tutti i valori di un elenco di riferimento?) non è un'opzione di questo
+ * filtro: è una colonna calcolata con `accessor` e una funzione, filtrata
+ * con `filterFn: "arrHas"` come ogni valore singolo.
  */
 export function FiltroSfaccettato<TDato extends RowData>({
   tabella,
@@ -327,6 +362,21 @@ export function FiltroSfaccettato<TDato extends RowData>({
     | Column<CaratteristicheTabella, TDato, unknown>
     | undefined
   const opzioni = useOpzioniSfaccettate(tabella, accessore, opzioniStatiche)
+
+  // Una colonna-elenco col filtro dei valori singoli: i conteggi sono giusti,
+  // ma `arrHas` confronta l'elenco intero con ogni valore scelto e nessuna
+  // riga passa. È un errore che non si vede finché non si sceglie una voce.
+  const elencoSenzaFiltro =
+    !!colonna &&
+    colonnaElenco(tabella, accessore) &&
+    (colonna.getFilterFn() as unknown) !== caratteristiche.filterFns.arrHasAny
+  React.useEffect(() => {
+    if (import.meta.env.DEV && elencoSenzaFiltro) {
+      console.warn(
+        `FiltroSfaccettato: la colonna "${accessore}" dichiara meta.elenco ma non filterFn: "arrHasAny"; ogni scelta lascerà la tabella vuota.`
+      )
+    }
+  }, [elencoSenzaFiltro, accessore])
 
   if (!colonna) {
     // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non

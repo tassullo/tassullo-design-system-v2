@@ -2916,6 +2916,291 @@ export const FiltroVociComeNelDatoProva: StoryObj<typeof DataTable<MisurazioneCo
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Il filtro su una colonna che porta un elenco di valori per riga
+ *
+ * Dati inventati: sette schede, ognuna con le lingue in cui è tradotta.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Scheda = {
+  codice: string
+  nome: string
+  stato: 'Pubblicata' | 'Bozza'
+  // Facoltativo: un dato letto da un servizio che omette gli elenchi vuoti.
+  lingue?: string[]
+}
+
+const SCHEDE: Scheda[] = [
+  { codice: 'A', nome: 'Scheda tecnica malta bastarda', stato: 'Pubblicata', lingue: ['EN', 'DE'] },
+  { codice: 'B', nome: 'Scheda tecnica intonaco di fondo', stato: 'Pubblicata', lingue: ['EN'] },
+  { codice: 'C', nome: 'Dichiarazione di prestazione calce', stato: 'Bozza', lingue: ['EN', 'FR'] },
+  { codice: 'D', nome: 'Voce di capitolato massetto', stato: 'Bozza', lingue: [] },
+  { codice: 'E', nome: 'Scheda di sicurezza primer', stato: 'Pubblicata', lingue: ['EN'] },
+  { codice: 'F', nome: 'Nota di posa rasante', stato: 'Pubblicata' },
+  { codice: 'G', nome: 'Scheda tecnica rasante fibrato', stato: 'Pubblicata', lingue: ['EN', 'DE', 'FR'] },
+]
+
+/** Le lingue in cui ogni scheda dovrebbe essere tradotta. */
+const LINGUE_DI_RIFERIMENTO = ['EN', 'DE', 'FR']
+
+/** Le voci del filtro Lingua: il valore resta la sigla del dato, cambia solo l'etichetta. */
+const LINGUE: { value: string; label: string }[] = [
+  { value: 'EN', label: 'Inglese' },
+  { value: 'DE', label: 'Tedesco' },
+  { value: 'FR', label: 'Francese' },
+]
+
+const colScheda = creaColonne<Scheda>()
+
+function colonneSchede(filtroLingue: 'arrHasAny' | 'arrHas') {
+  return colScheda.columns([
+    colScheda.accessor('codice', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+      meta: { titolo: 'Codice', larghezza: 'w-20' },
+      sortFn: 'alphanumeric',
+    }),
+    colScheda.accessor('nome', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+      meta: { titolo: 'Nome' },
+      sortFn: 'text',
+    }),
+    colScheda.accessor('lingue', {
+      header: 'Lingue',
+      meta: { titolo: 'Lingue', larghezza: 'w-40', elenco: true },
+      filterFn: filtroLingue,
+      enableGlobalFilter: false,
+      cell: ({ getValue }) => {
+        const lingue = getValue<string[] | undefined>() ?? []
+        if (lingue.length === 0) return <span className="text-muted-foreground">—</span>
+        return (
+          <div className="flex gap-1">
+            {lingue.map((lingua) => (
+              <Badge key={lingua} variant="secondary">
+                {lingua}
+              </Badge>
+            ))}
+          </div>
+        )
+      },
+    }),
+    colScheda.accessor(
+      (scheda) =>
+        LINGUE_DI_RIFERIMENTO.every((lingua) => scheda.lingue?.includes(lingua))
+          ? 'Completa'
+          : 'Incompleta',
+      {
+        id: 'traduzioni',
+        header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Traduzioni" />,
+        meta: { titolo: 'Traduzioni', larghezza: 'w-32' },
+        filterFn: 'arrHas',
+        enableGlobalFilter: false,
+      },
+    ),
+    colScheda.accessor('stato', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+      meta: { titolo: 'Stato', larghezza: 'w-32' },
+      filterFn: 'arrHas',
+    }),
+  ])
+}
+
+const COLONNE_SCHEDE = colonneSchede('arrHasAny')
+// La colonna delle lingue col filtro dei valori singoli: il modo di sbagliare
+// che il filtro segnala in console.
+const COLONNE_SCHEDE_FILTRO_SBAGLIATO = colonneSchede('arrHas')
+
+function TabellaSchede({ colonne = COLONNE_SCHEDE }: { colonne?: typeof COLONNE_SCHEDE }) {
+  return (
+    <DataTable
+      colonne={colonne}
+      dati={SCHEDE}
+      cerca="Cerca per codice o nome…"
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'scheda', plurale: 'schede' }}
+      barra={(_scelte, tabella) => (
+        <>
+          <FiltroSfaccettato tabella={tabella} accessore="lingue" titolo="Lingua" opzioni={LINGUE} />
+          <FiltroSfaccettato tabella={tabella} accessore="traduzioni" titolo="Traduzioni" />
+          <FiltroSfaccettato tabella={tabella} accessore="stato" titolo="Stato" />
+          <FiltroResetTutti tabella={tabella} />
+        </>
+      )}
+    />
+  )
+}
+
+/**
+ * Una colonna che porta un **elenco** di valori per riga: le lingue in cui
+ * ogni scheda è tradotta. La colonna dichiara `meta: { elenco: true }` e
+ * `filterFn: "arrHasAny"`: il filtro Lingua conta ogni scheda sotto ciascuna
+ * delle sue lingue, e scegliere Francese lascia le schede che hanno il
+ * francese, anche insieme ad altre lingue. La somma dei conteggi può quindi
+ * superare le righe. Le voci del filtro restano le sigle del dato; `opzioni`
+ * le mostra per esteso.
+ *
+ * Il filtro Traduzioni non è una funzione del blocco: è una colonna calcolata
+ * (`accessor` con una funzione) che dice se la scheda ha **tutte** le lingue
+ * di un elenco di riferimento, filtrata come ogni altro valore singolo. Le
+ * schede senza lingue stanno in Incompleta.
+ */
+export const FiltroSuUnElenco: StoryObj<typeof DataTable<Scheda>> = {
+  name: 'Filtro Su Un Elenco',
+  render: () => <TabellaSchede />,
+}
+
+/** Apre il filtro col titolo dato e restituisce il suo pannello. */
+async function apriFiltro(canvasElement: HTMLElement, titolo: string) {
+  await userEvent.click(within(canvasElement).getByRole('button', { name: new RegExp(`^${titolo}`) }))
+  return waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="popover-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+}
+
+/** Chiude il pannello aperto, del tutto: finché c'è, lo sfondo resta inerte. */
+async function chiudiFiltro() {
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(document.querySelector('[data-slot="popover-content"]')).toBeNull())
+}
+
+/** Le voci del pannello come «etichetta + conteggio». */
+async function vociDelFiltro(pannello: HTMLElement, attese: string[]) {
+  await waitFor(() =>
+    expect(within(pannello).queryAllByRole('option').map((v) => v.textContent)).toEqual(attese)
+  )
+}
+
+/** I codici delle righe in vista. */
+function codiciInVista(canvasElement: HTMLElement) {
+  return [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(
+    (riga) => riga.querySelector('td')?.textContent ?? ''
+  )
+}
+
+// Prova delle voci: il filtro Lingua conta ogni scheda sotto ciascuna delle
+// sue lingue. Col filtro che non riconosceva gli elenchi uscivano l'elenco
+// intero come testo («EN,DE») e, con le opzioni, il solo «Inglese 2».
+async function provaElencoVoci({ canvasElement }: { canvasElement: HTMLElement }) {
+  const pannello = await apriFiltro(canvasElement, 'Lingua')
+  await vociDelFiltro(pannello, ['Inglese5', 'Tedesco2', 'Francese2'])
+  await chiudiFiltro()
+}
+
+// Prova della scelta: Inglese lascia le cinque schede che lo hanno, anche
+// insieme ad altre lingue; Francese lascia C e G, e il filtro Stato conta le
+// sole schede rimaste. Con `arrHas` l'elenco intero si confrontava con la
+// sigla scelta e non restava nessuna riga.
+async function provaElencoScelta({ canvasElement }: { canvasElement: HTMLElement }) {
+  let pannello = await apriFiltro(canvasElement, 'Lingua')
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Inglese/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['A', 'B', 'C', 'E', 'G']))
+  pannello = await apriFiltro(canvasElement, 'Lingua')
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Inglese/ }))
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Francese/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['C', 'G']))
+  const stato = await apriFiltro(canvasElement, 'Stato')
+  await vociDelFiltro(stato, ['Bozza1', 'Pubblicata1'])
+  await chiudiFiltro()
+}
+
+// Prova della ricetta Completa / Incompleta: una sola scheda ha tutte e tre
+// le lingue di riferimento; le schede senza lingue, o senza il campo, sono
+// incomplete.
+async function provaElencoTraduzioni({ canvasElement }: { canvasElement: HTMLElement }) {
+  const pannello = await apriFiltro(canvasElement, 'Traduzioni')
+  await vociDelFiltro(pannello, ['Completa1', 'Incompleta6'])
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Completa/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['G']))
+  // Con Completa scelta, il filtro Lingua conta le sole lingue di G.
+  const lingua = await apriFiltro(canvasElement, 'Lingua')
+  await vociDelFiltro(lingua, ['Inglese1', 'Tedesco1', 'Francese1'])
+  await chiudiFiltro()
+}
+
+// Prova con la ricerca: «scheda» lascia A, B, E e G, e il filtro Lingua conta
+// le loro lingue. La ricerca non guarda la colonna delle lingue.
+async function provaElencoRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
+  await userEvent.type(within(canvasElement).getByRole('searchbox'), 'Scheda')
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['A', 'B', 'E', 'G']))
+  const pannello = await apriFiltro(canvasElement, 'Lingua')
+  await vociDelFiltro(pannello, ['Inglese4', 'Tedesco2', 'Francese1'])
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Tedesco/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['A', 'G']))
+}
+
+// Scene di misura di «Filtro Su Un Elenco»: la stessa resa, con le prove.
+// `!dev` le toglie dalla barra e da Docs, così la scena qui sopra si apre a
+// riposo; il controllo automatico le esegue lo stesso.
+export const FiltroSuUnElencoVociProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova delle voci',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoVoci,
+}
+
+export const FiltroSuUnElencoSceltaProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova della scelta',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoScelta,
+}
+
+export const FiltroSuUnElencoTraduzioniProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova delle traduzioni',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoTraduzioni,
+}
+
+export const FiltroSuUnElencoRicercaProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova con la ricerca',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoRicerca,
+}
+
+// Prova dell'avviso: la colonna delle lingue dichiara `meta.elenco` ma tiene
+// `filterFn: "arrHas"`. Scegliere Inglese lascia la tabella senza righe, in
+// silenzio: per questo il filtro lo scrive in console in sviluppo. Gli
+// avvisi si raccolgono prima del render, perché il filtro lo scrive appena
+// montato.
+const avvisiConsole: string[] = []
+
+export const FiltroSuUnElencoAvvisoProva: StoryObj<typeof DataTable<Scheda>> = {
+  name: 'Filtro Su Un Elenco, prova dell’avviso',
+  tags: ['!dev', '!autodocs'],
+  render: () => <TabellaSchede colonne={COLONNE_SCHEDE_FILTRO_SBAGLIATO} />,
+  beforeEach: () => {
+    avvisiConsole.length = 0
+    const originale = console.warn
+    console.warn = (...argomenti: unknown[]) => {
+      avvisiConsole.push(argomenti.map(String).join(' '))
+      originale(...argomenti)
+    }
+    return () => {
+      console.warn = originale
+    }
+  },
+  play: async ({ canvasElement }) => {
+    const pannello = await apriFiltro(canvasElement, 'Lingua')
+    await userEvent.click(within(pannello).getByRole('option', { name: /^Inglese/ }))
+    await chiudiFiltro()
+    await waitFor(() =>
+      expect(codiciInVista(canvasElement).filter((codice) => /^[A-G]$/.test(codice))).toEqual([])
+    )
+    await waitFor(() =>
+      expect(
+        avvisiConsole.filter((m) => m.includes('"lingue"') && m.includes('arrHasAny')).length
+      ).toBeGreaterThan(0)
+    )
+  },
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Il testo nelle celle — la colonna a capo e il Badge in una cella stretta
  *
  * Dati inventati: caratteristiche di prova con testi descrittivi lunghi e di
