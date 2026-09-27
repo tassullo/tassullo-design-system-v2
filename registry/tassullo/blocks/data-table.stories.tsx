@@ -12,7 +12,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol, apriColDestro } from '@/prove/apri'
 import {
@@ -1829,6 +1829,45 @@ export const IntestazioniStretteProva: StoryObj<typeof DataTable<Controllo>> = {
     />
   ),
   play: provaIntestazioniStrette,
+}
+
+// La prova della guida: trascinando il bordo della colonna bloccata, la
+// guida arancio scende per tutta la tabella e si vede intera su ogni riga.
+// L'intestazione bloccata era uno `sticky z-10` come le celle bloccate del
+// corpo, e quelle, che vengono dopo, coprivano la metà della guida dentro la
+// colonna: 2 pixel su 4 sulle foglie.
+async function provaGuidaColonnaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
+  const maniglia = await waitFor(() => {
+    const m = canvasElement.querySelector<HTMLElement>('[aria-label="Ridimensiona colonna «Controllo»"]')
+    expect(m).not.toBeNull()
+    return m as HTMLElement
+  })
+  const r = maniglia.getBoundingClientRect()
+  fireEvent.mouseDown(maniglia, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })
+  try {
+    const guida = maniglia.firstElementChild as HTMLElement
+    await waitFor(() => expect(guida.getBoundingClientRect().height).toBeGreaterThan(r.height * 4))
+    const g = guida.getBoundingClientRect()
+    const righe = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].slice(0, 6)
+    expect(righe.length).toBeGreaterThan(3)
+    for (const riga of righe) {
+      const y = riga.getBoundingClientRect().top + 10
+      for (let x = g.left + 0.5; x < g.right; x++) {
+        expect(document.elementFromPoint(x, y)?.closest('[role=separator]'), riga.textContent ?? '').toBe(maniglia)
+      }
+    }
+  } finally {
+    fireEvent.mouseUp(document)
+  }
+}
+
+// Scena di misura della guida di ridimensionamento sulla colonna bloccata.
+// Solo per il controllo automatico, fuori dalla barra e da Docs.
+export const GuidaColonnaBloccataProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Guida Colonna Bloccata, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => <TabellaControlli bloccate={['nome']} />,
+  play: provaGuidaColonnaBloccata,
 }
 
 // La prova del fondo: sulla riga madre aperta la cella della casella,

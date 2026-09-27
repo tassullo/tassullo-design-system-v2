@@ -1762,7 +1762,12 @@ export function ancoraggioColonna<TDato extends RowData>(
   const posizione = colonna.getIsPinned()
   if (!posizione) return undefined
   const fondo = contesto === "intestazione" ? "bg-accent" : FONDO_CELLA_BLOCCATA
-  const base = `sticky z-10 ${fondo}`
+  // L'intestazione bloccata sta **sopra** le celle bloccate del corpo (`z-20`
+  // contro `z-10`): è uno `sticky` con uno z-index, quindi un contesto a sé, e
+  // la guida arancio della sua maniglia, che durante il trascinamento scende
+  // per tutta la tabella, ne resta prigioniera. A z-index pari le celle del
+  // corpo, che vengono dopo, ne coprivano la metà dentro la colonna.
+  const base = `sticky ${contesto === "intestazione" ? "z-20" : "z-10"} ${fondo}`
   if (posizione === "start") {
     const bloccate = tabella.getStartVisibleLeafColumns()
     const ultima = bloccate[bloccate.length - 1]?.id === colonna.id
