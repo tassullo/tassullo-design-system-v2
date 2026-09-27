@@ -1630,11 +1630,25 @@ function PaginazioneTabella<TDato extends RowData>({
 export function classiBloccate(indice: number, conSelezione: boolean): string | undefined {
   const quante = conSelezione ? 2 : 1
   if (indice >= quante) return undefined
-  const base =
-    "sticky z-10 bg-card group-hover/riga:bg-muted/50 group-data-[state=selected]/riga:bg-muted"
+  const base = `sticky z-10 ${FONDO_CELLA_BLOCCATA}`
   const bordo = indice === quante - 1 ? " border-r" : ""
   return `${base}${bordo} ${indice === 0 ? "left-0" : "left-10"}`
 }
+
+/**
+ * Il fondo di una cella bloccata del corpo: **opaco, e uguale a quello della
+ * riga** in ogni stato. La riga si tinge con un velo di `muted` al 50% sopra
+ * il `bg-card` del riquadro: al passaggio del puntatore, quando è aperta (una
+ * riga madre dell'albero, o col suo menu aperto) e, pieno, quando è
+ * selezionata. Una cella bloccata non può prendere lo stesso velo come colore
+ * di fondo: sarebbe trasparente, lascerebbe vedere le colonne che le
+ * scorrono sotto e, sommato al fondo della riga, uscirebbe più scuro. Il velo
+ * sta quindi in un gradiente di un colore solo (`from-muted/50 to-muted/50`),
+ * che si dipinge sopra il `bg-card` della cella stessa: il risultato è lo
+ * stesso colore della riga, e opaco.
+ */
+const FONDO_CELLA_BLOCCATA =
+  "bg-card from-muted/50 to-muted/50 group-hover/riga:bg-linear-to-r group-has-aria-expanded/riga:bg-linear-to-r group-data-[state=selected]/riga:bg-muted"
 
 /* ────────────────────────────────────────────────────────────────────────
  * Resize e pin di qualunque colonna
@@ -1664,8 +1678,8 @@ export function ancoraggioColonna<TDato extends RowData>(
 ): { className: string; style: React.CSSProperties } | undefined {
   const posizione = colonna.getIsPinned()
   if (!posizione) return undefined
-  const fondo = contesto === "intestazione" ? "bg-accent" : "bg-card"
-  const base = `sticky z-10 ${fondo} group-hover/riga:bg-muted/50 group-data-[state=selected]/riga:bg-muted`
+  const fondo = contesto === "intestazione" ? "bg-accent" : FONDO_CELLA_BLOCCATA
+  const base = `sticky z-10 ${fondo}`
   if (posizione === "start") {
     const bloccate = tabella.getStartVisibleLeafColumns()
     const ultima = bloccate[bloccate.length - 1]?.id === colonna.id
