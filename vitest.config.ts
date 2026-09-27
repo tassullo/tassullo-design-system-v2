@@ -40,7 +40,10 @@ const setupFiles = ['./.storybook/vitest.setup.ts']
  * in WebKit le sole scene con l'etichetta `webkit` — scene di misura che
  * scorrono e cambiano densità —: 14–15 secondi. WebKit su tutte le scene ne
  * costava 41 e non ha trovato niente in più (§70). Si lancia con
- * `npm run test:webkit`.
+ * `npm run test:webkit`. C'è anche una scena che non scorre,
+ * `Altezza Ferma, poche righe, prova` della tabella: il tetto del riquadro
+ * dipende da come il motore arrotonda le righe, e WebKit a 1× le rende a
+ * pixel interi (circa un secondo).
  *
  * `deviceScaleFactor: 1` non è un'abitudine: a 2× WebKit rappresenta i mezzi
  * pixel, le righe da 36,5px restano tali e il ciclo non parte. È la densità

@@ -513,9 +513,10 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * - `colonneBloccabili` blocca qualunque colonna, a sinistra o a destra, e
  *   prende il posto di `bloccaPrimaColonna` se si passano insieme. Con
  *   `ridimensionabile` o `colonneBloccabili` la larghezza di partenza sta in
- *   `size`, `minSize` e `maxSize` sulla colonna, non in `meta.larghezza`. Le
- *   larghezze scelte da chi usa la tabella sono in pixel: non seguono la
- *   densità e non restano da un caricamento all'altro.
+ *   `size`, `minSize` e `maxSize` sulla colonna, non in `meta.larghezza`; una
+ *   colonna senza `size` assorbe lo spazio che avanza. Le larghezze scelte da
+ *   chi usa la tabella sono in pixel: non seguono la densità e non restano da
+ *   un caricamento all'altro.
  * - `getSottoRighe` apre l'albero: la colonna che identifica la riga usa
  *   `CellaAlbero` per il rientro e la freccia, e `meta.sottototale` scrive il
  *   conto sulla riga madre. `pannelloRiga` apre invece, sotto la riga, un
@@ -1233,6 +1234,108 @@ export const AlberoConRicercaProva: StoryObj<typeof DataTable<RigaComputo>> = {
   play: provaAlberoConRicerca,
 }
 
+// Le colonne dell'albero con la colonna «Voce» stretta, a capo o troncata.
+// Con tutte le colonne larghe a misura la tabella distribuirebbe l'avanzo
+// fra tutte, e «Voce» non sarebbe più stretta: l'avanzo va a «U.M.».
+function colonneAlberoStrette(testo: 'aCapo' | 'tronca') {
+  return COLONNE_ALBERO.map((colonna, indice) =>
+    indice === 0
+      ? { ...colonna, meta: { ...colonna.meta, larghezza: 'w-60', testo } }
+      : indice === 1
+        ? { ...colonna, meta: { ...colonna.meta, larghezza: undefined } }
+        : colonna
+  ) as typeof COLONNE_ALBERO
+}
+
+// Le celle della colonna «Voce» di una tabella, col loro span del testo.
+function testiColonnaVoce(tabella: HTMLTableElement) {
+  const titoli = [...tabella.querySelectorAll('thead th')].map((th) => th.textContent ?? '')
+  const colonna = titoli.findIndex((t) => t.includes('Voce'))
+  expect(colonna).toBeGreaterThan(-1)
+  return [...tabella.querySelectorAll<HTMLTableRowElement>('tbody tr')]
+    .map((tr) => tr.children[colonna] as HTMLTableCellElement | undefined)
+    .map((td) => td?.querySelector<HTMLElement>(':scope > span > span:last-child'))
+    .filter((s): s is HTMLElement => s != null)
+}
+
+// La prova misura il testo dentro `CellaAlbero` in una colonna stretta. Con
+// `meta.testo: 'aCapo'` nessun testo è tagliato e le voci lunghe vanno su più
+// righe; prima lo span del testo troncava sempre, e 6 testi su 20 finivano
+// coi puntini. La seconda tabella, di serie, tronca ancora; la terza è
+// virtualizzata, dove `'aCapo'` non vale, e tronca anche lei.
+async function provaAlberoACapo({ canvasElement }: { canvasElement: HTMLElement }) {
+  const [aCapo, tronca, virtuale] = await waitFor(() => {
+    const tabelle = [...canvasElement.querySelectorAll<HTMLTableElement>('[data-slot="table"]')]
+    expect(tabelle).toHaveLength(3)
+    return tabelle
+  })
+  const testiACapo = testiColonnaVoce(aCapo)
+  expect(testiACapo.length).toBeGreaterThan(5)
+  const tagliati = testiACapo.filter((s) => s.scrollWidth > s.clientWidth + 1)
+  expect(tagliati).toHaveLength(0)
+  const suPiuRighe = testiACapo.filter(
+    (s) => s.offsetHeight > 1.5 * parseFloat(getComputedStyle(s).lineHeight)
+  )
+  expect(suPiuRighe.length).toBeGreaterThan(0)
+
+  const testiTronca = testiColonnaVoce(tronca)
+  for (const s of testiTronca) {
+    expect(getComputedStyle(s).whiteSpace).toBe('nowrap')
+    expect(getComputedStyle(s).textOverflow).toBe('ellipsis')
+  }
+  expect(testiTronca.filter((s) => s.scrollWidth > s.clientWidth + 1).length).toBeGreaterThan(0)
+
+  const testiVirtuale = await waitFor(() => {
+    const testi = testiColonnaVoce(virtuale)
+    expect(testi.length).toBeGreaterThan(0)
+    return testi
+  })
+  for (const s of testiVirtuale) expect(getComputedStyle(s).whiteSpace).toBe('nowrap')
+}
+
+// Scena di misura dell'albero con la colonna «Voce» stretta: a capo, di
+// serie, e a capo nel corpo virtualizzato. Solo per il controllo automatico,
+// fuori dalla barra e da Docs.
+export const AlberoACapoProva: StoryObj<typeof DataTable<RigaComputo>> = {
+  name: 'Albero A Capo, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="flex flex-col gap-6">
+      {(['aCapo', 'tronca'] as const).map((testo) => (
+        <DataTable
+          key={testo}
+          colonne={colonneAlberoStrette(testo)}
+          dati={COMPUTO}
+          idRiga={(riga) => riga.id}
+          righeEspanse
+          cerca={false}
+          colonneNascondibili={false}
+          getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+          nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+          vuoto={{ titolo: 'Nessuna voce nel computo' }}
+          piePagina={false}
+        />
+      ))}
+      <div className="flex h-100 flex-col">
+        <DataTable
+          className="min-h-0 flex-1"
+          colonne={colonneAlberoStrette('aCapo')}
+          dati={COMPUTO}
+          idRiga={(riga) => riga.id}
+          righeEspanse
+          cerca={false}
+          colonneNascondibili={false}
+          getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+          perPagina="virtuale"
+          altezza="ferma"
+          piePagina={false}
+        />
+      </div>
+    </div>
+  ),
+  play: provaAlberoACapo,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * L'espansione (M3bis.2) — pannello di dettaglio per riga
  *
@@ -1566,6 +1669,101 @@ export const AltezzaFermaProva: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Altezza Ferma, prova',
   tags: ['!dev', '!autodocs'],
   play: provaAltezzaFerma,
+}
+
+// Le tabelle ferme con poche righe, e una che cresce di una riga alla volta.
+function AltezzaFermaPocheRighe() {
+  const [quante, setQuante] = React.useState(6)
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        {[4, 5, 10].map((n) => (
+          <div key={n} data-righe={n} className="flex h-140 flex-col">
+            <DataTable
+              colonne={COLONNE_TESTO}
+              dati={PRODOTTI.slice(0, n)}
+              cerca={false}
+              colonneNascondibili={false}
+              perPagina={100}
+              altezza="ferma"
+              className="min-h-0 flex-1"
+            />
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => setQuante((q) => q + 1)}>
+        Una riga in più
+      </Button>
+      <div data-righe="cresce" className="flex h-140 flex-col">
+        <DataTable
+          colonne={COLONNE_TESTO}
+          dati={PRODOTTI.slice(0, quante)}
+          cerca={false}
+          colonneNascondibili={false}
+          perPagina={100}
+          altezza="ferma"
+          className="min-h-0 flex-1"
+        />
+      </div>
+    </div>
+  )
+}
+
+// Il riquadro di una tabella in un contenitore, e l'elemento che scorre.
+function riquadroFermo(contenitore: Element) {
+  const scorre = contenitore.querySelector<HTMLElement>('[data-slot="table-container"]')
+  expect(scorre?.parentElement?.style.maxHeight).toMatch(/px$/)
+  return scorre as HTMLElement
+}
+
+// La prova guarda il riquadro fermo quando le righe entrano tutte. Con 4, 5 e
+// 10 righe il riquadro è alto quanto la tabella e non scorre: prima il tetto,
+// per difetto e senza i 2px del bordo, lo lasciava 2–3px più basso, e
+// l'ultima riga si poteva scorrere di quei pixel. Poi la tabella che cresce:
+// il suo contenitore si stringe finché la tabella ci sta appena, e con una
+// riga in più il riquadro torna al tetto per righe, col filo della riga di
+// fondo fuori vista, invece di tenere l'altezza intera di prima.
+async function provaAltezzaFermaPocheRighe({ canvasElement }: { canvasElement: HTMLElement }) {
+  for (const n of [4, 5, 10]) {
+    const contenitore = canvasElement.querySelector(`[data-righe="${n}"]`) as HTMLElement
+    const scorre = await waitFor(() => riquadroFermo(contenitore))
+    await waitFor(() => {
+      expect(scorre.querySelectorAll('tbody tr')).toHaveLength(n)
+      expect(scorre.scrollHeight).toBe(scorre.clientHeight)
+    })
+    expect(scorre.scrollTop).toBe(0)
+  }
+
+  const cresce = canvasElement.querySelector('[data-righe="cresce"]') as HTMLElement
+  const scorre = await waitFor(() => riquadroFermo(cresce))
+  await waitFor(() => expect(scorre.scrollHeight).toBe(scorre.clientHeight))
+  // Il contenitore si stringe fino a lasciare 2px di spazio sotto il piè
+  // della tabella: le righe entrano ancora tutte, ma una in più no.
+  const radice = cresce.firstElementChild as HTMLElement
+  const avanzo =
+    radice.getBoundingClientRect().bottom -
+    (radice.lastElementChild as HTMLElement).getBoundingClientRect().bottom
+  cresce.style.height = `${cresce.getBoundingClientRect().height - avanzo + 2}px`
+  await waitFor(() => expect(scorre.scrollHeight).toBe(scorre.clientHeight))
+  await userEvent.click(within(canvasElement).getByRole('button', { name: 'Una riga in più' }))
+  await waitFor(() => expect(scorre.scrollHeight).toBeGreaterThan(scorre.clientHeight))
+  await new Promise((fatto) => setTimeout(fatto, 300))
+  expect(scorre.scrollTop).toBe(0)
+  const fondoInterno = scorre.getBoundingClientRect().bottom
+  const righe = [...scorre.querySelectorAll('tbody tr')]
+  const inVista = righe.filter((r) => r.getBoundingClientRect().top < fondoInterno)
+  const fondoRiga = inVista[inVista.length - 1].getBoundingClientRect().bottom
+  expect(fondoRiga - 1).toBeGreaterThanOrEqual(fondoInterno)
+}
+
+// Scena di misura del riquadro fermo con poche righe. Solo per il controllo
+// automatico, fuori dalla barra e da Docs; gira anche in WebKit, dove le
+// righe si arrotondano a pixel interi.
+export const AltezzaFermaPocheRigheProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Altezza Ferma, poche righe, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <AltezzaFermaPocheRighe />,
+  play: provaAltezzaFermaPocheRighe,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1947,7 +2145,117 @@ export const RidimensionabileConMenuRigaProva: StoryObj<typeof DataTable<Prodott
   ...RidimensionabileConMenuRiga,
   name: 'Ridimensionabile Con Menu Riga, prova',
   tags: ['!dev', '!autodocs'],
-  play: provaSenzaScorrimentoLaterale,
+  play: provaColonnaElastica,
+}
+
+// La prova misura le larghezze rese. «Famiglia», senza `size`, non ha una
+// `width` nel `<colgroup>` e prende lo spazio che avanza; le altre colonne,
+// «⋯» compresa, restano alla loro `size`. Prima TanStack dava a «Famiglia»
+// una `size` di serie di 150px, nessuna colonna era elastica e l'avanzo si
+// divideva fra tutte: a 1440px «⋯» era larga 86px invece di 48.
+async function provaColonnaElastica(contesto: { canvasElement: HTMLElement }) {
+  await provaSenzaScorrimentoLaterale(contesto)
+  const tabella = contesto.canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+  expect(tabella).toBeTruthy()
+  const t = tabella as HTMLTableElement
+  const intestazioni = [...t.querySelectorAll<HTMLTableCellElement>('thead tr:first-child th')]
+  const col = [...t.querySelectorAll<HTMLTableColElement>('colgroup col')]
+  expect(col).toHaveLength(intestazioni.length)
+  const larghezza = (i: number) => intestazioni[i].getBoundingClientRect().width
+  const indice = (testo: string) => intestazioni.findIndex((th) => th.textContent?.includes(testo))
+  const famiglia = indice('Famiglia')
+  expect(famiglia).toBeGreaterThan(-1)
+  expect(col[famiglia].style.width).toBe('')
+  // Le colonne con `size` sono larghe quanto la dichiarano; la «⋯» è l'ultima.
+  for (const [testo, px] of [['Codice', 140], ['Nome', 220], ['Stato', 130]] as const) {
+    expect(Math.abs(larghezza(indice(testo)) - px)).toBeLessThan(1)
+  }
+  expect(Math.abs(larghezza(intestazioni.length - 1) - 48)).toBeLessThan(1)
+  expect(larghezza(famiglia)).toBeGreaterThan(150)
+
+  // Stretta da tastiera, la colonna elastica parte dalla larghezza con cui è
+  // resa, non dai 150px di serie di TanStack: perde al più un passo (16px).
+  // L'avanzo che resta si divide fra tutte le colonne, perché da qui in poi
+  // nessuna è più elastica.
+  const prima = larghezza(famiglia)
+  intestazioni[famiglia].querySelector('button')?.focus()
+  await userEvent.keyboard('{Alt>}{ArrowLeft}{/Alt}')
+  await waitFor(() => expect(larghezza(famiglia)).toBeLessThan(prima))
+  expect(prima - larghezza(famiglia)).toBeLessThanOrEqual(16.5)
+}
+
+// Una colonna senza `size` bloccata a un bordo prende una larghezza, perché
+// la posizione delle colonne bloccate accanto si calcola dalle larghezze di
+// TanStack. La prova parte da «Famiglia» elastica (nessuna `width` nel
+// `<colgroup>`), la blocca a sinistra con «Codice», controlla che ora abbia
+// una `width`, scorre di lato e controlla che «Codice» cominci dove finisce
+// «Famiglia». Se «Famiglia» restasse elastica anche bloccata, sarebbe larga
+// il minimo della colonna elastica (160px) e «Codice», posata a 150px, la
+// coprirebbe di 10px (90 in touch).
+// La precondizione non è un di più: senza, la prova passerebbe anche su un
+// codice in cui «Famiglia» non è mai elastica (tutte le colonne con la `size`
+// di serie di TanStack, 150px), dove la sovrapposizione non può nascere e il
+// controllo sullo scarto sarebbe vuoto.
+async function provaColonnaElasticaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const larghezzaFamiglia = () => {
+    const t = canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+    expect(t).toBeTruthy()
+    const intestazioni = [...(t as HTMLTableElement).querySelectorAll('thead tr:first-child th')]
+    const col = [...(t as HTMLTableElement).querySelectorAll<HTMLTableColElement>('colgroup col')]
+    expect(col).toHaveLength(intestazioni.length)
+    const i = intestazioni.findIndex((th) => th.textContent?.includes('Famiglia'))
+    expect(i).toBeGreaterThan(-1)
+    return col[i].style.width
+  }
+  expect(larghezzaFamiglia()).toBe('')
+  for (const nome of ['Famiglia', 'Codice']) {
+    await userEvent.click(await canvas.findByRole('button', { name: `Blocca colonna «${nome}»` }))
+    await userEvent.click(
+      await within(canvasElement.ownerDocument.body).findByRole('menuitem', {
+        name: 'Blocca a sinistra',
+      })
+    )
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+    )
+  }
+  expect(larghezzaFamiglia()).not.toBe('')
+  const scorre = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+  expect(scorre).toBeTruthy()
+  const s = scorre as HTMLElement
+  expect(s.scrollWidth).toBeGreaterThan(s.clientWidth)
+  s.scrollLeft = 200
+  await waitFor(() => {
+    const [primo, secondo] = [...s.querySelectorAll<HTMLTableCellElement>('thead tr:first-child th')]
+    expect(primo.textContent).toContain('Famiglia')
+    expect(secondo.textContent).toContain('Codice')
+    const a = primo.getBoundingClientRect()
+    const b = secondo.getBoundingClientRect()
+    expect(a.left).toBeCloseTo(s.getBoundingClientRect().left, 0)
+    expect(Math.abs(b.left - a.right)).toBeLessThan(1)
+  })
+}
+
+// Scena di misura: le colonne bloccabili in un riquadro stretto, con la
+// colonna senza `size` bloccata. Solo per il controllo automatico.
+export const ColonnaElasticaBloccataProva: Story = {
+  name: 'Colonna Elastica Bloccata, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 5),
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    colonneBloccabili: true,
+  },
+  render: (args) => (
+    <div className="w-90">
+      <DataTable {...args} />
+    </div>
+  ),
+  play: provaColonnaElasticaBloccata,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

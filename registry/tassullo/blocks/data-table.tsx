@@ -82,6 +82,7 @@
  * uno solo.
  */
 import * as React from "react"
+import { flushSync } from "react-dom"
 import {
   columnFilteringFeature,
   columnOrderingFeature,
@@ -256,7 +257,9 @@ import {
  * disegnano niente. `columnSizingFeature` resta comunque utile da sola anche
  * a `ridimensionabile` spento: è la stessa che dà a `colonna.getSize()` un
  * numero — 150 di default TanStack — usato per calcolare gli scarti del pin
- * generalizzato (v. `ancoraggioColonna`).
+ * generalizzato (v. `ancoraggioColonna`). Quel 150 resta in `getSize()` e
+ * non in `columnDef.size` (`defaultColumn` in `DataTable`), così
+ * `columnDef.size` dice ancora se la larghezza l'ha scritta la pagina.
  *
  * `columnOrderingFeature` (il riordino delle colonne) è la stessa storia
  * una volta di più: registrata sempre, ma `state.columnOrder` resta
@@ -394,7 +397,10 @@ export function creaColonne<TDato extends RowData>() {
  * `accessor`/`display`/`columns` più sopra: la documentazione che serve a chi
  * scrive una colonna resta la loro. Una colonna senza `size` assorbe lo
  * spazio che avanza, come senza `larghezza` — la stessa elasticità, un
- * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni).
+ * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni) — e
+ * non scende sotto lo stesso minimo. Diventa larga quanto un numero solo
+ * quando l'utente la trascina (parte dalla larghezza con cui è resa) o la
+ * blocca a un bordo (150px, o `minSize` se più grande).
  *
  * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
  * senza, una tabella ad albero (`getSottoRighe`) resta legittima —
@@ -438,7 +444,8 @@ export type MetaColonna<TDato = unknown> = {
    * la cella resta su una riga e finisce coi puntini, e le righe restano
    * tutte alte uguali. Con `"aCapo"` il testo va a capo e la riga cresce
    * quanto serve: per i testi descrittivi che chi legge la riga deve vedere
-   * interi (un metodo di prova, una nota).
+   * interi (un metodo di prova, una nota). Vale anche per il testo dentro
+   * `CellaAlbero`, che segue la sua cella.
    *
    * **Una colonna a capo dichiara `larghezza`.** Senza, in una finestra
    * stretta la colonna prende solo il minimo che le resta e il testo diventa
@@ -462,6 +469,39 @@ export type MetaColonna<TDato = unknown> = {
  * `larghezzaMinima` in `DataTable`).
  */
 const MINIMO_ELASTICA = 40
+
+/**
+ * Se una colonna ha una larghezza sua in una tabella `ridimensionabile` o
+ * `colonneBloccabili`: la `size` scritta dalla pagina, una larghezza scelta
+ * dall'utente trascinando, o il blocco a un bordo. Le altre sono elastiche:
+ * nessuna `width` nel `<colgroup>`, e assorbono lo spazio che avanza.
+ *
+ * Una colonna bloccata ha sempre una larghezza, anche senza `size`: la
+ * posizione delle colonne bloccate accanto si calcola sommando le larghezze
+ * di TanStack, e una colonna elastica bloccata sarebbe resa più larga o più
+ * stretta del numero che quella somma usa. Senza `size` prende il valore di
+ * serie di TanStack, 150px (o `minSize`, se più grande).
+ */
+function haLarghezza<TDato extends RowData>(
+  colonna: Column<CaratteristicheTabella, TDato, unknown>,
+  dimensioni: ColumnSizingState
+): boolean {
+  return colonna.columnDef.size != null || dimensioni[colonna.id] != null || !!colonna.getIsPinned()
+}
+
+/**
+ * Da quale larghezza parte un ridimensionamento. Una colonna elastica non ha
+ * un numero suo (`getSize()` darebbe il valore di serie di TanStack): parte
+ * dalla larghezza con cui è resa, o al primo passo salterebbe a 150px.
+ */
+function larghezzaDiPartenza<TDato extends RowData>(
+  colonna: Column<CaratteristicheTabella, TDato, unknown>,
+  dimensioni: ColumnSizingState,
+  cella: Element | null | undefined
+): number {
+  if (!haLarghezza(colonna, dimensioni) && cella) return cella.getBoundingClientRect().width
+  return dimensioni[colonna.id] ?? colonna.getSize()
+}
 
 /**
  * Le classi del testo di una cella del corpo, da `meta.testo`. `truncate` è il
@@ -834,6 +874,12 @@ export function colonnaSelezione<TDato extends RowData>() {
  * del bottone, alzerebbe le righe senza figli **più** di quelle con figli
  * (49px contro 35,57px, misurato), e a vederle sembrano tutte uguali.
  *
+ * **Il testo segue `meta.testo` della colonna**, senza una prop: di serie
+ * tronca coi puntini, con `"aCapo"` va a capo e la riga cresce. Lo span del
+ * testo eredita dalla cella il modo di andare a capo e aggiunge solo il
+ * taglio; nel corpo virtualizzato, dove le celle troncano sempre, tronca
+ * anche lui.
+ *
  * **Il bottone del `chevron` non si distingue quando la riga è aperta e
  * ferma**: niente sfondo, niente bordo — identico a se stesso chiuso.
  * `Button` da sé darebbe al bottone un `bg-muted` pieno quando è lui ad avere
@@ -893,7 +939,11 @@ export function CellaAlbero<TDato extends RowData>({
       ) : (
         <span aria-hidden className="w-8 shrink-0" />
       )}
-      <span className="truncate">{children}</span>
+      {/* Tronca o va a capo come la sua cella: `white-space` e `overflow-wrap`
+          si ereditano dalla cella, che li prende da `meta.testo` della
+          colonna. Qui restano solo il taglio e i puntini, che non si
+          ereditano. */}
+      <span className="min-w-0 overflow-hidden text-ellipsis">{children}</span>
     </span>
   )
 }
@@ -1747,11 +1797,32 @@ function ManigliaRidimensiona<TDato extends RowData>({
   const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
   const inTrascinamento = colonna.getIsResizing()
 
+  const manigliaRef = React.useRef<HTMLSpanElement>(null)
   const sposta = (delta: number) => {
+    const partenza = larghezzaDiPartenza(
+      colonna,
+      tabella.state.columnSizing,
+      manigliaRef.current?.closest("th")
+    )
     tabella.setColumnSizing((prima) => {
-      const attuale = prima[colonna.id] ?? colonna.getSize()
+      const attuale = prima[colonna.id] ?? partenza
       return { ...prima, [colonna.id]: Math.min(max, Math.max(min, attuale + delta)) }
     })
+  }
+  // Una colonna elastica riceve la larghezza con cui è resa prima che
+  // TanStack cominci il trascinamento: il suo gestore legge la larghezza di
+  // partenza dallo stato della tabella, quindi lo stato va aggiornato subito
+  // (`flushSync`), non al render dopo.
+  const avvia = (evento: React.MouseEvent | React.TouchEvent) => {
+    if (!haLarghezza(colonna, tabella.state.columnSizing)) {
+      const resa = larghezzaDiPartenza(
+        colonna,
+        tabella.state.columnSizing,
+        manigliaRef.current?.closest("th")
+      )
+      flushSync(() => tabella.setColumnSizing((prima) => ({ ...prima, [colonna.id]: resa })))
+    }
+    header.getResizeHandler()(evento)
   }
 
   // Si legge `tabellaRef.current` in un effetto, non in fase di render — un
@@ -1767,6 +1838,7 @@ function ManigliaRidimensiona<TDato extends RowData>({
 
   return (
     <span
+      ref={manigliaRef}
       role="separator"
       aria-orientation="vertical"
       aria-label={`Ridimensiona colonna «${titolo}»`}
@@ -1789,9 +1861,9 @@ function ManigliaRidimensiona<TDato extends RowData>({
       // la maniglia è un trascinamento, non un testo da selezionare.
       onMouseDown={(evento) => {
         evento.preventDefault()
-        header.getResizeHandler()(evento)
+        avvia(evento)
       }}
-      onTouchStart={header.getResizeHandler()}
+      onTouchStart={avvia}
       onKeyDown={(e) => {
         if (e.key === "Home") {
           e.preventDefault()
@@ -2013,8 +2085,13 @@ function CellaIntestazione<TDato extends RowData>({
                 const min = colonna.columnDef.minSize ?? 20
                 const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
                 const delta = evento.key === "ArrowRight" ? PASSO_RIDIMENSIONA : -PASSO_RIDIMENSIONA
+                const partenza = larghezzaDiPartenza(
+                  colonna,
+                  tabella.state.columnSizing,
+                  evento.currentTarget
+                )
                 tabella.setColumnSizing((prima) => {
-                  const attuale = prima[colonna.id] ?? colonna.getSize()
+                  const attuale = prima[colonna.id] ?? partenza
                   return { ...prima, [colonna.id]: Math.min(max, Math.max(min, attuale + delta)) }
                 })
               }
@@ -3079,7 +3156,9 @@ export type DataTableProps<TDato extends RowData> = {
    * fra altre. `"ferma"`: il riquadro prende lo spazio che il genitore
    * concede, la testata resta ferma, le righe scorrono dentro e il piè resta
    * sempre in vista — per una tabella che è la pagina, con qualunque
-   * `perPagina`. Con poche righe il riquadro si restringe al contenuto.
+   * `perPagina`. Con poche righe, che entrano tutte, il riquadro è alto quanto
+   * la tabella e non scorre; con molte, finisce sul bordo dell'ultima riga
+   * intera.
    */
   altezza?: "naturale" | "ferma"
   /**
@@ -3216,6 +3295,9 @@ export type DataTableProps<TDato extends RowData> = {
    * sul bordo destro dell'intestazione o, da tastiera, con `Alt`+`←`/`→`
    * sull'intestazione. Le larghezze si dichiarano con `size`, `minSize` e
    * `maxSize` sulla colonna, al posto di `meta.larghezza`.
+   *
+   * Una colonna senza `size` resta elastica: assorbe lo spazio che avanza, e
+   * le altre restano larghe quanto dichiarano.
    *
    * Da sapere: una larghezza scelta dall'utente è in pixel, quindi non segue la
    * densità, e non si conserva da un caricamento all'altro.
@@ -3685,6 +3767,11 @@ export function DataTable<TDato extends RowData>({
     features: caratteristiche,
     data: dati,
     columns: colonneEffettive,
+    // Senza, TanStack scrive `size: 150` in ogni colonna che non la dichiara,
+    // e `columnDef.size` non dice più se la larghezza l'ha scelta la pagina:
+    // una colonna senza `size` non sarebbe mai elastica. `getSize()` resta
+    // 150 per quelle colonne, perché lo ricava da sé.
+    defaultColumn: { size: undefined },
     globalFilterFn: getSottoRighe ? "includesStringInAlbero" : "includesString",
     // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
     // predefinito, l'indice nell'array (v. il prop).
@@ -3809,7 +3896,7 @@ export function DataTable<TDato extends RowData>({
     let px = 0
     for (const colonna of tabella.getVisibleLeafColumns()) {
       if (conDimensioni) {
-        if (colonna.columnDef.size != null || dimensioni[colonna.id] != null) {
+        if (haLarghezza(colonna, dimensioni)) {
           px += colonna.getSize()
         } else {
           unita += MINIMO_ELASTICA
@@ -4057,6 +4144,9 @@ export function DataTable<TDato extends RowData>({
 
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
+  // Se `altezzaMax` è l'altezza intera della tabella, che ci sta tutta (v.
+  // l'effetto del tetto, sotto).
+  const tettoInteroRef = React.useRef(false)
   /**
    * L'altezza dell'intestazione ferma, che diventa lo `scroll-padding-top` di
    * `table-container`. Le righe sono `snap-start`, e senza questo margine lo
@@ -4157,6 +4247,33 @@ export function DataTable<TDato extends RowData>({
       )
       if (righeVere.length === 0) return
 
+      // **Se la tabella entra tutta, il riquadro è alto quanto lei**, per
+      // eccesso e coi bordi del riquadro: non c'è niente sotto da raggiungere
+      // scorrendo, e un tetto più basso anche di un pixel faceva scorrere il
+      // riquadro di quel pixel e tagliava l'ultima riga. Il `max-height` conta
+      // anche i bordi (`border-box`), 2px che il tetto per righe qui sotto non
+      // somma. Il margine dei 4px tiene il valore di prima solo se non è più
+      // basso: un tetto più alto del contenuto non allunga il riquadro.
+      const altezzaTabella = tabellaRef.current?.getBoundingClientRect().height ?? 0
+      const stileRiquadro = getComputedStyle(contenitore)
+      const bordi =
+        (parseFloat(stileRiquadro.borderTopWidth) || 0) +
+        (parseFloat(stileRiquadro.borderBottomWidth) || 0)
+      const intera = Math.ceil(altezzaTabella + bordi)
+      if (altezzaTabella > 0 && intera <= disponibileTotale) {
+        tettoInteroRef.current = true
+        setAltezzaMax((prima) =>
+          prima !== undefined && prima >= intera && prima - intera < 4 ? prima : intera
+        )
+        return
+      }
+      // Da un tetto intero a uno per righe (una riga in più, una finestra più
+      // bassa) il valore di prima non si tiene nemmeno se è vicino: era alto
+      // quanto la tabella intera, e lascerebbe in vista il filo della riga di
+      // fondo e un bordo della riga dopo.
+      const daIntero = tettoInteroRef.current
+      tettoInteroRef.current = false
+
       /**
        * **Le righe si misurano fra loro, non contro il contenitore**, o
        * con un filtro messo e poi tolto il riquadro resterebbe basso come
@@ -4189,7 +4306,8 @@ export function DataTable<TDato extends RowData>({
         tetto = fondoRiga
       }
       if (tetto <= altezzaTestata) return
-      // **A pixel interi, per difetto.** Righe di solo testo sono alte una
+      // **A pixel interi, per difetto**, quando le righe non entrano tutte.
+      // Righe di solo testo sono alte una
       // frazione di pixel (l'interlinea del corpo), e un tetto frazionario
       // lasciava il filo della riga di fondo accanto al bordo del riquadro,
       // due linee a un pixel di distanza. Per difetto, così il riquadro non
@@ -4204,7 +4322,9 @@ export function DataTable<TDato extends RowData>({
       // paio di pixel mentre si scorreva. Resta ben sotto un'altezza di riga vera
       // (30 px e oltre), quindi non nasconde mai una riga che è davvero
       // entrata o uscita.
-      setAltezzaMax((prima) => (prima !== undefined && Math.abs(prima - tetto) < 4 ? prima : tetto))
+      setAltezzaMax((prima) =>
+        !daIntero && prima !== undefined && Math.abs(prima - tetto) < 4 ? prima : tetto
+      )
     }
 
     ricalcola()
@@ -4382,9 +4502,9 @@ export function DataTable<TDato extends RowData>({
             spostano ai bordi, e un `<col>` rimasto nell'ordine dichiarato
             darebbe la larghezza sbagliata alla colonna sbagliata.
 
-            Una colonna senza `size` **non riceve `width`**, nemmeno se
-            `column.getSize()` torna il default TanStack (150): è così che
-            resta elastica, la stessa elasticità di una colonna senza
+            Una colonna senza `size` **non riceve `width`** (`haLarghezza`),
+            finché l'utente non la trascina o non la blocca: è così che resta
+            elastica, la stessa elasticità di una colonna senza
             `meta.larghezza` in una tabella non ridimensionabile — un
             meccanismo diverso, non un comportamento diverso.
           */}
@@ -4394,8 +4514,7 @@ export function DataTable<TDato extends RowData>({
                 <col
                   key={intestazione.id}
                   style={
-                    intestazione.column.columnDef.size != null ||
-                    dimensioni[intestazione.column.id] != null
+                    haLarghezza(intestazione.column, dimensioni)
                       ? { width: intestazione.column.getSize() }
                       : undefined
                   }
