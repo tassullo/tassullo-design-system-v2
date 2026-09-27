@@ -13478,3 +13478,11 @@ A PR aperta, Francesco ha rivisto ogni issue: problema, soluzione, misura prima 
 - **La puntina copriva il titolo** (Francesco, foto): «Campioni/anno» con la freccia è largo 134px in una colonna da 128, e allineato a destra usciva dal `<th>` finendo sotto la puntina della colonna accanto; allineata a sinistra, la freccia di «Frequenza» copriva la sua puntina di 9px. Il bottone dell'ordinamento ora si stringe e il titolo tronca; nella scena la colonna è larga 192px. Prova `Intestazioni Strette, prova`. Vale per tutte le tabelle con `colonneBloccabili`. Già in `v2.0.5`.
 - **La guida di ridimensionamento sottile sulla colonna bloccata** (Francesco, foto da Safari): trascinando il bordo di «Controllo», la guida arancio era larga 4px sulle madri e 2px sulle foglie. L'intestazione bloccata era `sticky z-10` come le celle bloccate del corpo, che venendo dopo ne coprivano la metà; su `main` succedeva su tutte le righe. Ora l'intestazione bloccata è `z-20`: 0 pixel coperti su 4 in Chromium e WebKit. Prova `Guida Colonna Bloccata, prova`. Controllato anche che la guida non resti accesa dopo il rilascio: torna il trattino in entrambi i motori.
 
+## 2026-09-27 — `v2.0.6` pubblicata
+
+Via libera di Francesco a CI verde. PR #91 unita col gate verde in CI (8 min 56 s) sul commit `1663dfb`; l'unione è `0821b8d`. Etichetta `v2.0.6` su `0821b8d`, push della sola etichetta; le versioni precedenti restano dove erano. Si sono chiuse con la PR le cinque issue #86, #87, #88, #89, #90; resta aperta la #70, rinviata. Nella #89 un commento dice cosa resta ad Anagrafe: l'elenco delle lingue supportate e la corrispondenza sigla → nome, nel pannello di amministrazione secondo la proposta di Francesco.
+
+Verificato da fuori: `…/v2.0.6/public/r/` risponde per `tassullo-data-table` e `tassullo-data-table-filtro-sfaccettato`. Nel `tassullo-data-table` servito ci sono `madreSuTuttaLaRiga`, `elenco` in `MetaColonna`, `arrHasAny`, il tetto per eccesso dell'altezza ferma, il titolo che tronca nell'intestazione e l'intestazione bloccata a `z-20`; il filtro sfaccettato legge `meta.elenco`.
+
+Per Anagrafe, con la versione nuova (il DS.6 è un task di Anagrafe): cosa reinstallare e quali aggiramenti togliere è nella voce dell'ondata 3, sezioni «Tabella», «Filtro su un elenco» e «Albero con righe madri larghe».
+
