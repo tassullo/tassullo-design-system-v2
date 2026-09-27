@@ -1233,6 +1233,108 @@ export const AlberoConRicercaProva: StoryObj<typeof DataTable<RigaComputo>> = {
   play: provaAlberoConRicerca,
 }
 
+// Le colonne dell'albero con la colonna «Voce» stretta, a capo o troncata.
+// Con tutte le colonne larghe a misura la tabella distribuirebbe l'avanzo
+// fra tutte, e «Voce» non sarebbe più stretta: l'avanzo va a «U.M.».
+function colonneAlberoStrette(testo: 'aCapo' | 'tronca') {
+  return COLONNE_ALBERO.map((colonna, indice) =>
+    indice === 0
+      ? { ...colonna, meta: { ...colonna.meta, larghezza: 'w-60', testo } }
+      : indice === 1
+        ? { ...colonna, meta: { ...colonna.meta, larghezza: undefined } }
+        : colonna
+  ) as typeof COLONNE_ALBERO
+}
+
+// Le celle della colonna «Voce» di una tabella, col loro span del testo.
+function testiColonnaVoce(tabella: HTMLTableElement) {
+  const titoli = [...tabella.querySelectorAll('thead th')].map((th) => th.textContent ?? '')
+  const colonna = titoli.findIndex((t) => t.includes('Voce'))
+  expect(colonna).toBeGreaterThan(-1)
+  return [...tabella.querySelectorAll<HTMLTableRowElement>('tbody tr')]
+    .map((tr) => tr.children[colonna] as HTMLTableCellElement | undefined)
+    .map((td) => td?.querySelector<HTMLElement>(':scope > span > span:last-child'))
+    .filter((s): s is HTMLElement => s != null)
+}
+
+// La prova misura il testo dentro `CellaAlbero` in una colonna stretta. Con
+// `meta.testo: 'aCapo'` nessun testo è tagliato e le voci lunghe vanno su più
+// righe; prima lo span del testo troncava sempre, e 6 testi su 20 finivano
+// coi puntini. La seconda tabella, di serie, tronca ancora; la terza è
+// virtualizzata, dove `'aCapo'` non vale, e tronca anche lei.
+async function provaAlberoACapo({ canvasElement }: { canvasElement: HTMLElement }) {
+  const [aCapo, tronca, virtuale] = await waitFor(() => {
+    const tabelle = [...canvasElement.querySelectorAll<HTMLTableElement>('[data-slot="table"]')]
+    expect(tabelle).toHaveLength(3)
+    return tabelle
+  })
+  const testiACapo = testiColonnaVoce(aCapo)
+  expect(testiACapo.length).toBeGreaterThan(5)
+  const tagliati = testiACapo.filter((s) => s.scrollWidth > s.clientWidth + 1)
+  expect(tagliati).toHaveLength(0)
+  const suPiuRighe = testiACapo.filter(
+    (s) => s.offsetHeight > 1.5 * parseFloat(getComputedStyle(s).lineHeight)
+  )
+  expect(suPiuRighe.length).toBeGreaterThan(0)
+
+  const testiTronca = testiColonnaVoce(tronca)
+  for (const s of testiTronca) {
+    expect(getComputedStyle(s).whiteSpace).toBe('nowrap')
+    expect(getComputedStyle(s).textOverflow).toBe('ellipsis')
+  }
+  expect(testiTronca.filter((s) => s.scrollWidth > s.clientWidth + 1).length).toBeGreaterThan(0)
+
+  const testiVirtuale = await waitFor(() => {
+    const testi = testiColonnaVoce(virtuale)
+    expect(testi.length).toBeGreaterThan(0)
+    return testi
+  })
+  for (const s of testiVirtuale) expect(getComputedStyle(s).whiteSpace).toBe('nowrap')
+}
+
+// Scena di misura dell'albero con la colonna «Voce» stretta: a capo, di
+// serie, e a capo nel corpo virtualizzato. Solo per il controllo automatico,
+// fuori dalla barra e da Docs.
+export const AlberoACapoProva: StoryObj<typeof DataTable<RigaComputo>> = {
+  name: 'Albero A Capo, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="flex flex-col gap-6">
+      {(['aCapo', 'tronca'] as const).map((testo) => (
+        <DataTable
+          key={testo}
+          colonne={colonneAlberoStrette(testo)}
+          dati={COMPUTO}
+          idRiga={(riga) => riga.id}
+          righeEspanse
+          cerca={false}
+          colonneNascondibili={false}
+          getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+          nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+          vuoto={{ titolo: 'Nessuna voce nel computo' }}
+          piePagina={false}
+        />
+      ))}
+      <div className="flex h-100 flex-col">
+        <DataTable
+          className="min-h-0 flex-1"
+          colonne={colonneAlberoStrette('aCapo')}
+          dati={COMPUTO}
+          idRiga={(riga) => riga.id}
+          righeEspanse
+          cerca={false}
+          colonneNascondibili={false}
+          getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+          perPagina="virtuale"
+          altezza="ferma"
+          piePagina={false}
+        />
+      </div>
+    </div>
+  ),
+  play: provaAlberoACapo,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * L'espansione (M3bis.2) — pannello di dettaglio per riga
  *

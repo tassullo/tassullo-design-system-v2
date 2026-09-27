@@ -438,7 +438,8 @@ export type MetaColonna<TDato = unknown> = {
    * la cella resta su una riga e finisce coi puntini, e le righe restano
    * tutte alte uguali. Con `"aCapo"` il testo va a capo e la riga cresce
    * quanto serve: per i testi descrittivi che chi legge la riga deve vedere
-   * interi (un metodo di prova, una nota).
+   * interi (un metodo di prova, una nota). Vale anche per il testo dentro
+   * `CellaAlbero`, che segue la sua cella.
    *
    * **Una colonna a capo dichiara `larghezza`.** Senza, in una finestra
    * stretta la colonna prende solo il minimo che le resta e il testo diventa
@@ -834,6 +835,12 @@ export function colonnaSelezione<TDato extends RowData>() {
  * del bottone, alzerebbe le righe senza figli **più** di quelle con figli
  * (49px contro 35,57px, misurato), e a vederle sembrano tutte uguali.
  *
+ * **Il testo segue `meta.testo` della colonna**, senza una prop: di serie
+ * tronca coi puntini, con `"aCapo"` va a capo e la riga cresce. Lo span del
+ * testo eredita dalla cella il modo di andare a capo e aggiunge solo il
+ * taglio; nel corpo virtualizzato, dove le celle troncano sempre, tronca
+ * anche lui.
+ *
  * **Il bottone del `chevron` non si distingue quando la riga è aperta e
  * ferma**: niente sfondo, niente bordo — identico a se stesso chiuso.
  * `Button` da sé darebbe al bottone un `bg-muted` pieno quando è lui ad avere
@@ -893,7 +900,11 @@ export function CellaAlbero<TDato extends RowData>({
       ) : (
         <span aria-hidden className="w-8 shrink-0" />
       )}
-      <span className="truncate">{children}</span>
+      {/* Tronca o va a capo come la sua cella: `white-space` e `overflow-wrap`
+          si ereditano dalla cella, che li prende da `meta.testo` della
+          colonna. Qui restano solo il taglio e i puntini, che non si
+          ereditano. */}
+      <span className="min-w-0 overflow-hidden text-ellipsis">{children}</span>
     </span>
   )
 }
