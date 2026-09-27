@@ -460,6 +460,42 @@ export type MetaColonna<TDato = unknown> = {
    * secondo interruttore che contraddice il primo.
    */
   testo?: "tronca" | "aCapo"
+  /**
+   * In una tabella ad albero, le righe madri si stendono su tutta la riga.
+   * Si dichiara sulla colonna che rende `CellaAlbero`: sulle righe con figli
+   * la sua cella diventa una sola cella larga, che parte da lei e copre le
+   * colonne che seguono. Il contenuto resta la `cell` della colonna, quindi
+   * freccia e rientro sono quelli di `CellaAlbero`, e la `cell` scrive nome e
+   * conteggio quando `row.subRows.length > 0`. Le righe senza figli non
+   * cambiano.
+   *
+   * **La fascia si ferma alla prima colonna che dichiara `sottototale`**: da
+   * lì in poi ogni colonna scrive il suo sottototale come sempre. Si ferma
+   * anche prima di una colonna bloccata a destra e prima del menu di riga.
+   * Con `ridimensionabile` la cella larga è larga quanto le colonne che
+   * copre.
+   *
+   * **Sulle righe madri non c'è il menu di riga**: la cella del «⋯» resta,
+   * vuota, e il tasto destro non apre niente. Le righe di raggruppamento non
+   * si modificano.
+   *
+   * **Con le colonne bloccate** la fascia passa sopra il bordo della colonna
+   * bloccata e il nome resta fermo mentre si scorre di lato; un nome più
+   * lungo di quanto resta in vista scorre via con la riga. La casella di
+   * selezione ha lo stesso fondo della fascia.
+   *
+   * **La fascia non va a capo**, nemmeno con `testo: "aCapo"`: resta alta
+   * una riga, come le foglie, e il testo che non ci sta finisce coi puntini.
+   * Sul telefono, quando la tabella è più larga della vista, il conteggio può
+   * restare fuori vista finché non si scorre di lato; con la colonna
+   * dell'albero bloccata il nome non si sposta, e il conteggio compare solo
+   * verso la fine dello scorrimento. Lì la forma giusta resta la faccia a
+   * schede.
+   *
+   * Una colonna con questa chiave che non rende `CellaAlbero` dà una fascia
+   * senza freccia: in sviluppo il blocco lo scrive in console.
+   */
+  madreSuTuttaLaRiga?: boolean
 }
 
 /**
@@ -921,7 +957,7 @@ export function CellaAlbero<TDato extends RowData>({
   const espansa = riga.getIsExpanded()
 
   return (
-    <span className={cn("flex items-center gap-1", livello)}>
+    <span data-slot="cella-albero" className={cn("flex items-center gap-1", livello)}>
       {puoEspandere ? (
         <Button
           variant="ghost"
@@ -2321,6 +2357,134 @@ export function celleRiga<TDato extends RowData>(
     : riga.getVisibleCells()
 }
 
+/** Le colonne davanti alle quali la fascia di una riga madre si ferma. */
+const FINE_FASCIA = new Set([...COLONNE_UTILITY, "azioni"])
+
+/**
+ * Dove sta la fascia di una riga madre (`meta.madreSuTuttaLaRiga`): da quale
+ * cella parte e prima di quale si ferma, negli indici di `celle`. `null` se
+ * la riga non ha figli o nessuna colonna visibile dichiara la chiave.
+ *
+ * Parte dalla colonna che dichiara la chiave e si ferma prima della prima
+ * colonna che dichiara `sottototale`, prima di una colonna bloccata a destra
+ * e prima delle colonne del blocco (il menu di riga, la casella). Una
+ * colonna dell'albero bloccata a destra non si allarga: la cella larga non
+ * potrebbe restare ferma a destra. Con `fine - inizio === 1` la riga è
+ * comunque una riga madre (niente menu), ma la cella resta quella normale.
+ *
+ * Condivisa dai due corpi, come `celleRiga`.
+ */
+function trattoMadre<TDato extends RowData>(
+  riga: Row<CaratteristicheTabella, TDato>,
+  celle: ReturnType<typeof celleRiga<TDato>>
+): { inizio: number; fine: number } | null {
+  if (riga.subRows.length === 0) return null
+  const metaDi = (i: number) => celle[i].column.columnDef.meta as MetaColonna<TDato> | undefined
+  const inizio = celle.findIndex((_, i) => metaDi(i)?.madreSuTuttaLaRiga)
+  if (inizio < 0) return null
+  if (celle[inizio].column.getIsPinned() === "end") return { inizio, fine: inizio + 1 }
+  let fine = inizio + 1
+  while (fine < celle.length) {
+    const colonna = celle[fine].column
+    if (FINE_FASCIA.has(colonna.id)) break
+    if (colonna.getIsPinned() === "end") break
+    if (metaDi(fine)?.sottototale) break
+    fine++
+  }
+  return { inizio, fine }
+}
+
+/** Le colonne già segnalate in console: l'avviso esce una volta per colonna. */
+const colonneMadreSenzaAlbero = new Set<string>()
+
+/**
+ * La cella larga di una riga madre: una cella sola con `colSpan`, che rende
+ * la `cell` della colonna dell'albero.
+ *
+ * **Con la colonna dell'albero bloccata a sinistra** non è la cella a
+ * restare ferma, perché sarebbe larga quanto la fascia: resta fermo il suo
+ * contenuto, un contenitore `sticky` allo stesso scarto della colonna
+ * bloccata. Per questo la cella non tronca (un `overflow: hidden` sulla
+ * cella diventerebbe il riquadro dello `sticky`, e il contenuto scorrerebbe
+ * via), e il margine interno sta nel contenitore e non nella cella, o
+ * scorrendo il testo si sposterebbe di quel margine. Il testo lo tronca
+ * `CellaAlbero`, dentro.
+ */
+function CellaMadreLarga<TDato extends RowData>({
+  tabella,
+  celle,
+  colonneBloccabili,
+  classeBloccoLegacy,
+}: {
+  tabella: IstanzaTabella<TDato>
+  /** Le celle che la fascia copre: la prima è quella della colonna dell'albero. */
+  celle: ReturnType<typeof celleRiga<TDato>>
+  colonneBloccabili: boolean
+  /** Lo scarto di `bloccaPrimaColonna` (`left-0`/`left-10`), se la colonna è fra le bloccate. */
+  classeBloccoLegacy?: string
+}) {
+  const prima = celle[0]
+  const scarto =
+    colonneBloccabili && prima.column.getIsPinned() === "start"
+      ? prima.column.getStart("start")
+      : undefined
+  const ferma = scarto !== undefined || !!classeBloccoLegacy
+  const cellaRef = React.useRef<HTMLTableCellElement>(null)
+  const idColonna = prima.column.id
+
+  // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
+  // esiste in un'app Vite appena creata, e il typecheck dell'app si
+  // fermerebbe su «Cannot find name 'process'» benché a runtime funzioni.
+  React.useEffect(() => {
+    if (!import.meta.env.DEV || colonneMadreSenzaAlbero.has(idColonna)) return
+    if (cellaRef.current?.querySelector('[data-slot="cella-albero"]')) return
+    colonneMadreSenzaAlbero.add(idColonna)
+    console.warn(
+      `DataTable: la colonna "${idColonna}" dichiara meta.madreSuTuttaLaRiga ma non rende ` +
+        "CellaAlbero: le righe madri restano senza freccia e senza rientro."
+    )
+  }, [idColonna])
+
+  return (
+    <TableCell
+      ref={cellaRef}
+      colSpan={celle.length}
+      data-slot="cella-madre"
+      className={cn(ferma && "p-0")}
+    >
+      {ferma ? (
+        <div
+          className={cn("sticky w-fit max-w-full p-2", classeBloccoLegacy)}
+          style={scarto !== undefined ? { left: scarto } : undefined}
+        >
+          <tabella.FlexRender cell={prima} />
+        </div>
+      ) : (
+        <tabella.FlexRender cell={prima} />
+      )}
+    </TableCell>
+  )
+}
+
+/**
+ * Il posto vuoto del «⋯» sulla riga madre: niente bottone, ma la stessa
+ * altezza, così la riga madre resta alta quanto le foglie. Senza, la riga
+ * madre scenderebbe di qualche pixel (35,56px contro 41 in densità normale,
+ * misurato) e le righe della tabella non sarebbero più tutte alte uguali.
+ */
+function SegnapostoMenuRiga() {
+  return <span aria-hidden className="-my-1 block size-8" />
+}
+
+/**
+ * Lo scarto dal bordo che `bloccaPrimaColonna` dà alla cella in `indice`, se
+ * è fra le bloccate: serve al contenuto della cella larga di una riga madre.
+ */
+function scartoBloccoLegacy(indice: number, conSelezione: boolean): string | undefined {
+  if (indice >= (conSelezione ? 2 : 1)) return undefined
+  return indice === 0 ? "left-0" : "left-10"
+}
+
 export type CorpoTabellaCondiviso<TDato extends RowData> = {
   tabella: IstanzaTabella<TDato>
   righe: Row<CaratteristicheTabella, TDato>[]
@@ -2486,6 +2650,7 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
   espansa,
 }: RigaTabellaCorpoProps<TDato>) {
   const celle = celleRiga(riga, colonneBloccabili)
+  const madre = trattoMadre(riga, celle)
   return (
     <React.Fragment>
       <RigaCorpo
@@ -2493,9 +2658,26 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
         trascinabile={trascinabile}
         className={cn("group/riga", fermo && "snap-start")}
         dataState={selezionata ? "selected" : undefined}
-        menuRiga={menuRiga}
+        // Una riga madre larga non ha menu di riga, nemmeno sul tasto destro.
+        menuRiga={madre ? undefined : menuRiga}
       >
         {celle.map((cella, indice) => {
+          // La fascia di una riga madre: la prima cella si allarga, quelle
+          // che copre non si rendono.
+          if (madre && indice > madre.inizio && indice < madre.fine) return null
+          if (madre && indice === madre.inizio && madre.fine - madre.inizio > 1) {
+            return (
+              <CellaMadreLarga
+                key={cella.id}
+                tabella={tabella}
+                celle={celle.slice(madre.inizio, madre.fine)}
+                colonneBloccabili={colonneBloccabili}
+                classeBloccoLegacy={
+                  bloccoLegacy ? scartoBloccoLegacy(indice, selezione) : undefined
+                }
+              />
+            )
+          }
           // Il subtotale (`meta.sottototale`) prende il posto
           // della cella normale **solo sulle righe che hanno figli** — su
           // una riga foglia non c'è niente da sommare, e `tabella.FlexRender`
@@ -2506,6 +2688,8 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
           const ancoraCella = colonneBloccabili
             ? ancoraggioColonna(tabella, cella.column, "cella")
             : undefined
+          // Sulla riga madre la cella del menu resta, vuota.
+          const senzaMenu = !!madre && cella.column.id === "azioni"
           return (
             // Tagliato coi puntini o a capo, secondo `meta.testo`
             // (`classeTestoCella`).
@@ -2518,7 +2702,7 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
               )}
               style={ancoraCella?.style}
             >
-              {sottototale ? (
+              {senzaMenu ? <SegnapostoMenuRiga /> : sottototale ? (
                 sottototale(
                   riga.subRows.map((r) => r.original),
                   riga.original
@@ -2940,6 +3124,7 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
         const riga = righe[elemento.index]
         if (!riga) return null
         const celle = celleRiga(riga, colonneBloccabili)
+        const madre = trattoMadre(riga, celle)
         return (
           <TableRow
             key={riga.id}
@@ -2966,12 +3151,28 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
             data-state={riga.getIsSelected() ? "selected" : undefined}
           >
             {celle.map((cella, indice) => {
+              // La fascia di una riga madre, come nel corpo non virtualizzato.
+              if (madre && indice > madre.inizio && indice < madre.fine) return null
+              if (madre && indice === madre.inizio && madre.fine - madre.inizio > 1) {
+                return (
+                  <CellaMadreLarga
+                    key={cella.id}
+                    tabella={tabella}
+                    celle={celle.slice(madre.inizio, madre.fine)}
+                    colonneBloccabili={colonneBloccabili}
+                    classeBloccoLegacy={
+                      bloccoLegacy ? scartoBloccoLegacy(indice, selezione) : undefined
+                    }
+                  />
+                )
+              }
               const sottototale = riga.subRows.length
                 ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)?.sottototale
                 : undefined
               const ancoraCella = colonneBloccabili
                 ? ancoraggioColonna(tabella, cella.column, "cella")
                 : undefined
+              const senzaMenu = !!madre && cella.column.id === "azioni"
               return (
                 // Sempre `truncate`, anche con `meta.testo: "aCapo"`: la
                 // finestra di righe vuole righe di altezza uguale (v. `testo`
@@ -2985,7 +3186,7 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
                   )}
                   style={ancoraCella?.style}
                 >
-                  {sottototale ? (
+                  {senzaMenu ? <SegnapostoMenuRiga /> : sottototale ? (
                     sottototale(
                       riga.subRows.map((r) => r.original),
                       riga.original
