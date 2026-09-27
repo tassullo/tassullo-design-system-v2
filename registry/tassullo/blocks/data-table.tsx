@@ -273,12 +273,14 @@ import {
  * `arrHas` (i filtri sfaccettati) tiene la riga se il valore della
  * colonna è **uguale a uno** dei valori scelti — la forma giusta per un
  * filtro a scelta multipla su un valore scalare (`stato`, `famiglia`: una
- * riga ha un solo stato, non un elenco). `arrIncludes`/`arrIncludesSome`
- * risolvono il caso opposto, un valore-elenco sulla riga, che qui non
- * ricorre. Una colonna lo usa dichiarando `filterFn: "arrHas"`; TanStack
- * toglie da sé il filtro quando l'elenco scelto torna vuoto
- * (`autoRemove`), quindi `colonna.setFilterValue([])` e
+ * riga ha un solo stato, non un elenco). Una colonna lo usa dichiarando
+ * `filterFn: "arrHas"`; TanStack toglie da sé il filtro quando l'elenco
+ * scelto torna vuoto (`autoRemove`), quindi `colonna.setFilterValue([])` e
  * `colonna.setFilterValue(undefined)` sono equivalenti.
+ *
+ * `arrHasAny` è il caso opposto, un **elenco di valori** sulla riga (le
+ * lingue di una scheda): v. `filterFn_arrHasAny` qui sotto e
+ * `MetaColonna.elenco`.
  *
  * `inNumberRange`/`inDateRange` (`data-table-filtro-
  * intervallo.tsx`/`data-table-filtro-data.tsx`) tengono la riga se il suo
@@ -306,6 +308,26 @@ const filterFn_includesStringInAlbero = constructFilterFn({
     }),
 })
 
+/**
+ * Il filtro delle colonne che portano un **elenco** di valori per riga
+ * (`meta.elenco`): tiene la riga se il suo elenco contiene **almeno uno**
+ * dei valori scelti. Un valore mancante (`undefined`, `null`) vale come
+ * elenco vuoto, e un elenco vuoto non passa mai: una riga senza lingue non
+ * sta sotto nessuna lingua. Su un valore singolo si comporta come `arrHas`,
+ * con lo stesso confronto stretto (`"EN"` non è `"en"`).
+ *
+ * Non è `arrIncludesSome` di TanStack, che fa la stessa cosa sugli array ma
+ * scarta ogni riga il cui valore non è un array: un campo mancante o un
+ * valore singolo non passerebbero mai, benché il filtro li conti.
+ */
+const filterFn_arrHasAny = constructFilterFn({
+  filter: (valore: unknown, scelti: readonly unknown[]) => {
+    const valori = Array.isArray(valore) ? valore : valore == null ? [] : [valore]
+    return valori.some((voce) => scelti.includes(voce))
+  },
+  autoRemove: filterFn_arrHas.autoRemove,
+})
+
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
   columnOrderingFeature,
@@ -326,6 +348,7 @@ export const caratteristiche = tableFeatures({
     includesString: filterFn_includesString,
     includesStringInAlbero: filterFn_includesStringInAlbero,
     arrHas: filterFn_arrHas,
+    arrHasAny: filterFn_arrHasAny,
     inNumberRange: filterFn_inNumberRange,
     inDateRange: filterFn_inDateRange,
   },
@@ -460,6 +483,27 @@ export type MetaColonna<TDato = unknown> = {
    * secondo interruttore che contraddice il primo.
    */
   testo?: "tronca" | "aCapo"
+  /**
+   * La colonna porta un **elenco di valori** per riga (le lingue di una
+   * scheda: `["EN", "DE"]`), non un valore solo. Il filtro sfaccettato conta
+   * allora la riga sotto **ogni** valore del suo elenco, e non sotto l'elenco
+   * intero trasformato in testo («EN,DE»). Un valore mancante vale come
+   * elenco vuoto.
+   *
+   * **Va insieme a `filterFn: "arrHasAny"`**, che tiene la riga se il suo
+   * elenco contiene almeno uno dei valori scelti. Con `"arrHas"` i conteggi
+   * del filtro sono giusti ma ogni scelta lascia la tabella vuota: in
+   * sviluppo il filtro lo scrive in console.
+   *
+   * ```tsx
+   * col.accessor("lingue", {
+   *   header: "Lingue",
+   *   meta: { titolo: "Lingue", elenco: true },
+   *   filterFn: "arrHasAny",
+   * })
+   * ```
+   */
+  elenco?: boolean
 }
 
 /**
