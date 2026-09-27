@@ -12,7 +12,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol, apriColDestro } from '@/prove/apri'
 import {
@@ -31,7 +31,7 @@ import { FiltroData } from '@/registry/tassullo/blocks/data-table-filtro-data'
 import { FiltroIntervallo } from '@/registry/tassullo/blocks/data-table-filtro-intervallo'
 import { FiltroResetTutti } from '@/registry/tassullo/blocks/data-table-filtro-reset'
 import { FiltroSfaccettato } from '@/registry/tassullo/blocks/data-table-filtro-sfaccettato'
-import { decimale, valuta } from '@/registry/tassullo/lib/numeri'
+import { decimale, intero, valuta } from '@/registry/tassullo/lib/numeri'
 import { TONO } from '@/registry/tassullo/lib/toni'
 import { Badge } from '@/registry/tassullo/ui/badge'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -513,9 +513,10 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * - `colonneBloccabili` blocca qualunque colonna, a sinistra o a destra, e
  *   prende il posto di `bloccaPrimaColonna` se si passano insieme. Con
  *   `ridimensionabile` o `colonneBloccabili` la larghezza di partenza sta in
- *   `size`, `minSize` e `maxSize` sulla colonna, non in `meta.larghezza`. Le
- *   larghezze scelte da chi usa la tabella sono in pixel: non seguono la
- *   densità e non restano da un caricamento all'altro.
+ *   `size`, `minSize` e `maxSize` sulla colonna, non in `meta.larghezza`; una
+ *   colonna senza `size` assorbe lo spazio che avanza. Le larghezze scelte da
+ *   chi usa la tabella sono in pixel: non seguono la densità e non restano da
+ *   un caricamento all'altro.
  * - `getSottoRighe` apre l'albero: la colonna che identifica la riga usa
  *   `CellaAlbero` per il rientro e la freccia, e `meta.sottototale` scrive il
  *   conto sulla riga madre. `pannelloRiga` apre invece, sotto la riga, un
@@ -1022,12 +1023,24 @@ const colAlbero = creaColonne<RigaComputo>()
 const COLONNE_ALBERO = colAlbero.columns([
   colAlbero.accessor('voce', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Voce / misurazione" />,
-    meta: { titolo: 'Voce' },
+    // Le voci del computo sono righe di raggruppamento: nome e conteggio, le
+    // cifre nei sottototali. La fascia copre Voce e U.M. e si ferma a Quantità.
+    meta: { titolo: 'Voce', madreSuTuttaLaRiga: true },
     sortFn: 'text',
     // Il rientro e lo `chevron` stanno **dentro** questa colonna, non in una
     // colonna a sé: è la colonna che identifica la riga, la stessa scelta di
     // un esploratore di file.
-    cell: ({ row, getValue }) => <CellaAlbero riga={row}>{getValue<string>()}</CellaAlbero>,
+    cell: ({ row, getValue }) => (
+      <CellaAlbero riga={row}>
+        {getValue<string>()}
+        {row.subRows.length > 0 ? (
+          <span className="text-muted-foreground">
+            {' · '}
+            {row.subRows.length} {row.subRows.length === 1 ? 'misurazione' : 'misurazioni'}
+          </span>
+        ) : null}
+      </CellaAlbero>
+    ),
   }),
   colAlbero.accessor('udm', {
     header: ({ column }) => <IntestazioneColonna colonna={column} titolo="U.M." />,
@@ -1153,7 +1166,8 @@ function AlberoConControlli() {
 
 /**
  * Righe annidate con subtotale: un computo in cui ogni voce porta le sue
- * misurazioni. La casella di una voce sceglie anche le misurazioni sotto;
+ * misurazioni. Le voci sono righe di raggruppamento su tutta la riga
+ * (`meta.madreSuTuttaLaRiga`), fino alla prima colonna col sottototale. La casella di una voce sceglie anche le misurazioni sotto;
  * «Espandi tutto» e «Comprimi tutto» comandano la tabella attraverso
  * `onTabellaPronta`.
  */
@@ -1231,6 +1245,813 @@ export const AlberoConRicercaProva: StoryObj<typeof DataTable<RigaComputo>> = {
   name: 'Albero Con Ricerca, prova',
   tags: ['!dev', '!autodocs'],
   play: provaAlberoConRicerca,
+}
+
+// Le colonne dell'albero con la colonna «Voce» stretta, a capo o troncata.
+// Con tutte le colonne larghe a misura la tabella distribuirebbe l'avanzo
+// fra tutte, e «Voce» non sarebbe più stretta: l'avanzo va a «U.M.». Senza
+// la fascia delle voci: qui si misura il testo dentro la colonna stretta.
+function colonneAlberoStrette(testo: 'aCapo' | 'tronca') {
+  return COLONNE_ALBERO.map((colonna, indice) =>
+    indice === 0
+      ? {
+          ...colonna,
+          meta: { ...colonna.meta, larghezza: 'w-60', testo, madreSuTuttaLaRiga: false },
+        }
+      : indice === 1
+        ? { ...colonna, meta: { ...colonna.meta, larghezza: undefined } }
+        : colonna
+  ) as typeof COLONNE_ALBERO
+}
+
+// Le celle della colonna «Voce» di una tabella, col loro span del testo.
+function testiColonnaVoce(tabella: HTMLTableElement) {
+  const titoli = [...tabella.querySelectorAll('thead th')].map((th) => th.textContent ?? '')
+  const colonna = titoli.findIndex((t) => t.includes('Voce'))
+  expect(colonna).toBeGreaterThan(-1)
+  return [...tabella.querySelectorAll<HTMLTableRowElement>('tbody tr')]
+    .map((tr) => tr.children[colonna] as HTMLTableCellElement | undefined)
+    .map((td) => td?.querySelector<HTMLElement>(':scope > span > span:last-child'))
+    .filter((s): s is HTMLElement => s != null)
+}
+
+// La prova misura il testo dentro `CellaAlbero` in una colonna stretta. Con
+// `meta.testo: 'aCapo'` nessun testo è tagliato e le voci lunghe vanno su più
+// righe; prima lo span del testo troncava sempre, e 6 testi su 20 finivano
+// coi puntini. La seconda tabella, di serie, tronca ancora; la terza è
+// virtualizzata, dove `'aCapo'` non vale, e tronca anche lei.
+async function provaAlberoACapo({ canvasElement }: { canvasElement: HTMLElement }) {
+  const [aCapo, tronca, virtuale] = await waitFor(() => {
+    const tabelle = [...canvasElement.querySelectorAll<HTMLTableElement>('[data-slot="table"]')]
+    expect(tabelle).toHaveLength(3)
+    return tabelle
+  })
+  const testiACapo = testiColonnaVoce(aCapo)
+  expect(testiACapo.length).toBeGreaterThan(5)
+  const tagliati = testiACapo.filter((s) => s.scrollWidth > s.clientWidth + 1)
+  expect(tagliati).toHaveLength(0)
+  const suPiuRighe = testiACapo.filter(
+    (s) => s.offsetHeight > 1.5 * parseFloat(getComputedStyle(s).lineHeight)
+  )
+  expect(suPiuRighe.length).toBeGreaterThan(0)
+
+  const testiTronca = testiColonnaVoce(tronca)
+  for (const s of testiTronca) {
+    expect(getComputedStyle(s).whiteSpace).toBe('nowrap')
+    expect(getComputedStyle(s).textOverflow).toBe('ellipsis')
+  }
+  expect(testiTronca.filter((s) => s.scrollWidth > s.clientWidth + 1).length).toBeGreaterThan(0)
+
+  const testiVirtuale = await waitFor(() => {
+    const testi = testiColonnaVoce(virtuale)
+    expect(testi.length).toBeGreaterThan(0)
+    return testi
+  })
+  for (const s of testiVirtuale) expect(getComputedStyle(s).whiteSpace).toBe('nowrap')
+}
+
+// Scena di misura dell'albero con la colonna «Voce» stretta: a capo, di
+// serie, e a capo nel corpo virtualizzato. Solo per il controllo automatico,
+// fuori dalla barra e da Docs.
+export const AlberoACapoProva: StoryObj<typeof DataTable<RigaComputo>> = {
+  name: 'Albero A Capo, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="flex flex-col gap-6">
+      {(['aCapo', 'tronca'] as const).map((testo) => (
+        <DataTable
+          key={testo}
+          colonne={colonneAlberoStrette(testo)}
+          dati={COMPUTO}
+          idRiga={(riga) => riga.id}
+          righeEspanse
+          cerca={false}
+          colonneNascondibili={false}
+          getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+          nomeRighe={{ singolare: 'voce', plurale: 'voci' }}
+          vuoto={{ titolo: 'Nessuna voce nel computo' }}
+          piePagina={false}
+        />
+      ))}
+      <div className="flex h-100 flex-col">
+        <DataTable
+          className="min-h-0 flex-1"
+          colonne={colonneAlberoStrette('aCapo')}
+          dati={COMPUTO}
+          idRiga={(riga) => riga.id}
+          righeEspanse
+          cerca={false}
+          colonneNascondibili={false}
+          getSottoRighe={(riga) => ('figli' in riga ? riga.figli : undefined)}
+          perPagina="virtuale"
+          altezza="ferma"
+          piePagina={false}
+        />
+      </div>
+    </div>
+  ),
+  play: provaAlberoACapo,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * L'albero con righe madri larghe — `meta.madreSuTuttaLaRiga`
+ *
+ * Un piano dei controlli: i prodotti, sotto i gruppi di controlli, sotto i
+ * controlli. Le righe madri hanno un nome e un conteggio e nient'altro, se
+ * non il sottototale dei campioni: la fascia copre le colonne vuote e si
+ * ferma lì.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Controllo = {
+  id: string
+  nome: string
+  metodo?: string
+  frequenza?: string
+  responsabile?: string
+  campioni?: number
+  figli?: Controllo[]
+}
+
+const controllo = (
+  id: string,
+  nome: string,
+  metodo: string,
+  frequenza: string,
+  responsabile: string,
+  campioni: number
+): Controllo => ({ id, nome, metodo, frequenza, responsabile, campioni })
+
+const PIANO_CONTROLLI: Controllo[] = [
+  {
+    id: 'p1',
+    nome: 'Intonaco deumidificante ID 20',
+    figli: [
+      {
+        id: 'p1.g1',
+        nome: 'Controlli sulle materie prime',
+        figli: [
+          controllo('p1.1', 'Granulometria della sabbia', 'UNI EN 933-1', 'Ogni fornitura', 'Stefano Bertolini', 52),
+          controllo('p1.2', 'Umidità della sabbia', 'UNI EN 1097-5', 'Giornaliera', 'Giorgio Pedrotti', 250),
+          controllo('p1.3', 'Finezza del legante', 'UNI EN 196-6', 'Ogni silo', 'Stefano Bertolini', 24),
+        ],
+      },
+      {
+        id: 'p1.g2',
+        nome: 'Controlli sul prodotto in polvere',
+        figli: [
+          controllo('p1.4', 'Massa volumica apparente', 'UNI EN 1015-10', 'Ogni lotto', 'Giorgio Pedrotti', 120),
+        ],
+      },
+      {
+        id: 'p1.g3',
+        nome: 'Controlli sul prodotto indurito',
+        figli: [
+          controllo('p1.5', 'Resistenza a compressione', 'UNI EN 1015-11', 'Settimanale', 'Chiara Moser', 52),
+          controllo('p1.6', 'Assorbimento d’acqua per capillarità', 'UNI EN 1015-18', 'Mensile', 'Chiara Moser', 12),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p2',
+    nome: 'Malta da muratura M10',
+    figli: [
+      {
+        id: 'p2.g1',
+        nome: 'Controlli sul prodotto in polvere',
+        figli: [
+          controllo('p2.1', 'Massa volumica apparente', 'UNI EN 1015-10', 'Ogni lotto', 'Giorgio Pedrotti', 96),
+        ],
+      },
+      {
+        id: 'p2.g2',
+        nome: 'Controlli sul prodotto fresco',
+        figli: [
+          controllo('p2.2', 'Consistenza alla tavola a scosse', 'UNI EN 1015-3', 'Ogni lotto', 'Stefano Bertolini', 96),
+          controllo('p2.3', 'Contenuto d’aria', 'UNI EN 1015-7', 'Ogni lotto', 'Stefano Bertolini', 96),
+        ],
+      },
+      {
+        id: 'p2.g3',
+        nome: 'Controlli di durabilità dopo la maturazione in camera climatica',
+        figli: [
+          controllo('p2.4', 'Resistenza ai cicli di gelo e disgelo', 'UNI EN 12371', 'Annuale', 'Chiara Moser', 2),
+        ],
+      },
+    ],
+  },
+]
+
+// Ottanta prodotti, per il corpo virtualizzato: gli stessi due, ripetuti con
+// un lotto nel nome e id diversi.
+const PIANO_CONTROLLI_LUNGO: Controllo[] = Array.from({ length: 80 }, (_, i) => {
+  const base = PIANO_CONTROLLI[i % 2]
+  const conId = (r: Controllo): Controllo => ({
+    ...r,
+    id: `l${i}.${r.id}`,
+    figli: r.figli?.map(conId),
+  })
+  return { ...conId(base), nome: `${base.nome}, lotto ${i + 1}` }
+})
+
+function contaControlli(r: Controllo): number {
+  return r.figli ? r.figli.reduce((tot, f) => tot + contaControlli(f), 0) : 1
+}
+
+function sommaCampioni(r: Controllo): number {
+  return r.figli ? r.figli.reduce((tot, f) => tot + sommaCampioni(f), 0) : (r.campioni ?? 0)
+}
+
+const colControlli = creaColonne<Controllo>()
+
+const COLONNE_CONTROLLI = colControlli.columns([
+  colControlli.accessor('nome', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Controllo" />,
+    meta: { titolo: 'Controllo', larghezza: 'w-60', testo: 'aCapo', madreSuTuttaLaRiga: true },
+    size: 240,
+    minSize: 160,
+    cell: ({ row }) => {
+      const dato = row.original
+      if (row.subRows.length === 0) {
+        return <CellaAlbero riga={row}>{dato.nome}</CellaAlbero>
+      }
+      const n = contaControlli(dato)
+      return (
+        <CellaAlbero riga={row}>
+          <span className="font-medium">{dato.nome}</span>
+          <span className="text-muted-foreground">
+            {' · '}
+            {n} {n === 1 ? 'controllo' : 'controlli'}
+          </span>
+        </CellaAlbero>
+      )
+    },
+  }),
+  colControlli.accessor('metodo', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Metodo" />,
+    meta: { titolo: 'Metodo', larghezza: 'w-36' },
+    size: 144,
+  }),
+  colControlli.accessor('frequenza', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Frequenza" />,
+    meta: { titolo: 'Frequenza', larghezza: 'w-32' },
+    size: 128,
+  }),
+  colControlli.accessor('responsabile', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Responsabile" />,
+    meta: { titolo: 'Responsabile' },
+  }),
+  colControlli.accessor('campioni', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Campioni/anno" allinea="fine" />
+    ),
+    meta: {
+      titolo: 'Campioni/anno',
+      larghezza: 'w-48',
+      sottototale: (figli: Controllo[]) => (
+        <div className="text-right font-medium">
+          {intero(figli.reduce((tot, f) => tot + sommaCampioni(f), 0))}
+        </div>
+      ),
+    },
+    size: 192,
+    cell: ({ getValue }) => {
+      const v = getValue<number | undefined>()
+      return <div className="text-right">{v === undefined ? null : intero(v)}</div>
+    },
+  }),
+])
+
+function MenuControllo() {
+  const dato = useDataTableRow<Controllo>()
+  return (
+    <>
+      <RowMenuItem onClick={() => console.info(`Modifica ${dato.id}`)}>
+        <PencilIcon aria-hidden />
+        Modifica
+      </RowMenuItem>
+      <RowMenuItem onClick={() => console.info(`Duplica ${dato.id}`)}>
+        <CopyIcon aria-hidden />
+        Duplica
+      </RowMenuItem>
+      <RowMenuSeparator />
+      <RowMenuItem variant="destructive" onClick={() => console.info(`Elimina ${dato.id}`)}>
+        <Trash2Icon aria-hidden />
+        Elimina
+      </RowMenuItem>
+    </>
+  )
+}
+
+const MENU_CONTROLLO = { menu: <MenuControllo /> }
+
+type TabellaControlliProps = {
+  /** Le colonne bloccate a sinistra all'apertura, dalla pagina. */
+  bloccate?: string[]
+  /** `bloccaPrimaColonna` al posto di `colonneBloccabili`. */
+  primaBloccata?: boolean
+  virtuale?: boolean
+}
+
+function TabellaControlli({ bloccate = [], primaBloccata = false, virtuale = false }: TabellaControlliProps) {
+  const [espanse, setEspanse] = React.useState<ExpandedState>(true)
+  const bloccateRef = React.useRef(false)
+  return (
+    <DataTable
+      colonne={COLONNE_CONTROLLI}
+      dati={virtuale ? PIANO_CONTROLLI_LUNGO : PIANO_CONTROLLI}
+      idRiga={(riga) => riga.id}
+      cerca={false}
+      selezione
+      colonneNascondibili={false}
+      getSottoRighe={(riga) => riga.figli}
+      righeEspanse={espanse}
+      onRigheEspanseChange={setEspanse}
+      nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
+      menuRiga={MENU_CONTROLLO}
+      bloccaPrimaColonna={primaBloccata}
+      colonneBloccabili={!primaBloccata}
+      ridimensionabile={!primaBloccata}
+      perPagina={virtuale ? 'virtuale' : 100}
+      altezza={virtuale ? 'ferma' : 'naturale'}
+      piePagina={!virtuale}
+      className={virtuale ? 'min-h-0 flex-1' : undefined}
+      onTabellaPronta={(t) => {
+        if (bloccateRef.current || bloccate.length === 0) return
+        bloccateRef.current = true
+        for (const id of bloccate) t.getColumn(id)?.pin('start')
+      }}
+    />
+  )
+}
+
+/**
+ * Le righe madri di un albero su tutta la riga. La colonna dell'albero
+ * dichiara `meta.madreSuTuttaLaRiga`: sulle righe con figli la sua cella si
+ * stende sulle colonne vuote e si ferma alla prima colonna con un
+ * sottototale, qui «Campioni/anno». Il nome del gruppo e il conteggio stanno
+ * su una riga, invece di andare a capo nella prima colonna con mezza riga
+ * vuota accanto.
+ *
+ * La `cell` della colonna è una sola, e scrive il conteggio quando la riga
+ * ha figli (`row.subRows.length > 0`). Sulle righe madri non c'è il menu «⋯»:
+ * le righe di raggruppamento non si modificano. La colonna «Controllo» è
+ * bloccata a sinistra, e con lei la casella di selezione: scorrendo di lato,
+ * la fascia passa sopra il bordo della colonna bloccata e il nome del gruppo
+ * resta fermo.
+ *
+ * Sul telefono la fascia non va a capo e il conteggio può restare fuori
+ * vista finché non si scorre: per le liste da telefono c'è la faccia a
+ * schede.
+ */
+export const AlberoConRigheMadriLarghe: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Albero Con Righe Madri Larghe',
+  render: () => <TabellaControlli bloccate={['nome']} />,
+}
+
+// ── Le prove delle righe madri larghe ───────────────────────────────────
+
+const CHEVRON_APERTO = 'button[aria-label="Comprimi riga"]'
+
+/** Il riquadro, la tabella, le righe madri aperte e le foglie. */
+function righeControlli(canvasElement: HTMLElement) {
+  const tabella = canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+  expect(tabella).toBeTruthy()
+  const t = tabella as HTMLTableElement
+  const righe = [...t.querySelectorAll<HTMLTableRowElement>('tbody tr')].filter(
+    (tr) => tr.getAttribute('aria-hidden') !== 'true'
+  )
+  const madri = righe.filter((tr) => tr.querySelector(CHEVRON_APERTO))
+  const foglie = righe.filter(
+    (tr) => !tr.querySelector('button[aria-label="Comprimi riga"], button[aria-label="Espandi riga"]')
+  )
+  const scorre = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+  expect(scorre).toBeTruthy()
+  return { tabella: t, madri, foglie, scorre: scorre as HTMLElement }
+}
+
+/** Il testo del nome dentro `CellaAlbero`, accanto alla freccia di una riga madre aperta. */
+function testoAlbero(tr: HTMLTableRowElement) {
+  const testo = tr.querySelector(CHEVRON_APERTO)?.parentElement?.lastElementChild
+  expect(testo).toBeTruthy()
+  return testo as HTMLElement
+}
+
+/**
+ * Il colore che il motore di resa dipinge dietro `el`: gli strati di fondo
+ * dal riquadro (opaco) fino all'elemento, uno sopra l'altro su un canvas di
+ * un pixel. Un colore di fondo e, se c'è, il gradiente di un colore solo che
+ * il blocco usa per il velo delle celle bloccate. Il colore lo risolve il
+ * canvas, così `oklch`, `color-mix` e le trasparenze arrivano in sRGB.
+ */
+function fondoReso(el: HTMLElement, riquadro: HTMLElement): number[] {
+  const catena: HTMLElement[] = []
+  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
+    catena.unshift(n)
+    if (n === riquadro) break
+  }
+  expect(catena[0]).toBe(riquadro)
+  const tela = document.createElement('canvas')
+  tela.width = 1
+  tela.height = 1
+  const ctx = tela.getContext('2d', { willReadFrequently: true })
+  expect(ctx).toBeTruthy()
+  const c = ctx as CanvasRenderingContext2D
+  const dipingi = (colore: string) => {
+    c.fillStyle = colore
+    c.fillRect(0, 0, 1, 1)
+  }
+  for (const n of catena) {
+    const stile = getComputedStyle(n)
+    dipingi(stile.backgroundColor)
+    if (stile.backgroundImage !== 'none') {
+      const colori = stile.backgroundImage.match(
+        /(?:rgba?|hsla?|oklab|oklch|lab|lch|color|color-mix)\((?:[^()]|\([^()]*\))*\)/g
+      )
+      expect(colori, `gradiente non letto: ${stile.backgroundImage}`).toBeTruthy()
+      const [primo, ...altri] = colori as string[]
+      for (const altro of altri) expect(altro).toBe(primo)
+      dipingi(primo)
+    }
+  }
+  const [r, g, b] = c.getImageData(0, 0, 1, 1).data
+  return [r, g, b]
+}
+
+/** Due colori resi uguali, a meno dell'arrotondamento. */
+function stessoColore(a: number[], b: number[]) {
+  for (let i = 0; i < 3; i++) expect(Math.abs(a[i] - b[i]), `${a} contro ${b}`).toBeLessThanOrEqual(1)
+}
+
+/** La cella della casella di selezione e la cella larga della stessa riga madre. */
+function celleDellaMadre(tr: HTMLTableRowElement) {
+  const casella = tr.querySelector<HTMLElement>('td:has([role="checkbox"])')
+  const larga = tr.querySelector<HTMLElement>('[data-slot="cella-madre"]')
+  expect(casella, 'cella della casella').toBeTruthy()
+  expect(larga, 'cella larga della riga madre').toBeTruthy()
+  return { casella: casella as HTMLElement, larga: larga as HTMLElement }
+}
+
+// Scorrendo di lato il nome del gruppo resta fermo, e la casella con lui. Un
+// nome più lungo della fascia meno lo scorrimento non può restare fermo e
+// scorre via (è il limite dichiarato): la prova guarda gli altri, e vuole che
+// siano almeno sei su otto.
+async function provaNomeFermo(madri: HTMLTableRowElement[], scorre: HTMLElement) {
+  const passo = 150
+  expect(scorre.scrollWidth).toBeGreaterThan(scorre.clientWidth + passo)
+  const fermi = madri.filter((tr) => {
+    const { larga } = celleDellaMadre(tr)
+    const contenuto = larga.firstElementChild as HTMLElement
+    return contenuto.getBoundingClientRect().width <= larga.getBoundingClientRect().width - passo
+  })
+  expect(fermi.length).toBeGreaterThanOrEqual(6)
+  const nomi = fermi.map((tr) => testoAlbero(tr).getBoundingClientRect().left)
+  const caselle = fermi.map((tr) => celleDellaMadre(tr).casella.getBoundingClientRect().left)
+  scorre.scrollLeft = passo
+  await waitFor(() => expect(scorre.scrollLeft).toBe(passo))
+  fermi.forEach((tr, i) => {
+    expect(
+      Math.abs(testoAlbero(tr).getBoundingClientRect().left - nomi[i]),
+      tr.textContent ?? ''
+    ).toBeLessThan(1)
+    expect(Math.abs(celleDellaMadre(tr).casella.getBoundingClientRect().left - caselle[i])).toBeLessThan(1)
+  })
+  scorre.scrollLeft = 0
+}
+
+// La prova delle righe madri larghe, colonna «Controllo» bloccata dalla
+// pagina, in un riquadro stretto che scorre di lato. Otto righe madri, tutte
+// con la cella larga, alte una riga (41px in densità normale, 61 in touch) e
+// senza testo tagliato; niente «⋯» sulle madri e sì sulle foglie; la fascia
+// si ferma prima di «Campioni/anno», che mostra il sottototale. Poi scorre di
+// lato: il nome del gruppo e la casella restano fermi. Col codice di prima le
+// madri restavano nella prima colonna, a capo (54px, 91 il nome lungo), col
+// «⋯».
+async function provaRigheMadriLarghe({ canvasElement }: { canvasElement: HTMLElement }) {
+  const { tabella, madri, foglie, scorre } = await waitFor(() => {
+    const r = righeControlli(canvasElement)
+    expect(r.madri).toHaveLength(8)
+    return r
+  })
+  const densitaTouch = document.documentElement.getAttribute('data-density') === 'touch'
+  const altezza = densitaTouch ? 61 : 41
+  for (const tr of madri) {
+    expect(tr.querySelector('[data-slot="cella-madre"]'), tr.textContent ?? '').toBeTruthy()
+    expect(Math.abs(tr.getBoundingClientRect().height - altezza), tr.textContent ?? '').toBeLessThan(1)
+    const testo = testoAlbero(tr)
+    expect(testo.scrollWidth, testo.textContent ?? '').toBeLessThanOrEqual(testo.clientWidth + 1)
+    expect(tr.querySelector('button[aria-label="Azioni riga"]')).toBeNull()
+    expect(tr.lastElementChild?.querySelector('button')).toBeNull()
+  }
+  expect(foglie.length).toBeGreaterThan(0)
+  for (const tr of foglie) expect(tr.querySelector('button[aria-label="Azioni riga"]')).toBeTruthy()
+
+  const intestazioni = [...tabella.querySelectorAll<HTMLElement>('thead th')]
+  const campioni = intestazioni.find((th) => th.textContent?.includes('Campioni/anno'))
+  expect(campioni).toBeTruthy()
+  const bordoCampioni = (campioni as HTMLElement).getBoundingClientRect()
+  for (const tr of madri) {
+    const larga = tr.querySelector<HTMLElement>('[data-slot="cella-madre"]') as HTMLElement
+    expect(Math.abs(larga.getBoundingClientRect().right - bordoCampioni.left)).toBeLessThan(1)
+    const sotto = [...tr.children].find(
+      (td) => Math.abs(td.getBoundingClientRect().left - bordoCampioni.left) < 1
+    )
+    expect(sotto?.textContent).toMatch(/^\d/)
+  }
+
+  await provaNomeFermo(madri, scorre)
+}
+
+// Scena di misura delle righe madri larghe, in un riquadro stretto. Solo per
+// il controllo automatico, fuori dalla barra e da Docs.
+export const AlberoConRigheMadriLargheProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Albero Con Righe Madri Larghe, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="max-w-2xl">
+      <TabellaControlli bloccate={['nome']} />
+    </div>
+  ),
+  play: provaRigheMadriLarghe,
+}
+
+// La prova delle intestazioni strette: con `colonneBloccabili` ogni
+// intestazione porta titolo, freccia e puntina. In una colonna più stretta
+// del titolo, il bottone dell'ordinamento usciva dal `<th>` verso sinistra e
+// finiva sotto la puntina della colonna accanto (a 128px, 134px di bottone);
+// allineato a sinistra, copriva la propria puntina («Frequenza», 9px). Ora il
+// titolo tronca e ogni bottone resta dentro la sua intestazione.
+const COLONNE_CONTROLLI_STRETTE = COLONNE_CONTROLLI.map((colonna) =>
+  'accessorKey' in colonna && colonna.accessorKey === 'campioni' ? { ...colonna, size: 112 } : colonna
+) as typeof COLONNE_CONTROLLI
+
+async function provaIntestazioniStrette({ canvasElement }: { canvasElement: HTMLElement }) {
+  const intestazioni = await waitFor(() => {
+    const th = [...canvasElement.querySelectorAll<HTMLTableCellElement>('thead th')]
+    expect(th.length).toBeGreaterThan(4)
+    return th
+  })
+  for (const th of intestazioni) {
+    const bordo = th.getBoundingClientRect()
+    const bottoni = [...th.querySelectorAll<HTMLElement>('button')]
+    for (const bottone of bottoni) {
+      const r = bottone.getBoundingClientRect()
+      expect(r.left, bottone.getAttribute('aria-label') ?? '').toBeGreaterThanOrEqual(bordo.left - 0.5)
+      expect(r.right, bottone.getAttribute('aria-label') ?? '').toBeLessThanOrEqual(bordo.right + 0.5)
+    }
+    // Titolo e puntina, uno accanto all'altro: la freccia dell'ordinamento,
+    // che chiude il titolo, non finisce sopra la puntina. Si misura il segno e
+    // non il bottone, il cui margine negativo (per incolonnarsi con le celle)
+    // può stare sotto il bordo trasparente della puntina.
+    for (let i = 1; i < bottoni.length; i++) {
+      const freccia = bottoni[i - 1].querySelector('svg')?.getBoundingClientRect()
+      const puntina = bottoni[i].querySelector('svg')?.getBoundingClientRect()
+      if (!freccia || !puntina) continue
+      expect(freccia.right, bottoni[i].getAttribute('aria-label') ?? '').toBeLessThanOrEqual(puntina.left + 0.5)
+    }
+  }
+}
+
+// Scena di misura delle intestazioni strette. Solo per il controllo
+// automatico, fuori dalla barra e da Docs.
+export const IntestazioniStretteProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Intestazioni Strette, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <DataTable
+      colonne={COLONNE_CONTROLLI_STRETTE}
+      dati={PIANO_CONTROLLI}
+      cerca={false}
+      colonneNascondibili={false}
+      getSottoRighe={(riga) => riga.figli}
+      colonneBloccabili
+      ridimensionabile
+    />
+  ),
+  play: provaIntestazioniStrette,
+}
+
+// La prova della guida: trascinando il bordo della colonna bloccata, la
+// guida arancio scende per tutta la tabella e si vede intera su ogni riga.
+// L'intestazione bloccata era uno `sticky z-10` come le celle bloccate del
+// corpo, e quelle, che vengono dopo, coprivano la metà della guida dentro la
+// colonna: 2 pixel su 4 sulle foglie.
+async function provaGuidaColonnaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
+  const maniglia = await waitFor(() => {
+    const m = canvasElement.querySelector<HTMLElement>('[aria-label="Ridimensiona colonna «Controllo»"]')
+    expect(m).not.toBeNull()
+    return m as HTMLElement
+  })
+  const r = maniglia.getBoundingClientRect()
+  fireEvent.mouseDown(maniglia, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })
+  try {
+    const guida = maniglia.firstElementChild as HTMLElement
+    await waitFor(() => expect(guida.getBoundingClientRect().height).toBeGreaterThan(r.height * 4))
+    const g = guida.getBoundingClientRect()
+    const righe = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].slice(0, 6)
+    expect(righe.length).toBeGreaterThan(3)
+    for (const riga of righe) {
+      const y = riga.getBoundingClientRect().top + 10
+      for (let x = g.left + 0.5; x < g.right; x++) {
+        expect(document.elementFromPoint(x, y)?.closest('[role=separator]'), riga.textContent ?? '').toBe(maniglia)
+      }
+    }
+  } finally {
+    fireEvent.mouseUp(document)
+  }
+}
+
+// Scena di misura della guida di ridimensionamento sulla colonna bloccata.
+// Solo per il controllo automatico, fuori dalla barra e da Docs.
+export const GuidaColonnaBloccataProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Guida Colonna Bloccata, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => <TabellaControlli bloccate={['nome']} />,
+  play: provaGuidaColonnaBloccata,
+}
+
+// La prova del fondo: sulla riga madre aperta la cella della casella,
+// bloccata, ha lo stesso colore della fascia, a riposo e selezionata. I
+// colori li risolve il motore di resa (`fondoReso`). La pagina blocca la
+// casella e la colonna dell'albero; col codice di prima la casella bloccata
+// restava sul fondo del riquadro mentre la riga si tingeva.
+async function provaFondoRigheMadri({ canvasElement }: { canvasElement: HTMLElement }) {
+  const { madri, foglie, scorre } = await waitFor(() => {
+    const r = righeControlli(canvasElement)
+    expect(r.madri).toHaveLength(8)
+    return r
+  })
+  const riquadro = scorre.parentElement as HTMLElement
+  // `waitFor`: la riga cambia colore con una transizione, la cella no, e
+  // letta a metà la riga darebbe un colore che non resta.
+  const confronta = (tr: HTMLTableRowElement) =>
+    waitFor(() => {
+      const { casella, larga } = celleDellaMadre(tr)
+      expect(getComputedStyle(casella).position).toBe('sticky')
+      const b = fondoReso(larga, riquadro)
+      stessoColore(fondoReso(casella, riquadro), b)
+      return b
+    })
+  const aRiposo = await confronta(madri[1])
+  expect(fondoReso(foglie[0], riquadro)).not.toEqual(aRiposo)
+
+  await userEvent.click(within(madri[1]).getByRole('checkbox'))
+  await waitFor(() => expect(madri[1].getAttribute('data-state')).toBe('selected'))
+  const selezionata = await confronta(madri[1])
+  expect(selezionata).not.toEqual(aRiposo)
+  await userEvent.click(within(madri[1]).getByRole('checkbox'))
+  await waitFor(() => expect(madri[1].getAttribute('data-state')).toBeNull())
+}
+
+// Scena di misura del fondo della casella sulle righe madri. Solo per il
+// controllo automatico, fuori dalla barra e da Docs.
+export const AlberoRigheMadriFondoProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Albero Righe Madri, fondo, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="max-w-2xl">
+      <TabellaControlli bloccate={['selezione', 'nome']} />
+    </div>
+  ),
+  play: provaFondoRigheMadri,
+}
+
+/** Blocca o sblocca una colonna dal suo menu, come l'utente. */
+async function bloccaDalMenu(canvasElement: HTMLElement, titolo: string, voce: string) {
+  await userEvent.click(
+    await within(canvasElement).findByRole('button', { name: `Blocca colonna «${titolo}»` })
+  )
+  await userEvent.click(
+    await within(canvasElement.ownerDocument.body).findByRole('menuitem', { name: voce })
+  )
+  await waitFor(() =>
+    expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+  )
+}
+
+/** Se la prima intestazione è la casella, se è bloccata, e i titoli in ordine. */
+function testata(canvasElement: HTMLElement) {
+  const th = [...canvasElement.querySelectorAll<HTMLElement>('thead th')]
+  return {
+    primaCasella: !!th[0]?.querySelector('[role="checkbox"]'),
+    primaFerma: th[0] ? getComputedStyle(th[0]).position === 'sticky' : false,
+    titoli: th.map((h) => h.textContent?.trim() ?? ''),
+  }
+}
+
+// La prova della casella che si blocca con la prima colonna. Nessuna colonna
+// bloccata all'apertura; dal menu si blocca «Controllo»: la casella resta la
+// prima intestazione e diventa ferma, e scorrendo di lato non si sposta, né
+// si sposta il nome della riga madre. Bloccata anche «Metodo», la casella
+// resta prima; sbloccate tutte e due, torna a scorrere. Col codice di prima
+// «Controllo» finiva davanti alla casella, che restava a scorrere.
+async function provaCasellaConPrimaColonna({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => expect(righeControlli(canvasElement).madri).toHaveLength(8))
+  expect(testata(canvasElement)).toMatchObject({ primaCasella: true, primaFerma: false })
+
+  await bloccaDalMenu(canvasElement, 'Controllo', 'Blocca a sinistra')
+  await waitFor(() =>
+    expect(testata(canvasElement)).toMatchObject({ primaCasella: true, primaFerma: true })
+  )
+  expect(testata(canvasElement).titoli[1]).toContain('Controllo')
+  const { madri, foglie, scorre } = righeControlli(canvasElement)
+  const casellaFoglia = () => foglie[0].querySelector('td') as HTMLElement
+  expect(casellaFoglia().querySelector('[role="checkbox"]')).toBeTruthy()
+  await provaNomeFermo(madri, scorre)
+  const prima = casellaFoglia().getBoundingClientRect().left
+  scorre.scrollLeft = 150
+  await waitFor(() => expect(scorre.scrollLeft).toBe(150))
+  expect(Math.abs(casellaFoglia().getBoundingClientRect().left - prima)).toBeLessThan(1)
+  scorre.scrollLeft = 0
+
+  await bloccaDalMenu(canvasElement, 'Metodo', 'Blocca a sinistra')
+  await waitFor(() => expect(testata(canvasElement).titoli[2]).toContain('Metodo'))
+  expect(testata(canvasElement)).toMatchObject({ primaCasella: true, primaFerma: true })
+
+  await bloccaDalMenu(canvasElement, 'Controllo', 'Non bloccare')
+  await waitFor(() => expect(testata(canvasElement).titoli[1]).toContain('Metodo'))
+  expect(testata(canvasElement)).toMatchObject({ primaCasella: true, primaFerma: true })
+  await bloccaDalMenu(canvasElement, 'Metodo', 'Non bloccare')
+  await waitFor(() =>
+    expect(testata(canvasElement)).toMatchObject({ primaCasella: true, primaFerma: false })
+  )
+  expect(testata(canvasElement).titoli[1]).toContain('Controllo')
+}
+
+// Scena di misura della casella che si blocca con la prima colonna. Solo per
+// il controllo automatico, fuori dalla barra e da Docs.
+export const AlberoCasellaConPrimaColonnaProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Albero, casella bloccata con la prima colonna, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="max-w-2xl">
+      <TabellaControlli />
+    </div>
+  ),
+  play: provaCasellaConPrimaColonna,
+}
+
+// La prova con `bloccaPrimaColonna`: le stesse righe madri larghe, la casella
+// sullo stesso fondo della fascia e il nome fermo scorrendo di lato. Col
+// codice di prima la madre restava nella colonna bloccata, a capo, e la
+// casella bloccata restava sul fondo del riquadro.
+async function provaRigheMadriPrimaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
+  const { madri, scorre } = await waitFor(() => {
+    const r = righeControlli(canvasElement)
+    expect(r.madri).toHaveLength(8)
+    return r
+  })
+  const riquadro = scorre.parentElement as HTMLElement
+  for (const tr of madri) {
+    const { casella, larga } = celleDellaMadre(tr)
+    await waitFor(() => stessoColore(fondoReso(casella, riquadro), fondoReso(larga, riquadro)))
+    expect(tr.querySelector('button[aria-label="Azioni riga"]')).toBeNull()
+  }
+  await provaNomeFermo(madri, scorre)
+}
+
+// Scena di misura delle righe madri larghe con `bloccaPrimaColonna`. Solo per
+// il controllo automatico, fuori dalla barra e da Docs.
+export const AlberoRigheMadriPrimaBloccataProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Albero Righe Madri, prima colonna bloccata, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="max-w-2xl">
+      <TabellaControlli primaBloccata />
+    </div>
+  ),
+  play: provaRigheMadriPrimaBloccata,
+}
+
+// La prova nel corpo virtualizzato: le righe madri montate hanno la cella
+// larga, sono alte quanto le foglie, una riga, e non hanno il «⋯».
+async function provaRigheMadriVirtuali({ canvasElement }: { canvasElement: HTMLElement }) {
+  const { madri, foglie } = await waitFor(() => {
+    const r = righeControlli(canvasElement)
+    expect(r.madri.length).toBeGreaterThan(3)
+    expect(r.foglie.length).toBeGreaterThan(0)
+    return r
+  })
+  const altezzaFoglia = foglie[0].getBoundingClientRect().height
+  for (const tr of madri) {
+    expect(tr.querySelector('[data-slot="cella-madre"]')).toBeTruthy()
+    expect(Math.abs(tr.getBoundingClientRect().height - altezzaFoglia)).toBeLessThan(1)
+    expect(tr.querySelector('button[aria-label="Azioni riga"]')).toBeNull()
+  }
+}
+
+// Scena di misura del corpo virtualizzato con le righe madri larghe e la
+// prima colonna bloccata. Solo per il controllo automatico, fuori dalla barra
+// e da Docs; la stessa scena, scorsa, gira anche in WebKit.
+export const AlberoRigheMadriVirtualeProva: StoryObj<typeof DataTable<Controllo>> = {
+  name: 'Albero Righe Madri, virtualizzato, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="flex h-140 flex-col">
+      <TabellaControlli bloccate={['nome']} virtuale />
+    </div>
+  ),
+  play: provaRigheMadriVirtuali,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1566,6 +2387,101 @@ export const AltezzaFermaProva: StoryObj<typeof DataTable<Prodotto>> = {
   name: 'Altezza Ferma, prova',
   tags: ['!dev', '!autodocs'],
   play: provaAltezzaFerma,
+}
+
+// Le tabelle ferme con poche righe, e una che cresce di una riga alla volta.
+function AltezzaFermaPocheRighe() {
+  const [quante, setQuante] = React.useState(6)
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        {[4, 5, 10].map((n) => (
+          <div key={n} data-righe={n} className="flex h-140 flex-col">
+            <DataTable
+              colonne={COLONNE_TESTO}
+              dati={PRODOTTI.slice(0, n)}
+              cerca={false}
+              colonneNascondibili={false}
+              perPagina={100}
+              altezza="ferma"
+              className="min-h-0 flex-1"
+            />
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => setQuante((q) => q + 1)}>
+        Una riga in più
+      </Button>
+      <div data-righe="cresce" className="flex h-140 flex-col">
+        <DataTable
+          colonne={COLONNE_TESTO}
+          dati={PRODOTTI.slice(0, quante)}
+          cerca={false}
+          colonneNascondibili={false}
+          perPagina={100}
+          altezza="ferma"
+          className="min-h-0 flex-1"
+        />
+      </div>
+    </div>
+  )
+}
+
+// Il riquadro di una tabella in un contenitore, e l'elemento che scorre.
+function riquadroFermo(contenitore: Element) {
+  const scorre = contenitore.querySelector<HTMLElement>('[data-slot="table-container"]')
+  expect(scorre?.parentElement?.style.maxHeight).toMatch(/px$/)
+  return scorre as HTMLElement
+}
+
+// La prova guarda il riquadro fermo quando le righe entrano tutte. Con 4, 5 e
+// 10 righe il riquadro è alto quanto la tabella e non scorre: prima il tetto,
+// per difetto e senza i 2px del bordo, lo lasciava 2–3px più basso, e
+// l'ultima riga si poteva scorrere di quei pixel. Poi la tabella che cresce:
+// il suo contenitore si stringe finché la tabella ci sta appena, e con una
+// riga in più il riquadro torna al tetto per righe, col filo della riga di
+// fondo fuori vista, invece di tenere l'altezza intera di prima.
+async function provaAltezzaFermaPocheRighe({ canvasElement }: { canvasElement: HTMLElement }) {
+  for (const n of [4, 5, 10]) {
+    const contenitore = canvasElement.querySelector(`[data-righe="${n}"]`) as HTMLElement
+    const scorre = await waitFor(() => riquadroFermo(contenitore))
+    await waitFor(() => {
+      expect(scorre.querySelectorAll('tbody tr')).toHaveLength(n)
+      expect(scorre.scrollHeight).toBe(scorre.clientHeight)
+    })
+    expect(scorre.scrollTop).toBe(0)
+  }
+
+  const cresce = canvasElement.querySelector('[data-righe="cresce"]') as HTMLElement
+  const scorre = await waitFor(() => riquadroFermo(cresce))
+  await waitFor(() => expect(scorre.scrollHeight).toBe(scorre.clientHeight))
+  // Il contenitore si stringe fino a lasciare 2px di spazio sotto il piè
+  // della tabella: le righe entrano ancora tutte, ma una in più no.
+  const radice = cresce.firstElementChild as HTMLElement
+  const avanzo =
+    radice.getBoundingClientRect().bottom -
+    (radice.lastElementChild as HTMLElement).getBoundingClientRect().bottom
+  cresce.style.height = `${cresce.getBoundingClientRect().height - avanzo + 2}px`
+  await waitFor(() => expect(scorre.scrollHeight).toBe(scorre.clientHeight))
+  await userEvent.click(within(canvasElement).getByRole('button', { name: 'Una riga in più' }))
+  await waitFor(() => expect(scorre.scrollHeight).toBeGreaterThan(scorre.clientHeight))
+  await new Promise((fatto) => setTimeout(fatto, 300))
+  expect(scorre.scrollTop).toBe(0)
+  const fondoInterno = scorre.getBoundingClientRect().bottom
+  const righe = [...scorre.querySelectorAll('tbody tr')]
+  const inVista = righe.filter((r) => r.getBoundingClientRect().top < fondoInterno)
+  const fondoRiga = inVista[inVista.length - 1].getBoundingClientRect().bottom
+  expect(fondoRiga - 1).toBeGreaterThanOrEqual(fondoInterno)
+}
+
+// Scena di misura del riquadro fermo con poche righe. Solo per il controllo
+// automatico, fuori dalla barra e da Docs; gira anche in WebKit, dove le
+// righe si arrotondano a pixel interi.
+export const AltezzaFermaPocheRigheProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Altezza Ferma, poche righe, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <AltezzaFermaPocheRighe />,
+  play: provaAltezzaFermaPocheRighe,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1947,7 +2863,117 @@ export const RidimensionabileConMenuRigaProva: StoryObj<typeof DataTable<Prodott
   ...RidimensionabileConMenuRiga,
   name: 'Ridimensionabile Con Menu Riga, prova',
   tags: ['!dev', '!autodocs'],
-  play: provaSenzaScorrimentoLaterale,
+  play: provaColonnaElastica,
+}
+
+// La prova misura le larghezze rese. «Famiglia», senza `size`, non ha una
+// `width` nel `<colgroup>` e prende lo spazio che avanza; le altre colonne,
+// «⋯» compresa, restano alla loro `size`. Prima TanStack dava a «Famiglia»
+// una `size` di serie di 150px, nessuna colonna era elastica e l'avanzo si
+// divideva fra tutte: a 1440px «⋯» era larga 86px invece di 48.
+async function provaColonnaElastica(contesto: { canvasElement: HTMLElement }) {
+  await provaSenzaScorrimentoLaterale(contesto)
+  const tabella = contesto.canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+  expect(tabella).toBeTruthy()
+  const t = tabella as HTMLTableElement
+  const intestazioni = [...t.querySelectorAll<HTMLTableCellElement>('thead tr:first-child th')]
+  const col = [...t.querySelectorAll<HTMLTableColElement>('colgroup col')]
+  expect(col).toHaveLength(intestazioni.length)
+  const larghezza = (i: number) => intestazioni[i].getBoundingClientRect().width
+  const indice = (testo: string) => intestazioni.findIndex((th) => th.textContent?.includes(testo))
+  const famiglia = indice('Famiglia')
+  expect(famiglia).toBeGreaterThan(-1)
+  expect(col[famiglia].style.width).toBe('')
+  // Le colonne con `size` sono larghe quanto la dichiarano; la «⋯» è l'ultima.
+  for (const [testo, px] of [['Codice', 140], ['Nome', 220], ['Stato', 130]] as const) {
+    expect(Math.abs(larghezza(indice(testo)) - px)).toBeLessThan(1)
+  }
+  expect(Math.abs(larghezza(intestazioni.length - 1) - 48)).toBeLessThan(1)
+  expect(larghezza(famiglia)).toBeGreaterThan(150)
+
+  // Stretta da tastiera, la colonna elastica parte dalla larghezza con cui è
+  // resa, non dai 150px di serie di TanStack: perde al più un passo (16px).
+  // L'avanzo che resta si divide fra tutte le colonne, perché da qui in poi
+  // nessuna è più elastica.
+  const prima = larghezza(famiglia)
+  intestazioni[famiglia].querySelector('button')?.focus()
+  await userEvent.keyboard('{Alt>}{ArrowLeft}{/Alt}')
+  await waitFor(() => expect(larghezza(famiglia)).toBeLessThan(prima))
+  expect(prima - larghezza(famiglia)).toBeLessThanOrEqual(16.5)
+}
+
+// Una colonna senza `size` bloccata a un bordo prende una larghezza, perché
+// la posizione delle colonne bloccate accanto si calcola dalle larghezze di
+// TanStack. La prova parte da «Famiglia» elastica (nessuna `width` nel
+// `<colgroup>`), la blocca a sinistra con «Codice», controlla che ora abbia
+// una `width`, scorre di lato e controlla che «Codice» cominci dove finisce
+// «Famiglia». Se «Famiglia» restasse elastica anche bloccata, sarebbe larga
+// il minimo della colonna elastica (160px) e «Codice», posata a 150px, la
+// coprirebbe di 10px (90 in touch).
+// La precondizione non è un di più: senza, la prova passerebbe anche su un
+// codice in cui «Famiglia» non è mai elastica (tutte le colonne con la `size`
+// di serie di TanStack, 150px), dove la sovrapposizione non può nascere e il
+// controllo sullo scarto sarebbe vuoto.
+async function provaColonnaElasticaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const larghezzaFamiglia = () => {
+    const t = canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+    expect(t).toBeTruthy()
+    const intestazioni = [...(t as HTMLTableElement).querySelectorAll('thead tr:first-child th')]
+    const col = [...(t as HTMLTableElement).querySelectorAll<HTMLTableColElement>('colgroup col')]
+    expect(col).toHaveLength(intestazioni.length)
+    const i = intestazioni.findIndex((th) => th.textContent?.includes('Famiglia'))
+    expect(i).toBeGreaterThan(-1)
+    return col[i].style.width
+  }
+  expect(larghezzaFamiglia()).toBe('')
+  for (const nome of ['Famiglia', 'Codice']) {
+    await userEvent.click(await canvas.findByRole('button', { name: `Blocca colonna «${nome}»` }))
+    await userEvent.click(
+      await within(canvasElement.ownerDocument.body).findByRole('menuitem', {
+        name: 'Blocca a sinistra',
+      })
+    )
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+    )
+  }
+  expect(larghezzaFamiglia()).not.toBe('')
+  const scorre = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+  expect(scorre).toBeTruthy()
+  const s = scorre as HTMLElement
+  expect(s.scrollWidth).toBeGreaterThan(s.clientWidth)
+  s.scrollLeft = 200
+  await waitFor(() => {
+    const [primo, secondo] = [...s.querySelectorAll<HTMLTableCellElement>('thead tr:first-child th')]
+    expect(primo.textContent).toContain('Famiglia')
+    expect(secondo.textContent).toContain('Codice')
+    const a = primo.getBoundingClientRect()
+    const b = secondo.getBoundingClientRect()
+    expect(a.left).toBeCloseTo(s.getBoundingClientRect().left, 0)
+    expect(Math.abs(b.left - a.right)).toBeLessThan(1)
+  })
+}
+
+// Scena di misura: le colonne bloccabili in un riquadro stretto, con la
+// colonna senza `size` bloccata. Solo per il controllo automatico.
+export const ColonnaElasticaBloccataProva: Story = {
+  name: 'Colonna Elastica Bloccata, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 5),
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    colonneBloccabili: true,
+  },
+  render: (args) => (
+    <div className="w-90">
+      <DataTable {...args} />
+    </div>
+  ),
+  play: provaColonnaElasticaBloccata,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -2605,6 +3631,291 @@ export const FiltroVociComeNelDatoProva: StoryObj<typeof DataTable<MisurazioneCo
   name: 'Filtro Voci Come Nel Dato, prova',
   tags: ['!dev', '!autodocs'],
   play: provaVociComeNelDato,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Il filtro su una colonna che porta un elenco di valori per riga
+ *
+ * Dati inventati: sette schede, ognuna con le lingue in cui è tradotta.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Scheda = {
+  codice: string
+  nome: string
+  stato: 'Pubblicata' | 'Bozza'
+  // Facoltativo: un dato letto da un servizio che omette gli elenchi vuoti.
+  lingue?: string[]
+}
+
+const SCHEDE: Scheda[] = [
+  { codice: 'A', nome: 'Scheda tecnica malta bastarda', stato: 'Pubblicata', lingue: ['EN', 'DE'] },
+  { codice: 'B', nome: 'Scheda tecnica intonaco di fondo', stato: 'Pubblicata', lingue: ['EN'] },
+  { codice: 'C', nome: 'Dichiarazione di prestazione calce', stato: 'Bozza', lingue: ['EN', 'FR'] },
+  { codice: 'D', nome: 'Voce di capitolato massetto', stato: 'Bozza', lingue: [] },
+  { codice: 'E', nome: 'Scheda di sicurezza primer', stato: 'Pubblicata', lingue: ['EN'] },
+  { codice: 'F', nome: 'Nota di posa rasante', stato: 'Pubblicata' },
+  { codice: 'G', nome: 'Scheda tecnica rasante fibrato', stato: 'Pubblicata', lingue: ['EN', 'DE', 'FR'] },
+]
+
+/** Le lingue in cui ogni scheda dovrebbe essere tradotta. */
+const LINGUE_DI_RIFERIMENTO = ['EN', 'DE', 'FR']
+
+/** Le voci del filtro Lingua: il valore resta la sigla del dato, cambia solo l'etichetta. */
+const LINGUE: { value: string; label: string }[] = [
+  { value: 'EN', label: 'Inglese' },
+  { value: 'DE', label: 'Tedesco' },
+  { value: 'FR', label: 'Francese' },
+]
+
+const colScheda = creaColonne<Scheda>()
+
+function colonneSchede(filtroLingue: 'arrHasAny' | 'arrHas') {
+  return colScheda.columns([
+    colScheda.accessor('codice', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+      meta: { titolo: 'Codice', larghezza: 'w-20' },
+      sortFn: 'alphanumeric',
+    }),
+    colScheda.accessor('nome', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+      meta: { titolo: 'Nome' },
+      sortFn: 'text',
+    }),
+    colScheda.accessor('lingue', {
+      header: 'Lingue',
+      meta: { titolo: 'Lingue', larghezza: 'w-40', elenco: true },
+      filterFn: filtroLingue,
+      enableGlobalFilter: false,
+      cell: ({ getValue }) => {
+        const lingue = getValue<string[] | undefined>() ?? []
+        if (lingue.length === 0) return <span className="text-muted-foreground">—</span>
+        return (
+          <div className="flex gap-1">
+            {lingue.map((lingua) => (
+              <Badge key={lingua} variant="secondary">
+                {lingua}
+              </Badge>
+            ))}
+          </div>
+        )
+      },
+    }),
+    colScheda.accessor(
+      (scheda) =>
+        LINGUE_DI_RIFERIMENTO.every((lingua) => scheda.lingue?.includes(lingua))
+          ? 'Completa'
+          : 'Incompleta',
+      {
+        id: 'traduzioni',
+        header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Traduzioni" />,
+        meta: { titolo: 'Traduzioni', larghezza: 'w-32' },
+        filterFn: 'arrHas',
+        enableGlobalFilter: false,
+      },
+    ),
+    colScheda.accessor('stato', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+      meta: { titolo: 'Stato', larghezza: 'w-32' },
+      filterFn: 'arrHas',
+    }),
+  ])
+}
+
+const COLONNE_SCHEDE = colonneSchede('arrHasAny')
+// La colonna delle lingue col filtro dei valori singoli: il modo di sbagliare
+// che il filtro segnala in console.
+const COLONNE_SCHEDE_FILTRO_SBAGLIATO = colonneSchede('arrHas')
+
+function TabellaSchede({ colonne = COLONNE_SCHEDE }: { colonne?: typeof COLONNE_SCHEDE }) {
+  return (
+    <DataTable
+      colonne={colonne}
+      dati={SCHEDE}
+      cerca="Cerca per codice o nome…"
+      colonneNascondibili={false}
+      nomeRighe={{ singolare: 'scheda', plurale: 'schede' }}
+      barra={(_scelte, tabella) => (
+        <>
+          <FiltroSfaccettato tabella={tabella} accessore="lingue" titolo="Lingua" opzioni={LINGUE} />
+          <FiltroSfaccettato tabella={tabella} accessore="traduzioni" titolo="Traduzioni" />
+          <FiltroSfaccettato tabella={tabella} accessore="stato" titolo="Stato" />
+          <FiltroResetTutti tabella={tabella} />
+        </>
+      )}
+    />
+  )
+}
+
+/**
+ * Una colonna che porta un **elenco** di valori per riga: le lingue in cui
+ * ogni scheda è tradotta. La colonna dichiara `meta: { elenco: true }` e
+ * `filterFn: "arrHasAny"`: il filtro Lingua conta ogni scheda sotto ciascuna
+ * delle sue lingue, e scegliere Francese lascia le schede che hanno il
+ * francese, anche insieme ad altre lingue. La somma dei conteggi può quindi
+ * superare le righe. Le voci del filtro restano le sigle del dato; `opzioni`
+ * le mostra per esteso.
+ *
+ * Il filtro Traduzioni non è una funzione del blocco: è una colonna calcolata
+ * (`accessor` con una funzione) che dice se la scheda ha **tutte** le lingue
+ * di un elenco di riferimento, filtrata come ogni altro valore singolo. Le
+ * schede senza lingue stanno in Incompleta.
+ */
+export const FiltroSuUnElenco: StoryObj<typeof DataTable<Scheda>> = {
+  name: 'Filtro Su Un Elenco',
+  render: () => <TabellaSchede />,
+}
+
+/** Apre il filtro col titolo dato e restituisce il suo pannello. */
+async function apriFiltro(canvasElement: HTMLElement, titolo: string) {
+  await userEvent.click(within(canvasElement).getByRole('button', { name: new RegExp(`^${titolo}`) }))
+  return waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="popover-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+}
+
+/** Chiude il pannello aperto, del tutto: finché c'è, lo sfondo resta inerte. */
+async function chiudiFiltro() {
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(document.querySelector('[data-slot="popover-content"]')).toBeNull())
+}
+
+/** Le voci del pannello come «etichetta + conteggio». */
+async function vociDelFiltro(pannello: HTMLElement, attese: string[]) {
+  await waitFor(() =>
+    expect(within(pannello).queryAllByRole('option').map((v) => v.textContent)).toEqual(attese)
+  )
+}
+
+/** I codici delle righe in vista. */
+function codiciInVista(canvasElement: HTMLElement) {
+  return [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(
+    (riga) => riga.querySelector('td')?.textContent ?? ''
+  )
+}
+
+// Prova delle voci: il filtro Lingua conta ogni scheda sotto ciascuna delle
+// sue lingue. Col filtro che non riconosceva gli elenchi uscivano l'elenco
+// intero come testo («EN,DE») e, con le opzioni, il solo «Inglese 2».
+async function provaElencoVoci({ canvasElement }: { canvasElement: HTMLElement }) {
+  const pannello = await apriFiltro(canvasElement, 'Lingua')
+  await vociDelFiltro(pannello, ['Inglese5', 'Tedesco2', 'Francese2'])
+  await chiudiFiltro()
+}
+
+// Prova della scelta: Inglese lascia le cinque schede che lo hanno, anche
+// insieme ad altre lingue; Francese lascia C e G, e il filtro Stato conta le
+// sole schede rimaste. Con `arrHas` l'elenco intero si confrontava con la
+// sigla scelta e non restava nessuna riga.
+async function provaElencoScelta({ canvasElement }: { canvasElement: HTMLElement }) {
+  let pannello = await apriFiltro(canvasElement, 'Lingua')
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Inglese/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['A', 'B', 'C', 'E', 'G']))
+  pannello = await apriFiltro(canvasElement, 'Lingua')
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Inglese/ }))
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Francese/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['C', 'G']))
+  const stato = await apriFiltro(canvasElement, 'Stato')
+  await vociDelFiltro(stato, ['Bozza1', 'Pubblicata1'])
+  await chiudiFiltro()
+}
+
+// Prova della ricetta Completa / Incompleta: una sola scheda ha tutte e tre
+// le lingue di riferimento; le schede senza lingue, o senza il campo, sono
+// incomplete.
+async function provaElencoTraduzioni({ canvasElement }: { canvasElement: HTMLElement }) {
+  const pannello = await apriFiltro(canvasElement, 'Traduzioni')
+  await vociDelFiltro(pannello, ['Completa1', 'Incompleta6'])
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Completa/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['G']))
+  // Con Completa scelta, il filtro Lingua conta le sole lingue di G.
+  const lingua = await apriFiltro(canvasElement, 'Lingua')
+  await vociDelFiltro(lingua, ['Inglese1', 'Tedesco1', 'Francese1'])
+  await chiudiFiltro()
+}
+
+// Prova con la ricerca: «scheda» lascia A, B, E e G, e il filtro Lingua conta
+// le loro lingue. La ricerca non guarda la colonna delle lingue.
+async function provaElencoRicerca({ canvasElement }: { canvasElement: HTMLElement }) {
+  await userEvent.type(within(canvasElement).getByRole('searchbox'), 'Scheda')
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['A', 'B', 'E', 'G']))
+  const pannello = await apriFiltro(canvasElement, 'Lingua')
+  await vociDelFiltro(pannello, ['Inglese4', 'Tedesco2', 'Francese1'])
+  await userEvent.click(within(pannello).getByRole('option', { name: /^Tedesco/ }))
+  await chiudiFiltro()
+  await waitFor(() => expect(codiciInVista(canvasElement)).toEqual(['A', 'G']))
+}
+
+// Scene di misura di «Filtro Su Un Elenco»: la stessa resa, con le prove.
+// `!dev` le toglie dalla barra e da Docs, così la scena qui sopra si apre a
+// riposo; il controllo automatico le esegue lo stesso.
+export const FiltroSuUnElencoVociProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova delle voci',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoVoci,
+}
+
+export const FiltroSuUnElencoSceltaProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova della scelta',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoScelta,
+}
+
+export const FiltroSuUnElencoTraduzioniProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova delle traduzioni',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoTraduzioni,
+}
+
+export const FiltroSuUnElencoRicercaProva: StoryObj<typeof DataTable<Scheda>> = {
+  ...FiltroSuUnElenco,
+  name: 'Filtro Su Un Elenco, prova con la ricerca',
+  tags: ['!dev', '!autodocs'],
+  play: provaElencoRicerca,
+}
+
+// Prova dell'avviso: la colonna delle lingue dichiara `meta.elenco` ma tiene
+// `filterFn: "arrHas"`. Scegliere Inglese lascia la tabella senza righe, in
+// silenzio: per questo il filtro lo scrive in console in sviluppo. Gli
+// avvisi si raccolgono prima del render, perché il filtro lo scrive appena
+// montato.
+const avvisiConsole: string[] = []
+
+export const FiltroSuUnElencoAvvisoProva: StoryObj<typeof DataTable<Scheda>> = {
+  name: 'Filtro Su Un Elenco, prova dell’avviso',
+  tags: ['!dev', '!autodocs'],
+  render: () => <TabellaSchede colonne={COLONNE_SCHEDE_FILTRO_SBAGLIATO} />,
+  beforeEach: () => {
+    avvisiConsole.length = 0
+    const originale = console.warn
+    console.warn = (...argomenti: unknown[]) => {
+      avvisiConsole.push(argomenti.map(String).join(' '))
+      originale(...argomenti)
+    }
+    return () => {
+      console.warn = originale
+    }
+  },
+  play: async ({ canvasElement }) => {
+    const pannello = await apriFiltro(canvasElement, 'Lingua')
+    await userEvent.click(within(pannello).getByRole('option', { name: /^Inglese/ }))
+    await chiudiFiltro()
+    await waitFor(() =>
+      expect(codiciInVista(canvasElement).filter((codice) => /^[A-G]$/.test(codice))).toEqual([])
+    )
+    await waitFor(() =>
+      expect(
+        avvisiConsole.filter((m) => m.includes('"lingue"') && m.includes('arrHasAny')).length
+      ).toBeGreaterThan(0)
+    )
+  },
 }
 
 /* ────────────────────────────────────────────────────────────────────────

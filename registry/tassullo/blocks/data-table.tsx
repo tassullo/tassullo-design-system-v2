@@ -82,6 +82,7 @@
  * uno solo.
  */
 import * as React from "react"
+import { flushSync } from "react-dom"
 import {
   columnFilteringFeature,
   columnOrderingFeature,
@@ -256,7 +257,9 @@ import {
  * disegnano niente. `columnSizingFeature` resta comunque utile da sola anche
  * a `ridimensionabile` spento: è la stessa che dà a `colonna.getSize()` un
  * numero — 150 di default TanStack — usato per calcolare gli scarti del pin
- * generalizzato (v. `ancoraggioColonna`).
+ * generalizzato (v. `ancoraggioColonna`). Quel 150 resta in `getSize()` e
+ * non in `columnDef.size` (`defaultColumn` in `DataTable`), così
+ * `columnDef.size` dice ancora se la larghezza l'ha scritta la pagina.
  *
  * `columnOrderingFeature` (il riordino delle colonne) è la stessa storia
  * una volta di più: registrata sempre, ma `state.columnOrder` resta
@@ -270,12 +273,14 @@ import {
  * `arrHas` (i filtri sfaccettati) tiene la riga se il valore della
  * colonna è **uguale a uno** dei valori scelti — la forma giusta per un
  * filtro a scelta multipla su un valore scalare (`stato`, `famiglia`: una
- * riga ha un solo stato, non un elenco). `arrIncludes`/`arrIncludesSome`
- * risolvono il caso opposto, un valore-elenco sulla riga, che qui non
- * ricorre. Una colonna lo usa dichiarando `filterFn: "arrHas"`; TanStack
- * toglie da sé il filtro quando l'elenco scelto torna vuoto
- * (`autoRemove`), quindi `colonna.setFilterValue([])` e
+ * riga ha un solo stato, non un elenco). Una colonna lo usa dichiarando
+ * `filterFn: "arrHas"`; TanStack toglie da sé il filtro quando l'elenco
+ * scelto torna vuoto (`autoRemove`), quindi `colonna.setFilterValue([])` e
  * `colonna.setFilterValue(undefined)` sono equivalenti.
+ *
+ * `arrHasAny` è il caso opposto, un **elenco di valori** sulla riga (le
+ * lingue di una scheda): v. `filterFn_arrHasAny` qui sotto e
+ * `MetaColonna.elenco`.
  *
  * `inNumberRange`/`inDateRange` (`data-table-filtro-
  * intervallo.tsx`/`data-table-filtro-data.tsx`) tengono la riga se il suo
@@ -303,6 +308,26 @@ const filterFn_includesStringInAlbero = constructFilterFn({
     }),
 })
 
+/**
+ * Il filtro delle colonne che portano un **elenco** di valori per riga
+ * (`meta.elenco`): tiene la riga se il suo elenco contiene **almeno uno**
+ * dei valori scelti. Un valore mancante (`undefined`, `null`) vale come
+ * elenco vuoto, e un elenco vuoto non passa mai: una riga senza lingue non
+ * sta sotto nessuna lingua. Su un valore singolo si comporta come `arrHas`,
+ * con lo stesso confronto stretto (`"EN"` non è `"en"`).
+ *
+ * Non è `arrIncludesSome` di TanStack, che fa la stessa cosa sugli array ma
+ * scarta ogni riga il cui valore non è un array: un campo mancante o un
+ * valore singolo non passerebbero mai, benché il filtro li conti.
+ */
+const filterFn_arrHasAny = constructFilterFn({
+  filter: (valore: unknown, scelti: readonly unknown[]) => {
+    const valori = Array.isArray(valore) ? valore : valore == null ? [] : [valore]
+    return valori.some((voce) => scelti.includes(voce))
+  },
+  autoRemove: filterFn_arrHas.autoRemove,
+})
+
 export const caratteristiche = tableFeatures({
   columnFilteringFeature,
   columnOrderingFeature,
@@ -323,6 +348,7 @@ export const caratteristiche = tableFeatures({
     includesString: filterFn_includesString,
     includesStringInAlbero: filterFn_includesStringInAlbero,
     arrHas: filterFn_arrHas,
+    arrHasAny: filterFn_arrHasAny,
     inNumberRange: filterFn_inNumberRange,
     inDateRange: filterFn_inDateRange,
   },
@@ -394,7 +420,10 @@ export function creaColonne<TDato extends RowData>() {
  * `accessor`/`display`/`columns` più sopra: la documentazione che serve a chi
  * scrive una colonna resta la loro. Una colonna senza `size` assorbe lo
  * spazio che avanza, come senza `larghezza` — la stessa elasticità, un
- * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni).
+ * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni) — e
+ * non scende sotto lo stesso minimo. Diventa larga quanto un numero solo
+ * quando l'utente la trascina (parte dalla larghezza con cui è resa) o la
+ * blocca a un bordo (150px, o `minSize` se più grande).
  *
  * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
  * senza, una tabella ad albero (`getSottoRighe`) resta legittima —
@@ -438,7 +467,8 @@ export type MetaColonna<TDato = unknown> = {
    * la cella resta su una riga e finisce coi puntini, e le righe restano
    * tutte alte uguali. Con `"aCapo"` il testo va a capo e la riga cresce
    * quanto serve: per i testi descrittivi che chi legge la riga deve vedere
-   * interi (un metodo di prova, una nota).
+   * interi (un metodo di prova, una nota). Vale anche per il testo dentro
+   * `CellaAlbero`, che segue la sua cella.
    *
    * **Una colonna a capo dichiara `larghezza`.** Senza, in una finestra
    * stretta la colonna prende solo il minimo che le resta e il testo diventa
@@ -453,6 +483,63 @@ export type MetaColonna<TDato = unknown> = {
    * secondo interruttore che contraddice il primo.
    */
   testo?: "tronca" | "aCapo"
+  /**
+   * La colonna porta un **elenco di valori** per riga (le lingue di una
+   * scheda: `["EN", "DE"]`), non un valore solo. Il filtro sfaccettato conta
+   * allora la riga sotto **ogni** valore del suo elenco, e non sotto l'elenco
+   * intero trasformato in testo («EN,DE»). Un valore mancante vale come
+   * elenco vuoto.
+   *
+   * **Va insieme a `filterFn: "arrHasAny"`**, che tiene la riga se il suo
+   * elenco contiene almeno uno dei valori scelti. Con `"arrHas"` i conteggi
+   * del filtro sono giusti ma ogni scelta lascia la tabella vuota: in
+   * sviluppo il filtro lo scrive in console.
+   *
+   * ```tsx
+   * col.accessor("lingue", {
+   *   header: "Lingue",
+   *   meta: { titolo: "Lingue", elenco: true },
+   *   filterFn: "arrHasAny",
+   * })
+   * ```
+   */
+  elenco?: boolean
+  /**
+   * In una tabella ad albero, le righe madri si stendono su tutta la riga.
+   * Si dichiara sulla colonna che rende `CellaAlbero`: sulle righe con figli
+   * la sua cella diventa una sola cella larga, che parte da lei e copre le
+   * colonne che seguono. Il contenuto resta la `cell` della colonna, quindi
+   * freccia e rientro sono quelli di `CellaAlbero`, e la `cell` scrive nome e
+   * conteggio quando `row.subRows.length > 0`. Le righe senza figli non
+   * cambiano.
+   *
+   * **La fascia si ferma alla prima colonna che dichiara `sottototale`**: da
+   * lì in poi ogni colonna scrive il suo sottototale come sempre. Si ferma
+   * anche prima di una colonna bloccata a destra e prima del menu di riga.
+   * Con `ridimensionabile` la cella larga è larga quanto le colonne che
+   * copre.
+   *
+   * **Sulle righe madri non c'è il menu di riga**: la cella del «⋯» resta,
+   * vuota, e il tasto destro non apre niente. Le righe di raggruppamento non
+   * si modificano.
+   *
+   * **Con le colonne bloccate** la fascia passa sopra il bordo della colonna
+   * bloccata e il nome resta fermo mentre si scorre di lato; un nome più
+   * lungo di quanto resta in vista scorre via con la riga. La casella di
+   * selezione ha lo stesso fondo della fascia.
+   *
+   * **La fascia non va a capo**, nemmeno con `testo: "aCapo"`: resta alta
+   * una riga, come le foglie, e il testo che non ci sta finisce coi puntini.
+   * Sul telefono, quando la tabella è più larga della vista, il conteggio può
+   * restare fuori vista finché non si scorre di lato; con la colonna
+   * dell'albero bloccata il nome non si sposta, e il conteggio compare solo
+   * verso la fine dello scorrimento. Lì la forma giusta resta la faccia a
+   * schede.
+   *
+   * Una colonna con questa chiave che non rende `CellaAlbero` dà una fascia
+   * senza freccia: in sviluppo il blocco lo scrive in console.
+   */
+  madreSuTuttaLaRiga?: boolean
 }
 
 /**
@@ -462,6 +549,39 @@ export type MetaColonna<TDato = unknown> = {
  * `larghezzaMinima` in `DataTable`).
  */
 const MINIMO_ELASTICA = 40
+
+/**
+ * Se una colonna ha una larghezza sua in una tabella `ridimensionabile` o
+ * `colonneBloccabili`: la `size` scritta dalla pagina, una larghezza scelta
+ * dall'utente trascinando, o il blocco a un bordo. Le altre sono elastiche:
+ * nessuna `width` nel `<colgroup>`, e assorbono lo spazio che avanza.
+ *
+ * Una colonna bloccata ha sempre una larghezza, anche senza `size`: la
+ * posizione delle colonne bloccate accanto si calcola sommando le larghezze
+ * di TanStack, e una colonna elastica bloccata sarebbe resa più larga o più
+ * stretta del numero che quella somma usa. Senza `size` prende il valore di
+ * serie di TanStack, 150px (o `minSize`, se più grande).
+ */
+function haLarghezza<TDato extends RowData>(
+  colonna: Column<CaratteristicheTabella, TDato, unknown>,
+  dimensioni: ColumnSizingState
+): boolean {
+  return colonna.columnDef.size != null || dimensioni[colonna.id] != null || !!colonna.getIsPinned()
+}
+
+/**
+ * Da quale larghezza parte un ridimensionamento. Una colonna elastica non ha
+ * un numero suo (`getSize()` darebbe il valore di serie di TanStack): parte
+ * dalla larghezza con cui è resa, o al primo passo salterebbe a 150px.
+ */
+function larghezzaDiPartenza<TDato extends RowData>(
+  colonna: Column<CaratteristicheTabella, TDato, unknown>,
+  dimensioni: ColumnSizingState,
+  cella: Element | null | undefined
+): number {
+  if (!haLarghezza(colonna, dimensioni) && cella) return cella.getBoundingClientRect().width
+  return dimensioni[colonna.id] ?? colonna.getSize()
+}
 
 /**
  * Le classi del testo di una cella del corpo, da `meta.testo`. `truncate` è il
@@ -572,11 +692,14 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
         // Il margine negativo pareggia il `px-2.5` del bottone col `px-2` del
         // `<th>`, così l'intestazione si incolonna con le celle sotto invece di
         // stare rientrata di due pixel.
-        "h-7 font-medium",
+        // `shrink min-w-0 max-w-full` e il titolo che tronca: in una colonna
+        // più stretta del titolo il bottone resta dentro il `<th>` invece di
+        // uscirne e finire sotto la puntina della colonna accanto.
+        "h-7 max-w-full min-w-0 shrink font-medium",
         allinea === "fine" ? "-mr-2" : "-ml-2"
       )}
     >
-      <span>{titolo}</span>
+      <span className="min-w-0 truncate">{titolo}</span>
       {ordine === "asc" ? (
         <ArrowUpIcon aria-hidden />
       ) : ordine === "desc" ? (
@@ -592,7 +715,7 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
   // distribuire. Per mandare a destra l'intestazione di una colonna di numeri
   // serve che a essere flex sia il contenitore.
   return allinea === "fine" ? (
-    <div className="flex justify-end">{bottone}</div>
+    <div className="flex min-w-0 justify-end">{bottone}</div>
   ) : (
     bottone
   )
@@ -834,6 +957,12 @@ export function colonnaSelezione<TDato extends RowData>() {
  * del bottone, alzerebbe le righe senza figli **più** di quelle con figli
  * (49px contro 35,57px, misurato), e a vederle sembrano tutte uguali.
  *
+ * **Il testo segue `meta.testo` della colonna**, senza una prop: di serie
+ * tronca coi puntini, con `"aCapo"` va a capo e la riga cresce. Lo span del
+ * testo eredita dalla cella il modo di andare a capo e aggiunge solo il
+ * taglio; nel corpo virtualizzato, dove le celle troncano sempre, tronca
+ * anche lui.
+ *
  * **Il bottone del `chevron` non si distingue quando la riga è aperta e
  * ferma**: niente sfondo, niente bordo — identico a se stesso chiuso.
  * `Button` da sé darebbe al bottone un `bg-muted` pieno quando è lui ad avere
@@ -875,7 +1004,7 @@ export function CellaAlbero<TDato extends RowData>({
   const espansa = riga.getIsExpanded()
 
   return (
-    <span className={cn("flex items-center gap-1", livello)}>
+    <span data-slot="cella-albero" className={cn("flex items-center gap-1", livello)}>
       {puoEspandere ? (
         <Button
           variant="ghost"
@@ -893,7 +1022,11 @@ export function CellaAlbero<TDato extends RowData>({
       ) : (
         <span aria-hidden className="w-8 shrink-0" />
       )}
-      <span className="truncate">{children}</span>
+      {/* Tronca o va a capo come la sua cella: `white-space` e `overflow-wrap`
+          si ereditano dalla cella, che li prende da `meta.testo` della
+          colonna. Qui restano solo il taglio e i puntini, che non si
+          ereditano. */}
+      <span className="min-w-0 overflow-hidden text-ellipsis">{children}</span>
     </span>
   )
 }
@@ -1580,11 +1713,25 @@ function PaginazioneTabella<TDato extends RowData>({
 export function classiBloccate(indice: number, conSelezione: boolean): string | undefined {
   const quante = conSelezione ? 2 : 1
   if (indice >= quante) return undefined
-  const base =
-    "sticky z-10 bg-card group-hover/riga:bg-muted/50 group-data-[state=selected]/riga:bg-muted"
+  const base = `sticky z-10 ${FONDO_CELLA_BLOCCATA}`
   const bordo = indice === quante - 1 ? " border-r" : ""
   return `${base}${bordo} ${indice === 0 ? "left-0" : "left-10"}`
 }
+
+/**
+ * Il fondo di una cella bloccata del corpo: **opaco, e uguale a quello della
+ * riga** in ogni stato. La riga si tinge con un velo di `muted` al 50% sopra
+ * il `bg-card` del riquadro: al passaggio del puntatore, quando è aperta (una
+ * riga madre dell'albero, o col suo menu aperto) e, pieno, quando è
+ * selezionata. Una cella bloccata non può prendere lo stesso velo come colore
+ * di fondo: sarebbe trasparente, lascerebbe vedere le colonne che le
+ * scorrono sotto e, sommato al fondo della riga, uscirebbe più scuro. Il velo
+ * sta quindi in un gradiente di un colore solo (`from-muted/50 to-muted/50`),
+ * che si dipinge sopra il `bg-card` della cella stessa: il risultato è lo
+ * stesso colore della riga, e opaco.
+ */
+const FONDO_CELLA_BLOCCATA =
+  "bg-card from-muted/50 to-muted/50 group-hover/riga:bg-linear-to-r group-has-aria-expanded/riga:bg-linear-to-r group-data-[state=selected]/riga:bg-muted"
 
 /* ────────────────────────────────────────────────────────────────────────
  * Resize e pin di qualunque colonna
@@ -1614,8 +1761,13 @@ export function ancoraggioColonna<TDato extends RowData>(
 ): { className: string; style: React.CSSProperties } | undefined {
   const posizione = colonna.getIsPinned()
   if (!posizione) return undefined
-  const fondo = contesto === "intestazione" ? "bg-accent" : "bg-card"
-  const base = `sticky z-10 ${fondo} group-hover/riga:bg-muted/50 group-data-[state=selected]/riga:bg-muted`
+  const fondo = contesto === "intestazione" ? "bg-accent" : FONDO_CELLA_BLOCCATA
+  // L'intestazione bloccata sta **sopra** le celle bloccate del corpo (`z-20`
+  // contro `z-10`): è uno `sticky` con uno z-index, quindi un contesto a sé, e
+  // la guida arancio della sua maniglia, che durante il trascinamento scende
+  // per tutta la tabella, ne resta prigioniera. A z-index pari le celle del
+  // corpo, che vengono dopo, ne coprivano la metà dentro la colonna.
+  const base = `sticky ${contesto === "intestazione" ? "z-20" : "z-10"} ${fondo}`
   if (posizione === "start") {
     const bloccate = tabella.getStartVisibleLeafColumns()
     const ultima = bloccate[bloccate.length - 1]?.id === colonna.id
@@ -1747,11 +1899,32 @@ function ManigliaRidimensiona<TDato extends RowData>({
   const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
   const inTrascinamento = colonna.getIsResizing()
 
+  const manigliaRef = React.useRef<HTMLSpanElement>(null)
   const sposta = (delta: number) => {
+    const partenza = larghezzaDiPartenza(
+      colonna,
+      tabella.state.columnSizing,
+      manigliaRef.current?.closest("th")
+    )
     tabella.setColumnSizing((prima) => {
-      const attuale = prima[colonna.id] ?? colonna.getSize()
+      const attuale = prima[colonna.id] ?? partenza
       return { ...prima, [colonna.id]: Math.min(max, Math.max(min, attuale + delta)) }
     })
+  }
+  // Una colonna elastica riceve la larghezza con cui è resa prima che
+  // TanStack cominci il trascinamento: il suo gestore legge la larghezza di
+  // partenza dallo stato della tabella, quindi lo stato va aggiornato subito
+  // (`flushSync`), non al render dopo.
+  const avvia = (evento: React.MouseEvent | React.TouchEvent) => {
+    if (!haLarghezza(colonna, tabella.state.columnSizing)) {
+      const resa = larghezzaDiPartenza(
+        colonna,
+        tabella.state.columnSizing,
+        manigliaRef.current?.closest("th")
+      )
+      flushSync(() => tabella.setColumnSizing((prima) => ({ ...prima, [colonna.id]: resa })))
+    }
+    header.getResizeHandler()(evento)
   }
 
   // Si legge `tabellaRef.current` in un effetto, non in fase di render — un
@@ -1767,6 +1940,7 @@ function ManigliaRidimensiona<TDato extends RowData>({
 
   return (
     <span
+      ref={manigliaRef}
       role="separator"
       aria-orientation="vertical"
       aria-label={`Ridimensiona colonna «${titolo}»`}
@@ -1789,9 +1963,9 @@ function ManigliaRidimensiona<TDato extends RowData>({
       // la maniglia è un trascinamento, non un testo da selezionare.
       onMouseDown={(evento) => {
         evento.preventDefault()
-        header.getResizeHandler()(evento)
+        avvia(evento)
       }}
-      onTouchStart={header.getResizeHandler()}
+      onTouchStart={avvia}
       onKeyDown={(e) => {
         if (e.key === "Home") {
           e.preventDefault()
@@ -2013,8 +2187,13 @@ function CellaIntestazione<TDato extends RowData>({
                 const min = colonna.columnDef.minSize ?? 20
                 const max = colonna.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER
                 const delta = evento.key === "ArrowRight" ? PASSO_RIDIMENSIONA : -PASSO_RIDIMENSIONA
+                const partenza = larghezzaDiPartenza(
+                  colonna,
+                  tabella.state.columnSizing,
+                  evento.currentTarget
+                )
                 tabella.setColumnSizing((prima) => {
-                  const attuale = prima[colonna.id] ?? colonna.getSize()
+                  const attuale = prima[colonna.id] ?? partenza
                   return { ...prima, [colonna.id]: Math.min(max, Math.max(min, attuale + delta)) }
                 })
               }
@@ -2230,6 +2409,134 @@ export function celleRiga<TDato extends RowData>(
     : riga.getVisibleCells()
 }
 
+/** Le colonne davanti alle quali la fascia di una riga madre si ferma. */
+const FINE_FASCIA = new Set([...COLONNE_UTILITY, "azioni"])
+
+/**
+ * Dove sta la fascia di una riga madre (`meta.madreSuTuttaLaRiga`): da quale
+ * cella parte e prima di quale si ferma, negli indici di `celle`. `null` se
+ * la riga non ha figli o nessuna colonna visibile dichiara la chiave.
+ *
+ * Parte dalla colonna che dichiara la chiave e si ferma prima della prima
+ * colonna che dichiara `sottototale`, prima di una colonna bloccata a destra
+ * e prima delle colonne del blocco (il menu di riga, la casella). Una
+ * colonna dell'albero bloccata a destra non si allarga: la cella larga non
+ * potrebbe restare ferma a destra. Con `fine - inizio === 1` la riga è
+ * comunque una riga madre (niente menu), ma la cella resta quella normale.
+ *
+ * Condivisa dai due corpi, come `celleRiga`.
+ */
+function trattoMadre<TDato extends RowData>(
+  riga: Row<CaratteristicheTabella, TDato>,
+  celle: ReturnType<typeof celleRiga<TDato>>
+): { inizio: number; fine: number } | null {
+  if (riga.subRows.length === 0) return null
+  const metaDi = (i: number) => celle[i].column.columnDef.meta as MetaColonna<TDato> | undefined
+  const inizio = celle.findIndex((_, i) => metaDi(i)?.madreSuTuttaLaRiga)
+  if (inizio < 0) return null
+  if (celle[inizio].column.getIsPinned() === "end") return { inizio, fine: inizio + 1 }
+  let fine = inizio + 1
+  while (fine < celle.length) {
+    const colonna = celle[fine].column
+    if (FINE_FASCIA.has(colonna.id)) break
+    if (colonna.getIsPinned() === "end") break
+    if (metaDi(fine)?.sottototale) break
+    fine++
+  }
+  return { inizio, fine }
+}
+
+/** Le colonne già segnalate in console: l'avviso esce una volta per colonna. */
+const colonneMadreSenzaAlbero = new Set<string>()
+
+/**
+ * La cella larga di una riga madre: una cella sola con `colSpan`, che rende
+ * la `cell` della colonna dell'albero.
+ *
+ * **Con la colonna dell'albero bloccata a sinistra** non è la cella a
+ * restare ferma, perché sarebbe larga quanto la fascia: resta fermo il suo
+ * contenuto, un contenitore `sticky` allo stesso scarto della colonna
+ * bloccata. Per questo la cella non tronca (un `overflow: hidden` sulla
+ * cella diventerebbe il riquadro dello `sticky`, e il contenuto scorrerebbe
+ * via), e il margine interno sta nel contenitore e non nella cella, o
+ * scorrendo il testo si sposterebbe di quel margine. Il testo lo tronca
+ * `CellaAlbero`, dentro.
+ */
+function CellaMadreLarga<TDato extends RowData>({
+  tabella,
+  celle,
+  colonneBloccabili,
+  classeBloccoLegacy,
+}: {
+  tabella: IstanzaTabella<TDato>
+  /** Le celle che la fascia copre: la prima è quella della colonna dell'albero. */
+  celle: ReturnType<typeof celleRiga<TDato>>
+  colonneBloccabili: boolean
+  /** Lo scarto di `bloccaPrimaColonna` (`left-0`/`left-10`), se la colonna è fra le bloccate. */
+  classeBloccoLegacy?: string
+}) {
+  const prima = celle[0]
+  const scarto =
+    colonneBloccabili && prima.column.getIsPinned() === "start"
+      ? prima.column.getStart("start")
+      : undefined
+  const ferma = scarto !== undefined || !!classeBloccoLegacy
+  const cellaRef = React.useRef<HTMLTableCellElement>(null)
+  const idColonna = prima.column.id
+
+  // `import.meta.env.DEV` e non `process.env.NODE_ENV`: `process` non
+  // esiste in un'app Vite appena creata, e il typecheck dell'app si
+  // fermerebbe su «Cannot find name 'process'» benché a runtime funzioni.
+  React.useEffect(() => {
+    if (!import.meta.env.DEV || colonneMadreSenzaAlbero.has(idColonna)) return
+    if (cellaRef.current?.querySelector('[data-slot="cella-albero"]')) return
+    colonneMadreSenzaAlbero.add(idColonna)
+    console.warn(
+      `DataTable: la colonna "${idColonna}" dichiara meta.madreSuTuttaLaRiga ma non rende ` +
+        "CellaAlbero: le righe madri restano senza freccia e senza rientro."
+    )
+  }, [idColonna])
+
+  return (
+    <TableCell
+      ref={cellaRef}
+      colSpan={celle.length}
+      data-slot="cella-madre"
+      className={cn(ferma && "p-0")}
+    >
+      {ferma ? (
+        <div
+          className={cn("sticky w-fit max-w-full p-2", classeBloccoLegacy)}
+          style={scarto !== undefined ? { left: scarto } : undefined}
+        >
+          <tabella.FlexRender cell={prima} />
+        </div>
+      ) : (
+        <tabella.FlexRender cell={prima} />
+      )}
+    </TableCell>
+  )
+}
+
+/**
+ * Il posto vuoto del «⋯» sulla riga madre: niente bottone, ma la stessa
+ * altezza, così la riga madre resta alta quanto le foglie. Senza, la riga
+ * madre scenderebbe di qualche pixel (35,56px contro 41 in densità normale,
+ * misurato) e le righe della tabella non sarebbero più tutte alte uguali.
+ */
+function SegnapostoMenuRiga() {
+  return <span aria-hidden className="-my-1 block size-8" />
+}
+
+/**
+ * Lo scarto dal bordo che `bloccaPrimaColonna` dà alla cella in `indice`, se
+ * è fra le bloccate: serve al contenuto della cella larga di una riga madre.
+ */
+function scartoBloccoLegacy(indice: number, conSelezione: boolean): string | undefined {
+  if (indice >= (conSelezione ? 2 : 1)) return undefined
+  return indice === 0 ? "left-0" : "left-10"
+}
+
 export type CorpoTabellaCondiviso<TDato extends RowData> = {
   tabella: IstanzaTabella<TDato>
   righe: Row<CaratteristicheTabella, TDato>[]
@@ -2395,6 +2702,7 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
   espansa,
 }: RigaTabellaCorpoProps<TDato>) {
   const celle = celleRiga(riga, colonneBloccabili)
+  const madre = trattoMadre(riga, celle)
   return (
     <React.Fragment>
       <RigaCorpo
@@ -2402,9 +2710,26 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
         trascinabile={trascinabile}
         className={cn("group/riga", fermo && "snap-start")}
         dataState={selezionata ? "selected" : undefined}
-        menuRiga={menuRiga}
+        // Una riga madre larga non ha menu di riga, nemmeno sul tasto destro.
+        menuRiga={madre ? undefined : menuRiga}
       >
         {celle.map((cella, indice) => {
+          // La fascia di una riga madre: la prima cella si allarga, quelle
+          // che copre non si rendono.
+          if (madre && indice > madre.inizio && indice < madre.fine) return null
+          if (madre && indice === madre.inizio && madre.fine - madre.inizio > 1) {
+            return (
+              <CellaMadreLarga
+                key={cella.id}
+                tabella={tabella}
+                celle={celle.slice(madre.inizio, madre.fine)}
+                colonneBloccabili={colonneBloccabili}
+                classeBloccoLegacy={
+                  bloccoLegacy ? scartoBloccoLegacy(indice, selezione) : undefined
+                }
+              />
+            )
+          }
           // Il subtotale (`meta.sottototale`) prende il posto
           // della cella normale **solo sulle righe che hanno figli** — su
           // una riga foglia non c'è niente da sommare, e `tabella.FlexRender`
@@ -2415,6 +2740,8 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
           const ancoraCella = colonneBloccabili
             ? ancoraggioColonna(tabella, cella.column, "cella")
             : undefined
+          // Sulla riga madre la cella del menu resta, vuota.
+          const senzaMenu = !!madre && cella.column.id === "azioni"
           return (
             // Tagliato coi puntini o a capo, secondo `meta.testo`
             // (`classeTestoCella`).
@@ -2427,7 +2754,7 @@ function RigaTabellaCorpoImpl<TDato extends RowData>({
               )}
               style={ancoraCella?.style}
             >
-              {sottototale ? (
+              {senzaMenu ? <SegnapostoMenuRiga /> : sottototale ? (
                 sottototale(
                   riga.subRows.map((r) => r.original),
                   riga.original
@@ -2849,6 +3176,7 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
         const riga = righe[elemento.index]
         if (!riga) return null
         const celle = celleRiga(riga, colonneBloccabili)
+        const madre = trattoMadre(riga, celle)
         return (
           <TableRow
             key={riga.id}
@@ -2875,12 +3203,28 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
             data-state={riga.getIsSelected() ? "selected" : undefined}
           >
             {celle.map((cella, indice) => {
+              // La fascia di una riga madre, come nel corpo non virtualizzato.
+              if (madre && indice > madre.inizio && indice < madre.fine) return null
+              if (madre && indice === madre.inizio && madre.fine - madre.inizio > 1) {
+                return (
+                  <CellaMadreLarga
+                    key={cella.id}
+                    tabella={tabella}
+                    celle={celle.slice(madre.inizio, madre.fine)}
+                    colonneBloccabili={colonneBloccabili}
+                    classeBloccoLegacy={
+                      bloccoLegacy ? scartoBloccoLegacy(indice, selezione) : undefined
+                    }
+                  />
+                )
+              }
               const sottototale = riga.subRows.length
                 ? (cella.column.columnDef.meta as MetaColonna<TDato> | undefined)?.sottototale
                 : undefined
               const ancoraCella = colonneBloccabili
                 ? ancoraggioColonna(tabella, cella.column, "cella")
                 : undefined
+              const senzaMenu = !!madre && cella.column.id === "azioni"
               return (
                 // Sempre `truncate`, anche con `meta.testo: "aCapo"`: la
                 // finestra di righe vuole righe di altezza uguale (v. `testo`
@@ -2894,7 +3238,7 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
                   )}
                   style={ancoraCella?.style}
                 >
-                  {sottototale ? (
+                  {senzaMenu ? <SegnapostoMenuRiga /> : sottototale ? (
                     sottototale(
                       riga.subRows.map((r) => r.original),
                       riga.original
@@ -3079,7 +3423,9 @@ export type DataTableProps<TDato extends RowData> = {
    * fra altre. `"ferma"`: il riquadro prende lo spazio che il genitore
    * concede, la testata resta ferma, le righe scorrono dentro e il piè resta
    * sempre in vista — per una tabella che è la pagina, con qualunque
-   * `perPagina`. Con poche righe il riquadro si restringe al contenuto.
+   * `perPagina`. Con poche righe, che entrano tutte, il riquadro è alto quanto
+   * la tabella e non scorre; con molte, finisce sul bordo dell'ultima riga
+   * intera.
    */
   altezza?: "naturale" | "ferma"
   /**
@@ -3217,6 +3563,9 @@ export type DataTableProps<TDato extends RowData> = {
    * sull'intestazione. Le larghezze si dichiarano con `size`, `minSize` e
    * `maxSize` sulla colonna, al posto di `meta.larghezza`.
    *
+   * Una colonna senza `size` resta elastica: assorbe lo spazio che avanza, e
+   * le altre restano larghe quanto dichiarano.
+   *
    * Da sapere: una larghezza scelta dall'utente è in pixel, quindi non segue la
    * densità, e non si conserva da un caricamento all'altro.
    */
@@ -3247,6 +3596,9 @@ export type DataTableProps<TDato extends RowData> = {
    * non solo la prima. Da solo blocca e non ridimensiona: le maniglie
    * compaiono con `ridimensionabile`. Passato insieme a `bloccaPrimaColonna`,
    * lo sostituisce.
+   *
+   * Con una colonna bloccata a sinistra, la casella di selezione si blocca
+   * con lei e resta la prima; sbloccate tutte, torna a scorrere.
    */
   colonneBloccabili?: boolean
   // Riordino manuale delle **colonne** via trascinamento (stesso
@@ -3681,10 +4033,49 @@ export function DataTable<TDato extends RowData>({
     return risultato
   }, [colonne, selezione, pannelloRiga, trascinamento, menuRiga])
 
+  /**
+   * Le colonne che il blocco mette in testa (maniglia, casella, dettaglio),
+   * nel loro ordine, come chiave primitiva per il `useMemo` qui sotto.
+   */
+  const colonneDiTesta = [
+    trascinamento && "riordino",
+    selezione && "selezione",
+    pannelloRiga && "espansione",
+  ]
+    .filter((id): id is string => !!id)
+    .join(",")
+
+  /**
+   * Le colonne bloccate come le vede la tabella. **Appena una colonna è
+   * bloccata a sinistra, le colonne di testa si bloccano con lei**, davanti:
+   * la casella di selezione resta la prima a sinistra e resta ferma, e
+   * sbloccata l'ultima colonna tornano al loro posto anche loro. Senza,
+   * bloccare la prima colonna dal suo menu la portava **prima** della
+   * casella, che restava a scorrere dopo di lei.
+   *
+   * Si deriva a ogni cambio e non si scrive nello stato: lo stato tiene solo
+   * ciò che l'utente o la pagina hanno bloccato, così sbloccare una colonna
+   * non deve ricordarsi di sbloccare anche la casella.
+   */
+  const ancoraggioVisto = React.useMemo<ColumnPinningState>(() => {
+    const testa = colonneDiTesta ? colonneDiTesta.split(",") : []
+    const bloccateDiDati = (ancoraggio.start ?? []).filter((id) => !COLONNE_UTILITY.has(id))
+    if (testa.length === 0 || bloccateDiDati.length === 0) return ancoraggio
+    return {
+      start: [...testa, ...bloccateDiDati],
+      end: (ancoraggio.end ?? []).filter((id) => !testa.includes(id)),
+    }
+  }, [ancoraggio, colonneDiTesta])
+
   const tabella = useTable({
     features: caratteristiche,
     data: dati,
     columns: colonneEffettive,
+    // Senza, TanStack scrive `size: 150` in ogni colonna che non la dichiara,
+    // e `columnDef.size` non dice più se la larghezza l'ha scelta la pagina:
+    // una colonna senza `size` non sarebbe mai elastica. `getSize()` resta
+    // 150 per quelle colonne, perché lo ricava da sé.
+    defaultColumn: { size: undefined },
     globalFilterFn: getSottoRighe ? "includesStringInAlbero" : "includesString",
     // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
     // predefinito, l'indice nell'array (v. il prop).
@@ -3760,7 +4151,7 @@ export function DataTable<TDato extends RowData>({
       columnVisibility: visibilita,
       rowSelection: scelte,
       columnSizing: dimensioni,
-      columnPinning: ancoraggio,
+      columnPinning: ancoraggioVisto,
       columnOrder: ordineColonne,
       expanded: espanse,
     },
@@ -3809,7 +4200,7 @@ export function DataTable<TDato extends RowData>({
     let px = 0
     for (const colonna of tabella.getVisibleLeafColumns()) {
       if (conDimensioni) {
-        if (colonna.columnDef.size != null || dimensioni[colonna.id] != null) {
+        if (haLarghezza(colonna, dimensioni)) {
           px += colonna.getSize()
         } else {
           unita += MINIMO_ELASTICA
@@ -4057,6 +4448,9 @@ export function DataTable<TDato extends RowData>({
 
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
+  // Se `altezzaMax` è l'altezza intera della tabella, che ci sta tutta (v.
+  // l'effetto del tetto, sotto).
+  const tettoInteroRef = React.useRef(false)
   /**
    * L'altezza dell'intestazione ferma, che diventa lo `scroll-padding-top` di
    * `table-container`. Le righe sono `snap-start`, e senza questo margine lo
@@ -4157,6 +4551,33 @@ export function DataTable<TDato extends RowData>({
       )
       if (righeVere.length === 0) return
 
+      // **Se la tabella entra tutta, il riquadro è alto quanto lei**, per
+      // eccesso e coi bordi del riquadro: non c'è niente sotto da raggiungere
+      // scorrendo, e un tetto più basso anche di un pixel faceva scorrere il
+      // riquadro di quel pixel e tagliava l'ultima riga. Il `max-height` conta
+      // anche i bordi (`border-box`), 2px che il tetto per righe qui sotto non
+      // somma. Il margine dei 4px tiene il valore di prima solo se non è più
+      // basso: un tetto più alto del contenuto non allunga il riquadro.
+      const altezzaTabella = tabellaRef.current?.getBoundingClientRect().height ?? 0
+      const stileRiquadro = getComputedStyle(contenitore)
+      const bordi =
+        (parseFloat(stileRiquadro.borderTopWidth) || 0) +
+        (parseFloat(stileRiquadro.borderBottomWidth) || 0)
+      const intera = Math.ceil(altezzaTabella + bordi)
+      if (altezzaTabella > 0 && intera <= disponibileTotale) {
+        tettoInteroRef.current = true
+        setAltezzaMax((prima) =>
+          prima !== undefined && prima >= intera && prima - intera < 4 ? prima : intera
+        )
+        return
+      }
+      // Da un tetto intero a uno per righe (una riga in più, una finestra più
+      // bassa) il valore di prima non si tiene nemmeno se è vicino: era alto
+      // quanto la tabella intera, e lascerebbe in vista il filo della riga di
+      // fondo e un bordo della riga dopo.
+      const daIntero = tettoInteroRef.current
+      tettoInteroRef.current = false
+
       /**
        * **Le righe si misurano fra loro, non contro il contenitore**, o
        * con un filtro messo e poi tolto il riquadro resterebbe basso come
@@ -4189,7 +4610,8 @@ export function DataTable<TDato extends RowData>({
         tetto = fondoRiga
       }
       if (tetto <= altezzaTestata) return
-      // **A pixel interi, per difetto.** Righe di solo testo sono alte una
+      // **A pixel interi, per difetto**, quando le righe non entrano tutte.
+      // Righe di solo testo sono alte una
       // frazione di pixel (l'interlinea del corpo), e un tetto frazionario
       // lasciava il filo della riga di fondo accanto al bordo del riquadro,
       // due linee a un pixel di distanza. Per difetto, così il riquadro non
@@ -4204,7 +4626,9 @@ export function DataTable<TDato extends RowData>({
       // paio di pixel mentre si scorreva. Resta ben sotto un'altezza di riga vera
       // (30 px e oltre), quindi non nasconde mai una riga che è davvero
       // entrata o uscita.
-      setAltezzaMax((prima) => (prima !== undefined && Math.abs(prima - tetto) < 4 ? prima : tetto))
+      setAltezzaMax((prima) =>
+        !daIntero && prima !== undefined && Math.abs(prima - tetto) < 4 ? prima : tetto
+      )
     }
 
     ricalcola()
@@ -4382,9 +4806,9 @@ export function DataTable<TDato extends RowData>({
             spostano ai bordi, e un `<col>` rimasto nell'ordine dichiarato
             darebbe la larghezza sbagliata alla colonna sbagliata.
 
-            Una colonna senza `size` **non riceve `width`**, nemmeno se
-            `column.getSize()` torna il default TanStack (150): è così che
-            resta elastica, la stessa elasticità di una colonna senza
+            Una colonna senza `size` **non riceve `width`** (`haLarghezza`),
+            finché l'utente non la trascina o non la blocca: è così che resta
+            elastica, la stessa elasticità di una colonna senza
             `meta.larghezza` in una tabella non ridimensionabile — un
             meccanismo diverso, non un comportamento diverso.
           */}
@@ -4394,8 +4818,7 @@ export function DataTable<TDato extends RowData>({
                 <col
                   key={intestazione.id}
                   style={
-                    intestazione.column.columnDef.size != null ||
-                    dimensioni[intestazione.column.id] != null
+                    haLarghezza(intestazione.column, dimensioni)
                       ? { width: intestazione.column.getSize() }
                       : undefined
                   }

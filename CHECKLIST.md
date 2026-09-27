@@ -183,6 +183,11 @@ Dipendenze di fase: FASE 4.
 | #78 Proposta: forma termine–valore sui token | DONE 2026-09-26 — **`v2.0.5`** | — | Token `grid-cols-termine` nel tema e ricetta `@sm:grid-cols-termine`; scene allineate, `check:registry` controlla il token → `DECISIONI.md` §70 PR #83. |
 | #79 Proposta: tema-font, il carattere fuori dal CSS dell'app | DONE 2026-09-26 — **`v2.0.5`** | — | Inter in `public/tassullo-inter-4.1.css` con `<link>`: a un rilascio 174 → 21 kB brotli. Regola in `tassullo-controllo` → `DECISIONI.md` §70 PR #83. |
 | Ondata 2, punti senza issue | DONE 2026-09-26 — **`v2.0.5`** | — | Griglia: calendario che si chiude scorrendo, testo allineato (5 → 0px in touch), selezione come ReUI, tratteggio e maniglia. Foglio a gruppi: prezzo in euro e dato salvato con `Number()`. Gate WebKit, il tredicesimo → `WORKLOG.md` |
+| #86 Proposta: data-table, CellaAlbero e `aCapo` | REVIEW — ondata 3 | — | Lo span del testo segue `meta.testo` della cella: con `aCapo` 6 → 0 testi tagliati su 20; di serie e in virtuale tronca come prima → `DECISIONI.md` §71 |
+| #87 Proposta: data-table, altezza ferma con poche righe | REVIEW — ondata 3 | — | Se tutte le righe entrano il riquadro è alto quanto la tabella (per eccesso): 201/204 → 204/204, Chromium e WebKit, 1× e 2×. Con molte righe invariato. Prova anche nel gate WebKit → `DECISIONI.md` §71 |
+| #88 Proposta: data-table ridimensionabile, colonna senza size | REVIEW — ondata 3 | — | La colonna senza `size` della pagina resta elastica: «⋯» 86 → 48px, avanzo solo a lei. Cambio di serie per le tabelle ridimensionabili con una colonna senza `size` → `DECISIONI.md` §71 |
+| #89 Proposta: filtro sfaccettato su una colonna-elenco | REVIEW — ondata 3 | — | `meta.elenco` + `filterFn: "arrHasAny"` (Francesco, A): Inglese 5 · Tedesco 2 · Francese 2; nomi per esteso con `opzioni`; niente voce vuota; ricetta Completa/Incompleta; avviso in sviluppo → `DECISIONI.md` §71 |
+| #90 Proposta: data-table ad albero, righe madri larghe | REVIEW — ondata 3 | #86 | `meta.madreSuTuttaLaRiga` (B): fascia fino al primo `sottototale`, 41px, niente «⋯» sulle madri, nome fermo con colonne bloccate. In più: casella bloccata con la prima colonna, fondo opaco delle celle bloccate → `DECISIONI.md` §71 |
 
 ## Decisioni
 

@@ -73,3 +73,14 @@ export const TabellaPiedeVirtualizzato: Story = {
   name: 'Tabella col piede virtualizzata, scorre e cambia densità',
   play: scorriECambiaDensita,
 }
+
+// L'albero della tabella con le righe madri larghe, virtualizzato: ottanta
+// prodotti coi loro gruppi di controlli, la colonna dell'albero bloccata. Le
+// righe madri hanno una cella sola che copre più colonne, e al posto del
+// menu un segnaposto della stessa altezza: la prova controlla che, scorrendo
+// e cambiando densità, le righe montate non riaprano il ciclo.
+export const TabellaAlberoRigheMadri: Story = {
+  ...(Tabella.AlberoRigheMadriVirtualeProva as Story),
+  name: 'Tabella ad albero con righe madri larghe, scorre e cambia densità',
+  play: scorriECambiaDensita,
+}
