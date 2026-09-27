@@ -3329,6 +3329,9 @@ export type DataTableProps<TDato extends RowData> = {
    * non solo la prima. Da solo blocca e non ridimensiona: le maniglie
    * compaiono con `ridimensionabile`. Passato insieme a `bloccaPrimaColonna`,
    * lo sostituisce.
+   *
+   * Con una colonna bloccata a sinistra, la casella di selezione si blocca
+   * con lei e resta la prima; sbloccate tutte, torna a scorrere.
    */
   colonneBloccabili?: boolean
   // Riordino manuale delle **colonne** via trascinamento (stesso
@@ -3763,6 +3766,40 @@ export function DataTable<TDato extends RowData>({
     return risultato
   }, [colonne, selezione, pannelloRiga, trascinamento, menuRiga])
 
+  /**
+   * Le colonne che il blocco mette in testa (maniglia, casella, dettaglio),
+   * nel loro ordine, come chiave primitiva per il `useMemo` qui sotto.
+   */
+  const colonneDiTesta = [
+    trascinamento && "riordino",
+    selezione && "selezione",
+    pannelloRiga && "espansione",
+  ]
+    .filter((id): id is string => !!id)
+    .join(",")
+
+  /**
+   * Le colonne bloccate come le vede la tabella. **Appena una colonna è
+   * bloccata a sinistra, le colonne di testa si bloccano con lei**, davanti:
+   * la casella di selezione resta la prima a sinistra e resta ferma, e
+   * sbloccata l'ultima colonna tornano al loro posto anche loro. Senza,
+   * bloccare la prima colonna dal suo menu la portava **prima** della
+   * casella, che restava a scorrere dopo di lei.
+   *
+   * Si deriva a ogni cambio e non si scrive nello stato: lo stato tiene solo
+   * ciò che l'utente o la pagina hanno bloccato, così sbloccare una colonna
+   * non deve ricordarsi di sbloccare anche la casella.
+   */
+  const ancoraggioVisto = React.useMemo<ColumnPinningState>(() => {
+    const testa = colonneDiTesta ? colonneDiTesta.split(",") : []
+    const bloccateDiDati = (ancoraggio.start ?? []).filter((id) => !COLONNE_UTILITY.has(id))
+    if (testa.length === 0 || bloccateDiDati.length === 0) return ancoraggio
+    return {
+      start: [...testa, ...bloccateDiDati],
+      end: (ancoraggio.end ?? []).filter((id) => !testa.includes(id)),
+    }
+  }, [ancoraggio, colonneDiTesta])
+
   const tabella = useTable({
     features: caratteristiche,
     data: dati,
@@ -3847,7 +3884,7 @@ export function DataTable<TDato extends RowData>({
       columnVisibility: visibilita,
       rowSelection: scelte,
       columnSizing: dimensioni,
-      columnPinning: ancoraggio,
+      columnPinning: ancoraggioVisto,
       columnOrder: ordineColonne,
       expanded: espanse,
     },
