@@ -188,6 +188,9 @@ Dipendenze di fase: FASE 4.
 | #88 Proposta: data-table ridimensionabile, colonna senza size | DONE 2026-09-27 — **`v2.0.6`** | — | La colonna senza `size` della pagina resta elastica: «⋯» 86 → 48px, avanzo solo a lei. Cambio di serie per le tabelle ridimensionabili con una colonna senza `size` → `DECISIONI.md` §71 PR #91 |
 | #89 Proposta: filtro sfaccettato su una colonna-elenco | DONE 2026-09-27 — **`v2.0.6`** | — | `meta.elenco` + `filterFn: "arrHasAny"` (Francesco, A): Inglese 5 · Tedesco 2 · Francese 2; nomi per esteso con `opzioni`; niente voce vuota; ricetta Completa/Incompleta; avviso in sviluppo → `DECISIONI.md` §71 PR #91 |
 | #90 Proposta: data-table ad albero, righe madri larghe | DONE 2026-09-27 — **`v2.0.6`** | #86 | `meta.madreSuTuttaLaRiga` (B): fascia fino al primo `sottototale`, 41px, niente «⋯» sulle madri, nome fermo con colonne bloccate. In più: casella bloccata con la prima colonna, fondo opaco delle celle bloccate → `DECISIONI.md` §71 PR #91 |
+| #93 Proposta: data-table, `minSize` della colonna elastica | DONE 2026-09-28 | — | La colonna senza `size` non scende sotto il suo `minSize`: prova a 300, Nome 160 → 300px e la tabella scorre. Senza `minSize` il minimo della tabella è identico → `DECISIONI.md` §72 |
+| #94 Proposta: data-table, colonna elastica bloccata | DONE 2026-09-28 | — | Variante E (Francesco, fra cinque rese): bloccata tiene la larghezza che aveva da libera; a 1512 Codice 265 → 140, Famiglia 848. Sbloccata torna elastica; `Home` torna alla larghezza del blocco → `DECISIONI.md` §72 |
+| #95 Proposta: menu di colonna non ordinabile | DONE 2026-09-28 | — | Gruppo «Ordina» solo se la colonna si ordina; senza ordine né blocco niente «⋮». In più il «⋮» resta visibile col menu aperto da tastiera. Puntina sempre visibile lasciata com'è (Francesco) → `DECISIONI.md` §72 |
 
 ## Decisioni
 
