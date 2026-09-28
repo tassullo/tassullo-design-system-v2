@@ -1886,7 +1886,8 @@ const PASSO_RIDIMENSIONA = 16
  * tastiera.
  * `onKeyDown` copre tre tasti: `ArrowLeft`/`ArrowRight` allargano o
  * restringono di `PASSO_RIDIMENSIONA`, `Home` torna alla larghezza di
- * partenza (`column.resetSize()`, che TanStack dà già fatta). `aria-valuenow`
+ * partenza (`column.resetSize()`, che TanStack dà già fatta; per una colonna
+ * elastica bloccata, la larghezza che aveva quando è stata bloccata). `aria-valuenow`
  * porta la larghezza attuale, arrotondata — un pixel di troppo che un
  * lettore di schermo leggesse ad alta voce non aggiungerebbe informazione.
  *
@@ -1921,6 +1922,7 @@ function ManigliaRidimensiona<TDato extends RowData>({
   header,
   titolo,
   ultima,
+  larghezzaPresaAlBlocco,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
@@ -1928,6 +1930,11 @@ function ManigliaRidimensiona<TDato extends RowData>({
   titolo: string
   /** L'intestazione è l'ultima a destra, nell'ordine in cui è resa. */
   ultima: boolean
+  /**
+   * La larghezza che la colonna ha preso bloccandola da elastica, se l'ha
+   * presa: `Home` la riporta lì invece che al valore di serie.
+   */
+  larghezzaPresaAlBlocco: (id: string) => number | undefined
 }) {
   const colonna = header.column
   const min = colonna.columnDef.minSize ?? 20
@@ -2004,7 +2011,12 @@ function ManigliaRidimensiona<TDato extends RowData>({
       onKeyDown={(e) => {
         if (e.key === "Home") {
           e.preventDefault()
-          colonna.resetSize()
+          // Una colonna elastica bloccata torna alla larghezza presa al
+          // blocco: `resetSize()` la toglierebbe da `dimensioni`, e senza
+          // colonne elastiche `table-fixed` dividerebbe l'avanzo fra tutte.
+          const presa = colonna.getIsPinned() ? larghezzaPresaAlBlocco(colonna.id) : undefined
+          if (presa === undefined) colonna.resetSize()
+          else tabella.setColumnSizing((prima) => ({ ...prima, [colonna.id]: presa }))
           return
         }
         if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return
@@ -2153,10 +2165,12 @@ function CellaIntestazione<TDato extends RowData>({
   conDimensioni,
   selezione,
   ultima,
+  larghezzaPresaAlBlocco,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
   intestazione: Header<CaratteristicheTabella, TDato, unknown>
+  larghezzaPresaAlBlocco: (id: string) => number | undefined
   indice: number
   /** L'ultima intestazione resa: la sua maniglia sta dentro la tabella. */
   ultima: boolean
@@ -2287,6 +2301,7 @@ function CellaIntestazione<TDato extends RowData>({
             header={intestazione}
             titolo={titoloColonna}
             ultima={ultima}
+            larghezzaPresaAlBlocco={larghezzaPresaAlBlocco}
           />
         ) : null}
       </TableHead>
@@ -4042,6 +4057,11 @@ export function DataTable<TDato extends RowData>({
    * trascinata dopo averla bloccata, e la larghezza resta sua.
    */
   const presePerBlocco = React.useRef(new Map<string, number>())
+  /** Letta solo nei gestori della maniglia, mai in fase di render. */
+  const larghezzaPresaAlBlocco = React.useCallback(
+    (id: string) => presePerBlocco.current.get(id),
+    []
+  )
   /** La testata della tabella: da qui si leggono le larghezze rese. */
   const testataRef = React.useRef<HTMLTableSectionElement>(null)
   /**
@@ -5010,6 +5030,7 @@ export function DataTable<TDato extends RowData>({
                   bloccoLegacy={bloccoLegacy}
                   conDimensioni={conDimensioni}
                   selezione={selezione}
+                  larghezzaPresaAlBlocco={larghezzaPresaAlBlocco}
                 />
               ))}
             </TableRow>

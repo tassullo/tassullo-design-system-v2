@@ -3180,6 +3180,66 @@ export const ColonnaElasticaBloccataLargaProva: Story = {
   play: provaColonnaElasticaBloccataLarga,
 }
 
+// `Home` sulla maniglia di una colonna elastica bloccata. Prima `Home`
+// chiamava `resetSize()`: la larghezza presa al blocco spariva, nel
+// `<colgroup>` non restava nessuna colonna senza larghezza e l'avanzo tornava
+// a dividersi fra tutte (a 1512px Codice 140 → 265). Ora `Home` la riporta
+// alla larghezza che aveva al blocco, e le altre restano alla loro `size`.
+// La prova blocca «Famiglia», la stringe di due passi da tastiera, preme
+// `Home`, e controlla le larghezze (±1px).
+async function provaHomeColonnaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const corpo = within(canvasElement.ownerDocument.body)
+  const DICHIARATE = { Codice: 140, Nome: 220, Stato: 130, Aggiornato: 140 } as const
+  const larghezza = (nome: string) => {
+    const th = [...canvasElement.querySelectorAll('thead tr:first-child th')].find((x) =>
+      x.textContent?.includes(nome)
+    )
+    expect(th).toBeTruthy()
+    return (th as HTMLElement).getBoundingClientRect().width
+  }
+  const resa = larghezza('Famiglia')
+  expect(resa).toBeGreaterThan(200)
+
+  await userEvent.click(await canvas.findByRole('button', { name: 'Blocca colonna «Famiglia»' }))
+  await userEvent.click(await corpo.findByRole('menuitem', { name: 'Blocca a sinistra' }))
+  await waitFor(() => expect(Math.abs(larghezza('Famiglia') - resa)).toBeLessThanOrEqual(1))
+
+  const maniglia = canvas.getByRole('separator', { name: 'Ridimensiona colonna «Famiglia»' })
+  maniglia.focus()
+  await userEvent.keyboard('{ArrowLeft}{ArrowLeft}')
+  await waitFor(() => expect(larghezza('Famiglia')).toBeLessThan(resa - 1))
+  await userEvent.keyboard('{Home}')
+  await waitFor(() => {
+    expect(Math.abs(larghezza('Famiglia') - resa)).toBeLessThanOrEqual(1)
+    for (const [nome, px] of Object.entries(DICHIARATE)) {
+      expect(Math.abs(larghezza(nome) - px), nome).toBeLessThanOrEqual(1)
+    }
+  })
+}
+
+// Scena di misura: `Home` su una colonna elastica bloccata. Solo per il
+// controllo automatico.
+export const HomeColonnaBloccataProva: Story = {
+  name: 'Home Colonna Bloccata, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 5),
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    colonneBloccabili: true,
+    ridimensionabile: true,
+  },
+  render: (args) => (
+    <div className="w-240">
+      <DataTable {...args} />
+    </div>
+  ),
+  play: provaHomeColonnaBloccata,
+}
+
 // Una colonna senza `size` che dichiara `minSize`: tre tabelle ridimensionabili
 // uguali (Codice 140, Nome senza `size`, Stato 130, Aggiornato 140) che
 // cambiano solo nel `minSize` di Nome — 300px, nessuno, 200px —, in un
