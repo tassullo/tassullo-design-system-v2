@@ -117,6 +117,7 @@ import {
   type ColumnPinningState,
   type ColumnSizingState,
   type Header,
+  type OnChangeFn,
   type ReactTable,
   type Row,
   type ColumnFiltersState,
@@ -423,9 +424,9 @@ export function creaColonne<TDato extends RowData>() {
  * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni) — e
  * non scende sotto lo stesso minimo, né sotto il suo `minSize` se è più
  * grande: sotto, il riquadro scorre di lato invece di stringerla. Diventa
- * larga quanto un numero solo quando l'utente la trascina (parte dalla
- * larghezza con cui è resa) o la blocca a un bordo (150px, o `minSize` se
- * più grande).
+ * larga quanto un numero solo quando l'utente la trascina o la blocca a un
+ * bordo: in tutti e due i casi parte dalla larghezza con cui è resa, e
+ * sbloccata torna elastica, se nel frattempo non è stata trascinata.
  *
  * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
  * senza, una tabella ad albero (`getSottoRighe`) resta legittima —
@@ -564,8 +565,11 @@ const MINIMO_ELASTICA = 40
  * Una colonna bloccata ha sempre una larghezza, anche senza `size`: la
  * posizione delle colonne bloccate accanto si calcola sommando le larghezze
  * di TanStack, e una colonna elastica bloccata sarebbe resa più larga o più
- * stretta del numero che quella somma usa. Senza `size` prende il valore di
- * serie di TanStack, 150px (o `minSize`, se più grande).
+ * stretta del numero che quella somma usa. Quando la si blocca, `DataTable` le
+ * scrive in `dimensioni` la larghezza con cui era resa (v. `cambiaAncoraggio`);
+ * solo se quella misura manca — un'intestazione che non è resa, e non si
+ * può leggere — ricade sul valore di serie di TanStack, 150px (o `minSize`,
+ * se più grande).
  */
 function haLarghezza<TDato extends RowData>(
   colonna: Column<CaratteristicheTabella, TDato, unknown>,
@@ -586,6 +590,20 @@ function larghezzaDiPartenza<TDato extends RowData>(
 ): number {
   if (!haLarghezza(colonna, dimensioni) && cella) return cella.getBoundingClientRect().width
   return dimensioni[colonna.id] ?? colonna.getSize()
+}
+
+/**
+ * Le intestazioni nell'ordine in cui sono rese con `colonneBloccabili`: le
+ * bloccate a sinistra, le libere, le bloccate a destra. È anche l'ordine delle
+ * `<th>` nella riga di intestazione e dei `<col>` del `<colgroup>` (v.
+ * `intestazioni` in `DataTable`).
+ */
+function intestazioniBloccabili<TDato extends RowData>(tabella: IstanzaTabella<TDato>) {
+  return [
+    ...tabella.getStartLeafHeaders(),
+    ...tabella.getCenterLeafHeaders(),
+    ...tabella.getEndLeafHeaders(),
+  ]
 }
 
 /**
@@ -3617,6 +3635,16 @@ export type DataTableProps<TDato extends RowData> = {
    *
    * Con una colonna bloccata a sinistra, la casella di selezione si blocca
    * con lei e resta la prima; sbloccate tutte, torna a scorrere.
+   *
+   * Una colonna senza `size`, bloccata, tiene la larghezza con cui era resa
+   * in quel momento, e le altre restano larghe quanto dichiarano; spostata
+   * all'altro bordo, la larghezza non cambia. Sbloccata torna elastica, a
+   * meno che nel frattempo non sia stata trascinata: allora la larghezza
+   * scelta resta. Da sapere: bloccata, la sua larghezza è un numero fisso.
+   * Se poi la finestra si allarga e non resta un'altra colonna senza `size`,
+   * lo spazio in più si divide fra tutte le colonne in proporzione; se si
+   * stringe, la colonna bloccata non si restringe e il riquadro scorre di
+   * lato.
    */
   colonneBloccabili?: boolean
   // Riordino manuale delle **colonne** via trascinamento (stesso
@@ -4007,6 +4035,16 @@ export function DataTable<TDato extends RowData>({
     end: [],
   })
   /**
+   * Le larghezze che `cambiaAncoraggio` ha scritto in `dimensioni` bloccando
+   * una colonna elastica, per id di colonna. Servono allo sblocco: se in
+   * `dimensioni` c'è ancora quel numero la larghezza era del blocco, si
+   * toglie e la colonna torna elastica; se è cambiato, l'utente l'ha
+   * trascinata dopo averla bloccata, e la larghezza resta sua.
+   */
+  const presePerBlocco = React.useRef(new Map<string, number>())
+  /** La testata della tabella: da qui si leggono le larghezze rese. */
+  const testataRef = React.useRef<HTMLTableSectionElement>(null)
+  /**
    * L'ordine acquisito delle colonne (`colonneRiordinabili`).
    * `[]` di partenza: non un ordine "nessuno", è l'array vuoto che per
    * TanStack **significa** "usa l'ordine di dichiarazione" — lo stesso
@@ -4085,6 +4123,68 @@ export function DataTable<TDato extends RowData>({
     }
   }, [ancoraggio, colonneDiTesta])
 
+  /**
+   * Il cambio di blocco, con le larghezze. **Una colonna elastica che si
+   * blocca tiene la larghezza con cui era resa da libera**: la si legge dalla
+   * sua `<th>` e la si scrive in `dimensioni`, come fa `larghezzaDiPartenza`
+   * all'inizio di un trascinamento. Una colonna bloccata ha bisogno di un
+   * numero — lo scarto sticky delle bloccate accanto si somma dalle larghezze
+   * di TanStack — e senza questa misura prendeva il valore di serie, 150px:
+   * nel `<colgroup>` non restava nessuna colonna senza larghezza, e
+   * `table-fixed` divideva l'avanzo fra tutte in proporzione, così le colonne
+   * con `size` non erano più larghe quanto la dichiarano.
+   *
+   * Passare da un bordo all'altro non cambia la larghezza. Sbloccata, la
+   * colonna torna elastica se la larghezza l'aveva presa il blocco (v.
+   * `presePerBlocco`). Le colonne con `size`, o già trascinate, non si
+   * toccano.
+   *
+   * Si chiama solo da un gesto dell'utente, a tabella già resa: `tabella` e
+   * `testataRef` ci sono sempre. Le `<th>` della testata seguono l'ordine di
+   * `intestazioniBloccabili`, lo stesso dei `<col>`.
+   */
+  const cambiaAncoraggio: OnChangeFn<ColumnPinningState> = (aggiorna) => {
+    const dopo = typeof aggiorna === "function" ? aggiorna(ancoraggio) : aggiorna
+    const bloccate = (stato: ColumnPinningState) =>
+      new Set([...(stato.start ?? []), ...(stato.end ?? [])])
+    const prima = bloccate(ancoraggio)
+    const ora = bloccate(dopo)
+    const prese = presePerBlocco.current
+    const aggiunte: ColumnSizingState = {}
+    const tolte: string[] = []
+
+    const nuove = [...ora].filter((id) => !prima.has(id))
+    if (nuove.length > 0) {
+      const ordine = intestazioniBloccabili(tabella).map((h) => h.column.id)
+      const celle = testataRef.current?.rows[0]?.cells
+      for (const id of nuove) {
+        const colonna = tabella.getColumn(id)
+        if (!colonna || haLarghezza(colonna, dimensioni)) continue
+        const cella = celle?.[ordine.indexOf(id)]
+        if (!cella) continue
+        const larghezza = cella.getBoundingClientRect().width
+        aggiunte[id] = larghezza
+        prese.set(id, larghezza)
+      }
+    }
+    for (const id of prima) {
+      if (ora.has(id)) continue
+      const presa = prese.get(id)
+      if (presa === undefined) continue
+      prese.delete(id)
+      if (dimensioni[id] === presa) tolte.push(id)
+    }
+
+    if (Object.keys(aggiunte).length > 0 || tolte.length > 0) {
+      setDimensioni((attuali) => {
+        const risultato = { ...attuali, ...aggiunte }
+        for (const id of tolte) delete risultato[id]
+        return risultato
+      })
+    }
+    setAncoraggio(dopo)
+  }
+
   const tabella = useTable({
     features: caratteristiche,
     data: dati,
@@ -4137,7 +4237,7 @@ export function DataTable<TDato extends RowData>({
     enableColumnResizing: ridimensionabile,
     enableColumnPinning: colonneBloccabili,
     onColumnSizingChange: setDimensioni,
-    onColumnPinningChange: setAncoraggio,
+    onColumnPinningChange: cambiaAncoraggio,
     onColumnOrderChange: setOrdineColonne,
     // `riordinabile`: spente **sulla tabella**, non solo nascoste
     // in chrome — l'ordine visibile deve coincidere con `dati` grezzo perché
@@ -4274,11 +4374,7 @@ export function DataTable<TDato extends RowData>({
    * sbagliata la larghezza di un'altra.
    */
   const intestazioni = colonneBloccabili
-    ? [
-        ...tabella.getStartLeafHeaders(),
-        ...tabella.getCenterLeafHeaders(),
-        ...tabella.getEndLeafHeaders(),
-      ]
+    ? intestazioniBloccabili(tabella)
     : (tabella.getHeaderGroups()[0]?.headers ?? [])
 
   /**
@@ -4485,7 +4581,6 @@ export function DataTable<TDato extends RowData>({
     return () => oss.disconnect()
   }, [infinito, caricate])
 
-  const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
   // Se `altezzaMax` è l'altezza intera della tabella, che ci sta tutta (v.
   // l'effetto del tetto, sotto).
