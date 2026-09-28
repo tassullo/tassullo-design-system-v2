@@ -13511,3 +13511,11 @@ Il workflow ha reso quattro varianti (A cella vuota in coda, B avanzo alla prima
 - Casi limite scritti dalle corsie, senza prova: una colonna non ordinabile con un ordinamento iniziale non accende più il «⋮» e il menu non sa toglierlo; trascinare la bloccata e riportarla esattamente al numero del blocco la fa tornare elastica allo sblocco.
 - **In CI, a PR aperta**: la prova `Colonna Elastica Bloccata Larga, prova` è fallita in WebKit su un commit (`9691dfd`) e passata sul successivo con lo stesso codice. Aspettava che il menu di blocco sparisse entro il secondo di serie di `waitFor`, e la macchina lenta della CI teneva il menu montato più a lungo durante l'animazione di chiusura. L'attesa ora arriva a 5 s, anche nelle due prove più vecchie con lo stesso schema. In locale 15 passate su 15, ma in locale non era mai fallita: la conferma vera è la CI.
 - Nei worktree il link simbolico di `node_modules` non basta ai test in browser (Vite rifiuta i file fuori dalla radice): serve una copia (`cp -cR`).
+
+## 2026-09-28 — `v2.0.7` pubblicata
+
+Via libera di Francesco a CI verde. PR #96 unita col gate verde in CI sul commit `2c6e1d7`; l'unione è `26ad4cc`. La prima corsa della CI era fallita per una prova instabile in WebKit (voce dell'ondata 4, «Aperti»), corretta nella PR. Etichetta `v2.0.7` su `26ad4cc`, push della sola etichetta; le versioni precedenti restano dove erano. Si sono chiuse con la PR le issue #93, #94 e #95; resta aperta la #70, rinviata. L'etichetta l'ha chiesta Anagrafe, che aspettava la versione per installarla.
+
+Verificato da fuori: `…/v2.0.7/public/r/tassullo-data-table.json` e `…/v2.0.7/registry.json` rispondono 200. Nel `tassullo-data-table` servito ci sono la larghezza presa al blocco (`presePerBlocco`, `larghezzaPresaAlBlocco`), `minSize: undefined` nella colonna di serie, il gruppo «Ordina» legato a `getCanSort()` e il «⋮» visibile col menu aperto.
+
+Per Anagrafe: cosa reinstallare e quali aggiramenti togliere è nella voce dell'ondata 4, sezione «Tabella».
