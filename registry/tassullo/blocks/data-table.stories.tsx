@@ -2030,7 +2030,10 @@ async function bloccaDalMenu(canvasElement: HTMLElement, titolo: string, voce: s
     await within(canvasElement.ownerDocument.body).findByRole('menuitem', { name: voce })
   )
   await waitFor(() =>
-    expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+    expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull(),
+    // Il menu resta montato finché finisce l'animazione di chiusura: in WebKit,
+    // su una macchina lenta, più del secondo di serie di `waitFor`.
+    { timeout: 5000 }
   )
 }
 
@@ -3041,7 +3044,10 @@ async function provaColonnaElasticaBloccata({ canvasElement }: { canvasElement: 
       })
     )
     await waitFor(() =>
-      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull(),
+      // Il menu resta montato finché finisce l'animazione di chiusura: in
+      // WebKit, su una macchina lenta, più del secondo di serie di `waitFor`.
+      { timeout: 5000 }
     )
   }
   expect(larghezzaFamiglia()).not.toBe('')
@@ -3118,7 +3124,10 @@ async function provaColonnaElasticaBloccataLarga({ canvasElement }: { canvasElem
     await userEvent.click(await canvas.findByRole('button', { name: 'Blocca colonna «Famiglia»' }))
     await userEvent.click(await corpo.findByRole('menuitem', { name: voce }))
     await waitFor(() =>
-      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull(),
+      // Il menu resta montato finché finisce l'animazione di chiusura: in
+      // WebKit, su una macchina lenta, più del secondo di serie di `waitFor`.
+      { timeout: 5000 }
     )
   }
   const controlla = async (atteso: {
