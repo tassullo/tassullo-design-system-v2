@@ -421,9 +421,11 @@ export function creaColonne<TDato extends RowData>() {
  * scrive una colonna resta la loro. Una colonna senza `size` assorbe lo
  * spazio che avanza, come senza `larghezza` — la stessa elasticità, un
  * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni) — e
- * non scende sotto lo stesso minimo. Diventa larga quanto un numero solo
- * quando l'utente la trascina (parte dalla larghezza con cui è resa) o la
- * blocca a un bordo (150px, o `minSize` se più grande).
+ * non scende sotto lo stesso minimo, né sotto il suo `minSize` se è più
+ * grande: sotto, il riquadro scorre di lato invece di stringerla. Diventa
+ * larga quanto un numero solo quando l'utente la trascina (parte dalla
+ * larghezza con cui è resa) o la blocca a un bordo (150px, o `minSize` se
+ * più grande).
  *
  * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
  * senza, una tabella ad albero (`getSottoRighe`) resta legittima —
@@ -546,7 +548,10 @@ export type MetaColonna<TDato = unknown> = {
  * Il minimo di una colonna senza larghezza, in unità di `--spacing` (come
  * `w-40`): 160px in densità normale, 240 in touch. Si somma alle larghezze
  * dichiarate per dare alla tabella la sua larghezza minima (v.
- * `larghezzaMinima` in `DataTable`).
+ * `larghezzaMinima` in `DataTable`). In una tabella `ridimensionabile` o
+ * `colonneBloccabili` una colonna senza `size` che dichiara `minSize` conta
+ * il più grande dei due: `minSize` è in pixel e questo minimo segue la
+ * densità, quindi il confronto lo fa il browser, con un `max()` nel CSS.
  */
 const MINIMO_ELASTICA = 40
 
@@ -756,6 +761,10 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
  * La colonna dichiara `meta.azioniProprie: true`, o `colonneBloccabili`
  * aggiungerebbe anche la sua puntina e i grilletti di blocco sarebbero due.
  *
+ * Il menu offre solo ciò che la colonna sa fare: con `enableSorting: false`
+ * resta il solo gruppo «Blocca», e se la colonna non si ordina e non si
+ * blocca il grilletto non c'è e resta il titolo.
+ *
  * Il grilletto compare al passaggio del puntatore e al fuoco, e resta
  * visibile quando la colonna è ordinata o bloccata. Da tastiera `Tab` lo
  * raggiunge in ogni intestazione, e `Invio` o `Spazio` aprono il menu.
@@ -777,8 +786,14 @@ function MenuAzioniColonna<TDato extends RowData, TValore>({
   colonna,
   titolo,
 }: Omit<IntestazioneColonnaProps<TDato, TValore>, "allinea">) {
-  const ordine = colonna.getIsSorted()
-  const posizionePin = colonna.getCanPin() ? colonna.getIsPinned() : false
+  // Ogni gruppo compare solo se la colonna fa quella cosa: una colonna che
+  // non si ordina non offre «Ordina», e una che non si ordina né si blocca
+  // non ha il grilletto, invece di un menu vuoto.
+  const ordinabile = colonna.getCanSort()
+  const bloccabile = colonna.getCanPin()
+  if (!ordinabile && !bloccabile) return null
+  const ordine = ordinabile ? colonna.getIsSorted() : false
+  const posizionePin = bloccabile ? colonna.getIsPinned() : false
   const attiva = !!ordine || !!posizionePin
 
   return (
@@ -799,32 +814,34 @@ function MenuAzioniColonna<TDato extends RowData, TValore>({
         <EllipsisVerticalIcon aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Ordina</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(false)}
-            disabled={ordine === "asc"}
-          >
-            <ArrowUpIcon aria-hidden />
-            Crescente
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(true)}
-            disabled={ordine === "desc"}
-          >
-            <ArrowDownIcon aria-hidden />
-            Decrescente
-          </DropdownMenuItem>
-          {ordine ? (
-            <DropdownMenuItem onClick={() => colonna.clearSorting()}>
-              <XIcon aria-hidden />
-              Rimuovi ordinamento
+        {ordinabile ? (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Ordina</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => colonna.toggleSorting(false)}
+              disabled={ordine === "asc"}
+            >
+              <ArrowUpIcon aria-hidden />
+              Crescente
             </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuGroup>
-        {colonna.getCanPin() ? (
+            <DropdownMenuItem
+              onClick={() => colonna.toggleSorting(true)}
+              disabled={ordine === "desc"}
+            >
+              <ArrowDownIcon aria-hidden />
+              Decrescente
+            </DropdownMenuItem>
+            {ordine ? (
+              <DropdownMenuItem onClick={() => colonna.clearSorting()}>
+                <XIcon aria-hidden />
+                Rimuovi ordinamento
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuGroup>
+        ) : null}
+        {bloccabile ? (
           <>
-            <DropdownMenuSeparator />
+            {ordinabile ? <DropdownMenuSeparator /> : null}
             <DropdownMenuGroup>
               <DropdownMenuLabel>Blocca</DropdownMenuLabel>
               <DropdownMenuItem
@@ -3564,7 +3581,8 @@ export type DataTableProps<TDato extends RowData> = {
    * `maxSize` sulla colonna, al posto di `meta.larghezza`.
    *
    * Una colonna senza `size` resta elastica: assorbe lo spazio che avanza, e
-   * le altre restano larghe quanto dichiarano.
+   * le altre restano larghe quanto dichiarano. Non scende sotto 160px (240 in
+   * touch), né sotto il suo `minSize` se è più grande.
    *
    * Da sapere: una larghezza scelta dall'utente è in pixel, quindi non segue la
    * densità, e non si conserva da un caricamento all'altro.
@@ -4074,8 +4092,11 @@ export function DataTable<TDato extends RowData>({
     // Senza, TanStack scrive `size: 150` in ogni colonna che non la dichiara,
     // e `columnDef.size` non dice più se la larghezza l'ha scelta la pagina:
     // una colonna senza `size` non sarebbe mai elastica. `getSize()` resta
-    // 150 per quelle colonne, perché lo ricava da sé.
-    defaultColumn: { size: undefined },
+    // 150 per quelle colonne, perché lo ricava da sé. Lo stesso per
+    // `minSize`, che TanStack riempie con 20: la larghezza minima della
+    // tabella conta il `minSize` di una colonna elastica solo se l'ha scritto
+    // la pagina, e `getSize()` e la maniglia ricadono su 20 da sé.
+    defaultColumn: { size: undefined, minSize: undefined },
     globalFilterFn: getSottoRighe ? "includesStringInAlbero" : "includesString",
     // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
     // predefinito, l'indice nell'array (v. il prop).
@@ -4194,16 +4215,29 @@ export function DataTable<TDato extends RowData>({
    * TanStack, in pixel, e le due parti si sommano. Una `larghezza` che non è
    * `w-<n>` (`w-1/4`, `w-auto`) non si può sommare: allora il minimo non si
    * calcola, e la tabella si comporta come prima.
+   *
+   * Lì una colonna senza `size` che dichiara `minSize` non scende sotto
+   * quel `minSize`: conta `max(MINIMO_ELASTICA unità, minSize)`, e il
+   * confronto lo fa il CSS, perché le due misure sono in unità diverse. Con
+   * `table-fixed` le colonne senza larghezza si dividono l'avanzo in parti
+   * uguali, quindi con più colonne elastiche ciascuna conta il `minSize` più
+   * grande fra loro: a contare il proprio, quella col minimo più alto
+   * resterebbe sotto.
    */
   const larghezzaMinima = (() => {
     let unita = 0
     let px = 0
+    // Le colonne elastiche di una tabella con `size`, e il `minSize` più
+    // grande scritto dalla pagina fra loro (0 se nessuna lo scrive).
+    let elastiche = 0
+    let minimoElastiche = 0
     for (const colonna of tabella.getVisibleLeafColumns()) {
       if (conDimensioni) {
         if (haLarghezza(colonna, dimensioni)) {
           px += colonna.getSize()
         } else {
-          unita += MINIMO_ELASTICA
+          elastiche += 1
+          minimoElastiche = Math.max(minimoElastiche, colonna.columnDef.minSize ?? 0)
         }
         continue
       }
@@ -4216,6 +4250,11 @@ export function DataTable<TDato extends RowData>({
       if (!passi) return undefined
       unita += Number(passi[1])
     }
+    if (elastiche > 0 && minimoElastiche > 0) {
+      const elastica = `max(var(--spacing) * ${MINIMO_ELASTICA}, ${minimoElastiche}px)`
+      return px > 0 ? `calc(${px}px + ${elastiche} * ${elastica})` : `calc(${elastiche} * ${elastica})`
+    }
+    unita += elastiche * MINIMO_ELASTICA
     if (unita === 0) return px > 0 ? `${px}px` : undefined
     return px > 0 ? `calc(${px}px + var(--spacing) * ${unita})` : `calc(var(--spacing) * ${unita})`
   })()

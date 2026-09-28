@@ -842,7 +842,8 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
 /**
  * La testata a menu: un grilletto «⋮» per colonna, con «Ordina» e «Blocca»
  * nello stesso menu, al posto della freccia e della puntina di
- * `Colonne Bloccabili`.
+ * `Colonne Bloccabili`. Su una colonna che non si ordina il menu ha il solo
+ * «Blocca»; su una che non si ordina e non si blocca il grilletto non c'è.
  */
 export const MenuColonna: Story = {
   name: 'Menu Colonna',
@@ -855,6 +856,98 @@ export const MenuColonna: Story = {
     colonneBloccabili: true,
   },
   play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+// La testata a menu su colonne che non si ordinano: «Famiglia» non si ordina
+// ma si blocca, «Stato» non si ordina e non si blocca. Il caso viene da una
+// proposta di Anagrafe (#95).
+const COLONNE_MENU_NON_ORDINABILI = colMenuAzioni.columns([
+  COLONNE_MENU_AZIONI[0],
+  COLONNE_MENU_AZIONI[1],
+  colMenuAzioni.accessor('famiglia', {
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Famiglia" />,
+    meta: { titolo: 'Famiglia', azioniProprie: true },
+    enableSorting: false,
+  }),
+  colMenuAzioni.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato', azioniProprie: true },
+    enableSorting: false,
+    enablePinning: false,
+    size: 130,
+    cell: ({ getValue }) => {
+      const stato = getValue<Prodotto['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+])
+
+// La prova apre il menu di ogni colonna che ne ha uno e ne legge le voci.
+// Prima il gruppo «Ordina» c'era sempre: «Famiglia» offriva Crescente e
+// Decrescente senza ordinare niente, e «Stato» aveva un grilletto che apriva
+// il solo «Ordina». Ora «Famiglia» ha il solo «Blocca», senza separatore,
+// «Stato» nessun grilletto, e le colonne ordinabili restano come prima.
+// In fondo il menu di «Famiglia» resta aperto nella passata «aperto» del
+// controllo di accessibilità.
+async function provaMenuColonnaNonOrdinabile(contesto: { canvasElement: HTMLElement }) {
+  const canvas = within(contesto.canvasElement)
+  const pagina = within(contesto.canvasElement.ownerDocument.body)
+  const grilletto = (titolo: string) => `Azioni sulla colonna «${titolo}»`
+  await canvas.findByRole('button', { name: grilletto('Codice') })
+
+  const voci = async (titolo: string) => {
+    await userEvent.click(canvas.getByRole('button', { name: grilletto(titolo) }))
+    const menu = await waitFor(() => {
+      const el = contesto.canvasElement.ownerDocument.querySelector<HTMLElement>(
+        '[data-slot="dropdown-menu-content"]'
+      )
+      expect(el).toBeTruthy()
+      return el as HTMLElement
+    })
+    const letto = {
+      voci: within(menu).getAllByRole('menuitem').map((v) => v.textContent?.trim()),
+      separatori: menu.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
+      etichette: [...menu.querySelectorAll('[data-slot="dropdown-menu-label"]')].map((l) =>
+        l.textContent?.trim()
+      ),
+    }
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(pagina.queryByRole('menu')).toBeNull())
+    return letto
+  }
+
+  expect(await voci('Famiglia')).toEqual({
+    voci: ['Blocca a sinistra', 'Blocca a destra'],
+    separatori: 0,
+    etichette: ['Blocca'],
+  })
+  for (const titolo of ['Codice', 'Nome']) {
+    expect(await voci(titolo)).toEqual({
+      voci: ['Crescente', 'Decrescente', 'Blocca a sinistra', 'Blocca a destra'],
+      separatori: 1,
+      etichette: ['Ordina', 'Blocca'],
+    })
+  }
+  expect(canvas.queryByRole('button', { name: grilletto('Stato') })).toBeNull()
+  expect(contesto.canvasElement.querySelectorAll('thead [data-slot="dropdown-menu-trigger"]')).toHaveLength(3)
+
+  await apriCol(`[aria-label="${grilletto('Famiglia')}"]`, 'dropdown-menu-content')(contesto)
+}
+
+// Scena di misura: la testata a menu su colonne non ordinabili. Solo per il
+// controllo automatico.
+export const MenuColonnaNonOrdinabileProva: Story = {
+  name: 'Menu Colonna Non Ordinabile, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    colonne: COLONNE_MENU_NON_ORDINABILI,
+    dati: PRODOTTI.slice(0, 5),
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    colonneBloccabili: true,
+  },
+  play: provaMenuColonnaNonOrdinabile,
 }
 
 /**
@@ -2974,6 +3067,130 @@ export const ColonnaElasticaBloccataProva: Story = {
     </div>
   ),
   play: provaColonnaElasticaBloccata,
+}
+
+// Una colonna senza `size` che dichiara `minSize`: tre tabelle ridimensionabili
+// uguali (Codice 140, Nome senza `size`, Stato 130, Aggiornato 140) che
+// cambiano solo nel `minSize` di Nome — 300px, nessuno, 200px —, in un
+// riquadro più stretto di tutte e tre. Il caso viene da una proposta di
+// Anagrafe (#93).
+function colonneConMinimo(minimo: number | undefined) {
+  const col = creaColonne<Prodotto>()
+  return col.columns([
+    col.accessor('codice', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+      meta: { titolo: 'Codice' },
+      sortFn: 'alphanumeric',
+      size: 140,
+      minSize: 90,
+    }),
+    col.accessor('nome', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+      meta: { titolo: 'Nome' },
+      sortFn: 'text',
+      ...(minimo === undefined ? {} : { minSize: minimo }),
+      cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+    }),
+    col.accessor('stato', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+      meta: { titolo: 'Stato' },
+      sortFn: 'text',
+      size: 130,
+      cell: ({ getValue }) => {
+        const stato = getValue<Prodotto['stato']>()
+        return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+      },
+    }),
+    col.accessor('aggiornato', {
+      header: ({ column }) => (
+        <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
+      ),
+      meta: { titolo: 'Aggiornato' },
+      sortFn: 'datetime',
+      size: 140,
+      cell: ({ getValue }) => <div className="text-right">{DATA.format(getValue<Date>())}</div>,
+      enableGlobalFilter: false,
+    }),
+  ])
+}
+
+const MINIMI_ELASTICA = [300, undefined, 200] as const
+const COLONNE_CON_MINIMO = MINIMI_ELASTICA.map(colonneConMinimo)
+
+// La prova misura Nome in ciascuna tabella, nelle due densità. Nel riquadro
+// stretto ogni tabella scende alla sua larghezza minima, quindi Nome è largo
+// esattamente il suo minimo: `minSize` quando la pagina lo scrive ed è più
+// grande di 40 unità di `--spacing` (160px in normale, 240 in touch), quelle
+// 40 unità altrimenti. Prima Nome contava sempre 40 unità: a `minSize` 300
+// era largo 160px e il testo si tagliava invece di far scorrere la tabella.
+// La tabella senza `minSize` fa da controllo: la sua larghezza minima si
+// scrive come prima, carattere per carattere.
+async function provaMinimoColonnaElastica({ canvasElement }: { canvasElement: HTMLElement }) {
+  const tabelle = await waitFor(() => {
+    const trovate = [...canvasElement.querySelectorAll<HTMLTableElement>('[data-slot="table"]')]
+    expect(trovate).toHaveLength(MINIMI_ELASTICA.length)
+    return trovate
+  })
+  expect(tabelle[1].style.minWidth).toBe('calc(410px + var(--spacing) * 40)')
+
+  const radice = document.documentElement
+  const misura = () => {
+    const passo = parseFloat(getComputedStyle(radice).getPropertyValue('--spacing')) * 16
+    return tabelle.map((t) => {
+      const nome = [...t.querySelectorAll<HTMLElement>('thead th')].find((th) =>
+        th.textContent?.includes('Nome')
+      )
+      expect(nome).toBeTruthy()
+      const scorre = t.closest<HTMLElement>('[data-slot="table-container"]') as HTMLElement
+      return {
+        nome: (nome as HTMLElement).getBoundingClientRect().width,
+        scorre: scorre.scrollWidth > scorre.clientWidth,
+        minimoSpacing: 40 * passo,
+      }
+    })
+  }
+  const controlla = (misure: ReturnType<typeof misura>) => {
+    misure.forEach((m, i) => {
+      const atteso = Math.max(m.minimoSpacing, MINIMI_ELASTICA[i] ?? 0)
+      expect(Math.abs(m.nome - atteso), `Nome della tabella ${i + 1}: ${m.nome}px, atteso ${atteso}`).toBeLessThan(1)
+      expect(m.scorre).toBe(true)
+    })
+  }
+
+  controlla(misura())
+  const prima = radice.getAttribute('data-density')
+  radice.setAttribute('data-density', 'touch')
+  try {
+    await new Promise((fatto) => setTimeout(fatto, 100))
+    controlla(misura())
+  } finally {
+    if (prima === null) radice.removeAttribute('data-density')
+    else radice.setAttribute('data-density', prima)
+  }
+}
+
+// Scena di misura: la colonna elastica con `minSize`. Solo per il controllo
+// automatico; gira anche in WebKit, perché come una tabella `table-fixed`
+// divide l'avanzo fra le colonne senza larghezza lo decide il motore.
+export const MinimoColonnaElasticaProva: Story = {
+  name: 'Minimo Colonna Elastica, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => (
+    <div className="flex max-w-md flex-col gap-4">
+      {COLONNE_CON_MINIMO.map((colonne, i) => (
+        <DataTable
+          key={i}
+          colonne={colonne}
+          dati={PRODOTTI.slice(0, 4)}
+          cerca={false}
+          colonneNascondibili={false}
+          piePagina={false}
+          ridimensionabile
+        />
+      ))}
+    </div>
+  ),
+  play: provaMinimoColonnaElastica,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
