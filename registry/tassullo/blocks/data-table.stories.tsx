@@ -842,7 +842,8 @@ const COLONNE_MENU_AZIONI = colMenuAzioni.columns([
 /**
  * La testata a menu: un grilletto «⋮» per colonna, con «Ordina» e «Blocca»
  * nello stesso menu, al posto della freccia e della puntina di
- * `Colonne Bloccabili`.
+ * `Colonne Bloccabili`. Su una colonna che non si ordina il menu ha il solo
+ * «Blocca»; su una che non si ordina e non si blocca il grilletto non c'è.
  */
 export const MenuColonna: Story = {
   name: 'Menu Colonna',
@@ -855,6 +856,110 @@ export const MenuColonna: Story = {
     colonneBloccabili: true,
   },
   play: apriCol('[data-slot="dropdown-menu-trigger"]', 'dropdown-menu-content'),
+}
+
+// La testata a menu su colonne che non si ordinano: «Famiglia» non si ordina
+// ma si blocca, «Stato» non si ordina e non si blocca. Il caso viene da una
+// proposta di Anagrafe (#95).
+const COLONNE_MENU_NON_ORDINABILI = colMenuAzioni.columns([
+  COLONNE_MENU_AZIONI[0],
+  COLONNE_MENU_AZIONI[1],
+  colMenuAzioni.accessor('famiglia', {
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Famiglia" />,
+    meta: { titolo: 'Famiglia', azioniProprie: true },
+    enableSorting: false,
+  }),
+  colMenuAzioni.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonnaMenu colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato', azioniProprie: true },
+    enableSorting: false,
+    enablePinning: false,
+    size: 130,
+    cell: ({ getValue }) => {
+      const stato = getValue<Prodotto['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+])
+
+// La prova apre il menu di ogni colonna che ne ha uno e ne legge le voci.
+// Prima il gruppo «Ordina» c'era sempre: «Famiglia» offriva Crescente e
+// Decrescente senza ordinare niente, e «Stato» aveva un grilletto che apriva
+// il solo «Ordina». Ora «Famiglia» ha il solo «Blocca», senza separatore,
+// «Stato» nessun grilletto, e le colonne ordinabili restano come prima.
+// Poi il menu di «Famiglia» si apre da tastiera, col puntatore lontano: il
+// fuoco passa nel menu, e prima il «⋮» spariva mentre il suo menu era aperto
+// (opacità 0); ora resta visibile finché il menu è aperto.
+// In fondo il menu di «Famiglia» resta aperto nella passata «aperto» del
+// controllo di accessibilità.
+async function provaMenuColonnaNonOrdinabile(contesto: { canvasElement: HTMLElement }) {
+  const canvas = within(contesto.canvasElement)
+  const pagina = within(contesto.canvasElement.ownerDocument.body)
+  const grilletto = (titolo: string) => `Azioni sulla colonna «${titolo}»`
+  await canvas.findByRole('button', { name: grilletto('Codice') })
+
+  const voci = async (titolo: string) => {
+    await userEvent.click(canvas.getByRole('button', { name: grilletto(titolo) }))
+    const menu = await waitFor(() => {
+      const el = contesto.canvasElement.ownerDocument.querySelector<HTMLElement>(
+        '[data-slot="dropdown-menu-content"]'
+      )
+      expect(el).toBeTruthy()
+      return el as HTMLElement
+    })
+    const letto = {
+      voci: within(menu).getAllByRole('menuitem').map((v) => v.textContent?.trim()),
+      separatori: menu.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
+      etichette: [...menu.querySelectorAll('[data-slot="dropdown-menu-label"]')].map((l) =>
+        l.textContent?.trim()
+      ),
+    }
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(pagina.queryByRole('menu')).toBeNull())
+    return letto
+  }
+
+  expect(await voci('Famiglia')).toEqual({
+    voci: ['Blocca a sinistra', 'Blocca a destra'],
+    separatori: 0,
+    etichette: ['Blocca'],
+  })
+  for (const titolo of ['Codice', 'Nome']) {
+    expect(await voci(titolo)).toEqual({
+      voci: ['Crescente', 'Decrescente', 'Blocca a sinistra', 'Blocca a destra'],
+      separatori: 1,
+      etichette: ['Ordina', 'Blocca'],
+    })
+  }
+  expect(canvas.queryByRole('button', { name: grilletto('Stato') })).toBeNull()
+  expect(contesto.canvasElement.querySelectorAll('thead [data-slot="dropdown-menu-trigger"]')).toHaveLength(3)
+
+  const famiglia = canvas.getByRole('button', { name: grilletto('Famiglia') })
+  famiglia.focus()
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(pagina.getByRole('menu')).toBeTruthy())
+  await waitFor(() => expect(famiglia.ownerDocument.activeElement).not.toBe(famiglia))
+  await waitFor(() => expect(getComputedStyle(famiglia).opacity).toBe('1'))
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(pagina.queryByRole('menu')).toBeNull())
+
+  await apriCol(`[aria-label="${grilletto('Famiglia')}"]`, 'dropdown-menu-content')(contesto)
+}
+
+// Scena di misura: la testata a menu su colonne non ordinabili. Solo per il
+// controllo automatico.
+export const MenuColonnaNonOrdinabileProva: Story = {
+  name: 'Menu Colonna Non Ordinabile, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    colonne: COLONNE_MENU_NON_ORDINABILI,
+    dati: PRODOTTI.slice(0, 5),
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    colonneBloccabili: true,
+  },
+  play: provaMenuColonnaNonOrdinabile,
 }
 
 /**
@@ -1925,7 +2030,10 @@ async function bloccaDalMenu(canvasElement: HTMLElement, titolo: string, voce: s
     await within(canvasElement.ownerDocument.body).findByRole('menuitem', { name: voce })
   )
   await waitFor(() =>
-    expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+    expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull(),
+    // Il menu resta montato finché finisce l'animazione di chiusura: in WebKit,
+    // su una macchina lenta, più del secondo di serie di `waitFor`.
+    { timeout: 5000 }
   )
 }
 
@@ -2902,9 +3010,10 @@ async function provaColonnaElastica(contesto: { canvasElement: HTMLElement }) {
   expect(prima - larghezza(famiglia)).toBeLessThanOrEqual(16.5)
 }
 
-// Una colonna senza `size` bloccata a un bordo prende una larghezza, perché
-// la posizione delle colonne bloccate accanto si calcola dalle larghezze di
-// TanStack. La prova parte da «Famiglia» elastica (nessuna `width` nel
+// Una colonna senza `size` bloccata a un bordo prende una larghezza — quella
+// con cui era resa, qui il minimo della colonna elastica perché il riquadro è
+// stretto —, perché la posizione delle colonne bloccate accanto si calcola
+// dalle larghezze di TanStack. La prova parte da «Famiglia» elastica (nessuna `width` nel
 // `<colgroup>`), la blocca a sinistra con «Codice», controlla che ora abbia
 // una `width`, scorre di lato e controlla che «Codice» cominci dove finisce
 // «Famiglia». Se «Famiglia» restasse elastica anche bloccata, sarebbe larga
@@ -2935,7 +3044,10 @@ async function provaColonnaElasticaBloccata({ canvasElement }: { canvasElement: 
       })
     )
     await waitFor(() =>
-      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull(),
+      // Il menu resta montato finché finisce l'animazione di chiusura: in
+      // WebKit, su una macchina lenta, più del secondo di serie di `waitFor`.
+      { timeout: 5000 }
     )
   }
   expect(larghezzaFamiglia()).not.toBe('')
@@ -2974,6 +3086,291 @@ export const ColonnaElasticaBloccataProva: Story = {
     </div>
   ),
   play: provaColonnaElasticaBloccata,
+}
+
+// La colonna elastica bloccata in un riquadro largo, dove avanza spazio: è lì
+// che si vedeva il difetto, non nel riquadro stretto della scena sopra. Prima
+// «Famiglia» bloccata prendeva i 150px di serie di TanStack, nel `<colgroup>`
+// non restava nessuna colonna senza larghezza e `table-fixed` divideva
+// l'avanzo fra tutte in proporzione: a 1512px Codice 140 · Nome 220 ·
+// Famiglia 848 · Stato 130 · Aggiornato 140 diventavano 265 · 417 · 284 · 246
+// · 265. La prova blocca «Famiglia» a sinistra, la sposta a destra, la
+// sblocca, poi la blocca direttamente a destra, e ogni volta controlla che
+// tenga la larghezza che aveva da libera e che le altre restino alla loro
+// `size` (±1px); sbloccata, torna senza `width` nel `<colgroup>`.
+// Il riquadro è `w-240` (960px) e non la finestra, che nel controllo
+// automatico è stretta: la tabella è larga uguale in ogni motore.
+async function provaColonnaElasticaBloccataLarga({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const corpo = within(canvasElement.ownerDocument.body)
+  const DICHIARATE = { Codice: 140, Nome: 220, Stato: 130, Aggiornato: 140 } as const
+  const misura = () => {
+    const t = canvasElement.querySelector<HTMLTableElement>('[data-slot="table"]')
+    expect(t).toBeTruthy()
+    const th = [...(t as HTMLTableElement).querySelectorAll('thead tr:first-child th')]
+    const col = [...(t as HTMLTableElement).querySelectorAll<HTMLTableColElement>('colgroup col')]
+    expect(col).toHaveLength(th.length)
+    const indice = (nome: string) => th.findIndex((x) => x.textContent?.includes(nome))
+    const famiglia = indice('Famiglia')
+    expect(famiglia).toBeGreaterThan(-1)
+    return {
+      larghezza: (nome: string) => th[indice(nome)].getBoundingClientRect().width,
+      famiglia,
+      ultima: th.length - 1,
+      elastica: col[famiglia].style.width === '',
+    }
+  }
+  const blocca = async (voce: 'Blocca a sinistra' | 'Blocca a destra' | 'Non bloccare') => {
+    await userEvent.click(await canvas.findByRole('button', { name: 'Blocca colonna «Famiglia»' }))
+    await userEvent.click(await corpo.findByRole('menuitem', { name: voce }))
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull(),
+      // Il menu resta montato finché finisce l'animazione di chiusura: in
+      // WebKit, su una macchina lenta, più del secondo di serie di `waitFor`.
+      { timeout: 5000 }
+    )
+  }
+  const controlla = async (atteso: {
+    posizione: 'prima' | 'ultima' | 'libera'
+    elastica: boolean
+    famiglia: number
+  }) => {
+    await waitFor(() => {
+      const m = misura()
+      expect(m.elastica).toBe(atteso.elastica)
+      if (atteso.posizione === 'prima') expect(m.famiglia).toBe(0)
+      if (atteso.posizione === 'ultima') expect(m.famiglia).toBe(m.ultima)
+      expect(Math.abs(m.larghezza('Famiglia') - atteso.famiglia)).toBeLessThanOrEqual(1)
+      for (const [nome, px] of Object.entries(DICHIARATE)) {
+        expect(Math.abs(m.larghezza(nome) - px)).toBeLessThanOrEqual(1)
+      }
+    })
+  }
+
+  // Da libera: elastica, e più larga del minimo, o la prova non distinguerebbe
+  // la larghezza resa dal minimo della colonna elastica.
+  const libera = misura()
+  expect(libera.elastica).toBe(true)
+  const resa = libera.larghezza('Famiglia')
+  expect(resa).toBeGreaterThan(200)
+  await controlla({ posizione: 'libera', elastica: true, famiglia: resa })
+
+  await blocca('Blocca a sinistra')
+  await controlla({ posizione: 'prima', elastica: false, famiglia: resa })
+  await blocca('Blocca a destra')
+  await controlla({ posizione: 'ultima', elastica: false, famiglia: resa })
+  await blocca('Non bloccare')
+  await controlla({ posizione: 'libera', elastica: true, famiglia: resa })
+  await blocca('Blocca a destra')
+  await controlla({ posizione: 'ultima', elastica: false, famiglia: resa })
+  await blocca('Non bloccare')
+  await controlla({ posizione: 'libera', elastica: true, famiglia: resa })
+}
+
+// Scena di misura: la colonna senza `size` bloccata in un riquadro largo.
+// Solo per il controllo automatico; gira anche in WebKit, perché come una
+// tabella `table-fixed` divide l'avanzo lo decide il motore.
+export const ColonnaElasticaBloccataLargaProva: Story = {
+  name: 'Colonna Elastica Bloccata Larga, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 5),
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    colonneBloccabili: true,
+  },
+  render: (args) => (
+    <div className="w-240">
+      <DataTable {...args} />
+    </div>
+  ),
+  play: provaColonnaElasticaBloccataLarga,
+}
+
+// `Home` sulla maniglia di una colonna elastica bloccata. Prima `Home`
+// chiamava `resetSize()`: la larghezza presa al blocco spariva, nel
+// `<colgroup>` non restava nessuna colonna senza larghezza e l'avanzo tornava
+// a dividersi fra tutte (a 1512px Codice 140 → 265). Ora `Home` la riporta
+// alla larghezza che aveva al blocco, e le altre restano alla loro `size`.
+// La prova blocca «Famiglia», la stringe di due passi da tastiera, preme
+// `Home`, e controlla le larghezze (±1px).
+async function provaHomeColonnaBloccata({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const corpo = within(canvasElement.ownerDocument.body)
+  const DICHIARATE = { Codice: 140, Nome: 220, Stato: 130, Aggiornato: 140 } as const
+  const larghezza = (nome: string) => {
+    const th = [...canvasElement.querySelectorAll('thead tr:first-child th')].find((x) =>
+      x.textContent?.includes(nome)
+    )
+    expect(th).toBeTruthy()
+    return (th as HTMLElement).getBoundingClientRect().width
+  }
+  const resa = larghezza('Famiglia')
+  expect(resa).toBeGreaterThan(200)
+
+  await userEvent.click(await canvas.findByRole('button', { name: 'Blocca colonna «Famiglia»' }))
+  await userEvent.click(await corpo.findByRole('menuitem', { name: 'Blocca a sinistra' }))
+  await waitFor(() => expect(Math.abs(larghezza('Famiglia') - resa)).toBeLessThanOrEqual(1))
+
+  const maniglia = canvas.getByRole('separator', { name: 'Ridimensiona colonna «Famiglia»' })
+  maniglia.focus()
+  await userEvent.keyboard('{ArrowLeft}{ArrowLeft}')
+  await waitFor(() => expect(larghezza('Famiglia')).toBeLessThan(resa - 1))
+  await userEvent.keyboard('{Home}')
+  await waitFor(() => {
+    expect(Math.abs(larghezza('Famiglia') - resa)).toBeLessThanOrEqual(1)
+    for (const [nome, px] of Object.entries(DICHIARATE)) {
+      expect(Math.abs(larghezza(nome) - px), nome).toBeLessThanOrEqual(1)
+    }
+  })
+}
+
+// Scena di misura: `Home` su una colonna elastica bloccata. Solo per il
+// controllo automatico.
+export const HomeColonnaBloccataProva: Story = {
+  name: 'Home Colonna Bloccata, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    colonne: COLONNE_RIDIMENSIONABILI,
+    dati: PRODOTTI.slice(0, 5),
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+    colonneBloccabili: true,
+    ridimensionabile: true,
+  },
+  render: (args) => (
+    <div className="w-240">
+      <DataTable {...args} />
+    </div>
+  ),
+  play: provaHomeColonnaBloccata,
+}
+
+// Una colonna senza `size` che dichiara `minSize`: tre tabelle ridimensionabili
+// uguali (Codice 140, Nome senza `size`, Stato 130, Aggiornato 140) che
+// cambiano solo nel `minSize` di Nome — 300px, nessuno, 200px —, in un
+// riquadro più stretto di tutte e tre. Il caso viene da una proposta di
+// Anagrafe (#93).
+function colonneConMinimo(minimo: number | undefined) {
+  const col = creaColonne<Prodotto>()
+  return col.columns([
+    col.accessor('codice', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+      meta: { titolo: 'Codice' },
+      sortFn: 'alphanumeric',
+      size: 140,
+      minSize: 90,
+    }),
+    col.accessor('nome', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Nome" />,
+      meta: { titolo: 'Nome' },
+      sortFn: 'text',
+      ...(minimo === undefined ? {} : { minSize: minimo }),
+      cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+    }),
+    col.accessor('stato', {
+      header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+      meta: { titolo: 'Stato' },
+      sortFn: 'text',
+      size: 130,
+      cell: ({ getValue }) => {
+        const stato = getValue<Prodotto['stato']>()
+        return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+      },
+    }),
+    col.accessor('aggiornato', {
+      header: ({ column }) => (
+        <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
+      ),
+      meta: { titolo: 'Aggiornato' },
+      sortFn: 'datetime',
+      size: 140,
+      cell: ({ getValue }) => <div className="text-right">{DATA.format(getValue<Date>())}</div>,
+      enableGlobalFilter: false,
+    }),
+  ])
+}
+
+const MINIMI_ELASTICA = [300, undefined, 200] as const
+const COLONNE_CON_MINIMO = MINIMI_ELASTICA.map(colonneConMinimo)
+
+// La prova misura Nome in ciascuna tabella, nelle due densità. Nel riquadro
+// stretto ogni tabella scende alla sua larghezza minima, quindi Nome è largo
+// esattamente il suo minimo: `minSize` quando la pagina lo scrive ed è più
+// grande di 40 unità di `--spacing` (160px in normale, 240 in touch), quelle
+// 40 unità altrimenti. Prima Nome contava sempre 40 unità: a `minSize` 300
+// era largo 160px e il testo si tagliava invece di far scorrere la tabella.
+// La tabella senza `minSize` fa da controllo: la sua larghezza minima si
+// scrive come prima, carattere per carattere.
+async function provaMinimoColonnaElastica({ canvasElement }: { canvasElement: HTMLElement }) {
+  const tabelle = await waitFor(() => {
+    const trovate = [...canvasElement.querySelectorAll<HTMLTableElement>('[data-slot="table"]')]
+    expect(trovate).toHaveLength(MINIMI_ELASTICA.length)
+    return trovate
+  })
+  expect(tabelle[1].style.minWidth).toBe('calc(410px + var(--spacing) * 40)')
+
+  const radice = document.documentElement
+  const misura = () => {
+    const passo = parseFloat(getComputedStyle(radice).getPropertyValue('--spacing')) * 16
+    return tabelle.map((t) => {
+      const nome = [...t.querySelectorAll<HTMLElement>('thead th')].find((th) =>
+        th.textContent?.includes('Nome')
+      )
+      expect(nome).toBeTruthy()
+      const scorre = t.closest<HTMLElement>('[data-slot="table-container"]') as HTMLElement
+      return {
+        nome: (nome as HTMLElement).getBoundingClientRect().width,
+        scorre: scorre.scrollWidth > scorre.clientWidth,
+        minimoSpacing: 40 * passo,
+      }
+    })
+  }
+  const controlla = (misure: ReturnType<typeof misura>) => {
+    misure.forEach((m, i) => {
+      const atteso = Math.max(m.minimoSpacing, MINIMI_ELASTICA[i] ?? 0)
+      expect(Math.abs(m.nome - atteso), `Nome della tabella ${i + 1}: ${m.nome}px, atteso ${atteso}`).toBeLessThan(1)
+      expect(m.scorre).toBe(true)
+    })
+  }
+
+  controlla(misura())
+  const prima = radice.getAttribute('data-density')
+  radice.setAttribute('data-density', 'touch')
+  try {
+    await new Promise((fatto) => setTimeout(fatto, 100))
+    controlla(misura())
+  } finally {
+    if (prima === null) radice.removeAttribute('data-density')
+    else radice.setAttribute('data-density', prima)
+  }
+}
+
+// Scena di misura: la colonna elastica con `minSize`. Solo per il controllo
+// automatico; gira anche in WebKit, perché come una tabella `table-fixed`
+// divide l'avanzo fra le colonne senza larghezza lo decide il motore.
+export const MinimoColonnaElasticaProva: Story = {
+  name: 'Minimo Colonna Elastica, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => (
+    <div className="flex max-w-md flex-col gap-4">
+      {COLONNE_CON_MINIMO.map((colonne, i) => (
+        <DataTable
+          key={i}
+          colonne={colonne}
+          dati={PRODOTTI.slice(0, 4)}
+          cerca={false}
+          colonneNascondibili={false}
+          piePagina={false}
+          ridimensionabile
+        />
+      ))}
+    </div>
+  ),
+  play: provaMinimoColonnaElastica,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

@@ -117,6 +117,7 @@ import {
   type ColumnPinningState,
   type ColumnSizingState,
   type Header,
+  type OnChangeFn,
   type ReactTable,
   type Row,
   type ColumnFiltersState,
@@ -421,9 +422,11 @@ export function creaColonne<TDato extends RowData>() {
  * scrive una colonna resta la loro. Una colonna senza `size` assorbe lo
  * spazio che avanza, come senza `larghezza` — la stessa elasticità, un
  * meccanismo diverso (`<colgroup>`, non la prima riga di intestazioni) — e
- * non scende sotto lo stesso minimo. Diventa larga quanto un numero solo
- * quando l'utente la trascina (parte dalla larghezza con cui è resa) o la
- * blocca a un bordo (150px, o `minSize` se più grande).
+ * non scende sotto lo stesso minimo, né sotto il suo `minSize` se è più
+ * grande: sotto, il riquadro scorre di lato invece di stringerla. Diventa
+ * larga quanto un numero solo quando l'utente la trascina o la blocca a un
+ * bordo: in tutti e due i casi parte dalla larghezza con cui è resa, e
+ * sbloccata torna elastica, se nel frattempo non è stata trascinata.
  *
  * `sottototale` è la terza chiave, ed è **facoltativa quanto le altre due**:
  * senza, una tabella ad albero (`getSottoRighe`) resta legittima —
@@ -546,7 +549,10 @@ export type MetaColonna<TDato = unknown> = {
  * Il minimo di una colonna senza larghezza, in unità di `--spacing` (come
  * `w-40`): 160px in densità normale, 240 in touch. Si somma alle larghezze
  * dichiarate per dare alla tabella la sua larghezza minima (v.
- * `larghezzaMinima` in `DataTable`).
+ * `larghezzaMinima` in `DataTable`). In una tabella `ridimensionabile` o
+ * `colonneBloccabili` una colonna senza `size` che dichiara `minSize` conta
+ * il più grande dei due: `minSize` è in pixel e questo minimo segue la
+ * densità, quindi il confronto lo fa il browser, con un `max()` nel CSS.
  */
 const MINIMO_ELASTICA = 40
 
@@ -559,8 +565,11 @@ const MINIMO_ELASTICA = 40
  * Una colonna bloccata ha sempre una larghezza, anche senza `size`: la
  * posizione delle colonne bloccate accanto si calcola sommando le larghezze
  * di TanStack, e una colonna elastica bloccata sarebbe resa più larga o più
- * stretta del numero che quella somma usa. Senza `size` prende il valore di
- * serie di TanStack, 150px (o `minSize`, se più grande).
+ * stretta del numero che quella somma usa. Quando la si blocca, `DataTable` le
+ * scrive in `dimensioni` la larghezza con cui era resa (v. `cambiaAncoraggio`);
+ * solo se quella misura manca — un'intestazione che non è resa, e non si
+ * può leggere — ricade sul valore di serie di TanStack, 150px (o `minSize`,
+ * se più grande).
  */
 function haLarghezza<TDato extends RowData>(
   colonna: Column<CaratteristicheTabella, TDato, unknown>,
@@ -581,6 +590,20 @@ function larghezzaDiPartenza<TDato extends RowData>(
 ): number {
   if (!haLarghezza(colonna, dimensioni) && cella) return cella.getBoundingClientRect().width
   return dimensioni[colonna.id] ?? colonna.getSize()
+}
+
+/**
+ * Le intestazioni nell'ordine in cui sono rese con `colonneBloccabili`: le
+ * bloccate a sinistra, le libere, le bloccate a destra. È anche l'ordine delle
+ * `<th>` nella riga di intestazione e dei `<col>` del `<colgroup>` (v.
+ * `intestazioni` in `DataTable`).
+ */
+function intestazioniBloccabili<TDato extends RowData>(tabella: IstanzaTabella<TDato>) {
+  return [
+    ...tabella.getStartLeafHeaders(),
+    ...tabella.getCenterLeafHeaders(),
+    ...tabella.getEndLeafHeaders(),
+  ]
 }
 
 /**
@@ -756,6 +779,10 @@ export function IntestazioneColonna<TDato extends RowData, TValore>({
  * La colonna dichiara `meta.azioniProprie: true`, o `colonneBloccabili`
  * aggiungerebbe anche la sua puntina e i grilletti di blocco sarebbero due.
  *
+ * Il menu offre solo ciò che la colonna sa fare: con `enableSorting: false`
+ * resta il solo gruppo «Blocca», e se la colonna non si ordina e non si
+ * blocca il grilletto non c'è e resta il titolo.
+ *
  * Il grilletto compare al passaggio del puntatore e al fuoco, e resta
  * visibile quando la colonna è ordinata o bloccata. Da tastiera `Tab` lo
  * raggiunge in ogni intestazione, e `Invio` o `Spazio` aprono il menu.
@@ -777,8 +804,14 @@ function MenuAzioniColonna<TDato extends RowData, TValore>({
   colonna,
   titolo,
 }: Omit<IntestazioneColonnaProps<TDato, TValore>, "allinea">) {
-  const ordine = colonna.getIsSorted()
-  const posizionePin = colonna.getCanPin() ? colonna.getIsPinned() : false
+  // Ogni gruppo compare solo se la colonna fa quella cosa: una colonna che
+  // non si ordina non offre «Ordina», e una che non si ordina né si blocca
+  // non ha il grilletto, invece di un menu vuoto.
+  const ordinabile = colonna.getCanSort()
+  const bloccabile = colonna.getCanPin()
+  if (!ordinabile && !bloccabile) return null
+  const ordine = ordinabile ? colonna.getIsSorted() : false
+  const posizionePin = bloccabile ? colonna.getIsPinned() : false
   const attiva = !!ordine || !!posizionePin
 
   return (
@@ -789,7 +822,7 @@ function MenuAzioniColonna<TDato extends RowData, TValore>({
             variant="ghost"
             size="icon"
             className={cn(
-              "-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+              "-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-popup-open:opacity-100",
               attiva && "text-foreground opacity-100"
             )}
           />
@@ -799,32 +832,34 @@ function MenuAzioniColonna<TDato extends RowData, TValore>({
         <EllipsisVerticalIcon aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Ordina</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(false)}
-            disabled={ordine === "asc"}
-          >
-            <ArrowUpIcon aria-hidden />
-            Crescente
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => colonna.toggleSorting(true)}
-            disabled={ordine === "desc"}
-          >
-            <ArrowDownIcon aria-hidden />
-            Decrescente
-          </DropdownMenuItem>
-          {ordine ? (
-            <DropdownMenuItem onClick={() => colonna.clearSorting()}>
-              <XIcon aria-hidden />
-              Rimuovi ordinamento
+        {ordinabile ? (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Ordina</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => colonna.toggleSorting(false)}
+              disabled={ordine === "asc"}
+            >
+              <ArrowUpIcon aria-hidden />
+              Crescente
             </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuGroup>
-        {colonna.getCanPin() ? (
+            <DropdownMenuItem
+              onClick={() => colonna.toggleSorting(true)}
+              disabled={ordine === "desc"}
+            >
+              <ArrowDownIcon aria-hidden />
+              Decrescente
+            </DropdownMenuItem>
+            {ordine ? (
+              <DropdownMenuItem onClick={() => colonna.clearSorting()}>
+                <XIcon aria-hidden />
+                Rimuovi ordinamento
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuGroup>
+        ) : null}
+        {bloccabile ? (
           <>
-            <DropdownMenuSeparator />
+            {ordinabile ? <DropdownMenuSeparator /> : null}
             <DropdownMenuGroup>
               <DropdownMenuLabel>Blocca</DropdownMenuLabel>
               <DropdownMenuItem
@@ -1851,7 +1886,8 @@ const PASSO_RIDIMENSIONA = 16
  * tastiera.
  * `onKeyDown` copre tre tasti: `ArrowLeft`/`ArrowRight` allargano o
  * restringono di `PASSO_RIDIMENSIONA`, `Home` torna alla larghezza di
- * partenza (`column.resetSize()`, che TanStack dà già fatta). `aria-valuenow`
+ * partenza (`column.resetSize()`, che TanStack dà già fatta; per una colonna
+ * elastica bloccata, la larghezza che aveva quando è stata bloccata). `aria-valuenow`
  * porta la larghezza attuale, arrotondata — un pixel di troppo che un
  * lettore di schermo leggesse ad alta voce non aggiungerebbe informazione.
  *
@@ -1886,6 +1922,7 @@ function ManigliaRidimensiona<TDato extends RowData>({
   header,
   titolo,
   ultima,
+  larghezzaPresaAlBlocco,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
@@ -1893,6 +1930,11 @@ function ManigliaRidimensiona<TDato extends RowData>({
   titolo: string
   /** L'intestazione è l'ultima a destra, nell'ordine in cui è resa. */
   ultima: boolean
+  /**
+   * La larghezza che la colonna ha preso bloccandola da elastica, se l'ha
+   * presa: `Home` la riporta lì invece che al valore di serie.
+   */
+  larghezzaPresaAlBlocco: (id: string) => number | undefined
 }) {
   const colonna = header.column
   const min = colonna.columnDef.minSize ?? 20
@@ -1969,7 +2011,12 @@ function ManigliaRidimensiona<TDato extends RowData>({
       onKeyDown={(e) => {
         if (e.key === "Home") {
           e.preventDefault()
-          colonna.resetSize()
+          // Una colonna elastica bloccata torna alla larghezza presa al
+          // blocco: `resetSize()` la toglierebbe da `dimensioni`, e senza
+          // colonne elastiche `table-fixed` dividerebbe l'avanzo fra tutte.
+          const presa = colonna.getIsPinned() ? larghezzaPresaAlBlocco(colonna.id) : undefined
+          if (presa === undefined) colonna.resetSize()
+          else tabella.setColumnSizing((prima) => ({ ...prima, [colonna.id]: presa }))
           return
         }
         if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return
@@ -2118,10 +2165,12 @@ function CellaIntestazione<TDato extends RowData>({
   conDimensioni,
   selezione,
   ultima,
+  larghezzaPresaAlBlocco,
 }: {
   tabella: IstanzaTabella<TDato>
   tabellaRef: React.RefObject<HTMLTableElement | null>
   intestazione: Header<CaratteristicheTabella, TDato, unknown>
+  larghezzaPresaAlBlocco: (id: string) => number | undefined
   indice: number
   /** L'ultima intestazione resa: la sua maniglia sta dentro la tabella. */
   ultima: boolean
@@ -2252,6 +2301,7 @@ function CellaIntestazione<TDato extends RowData>({
             header={intestazione}
             titolo={titoloColonna}
             ultima={ultima}
+            larghezzaPresaAlBlocco={larghezzaPresaAlBlocco}
           />
         ) : null}
       </TableHead>
@@ -3564,7 +3614,8 @@ export type DataTableProps<TDato extends RowData> = {
    * `maxSize` sulla colonna, al posto di `meta.larghezza`.
    *
    * Una colonna senza `size` resta elastica: assorbe lo spazio che avanza, e
-   * le altre restano larghe quanto dichiarano.
+   * le altre restano larghe quanto dichiarano. Non scende sotto 160px (240 in
+   * touch), né sotto il suo `minSize` se è più grande.
    *
    * Da sapere: una larghezza scelta dall'utente è in pixel, quindi non segue la
    * densità, e non si conserva da un caricamento all'altro.
@@ -3599,6 +3650,16 @@ export type DataTableProps<TDato extends RowData> = {
    *
    * Con una colonna bloccata a sinistra, la casella di selezione si blocca
    * con lei e resta la prima; sbloccate tutte, torna a scorrere.
+   *
+   * Una colonna senza `size`, bloccata, tiene la larghezza con cui era resa
+   * in quel momento, e le altre restano larghe quanto dichiarano; spostata
+   * all'altro bordo, la larghezza non cambia. Sbloccata torna elastica, a
+   * meno che nel frattempo non sia stata trascinata: allora la larghezza
+   * scelta resta. Da sapere: bloccata, la sua larghezza è un numero fisso.
+   * Se poi la finestra si allarga e non resta un'altra colonna senza `size`,
+   * lo spazio in più si divide fra tutte le colonne in proporzione; se si
+   * stringe, la colonna bloccata non si restringe e il riquadro scorre di
+   * lato.
    */
   colonneBloccabili?: boolean
   // Riordino manuale delle **colonne** via trascinamento (stesso
@@ -3989,6 +4050,21 @@ export function DataTable<TDato extends RowData>({
     end: [],
   })
   /**
+   * Le larghezze che `cambiaAncoraggio` ha scritto in `dimensioni` bloccando
+   * una colonna elastica, per id di colonna. Servono allo sblocco: se in
+   * `dimensioni` c'è ancora quel numero la larghezza era del blocco, si
+   * toglie e la colonna torna elastica; se è cambiato, l'utente l'ha
+   * trascinata dopo averla bloccata, e la larghezza resta sua.
+   */
+  const presePerBlocco = React.useRef(new Map<string, number>())
+  /** Letta solo nei gestori della maniglia, mai in fase di render. */
+  const larghezzaPresaAlBlocco = React.useCallback(
+    (id: string) => presePerBlocco.current.get(id),
+    []
+  )
+  /** La testata della tabella: da qui si leggono le larghezze rese. */
+  const testataRef = React.useRef<HTMLTableSectionElement>(null)
+  /**
    * L'ordine acquisito delle colonne (`colonneRiordinabili`).
    * `[]` di partenza: non un ordine "nessuno", è l'array vuoto che per
    * TanStack **significa** "usa l'ordine di dichiarazione" — lo stesso
@@ -4067,6 +4143,68 @@ export function DataTable<TDato extends RowData>({
     }
   }, [ancoraggio, colonneDiTesta])
 
+  /**
+   * Il cambio di blocco, con le larghezze. **Una colonna elastica che si
+   * blocca tiene la larghezza con cui era resa da libera**: la si legge dalla
+   * sua `<th>` e la si scrive in `dimensioni`, come fa `larghezzaDiPartenza`
+   * all'inizio di un trascinamento. Una colonna bloccata ha bisogno di un
+   * numero — lo scarto sticky delle bloccate accanto si somma dalle larghezze
+   * di TanStack — e senza questa misura prendeva il valore di serie, 150px:
+   * nel `<colgroup>` non restava nessuna colonna senza larghezza, e
+   * `table-fixed` divideva l'avanzo fra tutte in proporzione, così le colonne
+   * con `size` non erano più larghe quanto la dichiarano.
+   *
+   * Passare da un bordo all'altro non cambia la larghezza. Sbloccata, la
+   * colonna torna elastica se la larghezza l'aveva presa il blocco (v.
+   * `presePerBlocco`). Le colonne con `size`, o già trascinate, non si
+   * toccano.
+   *
+   * Si chiama solo da un gesto dell'utente, a tabella già resa: `tabella` e
+   * `testataRef` ci sono sempre. Le `<th>` della testata seguono l'ordine di
+   * `intestazioniBloccabili`, lo stesso dei `<col>`.
+   */
+  const cambiaAncoraggio: OnChangeFn<ColumnPinningState> = (aggiorna) => {
+    const dopo = typeof aggiorna === "function" ? aggiorna(ancoraggio) : aggiorna
+    const bloccate = (stato: ColumnPinningState) =>
+      new Set([...(stato.start ?? []), ...(stato.end ?? [])])
+    const prima = bloccate(ancoraggio)
+    const ora = bloccate(dopo)
+    const prese = presePerBlocco.current
+    const aggiunte: ColumnSizingState = {}
+    const tolte: string[] = []
+
+    const nuove = [...ora].filter((id) => !prima.has(id))
+    if (nuove.length > 0) {
+      const ordine = intestazioniBloccabili(tabella).map((h) => h.column.id)
+      const celle = testataRef.current?.rows[0]?.cells
+      for (const id of nuove) {
+        const colonna = tabella.getColumn(id)
+        if (!colonna || haLarghezza(colonna, dimensioni)) continue
+        const cella = celle?.[ordine.indexOf(id)]
+        if (!cella) continue
+        const larghezza = cella.getBoundingClientRect().width
+        aggiunte[id] = larghezza
+        prese.set(id, larghezza)
+      }
+    }
+    for (const id of prima) {
+      if (ora.has(id)) continue
+      const presa = prese.get(id)
+      if (presa === undefined) continue
+      prese.delete(id)
+      if (dimensioni[id] === presa) tolte.push(id)
+    }
+
+    if (Object.keys(aggiunte).length > 0 || tolte.length > 0) {
+      setDimensioni((attuali) => {
+        const risultato = { ...attuali, ...aggiunte }
+        for (const id of tolte) delete risultato[id]
+        return risultato
+      })
+    }
+    setAncoraggio(dopo)
+  }
+
   const tabella = useTable({
     features: caratteristiche,
     data: dati,
@@ -4074,8 +4212,11 @@ export function DataTable<TDato extends RowData>({
     // Senza, TanStack scrive `size: 150` in ogni colonna che non la dichiara,
     // e `columnDef.size` non dice più se la larghezza l'ha scelta la pagina:
     // una colonna senza `size` non sarebbe mai elastica. `getSize()` resta
-    // 150 per quelle colonne, perché lo ricava da sé.
-    defaultColumn: { size: undefined },
+    // 150 per quelle colonne, perché lo ricava da sé. Lo stesso per
+    // `minSize`, che TanStack riempie con 20: la larghezza minima della
+    // tabella conta il `minSize` di una colonna elastica solo se l'ha scritto
+    // la pagina, e `getSize()` e la maniglia ricadono su 20 da sé.
+    defaultColumn: { size: undefined, minSize: undefined },
     globalFilterFn: getSottoRighe ? "includesStringInAlbero" : "includesString",
     // Senza `idRiga` resta `undefined`: TanStack ricade sul proprio
     // predefinito, l'indice nell'array (v. il prop).
@@ -4116,7 +4257,7 @@ export function DataTable<TDato extends RowData>({
     enableColumnResizing: ridimensionabile,
     enableColumnPinning: colonneBloccabili,
     onColumnSizingChange: setDimensioni,
-    onColumnPinningChange: setAncoraggio,
+    onColumnPinningChange: cambiaAncoraggio,
     onColumnOrderChange: setOrdineColonne,
     // `riordinabile`: spente **sulla tabella**, non solo nascoste
     // in chrome — l'ordine visibile deve coincidere con `dati` grezzo perché
@@ -4194,16 +4335,29 @@ export function DataTable<TDato extends RowData>({
    * TanStack, in pixel, e le due parti si sommano. Una `larghezza` che non è
    * `w-<n>` (`w-1/4`, `w-auto`) non si può sommare: allora il minimo non si
    * calcola, e la tabella si comporta come prima.
+   *
+   * Lì una colonna senza `size` che dichiara `minSize` non scende sotto
+   * quel `minSize`: conta `max(MINIMO_ELASTICA unità, minSize)`, e il
+   * confronto lo fa il CSS, perché le due misure sono in unità diverse. Con
+   * `table-fixed` le colonne senza larghezza si dividono l'avanzo in parti
+   * uguali, quindi con più colonne elastiche ciascuna conta il `minSize` più
+   * grande fra loro: a contare il proprio, quella col minimo più alto
+   * resterebbe sotto.
    */
   const larghezzaMinima = (() => {
     let unita = 0
     let px = 0
+    // Le colonne elastiche di una tabella con `size`, e il `minSize` più
+    // grande scritto dalla pagina fra loro (0 se nessuna lo scrive).
+    let elastiche = 0
+    let minimoElastiche = 0
     for (const colonna of tabella.getVisibleLeafColumns()) {
       if (conDimensioni) {
         if (haLarghezza(colonna, dimensioni)) {
           px += colonna.getSize()
         } else {
-          unita += MINIMO_ELASTICA
+          elastiche += 1
+          minimoElastiche = Math.max(minimoElastiche, colonna.columnDef.minSize ?? 0)
         }
         continue
       }
@@ -4216,6 +4370,11 @@ export function DataTable<TDato extends RowData>({
       if (!passi) return undefined
       unita += Number(passi[1])
     }
+    if (elastiche > 0 && minimoElastiche > 0) {
+      const elastica = `max(var(--spacing) * ${MINIMO_ELASTICA}, ${minimoElastiche}px)`
+      return px > 0 ? `calc(${px}px + ${elastiche} * ${elastica})` : `calc(${elastiche} * ${elastica})`
+    }
+    unita += elastiche * MINIMO_ELASTICA
     if (unita === 0) return px > 0 ? `${px}px` : undefined
     return px > 0 ? `calc(${px}px + var(--spacing) * ${unita})` : `calc(var(--spacing) * ${unita})`
   })()
@@ -4235,11 +4394,7 @@ export function DataTable<TDato extends RowData>({
    * sbagliata la larghezza di un'altra.
    */
   const intestazioni = colonneBloccabili
-    ? [
-        ...tabella.getStartLeafHeaders(),
-        ...tabella.getCenterLeafHeaders(),
-        ...tabella.getEndLeafHeaders(),
-      ]
+    ? intestazioniBloccabili(tabella)
     : (tabella.getHeaderGroups()[0]?.headers ?? [])
 
   /**
@@ -4446,7 +4601,6 @@ export function DataTable<TDato extends RowData>({
     return () => oss.disconnect()
   }, [infinito, caricate])
 
-  const testataRef = React.useRef<HTMLTableSectionElement>(null)
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
   // Se `altezzaMax` è l'altezza intera della tabella, che ci sta tutta (v.
   // l'effetto del tetto, sotto).
@@ -4876,6 +5030,7 @@ export function DataTable<TDato extends RowData>({
                   bloccoLegacy={bloccoLegacy}
                   conDimensioni={conDimensioni}
                   selezione={selezione}
+                  larghezzaPresaAlBlocco={larghezzaPresaAlBlocco}
                 />
               ))}
             </TableRow>
