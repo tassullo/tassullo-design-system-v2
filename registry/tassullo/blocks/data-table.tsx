@@ -804,7 +804,7 @@ function MenuAzioniColonna<TDato extends RowData, TValore>({
             variant="ghost"
             size="icon"
             className={cn(
-              "-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+              "-my-1 size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-popup-open:opacity-100",
               attiva && "text-foreground opacity-100"
             )}
           />

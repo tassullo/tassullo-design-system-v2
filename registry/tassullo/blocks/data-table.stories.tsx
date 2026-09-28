@@ -887,6 +887,9 @@ const COLONNE_MENU_NON_ORDINABILI = colMenuAzioni.columns([
 // Decrescente senza ordinare niente, e «Stato» aveva un grilletto che apriva
 // il solo «Ordina». Ora «Famiglia» ha il solo «Blocca», senza separatore,
 // «Stato» nessun grilletto, e le colonne ordinabili restano come prima.
+// Poi il menu di «Famiglia» si apre da tastiera, col puntatore lontano: il
+// fuoco passa nel menu, e prima il «⋮» spariva mentre il suo menu era aperto
+// (opacità 0); ora resta visibile finché il menu è aperto.
 // In fondo il menu di «Famiglia» resta aperto nella passata «aperto» del
 // controllo di accessibilità.
 async function provaMenuColonnaNonOrdinabile(contesto: { canvasElement: HTMLElement }) {
@@ -930,6 +933,15 @@ async function provaMenuColonnaNonOrdinabile(contesto: { canvasElement: HTMLElem
   }
   expect(canvas.queryByRole('button', { name: grilletto('Stato') })).toBeNull()
   expect(contesto.canvasElement.querySelectorAll('thead [data-slot="dropdown-menu-trigger"]')).toHaveLength(3)
+
+  const famiglia = canvas.getByRole('button', { name: grilletto('Famiglia') })
+  famiglia.focus()
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(pagina.getByRole('menu')).toBeTruthy())
+  await waitFor(() => expect(famiglia.ownerDocument.activeElement).not.toBe(famiglia))
+  await waitFor(() => expect(getComputedStyle(famiglia).opacity).toBe('1'))
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(pagina.queryByRole('menu')).toBeNull())
 
   await apriCol(`[aria-label="${grilletto('Famiglia')}"]`, 'dropdown-menu-content')(contesto)
 }
