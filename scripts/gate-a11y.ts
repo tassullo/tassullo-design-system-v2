@@ -82,6 +82,7 @@ const CON_POPUP = [
   "rich-text-editor",
   "select",
   "sheet",
+  "testo-segnaposto",
   "tooltip",
 ];
 

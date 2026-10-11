@@ -191,6 +191,7 @@ Dipendenze di fase: FASE 4.
 | #93 Proposta: data-table, `minSize` della colonna elastica | DONE 2026-09-28 — **`v2.0.7`** | — | La colonna senza `size` non scende sotto il suo `minSize`: prova a 300, Nome 160 → 300px e la tabella scorre. Senza `minSize` il minimo della tabella è identico → `DECISIONI.md` §72 PR #96 |
 | #94 Proposta: data-table, colonna elastica bloccata | DONE 2026-09-28 — **`v2.0.7`** | — | Variante E (Francesco, fra cinque rese): bloccata tiene la larghezza che aveva da libera; a 1512 Codice 265 → 140, Famiglia 848. Sbloccata torna elastica; `Home` torna alla larghezza del blocco → `DECISIONI.md` §72 PR #96 |
 | #95 Proposta: menu di colonna non ordinabile | DONE 2026-09-28 — **`v2.0.7`** | — | Gruppo «Ordina» solo se la colonna si ordina; senza ordine né blocco niente «⋮». In più il «⋮» resta visibile col menu aperto da tastiera. Puntina sempre visibile lasciata com'è (Francesco) → `DECISIONI.md` §72 PR #96 |
+| #98 Proposta: testo con suggerimenti al cursore | REVIEW 2026-10-11 | — | Blocco `tassullo-testo-segnaposto` (Tiptap): pillole col valore di oggi, elenco al cursore scrivendo `{{`, dati trascinabili da `TestoSegnapostoElenco`, doppio clic per correggere; il valore resta la stringa. Forma scelta da Francesco fra due rese. 12 prove in Chromium, 3 in WebKit → `DECISIONI.md` §73 |
 
 ## Decisioni
 

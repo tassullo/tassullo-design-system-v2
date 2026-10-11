@@ -135,3 +135,21 @@ export function apriIlBottone(nome: RegExp, slotContenuto: string) {
     await aspettaContenuto(slotContenuto)
   }
 }
+
+/**
+ * Per i popup che si aprono **scrivendo**, non cliccando: l'elenco dei
+ * suggerimenti di `testo-segnaposto` compare quando nel testo si digita
+ * il prefisso. Il fuoco resta nel campo, e nessun grilletto dichiara
+ * `aria-expanded`: si aspetta il contenuto.
+ */
+export function apriScrivendo(selettoreCampo: string, testo: string, slotContenuto: string) {
+  return async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+    if (soloChiuso) return
+    const el = await grilletto(canvasElement, selettoreCampo)
+    if (!el) return
+    await userEvent.click(el)
+    // Le graffe sono caratteri speciali per `userEvent.type`: si raddoppiano.
+    await userEvent.keyboard(testo.replace(/[{[]/g, '$&$&'))
+    await aspettaContenuto(slotContenuto)
+  }
+}
