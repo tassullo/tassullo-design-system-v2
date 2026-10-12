@@ -13611,6 +13611,8 @@ Prove nuove: `Tre graffe, prova`, `Voci secondarie, prova`; estese `Pillole, pro
 
 `npm run check` di nuovo verde: 538 scene, 2152 scansioni, 0 violazioni; WebKit 15 su 15.
 
+**Barra di scorrimento predefinita**: nel design system non c'è (cercato nel tema, nei blocchi, nei documenti e nel v1). Francesco ha deciso che la barra di `scroll-area` è la predefinita in tutta l'app, nelle due direzioni: è la proposta #103, da fare in una sessione sua.
+
 Da ricordare: prettier, lanciato su un file del registry, lo riscrive per intero (649 righe): il repository non ha una sua configurazione e i file non sono formattati così. Non si lancia.
 
 #### Aperti
