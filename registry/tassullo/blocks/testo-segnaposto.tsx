@@ -77,6 +77,45 @@
  * con la freccia a `-translate-y-1/2` invece del valore arbitrario di
  * shadcn, che in `blocks/` il gate rifiuta.
  *
+ * ── Proposta #107 (Anagrafe), 12 ottobre 2026 ────────────────────────────
+ *
+ * Dopo l'adozione della v2.0.10. Tre difetti, ognuno con una prova che sul
+ * codice di prima fallisce in Chromium e in WebKit. La voce evidenziata era
+ * un indice: se le voci cambiavano a elenco aperto (l'app le rilegge dopo un
+ * salvataggio) l'evidenziazione scivolava e `Invio` inseriva un'altra voce;
+ * ora si ricorda il `testo`. Il tooltip leggeva `selezionata ?? indicata`, e
+ * col puntatore su una pillola mostrava la nota di quella selezionata. Nelle
+ * voci dell'elenco il nome aveva `truncate` e cedeva il posto a nota e
+ * valore: quattro voci che finiscono diverse si leggevano uguali. Ora ogni
+ * voce è su due righe, come nell'elenco dei dati: in piccolo il nome, per
+ * intero, e sotto in evidenza il valore, o al suo posto la nota (scelta da
+ * Francesco fra cinque forme rese, `docs/DECISIONI.md` §76: col valore a
+ * destra «si fa fatica a distinguere il valore dal nome»). Passando da una
+ * pillola con la nota a una senza, il tooltip sfumava vuoto: ora tiene il
+ * testo che aveva finché non è uscito.
+ *
+ * La forma di serie e la lettura del nome stanno in `lib/segnaposto.ts`,
+ * senza React, per chi controlla lo stesso testo su un server. Il default di
+ * `vuoto` è «Nessun dato» anche nell'elenco che si apre scrivendo. Filtro e
+ * ricerca dell'elenco dei dati si possono tenere fuori: con `ColonnaLaterale`
+ * la pagina chiude la colonna smettendo di renderla, e lo stato interno si
+ * perdeva a ogni chiusura.
+ *
+ * **Le voci secondarie non ci sono più** (Francesco, stessa sessione): i dati
+ * si mostrano sempre tutti, nella tendina e nell'elenco, perché chi scrive
+ * una scheda la può finire mentre un altro reparto prepara i valori, e un
+ * dato che non vede non lo cita. `secondaria`, `altri` e `meno` sono tolti
+ * anche dai tipi (Francesco: «li mostriamo tutti e basta»): chi li passa
+ * non compila finché non li toglie, ed è scritto nel prompt di adozione. Con
+ * loro escono il bottone «Mostra altri N dati», la riga in fondo alla
+ * tendina e la dipendenza da `button`.
+ *
+ * **Trascinando un dato segue il puntatore una pillola, non la voce intera**
+ * (Francesco, provando: «riesco a inserirlo a inizio o fine frase e basta»).
+ * L'immagine di serie è la voce dell'elenco, larga 280px: copriva il testo
+ * e il segno del punto di rilascio. Il segno ora è largo 2px e del colore
+ * del marchio.
+ *
  * ── I ruoli ──────────────────────────────────────────────────────────────
  *
  * L'area è `role="textbox"`, non `combobox`: è su più righe. axe esenta da
@@ -110,7 +149,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/registry/tassullo/ui/command"
-import { Button } from "@/registry/tassullo/ui/button"
+import { FORMA_SEGNAPOSTO } from "@/registry/tassullo/lib/segnaposto"
 import { Input } from "@/registry/tassullo/ui/input"
 import { Item } from "@/registry/tassullo/ui/item"
 import { Label } from "@/registry/tassullo/ui/label"
@@ -136,12 +175,6 @@ export type VoceSegnaposto = {
    * sulla pillola compare passandoci sopra o selezionandola.
    */
   nota?: string
-  /**
-   * La voce esiste e si può citare, ma non si propone per prima: negli
-   * elenchi compare solo cercandola, o chiedendo di vederle tutte. Per i dati
-   * validi che è raro citare, come quelli che oggi non hanno un valore.
-   */
-  secondaria?: boolean
 }
 
 /** Ciò che `ref` riceve: il fuoco, e l'inserimento da fuori. */
@@ -171,15 +204,20 @@ export type TestoSegnapostoProps = {
   /**
    * La forma di un segnaposto. Un testo che la rispetta diventa una pillola
    * anche se non è fra le voci: è il segnaposto sbagliato, e si vede.
+   *
+   * Quella di serie è `FORMA_SEGNAPOSTO`, in `lib/segnaposto`: due graffe, un
+   * nome senza spazi né graffe, due graffe. Fra le graffe e il nome ammette
+   * `[^\S\n]`, cioè ogni spazio di JavaScript tranne l'a capo. Sono 24
+   * caratteri: U+0009, U+000B, U+000C, U+000D, U+0020, U+00A0, U+1680, da
+   * U+2000 a U+200A, U+2028, U+2029, U+202F, U+205F, U+3000 e U+FEFF. Chi
+   * controlla lo stesso testo altrove, per esempio su un server, deve
+   * togliere attorno al nome gli stessi caratteri, o la pillola e l'esito
+   * del controllo non concordano: `nomeSegnaposto`, nello stesso file, legge
+   * il nome così.
    */
   forma?: RegExp
   /** Il testo dell'elenco quando nessuna voce corrisponde. */
   vuoto?: string
-  /**
-   * La riga in fondo all'elenco quando ci sono voci secondarie, che compaiono
-   * solo cercandole: riceve quante sono.
-   */
-  altri?: (quanti: number) => string
   /**
    * Come si legge un dato che oggi non ha valore e non ha una `nota`: sulla
    * pillola passandoci sopra, e nell'elenco per i lettori di schermo, dove a
@@ -207,8 +245,6 @@ export type TestoSegnapostoProps = {
   className?: string
 }
 
-// Gli spazi dentro le graffe sono ammessi: `{{ famiglia.nome }}`.
-const FORMA = /\{\{[^\S\n]*[^{}\s]+[^\S\n]*\}\}/
 // Il posto che una pillola occupa nel testo di un paragrafo.
 const PILLOLA_NEL_TESTO = "￼"
 
@@ -294,7 +330,7 @@ const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
       voci: new Map(),
       senzaValore: "",
       prefissi: [],
-      riconosci: espressione(FORMA, []),
+      riconosci: espressione(FORMA_SEGNAPOSTO, []),
       ascoltatori: new Set(),
     }
   },
@@ -468,17 +504,6 @@ function filtra(voci: readonly VoceSegnaposto[], query: string) {
   })
 }
 
-// Le voci che si propongono: senza niente di scritto solo le principali,
-// cercando tutte. Una voce secondaria non si mostra per prima, ma si trova.
-function proposte(voci: readonly VoceSegnaposto[], cercato: string) {
-  const principali = parole(cercato).length > 0 ? voci : voci.filter((voce) => !voce.secondaria)
-  return filtra(principali, cercato)
-}
-
-function altriDati(quanti: number) {
-  return quanti === 1 ? "Un altro dato" : `Altri ${quanti} dati`
-}
-
 // I gruppi nell'ordine in cui compaiono; le voci senza gruppo per prime.
 function raggruppa(voci: readonly VoceSegnaposto[]) {
   const gruppi = new Map<string, VoceSegnaposto[]>()
@@ -610,9 +635,8 @@ export function TestoSegnaposto({
   onFocus,
   voci,
   prefisso = "{{",
-  forma = FORMA,
-  vuoto = "Nessuna voce",
-  altri = (quanti) => `${altriDati(quanti)}: scrivi per cercare`,
+  forma = FORMA_SEGNAPOSTO,
+  vuoto = "Nessun dato",
   senzaValore = "Senza valore",
   placeholder,
   disabled = false,
@@ -630,12 +654,16 @@ export function TestoSegnaposto({
   // ancora le voci che aveva, non «nessuna voce».
   const [sessione, setSessione] = React.useState<Sessione | null>(null)
   const [aperto, setAperto] = React.useState(false)
-  const [attiva, setAttiva] = React.useState(0)
+  // La voce evidenziata si ricorda per il suo testo, non per il posto: se le
+  // voci cambiano a elenco aperto resta lei. `null` è la prima.
+  const [attivaTesto, setAttivaTesto] = React.useState<string | null>(null)
   const [senzaTesto, setSenzaTesto] = React.useState(!(value ?? defaultValue))
   // La pillola sotto il puntatore e quella selezionata: la loro nota si
   // legge in un tooltip.
   const [indicata, setIndicata] = React.useState<HTMLElement | null>(null)
   const [selezionata, setSelezionata] = React.useState<HTMLElement | null>(null)
+  // La nota in mostra, con la sua pillola: resta mentre il tooltip sfuma.
+  const [mostrata, setMostrata] = React.useState<{ pillola: HTMLElement; nota: string } | null>(null)
   // L'inizio del prefisso chiuso con `Esc`: non si riapre finché non se ne
   // scrive un altro.
   const saltata = React.useRef<number | null>(null)
@@ -647,11 +675,15 @@ export function TestoSegnaposto({
 
   const prefissi = typeof prefisso === "string" ? [prefisso] : prefisso
   const gruppi = React.useMemo(
-    () => (sessione ? raggruppa(proposte(voci, sessione.query)) : []),
+    () => (sessione ? raggruppa(filtra(voci, sessione.query)) : []),
     [voci, sessione]
   )
   const trovate = gruppi.flatMap((gruppo) => gruppo.voci)
-  const secondarie = voci.filter((voce) => voce.secondaria).length
+  // Se la voce evidenziata non c'è più, si torna alla prima.
+  const attiva = Math.max(
+    0,
+    trovate.findIndex((voce) => voce.testo === attivaTesto)
+  )
 
   // Le voci cambiano a ogni resa se l'app le scrive sul posto: ciò che conta
   // è il contenuto, in una chiave sola.
@@ -670,7 +702,7 @@ export function TestoSegnaposto({
     saltata.current = null
 
     const continua = aperto && sessione?.da === letta.da
-    const quante = proposte(voci, letta.query).length
+    const quante = filtra(voci, letta.query).length
     const conSpazi = /\s/.test(letta.query)
     // Si comincia solo scrivendo: al prefisso appena digitato, o dentro un
     // filtro di una parola che trova qualcosa. Si smette quando non si trova
@@ -679,7 +711,7 @@ export function TestoSegnaposto({
     const prosegue = continua && (quante > 0 || !conSpazi)
     if (!comincia && !prosegue) return setAperto(false)
 
-    if (!continua || letta.query !== sessione?.query) setAttiva(0)
+    if (!continua || letta.query !== sessione?.query) setAttivaTesto(null)
     setSessione(letta)
     setAperto(true)
   }
@@ -739,11 +771,11 @@ export function TestoSegnaposto({
     if (trovate.length === 0) return false
     if (evento.altKey || evento.ctrlKey || evento.metaKey || evento.shiftKey) return false
     if (evento.key === "ArrowDown") {
-      setAttiva((attiva + 1) % trovate.length)
+      setAttivaTesto(trovate[(attiva + 1) % trovate.length].testo)
       return true
     }
     if (evento.key === "ArrowUp") {
-      setAttiva((attiva - 1 + trovate.length) % trovate.length)
+      setAttivaTesto(trovate[(attiva - 1 + trovate.length) % trovate.length].testo)
       return true
     }
     if (evento.key === "Enter" || evento.key === "Tab") {
@@ -773,7 +805,17 @@ export function TestoSegnaposto({
   })
 
   const editor = useEditor({
-    extensions: [Document, Paragraph, Text, UndoRedo, Dropcursor, Segnaposto],
+    extensions: [
+      Document,
+      Paragraph,
+      Text,
+      UndoRedo,
+      // Il segno del punto in cui cade ciò che si trascina: più largo del
+      // cursore di scrittura e del colore del marchio, perché si veda anche
+      // accanto a ciò che si sta trascinando.
+      Dropcursor.configure({ width: 2, color: false, class: "bg-primary" }),
+      Segnaposto,
+    ],
     content: daTesto(value ?? defaultValue ?? "", espressione(forma, voci)),
     editable: !disabled && !readOnly,
     immediatelyRender: false,
@@ -964,9 +1006,16 @@ export function TestoSegnaposto({
 
   if (!editor) return null
 
-  // Con l'elenco aperto la nota non si mostra: coprirebbe le voci.
-  const conNota = aperto ? null : (selezionata ?? indicata)
+  // Con l'elenco aperto la nota non si mostra: coprirebbe le voci. Fra la
+  // pillola sotto il puntatore e quella selezionata vale la prima: è lì che
+  // si sta guardando.
+  const conNota = aperto ? null : (indicata ?? selezionata)
   const nota = conNota?.dataset.nota
+  // Mentre il tooltip sfuma tiene la nota e la pillola che aveva: passando a
+  // una pillola senza nota, come la rossa, non resta un riquadro vuoto.
+  if (conNota && nota && (mostrata?.pillola !== conNota || mostrata.nota !== nota)) {
+    setMostrata({ pillola: conNota, nota })
+  }
 
   let annuncio = ""
   if (aperto) {
@@ -992,7 +1041,7 @@ export function TestoSegnaposto({
       <TooltipPrimitive.Root open={Boolean(nota)}>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Positioner
-            anchor={conNota}
+            anchor={mostrata?.pillola}
             side="top"
             sideOffset={6}
             className="isolate z-50"
@@ -1001,7 +1050,7 @@ export function TestoSegnaposto({
               data-slot="testo-segnaposto-nota"
               className="z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
             >
-              {nota}
+              {mostrata?.nota}
               <TooltipPrimitive.Arrow className="z-50 size-2.5 -translate-y-1/2 rotate-45 rounded-xs bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=top]:-bottom-2.5" />
             </TooltipPrimitive.Popup>
           </TooltipPrimitive.Positioner>
@@ -1044,8 +1093,8 @@ export function TestoSegnaposto({
                   shouldFilter={false}
                   value={String(attiva)}
                   onValueChange={(valore) => {
-                    const numero = Number(valore)
-                    if (valore !== "" && Number.isInteger(numero)) setAttiva(numero)
+                    const voce = valore === "" ? undefined : trovate[Number(valore)]
+                    if (voce) setAttivaTesto(voce.testo)
                   }}
                 >
                   <CommandList label={etichettaElenco}>
@@ -1059,21 +1108,30 @@ export function TestoSegnaposto({
                               key={valore}
                               value={valore}
                               onSelect={() => scegli(editor, voce)}
-                              className="[&>svg:last-child]:hidden"
+                              className="items-start [&>svg:last-child]:hidden"
                             >
-                              <span className="min-w-0 flex-1 truncate">{voce.etichetta}</span>
-                              <span
-                                className={cn(
-                                  "truncate text-muted-foreground group-data-selected/command-item:text-foreground",
-                                  // Una nota è una frase: le si lascia più posto che a un valore.
-                                  voce.valore || !voce.nota ? "max-w-1/2" : "max-w-2/3"
-                                )}
-                              >
-                                {voce.valore || voce.nota || (
-                                  <>
-                                    <span aria-hidden="true">—</span>
-                                    <span className="sr-only">{senzaValore}</span>
-                                  </>
+                              {/* Come nell'elenco dei dati: in piccolo il
+                                  nome, per intero anche su più righe, e
+                                  sotto in evidenza il valore di oggi; se
+                                  manca, il perché. */}
+                              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <span
+                                  data-slot="testo-segnaposto-voce-nome"
+                                  className="text-xs break-words text-muted-foreground group-data-selected/command-item:text-foreground"
+                                >
+                                  {voce.etichetta}
+                                </span>
+                                {voce.valore ? (
+                                  <span className="font-medium break-words">{voce.valore}</span>
+                                ) : (
+                                  <span className="break-words text-muted-foreground group-data-selected/command-item:text-foreground">
+                                    {voce.nota || (
+                                      <>
+                                        <span aria-hidden="true">—</span>
+                                        <span className="sr-only">{senzaValore}</span>
+                                      </>
+                                    )}
+                                  </span>
                                 )}
                               </span>
                             </CommandItem>
@@ -1082,16 +1140,6 @@ export function TestoSegnaposto({
                       </CommandGroup>
                     ))}
                   </CommandList>
-                  {/* Le voci secondarie non si mostrano per prime: qui si
-                      dice che ci sono, e come arrivarci. */}
-                  {sessione && parole(sessione.query).length === 0 && secondarie > 0 ? (
-                    <p
-                      data-slot="testo-segnaposto-altri"
-                      className="border-t px-3 py-1.5 text-xs text-muted-foreground"
-                    >
-                      {altri(secondarie)}
-                    </p>
-                  ) : null}
                 </Command>
               </Voci>
             </PopoverPrimitive.Popup>
@@ -1119,26 +1167,56 @@ export type TestoSegnapostoElencoProps = {
   /** Il testo quando nessun dato corrisponde. */
   vuoto?: string
   /**
-   * Il bottone in fondo all'elenco che mostra anche le voci secondarie:
-   * riceve quante sono.
-   */
-  altri?: (quanti: number) => string
-  /** Lo stesso bottone, quando le voci secondarie sono in vista. */
-  meno?: string
-  /**
    * Spegne l'elenco, per esempio mentre la pagina salva: filtro e ricerca non
    * rispondono, e i dati non si cliccano né si trascinano.
    */
   disabled?: boolean
+  /**
+   * Il gruppo scelto nel filtro; `null` li mostra tutti. Di serie lo tiene
+   * l'elenco, e si perde quando la pagina smette di renderlo: passandolo, con
+   * `onGruppo`, lo tiene la pagina. Lo stesso per `ricerca`.
+   */
+  gruppo?: string | null
+  onGruppo?: (gruppo: string | null) => void
+  /** Il testo scritto nella ricerca. */
+  ricerca?: string
+  onRicerca?: (ricerca: string) => void
   className?: string
 }
 
 const TUTTI = "\u0000tutti"
 
+// Ciò che segue il puntatore mentre si trascina un dato: una pillola piccola,
+// com'è quella che entrerà nel testo, sotto e a destra del puntatore. Di suo
+// il browser trascina l'immagine di tutta la voce, che copre il testo e il
+// punto in cui la si lascia. Il browser la fotografa subito: l'elemento sta
+// fuori vista per un attimo e poi si toglie.
+function inVolo(carico: DataTransfer, voce: VoceSegnaposto) {
+  const pillola = document.createElement("span")
+  pillola.setAttribute("data-slot", "testo-segnaposto-in-volo")
+  pillola.className = `fixed -top-96 left-0 max-w-xs truncate text-sm ${PILLOLA} ${PILLOLA_PER_STATO[voce.valore ? "valore" : "senza-valore"]}`
+  pillola.textContent = voce.valore || nomeDi(voce)
+  document.body.append(pillola)
+  carico.setDragImage(pillola, 0, 0)
+  setTimeout(() => pillola.remove(), 0)
+}
+
+// Uno stato che la pagina può tenere fuori: se passa il valore vale il suo,
+// altrimenti lo tiene il componente. Chi ascolta è avvisato in tutti e due i
+// casi.
+function useStato<T>(fuori: T | undefined, iniziale: T, onCambia?: (valore: T) => void) {
+  const [dentro, setDentro] = React.useState(iniziale)
+  const cambia = (valore: T) => {
+    setDentro(valore)
+    onCambia?.(valore)
+  }
+  return [fuori === undefined ? dentro : fuori, cambia] as const
+}
+
 /**
  * L'elenco dei dati da citare: in cima il filtro per gruppo e la ricerca,
  * che restano fermi, e sotto i dati, che scorrono, sotto il nome del loro
- * gruppo. Le voci secondarie compaiono cercandole o col bottone in fondo. Ogni dato mostra in piccolo il nome e in evidenza il valore di
+ * gruppo. Ci sono sempre tutti. Ogni dato mostra in piccolo il nome e in evidenza il valore di
  * oggi; se non ne ha, il motivo scritto nella sua `nota`, o un trattino. Si
  * clicca o si trascina dentro un `TestoSegnaposto`.
  */
@@ -1149,21 +1227,21 @@ export function TestoSegnapostoElenco({
   tutti = "Tutti i dati",
   senzaValore = "Senza valore",
   vuoto = "Nessun dato",
-  altri = (quanti) => `Mostra ${altriDati(quanti).toLowerCase()}`,
-  meno = "Mostra meno",
   disabled = false,
+  gruppo: gruppoFuori,
+  onGruppo,
+  ricerca,
+  onRicerca,
   className,
 }: TestoSegnapostoElencoProps) {
   const id = React.useId()
-  const [gruppo, setGruppo] = React.useState(TUTTI)
-  const [cercato, setCercato] = React.useState("")
-  const [tutte, setTutte] = React.useState(false)
+  const [scelto, setGruppo] = useStato(gruppoFuori, null, onGruppo)
+  const [cercato, setCercato] = useStato(ricerca, "", onRicerca)
   const nomi = [...new Set(voci.map((voce) => voce.gruppo ?? "").filter(Boolean))]
+  // Un gruppo che fra le voci non c'è, o non c'è più, vale «tutti».
+  const gruppo = scelto !== null && nomi.includes(scelto) ? scelto : TUTTI
   const delGruppo = gruppo === TUTTI ? voci : voci.filter((voce) => voce.gruppo === gruppo)
-  // Le voci secondarie compaiono cercandole, o chiedendo di vederle tutte.
-  const mostrate = tutte ? filtra(delGruppo, cercato) : proposte(delGruppo, cercato)
-  const cercando = parole(cercato).length > 0
-  const secondarie = delGruppo.filter((voce) => voce.secondaria).length
+  const mostrate = filtra(delGruppo, cercato)
   // Con tutti i dati in vista ogni gruppo ha la sua intestazione: due «Nome»
   // di gruppi diversi si distinguono. Scelto un gruppo, lo dice il filtro.
   const gruppi =
@@ -1181,7 +1259,7 @@ export function TestoSegnapostoElenco({
             <Select
               disabled={disabled}
               value={gruppo}
-              onValueChange={(scelto) => setGruppo(scelto ?? TUTTI)}
+              onValueChange={(nuovo) => setGruppo(nuovo === null || nuovo === TUTTI ? null : nuovo)}
               items={[
                 { value: TUTTI, label: tutti },
                 ...nomi.map((nome) => ({ value: nome, label: nome })),
@@ -1249,6 +1327,7 @@ export function TestoSegnapostoElenco({
                     onDragStart={(evento) => {
                       evento.dataTransfer.setData("text/plain", voce.testo)
                       evento.dataTransfer.effectAllowed = "copy"
+                      inVolo(evento.dataTransfer, voce)
                     }}
                     onClick={() => onScegli?.(voce)}
                   />
@@ -1270,18 +1349,6 @@ export function TestoSegnapostoElenco({
             ))}
           </div>
         ))}
-          {secondarie > 0 && !cercando ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0"
-              disabled={disabled}
-              aria-expanded={tutte}
-              onClick={() => setTutte(!tutte)}
-            >
-              {tutte ? meno : altri(secondarie)}
-            </Button>
-          ) : null}
       </div>
     </div>
   )
