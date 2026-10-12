@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, waitFor } from 'storybook/test'
 
 import { ScrollArea, ScrollBar } from '@/registry/tassullo/ui/scroll-area'
 import { Separator } from '@/registry/tassullo/ui/separator'
@@ -9,8 +10,10 @@ import { Separator } from '@/registry/tassullo/ui/separator'
  *
  * **Quando sì, quando no.** Serve ai riquadri: un elenco dentro un pannello,
  * il contenuto di un pannello ridimensionabile, il corpo lungo di un dialogo.
- * Non si usa per la pagina intera: lì la barra del browser è quella che tutti
- * sanno usare. Un elenco tanto lungo da chiedere una ricerca è un `combobox`
+ * Non si usa per la pagina intera: lì scorre la finestra. Non serve nemmeno
+ * per avere la barra sottile: il tema dà lo stesso aspetto a ogni barra di
+ * scorrimento, in verticale e in orizzontale, anche a quella della pagina e
+ * di un `div` con `overflow-auto`. Un elenco tanto lungo da chiedere una ricerca è un `combobox`
  * o un `command`, non un riquadro da scorrere.
  *
  * ```bash
@@ -106,4 +109,65 @@ export const DentroUnPannello: Story = {
       </div>
     </div>
   ),
+}
+
+// La barra predefinita del tema, accanto a quella di `ScrollArea`: un `div`
+// che scorre da sé nelle due direzioni ha la barra larga 2.5 unità (10px, 15
+// in densità touch), col colore del tema, anche dentro un sottoalbero scuro;
+// e `ScrollArea` continua a nascondere la barra nativa.
+function Riquadro({ id }: { id: string }) {
+  return (
+    <div data-prova={id} className="h-32 w-48 overflow-auto rounded-md border">
+      <div className="h-64 w-96 p-3">
+        <button type="button" className="text-sm underline">
+          Un controllo dentro
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export const BarraPredefinitaProva: Story = {
+  name: 'Barra predefinita, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => (
+    <div className="flex flex-wrap items-start gap-6">
+      <div className="light rounded-md bg-background p-2 text-foreground">
+        <Riquadro id="chiaro" />
+      </div>
+      <div className="dark rounded-md bg-background p-2 text-foreground">
+        <Riquadro id="scuro" />
+      </div>
+      <div data-density="touch">
+        <Riquadro id="touch" />
+      </div>
+      <ScrollArea data-prova="componente" className="h-32 w-48 rounded-md border">
+        <div className="h-64 p-3 text-sm">Il riquadro del componente.</div>
+      </ScrollArea>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const riquadro = (id: string) => canvasElement.querySelector<HTMLElement>(`[data-prova="${id}"]`)!
+    const spessori = (el: HTMLElement) => `${el.offsetWidth - el.clientWidth - 2}/${el.offsetHeight - el.clientHeight - 2}`
+    const colore = (el: HTMLElement) => getComputedStyle(el).getPropertyValue('--scrollbar-thumb').trim()
+    // Il Chromium delle prove nasconde ogni barra, e lo spessore lì è zero:
+    // lo spessore vero si misura in WebKit.
+    const nascoste = /Chrome/.test(navigator.userAgent)
+
+    expect(spessori(riquadro('chiaro'))).toBe(nascoste ? '0/0' : '10/10')
+    expect(spessori(riquadro('touch'))).toBe(nascoste ? '0/0' : '15/15')
+    expect(colore(riquadro('chiaro'))).toContain('color-mix')
+    expect(colore(riquadro('scuro'))).toContain('color-mix')
+    expect(colore(riquadro('scuro'))).not.toBe(colore(riquadro('chiaro')))
+
+    // Il componente: nessuna barra nativa, e il suo cursore ha un colore.
+    const vista = riquadro('componente').querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
+    expect(vista.offsetWidth - vista.clientWidth).toBe(0)
+    const cursore = await waitFor(() => {
+      const el = riquadro('componente').querySelector<HTMLElement>('[data-slot="scroll-area-thumb"]')
+      expect(el).toBeInTheDocument()
+      return el as HTMLElement
+    })
+    expect(getComputedStyle(cursore).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  },
 }

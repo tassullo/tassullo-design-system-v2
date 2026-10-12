@@ -4717,7 +4717,12 @@ export function DataTable<TDato extends RowData>({
       const bordi =
         (parseFloat(stileRiquadro.borderTopWidth) || 0) +
         (parseFloat(stileRiquadro.borderBottomWidth) || 0)
-      const intera = Math.ceil(altezzaTabella + bordi)
+      // Se la tabella scorre di lato, la barra orizzontale occupa il fondo
+      // del riquadro: senza contarla le righe non entrerebbero più tutte, e
+      // il riquadro scorrerebbe in verticale di quanto è alta la barra.
+      const scorrevole = contenitore.querySelector<HTMLElement>('[data-slot="table-container"]')
+      const barra = scorrevole ? scorrevole.offsetHeight - scorrevole.clientHeight : 0
+      const intera = Math.ceil(altezzaTabella + bordi + barra)
       if (altezzaTabella > 0 && intera <= disponibileTotale) {
         tettoInteroRef.current = true
         setAltezzaMax((prima) =>
