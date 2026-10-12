@@ -696,6 +696,13 @@ export const ElencoProva: Story = {
     })
     const righe = () => [...dati.querySelectorAll<HTMLElement>('button[draggable="true"]')]
     expect(righe()).toHaveLength(VOCI.length)
+    // Un dato senza valore è alto come gli altri: un trattino al posto del
+    // valore, e il perché passando sopra.
+    const senza = righe().find((r) => r.textContent?.startsWith('Codice interno'))!
+    const con = righe().find((r) => r.textContent?.startsWith('Classe'))!
+    expect(senza).toHaveTextContent('Codice interno—Senza valore')
+    expect(senza.title).toContain('Il valore cambia da una variante')
+    expect(Math.abs(senza.getBoundingClientRect().height - con.getBoundingClientRect().height)).toBeLessThan(1)
 
     // Il filtro per gruppo, poi la ricerca dentro il gruppo.
     await userEvent.click(within(dati).getByRole('combobox'))

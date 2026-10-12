@@ -125,7 +125,11 @@ export type TestoSegnapostoProps = {
   forma?: RegExp
   /** Il testo dell'elenco quando nessuna voce corrisponde. */
   vuoto?: string
-  /** Il testo accanto a una voce che oggi non ha valore. */
+  /**
+   * Come si legge un dato che oggi non ha valore: sulla pillola passandoci
+   * sopra, e nell'elenco per i lettori di schermo, dove a schermo c'è un
+   * trattino.
+   */
   senzaValore?: string
   placeholder?: string
   disabled?: boolean
@@ -812,7 +816,7 @@ export function TestoSegnaposto({
               finalFocus={false}
               // Il clic su una voce non toglie il fuoco all'area.
               onMouseDown={(evento) => evento.preventDefault()}
-              className="z-50 flex w-80 max-w-(--available-width) origin-(--transform-origin) flex-col rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+              className="z-50 flex w-md max-w-(--available-width) origin-(--transform-origin) flex-col rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
             >
               <Voci
                 attiva={attiva}
@@ -845,7 +849,12 @@ export function TestoSegnaposto({
                             >
                               <span className="min-w-0 flex-1 truncate">{voce.etichetta}</span>
                               <span className="max-w-1/2 truncate text-muted-foreground group-data-selected/command-item:text-foreground">
-                                {voce.valore || senzaValore}
+                                {voce.valore || (
+                                  <>
+                                    <span aria-hidden="true">—</span>
+                                    <span className="sr-only">{senzaValore}</span>
+                                  </>
+                                )}
                               </span>
                             </CommandItem>
                           )
@@ -872,7 +881,10 @@ export type TestoSegnapostoElencoProps = {
   etichettaGruppi?: string
   /** La voce del filtro che li mostra tutti. */
   tutti?: string
-  /** Il testo al posto del valore, per un dato che oggi non ne ha. */
+  /**
+   * Come si legge un dato che oggi non ha valore. A schermo c'è un trattino;
+   * questo testo è per i lettori di schermo.
+   */
   senzaValore?: string
   /** Il testo quando nessun dato corrisponde. */
   vuoto?: string
@@ -884,8 +896,8 @@ const TUTTI = "\u0000tutti"
 /**
  * L'elenco dei dati da citare: in cima il filtro per gruppo e la ricerca,
  * che restano fermi, e sotto i dati, che scorrono. Ogni dato mostra in
- * piccolo il nome e in evidenza il valore di oggi; si clicca o si trascina
- * dentro un `TestoSegnaposto`.
+ * piccolo il nome e in evidenza il valore di oggi, o un trattino se non ne
+ * ha; si clicca o si trascina dentro un `TestoSegnaposto`.
  */
 export function TestoSegnapostoElenco({
   voci,
@@ -956,6 +968,8 @@ export function TestoSegnapostoElenco({
               <button
                 type="button"
                 draggable
+                // Perché il valore manca: passando sopra, non in una riga in più.
+                title={voce.valore ? undefined : voce.nota}
                 onDragStart={(evento) => {
                   evento.dataTransfer.setData("text/plain", voce.testo)
                   evento.dataTransfer.effectAllowed = "copy"
@@ -968,14 +982,10 @@ export function TestoSegnapostoElenco({
             {voce.valore ? (
               <span className="text-base font-medium">{voce.valore}</span>
             ) : (
-              <>
-                <span className={cn(PILLOLA, PILLOLA_PER_STATO["senza-valore"], "cursor-grab")}>
-                  {senzaValore}
-                </span>
-                {voce.nota ? (
-                  <span className="text-xs text-muted-foreground">{voce.nota}</span>
-                ) : null}
-              </>
+              <span className="text-base font-medium text-muted-foreground">
+                <span aria-hidden="true">—</span>
+                <span className="sr-only">{senzaValore}</span>
+              </span>
             )}
           </Item>
         ))}
