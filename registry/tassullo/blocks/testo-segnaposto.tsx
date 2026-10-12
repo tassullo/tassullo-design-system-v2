@@ -59,10 +59,12 @@
  * L'elenco scorre con `ScrollArea`: la barra nativa, accanto a quella della
  * pagina, faceva due barre uguali una a fianco dell'altra.
  *
- * Tre aggiunte di Anagrafe alla stessa proposta. `nascosta` sulla voce: le
+ * Tre aggiunte di Anagrafe alla stessa proposta. `secondaria` sulla voce: le
  * `voci` decidevano insieme cosa si propone e cosa è valido, e per avere un
  * elenco corto (19 righe invece di 77) l'app doveva vietare ciò che non
- * mostrava. Le tre graffe: `{{{a}}}` rendeva `{`, una pillola grigia e `}`,
+ * mostrava. Una voce secondaria non si mostra per prima ma si trova
+ * cercandola (Francesco: un dato che esiste si deve poter inserire anche
+ * senza valore); la prima stesura, `nascosta`, la toglieva del tutto. Le tre graffe: `{{{a}}}` rendeva `{`, una pillola grigia e `}`,
  * mentre chi legge la stringa ci trova un segnaposto sbagliato; la regola
  * sta in `segnapostoIn` e non nella `forma`, così vale per ogni forma e non
  * chiede un lookbehind. La `nota` anche nell'elenco che si apre scrivendo.
@@ -106,6 +108,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/registry/tassullo/ui/command"
+import { Button } from "@/registry/tassullo/ui/button"
 import { Input } from "@/registry/tassullo/ui/input"
 import { Item } from "@/registry/tassullo/ui/item"
 import { Label } from "@/registry/tassullo/ui/label"
@@ -133,11 +136,11 @@ export type VoceSegnaposto = {
    */
   nota?: string
   /**
-   * La voce vale per riconoscere il segnaposto e mostrarne il valore, ma non
-   * si propone: non compare nell'elenco che si apre scrivendo né in
-   * `TestoSegnapostoElenco`. Per i dati validi che è raro citare.
+   * La voce esiste e si può citare, ma non si propone per prima: negli
+   * elenchi compare solo cercandola, o chiedendo di vederle tutte. Per i dati
+   * validi che è raro citare, come quelli che oggi non hanno un valore.
    */
-  nascosta?: boolean
+  secondaria?: boolean
 }
 
 /** Ciò che `ref` riceve: il fuoco, e l'inserimento da fuori. */
@@ -171,6 +174,11 @@ export type TestoSegnapostoProps = {
   forma?: RegExp
   /** Il testo dell'elenco quando nessuna voce corrisponde. */
   vuoto?: string
+  /**
+   * La riga in fondo all'elenco quando ci sono voci secondarie, che compaiono
+   * solo cercandole: riceve quante sono.
+   */
+  altri?: (quanti: number) => string
   /**
    * Come si legge un dato che oggi non ha valore e non ha una `nota`: sulla
    * pillola passandoci sopra, e nell'elenco per i lettori di schermo, dove a
@@ -459,9 +467,15 @@ function filtra(voci: readonly VoceSegnaposto[], query: string) {
   })
 }
 
-// Le voci che si propongono: tutte, tranne quelle dichiarate nascoste.
-function proposte(voci: readonly VoceSegnaposto[]) {
-  return voci.filter((voce) => !voce.nascosta)
+// Le voci che si propongono: senza niente di scritto solo le principali,
+// cercando tutte. Una voce secondaria non si mostra per prima, ma si trova.
+function proposte(voci: readonly VoceSegnaposto[], cercato: string) {
+  const principali = parole(cercato).length > 0 ? voci : voci.filter((voce) => !voce.secondaria)
+  return filtra(principali, cercato)
+}
+
+function altriDati(quanti: number) {
+  return quanti === 1 ? "Un altro dato" : `Altri ${quanti} dati`
 }
 
 // I gruppi nell'ordine in cui compaiono; le voci senza gruppo per prime.
@@ -597,6 +611,7 @@ export function TestoSegnaposto({
   prefisso = "{{",
   forma = FORMA,
   vuoto = "Nessuna voce",
+  altri = (quanti) => `${altriDati(quanti)}: scrivi per cercare`,
   senzaValore = "Senza valore",
   placeholder,
   disabled = false,
@@ -631,10 +646,11 @@ export function TestoSegnaposto({
 
   const prefissi = typeof prefisso === "string" ? [prefisso] : prefisso
   const gruppi = React.useMemo(
-    () => (sessione ? raggruppa(filtra(proposte(voci), sessione.query)) : []),
+    () => (sessione ? raggruppa(proposte(voci, sessione.query)) : []),
     [voci, sessione]
   )
   const trovate = gruppi.flatMap((gruppo) => gruppo.voci)
+  const secondarie = voci.filter((voce) => voce.secondaria).length
 
   // Le voci cambiano a ogni resa se l'app le scrive sul posto: ciò che conta
   // è il contenuto, in una chiave sola.
@@ -653,7 +669,7 @@ export function TestoSegnaposto({
     saltata.current = null
 
     const continua = aperto && sessione?.da === letta.da
-    const quante = filtra(proposte(voci), letta.query).length
+    const quante = proposte(voci, letta.query).length
     const conSpazi = /\s/.test(letta.query)
     // Si comincia solo scrivendo: al prefisso appena digitato, o dentro un
     // filtro di una parola che trova qualcosa. Si smette quando non si trova
@@ -1065,6 +1081,16 @@ export function TestoSegnaposto({
                       </CommandGroup>
                     ))}
                   </CommandList>
+                  {/* Le voci secondarie non si mostrano per prime: qui si
+                      dice che ci sono, e come arrivarci. */}
+                  {sessione && parole(sessione.query).length === 0 && secondarie > 0 ? (
+                    <p
+                      data-slot="testo-segnaposto-altri"
+                      className="border-t px-3 py-1.5 text-xs text-muted-foreground"
+                    >
+                      {altri(secondarie)}
+                    </p>
+                  ) : null}
                 </Command>
               </Voci>
             </PopoverPrimitive.Popup>
@@ -1092,6 +1118,13 @@ export type TestoSegnapostoElencoProps = {
   /** Il testo quando nessun dato corrisponde. */
   vuoto?: string
   /**
+   * Il bottone in fondo all'elenco che mostra anche le voci secondarie:
+   * riceve quante sono.
+   */
+  altri?: (quanti: number) => string
+  /** Lo stesso bottone, quando le voci secondarie sono in vista. */
+  meno?: string
+  /**
    * Spegne l'elenco, per esempio mentre la pagina salva: filtro e ricerca non
    * rispondono, e i dati non si cliccano né si trascinano.
    */
@@ -1104,7 +1137,7 @@ const TUTTI = "\u0000tutti"
 /**
  * L'elenco dei dati da citare: in cima il filtro per gruppo e la ricerca,
  * che restano fermi, e sotto i dati, che scorrono, sotto il nome del loro
- * gruppo. Ogni dato mostra in piccolo il nome e in evidenza il valore di
+ * gruppo. Le voci secondarie compaiono cercandole o col bottone in fondo. Ogni dato mostra in piccolo il nome e in evidenza il valore di
  * oggi; se non ne ha, il motivo scritto nella sua `nota`, o un trattino. Si
  * clicca o si trascina dentro un `TestoSegnaposto`.
  */
@@ -1115,16 +1148,21 @@ export function TestoSegnapostoElenco({
   tutti = "Tutti i dati",
   senzaValore = "Senza valore",
   vuoto = "Nessun dato",
+  altri = (quanti) => `Mostra ${altriDati(quanti).toLowerCase()}`,
+  meno = "Mostra meno",
   disabled = false,
   className,
 }: TestoSegnapostoElencoProps) {
   const id = React.useId()
   const [gruppo, setGruppo] = React.useState(TUTTI)
   const [cercato, setCercato] = React.useState("")
-  const inVista = proposte(voci)
-  const nomi = [...new Set(inVista.map((voce) => voce.gruppo ?? "").filter(Boolean))]
-  const delGruppo = gruppo === TUTTI ? inVista : inVista.filter((voce) => voce.gruppo === gruppo)
-  const mostrate = filtra(delGruppo, cercato)
+  const [tutte, setTutte] = React.useState(false)
+  const nomi = [...new Set(voci.map((voce) => voce.gruppo ?? "").filter(Boolean))]
+  const delGruppo = gruppo === TUTTI ? voci : voci.filter((voce) => voce.gruppo === gruppo)
+  // Le voci secondarie compaiono cercandole, o chiedendo di vederle tutte.
+  const mostrate = tutte ? filtra(delGruppo, cercato) : proposte(delGruppo, cercato)
+  const cercando = parole(cercato).length > 0
+  const secondarie = delGruppo.filter((voce) => voce.secondaria).length
   // Con tutti i dati in vista ogni gruppo ha la sua intestazione: due «Nome»
   // di gruppi diversi si distinguono. Scelto un gruppo, lo dice il filtro.
   const gruppi =
@@ -1238,6 +1276,18 @@ export function TestoSegnapostoElenco({
             ))}
           </div>
         ))}
+          {secondarie > 0 && !cercando ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0"
+              disabled={disabled}
+              aria-expanded={tutte}
+              onClick={() => setTutte(!tutte)}
+            >
+              {tutte ? meno : altri(secondarie)}
+            </Button>
+          ) : null}
         </div>
       </ScrollArea>
     </div>

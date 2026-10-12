@@ -57,9 +57,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * - `voci`: i dati che si possono citare. Ognuno ha `testo`, il segnaposto
  *   com'è scritto nel valore; `etichetta`, il nome del dato; `gruppo`;
  *   `valore`, il valore di oggi, che è ciò che la pillola mostra; `nota`,
- *   perché il valore manca; `nascosta`, per un dato valido che non si
- *   propone: la sua pillola mostra il valore, ma la voce non compare negli
- *   elenchi.
+ *   perché il valore manca; `secondaria`, per un dato che esiste ma è raro
+ *   citare: negli elenchi compare solo cercandolo, o chiedendo di vederli
+ *   tutti.
  * - `prefisso`: la stringa che apre l'elenco mentre si scrive, di serie `{{`.
  * - `forma`: la forma di un segnaposto, di serie le doppie graffe.
  * - `readOnly`: il testo si legge e non si modifica; resta nel giro del `Tab`
@@ -1035,46 +1035,73 @@ export const TreGraffeProva: Story = {
   },
 }
 
-const VOCI_CON_NASCOSTE: VoceSegnaposto[] = [
+const VOCI_CON_SECONDARIE: VoceSegnaposto[] = [
   ...VOCI,
-  { gruppo: 'Prodotto', etichetta: 'Lotto', testo: '{{prodotto.lotto}}', valore: 'L-2291', nascosta: true },
-  { gruppo: 'Archivio', etichetta: 'Revisione', testo: '{{archivio.revisione}}', valore: '7', nascosta: true },
+  { gruppo: 'Prodotto', etichetta: 'Lotto', testo: '{{prodotto.lotto}}', nota: 'Il dato non è compilato.', secondaria: true },
+  { gruppo: 'Archivio', etichetta: 'Revisione', testo: '{{archivio.revisione}}', valore: '7', secondaria: true },
 ]
 
-// Una voce nascosta è valida ma non si propone: la sua pillola ha il valore,
-// e non compare né nell'elenco che si apre scrivendo né in quello dei dati.
-// E nell'elenco che si apre scrivendo, un dato senza valore dice perché.
-export const VociNascosteProva: Story = {
-  name: 'Voci nascoste, prova',
-  tags: ['!dev', '!autodocs'],
-  args: { voci: VOCI_CON_NASCOSTE },
+/**
+ * Le voci secondarie: dati che esistono e si possono citare, ma che è raro
+ * usare, come quelli che oggi non hanno un valore. Non si propongono per
+ * prime, così gli elenchi restano corti; si trovano cercandole, e l'elenco
+ * dei dati ha in fondo un bottone che le mostra tutte. Qui sono «Lotto» e
+ * «Revisione»: scrivi `{{lot` nel testo, oppure cercale a destra.
+ */
+export const VociSecondarie: Story = {
+  args: { voci: VOCI_CON_SECONDARIE },
   render: (args) => (
-    <div className="flex max-w-2xl flex-col gap-3">
-      <TestoSegnaposto {...args} etichetta="Testo" defaultValue="Lotto {{prodotto.lotto}}. " />
-      <TestoSegnapostoElenco voci={args.voci} />
+    <div className="flex max-w-4xl items-start gap-6">
+      <Field className="min-w-0 flex-1">
+        <FieldLabel htmlFor="secondarie">Descrizione</FieldLabel>
+        <TestoSegnaposto {...args} id="secondarie" defaultValue="Lotto {{prodotto.lotto}}, revisione {{archivio.revisione}}. " />
+      </Field>
+      <div className="flex h-96 w-80 shrink-0 flex-col">
+        <TestoSegnapostoElenco voci={args.voci} className="flex-1" />
+      </div>
     </div>
   ),
+}
+
+// Una voce secondaria è valida e si può citare, ma non si propone per prima:
+// compare cercandola, nell'elenco che si apre scrivendo e in quello dei dati,
+// dove un bottone le mostra tutte. E nell'elenco che si apre scrivendo un
+// dato senza valore dice perché.
+export const VociSecondarieProva: Story = {
+  ...VociSecondarie,
+  name: 'Voci secondarie, prova',
+  tags: ['!dev', '!autodocs'],
   play: async ({ canvasElement }) => {
     const area = await areaDi(canvasElement)
-    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:L-2291']))
-
-    await scrivi('{{')
-    await aperto()
-    await waitFor(() => expect(opzioni()).toHaveLength(VOCI.length))
-    await scrivi('lot')
-    await waitFor(() => expect(elenco()).toHaveTextContent('Nessuna voce'))
-    await userEvent.keyboard('{Backspace>3/}')
-    await scrivi('cod')
     await waitFor(() =>
-      expect(opzioni().map((o) => o.textContent)).toEqual(['Codice internoIl valore cambia da una variante all’altra.'])
+      expect(pilloleDi(area)).toEqual(['senza-valore:Prodotto · Lotto', 'valore:7'])
     )
-    await userEvent.keyboard('[Escape]')
-    await chiuso()
 
+    // Senza niente di scritto solo le principali, e la riga che dice delle altre.
+    await scrivi('{{')
+    const popup = await aperto()
+    await waitFor(() => expect(opzioni()).toHaveLength(VOCI.length))
+    expect(popup.querySelector('[data-slot="testo-segnaposto-altri"]')).toHaveTextContent('Altri 2 dati: scrivi per cercare')
+    // Cercandola, la voce secondaria c'è e si inserisce.
+    await scrivi('lot')
+    await waitFor(() => expect(opzioni().map((o) => o.textContent)).toEqual(['LottoIl dato non è compilato.']))
+    expect(popup.querySelector('[data-slot="testo-segnaposto-altri"]')).not.toBeInTheDocument()
+    await userEvent.keyboard('[Enter]')
+    await chiuso()
+    expect(valoreDi(area).endsWith('. {{prodotto.lotto}}')).toBe(true)
+
+    // L'elenco dei dati: le principali, il bottone, la ricerca.
     const dati = canvasElement.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"]')!
-    expect(dati.querySelectorAll('button[draggable]')).toHaveLength(VOCI.length)
-    expect(dati).not.toHaveTextContent('Lotto')
-    // Un gruppo fatto di sole voci nascoste non ha intestazione né voce nel filtro.
-    expect(dati).not.toHaveTextContent('Archivio')
+    const righe = () => dati.querySelectorAll('button[draggable]')
+    expect(righe()).toHaveLength(VOCI.length)
+    expect(dati).not.toHaveTextContent('Revisione')
+    await userEvent.click(within(dati).getByRole('button', { name: 'Mostra altri 2 dati' }))
+    await waitFor(() => expect(righe()).toHaveLength(VOCI.length + 2))
+    expect(dati).toHaveTextContent('Archivio')
+    await userEvent.click(within(dati).getByRole('button', { name: 'Mostra meno' }))
+    await waitFor(() => expect(righe()).toHaveLength(VOCI.length))
+    await userEvent.type(within(dati).getByRole('searchbox'), 'revis')
+    await waitFor(() => expect([...righe()].map((r) => r.textContent)).toEqual(['Revisione7']))
+    await userEvent.clear(within(dati).getByRole('searchbox'))
   },
 }
