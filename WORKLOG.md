@@ -13816,6 +13816,6 @@ Verificato da fuori: alla `v2.0.12` rispondono 200 `registry.json`, `tassullo-te
 
 **Non rompe chi aggiorna.** Cambia ciò che entra nel testo salvato: un dato inserito accanto a una parola porta con sé uno spazio. Il prompt di adozione per Anagrafe, in `stories/ondata5/prompt-anagrafe-110.md` (fuori dal repository) e scritto a Francesco in sessione, lo dice fra le cose che cambiano da sole.
 
-`misura:bersagli` rilanciato sullo Storybook costruito: 6738 bersagli su 551 story, 76 popup aperti, 3755 sotto i 44px, 37 tipi, 1 piccolo nelle due direzioni. Il blocco non aggiunge bersagli; l'ultimo dato a verbale è di 374 story, quindi il confronto non dice da quando c'è quell'uno.
+`misura:bersagli` rilanciato sullo Storybook costruito: 6738 bersagli su 551 story, 76 popup aperti, 3755 sotto i 44px, 37 tipi, 1 piccolo nelle due direzioni. Quell'uno è `checkbox`, 16×16px, 896 occorrenze (es. `Blocchi/Data Table`): non viene da questo blocco, che non aggiunge bersagli e non compare nell'elenco. L'ultimo dato a verbale è di 374 story e ne contava zero: da quando c'è non è stato cercato.
 
 Non provato da qui: Safari vero e l'immagine in volo, che non entra in una schermata. Tre decisioni prese in sessione aspettano la conferma di Francesco (voce della proposta #110): lo spazio fra due pillole, l'inizio della prima riga per ciò che si lascia sopra il testo, lo spazio tolto davanti alla punteggiatura.
