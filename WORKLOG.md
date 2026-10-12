@@ -13558,3 +13558,15 @@ Ramo `fras/proposta-98-suggerimenti-al-cursore`. Una proposta di Anagrafe dell'1
 - Dalla revisione di Francesco sulla scena, il 2026-10-12: nell'elenco dei dati un dato senza valore occupava tre righe (nome, badge «Senza valore», nota). Ora ha un trattino al posto del valore ed è alto come gli altri (prova nella scena dell'elenco); la nota è nel `title` della riga. Lo stesso trattino nell'elenco dei suggerimenti, che passa da 320 a 448px (`w-md`): a 448 l'unica voce tagliata della scena è la frase standard intera; a 375px di finestra sta fra 5 e 370px.
 - Nella schermata di Francesco il pannello Accessibility segnava 1 sulla scena `Con Elenco Dei Dati`, col codice di prima. Non riprodotto: col codice nuovo 0 in chiaro e in scuro, e 0 con axe lanciato a mano a tre altezze di scorrimento dell'elenco. Il gate era a 0 anche prima.
 - **Per Anagrafe**: `add tassullo-testo-segnaposto`; le voci sono la tabella dei segnaposto di oggi (`testo`, `etichetta`, `gruppo`, `valore`, `nota`); il valore dei campi non cambia. «Anteprima» e la tabella in fondo si possono togliere; i `// in attesa di …#98` pure.
+
+
+## 2026-10-12 — `v2.0.8` pubblicata
+
+Via libera di Francesco a CI verde. PR #99 unita col gate verde in CI sul commit `2f6e68c`; l'unione è `49c35de`. Etichetta `v2.0.8` su `49c35de`, push della sola etichetta; le versioni precedenti restano dove erano. Con la PR si è chiusa la issue #98; resta aperta la #70, rinviata.
+
+Verificato da fuori: `…/v2.0.8/public/r/tassullo-testo-segnaposto.json` e `…/v2.0.8/registry.json` rispondono 200. Nel blocco servito ci sono `TestoSegnapostoElenco`, il rilascio sotto l'ultima riga (`handleDrop`), l'eco in ritardo (`inViaggio`), l'elenco dei suggerimenti a `w-md` e il trattino per il dato senza valore.
+
+Per Anagrafe: il prompt per adottare il blocco nella pagina «Testi» l'ha Francesco. In breve: i campi diventano `TestoSegnaposto`, le `voci` vengono dai dati della tabella «Segnaposto», la tabella e i bottoni «Anteprima» si tolgono, a destra una colonna con `TestoSegnapostoElenco`. `onChange` riceve la stringa, non un evento.
+
+Resta aperto, dalla voce della proposta: `tassullo-rich-text-editor` ha il confronto sul `value` che in questo blocco perdeva testo.
+
