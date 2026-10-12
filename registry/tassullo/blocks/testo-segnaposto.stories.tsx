@@ -1054,21 +1054,20 @@ export const TreGraffeProva: Story = {
   },
 }
 
-// Due voci marcate `secondaria`, che una volta comparivano solo cercandole:
-// il campo non ha più effetto, e chi lo passa ancora vede tutti i dati.
-const VOCI_CON_SECONDARIE: VoceSegnaposto[] = [
+// Due dati in più, uno senza valore e uno d'archivio che è raro citare.
+const VOCI_IN_PIU: VoceSegnaposto[] = [
   ...VOCI,
-  { gruppo: 'Prodotto', etichetta: 'Lotto', testo: '{{prodotto.lotto}}', nota: 'Il dato non è compilato.', secondaria: true },
-  { gruppo: 'Archivio', etichetta: 'Revisione', testo: '{{archivio.revisione}}', valore: '7', secondaria: true },
+  { gruppo: 'Prodotto', etichetta: 'Lotto', testo: '{{prodotto.lotto}}', nota: 'Il dato non è compilato.' },
+  { gruppo: 'Archivio', etichetta: 'Revisione', testo: '{{archivio.revisione}}', valore: '7' },
 ]
 
-// I dati si mostrano sempre tutti, anche quelli senza valore e quelli che
-// portano ancora `secondaria`: nell'elenco che si apre scrivendo senza filtro,
-// e in quello dei dati, senza un bottone per vedere gli altri.
+// I dati si mostrano sempre tutti, anche quelli senza valore: nell'elenco che
+// si apre scrivendo, senza scrivere un filtro, e in quello dei dati, senza un
+// bottone per vedere gli altri.
 export const TuttiIDatiProva: Story = {
   name: 'Tutti i dati, prova',
   tags: ['!dev', '!autodocs'],
-  args: { voci: VOCI_CON_SECONDARIE },
+  args: { voci: VOCI_IN_PIU },
   render: (args) => (
     <div className="flex max-w-4xl items-start gap-6">
       <Field className="min-w-0 flex-1">
@@ -1076,12 +1075,11 @@ export const TuttiIDatiProva: Story = {
         <TestoSegnaposto
           {...args}
           id="tutti"
-          altri={() => 'non si vede'}
           defaultValue="Lotto {{prodotto.lotto}}, revisione {{archivio.revisione}}. "
         />
       </Field>
       <div className="flex h-96 w-80 shrink-0 flex-col">
-        <TestoSegnapostoElenco voci={args.voci} altri={() => 'non si vede'} meno="non si vede" className="flex-1" />
+        <TestoSegnapostoElenco voci={args.voci} className="flex-1" />
       </div>
     </div>
   ),
@@ -1091,18 +1089,16 @@ export const TuttiIDatiProva: Story = {
 
     await scrivi('{{')
     const popup = await aperto()
-    await waitFor(() => expect(opzioni()).toHaveLength(VOCI_CON_SECONDARIE.length))
+    await waitFor(() => expect(opzioni()).toHaveLength(VOCI_IN_PIU.length))
     expect(opzioni().map((o) => o.textContent)).toContain('LottoIl dato non è compilato.')
     expect(opzioni().map((o) => o.textContent)).toContain('Revisione7')
-    expect(popup).not.toHaveTextContent('non si vede')
     expect(popup.querySelector('[data-slot="testo-segnaposto-altri"]')).not.toBeInTheDocument()
     await userEvent.keyboard('[Escape]')
     await chiuso()
 
     const dati = canvasElement.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"]')!
-    expect(dati.querySelectorAll('button[draggable]')).toHaveLength(VOCI_CON_SECONDARIE.length)
+    expect(dati.querySelectorAll('button[draggable]')).toHaveLength(VOCI_IN_PIU.length)
     expect(dati).toHaveTextContent('Archivio')
-    expect(dati).not.toHaveTextContent('non si vede')
     expect(within(dati).queryByRole('button', { name: /Mostra/ })).not.toBeInTheDocument()
   },
 }
@@ -1328,7 +1324,7 @@ function ElencoTenutoFuori() {
       {montato ? (
         <div data-prova="fuori" className="flex h-96 w-80 shrink-0 flex-col">
           <TestoSegnapostoElenco
-            voci={VOCI_CON_SECONDARIE}
+            voci={VOCI_IN_PIU}
             gruppo={gruppo}
             onGruppo={setGruppo}
             ricerca={ricerca}
@@ -1339,7 +1335,7 @@ function ElencoTenutoFuori() {
       ) : null}
       {montato ? (
         <div data-prova="dentro" className="flex h-96 w-80 shrink-0 flex-col">
-          <TestoSegnapostoElenco voci={VOCI_CON_SECONDARIE} className="flex-1" />
+          <TestoSegnapostoElenco voci={VOCI_IN_PIU} className="flex-1" />
         </div>
       ) : null}
     </div>
@@ -1352,7 +1348,7 @@ function ElencoTenutoFuori() {
 export const ElencoTenutoFuoriProva: Story = {
   name: 'Elenco, stato tenuto fuori, prova',
   tags: ['!dev', '!autodocs'],
-  args: { voci: VOCI_CON_SECONDARIE },
+  args: { voci: VOCI_IN_PIU },
   render: () => <ElencoTenutoFuori />,
   play: async ({ canvasElement }) => {
     const tela = within(canvasElement)
@@ -1385,14 +1381,14 @@ export const ElencoTenutoFuoriProva: Story = {
     // Tenuto dentro: da capo, come prima.
     expect(within(elencoDi('dentro')).getByRole('combobox')).toHaveTextContent('Tutti i dati')
     expect(within(elencoDi('dentro')).getByRole('searchbox')).toHaveValue('')
-    expect(righe('dentro')).toHaveLength(VOCI_CON_SECONDARIE.length)
+    expect(righe('dentro')).toHaveLength(VOCI_IN_PIU.length)
 
     // «Tutti i dati» arriva alla pagina come `null`.
     await userEvent.clear(within(elencoDi('fuori')).getByRole('searchbox'))
     await userEvent.click(within(elencoDi('fuori')).getByRole('combobox'))
     await userEvent.click(await within(document.body).findByRole('option', { name: 'Tutti i dati' }))
     await waitFor(() => expect(stato).toHaveTextContent('tutti |'))
-    expect(righe('fuori')).toHaveLength(VOCI_CON_SECONDARIE.length)
+    expect(righe('fuori')).toHaveLength(VOCI_IN_PIU.length)
   },
 }
 

@@ -13715,7 +13715,7 @@ Ramo `fras/proposta-107-segnaposto-colonna`, PR #108. Anagrafe ha adottato la `v
 - **11 · `gruppo`/`onGruppo`, `ricerca`/`onRicerca`** su `TestoSegnapostoElenco`; senza, come prima. `mostraAltri`/`onMostraAltri` non servono più (vedi sotto).
 - **In più, da Francesco provando**:
   - il tooltip della pillola sfumava vuoto passando a una pillola senza nota (la rossa). C'era dalla `v2.0.9`;
-  - **i dati si mostrano sempre tutti**, nella tendina e nell'elenco: le voci secondarie della `v2.0.9` non ci sono più. `secondaria`, `altri` e `meno` restano nei tipi senza effetto. Via il bottone «Mostra altri N dati» e la dipendenza da `button`;
+  - **i dati si mostrano sempre tutti**, nella tendina e nell'elenco: le voci secondarie della `v2.0.9` non ci sono più. `secondaria`, `altri` e `meno` sono tolti anche dai tipi: **chi li passa non compila finché non li toglie**, ed è la sola cosa che rompe chi aggiorna. Via il bottone «Mostra altri N dati» e la dipendenza da `button`;
   - **trascinando un dato segue il puntatore una pillola**, non la voce intera, e il segno del punto di rilascio è largo 2px e arancio.
 
 #### Le scelte, e come sono cambiate
@@ -13725,7 +13725,7 @@ La proposta lasciava al design system la forma dei punti 3 e 5. Le prime due ste
 - **Punto 5.** Prima stesura: uno `Sheet` da destra, con `onChiudi` e la soglia letta in JavaScript. Francesco: lo sfondo resta scurito, non si trascina, e il pannello esce dal guscio. Seconda stesura: la colonna sopra il contenuto, in CSS. Poi, sempre da lui: trascinando un dato la colonna deve sparire, o non si vede dove lasciarlo.
 - **Punto 3.** Prima stesura: nome a capo a sinistra, valore grigio a destra, nota sotto. Francesco: «si fa fatica a distinguere il valore dal nome del campo». Rese quattro forme in chiaro e in scuro, scelta la C.
 
-- **Voci secondarie.** Alla domanda su come leggere «nella tendina devono vedersi tutti i segnaposto», Francesco: tutti, sempre, in tutti e due gli elenchi, perché chi scrive la scheda la può finire mentre un altro reparto prepara i valori. È una rettifica di §74.
+- **Voci secondarie.** Alla domanda su come leggere «nella tendina devono vedersi tutti i segnaposto», Francesco: tutti, sempre, in tutti e due gli elenchi, perché chi scrive la scheda la può finire mentre un altro reparto prepara i valori. È una rettifica di §74. La prima stesura lasciava le tre prop accettate e senza effetto; Francesco: «li mostriamo tutti e basta», tolte.
 - **Trascinamento.** «Riesco a inserirlo a inizio o fine frase e basta». Il punto era esatto (misurato), ma l'immagine trascinata copriva il segno.
 
 Foto in `stories/ondata5/foto107/`, fuori dal repository.
@@ -13749,7 +13749,6 @@ Con mouse e tasti veri (Playwright dalla cartella temporanea, Chromium e WebKit,
 #### Aperti
 
 - Sopra una pillola il dato trascinato le va accanto; in WebKit sempre prima, anche dalla metà destra (12 casi su 24).
-- `secondaria`, `altri` e `meno` sono nei tipi senza effetto: si tolgono alla prima versione che può rompere.
 
 - Una pagina che monta la colonna di serie, in una finestra stretta, si apre con la colonna sopra il contenuto.
 - La colonna sopra il contenuto copre la coda della fascia delle tab.

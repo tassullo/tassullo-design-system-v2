@@ -104,10 +104,11 @@
  * **Le voci secondarie non ci sono più** (Francesco, stessa sessione): i dati
  * si mostrano sempre tutti, nella tendina e nell'elenco, perché chi scrive
  * una scheda la può finire mentre un altro reparto prepara i valori, e un
- * dato che non vede non lo cita. `secondaria`, `altri` e `meno` restano nei
- * tipi, senza effetto, perché chi è sulla v2.0.10 compili ancora; il bottone
- * «Mostra altri N dati» e la riga in fondo alla tendina sono tolti, e con
- * loro la dipendenza da `button`.
+ * dato che non vede non lo cita. `secondaria`, `altri` e `meno` sono tolti
+ * anche dai tipi (Francesco: «li mostriamo tutti e basta»): chi li passa
+ * non compila finché non li toglie, ed è scritto nel prompt di adozione. Con
+ * loro escono il bottone «Mostra altri N dati», la riga in fondo alla
+ * tendina e la dipendenza da `button`.
  *
  * **Trascinando un dato segue il puntatore una pillola, non la voce intera**
  * (Francesco, provando: «riesco a inserirlo a inizio o fine frase e basta»).
@@ -174,15 +175,6 @@ export type VoceSegnaposto = {
    * sulla pillola compare passandoci sopra o selezionandola.
    */
   nota?: string
-  // Prima una voce secondaria compariva solo cercandola. Resta nel tipo
-  // perché chi la passa compili ancora.
-  /**
-   * Non ha più effetto: tutti i dati si mostrano sempre, in tutti e due gli
-   * elenchi. Si può togliere.
-   *
-   * @deprecated
-   */
-  secondaria?: boolean
 }
 
 /** Ciò che `ref` riceve: il fuoco, e l'inserimento da fuori. */
@@ -226,13 +218,6 @@ export type TestoSegnapostoProps = {
   forma?: RegExp
   /** Il testo dell'elenco quando nessuna voce corrisponde. */
   vuoto?: string
-  /**
-   * Non ha più effetto: la riga che diceva quante voci erano nascoste non
-   * c'è più. Si può togliere.
-   *
-   * @deprecated
-   */
-  altri?: (quanti: number) => string
   /**
    * Come si legge un dato che oggi non ha valore e non ha una `nota`: sulla
    * pillola passandoci sopra, e nell'elenco per i lettori di schermo, dove a
@@ -1181,19 +1166,6 @@ export type TestoSegnapostoElencoProps = {
   senzaValore?: string
   /** Il testo quando nessun dato corrisponde. */
   vuoto?: string
-  /**
-   * Non ha più effetto: tutti i dati si mostrano sempre, e il bottone che
-   * mostrava gli altri non c'è più. Si può togliere.
-   *
-   * @deprecated
-   */
-  altri?: (quanti: number) => string
-  /**
-   * Non ha più effetto, come `altri`. Si può togliere.
-   *
-   * @deprecated
-   */
-  meno?: string
   /**
    * Spegne l'elenco, per esempio mentre la pagina salva: filtro e ricerca non
    * rispondono, e i dati non si cliccano né si trascinano.
