@@ -86,9 +86,13 @@
  * ora si ricorda il `testo`. Il tooltip leggeva `selezionata ?? indicata`, e
  * col puntatore su una pillola mostrava la nota di quella selezionata. Nelle
  * voci dell'elenco il nome aveva `truncate` e cedeva il posto a nota e
- * valore: quattro voci che finiscono diverse si leggevano uguali. Ora il
- * nome va a capo, il valore resta a destra e si accorcia lui, la nota scende
- * sotto il nome (forma decisa in sessione, `docs/DECISIONI.md` §76).
+ * valore: quattro voci che finiscono diverse si leggevano uguali. Ora ogni
+ * voce è su due righe, come nell'elenco dei dati: in piccolo il nome, per
+ * intero, e sotto in evidenza il valore, o al suo posto la nota (scelta da
+ * Francesco fra cinque forme rese, `docs/DECISIONI.md` §76: col valore a
+ * destra «si fa fatica a distinguere il valore dal nome»). Passando da una
+ * pillola con la nota a una senza, il tooltip sfumava vuoto: ora tiene il
+ * testo che aveva finché non è uscito.
  *
  * La forma di serie e la lettura del nome stanno in `lib/segnaposto.ts`,
  * senza React, per chi controlla lo stesso testo su un server. Il default di
@@ -667,6 +671,8 @@ export function TestoSegnaposto({
   // legge in un tooltip.
   const [indicata, setIndicata] = React.useState<HTMLElement | null>(null)
   const [selezionata, setSelezionata] = React.useState<HTMLElement | null>(null)
+  // La nota in mostra, con la sua pillola: resta mentre il tooltip sfuma.
+  const [mostrata, setMostrata] = React.useState<{ pillola: HTMLElement; nota: string } | null>(null)
   // L'inizio del prefisso chiuso con `Esc`: non si riapre finché non se ne
   // scrive un altro.
   const saltata = React.useRef<number | null>(null)
@@ -1005,6 +1011,11 @@ export function TestoSegnaposto({
   // si sta guardando.
   const conNota = aperto ? null : (indicata ?? selezionata)
   const nota = conNota?.dataset.nota
+  // Mentre il tooltip sfuma tiene la nota e la pillola che aveva: passando a
+  // una pillola senza nota, come la rossa, non resta un riquadro vuoto.
+  if (conNota && nota && (mostrata?.pillola !== conNota || mostrata.nota !== nota)) {
+    setMostrata({ pillola: conNota, nota })
+  }
 
   let annuncio = ""
   if (aperto) {
@@ -1030,7 +1041,7 @@ export function TestoSegnaposto({
       <TooltipPrimitive.Root open={Boolean(nota)}>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Positioner
-            anchor={conNota}
+            anchor={mostrata?.pillola}
             side="top"
             sideOffset={6}
             className="isolate z-50"
@@ -1039,7 +1050,7 @@ export function TestoSegnaposto({
               data-slot="testo-segnaposto-nota"
               className="z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
             >
-              {nota}
+              {mostrata?.nota}
               <TooltipPrimitive.Arrow className="z-50 size-2.5 -translate-y-1/2 rotate-45 rounded-xs bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=top]:-bottom-2.5" />
             </TooltipPrimitive.Popup>
           </TooltipPrimitive.Positioner>
@@ -1099,31 +1110,30 @@ export function TestoSegnaposto({
                               onSelect={() => scegli(editor, voce)}
                               className="items-start [&>svg:last-child]:hidden"
                             >
-                              {/* Il nome si legge per intero, anche su più
-                                  righe: è la coda a distinguere due voci
-                                  che cominciano uguali. */}
+                              {/* Come nell'elenco dei dati: in piccolo il
+                                  nome, per intero anche su più righe, e
+                                  sotto in evidenza il valore di oggi; se
+                                  manca, il perché. */}
                               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                <span data-slot="testo-segnaposto-voce-nome" className="break-words">
+                                <span
+                                  data-slot="testo-segnaposto-voce-nome"
+                                  className="text-xs break-words text-muted-foreground group-data-selected/command-item:text-foreground"
+                                >
                                   {voce.etichetta}
                                 </span>
-                                {!voce.valore && voce.nota ? (
-                                  // Perché il valore manca: una frase, sotto il nome.
-                                  <span className="text-xs break-words text-muted-foreground group-data-selected/command-item:text-foreground">
-                                    {voce.nota}
+                                {voce.valore ? (
+                                  <span className="font-medium break-words">{voce.valore}</span>
+                                ) : (
+                                  <span className="break-words text-muted-foreground group-data-selected/command-item:text-foreground">
+                                    {voce.nota || (
+                                      <>
+                                        <span aria-hidden="true">—</span>
+                                        <span className="sr-only">{senzaValore}</span>
+                                      </>
+                                    )}
                                   </span>
-                                ) : null}
+                                )}
                               </span>
-                              {voce.valore || !voce.nota ? (
-                                // Il valore di oggi: se è lungo si accorcia lui.
-                                <span className="max-w-1/2 truncate text-muted-foreground group-data-selected/command-item:text-foreground">
-                                  {voce.valore || (
-                                    <>
-                                      <span aria-hidden="true">—</span>
-                                      <span className="sr-only">{senzaValore}</span>
-                                    </>
-                                  )}
-                                </span>
-                              ) : null}
                             </CommandItem>
                           )
                         })}

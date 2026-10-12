@@ -137,22 +137,6 @@ export function apriIlBottone(nome: RegExp, slotContenuto: string) {
 }
 
 /**
- * Apre con un gesto scritto dalla scena, quando un clic solo non basta: la
- * colonna laterale del guscio si apre da un bottone della fascia, che in una
- * fascia stretta sta dentro il menu delle azioni.
- */
-export function apriCon(
-  gesto: (canvasElement: HTMLElement) => Promise<void>,
-  slotContenuto: string,
-) {
-  return async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-    if (soloChiuso) return
-    await gesto(canvasElement)
-    await aspettaContenuto(slotContenuto)
-  }
-}
-
-/**
  * Per i popup che si aprono **scrivendo**, non cliccando: l'elenco dei
  * suggerimenti di `testo-segnaposto` compare quando nel testo si digita
  * il prefisso. Il fuoco resta nel campo, e nessun grilletto dichiara

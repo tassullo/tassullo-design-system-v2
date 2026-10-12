@@ -60,11 +60,17 @@
  * Proposta #107 (Anagrafe), 12 ottobre 2026, dopo l'adozione. Sotto la soglia
  * la colonna saliva sopra il contenuto: spingeva giù tab e bottone, a pagina
  * scorsa si apriva fuori vista (a 1000×700 con 60px di corsa la cima era a
- * −12px) e, alta al più `max-h-96`, mostrava due dati. Ora sotto soglia è uno
- * `Sheet` da destra (`docs/DECISIONI.md` §76 dice le forme scartate). La
- * soglia resta una sola, quella del CSS: una spia che la container query
- * accende, e `useAffiancata` ne legge l'esito, senza riscrivere 896 in
- * JavaScript. La larghezza passa da `w-80` a `w-xs`: stessi 320px, ma `w-80`
+ * −12px) e, alta al più `max-h-96`, mostrava due dati. Ora sotto soglia sta
+ * dov'è quando è affiancata, a destra sotto la fascia, ma sopra il contenuto
+ * invece che accanto: non lo stringe e non lo scurisce, e ci si trascina
+ * dentro come prima. Mentre un suo dato è in volo la colonna si fa da parte
+ * (trasparente, e senza puntatore, così il rilascio arriva a ciò che
+ * copriva): chi trascina deve vedere tutto il testo e il punto esatto
+ * (Francesco, stessa sessione). La prima stesura era uno `Sheet`; Francesco l'ha
+ * scartata vedendola: il velo sulla pagina toglie il trascinamento
+ * (`docs/DECISIONI.md` §76). È tutto CSS: sotto soglia contenuto e colonna
+ * stanno nella stessa cella di una griglia, e la colonna è la stessa `sticky`
+ * di sempre. La larghezza passa da `w-80` a `w-xs`: stessi 320px, ma `w-80`
  * è 80 unità di `--spacing` e in touch faceva 480. `id`, `ref` e gli altri
  * attributi vanno alla radice.
  *
@@ -80,14 +86,7 @@ import type {
   ReactElement,
   ReactNode,
 } from "react"
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from "react"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { CheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react"
 
@@ -107,7 +106,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/registry/tassullo/ui/dropdown-menu"
-import { Sheet, SheetContent } from "@/registry/tassullo/ui/sheet"
 import {
   Sidebar,
   SidebarContent,
@@ -560,101 +558,69 @@ function Navigazione({
 
 // Il posto della colonna laterale: lo rende il guscio, ci rende dentro la
 // pagina. È un nodo del DOM in uno stato, come l'ancora della fascia.
-// `affiancata` dice se accanto al contenuto c'è posto.
-type PostoColonna = { nodo: HTMLElement | null; affiancata: boolean }
-
-const ColonnaCtx = createContext<PostoColonna | null>(null)
-
-// Se la colonna sta accanto al contenuto. La soglia è scritta una volta
-// sola, nella container query che allarga la spia: qui se ne legge l'esito.
-// Si osserva la spia e non il contenitore: cambia misura solo passando la
-// soglia, e non quando la colonna entra o esce.
-function useAffiancata(spia: HTMLElement | null) {
-  const ascolta = useCallback(
-    (avvisa: () => void) => {
-      if (!spia) return () => {}
-      const osserva = new ResizeObserver(avvisa)
-      osserva.observe(spia)
-      return () => osserva.disconnect()
-    },
-    [spia],
-  )
-  return useSyncExternalStore(
-    ascolta,
-    () => (spia ? spia.offsetWidth > 0 : true),
-    () => true,
-  )
-}
+const ColonnaCtx = createContext<HTMLElement | null>(null)
 
 export type ColonnaLateraleProps = {
   /** Il nome della colonna per i lettori di schermo. */
   etichetta: string
-  /**
-   * Quando il contenuto è stretto la colonna è un pannello che si chiude da
-   * sé, con `Esc`, con la crocetta o cliccando fuori: qui la pagina lo viene
-   * a sapere, e smette di renderla. Senza, il pannello si chiude lo stesso,
-   * ma la pagina la crede ancora aperta.
-   */
-  onChiudi?: () => void
   className?: string
   children: ReactNode
 } & Omit<ComponentProps<"section">, "children" | "className" | "aria-label">
 
 /**
- * Una colonna accanto al contenuto, a destra, che resta ferma sotto la fascia
- * mentre la pagina scorre: stringe il contenuto, non lo copre. La dichiara la
- * pagina, in qualunque punto, e la rende il guscio; per toglierla la pagina
- * smette di renderla. Ciò che contiene scorre dentro la colonna. `id`, `ref`
- * e gli altri attributi vanno alla sua radice.
+ * Una colonna a destra del contenuto, che resta ferma sotto la fascia mentre
+ * la pagina scorre. La dichiara la pagina, in qualunque punto, e la rende il
+ * guscio; per toglierla la pagina smette di renderla. Ciò che contiene scorre
+ * dentro la colonna. `id`, `ref` e gli altri attributi vanno alla sua radice.
  *
- * Quando il contenuto è stretto la colonna è un pannello che entra da destra
- * sopra la pagina, alto quanto la finestra: si apre quando la pagina la
- * rende e si chiude da sé, avvisando con `onChiudi`. Fuori dal guscio rende
- * sul posto.
+ * Se c'è posto sta accanto al contenuto e lo stringe. Quando il contenuto è
+ * stretto sta nello stesso punto ma sopra il contenuto, che resta largo
+ * com'era e si usa come prima; mentre si trascina qualcosa fuori dalla
+ * colonna, la colonna sparisce e lascia vedere tutto il contenuto, e torna
+ * al rilascio. Fuori dal guscio rende sul posto.
  */
 export function ColonnaLaterale({
   etichetta,
-  onChiudi,
   className,
   children,
+  onDragStart,
+  onDragEnd,
   ...props
 }: ColonnaLateraleProps) {
-  const posto = useContext(ColonnaCtx)
-  // Il pannello chiuso da chi lo usa, finché la pagina non lo toglie.
-  const [chiusa, setChiusa] = useState(false)
-  // Tornata accanto al contenuto, la colonna si vede di nuovo.
-  if (chiusa && posto?.affiancata) setChiusa(false)
-
+  const nodo = useContext(ColonnaCtx)
+  // Qualcosa della colonna è in volo. Quando la colonna sta sopra il
+  // contenuto, il guscio la toglie di mezzo finché non lo si rilascia.
+  const [trascina, setTrascina] = useState(false)
+  const attesa = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (attesa.current) clearTimeout(attesa.current)
+    },
+    [],
+  )
   const colonna = (
     <section
       data-slot="colonna-laterale"
+      data-trascina={trascina ? "" : undefined}
       aria-label={etichetta}
       className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4", className)}
+      onDragStart={(evento) => {
+        onDragStart?.(evento)
+        // Un attimo dopo: il browser fotografa ciò che si trascina alla
+        // partenza, e una colonna già trasparente darebbe una foto vuota.
+        attesa.current = setTimeout(() => setTrascina(true), 0)
+      }}
+      onDragEnd={(evento) => {
+        onDragEnd?.(evento)
+        if (attesa.current) clearTimeout(attesa.current)
+        setTrascina(false)
+      }}
       {...props}
     >
       {children}
     </section>
   )
-  if (!posto) return colonna
-  // Il guscio non ha ancora montato il posto: un attimo, prima di disegnare.
-  if (!posto.nodo) return null
-  if (posto.affiancata) return createPortal(colonna, posto.nodo)
-  return (
-    <Sheet
-      open={!chiusa}
-      onOpenChange={(aperta) => {
-        if (!aperta) setChiusa(true)
-      }}
-      // A pannello uscito: la pagina la toglie senza tagliare l'animazione.
-      onOpenChangeComplete={(aperta) => {
-        if (!aperta) onChiudi?.()
-      }}
-    >
-      <SheetContent side="right" aria-label={etichetta} className="gap-0">
-        {colonna}
-      </SheetContent>
-    </Sheet>
-  )
+  return nodo ? createPortal(colonna, nodo) : colonna
 }
 
 export type AppShellProps = {
@@ -793,9 +759,6 @@ export function AppShell({
    */
   const [chiusi, setChiusi] = useState<ReadonlySet<string>>(() => new Set())
   const [colonna, setColonna] = useState<HTMLElement | null>(null)
-  const [spia, setSpia] = useState<HTMLElement | null>(null)
-  const affiancata = useAffiancata(spia)
-  const posto = useMemo(() => ({ nodo: colonna, affiancata }), [colonna, affiancata])
   const gruppi: GruppiChiusi = {
     chiusi,
     cambia: (titolo, aperto) =>
@@ -911,37 +874,36 @@ export function AppShell({
              * quando le scorre sotto.
              */}
             {/*
-             * Il contenuto e, accanto, il posto della colonna laterale. Due
-             * `div` perché la soglia guarda la larghezza di ciò che resta alla
+             * Il contenuto e il posto della colonna laterale. Due `div`
+             * perché la soglia guarda la larghezza di ciò che resta alla
              * pagina, non quella dello schermo: quello esterno è il
-             * contenitore, quello interno cambia verso. Da `@4xl` (896px) in
-             * su sono affiancati; sotto, il posto resta vuoto e la colonna è
-             * un pannello sopra la pagina.
+             * contenitore, quello interno cambia forma. Da `@4xl` (896px) in
+             * su è una riga, e la colonna stringe il contenuto. Sotto è una
+             * griglia di una cella sola: contenuto e colonna ci stanno
+             * tutti e due, la colonna a destra e sopra, e il contenuto resta
+             * largo com'era.
+             *
+             * `isolate` sul contenitore: la colonna parte da dietro la
+             * fascia, e ci deve restare. Senza un piano suo, il suo `z-10`
+             * varrebbe quanto quello della fascia e, venendo dopo, la
+             * coprirebbe, bottoni compresi.
              */}
             <div
               className={cn(
-                "@container/guscio flex min-w-0 flex-1 flex-col",
+                "@container/guscio isolate flex min-w-0 flex-1 flex-col",
                 contenuto === "riempie" && "min-h-0",
               )}
             >
-              {/* La spia della soglia: non occupa posto, ed è larga un pixel
-                  solo quando la colonna sta accanto al contenuto. */}
-              <span
-                ref={setSpia}
-                aria-hidden="true"
-                data-slot="app-shell-soglia"
-                className="block h-0 w-0 @4xl/guscio:w-px"
-              />
               <div
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col @4xl/guscio:flex-row",
+                  "grid min-w-0 flex-1 grid-cols-1 @4xl/guscio:flex @4xl/guscio:flex-row",
                   contenuto === "scorre" && "@4xl/guscio:items-start",
-                  contenuto === "riempie" && "min-h-0",
+                  contenuto === "riempie" && "min-h-0 grid-rows-1",
                 )}
               >
                 <div
                   className={cn(
-                    "min-w-0 flex-1 p-4",
+                    "col-start-1 row-start-1 min-w-0 flex-1 p-4",
                     larghezza === "pagina" && "mx-auto w-full max-w-page",
                     contenuto === "scorre" && "isolate",
                     contenuto === "riempie" && "flex min-h-0 flex-col overflow-hidden",
@@ -949,21 +911,26 @@ export function AppShell({
                   )}
                   {...props}
                 >
-                  <ColonnaCtx.Provider value={posto}>{children}</ColonnaCtx.Provider>
+                  <ColonnaCtx.Provider value={colonna}>{children}</ColonnaCtx.Provider>
                 </div>
                 {/*
-                 * Vuoto non occupa posto, e sotto soglia è sempre vuoto. Nel
-                 * modo `scorre` è alto quanto la finestra, parte da dietro la
-                 * fascia e disegna da sotto: resta fermo mentre la pagina
-                 * scorre. `w-xs` e non `w-80`: 320px in tutte e due le
-                 * densità.
+                 * Vuoto non occupa posto. Nel modo `scorre` è alto quanto la
+                 * finestra, parte da dietro la fascia e disegna da sotto:
+                 * resta fermo mentre la pagina scorre, accanto al contenuto
+                 * o sopra. `w-xs` e non `w-80`: 320px in tutte e due le
+                 * densità. Sopra il contenuto ha un'ombra, e sta sopra anche
+                 * a ciò che la pagina tiene fermo; la fascia gli resta
+                 * davanti.
                  */}
                 <div
                   ref={setColonna}
                   data-slot="app-shell-colonna"
                   className={cn(
-                    "flex w-xs shrink-0 flex-col border-l bg-card empty:hidden",
-                    contenuto === "scorre" && "sticky top-0 -mt-12 h-svh pt-12",
+                    "z-10 col-start-1 row-start-1 flex w-xs max-w-full shrink-0 flex-col justify-self-end border-l bg-card shadow-lg transition-opacity empty:hidden @4xl/guscio:z-auto @4xl/guscio:shadow-none",
+                    // Sopra il contenuto, mentre un suo dato è in volo: si
+                    // fa da parte, e ciò che copriva riceve il rilascio.
+                    "has-data-trascina:pointer-events-none has-data-trascina:opacity-0 @4xl/guscio:has-data-trascina:pointer-events-auto @4xl/guscio:has-data-trascina:opacity-100",
+                    contenuto === "scorre" && "sticky top-0 -mt-12 h-svh self-start pt-12",
                     contenuto === "riempie" && "min-h-0 self-stretch",
                   )}
                 />

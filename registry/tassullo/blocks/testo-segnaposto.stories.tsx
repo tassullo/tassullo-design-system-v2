@@ -101,9 +101,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   togliere attorno al nome gli stessi spazi del campo, o la pillola dice
  *   una cosa e il salvataggio un'altra. Sono 24 caratteri: ogni spazio di
  *   JavaScript tranne l'a capo. L'elenco è in `lib/segnaposto`.
- * - Nell'elenco che si apre scrivendo il nome di un dato si legge sempre per
- *   intero, anche su due righe; il valore sta a destra e, se è lungo, si
- *   accorcia; il motivo di un valore che manca sta sotto il nome.
+ * - Nell'elenco che si apre scrivendo ogni dato è su due righe, come
+ *   nell'elenco dei dati: in piccolo il nome, sempre per intero, e sotto in
+ *   evidenza il valore; se manca, al suo posto il motivo.
  * - Un segnaposto attaccato a un'altra graffa, `{{{famiglia.nome}}}`, resta
  *   testo: chi legge la stringa ci trova un segnaposto sbagliato, e una
  *   pillola lo nasconderebbe.
@@ -1204,6 +1204,24 @@ export const NotaIndicataProva: Story = {
 
     await userEvent.unhover(pillole[0])
     await waitFor(() => expect(nota()).toHaveTextContent('Il valore cambia da una variante all’altra.'))
+
+    // Sulla rossa, che non ha nota, il tooltip si chiude: mentre sfuma non
+    // resta mai vuoto.
+    await userEvent.hover(pillole[0])
+    await waitFor(() => expect(nota()).toHaveTextContent('Confezione · Peso del sacco'))
+    await userEvent.hover(pillole[2])
+    const viste = new Set<string>()
+    await waitFor(
+      () => {
+        const n = nota()
+        if (n) viste.add(n.textContent ?? '')
+        expect(n).not.toBeInTheDocument()
+      },
+      { timeout: 5000, interval: 10 }
+    )
+    expect([...viste].filter((testo) => testo === '')).toEqual([])
+    await userEvent.unhover(pillole[2])
+    await waitFor(() => expect(nota()).toHaveTextContent('Il valore cambia da una variante all’altra.'))
     area.editor.commands.focus('end')
     await waitFor(() => expect(nota()).not.toBeInTheDocument(), { timeout: 5000 })
   },
@@ -1218,9 +1236,9 @@ const VOCI_DAI_NOMI_LUNGHI: VoceSegnaposto[] = [
 
 /**
  * Voci che cominciano uguali e finiscono diverse. Nell'elenco che si apre
- * scrivendo il nome si legge sempre per intero, anche su due righe: è la
- * coda a distinguere una voce dall'altra. Il valore sta a destra e, se è
- * lungo, si accorcia lui; il motivo di un valore che manca sta sotto il nome.
+ * scrivendo ogni voce è su due righe, come nell'elenco dei dati: in piccolo
+ * il nome, che si legge sempre per intero, e sotto in evidenza il valore di
+ * oggi; se il valore manca, al suo posto c'è il perché.
  */
 export const NomiLunghi: Story = {
   args: { voci: VOCI_DAI_NOMI_LUNGHI, etichetta: 'Descrizione', defaultValue: 'Resistenza: ' },
