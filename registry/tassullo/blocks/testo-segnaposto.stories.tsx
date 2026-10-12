@@ -57,7 +57,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * - `voci`: i dati che si possono citare. Ognuno ha `testo`, il segnaposto
  *   com'è scritto nel valore; `etichetta`, il nome del dato; `gruppo`;
  *   `valore`, il valore di oggi, che è ciò che la pillola mostra; `nota`,
- *   perché il valore manca.
+ *   perché il valore manca; `nascosta`, per un dato valido che non si
+ *   propone: la sua pillola mostra il valore, ma la voce non compare negli
+ *   elenchi.
  * - `prefisso`: la stringa che apre l'elenco mentre si scrive, di serie `{{`.
  * - `forma`: la forma di un segnaposto, di serie le doppie graffe.
  * - `readOnly`: il testo si legge e non si modifica; resta nel giro del `Tab`
@@ -73,8 +75,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *
  * - Grigia: il dato ha un valore, e la pillola lo mostra. Il nome del dato,
  *   col suo gruppo, compare passandoci sopra.
- * - Gialla: il dato esiste ma oggi non ha valore. Mostra il gruppo e il nome
- *   del dato; passandoci sopra si legge perché il valore manca.
+ * - Tratteggiata, senza fondo: il dato esiste ma oggi non ha valore. Mostra
+ *   il gruppo e il nome del dato; passandoci sopra si legge perché il valore
+ *   manca. Non è un avviso: è un posto che si riempirà.
  * - Rossa: il segnaposto non è fra le voci. Mostra il testo com'è scritto.
  *
  * Ciò che si legge passandoci sopra compare anche selezionando la pillola,
@@ -87,6 +90,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * - Qualunque testo con la forma di un segnaposto diventa una pillola, anche
  *   incollato o scritto a mano. Gli spazi dentro le graffe non contano:
  *   `{{ famiglia.nome }}` è lo stesso dato, e il valore resta com'è scritto.
+ * - Un segnaposto attaccato a un'altra graffa, `{{{famiglia.nome}}}`, resta
+ *   testo: chi legge la stringa ci trova un segnaposto sbagliato, e una
+ *   pillola lo nasconderebbe.
  * - `inserisci` sostituisce il prefisso appena scritto: chi digita `{{` e poi
  *   clicca un dato nell'elenco accanto non si ritrova quattro graffe.
  * - Il doppio clic su una pillola la riporta al suo testo, per correggerla o
@@ -522,13 +528,16 @@ export const PilloleProva: Story = {
     )
 
     // La nota: col puntatore sopra la pillola, e sulla pillola selezionata da
-    // tastiera. Il nome del dato sulla grigia, il motivo sulla gialla, niente
-    // sulla rossa.
+    // tastiera. Il nome del dato sulla grigia, il motivo su quella senza
+    // valore, niente sulla rossa.
     const pillole = area.querySelectorAll<HTMLElement>('[data-slot="testo-segnaposto-pillola"]')
     const nota = () => document.querySelector<HTMLElement>('[data-slot="testo-segnaposto-nota"]')
     const senzaNota = () => waitFor(() => expect(nota()).not.toBeInTheDocument(), { timeout: 5000 })
     await userEvent.hover(pillole[0])
     await waitFor(() => expect(nota()).toHaveTextContent('Famiglia · Nome della famiglia'))
+    // Senza valore: tratteggiata e senza fondo, non un avviso.
+    expect(getComputedStyle(pillole[1]).borderStyle).toBe('dashed')
+    expect(getComputedStyle(pillole[1]).backgroundColor).toBe('rgba(0, 0, 0, 0)')
     await userEvent.hover(pillole[1])
     await waitFor(() => expect(nota()).toHaveTextContent('Il valore cambia da una variante all’altra.'))
     await userEvent.hover(pillole[2])
@@ -748,6 +757,16 @@ export const ElencoProva: Story = {
     expect(senza).not.toHaveAttribute('title')
     expect(senza.closest('[role="group"]')).toHaveAttribute('aria-label', 'Prodotto')
 
+    // Nel riquadro, che ha solo un'altezza massima, i dati scorrono dentro:
+    // l'elenco non esce dal fondo e la barra è quella sottile.
+    const riquadro = dati.closest('aside')!
+    const scorre = dati.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
+    expect(`elenco dentro il riquadro: ${dati.getBoundingClientRect().bottom <= riquadro.getBoundingClientRect().bottom}`).toBe(
+      'elenco dentro il riquadro: true'
+    )
+    expect(`scorre dentro: ${scorre.scrollHeight > scorre.clientHeight}`).toBe('scorre dentro: true')
+    expect(getComputedStyle(scorre).scrollbarWidth).toBe('none')
+
     // Il filtro per gruppo, poi la ricerca dentro il gruppo.
     await userEvent.click(within(dati).getByRole('combobox'))
     await userEvent.click(await within(document.body).findByRole('option', { name: 'Confezione' }))
@@ -964,8 +983,11 @@ export const ElencoNelRiquadroProva: Story = {
       `pagina ${pagina.clientHeight} su ${pagina.clientHeight}`
     )
 
-    // Le voci stanno nel giro del `Tab`, anche in Safari.
+    // Le voci stanno nel giro del `Tab`, anche in Safari. Prima di loro c'è
+    // ciò che scorre, che da lì si scorre con le frecce.
     within(dati).getByRole('searchbox').focus()
+    await userEvent.tab()
+    expect(document.activeElement).toHaveAttribute('data-slot', 'scroll-area-viewport')
     await userEvent.tab()
     expect(document.activeElement).toBe(righe()[0])
     expect(righe()[0].tabIndex).toBe(0)
@@ -981,5 +1003,78 @@ export const ElencoNelRiquadroProva: Story = {
     expect(within(dati).getByRole('searchbox')).toBeDisabled()
     await userEvent.click(righe()[0], { pointerEventsCheck: 0 })
     expect(scelte).toHaveTextContent('1')
+  },
+}
+
+// Tre graffe: nella stringa non è un segnaposto, e resta testo. Anche quando
+// la graffa in più arriva dopo, davanti a una pillola già fatta.
+export const TreGraffeProva: Story = {
+  name: 'Tre graffe, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    voci: VOCI,
+    etichetta: 'Testo',
+    defaultValue: 'Uno {{{famiglia.nome}}} due {{qualifica.norma}}{{qualifica.classe}}',
+  },
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement)
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3', 'valore:R4']))
+    expect(area).toHaveTextContent('Uno {{{famiglia.nome}}} due')
+
+    // Scritto a mano, un carattere alla volta.
+    await scrivi(' {{{confezione.peso}}}')
+    await userEvent.keyboard('[Escape]')
+    await chiuso()
+    expect(pilloleDi(area)).toEqual(['valore:EN 1504-3', 'valore:R4'])
+
+    // Una graffa davanti alla prima pillola: torna testo, e il valore lo dice.
+    const prima = area.editor.state.doc.textBetween(0, area.editor.state.doc.content.size, '\n', '￼').indexOf('￼') + 1
+    area.editor.commands.insertContentAt(prima, { type: 'text', text: '{' })
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:R4']))
+    expect(valoreDi(area)).toBe('Uno {{{famiglia.nome}}} due {{{qualifica.norma}}{{qualifica.classe}} {{{confezione.peso}}}')
+  },
+}
+
+const VOCI_CON_NASCOSTE: VoceSegnaposto[] = [
+  ...VOCI,
+  { gruppo: 'Prodotto', etichetta: 'Lotto', testo: '{{prodotto.lotto}}', valore: 'L-2291', nascosta: true },
+  { gruppo: 'Archivio', etichetta: 'Revisione', testo: '{{archivio.revisione}}', valore: '7', nascosta: true },
+]
+
+// Una voce nascosta è valida ma non si propone: la sua pillola ha il valore,
+// e non compare né nell'elenco che si apre scrivendo né in quello dei dati.
+// E nell'elenco che si apre scrivendo, un dato senza valore dice perché.
+export const VociNascosteProva: Story = {
+  name: 'Voci nascoste, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { voci: VOCI_CON_NASCOSTE },
+  render: (args) => (
+    <div className="flex max-w-2xl flex-col gap-3">
+      <TestoSegnaposto {...args} etichetta="Testo" defaultValue="Lotto {{prodotto.lotto}}. " />
+      <TestoSegnapostoElenco voci={args.voci} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement)
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:L-2291']))
+
+    await scrivi('{{')
+    await aperto()
+    await waitFor(() => expect(opzioni()).toHaveLength(VOCI.length))
+    await scrivi('lot')
+    await waitFor(() => expect(elenco()).toHaveTextContent('Nessuna voce'))
+    await userEvent.keyboard('{Backspace>3/}')
+    await scrivi('cod')
+    await waitFor(() =>
+      expect(opzioni().map((o) => o.textContent)).toEqual(['Codice internoIl valore cambia da una variante all’altra.'])
+    )
+    await userEvent.keyboard('[Escape]')
+    await chiuso()
+
+    const dati = canvasElement.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"]')!
+    expect(dati.querySelectorAll('button[draggable]')).toHaveLength(VOCI.length)
+    expect(dati).not.toHaveTextContent('Lotto')
+    // Un gruppo fatto di sole voci nascoste non ha intestazione né voce nel filtro.
+    expect(dati).not.toHaveTextContent('Archivio')
   },
 }

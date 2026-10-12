@@ -53,7 +53,19 @@
  * cerca senza: il motore di Anagrafe li toglie, quindi `{{ famiglia.nome }}`
  * è un dato valido. Forme scelte da Francesco su varianti rese: nell'elenco
  * le intestazioni di gruppo e la nota al posto del trattino; sulla pillola
- * gialla gruppo e nome, e la nota in un tooltip.
+ * senza valore gruppo e nome, e la nota in un tooltip. La pillola senza
+ * valore non è più gialla ma neutra e tratteggiata (Francesco, stessa
+ * sessione): un dato che cambia da una variante all'altra non è un avviso.
+ * L'elenco scorre con `ScrollArea`: la barra nativa, accanto a quella della
+ * pagina, faceva due barre uguali una a fianco dell'altra.
+ *
+ * Tre aggiunte di Anagrafe alla stessa proposta. `nascosta` sulla voce: le
+ * `voci` decidevano insieme cosa si propone e cosa è valido, e per avere un
+ * elenco corto (19 righe invece di 77) l'app doveva vietare ciò che non
+ * mostrava. Le tre graffe: `{{{a}}}` rendeva `{`, una pillola grigia e `}`,
+ * mentre chi legge la stringa ci trova un segnaposto sbagliato; la regola
+ * sta in `segnapostoIn` e non nella `forma`, così vale per ogni forma e non
+ * chiede un lookbehind. La `nota` anche nell'elenco che si apre scrivendo.
  *
  * Il tooltip è uno solo per campo, ancorato alla pillola indicata o
  * selezionata: le pillole sono DOM dell'editor e non possono essere il
@@ -97,6 +109,7 @@ import {
 import { Input } from "@/registry/tassullo/ui/input"
 import { Item } from "@/registry/tassullo/ui/item"
 import { Label } from "@/registry/tassullo/ui/label"
+import { ScrollArea } from "@/registry/tassullo/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -119,6 +132,12 @@ export type VoceSegnaposto = {
    * sulla pillola compare passandoci sopra o selezionandola.
    */
   nota?: string
+  /**
+   * La voce vale per riconoscere il segnaposto e mostrarne il valore, ma non
+   * si propone: non compare nell'elenco che si apre scrivendo né in
+   * `TestoSegnapostoElenco`. Per i dati validi che è raro citare.
+   */
+  nascosta?: boolean
 }
 
 /** Ciò che `ref` riceve: il fuoco, e l'inserimento da fuori. */
@@ -190,7 +209,8 @@ const PILLOLA =
   "mx-px cursor-grab rounded-md border box-decoration-clone px-1 py-px select-none [&.ProseMirror-selectednode]:ring-2 [&.ProseMirror-selectednode]:ring-ring/40"
 const PILLOLA_PER_STATO = {
   valore: "border-border bg-muted text-foreground",
-  "senza-valore": "border-warning-border bg-warning-subtle text-warning-subtle-foreground",
+  // Un posto che si riempirà, non un avviso: il rosso resta il solo errore.
+  "senza-valore": "border-dashed border-border bg-transparent text-muted-foreground",
   sconosciuto:
     "border-destructive-border bg-destructive-subtle text-destructive-subtle-foreground",
 }
@@ -218,6 +238,16 @@ function espressione(forma: RegExp, voci: readonly VoceSegnaposto[]) {
 }
 
 const chiaveSegnaposto = new PluginKey("testoSegnaposto")
+
+// I segnaposto in un testo. Uno attaccato a un'altra apertura, `{{{a}}}`, non
+// lo è: chi legge la stringa da sinistra apre una graffa prima, e ci trova un
+// segnaposto sbagliato. Resta testo, e l'errore si vede.
+function* segnapostoIn(testo: string, riconosci: RegExp) {
+  for (const trovato of testo.matchAll(riconosci)) {
+    if (trovato.index > 0 && testo[trovato.index - 1] === trovato[0][0]) continue
+    yield trovato
+  }
+}
 
 // La voce di un segnaposto com'è scritto nel testo. Gli spazi non contano:
 // `{{ famiglia.nome }}` è la voce `{{famiglia.nome}}`.
@@ -322,24 +352,36 @@ const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
           if (!daGuardare || annulla) return null
 
           const { from, to } = stato.selection
-          const cambi: { da: number; a: number; testo: string }[] = []
+          const cambi: { da: number; a: number; testo: string; comeTesto?: string }[] = []
           stato.doc.descendants((nodo, posizione) => {
             if (!nodo.isTextblock) return true
             const testo = nodo.textBetween(0, nodo.content.size, undefined, PILLOLA_NEL_TESTO)
-            for (const trovato of testo.matchAll(magazzino.riconosci)) {
+            for (const trovato of segnapostoIn(testo, magazzino.riconosci)) {
               const da = posizione + 1 + trovato.index
               const a = da + trovato[0].length
               // Il cursore è dentro: lo si sta scrivendo o modificando.
               if ((from > da && from < a) || (to > da && to < a)) continue
               cambi.push({ da, a, testo: trovato[0] })
             }
+            // Una pillola che ora ha un'apertura attaccata davanti torna
+            // testo: nella stringa non è più un segnaposto.
+            nodo.forEach((figlio, scarto) => {
+              if (figlio.type !== tipo || scarto === 0) return
+              const scritto: string = figlio.attrs.testo
+              if (testo[scarto - 1] !== scritto[0]) return
+              const da = posizione + 1 + scarto
+              cambi.push({ da, a: da + 1, testo: "", comeTesto: scritto })
+            })
             return false
           })
           if (cambi.length === 0) return null
 
           const tr = stato.tr
-          for (const cambio of cambi.reverse()) {
-            tr.replaceWith(cambio.da, cambio.a, tipo.create({ testo: cambio.testo }))
+          for (const cambio of cambi.sort((uno, altro) => altro.da - uno.da)) {
+            const nuovo = cambio.comeTesto
+              ? stato.schema.text(cambio.comeTesto)
+              : tipo.create({ testo: cambio.testo })
+            tr.replaceWith(cambio.da, cambio.a, nuovo)
           }
           return tr
         },
@@ -377,7 +419,7 @@ function daTesto(testo: string, riconosci: RegExp): JSONContent {
     content: testo.split("\n").map((riga) => {
       const pezzi: JSONContent[] = []
       let da = 0
-      for (const trovato of riga.matchAll(riconosci)) {
+      for (const trovato of segnapostoIn(riga, riconosci)) {
         if (trovato.index > da) pezzi.push({ type: "text", text: riga.slice(da, trovato.index) })
         pezzi.push({ type: "segnaposto", attrs: { testo: trovato[0] } })
         da = trovato.index + trovato[0].length
@@ -415,6 +457,11 @@ function filtra(voci: readonly VoceSegnaposto[], query: string) {
       presenti.some((presente) => presente.startsWith(cercata))
     )
   })
+}
+
+// Le voci che si propongono: tutte, tranne quelle dichiarate nascoste.
+function proposte(voci: readonly VoceSegnaposto[]) {
+  return voci.filter((voce) => !voce.nascosta)
 }
 
 // I gruppi nell'ordine in cui compaiono; le voci senza gruppo per prime.
@@ -584,7 +631,7 @@ export function TestoSegnaposto({
 
   const prefissi = typeof prefisso === "string" ? [prefisso] : prefisso
   const gruppi = React.useMemo(
-    () => (sessione ? raggruppa(filtra(voci, sessione.query)) : []),
+    () => (sessione ? raggruppa(filtra(proposte(voci), sessione.query)) : []),
     [voci, sessione]
   )
   const trovate = gruppi.flatMap((gruppo) => gruppo.voci)
@@ -606,7 +653,7 @@ export function TestoSegnaposto({
     saltata.current = null
 
     const continua = aperto && sessione?.da === letta.da
-    const quante = filtra(voci, letta.query).length
+    const quante = filtra(proposte(voci), letta.query).length
     const conSpazi = /\s/.test(letta.query)
     // Si comincia solo scrivendo: al prefisso appena digitato, o dentro un
     // filtro di una parola che trova qualcosa. Si smette quando non si trova
@@ -998,8 +1045,14 @@ export function TestoSegnaposto({
                               className="[&>svg:last-child]:hidden"
                             >
                               <span className="min-w-0 flex-1 truncate">{voce.etichetta}</span>
-                              <span className="max-w-1/2 truncate text-muted-foreground group-data-selected/command-item:text-foreground">
-                                {voce.valore || (
+                              <span
+                                className={cn(
+                                  "truncate text-muted-foreground group-data-selected/command-item:text-foreground",
+                                  // Una nota è una frase: le si lascia più posto che a un valore.
+                                  voce.valore || !voce.nota ? "max-w-1/2" : "max-w-2/3"
+                                )}
+                              >
+                                {voce.valore || voce.nota || (
                                   <>
                                     <span aria-hidden="true">—</span>
                                     <span className="sr-only">{senzaValore}</span>
@@ -1068,8 +1121,9 @@ export function TestoSegnapostoElenco({
   const id = React.useId()
   const [gruppo, setGruppo] = React.useState(TUTTI)
   const [cercato, setCercato] = React.useState("")
-  const nomi = [...new Set(voci.map((voce) => voce.gruppo ?? "").filter(Boolean))]
-  const delGruppo = gruppo === TUTTI ? voci : voci.filter((voce) => voce.gruppo === gruppo)
+  const inVista = proposte(voci)
+  const nomi = [...new Set(inVista.map((voce) => voce.gruppo ?? "").filter(Boolean))]
+  const delGruppo = gruppo === TUTTI ? inVista : inVista.filter((voce) => voce.gruppo === gruppo)
   const mostrate = filtra(delGruppo, cercato)
   // Con tutti i dati in vista ogni gruppo ha la sua intestazione: due «Nome»
   // di gruppi diversi si distinguono. Scelto un gruppo, lo dice il filtro.
@@ -1117,9 +1171,16 @@ export function TestoSegnapostoElenco({
           onChange={(evento) => setCercato(evento.target.value)}
         />
       </div>
-      {/* `relative`: i testi per i lettori di schermo, che sono posizionati,
-          restano dentro ciò che scorre e non allungano la pagina. */}
-      <div className="relative -mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 py-px">
+      {/* La barra di scorrimento è quella sottile del design system: accanto
+          a quella della pagina non si confonde con lei. Ciò che scorre prende
+          l'altezza che resta come elemento flex, non in percentuale: in un
+          riquadro con la sola altezza massima la percentuale non vale, e
+          l'elenco uscirebbe dal riquadro. */}
+      <ScrollArea className="-mx-1 flex min-h-0 flex-1 flex-col *:data-[slot=scroll-area-viewport]:min-h-0 *:data-[slot=scroll-area-viewport]:flex-1">
+        {/* `relative`: i testi per i lettori di schermo, che sono posizionati,
+            restano dentro ciò che scorre e non allungano la pagina. Quando
+            c'è da scorrere, a destra resta il posto della barra. */}
+        <div className="relative flex flex-col gap-1.5 px-1 py-px in-data-has-overflow-y:pr-3.5">
         {mostrate.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">{vuoto}</p>
         ) : null}
@@ -1177,7 +1238,8 @@ export function TestoSegnapostoElenco({
             ))}
           </div>
         ))}
-      </div>
+        </div>
+      </ScrollArea>
     </div>
   )
 }

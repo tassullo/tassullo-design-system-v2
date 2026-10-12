@@ -13599,12 +13599,28 @@ Prove nuove, ognuna fallisce sul codice di partenza: `Sola lettura, prova`, `Ins
 
 `npm run check` verde: 13 gate, `test:a11y` 536 scene, 2144 scansioni, 0 violazioni; `test:webkit` 15 su 15. `npm run build` verde.
 
+#### Dalla verifica di Francesco, a PR aperta
+
+Francesco ha provato le scene nello Storybook del ramo. Due rilievi, e tre aggiunte di Anagrafe alla proposta, incollate in sessione.
+
+- **Due barre di scorrimento affiancate** nella colonna laterale (foto): quella della pagina e quella dell'elenco, uguali. L'elenco ora scorre con `ScrollArea`. Alla prima stesura l'elenco usciva dal fondo del riquadro nella scena `Con Elenco Dei Dati` (foto di Francesco, dal server di sviluppo): il `Viewport` è alto in percentuale, e il riquadro ha solo `max-h-svh`. Corretto con l'altezza da elemento flex; la prova `Elenco dei dati, prova` controlla che l'elenco stia dentro il riquadro (699 su 716px a 700 di finestra).
+- **Il giallo della pillola senza valore** («sembra che ci sia qualcosa che non va»): tre forme rese, scelta la neutra tratteggiata.
+- **Punto 10**: `nascosta` sulla voce. **Punto 11**: `{{{a}}}` resta testo, anche con la graffa scritta dopo davanti a una pillola. **Aggiunta al 6**: la nota nell'elenco che si apre scrivendo.
+
+Prove nuove: `Tre graffe, prova`, `Voci nascoste, prova`; estese `Pillole, prova` (bordo tratteggiato, fondo trasparente) ed `Elenco dei dati, prova`. Sul codice del primo commit della PR ne falliscono cinque. Con tasti veri in Chromium e WebKit: `{{{famiglia.nome}}}` resta testo, `{{ qualifica.norma }}` diventa pillola, e `{{pro` propone le due voci senza valore con la loro nota.
+
+`npm run check` di nuovo verde: 538 scene, 2152 scansioni, 0 violazioni; WebKit 15 su 15.
+
+Da ricordare: prettier, lanciato su un file del registry, lo riscrive per intero (649 righe): il repository non ha una sua configurazione e i file non sono formattati così. Non si lancia.
+
 #### Aperti
 
 - Il contenuto del guscio ha due `div` in più attorno: un selettore di un'app che contava i figli del `main` va rivisto. Nessuno nel registry.
+- Nell'elenco dei dati ciò che scorre è un posto in più nel giro del `Tab`, prima delle voci (Base UI).
+- Una voce `nascosta` non si trova nemmeno cercandola: si scrive a mano.
 - Due `ColonnaLaterale` montate insieme si rendono una sotto l'altra, senza avviso.
 - In sola lettura le pillole si possono ancora trascinare fuori, verso un altro testo: lì arrivano come copia, l'origine non cambia.
 - Il tooltip della pillola non è collegato all'area con `aria-describedby`.
 - `misura:bersagli` non rilanciato: le intestazioni di gruppo non sono bersagli, le voci dell'elenco restano quelle.
 - `tassullo-rich-text-editor` ha ancora il confronto sul `value` di §73.
-- **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-app-shell --overwrite`. La colonna dei dati diventa `<ColonnaLaterale etichetta="Dati da citare">` dentro la tab, e si tolgono il riquadro `relative overflow-hidden`, le classi `@2xl/scheda` della colonna e l'altezza minima. Le sezioni che un altro ufficio scrive passano da `disabled` a `readOnly`. L'avviso «aspetta la fine del salvataggio» diventa `disabled` sull'elenco. Si tolgono i `// in attesa di …#101`.
+- **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-app-shell --overwrite`. La colonna dei dati diventa `<ColonnaLaterale etichetta="Dati da citare">` dentro la tab, e si tolgono il riquadro `relative overflow-hidden`, le classi `@2xl/scheda` della colonna e l'altezza minima. Le sezioni che un altro ufficio scrive passano da `disabled` a `readOnly`. L'avviso «aspetta la fine del salvataggio» diventa `disabled` sull'elenco. Si tolgono i `// in attesa di …#101`. Per il punto 10: tutte le voci valide nelle `voci`, con `nascosta: true` su quelle da non proporre, e la regola sul server che vietava ciò che l'elenco non mostra si può togliere. La reinstallazione porta anche `scroll-area`.
