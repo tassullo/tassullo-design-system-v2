@@ -13767,3 +13767,42 @@ Verificato da fuori: alla `v2.0.11` rispondono 200 `registry.json`, `tassullo-te
 **Rompe chi aggiorna, in un punto solo**: `secondaria`, `altri` e `meno` non esistono più, e un'app che li passa non compila finché non li toglie. Il prompt di adozione per Anagrafe, scritto a Francesco in sessione, lo mette fra i passi obbligatori.
 
 Non provato da qui: Safari vero (l'ha provato Francesco sul ramo).
+
+
+## 2026-10-12 — Proposta #110: trascinare un dato già nel testo, segno di rilascio, spazio accanto alla pillola
+
+Ramo `fras/proposta-110-segnaposto-trascina`. Anagrafe ha adottato la `v2.0.11` e ha aperto la #110 con quattro punti, tutti in `TestoSegnaposto`. Le ragioni e le forme scartate in `DECISIONI.md` §77.
+
+#### Cosa c'è
+
+- **1 · immagine in volo**: una pillola presa dal testo è seguita dalla stessa pillola piccola dell'elenco, sotto e a destra del puntatore.
+- **2 · segno di rilascio**: uno solo, verticale, dove il dato cadrà. `Dropcursor` di Tiptap è tolto; segno e rilascio leggono il punto da `doveCade`. Sotto il testo: in coda all'ultima riga; sopra: all'inizio della prima; fra due righe: in coda a quella di sopra.
+- **3 · spazio automatico**: accanto a una lettera, a una cifra o a un'altra pillola, nei tre modi (tendina, `inserisci`, trascinamento). Il cursore resta dopo il dato. Un solo Annulla.
+- **4 · pillola duplicata**: in `handleDrop` si toglie `view.dragging.node`, e la selezione solo se non c'è.
+- **Spostando una pillola** si porta via il suo spazio: dove stava non restano due spazi, né uno spazio davanti a una virgola o a fine riga. Lasciata dov'era il testo non cambia.
+
+#### Decisioni prese in sessione, da confermare
+
+- Lo spazio **anche accanto a un'altra pillola**: la proposta dice solo lettera o cifra.
+- Sopra il testo il dato va **all'inizio della prima riga**, non in coda.
+- Dove stava la pillola si toglie anche lo spazio **davanti a una virgola o a un punto**: col solo doppio spazio restava «conforme alla , classe».
+- Dopo lo spostamento il cursore è dopo la pillola; prima l'editor la lasciava selezionata.
+
+#### Problemi
+
+- **Alla prima corsa tutte le 51 prove fallite con «Importing a module script failed»**: Vite ri-ottimizzava i moduli per l'import nuovo (`@tiptap/pm/history`) a cache calda. A cache tolta, come in CI, passano alla prima.
+- **Togliere e poi mettere non regge con la punteggiatura**: la pillola lasciata dov'era perdeva lo spazio davanti alla virgola. Invertito l'ordine.
+- **`Alt` copia solo su Mac**: `prosemirror-view` usa `Ctrl` altrove, e la CI è Linux. La prova manda tutti e due i tasti.
+- **`posAtCoords` sopra la prima riga**: inizio riga in Chromium, dopo la prima pillola in WebKit. Il punto sopra e sotto il testo si decide dalla posizione del puntatore.
+
+#### Test
+
+Scritte e fallite sul codice di partenza, in Chromium e in WebKit (6 su 6): `Spostare una pillola, prova` (immagine in volo, segno nel vuoto, nessuna duplicazione, spazi all'origine e all'arrivo, Annulla, lasciata dov'era, virgola, copia), `Segno di rilascio, prova` (sotto, sopra, nel testo, uscita dal campo, testo che non è un dato), `Spazio accanto al dato, prova` (dodici casi con `inserisci`, ognuno con Annulla; tendina; spazio cancellato a mano). In `Sola lettura, prova`: nessun segno.
+
+Con mouse vero (Playwright dalla cartella temporanea, Chromium e WebKit, contro lo Storybook di sviluppo, `Con Elenco Dei Dati`): pillola mai selezionata sotto il testo, 5 pillole prima e dopo; segno 2×16px in ogni punto, mai quello orizzontale; sopra il testo x=27 nei due motori; dall'elenco dentro «strutture» → «strut {{qualifica.norma}} ture»; clic nell'elenco e tendina con lo spazio; nessun errore in pagina. Foto in `stories/ondata5/foto110/`, fuori dal repository.
+
+#### Aperti
+
+- Sopra una pillola il dato le va accanto, in WebKit sempre prima: c'era già (§76).
+- L'immagine in volo non entra in una schermata: in un browser vero la guarda Francesco.
+- `misura:bersagli` non rilanciato. Safari vero non provato da qui.

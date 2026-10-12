@@ -116,6 +116,37 @@
  * e il segno del punto di rilascio. Il segno ora è largo 2px e del colore
  * del marchio.
  *
+ * ── Proposta #110 (Anagrafe), 12 ottobre 2026 ────────────────────────────
+ *
+ * Dopo l'adozione della v2.0.11, quattro punti sul trascinamento.
+ *
+ * Il plugin `Dropcursor` di Tiptap non c'è più: il segno lo disegna il blocco.
+ * Quello di serie chiede all'editor dove metterebbe **lui** ciò che si
+ * trascina, e nello spazio vuoto risponde «una riga nuova», con un segno
+ * orizzontale largo quanto il campo; ma `handleDrop` lì mette il dato in coda
+ * alla riga più vicina. Ora segno e rilascio leggono il punto dalla stessa
+ * funzione, `doveCade`. Sopra e sotto il testo il punto si decide dalla
+ * posizione del puntatore e non da `posAtCoords`: misurato col mouse vero,
+ * nello spazio sopra la prima riga Chromium rispondeva l'inizio della riga e
+ * WebKit la posizione dopo la prima pillola.
+ *
+ * Una pillola presa senza essere selezionata si duplicava nello spazio vuoto:
+ * `tr.deleteSelection()` toglieva la selezione, che non era lei. Ora si toglie
+ * `view.dragging.node`, come fa l'editor; il campo c'è da `prosemirror-view`
+ * 1.x ma non è nei tipi, quindi una prova lo tiene fermo.
+ *
+ * L'immagine in volo della pillola presa dal testo è la stessa dell'elenco
+ * (Francesco, in un browser vero: quella di serie, la pillola intera centrata
+ * sul puntatore, copriva il segno).
+ *
+ * Lo spazio automatico (scelta di Francesco): accanto a una lettera, a una
+ * cifra. In più, deciso in sessione: anche accanto a un'altra pillola, che
+ * nel documento è un valore e uscirebbe «Malta R4EN 1504-3». Spostando una
+ * pillola si mette prima e si toglie poi, così lasciata dov'era ritrova gli
+ * spazi che aveva; dove stava si toglie lo spazio rimasto di troppo. Un dato
+ * inserito è una transazione sola con `closeHistory`: un passo di Annulla
+ * suo. Ragioni e forme scartate in `docs/DECISIONI.md` §77.
+ *
  * ── I ruoli ──────────────────────────────────────────────────────────────
  *
  * L'area è `role="textbox"`, non `combobox`: è su più righe. axe esenta da
@@ -137,8 +168,18 @@ import { Node as NodoTiptap } from "@tiptap/core"
 import { Document } from "@tiptap/extension-document"
 import { Paragraph } from "@tiptap/extension-paragraph"
 import { Text } from "@tiptap/extension-text"
-import { Dropcursor, UndoRedo } from "@tiptap/extensions"
-import { NodeSelection, Plugin, PluginKey, Selection, TextSelection } from "@tiptap/pm/state"
+import { UndoRedo } from "@tiptap/extensions"
+import { closeHistory } from "@tiptap/pm/history"
+import type { Node as NodoPM, NodeType, Slice } from "@tiptap/pm/model"
+import {
+  NodeSelection,
+  Plugin,
+  PluginKey,
+  Selection,
+  TextSelection,
+  type Transaction,
+} from "@tiptap/pm/state"
+import type { EditorView } from "@tiptap/pm/view"
 import { EditorContent, useEditor, type Editor, type JSONContent } from "@tiptap/react"
 import { cn } from "cn"
 
@@ -183,7 +224,9 @@ export type TestoSegnapostoRef = {
   /**
    * Inserisce un testo nel punto del cursore; un segnaposto diventa pillola.
    * Se prima del cursore c'è un prefisso appena scritto, il segnaposto lo
-   * sostituisce. In un campo disabilitato o di sola lettura non fa niente.
+   * sostituisce. Accanto a una lettera, a una cifra o a un'altra pillola il
+   * segnaposto prende uno spazio da quella parte. In un campo disabilitato o
+   * di sola lettura non fa niente.
    */
   inserisci: (testo: string) => void
 }
@@ -317,6 +360,218 @@ function editorDi(area: HTMLElement) {
   return (area as HTMLElement & { editor?: Editor }).editor
 }
 
+// Ciò che una pillola mostra, e in quale dei tre stati.
+function aspetto(magazzino: Magazzino, scritto: string) {
+  const voce = voceDi(magazzino, scritto)
+  const stato: keyof typeof PILLOLA_PER_STATO = !voce
+    ? "sconosciuto"
+    : voce.valore
+      ? "valore"
+      : "senza-valore"
+  return { voce, stato, testo: voce ? voce.valore || nomeDi(voce) : scritto }
+}
+
+// Ciò che segue il puntatore mentre si trascina un dato, dall'elenco o da
+// dentro il testo: una pillola piccola, sotto e a destra del puntatore. Di suo
+// il browser trascina l'immagine di ciò che si è preso, centrata sul
+// puntatore, e copre il segno del punto in cui lo si lascia. Il browser la
+// fotografa subito: l'elemento sta fuori vista per un attimo e poi si toglie.
+function inVolo(carico: DataTransfer, stato: keyof typeof PILLOLA_PER_STATO, testo: string) {
+  const pillola = document.createElement("span")
+  pillola.setAttribute("data-slot", "testo-segnaposto-in-volo")
+  pillola.className = `fixed -top-96 left-0 max-w-xs truncate text-sm ${PILLOLA} ${PILLOLA_PER_STATO[stato]}`
+  pillola.textContent = testo
+  document.body.append(pillola)
+  carico.setDragImage(pillola, 0, 0)
+  setTimeout(() => pillola.remove(), 0)
+}
+
+// Un testo che è un segnaposto, quello e basta.
+function eUnDato(magazzino: Magazzino, testo: string) {
+  const [solo, altro] = [...segnapostoIn(testo, magazzino.riconosci)]
+  return Boolean(solo) && !altro && solo[0] === testo
+}
+
+// Il dato che una fetta porta, se porta quello e basta: una pillola presa dal
+// testo, o il testo di un segnaposto arrivato da fuori.
+function datoIn(fetta: Slice, tipo: NodeType, magazzino: Magazzino) {
+  const primo = fetta.content.firstChild
+  if (!primo || fetta.content.childCount !== 1) return null
+  const dentro = primo.isTextblock ? primo.content : fetta.content
+  const solo = dentro.childCount === 1 ? dentro.firstChild : null
+  if (!solo) return null
+  if (solo.type === tipo) return solo
+  return solo.text && eUnDato(magazzino, solo.text) ? tipo.create({ testo: solo.text }) : null
+}
+
+// Un dato si legge attaccato a ciò che ha accanto se è una lettera, una cifra
+// o un'altra pillola. Uno spazio, la punteggiatura, l'inizio e la fine della
+// riga lo staccano già.
+const FINISCE_ATTACCATO = /[\p{L}\p{N}]$/u
+const COMINCIA_ATTACCATO = /^[\p{L}\p{N}]/u
+
+function attaccato(vicino: NodoPM | null, lato: RegExp) {
+  if (!vicino) return false
+  return vicino.isText ? lato.test(vicino.text ?? "") : true
+}
+
+// Mette un dato al posto di ciò che sta fra `da` e `a`, e uno spazio dalla
+// parte in cui si leggerebbe attaccato: la pillola ha un suo margine, a occhio
+// sembra staccata, e nel documento uscirebbe «parolaValore». Il cursore resta
+// subito dopo il dato, prima dello spazio. È una transazione sola e apre un
+// passo di Annulla suo: un `Ctrl+Z` toglie il dato insieme ai suoi spazi, e
+// non ciò che si era scritto prima.
+function mettiDato(tr: Transaction, da: number, a: number, dato: NodoPM) {
+  const prima = attaccato(tr.doc.resolve(da).nodeBefore, FINISCE_ATTACCATO)
+  const dopo = attaccato(tr.doc.resolve(a).nodeAfter, COMINCIA_ATTACCATO)
+  const spazio = dato.type.schema.text(" ")
+  tr.replaceWith(da, a, [...(prima ? [spazio] : []), dato, ...(dopo ? [spazio] : [])])
+  const fine = da + (prima ? 1 : 0) + dato.nodeSize
+  return closeHistory(tr.setSelection(TextSelection.create(tr.doc, fine)))
+}
+
+// La punteggiatura che chiude: davanti non vuole uno spazio.
+const CHIUDE = /^[,.;:!?…\p{Pe}\p{Pf}]/u
+
+// Toglie la pillola che è stata spostata altrove, e lo spazio che le stava
+// accanto se ora è di troppo: due spazi di fila, uno spazio a inizio o fine
+// riga, uno spazio davanti a una virgola o a un punto.
+function togliDato(tr: Transaction, da: number, a: number) {
+  tr.delete(da, a)
+  const $qui = tr.doc.resolve(da)
+  const prima = $qui.nodeBefore
+  const dopo = $qui.nodeAfter
+  const spazioPrima = Boolean(prima?.text?.endsWith(" "))
+  const spazioDopo = Boolean(dopo?.text?.startsWith(" "))
+  if (spazioPrima && (spazioDopo || !dopo || CHIUDE.test(dopo.text ?? ""))) tr.delete(da - 1, da)
+  else if (spazioDopo && !prima) tr.delete(da, da + 1)
+}
+
+// Dove cade ciò che si rilascia in un punto dello schermo. Nel testo, dov'è
+// il puntatore. Nello spazio vuoto: sotto l'ultima riga, in coda a quella;
+// sopra la prima, al suo inizio; fra due righe, in coda a quella di sopra. Di
+// suo l'editor ne farebbe una riga nuova. Sopra e sotto il testo si guarda
+// dove sta il puntatore e non cosa risponde il browser: lì ognuno dice una
+// posizione diversa.
+function doveCade(vista: EditorView, evento: MouseEvent) {
+  const { doc } = vista.state
+  const prima = vista.dom.firstElementChild?.getBoundingClientRect()
+  const ultima = vista.dom.lastElementChild?.getBoundingClientRect()
+  if (prima && evento.clientY < prima.top) return { pos: Selection.atStart(doc).from, nelTesto: false }
+  if (ultima && evento.clientY > ultima.bottom) return { pos: Selection.atEnd(doc).from, nelTesto: false }
+  const punto = vista.posAtCoords({ left: evento.clientX, top: evento.clientY })
+  if (!punto) return null
+  const $punto = doc.resolve(punto.pos)
+  if ($punto.parent.isTextblock) return { pos: punto.pos, nelTesto: true }
+  return { pos: Selection.near($punto, -1).from, nelTesto: false }
+}
+
+// Il segno del punto di rilascio: una barra verticale del colore del marchio,
+// alta quanto la riga.
+const SEGNO = "pointer-events-none absolute z-50 w-0.5 -translate-x-1/2 rounded-full bg-primary"
+
+// Il trascinamento: l'immagine che segue il puntatore, il segno del punto in
+// cui il dato cadrà, e il rilascio. Il segno e il rilascio leggono il punto
+// dalla stessa funzione, quindi il segno non indica mai un altro posto.
+function trascinamento(tipo: NodeType, magazzino: Magazzino) {
+  return new Plugin({
+    props: {
+      handleDrop(vista, evento, fetta, spostato) {
+        const cade = doveCade(vista, evento)
+        if (!cade) return false
+        const dato = datoIn(fetta, tipo, magazzino)
+        // Nel testo, ciò che non è un dato solo lo mette l'editor.
+        if (!dato && cade.nelTesto) return false
+        const tr = vista.state.tr
+        // Ciò che si sposta è il nodo trascinato; la selezione solo se si è
+        // trascinata quella. Una pillola presa senza selezionarla non è la
+        // selezione. Il campo `node` c'è ma non è fra i tipi dichiarati.
+        const preso = (vista.dragging as { node?: NodeSelection } | null)?.node
+        const origine = spostato ? (preso ?? vista.state.selection) : null
+        if (dato) {
+          // Prima si mette e poi si toglie: lasciata accanto a dov'era, la
+          // pillola ritrova gli spazi che aveva.
+          mettiDato(tr, cade.pos, cade.pos, dato)
+          if (origine) {
+            togliDato(tr, tr.mapping.map(origine.from, 1), tr.mapping.map(origine.to, -1))
+          }
+        } else {
+          origine?.replace(tr)
+          const dove = tr.mapping.map(cade.pos)
+          const passi = tr.steps.length
+          tr.replaceRange(dove, dove, fetta)
+          const fine = tr.mapping.slice(passi).map(dove, 1)
+          tr.setSelection(Selection.near(tr.doc.resolve(fine), -1))
+        }
+        vista.dispatch(tr.setMeta("uiEvent", "drop"))
+        vista.focus()
+        return true
+      },
+    },
+    view(vista) {
+      let segno: HTMLElement | null = null
+      let ultimo: DragEvent | null = null
+      let scadenza: ReturnType<typeof setTimeout> | undefined
+      const togli = () => {
+        clearTimeout(scadenza)
+        segno?.remove()
+        segno = null
+        ultimo = null
+      }
+      const mostra = (evento: DragEvent) => {
+        const cade = vista.editable ? doveCade(vista, evento) : null
+        const cornice = vista.dom.offsetParent
+        if (!cade || !cornice) return togli()
+        const riga = vista.coordsAtPos(cade.pos)
+        const origine = cornice.getBoundingClientRect()
+        if (!segno) {
+          segno = document.createElement("div")
+          segno.setAttribute("data-slot", "testo-segnaposto-rilascio")
+          segno.className = SEGNO
+          cornice.append(segno)
+        }
+        segno.style.left = `${riga.left - origine.left}px`
+        segno.style.top = `${riga.top - origine.top}px`
+        segno.style.height = `${riga.bottom - riga.top}px`
+        ultimo = evento
+        // Un trascinamento finito altrove non avvisa: il segno non resta lì.
+        clearTimeout(scadenza)
+        scadenza = setTimeout(togli, 5000)
+      }
+      // Arriva dopo il gestore dell'editor, che ha già detto cosa si trascina.
+      const parte = (evento: DragEvent) => {
+        const fetta = vista.dragging?.slice
+        const dato = fetta ? datoIn(fetta, tipo, magazzino) : null
+        if (!dato || !evento.dataTransfer) return
+        const { stato, testo } = aspetto(magazzino, dato.attrs.testo)
+        inVolo(evento.dataTransfer, stato, testo)
+      }
+      const esce = (evento: DragEvent) => {
+        if (!(evento.relatedTarget instanceof Node && vista.dom.contains(evento.relatedTarget))) togli()
+      }
+      vista.dom.addEventListener("dragstart", parte)
+      vista.dom.addEventListener("dragover", mostra)
+      vista.dom.addEventListener("dragleave", esce)
+      vista.dom.addEventListener("drop", togli)
+      vista.dom.addEventListener("dragend", togli)
+      return {
+        // Il testo è cambiato sotto un dato in volo: il segno segue.
+        update(_vista, prima) {
+          if (segno && ultimo && prima.doc !== vista.state.doc) mostra(ultimo)
+        },
+        destroy() {
+          vista.dom.removeEventListener("dragstart", parte)
+          vista.dom.removeEventListener("dragover", mostra)
+          vista.dom.removeEventListener("dragleave", esce)
+          vista.dom.removeEventListener("drop", togli)
+          vista.dom.removeEventListener("dragend", togli)
+          togli()
+        },
+      }
+    },
+  })
+}
+
 const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
   name: "segnaposto",
   group: "inline",
@@ -362,11 +617,10 @@ const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
       const dom = document.createElement("span")
       dom.setAttribute("data-slot", "testo-segnaposto-pillola")
       const disegna = () => {
-        const voce = voceDi(magazzino, node.attrs.testo)
-        const stato = !voce ? "sconosciuto" : voce.valore ? "valore" : "senza-valore"
+        const { voce, stato, testo } = aspetto(magazzino, node.attrs.testo)
         dom.setAttribute("data-stato", stato)
         dom.className = `${PILLOLA} ${PILLOLA_PER_STATO[stato]}`
-        dom.textContent = voce ? voce.valore || nomeDi(voce) : node.attrs.testo
+        dom.textContent = testo
         // Ciò che si legge passando sopra la pillola o selezionandola: il nome
         // del dato, o perché il valore manca.
         if (!voce) delete dom.dataset.nota
@@ -431,6 +685,7 @@ const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
           return tr
         },
       }),
+      trascinamento(tipo, magazzino),
     ]
   },
 })
@@ -600,11 +855,19 @@ function manigliaDi(editor: Editor) {
         if (!testo || !editor.isEditable) return
         // Un prefisso appena scritto, col suo filtro di una parola: il
         // segnaposto lo sostituisce, come la scelta dall'elenco.
-        const { prefissi } = editor.storage.segnaposto
+        const magazzino = editor.storage.segnaposto
+        const { prefissi } = magazzino
         const aperta = leggiSessione(editor, prefissi)
         const sostituisce =
           aperta && !/\s/.test(aperta.query) && prefissi.some((p) => p && testo.startsWith(p))
-        if (sostituisce) {
+        const { $from, $to } = editor.state.selection
+        if (eUnDato(magazzino, testo) && $from.parent.isTextblock && $from.sameParent($to)) {
+          // Un dato entra già pillola, con lo spazio che gli serve attorno.
+          const dato = editor.schema.nodes.segnaposto.create({ testo })
+          const [da, a] = sostituisce ? [aperta.da, aperta.a] : [$from.pos, $to.pos]
+          editor.view.dispatch(mettiDato(editor.state.tr, da, a, dato).scrollIntoView())
+          editor.view.focus()
+        } else if (sostituisce) {
           editor.view.dispatch(editor.state.tr.insertText(testo, aperta.da, aperta.a).scrollIntoView())
           editor.view.focus()
         } else {
@@ -735,7 +998,7 @@ export function TestoSegnaposto({
       if (inizioParagrafo + trovato.index === sessione.da && fine > a) a = fine
     }
     const nodo = state.schema.nodes.segnaposto.create({ testo: voce.testo })
-    view.dispatch(state.tr.replaceWith(sessione.da, a, nodo).scrollIntoView())
+    view.dispatch(mettiDato(state.tr, sessione.da, a, nodo).scrollIntoView())
     view.focus()
     setAperto(false)
   }
@@ -810,10 +1073,6 @@ export function TestoSegnaposto({
       Paragraph,
       Text,
       UndoRedo,
-      // Il segno del punto in cui cade ciò che si trascina: più largo del
-      // cursore di scrittura e del colore del marchio, perché si veda anche
-      // accanto a ciò che si sta trascinando.
-      Dropcursor.configure({ width: 2, color: false, class: "bg-primary" }),
       Segnaposto,
     ],
     content: daTesto(value ?? defaultValue ?? "", espressione(forma, voci)),
@@ -831,22 +1090,6 @@ export function TestoSegnaposto({
       handleKeyDown: (vista, evento) => {
         const mio = editorDi(vista.dom)
         return mio ? adesso.current.tasto(mio, evento) : false
-      },
-      // Un dato rilasciato nello spazio vuoto sotto il testo va in coda alla
-      // riga più vicina. Di suo l'editor ne farebbe una riga nuova.
-      handleDrop: (vista, evento, fetta, spostato) => {
-        const punto = vista.posAtCoords({ left: evento.clientX, top: evento.clientY })
-        if (!punto || vista.state.doc.resolve(punto.pos).parent.isTextblock) return false
-        const primo = fetta.content.firstChild
-        if (!primo || fetta.content.childCount !== 1) return false
-        const contenuto = primo.isTextblock ? primo.content : fetta.content
-        const tr = vista.state.tr
-        if (spostato) tr.deleteSelection()
-        const dove = Selection.near(tr.doc.resolve(tr.mapping.map(punto.pos)), -1).from
-        tr.insert(dove, contenuto)
-        vista.dispatch(tr.setSelection(TextSelection.create(tr.doc, dove + contenuto.size)))
-        vista.focus()
-        return true
       },
       handleDoubleClickOn: (vista, _posizione, nodo, posizioneNodo) => {
         const mio = editorDi(vista.dom)
@@ -1186,21 +1429,6 @@ export type TestoSegnapostoElencoProps = {
 
 const TUTTI = "\u0000tutti"
 
-// Ciò che segue il puntatore mentre si trascina un dato: una pillola piccola,
-// com'è quella che entrerà nel testo, sotto e a destra del puntatore. Di suo
-// il browser trascina l'immagine di tutta la voce, che copre il testo e il
-// punto in cui la si lascia. Il browser la fotografa subito: l'elemento sta
-// fuori vista per un attimo e poi si toglie.
-function inVolo(carico: DataTransfer, voce: VoceSegnaposto) {
-  const pillola = document.createElement("span")
-  pillola.setAttribute("data-slot", "testo-segnaposto-in-volo")
-  pillola.className = `fixed -top-96 left-0 max-w-xs truncate text-sm ${PILLOLA} ${PILLOLA_PER_STATO[voce.valore ? "valore" : "senza-valore"]}`
-  pillola.textContent = voce.valore || nomeDi(voce)
-  document.body.append(pillola)
-  carico.setDragImage(pillola, 0, 0)
-  setTimeout(() => pillola.remove(), 0)
-}
-
 // Uno stato che la pagina può tenere fuori: se passa il valore vale il suo,
 // altrimenti lo tiene il componente. Chi ascolta è avvisato in tutti e due i
 // casi.
@@ -1327,7 +1555,11 @@ export function TestoSegnapostoElenco({
                     onDragStart={(evento) => {
                       evento.dataTransfer.setData("text/plain", voce.testo)
                       evento.dataTransfer.effectAllowed = "copy"
-                      inVolo(evento.dataTransfer, voce)
+                      inVolo(
+                        evento.dataTransfer,
+                        voce.valore ? "valore" : "senza-valore",
+                        voce.valore || nomeDi(voce)
+                      )
                     }}
                     onClick={() => onScegli?.(voce)}
                   />

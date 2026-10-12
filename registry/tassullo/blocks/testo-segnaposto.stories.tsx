@@ -92,9 +92,23 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *
  * - Un dato si inserisce in tre modi: scrivendo il prefisso e scegliendo
  *   dall'elenco, trascinandolo nel testo, o con `inserisci` da un bottone.
- * - Trascinando un dato dall'elenco segue il puntatore una pillola piccola,
- *   e nel testo un segno arancio dice dove cadrà. Lasciato su una pillola,
- *   il dato le va accanto.
+ * - Un dato inserito accanto a una lettera, a una cifra o a un'altra pillola
+ *   prende da sé uno spazio da quella parte, in tutti e tre i modi: la
+ *   pillola ha un suo margine e a occhio sembra già staccata, ma nel
+ *   documento uscirebbe attaccata alla parola. Non lo prende accanto alla
+ *   punteggiatura, a uno spazio che c'è già, all'inizio e alla fine della
+ *   riga. Chi vuole il dato attaccato cancella lo spazio. Il cursore resta
+ *   subito dopo il dato, e un solo `Ctrl+Z` toglie il dato con i suoi spazi.
+ * - Trascinando un dato, dall'elenco o da un punto all'altro del testo, segue
+ *   il puntatore una pillola piccola, e nel testo un segno arancio verticale
+ *   dice dove cadrà. Nello spazio vuoto sotto il testo il dato va in coda
+ *   all'ultima riga, sopra il testo all'inizio della prima, e il segno sta
+ *   lì. Lasciato su una pillola, il dato le va accanto.
+ * - Una pillola spostata si porta via il suo spazio: dove stava non restano
+ *   due spazi di fila, né uno spazio davanti a una virgola o in fondo alla
+ *   riga; dove arriva prende quelli che servono. Lasciata dov'era, il testo
+ *   resta com'era. Un solo `Ctrl+Z` la rimette al suo posto. Col tasto che
+ *   copia, `Alt` su Mac e `Ctrl` altrove, la pillola si duplica.
  * - Qualunque testo con la forma di un segnaposto diventa una pillola, anche
  *   incollato o scritto a mano. Gli spazi dentro le graffe non contano:
  *   `{{ famiglia.nome }}` è lo stesso dato, e il valore resta com'è scritto.
@@ -872,10 +886,15 @@ export const SolaLetturaProva: Story = {
     expect(valoreDi(area)).toBe(scritto)
     expect(elenco()).not.toBeInTheDocument()
 
-    // Un dato rilasciato non entra.
+    // Un dato rilasciato non entra, e passandoci sopra non c'è il segno del
+    // punto di rilascio.
     const carico = new DataTransfer()
     carico.setData('text/plain', '{{qualifica.norma}}')
     const dove = area.getBoundingClientRect()
+    area.dispatchEvent(
+      new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: carico, clientX: dove.left + 24, clientY: dove.top + 12 })
+    )
+    expect(canvasElement.querySelector('[data-slot="testo-segnaposto-rilascio"]')).not.toBeInTheDocument()
     area.dispatchEvent(
       new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: carico, clientX: dove.left + 24, clientY: dove.top + 12 })
     )
@@ -1410,5 +1429,335 @@ export const VuotoProva: Story = {
     expect(within(canvasElement).getAllByRole('status').some((s) => s.textContent === 'Nessun dato')).toBe(true)
     await userEvent.keyboard('[Escape]')
     await chiuso()
+  },
+}
+
+const RILASCIO = '[data-slot="testo-segnaposto-rilascio"]'
+
+// La posizione nel documento subito dopo un pezzo della prima riga.
+function dopo(area: Area, pezzo: string) {
+  const riga = area.editor.state.doc.firstChild!
+  const testo = riga.textBetween(0, riga.content.size, undefined, '￼')
+  return 1 + testo.indexOf(pezzo) + pezzo.length
+}
+
+// Il punto dello schermo di una posizione nel testo, un pixel dentro.
+function puntoDi(area: Area, posizione: number) {
+  const riga = area.editor.view.coordsAtPos(posizione)
+  return { clientX: riga.left + 1, clientY: (riga.top + riga.bottom) / 2 }
+}
+
+// Lo spazio vuoto dentro il campo, sotto l'ultima riga e sopra la prima.
+function sotto(area: Area) {
+  const campo = area.getBoundingClientRect()
+  return { clientX: campo.left + campo.width / 2, clientY: campo.bottom - 3 }
+}
+function sopra(area: Area) {
+  const campo = area.getBoundingClientRect()
+  return { clientX: campo.left + campo.width / 2, clientY: campo.top + 3 }
+}
+
+type Punto = { clientX: number; clientY: number }
+
+// Un trascinamento come lo riceve l'editor: gli eventi, senza il puntatore.
+// `daFuori` è un dato che arriva dall'elenco, col suo testo; `prendi` è una
+// pillola presa da dentro il testo. L'immagine che segue il puntatore non
+// entra in una schermata: si legge ciò che il blocco consegna al browser.
+function daFuori(testo: string) {
+  const carico = new DataTransfer()
+  carico.setData('text/plain', testo)
+  return carico
+}
+function prendi(pillola: HTMLElement) {
+  const carico = new DataTransfer()
+  const inVolo: string[] = []
+  carico.setDragImage = (immagine, x, y) => {
+    inVolo.push(`${immagine.getAttribute('data-slot')}:${immagine.textContent} a ${x},${y}`)
+  }
+  const dove = pillola.getBoundingClientRect()
+  pillola.dispatchEvent(
+    new DragEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer: carico,
+      clientX: dove.left + 2,
+      clientY: dove.top + dove.height / 2,
+    })
+  )
+  return { carico, inVolo }
+}
+const evento = (tipo: string, carico: DataTransfer, punto: Punto) =>
+  new DragEvent(tipo, { bubbles: true, cancelable: true, dataTransfer: carico, ...punto })
+const passa = (area: Area, carico: DataTransfer, punto: Punto) => area.dispatchEvent(evento('dragover', carico, punto))
+const rilascia = (area: Area, carico: DataTransfer, punto: Punto) => area.dispatchEvent(evento('drop', carico, punto))
+
+const segnoDi = (area: Area) => area.closest('[data-slot="testo-segnaposto"]')!.querySelector<HTMLElement>(RILASCIO)
+
+// Il segno è verticale e sta su una posizione del testo, alto quanto la riga.
+function segnoSu(area: Area, posizione: number) {
+  const segno = segnoDi(area)
+  expect(segno).toBeInTheDocument()
+  const dove = segno!.getBoundingClientRect()
+  const riga = area.editor.view.coordsAtPos(posizione)
+  expect(`verticale: ${dove.height > dove.width * 4}`).toBe('verticale: true')
+  expect(Math.abs(dove.left + dove.width / 2 - riga.left)).toBeLessThan(1)
+  expect(Math.abs(dove.top - riga.top)).toBeLessThan(1)
+  expect(Math.abs(dove.height - (riga.bottom - riga.top))).toBeLessThan(1)
+}
+
+// Il cursore è subito dopo la pillola di un dato.
+function cursoreDopo(area: Area, testo: string) {
+  const { selection } = area.editor.state
+  expect(selection.empty).toBe(true)
+  expect(selection.$from.nodeBefore?.attrs.testo).toBe(testo)
+}
+
+const DA_SPOSTARE = 'Qui un dato {{famiglia.nome}} e altro testo.\nSeconda riga.'
+const CON_LA_VIRGOLA = 'Malta conforme alla {{qualifica.norma}}, classe R4'
+const riga = (testo: string) => ({
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [{ type: 'text', text: testo }] }],
+})
+
+// Una pillola già nel testo, presa senza selezionarla: la segue la pillola
+// piccola, sotto e a destra del puntatore; nello spazio vuoto il segno è
+// verticale e sta dove la pillola cadrà; rilasciata, si sposta e non si
+// duplica. Dove stava non restano due spazi, dove arriva prende quelli che
+// servono, e un solo Annulla rimette tutto com'era.
+export const SpostareUnaPillolaProva: Story = {
+  name: 'Spostare una pillola, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, etichetta: 'Testo', defaultValue: DA_SPOSTARE },
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement)
+    const pillola = () => area.querySelector<HTMLElement>('[data-slot="testo-segnaposto-pillola"]')!
+    const fine = () => area.editor.state.doc.content.size - 1
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:Malta R4']))
+
+    // Il cursore è in fondo: la pillola non è la selezione.
+    expect(area.editor.state.selection.empty).toBe(true)
+    let preso = prendi(pillola())
+    expect(preso.inVolo).toEqual(['testo-segnaposto-in-volo:Malta R4 a 0,0'])
+    await waitFor(() => expect(document.querySelector('[data-slot="testo-segnaposto-in-volo"]')).not.toBeInTheDocument())
+
+    // Nello spazio vuoto sotto il testo: in coda all'ultima riga.
+    passa(area, preso.carico, sotto(area))
+    segnoSu(area, fine())
+    rilascia(area, preso.carico, sotto(area))
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
+    expect(valoreDi(area)).toBe('Qui un dato e altro testo.\nSeconda riga.{{famiglia.nome}}')
+    expect(segnoDi(area)).not.toBeInTheDocument()
+    cursoreDopo(area, '{{famiglia.nome}}')
+    expect(document.activeElement).toBe(area)
+
+    // Un solo Annulla.
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe(DA_SPOSTARE)
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
+
+    // Dentro il testo, fra una parola e lo spazio che la segue.
+    preso = prendi(pillola())
+    passa(area, preso.carico, puntoDi(area, dopo(area, 'altro')))
+    segnoSu(area, dopo(area, 'altro'))
+    rilascia(area, preso.carico, puntoDi(area, dopo(area, 'altro')))
+    expect(valoreDi(area)).toBe('Qui un dato e altro {{famiglia.nome}} testo.\nSeconda riga.')
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe(DA_SPOSTARE)
+
+    // Lasciata dov'era, resta com'era.
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, puntoDi(area, dopo(area, 'dato ')))
+    expect(valoreDi(area)).toBe(DA_SPOSTARE)
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
+
+    // Selezionata prima, e poi presa: lo stesso.
+    area.editor.commands.setNodeSelection(dopo(area, 'dato '))
+    preso = prendi(pillola())
+    expect(preso.inVolo).toEqual(['testo-segnaposto-in-volo:Malta R4 a 0,0'])
+    rilascia(area, preso.carico, sotto(area))
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
+    expect(valoreDi(area)).toBe('Qui un dato e altro testo.\nSeconda riga.{{famiglia.nome}}')
+
+    // Dalla fine della riga a un altro punto: non resta uno spazio in coda.
+    area.editor.commands.setContent(riga('Malta conforme alla {{qualifica.norma}}'))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, puntoDi(area, dopo(area, 'Malta')))
+    expect(valoreDi(area)).toBe('Malta {{qualifica.norma}} conforme alla')
+
+    // Da davanti a una virgola: non resta uno spazio davanti alla virgola.
+    area.editor.commands.setContent(riga(CON_LA_VIRGOLA))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, sotto(area))
+    expect(valoreDi(area)).toBe('Malta conforme alla, classe R4 {{qualifica.norma}}')
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe(CON_LA_VIRGOLA)
+    // E lasciata dov'era, prima o dopo di sé, resta com'era.
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, puntoDi(area, dopo(area, 'alla ')))
+    expect(valoreDi(area)).toBe(CON_LA_VIRGOLA)
+    preso = prendi(pillola())
+    const dopoLaPillola = pillola().getBoundingClientRect()
+    rilascia(area, preso.carico, { clientX: dopoLaPillola.right - 2, clientY: dopoLaPillola.top + dopoLaPillola.height / 2 })
+    expect(valoreDi(area)).toBe(CON_LA_VIRGOLA)
+
+    // Col tasto che copia (`Alt` su Mac, `Ctrl` altrove) la pillola resta
+    // dov'era, e ce n'è una seconda.
+    preso = prendi(pillola())
+    area.dispatchEvent(
+      new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: preso.carico,
+        altKey: true,
+        ctrlKey: true,
+        ...sotto(area),
+      })
+    )
+    expect(valoreDi(area)).toBe(`${CON_LA_VIRGOLA} {{qualifica.norma}}`)
+  },
+}
+
+const DUE_RIGHE = 'Prima riga del testo\nSeconda riga'
+
+// Il segno del punto di rilascio è sempre verticale, e sta dove il dato
+// cadrà: nel testo sotto il puntatore, nello spazio vuoto sotto il testo in
+// coda all'ultima riga, sopra il testo all'inizio della prima. Non c'è più
+// un segno orizzontale largo quanto il campo.
+export const SegnoDiRilascioProva: Story = {
+  name: 'Segno di rilascio, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, etichetta: 'Testo', defaultValue: DUE_RIGHE },
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement)
+    const carico = daFuori('{{qualifica.norma}}')
+    const fine = () => area.editor.state.doc.content.size - 1
+    const orizzontale = () => document.querySelector('.prosemirror-dropcursor-block')
+
+    // Sotto il testo.
+    passa(area, carico, sotto(area))
+    segnoSu(area, fine())
+    expect(orizzontale()).not.toBeInTheDocument()
+    rilascia(area, carico, sotto(area))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    expect(valoreDi(area)).toBe(`${DUE_RIGHE} {{qualifica.norma}}`)
+    expect(segnoDi(area)).not.toBeInTheDocument()
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe(DUE_RIGHE)
+
+    // Sopra il testo.
+    passa(area, carico, sopra(area))
+    segnoSu(area, 1)
+    expect(orizzontale()).not.toBeInTheDocument()
+    rilascia(area, carico, sopra(area))
+    expect(valoreDi(area)).toBe(`{{qualifica.norma}} ${DUE_RIGHE}`)
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe(DUE_RIGHE)
+
+    // Nel testo.
+    passa(area, carico, puntoDi(area, dopo(area, 'Prima')))
+    segnoSu(area, dopo(area, 'Prima'))
+    // Uscendo dal campo il segno si toglie.
+    area.dispatchEvent(new DragEvent('dragleave', { bubbles: true, dataTransfer: carico }))
+    expect(segnoDi(area)).not.toBeInTheDocument()
+    passa(area, carico, puntoDi(area, dopo(area, 'Prima')))
+    rilascia(area, carico, puntoDi(area, dopo(area, 'Prima')))
+    expect(valoreDi(area)).toBe('Prima {{qualifica.norma}} riga del testo\nSeconda riga')
+    expect(segnoDi(area)).not.toBeInTheDocument()
+    area.editor.commands.undo()
+
+    // Un testo che non è un dato, nello spazio vuoto: in coda alla riga,
+    // com'è scritto.
+    const parole = daFuori(', e basta')
+    passa(area, parole, sotto(area))
+    segnoSu(area, fine())
+    rilascia(area, parole, sotto(area))
+    expect(valoreDi(area)).toBe(`${DUE_RIGHE}, e basta`)
+  },
+}
+
+const SPAZI: [scritto: string, atteso: string][] = [
+  // Accanto a una lettera o a una cifra: lo spazio, dalla parte che serve.
+  ['malta|', 'malta {{qualifica.norma}}'],
+  ['|malta', '{{qualifica.norma}} malta'],
+  ['mal|ta', 'mal {{qualifica.norma}} ta'],
+  ['classe R4|', 'classe R4 {{qualifica.norma}}'],
+  ['qualità|', 'qualità {{qualifica.norma}}'],
+  // Accanto a un'altra pillola.
+  ['{{famiglia.nome}}|', '{{famiglia.nome}} {{qualifica.norma}}'],
+  // Uno spazio c'è già.
+  ['malta |', 'malta {{qualifica.norma}}'],
+  ['malta | conforme', 'malta {{qualifica.norma}} conforme'],
+  // La punteggiatura, e l'inizio e la fine della riga.
+  ['(|)', '({{qualifica.norma}})'],
+  ['malta,|', 'malta,{{qualifica.norma}}'],
+  ['norma: |.', 'norma: {{qualifica.norma}}.'],
+  ['|', '{{qualifica.norma}}'],
+]
+
+// Un testo di una riga, col cursore dov'è la barra.
+async function conCursore(area: Area, scritto: string) {
+  const [prima, poi] = scritto.split('|')
+  area.editor.commands.setContent({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: prima ? [{ type: 'text', text: prima }] : [] }],
+  })
+  area.editor.commands.focus('end')
+  const cursore = area.editor.state.selection.from
+  if (poi) area.editor.commands.insertContentAt(cursore, { type: 'text', text: poi })
+  area.editor.commands.setTextSelection(cursore)
+  await waitFor(() => expect(document.activeElement).toBe(area))
+}
+
+// Un dato inserito accanto a una lettera, a una cifra o a un'altra pillola
+// prende uno spazio da quella parte, comunque arrivi: dal bottone o
+// dall'elenco accanto, dall'elenco che si apre scrivendo. Il cursore resta
+// subito dopo il dato, e un solo Annulla toglie il dato con i suoi spazi.
+export const SpazioAccantoAlDatoProva: Story = {
+  name: 'Spazio accanto al dato, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, etichetta: 'Testo', onFocus: fn() },
+  play: async ({ canvasElement, args }) => {
+    const area = await areaDi(canvasElement)
+    const campo = (args.onFocus as ReturnType<typeof fn>).mock.calls[0][0] as TestoSegnapostoRef
+
+    // Dal bottone, o col clic nell'elenco accanto.
+    for (const [scritto, atteso] of SPAZI) {
+      await conCursore(area, scritto)
+      campo.inserisci('{{qualifica.norma}}')
+      expect(`${scritto} → ${valoreDi(area)}`).toBe(`${scritto} → ${atteso}`)
+      cursoreDopo(area, '{{qualifica.norma}}')
+      area.editor.commands.undo()
+      expect(`${scritto} ← ${valoreDi(area)}`).toBe(`${scritto} ← ${scritto.replace('|', '')}`)
+    }
+
+    // Un testo che non è un dato entra com'è.
+    await conCursore(area, 'mal|ta')
+    campo.inserisci('(nota)')
+    expect(valoreDi(area)).toBe('mal(nota)ta')
+
+    // Dall'elenco che si apre scrivendo: il dato prende il posto del prefisso
+    // e del filtro, e lo spazio va attorno.
+    await conCursore(area, 'mal|ta')
+    await scrivi('{{norm')
+    await aperto()
+    await waitFor(() => expect(opzioni()).toHaveLength(1))
+    await userEvent.keyboard('[Enter]')
+    await chiuso()
+    expect(valoreDi(area)).toBe('mal {{qualifica.norma}} ta')
+    cursoreDopo(area, '{{qualifica.norma}}')
+    // Si continua a scrivere attaccati al dato: lo spazio sta dopo.
+    await scrivi(',')
+    expect(valoreDi(area)).toBe('mal {{qualifica.norma}}, ta')
+
+    // Chi vuole il dato attaccato cancella lo spazio, e resta cancellato.
+    await conCursore(area, 'malta|')
+    campo.inserisci('{{qualifica.norma}}')
+    area.editor.commands.deleteRange({ from: dopo(area, 'malta'), to: dopo(area, 'malta') + 1 })
+    area.editor.commands.focus('end')
+    await scrivi(' ok')
+    expect(valoreDi(area)).toBe('malta{{qualifica.norma}} ok')
   },
 }
