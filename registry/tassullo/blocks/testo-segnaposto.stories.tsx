@@ -58,9 +58,8 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * - `voci`: i dati che si possono citare. Ognuno ha `testo`, il segnaposto
  *   com'è scritto nel valore; `etichetta`, il nome del dato; `gruppo`;
  *   `valore`, il valore di oggi, che è ciò che la pillola mostra; `nota`,
- *   perché il valore manca; `secondaria`, per un dato che esiste ma è raro
- *   citare: negli elenchi compare solo cercandolo, o chiedendo di vederli
- *   tutti.
+ *   perché il valore manca. I dati si mostrano sempre tutti, nell'elenco che
+ *   si apre scrivendo e in quello accanto ai testi.
  * - `prefisso`: la stringa che apre l'elenco mentre si scrive, di serie `{{`.
  * - `forma`: la forma di un segnaposto, di serie le doppie graffe. Quella
  *   di serie è `FORMA_SEGNAPOSTO`, in `lib/segnaposto`, un file senza React
@@ -73,10 +72,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   oggetto, per sapere in quale campo inserire da fuori.
  * - `TestoSegnapostoElenco` è l'elenco dei dati da tenere accanto ai testi:
  *   `voci` e `onScegli`; `disabled` lo spegne, per esempio mentre la pagina
- *   salva. Filtro, ricerca e voci secondarie in vista li tiene l'elenco, e
- *   si perdono quando la pagina smette di renderlo. Per tenerli la pagina
- *   passa `gruppo` e `onGruppo` (`null` è «tutti»), `ricerca` e `onRicerca`,
- *   `mostraAltri` e `onMostraAltri`.
+ *   salva. Filtro e ricerca li tiene l'elenco, e si perdono quando la pagina
+ *   smette di renderlo. Per tenerli la pagina passa `gruppo` e `onGruppo`
+ *   (`null` è «tutti»), `ricerca` e `onRicerca`.
  *
  * **Le pillole.**
  *
@@ -94,6 +92,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *
  * - Un dato si inserisce in tre modi: scrivendo il prefisso e scegliendo
  *   dall'elenco, trascinandolo nel testo, o con `inserisci` da un bottone.
+ * - Trascinando un dato dall'elenco segue il puntatore una pillola piccola,
+ *   e nel testo un segno arancio dice dove cadrà. Lasciato su una pillola,
+ *   il dato le va accanto.
  * - Qualunque testo con la forma di un segnaposto diventa una pillola, anche
  *   incollato o scritto a mano. Gli spazi dentro le graffe non contano:
  *   `{{ famiglia.nome }}` è lo stesso dato, e il valore resta com'è scritto.
@@ -800,8 +801,15 @@ export const ElencoProva: Story = {
     // Il dato trascinato porta con sé il suo segnaposto, e rilasciato in un
     // testo diventa pillola.
     const carico = new DataTransfer()
+    // Ciò che segue il puntatore è una pillola col valore, non la voce intera.
+    const inVolo: string[] = []
+    carico.setDragImage = (immagine) => {
+      inVolo.push(`${immagine.getAttribute('data-slot')}:${immagine.textContent}`)
+    }
     righe()[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: carico }))
     expect(carico.getData('text/plain')).toBe('{{confezione.resa}}')
+    expect(inVolo).toEqual(['testo-segnaposto-in-volo:18 kg/m²'])
+    await waitFor(() => expect(document.querySelector('[data-slot="testo-segnaposto-in-volo"]')).not.toBeInTheDocument())
     const avvertenze = canvasElement.querySelector<Area>('#dati-avvertenze')!
     const dove = avvertenze.getBoundingClientRect()
     avvertenze.dispatchEvent(
@@ -1046,74 +1054,56 @@ export const TreGraffeProva: Story = {
   },
 }
 
+// Due voci marcate `secondaria`, che una volta comparivano solo cercandole:
+// il campo non ha più effetto, e chi lo passa ancora vede tutti i dati.
 const VOCI_CON_SECONDARIE: VoceSegnaposto[] = [
   ...VOCI,
   { gruppo: 'Prodotto', etichetta: 'Lotto', testo: '{{prodotto.lotto}}', nota: 'Il dato non è compilato.', secondaria: true },
   { gruppo: 'Archivio', etichetta: 'Revisione', testo: '{{archivio.revisione}}', valore: '7', secondaria: true },
 ]
 
-/**
- * Le voci secondarie: dati che esistono e si possono citare, ma che è raro
- * usare, come quelli che oggi non hanno un valore. Non si propongono per
- * prime, così gli elenchi restano corti; si trovano cercandole, e l'elenco
- * dei dati ha in fondo un bottone che le mostra tutte. Qui sono «Lotto» e
- * «Revisione»: scrivi `{{lot` nel testo, oppure cercale a destra.
- */
-export const VociSecondarie: Story = {
+// I dati si mostrano sempre tutti, anche quelli senza valore e quelli che
+// portano ancora `secondaria`: nell'elenco che si apre scrivendo senza filtro,
+// e in quello dei dati, senza un bottone per vedere gli altri.
+export const TuttiIDatiProva: Story = {
+  name: 'Tutti i dati, prova',
+  tags: ['!dev', '!autodocs'],
   args: { voci: VOCI_CON_SECONDARIE },
   render: (args) => (
     <div className="flex max-w-4xl items-start gap-6">
       <Field className="min-w-0 flex-1">
-        <FieldLabel htmlFor="secondarie">Descrizione</FieldLabel>
-        <TestoSegnaposto {...args} id="secondarie" defaultValue="Lotto {{prodotto.lotto}}, revisione {{archivio.revisione}}. " />
+        <FieldLabel htmlFor="tutti">Descrizione</FieldLabel>
+        <TestoSegnaposto
+          {...args}
+          id="tutti"
+          altri={() => 'non si vede'}
+          defaultValue="Lotto {{prodotto.lotto}}, revisione {{archivio.revisione}}. "
+        />
       </Field>
       <div className="flex h-96 w-80 shrink-0 flex-col">
-        <TestoSegnapostoElenco voci={args.voci} className="flex-1" />
+        <TestoSegnapostoElenco voci={args.voci} altri={() => 'non si vede'} meno="non si vede" className="flex-1" />
       </div>
     </div>
   ),
-}
-
-// Una voce secondaria è valida e si può citare, ma non si propone per prima:
-// compare cercandola, nell'elenco che si apre scrivendo e in quello dei dati,
-// dove un bottone le mostra tutte. E nell'elenco che si apre scrivendo un
-// dato senza valore dice perché.
-export const VociSecondarieProva: Story = {
-  ...VociSecondarie,
-  name: 'Voci secondarie, prova',
-  tags: ['!dev', '!autodocs'],
   play: async ({ canvasElement }) => {
     const area = await areaDi(canvasElement)
-    await waitFor(() =>
-      expect(pilloleDi(area)).toEqual(['senza-valore:Prodotto · Lotto', 'valore:7'])
-    )
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['senza-valore:Prodotto · Lotto', 'valore:7']))
 
-    // Senza niente di scritto solo le principali, e la riga che dice delle altre.
     await scrivi('{{')
     const popup = await aperto()
-    await waitFor(() => expect(opzioni()).toHaveLength(VOCI.length))
-    expect(popup.querySelector('[data-slot="testo-segnaposto-altri"]')).toHaveTextContent('Altri 2 dati: scrivi per cercare')
-    // Cercandola, la voce secondaria c'è e si inserisce.
-    await scrivi('lot')
-    await waitFor(() => expect(opzioni().map((o) => o.textContent)).toEqual(['LottoIl dato non è compilato.']))
+    await waitFor(() => expect(opzioni()).toHaveLength(VOCI_CON_SECONDARIE.length))
+    expect(opzioni().map((o) => o.textContent)).toContain('LottoIl dato non è compilato.')
+    expect(opzioni().map((o) => o.textContent)).toContain('Revisione7')
+    expect(popup).not.toHaveTextContent('non si vede')
     expect(popup.querySelector('[data-slot="testo-segnaposto-altri"]')).not.toBeInTheDocument()
-    await userEvent.keyboard('[Enter]')
+    await userEvent.keyboard('[Escape]')
     await chiuso()
-    expect(valoreDi(area).endsWith('. {{prodotto.lotto}}')).toBe(true)
 
-    // L'elenco dei dati: le principali, il bottone, la ricerca.
     const dati = canvasElement.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"]')!
-    const righe = () => dati.querySelectorAll('button[draggable]')
-    expect(righe()).toHaveLength(VOCI.length)
-    expect(dati).not.toHaveTextContent('Revisione')
-    await userEvent.click(within(dati).getByRole('button', { name: 'Mostra altri 2 dati' }))
-    await waitFor(() => expect(righe()).toHaveLength(VOCI.length + 2))
+    expect(dati.querySelectorAll('button[draggable]')).toHaveLength(VOCI_CON_SECONDARIE.length)
     expect(dati).toHaveTextContent('Archivio')
-    await userEvent.click(within(dati).getByRole('button', { name: 'Mostra meno' }))
-    await waitFor(() => expect(righe()).toHaveLength(VOCI.length))
-    await userEvent.type(within(dati).getByRole('searchbox'), 'revis')
-    await waitFor(() => expect([...righe()].map((r) => r.textContent)).toEqual(['Revisione7']))
-    await userEvent.clear(within(dati).getByRole('searchbox'))
+    expect(dati).not.toHaveTextContent('non si vede')
+    expect(within(dati).queryByRole('button', { name: /Mostra/ })).not.toBeInTheDocument()
   },
 }
 
@@ -1325,7 +1315,6 @@ function ElencoTenutoFuori() {
   const [montato, setMontato] = useState(true)
   const [gruppo, setGruppo] = useState<string | null>(null)
   const [ricerca, setRicerca] = useState('')
-  const [altri, setAltri] = useState(false)
   return (
     <div className="flex max-w-4xl items-start gap-6">
       <div className="flex flex-col gap-3">
@@ -1333,7 +1322,7 @@ function ElencoTenutoFuori() {
           Dati da citare
         </Button>
         <output data-prova="stato" className="text-sm text-muted-foreground">
-          {`${gruppo ?? 'tutti'} | ${ricerca} | ${altri}`}
+          {`${gruppo ?? 'tutti'} | ${ricerca}`}
         </output>
       </div>
       {montato ? (
@@ -1344,8 +1333,6 @@ function ElencoTenutoFuori() {
             onGruppo={setGruppo}
             ricerca={ricerca}
             onRicerca={setRicerca}
-            mostraAltri={altri}
-            onMostraAltri={setAltri}
             className="flex-1"
           />
         </div>
@@ -1359,7 +1346,7 @@ function ElencoTenutoFuori() {
   )
 }
 
-// Filtro, ricerca e voci secondarie tenuti dalla pagina restano quando
+// Filtro e ricerca tenuti dalla pagina restano quando
 // l'elenco viene tolto e rimesso; senza le prop li tiene l'elenco, come
 // prima, e ripartono da capo.
 export const ElencoTenutoFuoriProva: Story = {
@@ -1378,13 +1365,11 @@ export const ElencoTenutoFuoriProva: Story = {
       const dati = within(elencoDi(quale))
       await userEvent.click(dati.getByRole('combobox'))
       await userEvent.click(await within(document.body).findByRole('option', { name: 'Prodotto' }))
-      await waitFor(() => expect(righe(quale)).toHaveLength(2))
-      await userEvent.click(dati.getByRole('button', { name: 'Mostra un altro dato' }))
       await waitFor(() => expect(righe(quale)).toHaveLength(3))
       await userEvent.type(dati.getByRole('searchbox'), 'lot')
       await waitFor(() => expect(righe(quale)).toEqual(['LottoIl dato non è compilato.']))
     }
-    expect(stato).toHaveTextContent('Prodotto | lot | true')
+    expect(stato).toHaveTextContent('Prodotto | lot')
 
     // Tolto e rimesso.
     const bottone = tela.getByRole('button', { name: 'Dati da citare' })
@@ -1400,19 +1385,14 @@ export const ElencoTenutoFuoriProva: Story = {
     // Tenuto dentro: da capo, come prima.
     expect(within(elencoDi('dentro')).getByRole('combobox')).toHaveTextContent('Tutti i dati')
     expect(within(elencoDi('dentro')).getByRole('searchbox')).toHaveValue('')
-    expect(righe('dentro')).toHaveLength(VOCI.length)
-
-    // Senza la ricerca le voci secondarie del gruppo restano in vista.
-    await userEvent.clear(within(elencoDi('fuori')).getByRole('searchbox'))
-    await waitFor(() => expect(righe('fuori')).toHaveLength(3))
-    expect(within(elencoDi('fuori')).getByRole('button', { name: 'Mostra meno' })).toHaveAttribute('aria-expanded', 'true')
+    expect(righe('dentro')).toHaveLength(VOCI_CON_SECONDARIE.length)
 
     // «Tutti i dati» arriva alla pagina come `null`.
+    await userEvent.clear(within(elencoDi('fuori')).getByRole('searchbox'))
     await userEvent.click(within(elencoDi('fuori')).getByRole('combobox'))
     await userEvent.click(await within(document.body).findByRole('option', { name: 'Tutti i dati' }))
-    await waitFor(() => expect(stato).toHaveTextContent('tutti | | true'))
-    await userEvent.click(within(elencoDi('fuori')).getByRole('button', { name: 'Mostra meno' }))
-    await waitFor(() => expect(stato).toHaveTextContent('tutti | | false'))
+    await waitFor(() => expect(stato).toHaveTextContent('tutti |'))
+    expect(righe('fuori')).toHaveLength(VOCI_CON_SECONDARIE.length)
   },
 }
 

@@ -96,10 +96,24 @@
  *
  * La forma di serie e la lettura del nome stanno in `lib/segnaposto.ts`,
  * senza React, per chi controlla lo stesso testo su un server. Il default di
- * `vuoto` è «Nessun dato» anche nell'elenco che si apre scrivendo. Filtro,
- * ricerca e voci secondarie dell'elenco dei dati si possono tenere fuori:
- * con `ColonnaLaterale` la pagina chiude la colonna smettendo di renderla, e
- * lo stato interno si perdeva a ogni chiusura.
+ * `vuoto` è «Nessun dato» anche nell'elenco che si apre scrivendo. Filtro e
+ * ricerca dell'elenco dei dati si possono tenere fuori: con `ColonnaLaterale`
+ * la pagina chiude la colonna smettendo di renderla, e lo stato interno si
+ * perdeva a ogni chiusura.
+ *
+ * **Le voci secondarie non ci sono più** (Francesco, stessa sessione): i dati
+ * si mostrano sempre tutti, nella tendina e nell'elenco, perché chi scrive
+ * una scheda la può finire mentre un altro reparto prepara i valori, e un
+ * dato che non vede non lo cita. `secondaria`, `altri` e `meno` restano nei
+ * tipi, senza effetto, perché chi è sulla v2.0.10 compili ancora; il bottone
+ * «Mostra altri N dati» e la riga in fondo alla tendina sono tolti, e con
+ * loro la dipendenza da `button`.
+ *
+ * **Trascinando un dato segue il puntatore una pillola, non la voce intera**
+ * (Francesco, provando: «riesco a inserirlo a inizio o fine frase e basta»).
+ * L'immagine di serie è la voce dell'elenco, larga 280px: copriva il testo
+ * e il segno del punto di rilascio. Il segno ora è largo 2px e del colore
+ * del marchio.
  *
  * ── I ruoli ──────────────────────────────────────────────────────────────
  *
@@ -135,7 +149,6 @@ import {
   CommandList,
 } from "@/registry/tassullo/ui/command"
 import { FORMA_SEGNAPOSTO } from "@/registry/tassullo/lib/segnaposto"
-import { Button } from "@/registry/tassullo/ui/button"
 import { Input } from "@/registry/tassullo/ui/input"
 import { Item } from "@/registry/tassullo/ui/item"
 import { Label } from "@/registry/tassullo/ui/label"
@@ -161,10 +174,13 @@ export type VoceSegnaposto = {
    * sulla pillola compare passandoci sopra o selezionandola.
    */
   nota?: string
+  // Prima una voce secondaria compariva solo cercandola. Resta nel tipo
+  // perché chi la passa compili ancora.
   /**
-   * La voce esiste e si può citare, ma non si propone per prima: negli
-   * elenchi compare solo cercandola, o chiedendo di vederle tutte. Per i dati
-   * validi che è raro citare, come quelli che oggi non hanno un valore.
+   * Non ha più effetto: tutti i dati si mostrano sempre, in tutti e due gli
+   * elenchi. Si può togliere.
+   *
+   * @deprecated
    */
   secondaria?: boolean
 }
@@ -211,8 +227,10 @@ export type TestoSegnapostoProps = {
   /** Il testo dell'elenco quando nessuna voce corrisponde. */
   vuoto?: string
   /**
-   * La riga in fondo all'elenco quando ci sono voci secondarie, che compaiono
-   * solo cercandole: riceve quante sono.
+   * Non ha più effetto: la riga che diceva quante voci erano nascoste non
+   * c'è più. Si può togliere.
+   *
+   * @deprecated
    */
   altri?: (quanti: number) => string
   /**
@@ -501,17 +519,6 @@ function filtra(voci: readonly VoceSegnaposto[], query: string) {
   })
 }
 
-// Le voci che si propongono: senza niente di scritto solo le principali,
-// cercando tutte. Una voce secondaria non si mostra per prima, ma si trova.
-function proposte(voci: readonly VoceSegnaposto[], cercato: string) {
-  const principali = parole(cercato).length > 0 ? voci : voci.filter((voce) => !voce.secondaria)
-  return filtra(principali, cercato)
-}
-
-function altriDati(quanti: number) {
-  return quanti === 1 ? "Un altro dato" : `Altri ${quanti} dati`
-}
-
 // I gruppi nell'ordine in cui compaiono; le voci senza gruppo per prime.
 function raggruppa(voci: readonly VoceSegnaposto[]) {
   const gruppi = new Map<string, VoceSegnaposto[]>()
@@ -645,7 +652,6 @@ export function TestoSegnaposto({
   prefisso = "{{",
   forma = FORMA_SEGNAPOSTO,
   vuoto = "Nessun dato",
-  altri = (quanti) => `${altriDati(quanti)}: scrivi per cercare`,
   senzaValore = "Senza valore",
   placeholder,
   disabled = false,
@@ -684,7 +690,7 @@ export function TestoSegnaposto({
 
   const prefissi = typeof prefisso === "string" ? [prefisso] : prefisso
   const gruppi = React.useMemo(
-    () => (sessione ? raggruppa(proposte(voci, sessione.query)) : []),
+    () => (sessione ? raggruppa(filtra(voci, sessione.query)) : []),
     [voci, sessione]
   )
   const trovate = gruppi.flatMap((gruppo) => gruppo.voci)
@@ -693,7 +699,6 @@ export function TestoSegnaposto({
     0,
     trovate.findIndex((voce) => voce.testo === attivaTesto)
   )
-  const secondarie = voci.filter((voce) => voce.secondaria).length
 
   // Le voci cambiano a ogni resa se l'app le scrive sul posto: ciò che conta
   // è il contenuto, in una chiave sola.
@@ -712,7 +717,7 @@ export function TestoSegnaposto({
     saltata.current = null
 
     const continua = aperto && sessione?.da === letta.da
-    const quante = proposte(voci, letta.query).length
+    const quante = filtra(voci, letta.query).length
     const conSpazi = /\s/.test(letta.query)
     // Si comincia solo scrivendo: al prefisso appena digitato, o dentro un
     // filtro di una parola che trova qualcosa. Si smette quando non si trova
@@ -815,7 +820,17 @@ export function TestoSegnaposto({
   })
 
   const editor = useEditor({
-    extensions: [Document, Paragraph, Text, UndoRedo, Dropcursor, Segnaposto],
+    extensions: [
+      Document,
+      Paragraph,
+      Text,
+      UndoRedo,
+      // Il segno del punto in cui cade ciò che si trascina: più largo del
+      // cursore di scrittura e del colore del marchio, perché si veda anche
+      // accanto a ciò che si sta trascinando.
+      Dropcursor.configure({ width: 2, color: false, class: "bg-primary" }),
+      Segnaposto,
+    ],
     content: daTesto(value ?? defaultValue ?? "", espressione(forma, voci)),
     editable: !disabled && !readOnly,
     immediatelyRender: false,
@@ -1140,16 +1155,6 @@ export function TestoSegnaposto({
                       </CommandGroup>
                     ))}
                   </CommandList>
-                  {/* Le voci secondarie non si mostrano per prime: qui si
-                      dice che ci sono, e come arrivarci. */}
-                  {sessione && parole(sessione.query).length === 0 && secondarie > 0 ? (
-                    <p
-                      data-slot="testo-segnaposto-altri"
-                      className="border-t px-3 py-1.5 text-xs text-muted-foreground"
-                    >
-                      {altri(secondarie)}
-                    </p>
-                  ) : null}
                 </Command>
               </Voci>
             </PopoverPrimitive.Popup>
@@ -1177,11 +1182,17 @@ export type TestoSegnapostoElencoProps = {
   /** Il testo quando nessun dato corrisponde. */
   vuoto?: string
   /**
-   * Il bottone in fondo all'elenco che mostra anche le voci secondarie:
-   * riceve quante sono.
+   * Non ha più effetto: tutti i dati si mostrano sempre, e il bottone che
+   * mostrava gli altri non c'è più. Si può togliere.
+   *
+   * @deprecated
    */
   altri?: (quanti: number) => string
-  /** Lo stesso bottone, quando le voci secondarie sono in vista. */
+  /**
+   * Non ha più effetto, come `altri`. Si può togliere.
+   *
+   * @deprecated
+   */
   meno?: string
   /**
    * Spegne l'elenco, per esempio mentre la pagina salva: filtro e ricerca non
@@ -1191,20 +1202,32 @@ export type TestoSegnapostoElencoProps = {
   /**
    * Il gruppo scelto nel filtro; `null` li mostra tutti. Di serie lo tiene
    * l'elenco, e si perde quando la pagina smette di renderlo: passandolo, con
-   * `onGruppo`, lo tiene la pagina. Lo stesso per `ricerca` e `mostraAltri`.
+   * `onGruppo`, lo tiene la pagina. Lo stesso per `ricerca`.
    */
   gruppo?: string | null
   onGruppo?: (gruppo: string | null) => void
   /** Il testo scritto nella ricerca. */
   ricerca?: string
   onRicerca?: (ricerca: string) => void
-  /** Se le voci secondarie sono in vista. */
-  mostraAltri?: boolean
-  onMostraAltri?: (mostra: boolean) => void
   className?: string
 }
 
 const TUTTI = "\u0000tutti"
+
+// Ciò che segue il puntatore mentre si trascina un dato: una pillola piccola,
+// com'è quella che entrerà nel testo, sotto e a destra del puntatore. Di suo
+// il browser trascina l'immagine di tutta la voce, che copre il testo e il
+// punto in cui la si lascia. Il browser la fotografa subito: l'elemento sta
+// fuori vista per un attimo e poi si toglie.
+function inVolo(carico: DataTransfer, voce: VoceSegnaposto) {
+  const pillola = document.createElement("span")
+  pillola.setAttribute("data-slot", "testo-segnaposto-in-volo")
+  pillola.className = `fixed -top-96 left-0 max-w-xs truncate text-sm ${PILLOLA} ${PILLOLA_PER_STATO[voce.valore ? "valore" : "senza-valore"]}`
+  pillola.textContent = voce.valore || nomeDi(voce)
+  document.body.append(pillola)
+  carico.setDragImage(pillola, 0, 0)
+  setTimeout(() => pillola.remove(), 0)
+}
 
 // Uno stato che la pagina può tenere fuori: se passa il valore vale il suo,
 // altrimenti lo tiene il componente. Chi ascolta è avvisato in tutti e due i
@@ -1221,7 +1244,7 @@ function useStato<T>(fuori: T | undefined, iniziale: T, onCambia?: (valore: T) =
 /**
  * L'elenco dei dati da citare: in cima il filtro per gruppo e la ricerca,
  * che restano fermi, e sotto i dati, che scorrono, sotto il nome del loro
- * gruppo. Le voci secondarie compaiono cercandole o col bottone in fondo. Ogni dato mostra in piccolo il nome e in evidenza il valore di
+ * gruppo. Ci sono sempre tutti. Ogni dato mostra in piccolo il nome e in evidenza il valore di
  * oggi; se non ne ha, il motivo scritto nella sua `nota`, o un trattino. Si
  * clicca o si trascina dentro un `TestoSegnaposto`.
  */
@@ -1232,29 +1255,21 @@ export function TestoSegnapostoElenco({
   tutti = "Tutti i dati",
   senzaValore = "Senza valore",
   vuoto = "Nessun dato",
-  altri = (quanti) => `Mostra ${altriDati(quanti).toLowerCase()}`,
-  meno = "Mostra meno",
   disabled = false,
   gruppo: gruppoFuori,
   onGruppo,
   ricerca,
   onRicerca,
-  mostraAltri,
-  onMostraAltri,
   className,
 }: TestoSegnapostoElencoProps) {
   const id = React.useId()
   const [scelto, setGruppo] = useStato(gruppoFuori, null, onGruppo)
   const [cercato, setCercato] = useStato(ricerca, "", onRicerca)
-  const [tutte, setTutte] = useStato(mostraAltri, false, onMostraAltri)
   const nomi = [...new Set(voci.map((voce) => voce.gruppo ?? "").filter(Boolean))]
   // Un gruppo che fra le voci non c'è, o non c'è più, vale «tutti».
   const gruppo = scelto !== null && nomi.includes(scelto) ? scelto : TUTTI
   const delGruppo = gruppo === TUTTI ? voci : voci.filter((voce) => voce.gruppo === gruppo)
-  // Le voci secondarie compaiono cercandole, o chiedendo di vederle tutte.
-  const mostrate = tutte ? filtra(delGruppo, cercato) : proposte(delGruppo, cercato)
-  const cercando = parole(cercato).length > 0
-  const secondarie = delGruppo.filter((voce) => voce.secondaria).length
+  const mostrate = filtra(delGruppo, cercato)
   // Con tutti i dati in vista ogni gruppo ha la sua intestazione: due «Nome»
   // di gruppi diversi si distinguono. Scelto un gruppo, lo dice il filtro.
   const gruppi =
@@ -1340,6 +1355,7 @@ export function TestoSegnapostoElenco({
                     onDragStart={(evento) => {
                       evento.dataTransfer.setData("text/plain", voce.testo)
                       evento.dataTransfer.effectAllowed = "copy"
+                      inVolo(evento.dataTransfer, voce)
                     }}
                     onClick={() => onScegli?.(voce)}
                   />
@@ -1361,18 +1377,6 @@ export function TestoSegnapostoElenco({
             ))}
           </div>
         ))}
-          {secondarie > 0 && !cercando ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0"
-              disabled={disabled}
-              aria-expanded={tutte}
-              onClick={() => setTutte(!tutte)}
-            >
-              {tutte ? meno : altri(secondarie)}
-            </Button>
-          ) : null}
       </div>
     </div>
   )

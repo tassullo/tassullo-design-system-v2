@@ -13712,8 +13712,11 @@ Ramo `fras/proposta-107-segnaposto-colonna`, PR #108. Anagrafe ha adottato la `v
 - **7 · `lib/segnaposto.ts`**, nello stesso item: `FORMA_SEGNAPOSTO`, `SPAZI_SEGNAPOSTO`, `nomeSegnaposto`. L'insieme è scritto anche accanto a `forma`.
 - **8 · «Nessun dato»** anche nella tendina.
 - **9 e 10 · `INTEGRAZIONE.md` §Aggiornare**: si reinstalla ciò che l'app ha già (`scroll-area` serve a chi lo usa), e un file in cui cambia solo `"use client"` si riporta com'era.
-- **11 · `gruppo`/`onGruppo`, `ricerca`/`onRicerca`, `mostraAltri`/`onMostraAltri`** su `TestoSegnapostoElenco`; senza, come prima.
-- **In più, trovato da Francesco provando**: il tooltip della pillola sfumava vuoto passando a una pillola senza nota (la rossa). C'era dalla `v2.0.9`.
+- **11 · `gruppo`/`onGruppo`, `ricerca`/`onRicerca`** su `TestoSegnapostoElenco`; senza, come prima. `mostraAltri`/`onMostraAltri` non servono più (vedi sotto).
+- **In più, da Francesco provando**:
+  - il tooltip della pillola sfumava vuoto passando a una pillola senza nota (la rossa). C'era dalla `v2.0.9`;
+  - **i dati si mostrano sempre tutti**, nella tendina e nell'elenco: le voci secondarie della `v2.0.9` non ci sono più. `secondaria`, `altri` e `meno` restano nei tipi senza effetto. Via il bottone «Mostra altri N dati» e la dipendenza da `button`;
+  - **trascinando un dato segue il puntatore una pillola**, non la voce intera, e il segno del punto di rilascio è largo 2px e arancio.
 
 #### Le scelte, e come sono cambiate
 
@@ -13721,6 +13724,9 @@ La proposta lasciava al design system la forma dei punti 3 e 5. Le prime due ste
 
 - **Punto 5.** Prima stesura: uno `Sheet` da destra, con `onChiudi` e la soglia letta in JavaScript. Francesco: lo sfondo resta scurito, non si trascina, e il pannello esce dal guscio. Seconda stesura: la colonna sopra il contenuto, in CSS. Poi, sempre da lui: trascinando un dato la colonna deve sparire, o non si vede dove lasciarlo.
 - **Punto 3.** Prima stesura: nome a capo a sinistra, valore grigio a destra, nota sotto. Francesco: «si fa fatica a distinguere il valore dal nome del campo». Rese quattro forme in chiaro e in scuro, scelta la C.
+
+- **Voci secondarie.** Alla domanda su come leggere «nella tendina devono vedersi tutti i segnaposto», Francesco: tutti, sempre, in tutti e due gli elenchi, perché chi scrive la scheda la può finire mentre un altro reparto prepara i valori. È una rettifica di §74.
+- **Trascinamento.** «Riesco a inserirlo a inizio o fine frase e basta». Il punto era esatto (misurato), ma l'immagine trascinata copriva il segno.
 
 Foto in `stories/ondata5/foto107/`, fuori dal repository.
 
@@ -13734,13 +13740,16 @@ Foto in `stories/ondata5/foto107/`, fuori dal repository.
 
 #### Test
 
-Prove scritte prima delle correzioni e fallite sul codice di partenza: `Voce attiva, prova` («Norma» al posto di «Linea»), `Nota della pillola indicata, prova`, `Nomi lunghi, prova` (3 nomi tagliati su 4), in Chromium e in WebKit; `Colonna Laterale, stretta, prova` e `Colonna Laterale, densità, prova` (480px in touch) in Chromium. Poi `Insieme degli spazi, prova` (tutti i punti di codice di Unicode, con e senza `u`: 24), `Elenco, stato tenuto fuori, prova`, `Niente che corrisponda, prova`. La prova stretta controlla anche: colonna dentro il guscio, bottone della fascia sotto il puntatore, colonna trasparente con un dato in volo, rilascio in un punto che copriva. Scene visibili nuove: `Nomi Lunghi`, `Colonna Laterale, stretta`.
+Prove scritte prima delle correzioni e fallite sul codice di partenza: `Voce attiva, prova` («Norma» al posto di «Linea»), `Nota della pillola indicata, prova`, `Nomi lunghi, prova` (3 nomi tagliati su 4), in Chromium e in WebKit; `Colonna Laterale, stretta, prova` e `Colonna Laterale, densità, prova` (480px in touch) in Chromium. Poi `Insieme degli spazi, prova` (tutti i punti di codice di Unicode, con e senza `u`: 24), `Elenco, stato tenuto fuori, prova`, `Niente che corrisponda, prova`, `Tutti i dati, prova` (al posto di `Voci secondarie, prova`; la scena `Voci Secondarie` è tolta). La prova stretta controlla anche: colonna dentro il guscio, bottone della fascia sotto il puntatore, colonna trasparente con un dato in volo, rilascio in un punto che copriva. Scene visibili nuove: `Nomi Lunghi`, `Colonna Laterale, stretta`.
 
-Con mouse e tasti veri (Playwright dalla cartella temporanea, Chromium e WebKit, chiaro e scuro, normale e touch, contro lo Storybook di sviluppo), a 1000×700 con 60px di corsa: colonna da 48 a 700px (72 in touch), tab ferme, 6 dati in vista (3 in touch), nessuna corsa di lato; un dato trascinato e rilasciato sotto la colonna diventa pillola, con la colonna a opacità 0 in volo e 1 al rilascio; si scrive nel testo a colonna aperta; il bottone della fascia, o la voce del menu in touch, la toglie. E: la voce evidenziata resta dopo che ne sparisce una prima; la nota segue il puntatore e torna alla selezionata.
+Con mouse e tasti veri (Playwright dalla cartella temporanea, Chromium e WebKit, chiaro e scuro, normale e touch, contro lo Storybook di sviluppo), a 1000×700 con 60px di corsa: colonna da 48 a 700px (72 in touch), tab ferme, 6 dati in vista (3 in touch), nessuna corsa di lato; un dato trascinato e rilasciato sotto la colonna diventa pillola, con la colonna a opacità 0 in volo e 1 al rilascio; si scrive nel testo a colonna aperta; il bottone della fascia, o la voce del menu in touch, la toglie. E: la voce evidenziata resta dopo che ne sparisce una prima; la nota segue il puntatore e torna alla selezionata; un dato rilasciato fra «a mano» e « o a spruzzo» dà «a mano{{qualifica.norma}} o a spruzzo», col segno sul puntatore, a 1000 e a 1400px.
 
-`npm run check` verde: 13 gate, `test:a11y` 549 scene, 2196 scansioni, 0 violazioni; `test:webkit` 22 su 22. `npm run build` verde.
+`npm run check` verde: 13 gate, `test:a11y` 548 scene, 2192 scansioni, 0 violazioni; `test:webkit` 22 su 22. `npm run build` verde.
 
 #### Aperti
+
+- Sopra una pillola il dato trascinato le va accanto; in WebKit sempre prima, anche dalla metà destra (12 casi su 24).
+- `secondaria`, `altri` e `meno` sono nei tipi senza effetto: si tolgono alla prima versione che può rompere.
 
 - Una pagina che monta la colonna di serie, in una finestra stretta, si apre con la colonna sopra il contenuto.
 - La colonna sopra il contenuto copre la coda della fascia delle tab.
