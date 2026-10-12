@@ -13684,3 +13684,14 @@ Misurato in Chromium con le barre visibili: pagina ed elenco 11px, sidebar senza
 - 82 scene falliscono in WebKit fuori dal gate, tutte a popup aperto: da decidere se e come portarle nel gate.
 - Windows e Firefox non provati: su Firefox la barra è quella sottile del browser col colore del tema, per costruzione.
 - **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-data-table scroll-area tema --overwrite`. Le barre prendono il colore del tema ovunque senza toccare il codice; restano a scomparsa dove lo erano. Eventuali regole dell'app sulle barre si tolgono.
+
+
+## 2026-10-12 — `v2.0.10` pubblicata
+
+Via libera di Francesco a CI verde. PR #105 unita col gate verde in CI sul commit `86a3fe8`; l'unione è `dadf38c`. Etichetta `v2.0.10` su `dadf38c`, push della sola etichetta; le versioni precedenti restano dove erano. Con la PR si è chiusa la issue #103; resta aperta la #70, rinviata.
+
+Verificato da fuori: alla `v2.0.10` rispondono 200 `registry.json`, `tema`, `scroll-area`, `tassullo-testo-segnaposto` e `tassullo-data-table`. Nel tema servito ci sono `scrollbar-width: thin`, `--scrollbar-thumb` e `@layer base`, e nessun `::-webkit-scrollbar`; in `scroll-area` il cursore legge `--scrollbar-thumb` e la barra compare con `data-scrolling`; `tassullo-testo-segnaposto` non dipende più da `scroll-area`.
+
+Non verificato su Safari vero: l'accesso a Safari è stato negato in sessione, e il colore delle barre lì resta da guardare a occhio.
+
+Per Anagrafe: il prompt per passare dalla `v2.0.8` alla `v2.0.10` (proposte #101 e #103 insieme) l'ha Francesco.
