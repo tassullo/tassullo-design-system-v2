@@ -108,7 +108,11 @@ const SHADCN_TOKENS = new Set([
  * che ne perde uno la classe non emette niente, senza errore, come un
  * `text-md`: il gate deve saperlo.
  */
-const TOKEN_DISPOSIZIONE = ["grid-template-columns-termine"];
+// `scrollbar-thumb` non genera un'utility, ma vale la stessa regola: è il
+// colore del cursore delle barre di scorrimento, e `scroll-area` lo legge
+// con `bg-(--scrollbar-thumb)`. Con un tema che non lo dichiara il cursore è
+// trasparente, senza errore.
+const TOKEN_DISPOSIZIONE = ["grid-template-columns-termine", "scrollbar-thumb"];
 
 /**
  * Un valore arbitrario è una parentesi quadra che NON apre una variante.

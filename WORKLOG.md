@@ -13636,3 +13636,51 @@ Verificato da fuori: `…/v2.0.9/public/r/tassullo-testo-segnaposto.json`, `…/
 Le tre aggiunte di Anagrafe (voci secondarie, tre graffe, nota nell'elenco che si apre scrivendo) sono arrivate in sessione e non sono scritte nella issue #101: stanno nella descrizione della PR #102 e in `DECISIONI.md` §74.
 
 Per Anagrafe: cosa reinstallare e cosa togliere è nella voce della proposta #101, in fondo agli «Aperti».
+
+
+## 2026-10-12 — Proposta #103: la barra di scorrimento predefinita
+
+Ramo `fras/proposta-103-barra-di-scorrimento`, nella stessa sessione della #101, su richiesta di Francesco. Il design system non aveva un aspetto per le barre di scorrimento; ora lo dà il tema. Le ragioni e le misure in `DECISIONI.md` §75.
+
+#### Cosa c'è
+
+- **Tema**: un blocco «Barre di scorrimento» in fondo a `tassullo-theme.css`, generato da `scripts/hex-to-oklch.ts`. `::-webkit-scrollbar` largo e alto `--spacing × 2.5`, cursore arrotondato col colore di `--scrollbar-thumb`, binario trasparente; `@supports not selector(::-webkit-scrollbar)` con le proprietà standard per Firefox. `--scrollbar-thumb` dichiarato su `:root`, `.light`, `.dark` e sulla sidebar.
+- **`scroll-area`**: il cursore passa da `bg-border` a `bg-(--scrollbar-thumb)`. Solo la stringa di classi.
+- **`tassullo-testo-segnaposto`**: l'elenco dei dati torna allo scorrimento nativo (via `ScrollArea`, messo con la `v2.0.9` solo per la barra): un posto in meno nel giro del `Tab`, e `scroll-area` esce dalle dipendenze.
+- **`tassullo-data-table`**: con `altezza="ferma"` e poche righe, il tetto conta l'altezza della barra orizzontale.
+- `check:registry` controlla che il tema dichiari `--scrollbar-thumb`. `CLAUDE.md`: la regola 8.
+- Prova `Primitive/ScrollArea › Barra predefinita, prova`, anche nel gate WebKit.
+
+#### Le scelte
+
+Due meccanismi resi e fotografati in Chromium e WebKit su guscio e tabella: le proprietà standard (A) e `::-webkit-scrollbar` (B). Francesco ha scelto B, sapendo che la barra diventa sempre visibile e occupa 10px in ogni area che scorre. E il cursore più scuro, anche in `scroll-area`: col colore dei bordi faceva 1,27:1 sul fondo di pagina.
+
+#### Problemi
+
+- **La barra che occupa posto ha fatto fallire `Altezza Ferma, poche righe, prova` in WebKit** (`scrollHeight` 182 su `clientHeight` 173): la tabella scorreva di lato, la barra orizzontale toglieva 10px e il riquadro scorreva in verticale. Corretto nella tabella; il difetto c'era già per chi tiene le barre di macOS sempre visibili.
+- **Il Chromium delle prove nasconde ogni barra**, anche quelle disegnate dal tema: tutte le prove di larghezza passavano senza vedere niente. Lo spessore si misura in WebKit.
+- **Il WebKit di Playwright non mette nelle foto la barra della finestra**: la striscia è vuota anche con un cursore rosso fisso. Quella di un elemento sì. La barra della pagina in Safari vero non l'ho potuta guardare (accesso a Safari negato): resta a Francesco.
+- La prima stesura della prova confrontava il riquadro scuro con uno «chiaro» senza classe: nella passata scura del gate erano uguali, e il gate l'ha preso. Il riquadro chiaro ora sta in un `.light`.
+- La sidebar di shadcn nasconde la sua barra (`no-scrollbar`): la regola per `[data-slot="sidebar"]` vale per ciò che scorre dentro la sidebar, non per la colonna.
+
+#### Test
+
+Passata una tantum di tutte le 539 scene in WebKit, con e senza la regola: 82 fallite in entrambi i casi, le stesse a meno di una coppia instabile di `select` (`Stati` / `Allineato Al Grilletto`). Sono i popup aperti in WebKit (guardie di fuoco di Base UI senza nome), già noti e fuori dal gate. `Barra predefinita, prova` in WebKit: 10/10px, 15/15 in touch; sul tema di `main` 0/0. `npm run check` verde: 540 scene, 2160 scansioni, 0 violazioni; WebKit 16 su 16.
+
+#### Cambio di strada, a PR aperta
+
+Vista la variante B nello Storybook, Francesco ha chiesto che i cursori comparissero solo durante lo scorrimento, «come nelle tabelle». Nelle tabelle è il comportamento di macOS (il suo Mac è su «automatico»: a scomparsa col trackpad, sempre visibile col mouse), e B lo spegne. Tre strade messe davanti: A le proprietà standard, B com'era, C B con uno script. Scelta A. Ciò che è scritto sopra su `::-webkit-scrollbar`, sui 10px e sulla densità touch vale per il primo commit della PR; il secondo lo sostituisce:
+
+- il tema ha `scrollbar-width: thin` e `scrollbar-color` su `*`, dentro `@layer base`: fuori dai livelli la regola rimetteva la barra alla sidebar, che shadcn nasconde con `no-scrollbar`;
+- la barra di `scroll-area` compare scorrendo o col puntatore sul riquadro (`data-scrolling`, `data-hovering`);
+- la prova `Barra predefinita, prova` legge le proprietà risolte invece dello spessore, e controlla che `no-scrollbar` vinca;
+- la correzione della tabella resta, ma nel gate non ha più una prova che fallisca sul codice di prima: nessuno dei due motori ha barre che occupano posto.
+
+Misurato in Chromium con le barre visibili: pagina ed elenco 11px, sidebar senza barra. In WebKit 0px, a scomparsa.
+
+#### Aperti
+
+- Da guardare a occhio su un Mac vero, col trackpad e col mouse: che la barra della pagina abbia il colore del tema.
+- 82 scene falliscono in WebKit fuori dal gate, tutte a popup aperto: da decidere se e come portarle nel gate.
+- Windows e Firefox non provati: su Firefox la barra è quella sottile del browser col colore del tema, per costruzione.
+- **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-data-table scroll-area tema --overwrite`. Le barre prendono il colore del tema ovunque senza toccare il codice; restano a scomparsa dove lo erano. Eventuali regole dell'app sulle barre si tolgono.

@@ -728,6 +728,40 @@ ${emitScala()}
 ${emitDensita("touch")}
 
 ${emitDensita("normale")}
+
+/* ── Barre di scorrimento ───────────────────────────────────────────────
+   Una barra sola in tutta l'app, nelle due direzioni: sottile, col colore
+   del tema, senza binario. Vale per la pagina, le tabelle, i menu: per
+   tutto ciò che scorre da sé.
+
+   Quando si vede lo decide il sistema, e non si forza: su un Mac col
+   trackpad compare solo mentre si scorre e non occupa posto; con un mouse
+   collegato, o su Windows, resta visibile.
+
+   Sta nel livello \`base\`, così una utility che nasconde la barra
+   (\`no-scrollbar\`) continua a vincere.
+
+   Il colore sta in una variabile, dichiarata dove cambiano i colori del
+   tema: un valore con dentro un \`var()\` si risolve sull'elemento che lo
+   dichiara, e dichiarato solo sulla radice resterebbe quello chiaro dentro
+   un sottoalbero \`.dark\`. Nella colonna di navigazione, che è scura in
+   entrambe le modalità, il cursore prende il colore del suo testo. */
+:root,
+.light,
+.dark {
+  --scrollbar-thumb: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+}
+
+[data-slot="sidebar"] {
+  --scrollbar-thumb: color-mix(in oklab, var(--sidebar-foreground) 35%, transparent);
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
 `;
 }
 

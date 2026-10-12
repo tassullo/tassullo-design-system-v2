@@ -3872,3 +3872,27 @@ Anagrafe ha adottato il blocco in una scheda con sei testi, fascia e tab ferme, 
 - **La nota anche nell'elenco che si apre scrivendo (punto 6).** Al posto del trattino, con più posto di un valore (`max-w-2/3`).
 
 **La #70 resta rinviata.**
+
+## 75. La barra di scorrimento predefinita (proposta #103, 2026-10-12)
+
+Il design system non aveva un aspetto per le barre di scorrimento: la barra sottile esisteva solo dentro `scroll-area`, e tutto il resto (la pagina, le tabelle, i menu: 17 file fra `ui/` e `blocks/`) scorreva con quella del sistema. Il rilievo è nato nella colonna laterale del guscio, dove la barra dell'elenco e quella della pagina stavano affiancate. Francesco: una barra sola, quella sottile del design system, in verticale e in orizzontale, in tutta l'app.
+
+**Le proprietà standard del CSS, in una regola del tema (variante A, alla seconda scelta).** La pagina scorre con la finestra e non può passare dal componente, quindi la regola sta nel tema e vale per ogni barra nativa: `scrollbar-width: thin` e `scrollbar-color`. Rese e fotografate due forme in Chromium e WebKit. (A) Le proprietà standard: colore del tema, larghezza e forma decise dal browser (11px e squadrata in Chromium), e **quando si vede lo decide il sistema**. (B) `::-webkit-scrollbar`, la copia al pixel della barra di `scroll-area`: 10px, arrotondata, uguale per tutti, ma **sempre visibile e con 10px occupati** in ogni area che scorre. Francesco ha scelto prima B; vista implementata ha chiesto che il cursore comparisse solo durante lo scorrimento, e la scelta è passata ad A. Quel comportamento è del sistema operativo e il CSS non lo accende: B lo spegne, A lo lascia com'è. Scartata anche una terza strada, B con uno script che mostra il cursore mentre si scorre: ogni app dovrebbe avviarlo, e i 10px resterebbero occupati a cursore nascosto.
+
+**Cosa vuol dire «lo decide il sistema».** Su un Mac col trackpad la barra compare solo scorrendo e non occupa posto; con un mouse collegato (impostazione «automatico», quella di serie) o su Windows resta visibile, sottile. Non è uguale per tutti, ed è il prezzo accettato.
+
+**La regola sta nel livello `base`.** Una regola del tema scritta fuori dai livelli vince su ogni utility, qualunque sia la specificità: `* { scrollbar-width: thin }` rimetteva la barra alla sidebar, che shadcn nasconde con `no-scrollbar`. Si è visto nella prima foto della variante A, dove la sidebar aveva un cursore. Dentro `@layer base` le utility vincono. La classe con cui Base UI nasconde la barra nativa di `scroll-area` sta fuori dai livelli, e vince comunque.
+
+**Il cursore è più scuro di quello che `scroll-area` aveva, e `scroll-area` lo segue.** Col colore dei bordi faceva 1,27:1 sul fondo di pagina e 1,36:1 sulla card. Ora è il testo attenuato al 55%: 2,17:1 sulla pagina, 2,23 sulla card, 3,16 e 3,06 in scuro. Nella sidebar, scura in entrambe le modalità, quel grigio farebbe 1,86:1: lì è il testo della sidebar al 35%. Il colore sta in `--scrollbar-thumb`, e il cursore di `scroll-area` passa da `bg-border` a `bg-(--scrollbar-thumb)`.
+
+**La barra di `scroll-area` compare mentre si scorre o col puntatore sul riquadro.** Prima restava sempre visibile; ora segue la stessa idea delle barre native. Base UI mette `data-scrolling` e `data-hovering` sulla barra: è solo la stringa di classi.
+
+**La variabile è dichiarata su `:root`, `.light`, `.dark` e sulla sidebar, non solo sulla radice.** Un valore con dentro un `var()` si risolve sull'elemento che lo dichiara: dichiarato solo sulla radice, dentro un sottoalbero `.dark` il cursore resterebbe del colore chiaro. Senza errore.
+
+**Non è un token di colore della palette.** È un `color-mix` di due token che ci sono già, scritto dal generatore nel blocco delle barre. `check:registry` controlla che il tema lo dichiari, come `grid-cols-termine`: con un tema che non ce l'ha il cursore di `scroll-area` è trasparente.
+
+**`scroll-area` resta, per ciò per cui è nato.** Un riquadro che scorre senza controlli dentro deve essere raggiungibile da tastiera. Non serve per avere la barra sottile: l'elenco di `tassullo-testo-segnaposto`, che lo montava dalla `v2.0.9` solo per quello, torna allo scorrimento nativo e perde il posto in più nel giro del `Tab`.
+
+**Un difetto della tabella, uscito con la variante B e corretto comunque.** Con `altezza="ferma"` e poche righe il riquadro è alto quanto la tabella (§71). Se la tabella scorre anche di lato e la barra occupa posto, le righe non entrano più e il riquadro scorre in verticale di quanto è alta la barra (WebKit con la barra da 10px: `scrollHeight` 182 su `clientHeight` 173). Vale per chiunque abbia le barre sempre visibili, cioè con un mouse. Il tetto ora conta l'altezza della barra orizzontale.
+
+**Misure e limiti.** Il Chromium delle prove nasconde ogni barra, e il WebKit di Playwright le ha a scomparsa: nessuno dei due motori del gate vede una barra che occupa posto, quindi la correzione della tabella non ha oggi una prova nel gate (l'aveva con la variante B, dove falliva sul codice di prima). La prova `Barra predefinita, prova` legge le proprietà risolte: `thin`, il colore che cambia nel sottoalbero scuro, `none` con `no-scrollbar` e nel `Viewport` di `scroll-area`. Con la variante B, tutte le 539 scene in WebKit con e senza la regola: stesse 82 fallite (popup aperti, guardie di fuoco di Base UI, fuori dal gate).

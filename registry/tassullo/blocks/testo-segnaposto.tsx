@@ -56,8 +56,10 @@
  * senza valore gruppo e nome, e la nota in un tooltip. La pillola senza
  * valore non è più gialla ma neutra e tratteggiata (Francesco, stessa
  * sessione): un dato che cambia da una variante all'altra non è un avviso.
- * L'elenco scorre con `ScrollArea`: la barra nativa, accanto a quella della
- * pagina, faceva due barre uguali una a fianco dell'altra.
+ * L'elenco per un giorno ha scorso con `ScrollArea`, perché la barra nativa
+ * stava a fianco di quella della pagina, uguale. Con la barra predefinita
+ * del tema (proposta #103) lo scorrimento è tornato nativo: stessa barra, e
+ * un posto in meno nel giro del `Tab`.
  *
  * Tre aggiunte di Anagrafe alla stessa proposta. `secondaria` sulla voce: le
  * `voci` decidevano insieme cosa si propone e cosa è valido, e per avere un
@@ -112,7 +114,6 @@ import { Button } from "@/registry/tassullo/ui/button"
 import { Input } from "@/registry/tassullo/ui/input"
 import { Item } from "@/registry/tassullo/ui/item"
 import { Label } from "@/registry/tassullo/ui/label"
-import { ScrollArea } from "@/registry/tassullo/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -1209,16 +1210,9 @@ export function TestoSegnapostoElenco({
           onChange={(evento) => setCercato(evento.target.value)}
         />
       </div>
-      {/* La barra di scorrimento è quella sottile del design system: accanto
-          a quella della pagina non si confonde con lei. Ciò che scorre prende
-          l'altezza che resta come elemento flex, non in percentuale: in un
-          riquadro con la sola altezza massima la percentuale non vale, e
-          l'elenco uscirebbe dal riquadro. */}
-      <ScrollArea className="-mx-1 flex min-h-0 flex-1 flex-col *:data-[slot=scroll-area-viewport]:min-h-0 *:data-[slot=scroll-area-viewport]:flex-1">
-        {/* `relative`: i testi per i lettori di schermo, che sono posizionati,
-            restano dentro ciò che scorre e non allungano la pagina. Quando
-            c'è da scorrere, a destra resta il posto della barra. */}
-        <div className="relative flex flex-col gap-1.5 px-1 py-px in-data-has-overflow-y:pr-3.5">
+      {/* `relative`: i testi per i lettori di schermo, che sono posizionati,
+          restano dentro ciò che scorre e non allungano la pagina. */}
+      <div className="relative -mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 py-px">
         {mostrate.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">{vuoto}</p>
         ) : null}
@@ -1288,8 +1282,7 @@ export function TestoSegnapostoElenco({
               {tutte ? meno : altri(secondarie)}
             </Button>
           ) : null}
-        </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }

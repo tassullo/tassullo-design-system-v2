@@ -758,14 +758,13 @@ export const ElencoProva: Story = {
     expect(senza.closest('[role="group"]')).toHaveAttribute('aria-label', 'Prodotto')
 
     // Nel riquadro, che ha solo un'altezza massima, i dati scorrono dentro:
-    // l'elenco non esce dal fondo e la barra è quella sottile.
+    // l'elenco non esce dal fondo.
     const riquadro = dati.closest('aside')!
-    const scorre = dati.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
+    const scorre = righe()[0].closest<HTMLElement>('.overflow-y-auto')!
     expect(`elenco dentro il riquadro: ${dati.getBoundingClientRect().bottom <= riquadro.getBoundingClientRect().bottom}`).toBe(
       'elenco dentro il riquadro: true'
     )
     expect(`scorre dentro: ${scorre.scrollHeight > scorre.clientHeight}`).toBe('scorre dentro: true')
-    expect(getComputedStyle(scorre).scrollbarWidth).toBe('none')
 
     // Il filtro per gruppo, poi la ricerca dentro il gruppo.
     await userEvent.click(within(dati).getByRole('combobox'))
@@ -983,11 +982,8 @@ export const ElencoNelRiquadroProva: Story = {
       `pagina ${pagina.clientHeight} su ${pagina.clientHeight}`
     )
 
-    // Le voci stanno nel giro del `Tab`, anche in Safari. Prima di loro c'è
-    // ciò che scorre, che da lì si scorre con le frecce.
+    // Le voci stanno nel giro del `Tab`, anche in Safari.
     within(dati).getByRole('searchbox').focus()
-    await userEvent.tab()
-    expect(document.activeElement).toHaveAttribute('data-slot', 'scroll-area-viewport')
     await userEvent.tab()
     expect(document.activeElement).toBe(righe()[0])
     expect(righe()[0].tabIndex).toBe(0)
