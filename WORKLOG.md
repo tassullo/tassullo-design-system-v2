@@ -13756,3 +13756,14 @@ Con mouse e tasti veri (Playwright dalla cartella temporanea, Chromium e WebKit,
 - Le scene virtualizzate in WebKit stampano «ResizeObserver loop…» senza fallire: c'era già.
 - `CLAUDE.md`, alla voce `test:webkit`, dice ancora «cinque scene».
 - `misura:bersagli` non rilanciato. Safari vero non provato da qui: l'ha provato Francesco.
+
+
+## 2026-10-12 — `v2.0.11` pubblicata
+
+Francesco ha provato il ramo nello Storybook locale, ha corretto le forme (vedi la voce della proposta #107) e a CI verde ha dato il via. PR #108 unita col gate verde in CI sul commit `67eb984`; l'unione è `7a5972a`. Etichetta `v2.0.11` su `7a5972a`, push della sola etichetta; le versioni precedenti restano dove erano. Con la PR si è chiusa la issue #107; resta aperta la #70, rinviata.
+
+Verificato da fuori: alla `v2.0.11` rispondono 200 `registry.json`, `tassullo-testo-segnaposto`, `tassullo-app-shell` e `registry/tassullo/lib/segnaposto.ts`. Nel blocco servito ci sono la voce attiva per testo, `indicata ?? selezionata`, la pillola in volo, `onGruppo`, `FORMA_SEGNAPOSTO` e «Nessun dato»; non c'è `mostraAltri`, e `secondaria` compare solo nelle note di testa, che `add` toglie. I file dell'item sono due, col `lib/segnaposto.ts`; fra le dipendenze non c'è più `button`. Nel guscio servito ci sono `w-xs`, `has-data-trascina` e `isolate`; non ci sono `Sheet` né `onChiudi`.
+
+**Rompe chi aggiorna, in un punto solo**: `secondaria`, `altri` e `meno` non esistono più, e un'app che li passa non compila finché non li toglie. Il prompt di adozione per Anagrafe, scritto a Francesco in sessione, lo mette fra i passi obbligatori.
+
+Non provato da qui: Safari vero (l'ha provato Francesco sul ramo).
