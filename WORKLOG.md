@@ -13667,9 +13667,20 @@ Due meccanismi resi e fotografati in Chromium e WebKit su guscio e tabella: le p
 
 Passata una tantum di tutte le 539 scene in WebKit, con e senza la regola: 82 fallite in entrambi i casi, le stesse a meno di una coppia instabile di `select` (`Stati` / `Allineato Al Grilletto`). Sono i popup aperti in WebKit (guardie di fuoco di Base UI senza nome), già noti e fuori dal gate. `Barra predefinita, prova` in WebKit: 10/10px, 15/15 in touch; sul tema di `main` 0/0. `npm run check` verde: 540 scene, 2160 scansioni, 0 violazioni; WebKit 16 su 16.
 
+#### Cambio di strada, a PR aperta
+
+Vista la variante B nello Storybook, Francesco ha chiesto che i cursori comparissero solo durante lo scorrimento, «come nelle tabelle». Nelle tabelle è il comportamento di macOS (il suo Mac è su «automatico»: a scomparsa col trackpad, sempre visibile col mouse), e B lo spegne. Tre strade messe davanti: A le proprietà standard, B com'era, C B con uno script. Scelta A. Ciò che è scritto sopra su `::-webkit-scrollbar`, sui 10px e sulla densità touch vale per il primo commit della PR; il secondo lo sostituisce:
+
+- il tema ha `scrollbar-width: thin` e `scrollbar-color` su `*`, dentro `@layer base`: fuori dai livelli la regola rimetteva la barra alla sidebar, che shadcn nasconde con `no-scrollbar`;
+- la barra di `scroll-area` compare scorrendo o col puntatore sul riquadro (`data-scrolling`, `data-hovering`);
+- la prova `Barra predefinita, prova` legge le proprietà risolte invece dello spessore, e controlla che `no-scrollbar` vinca;
+- la correzione della tabella resta, ma nel gate non ha più una prova che fallisca sul codice di prima: nessuno dei due motori ha barre che occupano posto.
+
+Misurato in Chromium con le barre visibili: pagina ed elenco 11px, sidebar senza barra. In WebKit 0px, a scomparsa.
+
 #### Aperti
 
-- **Da guardare in Safari vero**: la barra della pagina (cursore visibile, binario col fondo di pagina).
+- Da guardare a occhio su un Mac vero, col trackpad e col mouse: che la barra della pagina abbia il colore del tema.
 - 82 scene falliscono in WebKit fuori dal gate, tutte a popup aperto: da decidere se e come portarle nel gate.
 - Windows e Firefox non provati: su Firefox la barra è quella sottile del browser col colore del tema, per costruzione.
-- **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-data-table scroll-area tema --overwrite`. Le barre cambiano ovunque senza toccare il codice; dove l'app ha misure al pixel su aree che scorrono, vanno riguardate. Eventuali regole dell'app sulle barre si tolgono.
+- **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-data-table scroll-area tema --overwrite`. Le barre prendono il colore del tema ovunque senza toccare il codice; restano a scomparsa dove lo erano. Eventuali regole dell'app sulle barre si tolgono.

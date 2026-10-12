@@ -730,13 +730,16 @@ ${emitDensita("touch")}
 ${emitDensita("normale")}
 
 /* ── Barre di scorrimento ───────────────────────────────────────────────
-   Una barra sola in tutta l'app, nelle due direzioni: quella del componente
-   \`scroll-area\`. Larga 2.5 unità (10px, 15 in densità touch), cursore
-   arrotondato, binario trasparente. Vale per la pagina, le tabelle, i menu,
-   la colonna di navigazione: per tutto ciò che scorre da sé.
+   Una barra sola in tutta l'app, nelle due direzioni: sottile, col colore
+   del tema, senza binario. Vale per la pagina, le tabelle, i menu: per
+   tutto ciò che scorre da sé.
 
-   È sempre visibile e occupa il suo posto, anche su un Mac impostato per
-   mostrare le barre solo scorrendo: così è uguale per tutti.
+   Quando si vede lo decide il sistema, e non si forza: su un Mac col
+   trackpad compare solo mentre si scorre e non occupa posto; con un mouse
+   collegato, o su Windows, resta visibile.
+
+   Sta nel livello \`base\`, così una utility che nasconde la barra
+   (\`no-scrollbar\`) continua a vincere.
 
    Il colore sta in una variabile, dichiarata dove cambiano i colori del
    tema: un valore con dentro un \`var()\` si risolve sull'elemento che lo
@@ -753,28 +756,7 @@ ${emitDensita("normale")}
   --scrollbar-thumb: color-mix(in oklab, var(--sidebar-foreground) 35%, transparent);
 }
 
-*::-webkit-scrollbar {
-  width: calc(var(--spacing) * 2.5);
-  height: calc(var(--spacing) * 2.5);
-}
-
-/* Il bordo trasparente è il margine attorno al cursore: il colore si ferma
-   al suo interno. */
-*::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb);
-  background-clip: padding-box;
-  border: 1px solid transparent;
-  border-radius: calc(infinity * 1px);
-}
-
-*::-webkit-scrollbar-track,
-*::-webkit-scrollbar-corner {
-  background-color: transparent;
-}
-
-/* Dove quelle regole non esistono (Firefox) la barra è quella sottile del
-   browser, con lo stesso colore. */
-@supports not selector(::-webkit-scrollbar) {
+@layer base {
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
