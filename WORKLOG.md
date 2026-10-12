@@ -13625,3 +13625,14 @@ Da ricordare: prettier, lanciato su un file del registry, lo riscrive per intero
 - `misura:bersagli` non rilanciato: le intestazioni di gruppo non sono bersagli, le voci dell'elenco restano quelle.
 - `tassullo-rich-text-editor` ha ancora il confronto sul `value` di §73.
 - **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-app-shell --overwrite`. La colonna dei dati diventa `<ColonnaLaterale etichetta="Dati da citare">` dentro la tab, e si tolgono il riquadro `relative overflow-hidden`, le classi `@2xl/scheda` della colonna e l'altezza minima. Le sezioni che un altro ufficio scrive passano da `disabled` a `readOnly`. L'avviso «aspetta la fine del salvataggio» diventa `disabled` sull'elenco. Si tolgono i `// in attesa di …#101`. Per il punto 10: tutte le voci valide nelle `voci`, con `secondaria: true` su quelle da non proporre per prime (per esempio quelle senza valore), e la regola sul server che vietava ciò che l'elenco non mostra si può togliere. La reinstallazione porta anche `scroll-area` e `button`.
+
+
+## 2026-10-12 — `v2.0.9` pubblicata
+
+Via libera di Francesco a CI verde. PR #102 unita col gate verde in CI sul commit `3353598`; l'unione è `bb208bd`. Etichetta `v2.0.9` su `bb208bd`, push della sola etichetta; le versioni precedenti restano dove erano. Con la PR si è chiusa la issue #101; restano aperte la #70, rinviata, e la #103 (barra di scorrimento predefinita), accettata e da fare.
+
+Verificato da fuori: `…/v2.0.9/public/r/tassullo-testo-segnaposto.json`, `…/tassullo-app-shell.json` e `…/v2.0.9/registry.json` rispondono 200. Nel blocco servito ci sono `readOnly`, `secondaria`, `segnapostoIn`, `ScrollArea`, il tooltip della pillola e il bordo tratteggiato; fra le dipendenze `button` e `scroll-area`. Nel guscio servito c'è `ColonnaLaterale`.
+
+Le tre aggiunte di Anagrafe (voci secondarie, tre graffe, nota nell'elenco che si apre scrivendo) sono arrivate in sessione e non sono scritte nella issue #101: stanno nella descrizione della PR #102 e in `DECISIONI.md` §74.
+
+Per Anagrafe: cosa reinstallare e cosa togliere è nella voce della proposta #101, in fondo agli «Aperti».
