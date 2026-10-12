@@ -13519,3 +13519,42 @@ Via libera di Francesco a CI verde. PR #96 unita col gate verde in CI sul commit
 Verificato da fuori: `…/v2.0.7/public/r/tassullo-data-table.json` e `…/v2.0.7/registry.json` rispondono 200. Nel `tassullo-data-table` servito ci sono la larghezza presa al blocco (`presePerBlocco`, `larghezzaPresaAlBlocco`), `minSize: undefined` nella colonna di serie, il gruppo «Ordina» legato a `getCanSort()` e il «⋮» visibile col menu aperto.
 
 Per Anagrafe: cosa reinstallare e quali aggiramenti togliere è nella voce dell'ondata 4, sezione «Tabella».
+
+
+## 2026-10-11 — Proposta #98: il testo con segnaposto
+
+Ramo `fras/proposta-98-suggerimenti-al-cursore`. Una proposta di Anagrafe dell'11 ottobre: un campo di testo su più righe con suggerimenti al cursore, per la pagina «Testi» di una famiglia. La #70 resta rinviata. Francesco ha seguito la sessione dal vivo, con le schermate della pagina di Anagrafe, e ha cambiato la forma strada facendo: le ragioni e le misure in `DECISIONI.md` §73.
+
+#### Cosa c'è
+
+- **`tassullo-testo-segnaposto`** (`blocks/testo-segnaposto.tsx`), tre export: `TestoSegnaposto`, `TestoSegnapostoElenco`, i tipi `VoceSegnaposto` e `TestoSegnapostoRef`. Tiptap con schema minimo (paragrafi, testo, il nodo `segnaposto`). Dipendenze nuove dichiarate in `package.json`, alle versioni già installate come dipendenze di `starter-kit`: `@tiptap/core`, `@tiptap/pm`, `@tiptap/extension-document`, `-paragraph`, `-text`, `@tiptap/extensions` (3.31.3; con `^3.31.3` scritto a mano npm prendeva 3.31.4 e i pari non tornavano).
+- Scene `Blocchi/Testo con segnaposto`: Predefinito (col valore salvato sotto), Pillole, Con Elenco Dei Dati, Nel Modulo, Stati. Sette scene di prova nascoste; tre anche nel gate WebKit (Pillole, Doppio clic, Posizione).
+- `.storybook/prove/apri.ts`: `apriScrivendo`, per i popup che si aprono scrivendo. `scripts/gate-a11y.ts`: `testo-segnaposto` fra i componenti con popup.
+- `CLAUDE.md`: la terza eccezione di axe.
+
+#### Come ci si è arrivati
+
+1. Prima stesura: `Textarea` + `Popover` di Base UI + `Command`, con uno specchio invisibile per sapere dove cade il cursore. Finita e provata (10 prove). Messa a fianco di una prova con le pillole, su domanda di Francesco («si potrebbe trascinare la pillola del segnaposto nel testo?»).
+2. Francesco sceglie le pillole, col valore di oggi al posto del nome; poi il doppio clic per correggere; poi l'elenco dei dati in un pannello a destra; poi «stringe la pagina, non la copre». La prima stesura è stata tolta dal ramo.
+3. Il pannello sovrapposto (un dialogo non modale di Base UI senza sfondo) è stato scritto e tolto nella stessa ora, dopo la precisazione: resta `TestoSegnapostoElenco`, e la colonna è una ricetta di pagina.
+
+#### Problemi
+
+- **Una violazione di axe lascia le animazioni ferme per tutto il file.** In test Storybook sospende le animazioni dopo la `play` e le riattiva dopo i controlli; se il controllo di accessibilità fallisce il ripristino non parte, e nelle scene seguenti i popup non si smontano più (`animation-play-state: paused`). Quattro prove sembravano rotte ed erano la coda della prima. Quando in un file falliscono «tutte le chiusure», si guarda la prima scena.
+- `userEvent.keyboard` tratta `[` come inizio di un tasto: un aiuto che raddoppia graffe e quadre per scrivere `{{` rompe `[Escape]`. Testo e tasti si mandano con due chiamate diverse.
+- Il difetto dell'eco in ritardo (`DECISIONI.md` §73) per un'ora è sembrato un limite della tastiera simulata, e così l'ho detto a Francesco. Era del blocco. Corretto, la tastiera simulata scrive le pillole; resta vero solo che non chiude l'elenco a pillola fatta.
+- `react-hooks/immutability` (lint delle app) rifiuta di scrivere in `editor.storage` dentro il componente: la scrittura sta in una funzione a parte, `riempi`.
+
+#### Test
+
+`npx vitest run` sul file: 12 su 12 in Chromium, 3 su 3 in WebKit. Tastiera e mouse veri con Playwright dalla cartella temporanea, Chromium e WebKit, contro lo Storybook di sviluppo: le sequenze sono in `DECISIONI.md` §73.
+
+#### Aperti
+
+- Confermati da Francesco il 2026-10-12: la regola di axe spenta sulle scene del blocco e il nome `tassullo-testo-segnaposto`.
+- `tassullo-rich-text-editor` ha lo stesso confronto «`value` diverso dall'ultimo emesso» che qui perdeva testo: da correggere a parte.
+- In WebKit le guardie di fuoco di Base UI dei popover non modali hanno `role="button"` senza nome: vale per tutto il registry, nessuna scena del gate WebKit lo vedeva perché finivano a popup chiuso.
+- Il nome del dato sulla pillola è un `title` nativo. In densità touch le voci dell'elenco sono alte come quelle di `command` (32px).
+- Dalla revisione di Francesco sulla scena, il 2026-10-12: nell'elenco dei dati un dato senza valore occupava tre righe (nome, badge «Senza valore», nota). Ora ha un trattino al posto del valore ed è alto come gli altri (prova nella scena dell'elenco); la nota è nel `title` della riga. Lo stesso trattino nell'elenco dei suggerimenti, che passa da 320 a 448px (`w-md`): a 448 l'unica voce tagliata della scena è la frase standard intera; a 375px di finestra sta fra 5 e 370px.
+- Nella schermata di Francesco il pannello Accessibility segnava 1 sulla scena `Con Elenco Dei Dati`, col codice di prima. Non riprodotto: col codice nuovo 0 in chiaro e in scuro, e 0 con axe lanciato a mano a tre altezze di scorrimento dell'elenco. Il gate era a 0 anche prima.
+- **Per Anagrafe**: `add tassullo-testo-segnaposto`; le voci sono la tabella dei segnaposto di oggi (`testo`, `etichetta`, `gruppo`, `valore`, `nota`); il valore dei campi non cambia. «Anteprima» e la tabella in fondo si possono togliere; i `// in attesa di …#98` pure.

@@ -1594,6 +1594,38 @@
       "docs": "Un blocco, un uso:\n\n  <RichTextEditor\n    defaultValue={testoEsistente}\n    onChange={(json) => salva(json)}\n    limite={2048}\n  />\n\nIl valore è **JSON** (`JSON.stringify(editor.getJSON())`), non HTML: la\nstessa struttura produce sempre la stessa stringa — la condizione che\n`tassullo-diff-view` chiede per confrontare due revisioni.\n\n`@tiptap/react` è headless, come\n`react-dropzone` e `react-pdf` prima di lui — `useEditor` restituisce\nun'istanza su cui si legge lo stato e si comandano i cambi, senza una barra\ndi libreria da disfare.\n\n**La barra ridotta è lo schema del documento, non solo la scelta dei\nbottoni.** `StarterKit` porta di suo titoli, citazioni, codice, riga\norizzontale e sottolineato — tutti spenti nella configurazione — quindi un\nincolla da Word non li trascina dentro \"declassati\": ProseMirror li scarta\nall'analisi dell'HTML incollato, per costruzione. Restano grassetto,\ncorsivo, apice e pedice (`@tiptap/extension-superscript`,\n`@tiptap/extension-subscript`, nessuno dei due in `StarterKit` — non si\nescludono a vicenda di fabbrica, da cui il bottone \"Rimuovi formattazione\",\n`unsetAllMarks` + `clearNodes`) e collegamento (`openOnClick: false`: si\nlegge, non si segue, da dentro l'editor — il click apre invece il popover\nper modificarlo).\n\nIl limite è `@tiptap/extension-character-count`, `mode: 'textSize'`: conta\nil testo, non i marcatori — lo stesso significato di `z.string().max(2048)`\nsu `tassullo-form-field`. Il contatore cambia colore da 50 caratteri residui\n(`warning`) e a zero (`destructive`, sulla variante `-subtle-foreground`:\nmai `text-destructive`, che è un colore da fondo e come testo su scuro\nnon arriva a 4.5:1)."
     },
     {
+      "name": "tassullo-testo-segnaposto",
+      "type": "registry:block",
+      "title": "Testo con segnaposto",
+      "description": "Un testo su più righe in cui i dati citati — {{famiglia.nome}} — si vedono come pillole col valore di oggi; il valore resta una stringa con i segnaposto scritti per esteso. Si inseriscono dall'elenco che si apre scrivendo il prefisso, trascinandoli, o da un bottone. Con l'elenco dei dati da tenere accanto ai testi. @tiptap/react, headless.",
+      "dependencies": [
+        "cn",
+        "@tiptap/react",
+        "@tiptap/core",
+        "@tiptap/pm",
+        "@tiptap/extension-document",
+        "@tiptap/extension-paragraph",
+        "@tiptap/extension-text",
+        "@tiptap/extensions"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/testo-segnaposto.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/testo-segnaposto.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/command",
+        "@tassullo/input",
+        "@tassullo/item",
+        "@tassullo/label",
+        "@tassullo/select",
+        "@tassullo/tema"
+      ],
+      "docs": "Un blocco, un valore: la stringa con i segnaposto.\n\n  <TestoSegnaposto\n    value={testo}\n    onChange={setTesto}\n    voci={[\n      { testo: '{{famiglia.nome}}', etichetta: 'Nome della famiglia', gruppo: 'Famiglia', valore: 'Malta R4' },\n    ]}\n  />\n\nNel testo ogni segnaposto è una pillola che mostra `valore`, il valore di\noggi: il testo si legge com'è, e si riconosce cosa viene dall'archivio. La\npillola è gialla e mostra il nome del dato quando il valore manca (`nota`\ndice perché), rossa quando il segnaposto non è fra le `voci`. Ciò che entra\ned esce da `value` e `onChange` resta la stringa: anteprime, controlli e\nsalvataggi dell'app non cambiano.\n\n**Tre modi di inserire un dato.** Scrivendo il prefisso (`{{` di serie) si\napre un elenco sotto il cursore, che si restringe con ciò che si scrive: le\nfrecce scorrono, `Invio` o `Tab` inseriscono, `Esc` chiude. Un testo\ntrascinato dentro, se ha la forma di un segnaposto, diventa pillola dove lo\nsi rilascia. E `ref.inserisci(testo)` lo mette nel punto del cursore.\nQualunque testo con la forma di un segnaposto (`forma`, di serie le doppie\ngraffe) diventa pillola, anche incollato o scritto a mano.\n\n**Correggere.** Il doppio clic su una pillola, o `Invio` sulla pillola\nselezionata, la riporta al suo testo con l'elenco aperto. Quando il cursore\nne esce torna pillola.\n\n**L'elenco dei dati accanto ai testi.**\n\n  const ultimo = useRef<TestoSegnapostoRef | null>(null)\n\n  <TestoSegnaposto voci={voci} onFocus={(campo) => { ultimo.current = campo }} />\n  <TestoSegnapostoElenco voci={voci} onScegli={(voce) => ultimo.current?.inserisci(voce.testo)} />\n\n`TestoSegnapostoElenco` ha in cima il filtro per gruppo e la ricerca, che\nrestano fermi, e sotto i dati, che scorrono: in piccolo il nome, in evidenza\nil valore. Ogni dato si clicca o si trascina in un testo. Va in una colonna\ndella pagina, accanto ai testi, non in un pannello sovrapposto: un pannello\nche copre la pagina non lascia trascinare.\n\n**Dentro un modulo** si usa con `tassullo-form-field`, passando il campo\ncosì com'è: `{(campo) => <TestoSegnaposto {...campo} voci={voci} />}`.\nL'etichetta del modulo si collega da sé.\n\n`@tiptap/react` è headless, come in `tassullo-rich-text-editor`. Lo schema ha\nsolo paragrafi, testo e il segnaposto: una riga è un paragrafo, e niente\nformattazione sopravvive a un incolla."
+    },
+    {
       "name": "tassullo-split-view",
       "type": "registry:block",
       "title": "Vista affiancata",
