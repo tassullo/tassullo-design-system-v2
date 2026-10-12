@@ -13570,3 +13570,41 @@ Per Anagrafe: il prompt per adottare il blocco nella pagina «Testi» l'ha Franc
 
 Resta aperto, dalla voce della proposta: `tassullo-rich-text-editor` ha il confronto sul `value` che in questo blocco perdeva testo.
 
+
+
+## 2026-10-12 — Proposta #101: il testo con segnaposto dopo l'uso in Anagrafe
+
+Ramo `fras/proposta-101-testo-segnaposto`. Una proposta di Anagrafe con nove punti, dall'adozione del blocco nella scheda «Testi» (`v2.0.8`). La #70 resta rinviata. Sei punti sono correzioni; per i punti 2, 5 e 6 Francesco ha scelto su varianti rese in `stories/ondata5/` (fuori da git, scene poi tolte) e fotografate in Chromium di Playwright. Le ragioni in `DECISIONI.md` §74.
+
+#### Cosa c'è
+
+- **1 · `readOnly`** su `TestoSegnaposto`: `contenteditable="false"`, `aria-readonly`, contrasto pieno, nel giro del `Tab` (il blocco rimette il `tabindex` che l'editor toglie), selezionabile. Niente elenco, niente rilascio, niente doppio clic. Scena `Stati`.
+- **2 · `ColonnaLaterale`** in `app-shell.tsx` (variante B): la pagina la dichiara, il guscio la rende con un portale a destra del contenuto, ferma sotto la fascia e accanto alle tab. Sotto `@4xl` del contenitore sale sopra il contenuto. Scena `Blocchi/App shell › Colonna Laterale`. A 1440×900, pagina scorsa di 1500px: colonna da 48 a 900px, ricerca a 180px (in Anagrafe la ricerca era a −2210px).
+- **3 · `relative`** sul contenitore che scorre dell'elenco: in un riquadro alto 320px la pagina passa da 1636 a 900px su 900.
+- **4 · `inserisci`** sostituisce il prefisso appena scritto: «x {{{{qualifica.norma}}» → «x {{qualifica.norma}}». In un campo disabilitato o di sola lettura non fa niente.
+- **5 e 6 · elenco** (variante 1): intestazioni di gruppo con «Tutti i dati», e la `nota` al posto del trattino. **Pillola gialla** (P1): «Gruppo · Nome», e la nota in un tooltip che si apre col puntatore e sulla pillola selezionata; sulla grigia il tooltip dice gruppo e nome. Tolti i `title` nativi.
+- **7 · `disabled`** su `TestoSegnapostoElenco`: filtro, ricerca e voci spenti, voci non trascinabili.
+- **8 · spazi nelle graffe**: `{{ famiglia.nome }}` è una pillola col suo valore; il valore resta com'è scritto. Controllato nel motore di Anagrafe (`binding.py`), che gli spazi li toglie.
+- **9 · `tabIndex={0}`** sulle voci dell'elenco: confermato, ma la causa non è `draggable` (§74).
+
+#### Trovato provando
+
+- **In WebKit i tasti vanno dov'è la selezione.** Col fuoco sul testo di sola lettura (arrivato col `Tab`), «abc» finiva nel campo di prima: «prima» → «primaabc». Al fuoco il blocco porta la selezione nell'area. Con la tastiera simulata non si vede: si vede con Playwright e tasti veri.
+- Tailwind non legge le cartelle escluse da git: nelle scene di `stories/ondata5/` una classe usata solo lì (`top-24`, un `h-[calc(…)]`) non emette niente, senza errore. Le varianti vanno scritte con classi che il registry usa già, o con `style`.
+- `userEvent` non muove il cursore con le frecce in un `contenteditable`: la pillola selezionata, nelle prove, si ottiene con `setNodeSelection`. Con le frecce vere in Chromium e WebKit il tooltip compare su ogni pillola attraversata.
+
+#### Test
+
+Prove nuove, ognuna fallisce sul codice di partenza: `Sola lettura, prova`, `Inserisci sul prefisso, prova`, `Spazi nelle graffe, prova`, `Elenco nel riquadro, prova` (pagina, `Tab`, spento), più il tooltip in `Pillole, prova` e le intestazioni in `Elenco dei dati, prova`; nel guscio `Colonna Laterale, prova` e `Colonna Laterale, stretta, prova`. Nel gate WebKit: sola lettura, elenco nel riquadro, colonna laterale. Con tasti e puntatore veri (Playwright dalla cartella temporanea, Chromium e WebKit, contro lo Storybook di sviluppo): `Tab` sulla sola lettura e oltre, selezione col mouse («La malta»), tooltip al passaggio e con le frecce, prefisso e clic sull'elenco, `Tab` dalla ricerca alla prima voce, trascinamento dalla colonna laterale a un testo a pagina scorsa, colonna sopra il contenuto a 1000px di finestra.
+
+`npm run check` verde: 13 gate, `test:a11y` 536 scene, 2144 scansioni, 0 violazioni; `test:webkit` 15 su 15. `npm run build` verde.
+
+#### Aperti
+
+- Il contenuto del guscio ha due `div` in più attorno: un selettore di un'app che contava i figli del `main` va rivisto. Nessuno nel registry.
+- Due `ColonnaLaterale` montate insieme si rendono una sotto l'altra, senza avviso.
+- In sola lettura le pillole si possono ancora trascinare fuori, verso un altro testo: lì arrivano come copia, l'origine non cambia.
+- Il tooltip della pillola non è collegato all'area con `aria-describedby`.
+- `misura:bersagli` non rilanciato: le intestazioni di gruppo non sono bersagli, le voci dell'elenco restano quelle.
+- `tassullo-rich-text-editor` ha ancora il confronto sul `value` di §73.
+- **Per Anagrafe**: `add tassullo-testo-segnaposto tassullo-app-shell --overwrite`. La colonna dei dati diventa `<ColonnaLaterale etichetta="Dati da citare">` dentro la tab, e si tolgono il riquadro `relative overflow-hidden`, le classi `@2xl/scheda` della colonna e l'altezza minima. Le sezioni che un altro ufficio scrive passano da `disabled` a `readOnly`. L'avviso «aspetta la fine del salvataggio» diventa `disabled` sull'elenco. Si tolgono i `// in attesa di …#101`.

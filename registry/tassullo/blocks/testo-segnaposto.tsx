@@ -42,6 +42,25 @@
  * elenco di ascoltatori, e quando le voci cambiano si ridisegna. Il
  * documento, e quindi il valore, non cambia.
  *
+ * ── Proposta #101 (Anagrafe), 12 ottobre 2026 ────────────────────────────
+ *
+ * Dall'uso nella scheda «Testi». `readOnly`: l'area non si modifica, quindi
+ * l'editor le toglie il `tabindex`, e il blocco glielo rimette; la selezione
+ * del documento va portata nell'area quando prende il fuoco, o in Safari i
+ * tasti finiscono nel campo di prima (misurato: «prima» → «primaabc»).
+ * `inserisci` sostituisce il prefisso appena scritto (restavano quattro
+ * graffe). La forma di serie ammette gli spazi dentro le graffe, e la voce si
+ * cerca senza: il motore di Anagrafe li toglie, quindi `{{ famiglia.nome }}`
+ * è un dato valido. Forme scelte da Francesco su varianti rese: nell'elenco
+ * le intestazioni di gruppo e la nota al posto del trattino; sulla pillola
+ * gialla gruppo e nome, e la nota in un tooltip.
+ *
+ * Il tooltip è uno solo per campo, ancorato alla pillola indicata o
+ * selezionata: le pillole sono DOM dell'editor e non possono essere il
+ * `TooltipTrigger` del registry. Le classi sono quelle di `TooltipContent`,
+ * con la freccia a `-translate-y-1/2` invece del valore arbitrario di
+ * shadcn, che in `blocks/` il gate rifiuta.
+ *
  * ── I ruoli ──────────────────────────────────────────────────────────────
  *
  * L'area è `role="textbox"`, non `combobox`: è su più righe. axe esenta da
@@ -58,6 +77,7 @@
 
 import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 import { Node as NodoTiptap } from "@tiptap/core"
 import { Document } from "@tiptap/extension-document"
 import { Paragraph } from "@tiptap/extension-paragraph"
@@ -94,14 +114,21 @@ export type VoceSegnaposto = {
   gruppo?: string
   /** Il valore di oggi: è ciò che la pillola mostra. */
   valore?: string
-  /** Perché il valore manca. Compare passando sopra la pillola. */
+  /**
+   * Perché il valore manca. Nell'elenco dei dati sta al posto del valore;
+   * sulla pillola compare passandoci sopra o selezionandola.
+   */
   nota?: string
 }
 
 /** Ciò che `ref` riceve: il fuoco, e l'inserimento da fuori. */
 export type TestoSegnapostoRef = {
   focus: () => void
-  /** Inserisce un testo nel punto del cursore; un segnaposto diventa pillola. */
+  /**
+   * Inserisce un testo nel punto del cursore; un segnaposto diventa pillola.
+   * Se prima del cursore c'è un prefisso appena scritto, il segnaposto lo
+   * sostituisce. In un campo disabilitato o di sola lettura non fa niente.
+   */
   inserisci: (testo: string) => void
 }
 
@@ -126,13 +153,19 @@ export type TestoSegnapostoProps = {
   /** Il testo dell'elenco quando nessuna voce corrisponde. */
   vuoto?: string
   /**
-   * Come si legge un dato che oggi non ha valore: sulla pillola passandoci
-   * sopra, e nell'elenco per i lettori di schermo, dove a schermo c'è un
-   * trattino.
+   * Come si legge un dato che oggi non ha valore e non ha una `nota`: sulla
+   * pillola passandoci sopra, e nell'elenco per i lettori di schermo, dove a
+   * schermo c'è un trattino.
    */
   senzaValore?: string
   placeholder?: string
   disabled?: boolean
+  /**
+   * Il testo si legge e non si modifica: contrasto pieno, pillole coi valori,
+   * raggiungibile col `Tab` e selezionabile. L'elenco non si apre e un dato
+   * rilasciato non entra.
+   */
+  readOnly?: boolean
   /** Il nome dell'area per i lettori di schermo, se non c'è un'etichetta. */
   etichetta?: string
   /** Il nome dell'elenco per i lettori di schermo. */
@@ -146,7 +179,8 @@ export type TestoSegnapostoProps = {
   className?: string
 }
 
-const FORMA = /\{\{[^{}\s]+\}\}/
+// Gli spazi dentro le graffe sono ammessi: `{{ famiglia.nome }}`.
+const FORMA = /\{\{[^\S\n]*[^{}\s]+[^\S\n]*\}\}/
 // Il posto che una pillola occupa nel testo di un paragrafo.
 const PILLOLA_NEL_TESTO = "￼"
 
@@ -168,6 +202,7 @@ const AREA =
 type Magazzino = {
   voci: Map<string, VoceSegnaposto>
   senzaValore: string
+  prefissi: readonly string[]
   // La forma più le voci scritte per esteso, in un'espressione sola.
   riconosci: RegExp
   ascoltatori: Set<() => void>
@@ -183,6 +218,18 @@ function espressione(forma: RegExp, voci: readonly VoceSegnaposto[]) {
 }
 
 const chiaveSegnaposto = new PluginKey("testoSegnaposto")
+
+// La voce di un segnaposto com'è scritto nel testo. Gli spazi non contano:
+// `{{ famiglia.nome }}` è la voce `{{famiglia.nome}}`.
+function voceDi(magazzino: Magazzino, testo: string) {
+  return magazzino.voci.get(testo) ?? magazzino.voci.get(testo.replace(/\s+/g, ""))
+}
+
+// Il nome di un dato col suo gruppo: due «Nome» di gruppi diversi si
+// distinguono.
+function nomeDi(voce: VoceSegnaposto) {
+  return voce.gruppo ? `${voce.gruppo} · ${voce.etichetta}` : voce.etichetta
+}
 
 declare module "@tiptap/core" {
   interface Storage {
@@ -207,6 +254,7 @@ const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
     return {
       voci: new Map(),
       senzaValore: "",
+      prefissi: [],
       riconosci: espressione(FORMA, []),
       ascoltatori: new Set(),
     }
@@ -239,14 +287,15 @@ const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
       const dom = document.createElement("span")
       dom.setAttribute("data-slot", "testo-segnaposto-pillola")
       const disegna = () => {
-        const voce = magazzino.voci.get(node.attrs.testo)
+        const voce = voceDi(magazzino, node.attrs.testo)
         const stato = !voce ? "sconosciuto" : voce.valore ? "valore" : "senza-valore"
         dom.setAttribute("data-stato", stato)
         dom.className = `${PILLOLA} ${PILLOLA_PER_STATO[stato]}`
-        dom.textContent = voce ? voce.valore || voce.etichetta : node.attrs.testo
-        if (!voce) dom.removeAttribute("title")
-        else if (voce.valore) dom.title = voce.etichetta
-        else dom.title = `${voce.etichetta}: ${voce.nota ?? magazzino.senzaValore}`
+        dom.textContent = voce ? voce.valore || nomeDi(voce) : node.attrs.testo
+        // Ciò che si legge passando sopra la pillola o selezionandola: il nome
+        // del dato, o perché il valore manca.
+        if (!voce) delete dom.dataset.nota
+        else dom.dataset.nota = voce.valore ? nomeDi(voce) : (voce.nota ?? magazzino.senzaValore)
       }
       disegna()
       magazzino.ascoltatori.add(disegna)
@@ -306,11 +355,13 @@ function riempi(
   editor: Editor,
   voci: readonly VoceSegnaposto[],
   senzaValore: string,
-  forma: RegExp
+  forma: RegExp,
+  prefissi: readonly string[]
 ) {
   const magazzino = editor.storage.segnaposto
   magazzino.voci = new Map(voci.map((voce) => [voce.testo, voce]))
   magazzino.senzaValore = senzaValore
+  magazzino.prefissi = prefissi
   magazzino.riconosci = espressione(forma, voci)
   for (const disegna of magazzino.ascoltatori) disegna()
   editor.view.dispatch(
@@ -459,7 +510,19 @@ function manigliaDi(editor: Editor) {
       // Testo e basta: se ha la forma di un segnaposto diventa pillola come
       // ogni altro testo.
       inserisci: (testo) => {
-        if (testo) editor.chain().focus().insertContent({ type: "text", text: testo }).run()
+        if (!testo || !editor.isEditable) return
+        // Un prefisso appena scritto, col suo filtro di una parola: il
+        // segnaposto lo sostituisce, come la scelta dall'elenco.
+        const { prefissi } = editor.storage.segnaposto
+        const aperta = leggiSessione(editor, prefissi)
+        const sostituisce =
+          aperta && !/\s/.test(aperta.query) && prefissi.some((p) => p && testo.startsWith(p))
+        if (sostituisce) {
+          editor.view.dispatch(editor.state.tr.insertText(testo, aperta.da, aperta.a).scrollIntoView())
+          editor.view.focus()
+        } else {
+          editor.chain().focus().insertContent({ type: "text", text: testo }).run()
+        }
       },
     }
     maniglie.set(editor, maniglia)
@@ -490,6 +553,7 @@ export function TestoSegnaposto({
   senzaValore = "Senza valore",
   placeholder,
   disabled = false,
+  readOnly = false,
   etichetta,
   etichettaElenco = "Suggerimenti",
   id,
@@ -505,6 +569,10 @@ export function TestoSegnaposto({
   const [aperto, setAperto] = React.useState(false)
   const [attiva, setAttiva] = React.useState(0)
   const [senzaTesto, setSenzaTesto] = React.useState(!(value ?? defaultValue))
+  // La pillola sotto il puntatore e quella selezionata: la loro nota si
+  // legge in un tooltip.
+  const [indicata, setIndicata] = React.useState<HTMLElement | null>(null)
+  const [selezionata, setSelezionata] = React.useState<HTMLElement | null>(null)
   // L'inizio del prefisso chiuso con `Esc`: non si riapre finché non se ne
   // scrive un altro.
   const saltata = React.useRef<number | null>(null)
@@ -528,6 +596,7 @@ export function TestoSegnaposto({
     .join("\u0001")
 
   function aggiorna(editor: Editor, scrivendo: boolean) {
+    if (!editor.isEditable) return setAperto(false)
     const letta = leggiSessione(editor, prefissi)
     if (!letta) {
       saltata.current = null
@@ -620,17 +689,29 @@ export function TestoSegnaposto({
     return false
   }
 
+  // La pillola selezionata, da tastiera o col dito, e quella sotto il
+  // puntatore se c'è ancora.
+  function guardaPillole(editor: Editor) {
+    const { selection } = editor.state
+    const dom =
+      editor.isFocused && selection instanceof NodeSelection && selection.node.type.name === "segnaposto"
+        ? editor.view.nodeDOM(selection.from)
+        : null
+    setSelezionata(dom instanceof HTMLElement ? dom : null)
+    setIndicata((pillola) => (pillola?.isConnected ? pillola : null))
+  }
+
   // I gestori dell'editor nascono una volta sola: chiamano l'ultima versione
   // di queste funzioni, che vedono lo stato di adesso.
-  const adesso = React.useRef({ aggiorna, tasto, apriComeTesto, onChange, onBlur, onFocus })
+  const adesso = React.useRef({ aggiorna, tasto, apriComeTesto, guardaPillole, onChange, onBlur, onFocus })
   React.useEffect(() => {
-    adesso.current = { aggiorna, tasto, apriComeTesto, onChange, onBlur, onFocus }
+    adesso.current = { aggiorna, tasto, apriComeTesto, guardaPillole, onChange, onBlur, onFocus }
   })
 
   const editor = useEditor({
     extensions: [Document, Paragraph, Text, UndoRedo, Dropcursor, Segnaposto],
     content: daTesto(value ?? defaultValue ?? "", espressione(forma, voci)),
-    editable: !disabled,
+    editable: !disabled && !readOnly,
     immediatelyRender: false,
     editorProps: {
       attributes: {
@@ -682,20 +763,62 @@ export function TestoSegnaposto({
       // Il cursore può essere uscito dal filtro senza che il testo cambi.
       if (!transaction.docChanged) adesso.current.aggiorna(mio, false)
     },
+    onTransaction: ({ editor: mio }) => {
+      adesso.current.guardaPillole(mio)
+    },
     onBlur: () => {
       setAperto(false)
+      setSelezionata(null)
       adesso.current.onBlur?.()
     },
     onFocus: ({ editor: mio }) => {
+      adesso.current.guardaPillole(mio)
       adesso.current.onFocus?.(manigliaDi(mio))
     },
   })
 
+  // Il puntatore sopra una pillola: premendo o trascinando la nota si toglie.
+  // E il fuoco che arriva in un testo di sola lettura.
   React.useEffect(() => {
-    if (editor) riempi(editor, voci, senzaValore, forma)
-    // `voci` e `forma` contano per il contenuto: `chiaveVoci` e la sorgente.
+    if (!editor) return
+    const area = editor.view.dom
+    const sopra = (evento: MouseEvent) => {
+      const bersaglio = evento.target instanceof Element ? evento.target : null
+      setIndicata(bersaglio?.closest<HTMLElement>('[data-slot="testo-segnaposto-pillola"]') ?? null)
+    }
+    const via = () => setIndicata(null)
+    const trascina = () => {
+      setIndicata(null)
+      setSelezionata(null)
+    }
+    // In sola lettura il fuoco arriva col `Tab` ma la selezione resterebbe
+    // nel campo di prima, e in Safari ciò che si scrive va dov'è la
+    // selezione: la si porta qui.
+    const fuoco = () => {
+      if (editor.isEditable) return
+      const selezione = area.ownerDocument.getSelection()
+      if (selezione && !area.contains(selezione.anchorNode)) selezione.collapse(area, 0)
+    }
+    area.addEventListener("mouseover", sopra)
+    area.addEventListener("mouseleave", via)
+    area.addEventListener("mousedown", via)
+    area.addEventListener("dragstart", trascina)
+    area.addEventListener("focus", fuoco)
+    return () => {
+      area.removeEventListener("mouseover", sopra)
+      area.removeEventListener("mouseleave", via)
+      area.removeEventListener("mousedown", via)
+      area.removeEventListener("dragstart", trascina)
+      area.removeEventListener("focus", fuoco)
+    }
+  }, [editor])
+
+  React.useEffect(() => {
+    if (editor) riempi(editor, voci, senzaValore, forma, prefissi)
+    // `voci`, `forma` e `prefissi` contano per il contenuto: `chiaveVoci`, la
+    // sorgente e la chiave dei prefissi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, chiaveVoci, senzaValore, forma.source])
+  }, [editor, chiaveVoci, senzaValore, forma.source, prefissi.join("\u0000")])
 
   // Il valore deciso da fuori.
   React.useEffect(() => {
@@ -711,8 +834,8 @@ export function TestoSegnaposto({
   }, [editor, value])
 
   React.useEffect(() => {
-    editor?.setEditable(!disabled, false)
-  }, [editor, disabled])
+    editor?.setEditable(!disabled && !readOnly, false)
+  }, [editor, disabled, readOnly])
 
   // Gli attributi dell'area, e l'etichetta: un `<label for>` non nomina un
   // `contenteditable`, quindi la si collega per `id` e le si fa portare il
@@ -725,6 +848,11 @@ export function TestoSegnaposto({
     attributo(area, "aria-describedby", descrittaDa)
     attributo(area, "aria-invalid", nonValido === true || nonValido === "true" ? "true" : undefined)
     attributo(area, "aria-disabled", disabled ? "true" : undefined)
+    attributo(area, "aria-readonly", readOnly && !disabled ? "true" : undefined)
+    // Un'area che non si modifica esce dal giro del `Tab`: in sola lettura ci
+    // si rimette. Quando si modifica il suo posto lo dà l'editor.
+    if (readOnly && !disabled) area.setAttribute("tabindex", "0")
+    else if (disabled) area.removeAttribute("tabindex")
     const label =
       id && !etichetta && !etichettataDa
         ? document.querySelector<HTMLLabelElement>(`label[for="${CSS.escape(id)}"]`)
@@ -735,7 +863,7 @@ export function TestoSegnaposto({
     const fuoco = () => editor.commands.focus()
     label.addEventListener("click", fuoco)
     return () => label.removeEventListener("click", fuoco)
-  }, [editor, id, etichetta, etichettataDa, descrittaDa, nonValido, disabled])
+  }, [editor, id, etichetta, etichettataDa, descrittaDa, nonValido, disabled, readOnly])
 
   React.useEffect(() => {
     if (!editor || aperto) return
@@ -772,6 +900,10 @@ export function TestoSegnaposto({
 
   if (!editor) return null
 
+  // Con l'elenco aperto la nota non si mostra: coprirebbe le voci.
+  const conNota = aperto ? null : (selezionata ?? indicata)
+  const nota = conNota?.dataset.nota
+
   let annuncio = ""
   if (aperto) {
     if (trovate.length === 0) annuncio = vuoto
@@ -793,6 +925,24 @@ export function TestoSegnaposto({
       <span role="status" className="sr-only">
         {annuncio}
       </span>
+      <TooltipPrimitive.Root open={Boolean(nota)}>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Positioner
+            anchor={conNota}
+            side="top"
+            sideOffset={6}
+            className="isolate z-50"
+          >
+            <TooltipPrimitive.Popup
+              data-slot="testo-segnaposto-nota"
+              className="z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+            >
+              {nota}
+              <TooltipPrimitive.Arrow className="z-50 size-2.5 -translate-y-1/2 rotate-45 rounded-xs bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=top]:-bottom-2.5" />
+            </TooltipPrimitive.Popup>
+          </TooltipPrimitive.Positioner>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
       <PopoverPrimitive.Root
         open={aperto}
         onOpenChange={(apri, dettagli) => {
@@ -882,12 +1032,17 @@ export type TestoSegnapostoElencoProps = {
   /** La voce del filtro che li mostra tutti. */
   tutti?: string
   /**
-   * Come si legge un dato che oggi non ha valore. A schermo c'è un trattino;
-   * questo testo è per i lettori di schermo.
+   * Come si legge un dato che oggi non ha valore e non ha una `nota`. A
+   * schermo c'è un trattino; questo testo è per i lettori di schermo.
    */
   senzaValore?: string
   /** Il testo quando nessun dato corrisponde. */
   vuoto?: string
+  /**
+   * Spegne l'elenco, per esempio mentre la pagina salva: filtro e ricerca non
+   * rispondono, e i dati non si cliccano né si trascinano.
+   */
+  disabled?: boolean
   className?: string
 }
 
@@ -895,9 +1050,10 @@ const TUTTI = "\u0000tutti"
 
 /**
  * L'elenco dei dati da citare: in cima il filtro per gruppo e la ricerca,
- * che restano fermi, e sotto i dati, che scorrono. Ogni dato mostra in
- * piccolo il nome e in evidenza il valore di oggi, o un trattino se non ne
- * ha; si clicca o si trascina dentro un `TestoSegnaposto`.
+ * che restano fermi, e sotto i dati, che scorrono, sotto il nome del loro
+ * gruppo. Ogni dato mostra in piccolo il nome e in evidenza il valore di
+ * oggi; se non ne ha, il motivo scritto nella sua `nota`, o un trattino. Si
+ * clicca o si trascina dentro un `TestoSegnaposto`.
  */
 export function TestoSegnapostoElenco({
   voci,
@@ -906,6 +1062,7 @@ export function TestoSegnapostoElenco({
   tutti = "Tutti i dati",
   senzaValore = "Senza valore",
   vuoto = "Nessun dato",
+  disabled = false,
   className,
 }: TestoSegnapostoElencoProps) {
   const id = React.useId()
@@ -914,6 +1071,10 @@ export function TestoSegnapostoElenco({
   const nomi = [...new Set(voci.map((voce) => voce.gruppo ?? "").filter(Boolean))]
   const delGruppo = gruppo === TUTTI ? voci : voci.filter((voce) => voce.gruppo === gruppo)
   const mostrate = filtra(delGruppo, cercato)
+  // Con tutti i dati in vista ogni gruppo ha la sua intestazione: due «Nome»
+  // di gruppi diversi si distinguono. Scelto un gruppo, lo dice il filtro.
+  const gruppi =
+    gruppo === TUTTI && nomi.length > 1 ? raggruppa(mostrate) : [{ nome: "", voci: mostrate, da: 0 }]
 
   return (
     <div
@@ -925,6 +1086,7 @@ export function TestoSegnapostoElenco({
           <>
             <Label htmlFor={`${id}-gruppo`}>{etichettaGruppi}</Label>
             <Select
+              disabled={disabled}
               value={gruppo}
               onValueChange={(scelto) => setGruppo(scelto ?? TUTTI)}
               items={[
@@ -950,44 +1112,70 @@ export function TestoSegnapostoElenco({
           type="search"
           aria-label="Cerca un dato"
           placeholder="Cerca un dato"
+          disabled={disabled}
           value={cercato}
           onChange={(evento) => setCercato(evento.target.value)}
         />
       </div>
-      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 py-px">
+      {/* `relative`: i testi per i lettori di schermo, che sono posizionati,
+          restano dentro ciò che scorre e non allungano la pagina. */}
+      <div className="relative -mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 py-px">
         {mostrate.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">{vuoto}</p>
         ) : null}
-        {mostrate.map((voce) => (
-          <Item
-            key={voce.testo}
-            variant="outline"
-            size="sm"
-            className="shrink-0 cursor-grab flex-col items-start gap-0.5 text-left hover:bg-muted"
-            render={
-              <button
-                type="button"
-                draggable
-                // Perché il valore manca: passando sopra, non in una riga in più.
-                title={voce.valore ? undefined : voce.nota}
-                onDragStart={(evento) => {
-                  evento.dataTransfer.setData("text/plain", voce.testo)
-                  evento.dataTransfer.effectAllowed = "copy"
-                }}
-                onClick={() => onScegli?.(voce)}
-              />
-            }
+        {gruppi.map((delNome) => (
+          <div
+            key={delNome.nome}
+            role="group"
+            aria-label={delNome.nome || undefined}
+            className="flex shrink-0 flex-col gap-1.5"
           >
-            <span className="text-xs text-muted-foreground">{voce.etichetta}</span>
-            {voce.valore ? (
-              <span className="text-base font-medium">{voce.valore}</span>
-            ) : (
-              <span className="text-base font-medium text-muted-foreground">
-                <span aria-hidden="true">—</span>
-                <span className="sr-only">{senzaValore}</span>
+            {delNome.nome ? (
+              <span
+                aria-hidden="true"
+                data-slot="testo-segnaposto-dati-gruppo"
+                className="px-1 pt-1 text-xs font-medium text-muted-foreground"
+              >
+                {delNome.nome}
               </span>
-            )}
-          </Item>
+            ) : null}
+            {delNome.voci.map((voce) => (
+              <Item
+                key={voce.testo}
+                variant="outline"
+                size="sm"
+                className="shrink-0 cursor-grab flex-col items-start gap-0.5 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                render={
+                  <button
+                    type="button"
+                    // Safari non porta il `Tab` su un bottone senza `tabIndex`
+                    // scritto; i `Button` del design system ce l'hanno già.
+                    tabIndex={0}
+                    disabled={disabled}
+                    draggable={!disabled}
+                    onDragStart={(evento) => {
+                      evento.dataTransfer.setData("text/plain", voce.testo)
+                      evento.dataTransfer.effectAllowed = "copy"
+                    }}
+                    onClick={() => onScegli?.(voce)}
+                  />
+                }
+              >
+                <span className="text-xs text-muted-foreground">{voce.etichetta}</span>
+                {voce.valore ? (
+                  <span className="text-base font-medium">{voce.valore}</span>
+                ) : voce.nota ? (
+                  // Perché il valore manca, al posto del valore.
+                  <span className="text-sm text-muted-foreground">{voce.nota}</span>
+                ) : (
+                  <span className="text-base font-medium text-muted-foreground">
+                    <span aria-hidden="true">—</span>
+                    <span className="sr-only">{senzaValore}</span>
+                  </span>
+                )}
+              </Item>
+            ))}
+          </div>
         ))}
       </div>
     </div>

@@ -44,6 +44,19 @@
  * guscio si monta una volta sola attorno all'`<Outlet />`: una prop non ci
  * arriverebbe mai.
  *
+ * **La colonna laterale.** Una pagina che tiene qualcosa accanto al contenuto
+ * mentre scorre — un elenco da cui trascinare — lo dichiara con
+ * `<ColonnaLaterale>`, reso dal guscio attraverso un portale come la fascia.
+ * Proposta #101 (Anagrafe), forma scelta da Francesco il 12 ottobre 2026 fra
+ * tre rese: sotto la fascia e accanto alle tab della pagina, non dentro la
+ * tab. Così la pagina non deve conoscere l'altezza di fascia e tab. La forma
+ * di shadcn (`sidebar-15`, colonna a tutta altezza accanto alla fascia) è
+ * stata resa e scartata: saliva sopra il livello delle azioni di pagina.
+ * L'altezza è «la finestra meno la fascia» senza un `calc`: la colonna è alta
+ * `h-svh`, parte da dietro la fascia (`-mt-12`) e comincia a disegnare sotto
+ * (`pt-12`). Sono le stesse 12 unità di `h-12` della fascia, e seguono la
+ * densità insieme.
+ *
  * **Il percorso corrente.** Il guscio non sa che rotte esistono: `attiva` è un
  * dato che passa l'app, e i collegamenti si passano con `render` — un
  * `<NavLink>` di react-router, un `<Link>`, o niente e resta un bottone. Il
@@ -56,7 +69,8 @@ import type {
   ReactElement,
   ReactNode,
 } from "react"
-import { useState } from "react"
+import { createContext, useContext, useState } from "react"
+import { createPortal } from "react-dom"
 import { CheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react"
 
 import { cn } from "cn"
@@ -525,6 +539,40 @@ function Navigazione({
   )
 }
 
+// Il posto della colonna laterale: lo rende il guscio, ci rende dentro la
+// pagina. È un nodo del DOM in uno stato, come l'ancora della fascia.
+const ColonnaCtx = createContext<HTMLElement | null>(null)
+
+export type ColonnaLateraleProps = {
+  /** Il nome della colonna per i lettori di schermo. */
+  etichetta: string
+  className?: string
+  children: ReactNode
+}
+
+/**
+ * Una colonna accanto al contenuto, a destra, che resta ferma sotto la fascia
+ * mentre la pagina scorre: stringe il contenuto, non lo copre. La dichiara la
+ * pagina, in qualunque punto, e la rende il guscio; per toglierla la pagina
+ * smette di renderla. Ciò che contiene scorre dentro la colonna.
+ *
+ * Quando il contenuto è stretto la colonna sta sopra, a tutta larghezza e
+ * bassa, e non resta ferma. Fuori dal guscio rende sul posto.
+ */
+export function ColonnaLaterale({ etichetta, className, children }: ColonnaLateraleProps) {
+  const nodo = useContext(ColonnaCtx)
+  const colonna = (
+    <section
+      data-slot="colonna-laterale"
+      aria-label={etichetta}
+      className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4", className)}
+    >
+      {children}
+    </section>
+  )
+  return nodo ? createPortal(colonna, nodo) : colonna
+}
+
 export type AppShellProps = {
   /** Il nome dell'applicativo, accanto al marchio. «Anagrafe», «Officina». */
   applicazione: string
@@ -660,6 +708,7 @@ export function AppShell({
    * tornava aperto. Si ricordano i **chiusi** perché ogni gruppo parte aperto.
    */
   const [chiusi, setChiusi] = useState<ReadonlySet<string>>(() => new Set())
+  const [colonna, setColonna] = useState<HTMLElement | null>(null)
   const gruppi: GruppiChiusi = {
     chiusi,
     cambia: (titolo, aperto) =>
@@ -774,17 +823,54 @@ export function AppShell({
              * tabella, una testata ferma — così niente passa sopra la fascia
              * quando le scorre sotto.
              */}
+            {/*
+             * Il contenuto e, accanto, il posto della colonna laterale. Due
+             * `div` perché la soglia guarda la larghezza di ciò che resta alla
+             * pagina, non quella dello schermo: quello esterno è il
+             * contenitore, quello interno cambia verso. Da `@4xl` (896px) in
+             * su sono affiancati; sotto, la colonna sta sopra il contenuto.
+             */}
             <div
               className={cn(
-                "min-w-0 flex-1 p-4",
-                larghezza === "pagina" && "mx-auto w-full max-w-page",
-                contenuto === "scorre" && "isolate",
-                contenuto === "riempie" && "flex min-h-0 flex-col overflow-hidden",
-                className,
+                "@container/guscio flex min-w-0 flex-1 flex-col",
+                contenuto === "riempie" && "min-h-0",
               )}
-              {...props}
             >
-              {children}
+              <div
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col @4xl/guscio:flex-row",
+                  contenuto === "scorre" && "@4xl/guscio:items-start",
+                  contenuto === "riempie" && "min-h-0",
+                )}
+              >
+                <div
+                  className={cn(
+                    "min-w-0 flex-1 p-4",
+                    larghezza === "pagina" && "mx-auto w-full max-w-page",
+                    contenuto === "scorre" && "isolate",
+                    contenuto === "riempie" && "flex min-h-0 flex-col overflow-hidden",
+                    className,
+                  )}
+                  {...props}
+                >
+                  <ColonnaCtx.Provider value={colonna}>{children}</ColonnaCtx.Provider>
+                </div>
+                {/*
+                 * Vuoto non occupa posto. Affiancata e nel modo `scorre` è
+                 * alta quanto la finestra, parte da dietro la fascia e
+                 * disegna da sotto: resta ferma mentre la pagina scorre.
+                 */}
+                <div
+                  ref={setColonna}
+                  data-slot="app-shell-colonna"
+                  className={cn(
+                    "order-first flex max-h-96 shrink-0 flex-col border-b bg-card empty:hidden @4xl/guscio:order-last @4xl/guscio:max-h-none @4xl/guscio:w-80 @4xl/guscio:border-b-0 @4xl/guscio:border-l",
+                    contenuto === "scorre" &&
+                      "@4xl/guscio:sticky @4xl/guscio:top-0 @4xl/guscio:-mt-12 @4xl/guscio:h-svh @4xl/guscio:pt-12",
+                    contenuto === "riempie" && "@4xl/guscio:min-h-0 @4xl/guscio:self-stretch",
+                  )}
+                />
+              </div>
             </div>
           </SidebarInset>
         </SidebarProvider>

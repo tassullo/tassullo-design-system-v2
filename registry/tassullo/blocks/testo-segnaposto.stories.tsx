@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import * as z from 'zod'
 
-import { apriScrivendo } from '@/prove/apri'
+import { apriPassandoci, apriScrivendo } from '@/prove/apri'
 import { FormField } from '@/registry/tassullo/blocks/form-field'
 import {
   TestoSegnaposto,
@@ -60,26 +60,35 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   perché il valore manca.
  * - `prefisso`: la stringa che apre l'elenco mentre si scrive, di serie `{{`.
  * - `forma`: la forma di un segnaposto, di serie le doppie graffe.
- * - `placeholder`, `disabled`, `id`, `aria-invalid`, `aria-describedby`,
- *   `etichetta`.
+ * - `readOnly`: il testo si legge e non si modifica; resta nel giro del `Tab`
+ *   e si seleziona. `disabled` lo spegne.
+ * - `placeholder`, `id`, `aria-invalid`, `aria-describedby`, `etichetta`.
  * - `ref` dà `focus()` e `inserisci(testo)`; `onFocus` riceve lo stesso
  *   oggetto, per sapere in quale campo inserire da fuori.
  * - `TestoSegnapostoElenco` è l'elenco dei dati da tenere accanto ai testi:
- *   `voci` e `onScegli`.
+ *   `voci` e `onScegli`; `disabled` lo spegne, per esempio mentre la pagina
+ *   salva.
  *
  * **Le pillole.**
  *
- * - Grigia: il dato ha un valore, e la pillola lo mostra. Il nome del dato
- *   compare passandoci sopra.
- * - Gialla: il dato esiste ma oggi non ha valore. Mostra il nome del dato.
+ * - Grigia: il dato ha un valore, e la pillola lo mostra. Il nome del dato,
+ *   col suo gruppo, compare passandoci sopra.
+ * - Gialla: il dato esiste ma oggi non ha valore. Mostra il gruppo e il nome
+ *   del dato; passandoci sopra si legge perché il valore manca.
  * - Rossa: il segnaposto non è fra le voci. Mostra il testo com'è scritto.
+ *
+ * Ciò che si legge passandoci sopra compare anche selezionando la pillola,
+ * con le frecce o col dito.
  *
  * **Regole d'uso.**
  *
  * - Un dato si inserisce in tre modi: scrivendo il prefisso e scegliendo
  *   dall'elenco, trascinandolo nel testo, o con `inserisci` da un bottone.
  * - Qualunque testo con la forma di un segnaposto diventa una pillola, anche
- *   incollato o scritto a mano.
+ *   incollato o scritto a mano. Gli spazi dentro le graffe non contano:
+ *   `{{ famiglia.nome }}` è lo stesso dato, e il valore resta com'è scritto.
+ * - `inserisci` sostituisce il prefisso appena scritto: chi digita `{{` e poi
+ *   clicca un dato nell'elenco accanto non si ritrova quattro graffe.
  * - Il doppio clic su una pillola la riporta al suo testo, per correggerla o
  *   sceglierne un'altra. Quando il cursore ne esce torna pillola.
  * - Il trascinamento non ha un equivalente da tastiera: accanto c'è sempre
@@ -182,10 +191,12 @@ export const Predefinito: Story = {
 
 /**
  * I tre stati di una pillola: col valore, senza valore, e il segnaposto che
- * non esiste. Passando sopra le prime due si legge il nome del dato.
+ * non esiste. Passando sopra la prima si legge il nome del dato; sopra la
+ * seconda, perché il valore manca.
  */
 export const Pillole: Story = {
   args: { voci: VOCI },
+  play: apriPassandoci('[data-stato="senza-valore"]', 'testo-segnaposto-nota'),
   render: (args) => (
     <Field className="max-w-2xl">
       <FieldLabel htmlFor="pillole">Avvertenze</FieldLabel>
@@ -258,8 +269,13 @@ function PaginaConElenco({ voci }: { voci: readonly VoceSegnaposto[] }) {
 /**
  * Più testi e un solo elenco di dati, in una colonna a destra che stringe la
  * pagina invece di coprirla. In cima il filtro e la ricerca restano fermi, e
- * i dati scorrono. Ogni dato si clicca, e va dove era il cursore nell'ultimo
- * testo usato, oppure si trascina nel punto voluto.
+ * i dati scorrono, ognuno sotto il nome del suo gruppo. Ogni dato si clicca,
+ * e va dove era il cursore nell'ultimo testo usato, oppure si trascina nel
+ * punto voluto. Un dato senza valore dice perché al posto del valore.
+ *
+ * Dentro `tassullo-app-shell` la colonna si dichiara con `ColonnaLaterale`,
+ * che la tiene ferma sotto la fascia: la scena è `Blocchi/App shell › Colonna
+ * Laterale`.
  */
 export const ConElencoDeiDati: Story = {
   args: { voci: VOCI },
@@ -299,7 +315,9 @@ export const NelModulo: Story = {
 }
 
 /**
- * Vuoto con un invito a scrivere, disabilitato e con errore.
+ * Vuoto con un invito a scrivere, di sola lettura, disabilitato e con errore.
+ * Il testo di sola lettura si legge a contrasto pieno, si raggiunge col `Tab`
+ * e si seleziona; quello disabilitato è spento e fuori dal giro del `Tab`.
  */
 export const Stati: Story = {
   args: { voci: VOCI },
@@ -308,6 +326,10 @@ export const Stati: Story = {
       <Field>
         <FieldLabel htmlFor="stati-vuoto">Vuoto</FieldLabel>
         <TestoSegnaposto {...args} id="stati-vuoto" placeholder="Scrivi {{ per citare un dato" />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="stati-lettura">Sola lettura</FieldLabel>
+        <TestoSegnaposto {...args} id="stati-lettura" readOnly defaultValue="La malta {{famiglia.nome}} è conforme alla {{qualifica.norma}}." />
       </Field>
       <Field data-disabled>
         <FieldLabel htmlFor="stati-disabilitato">Disabilitato</FieldLabel>
@@ -492,12 +514,32 @@ export const PilloleProva: Story = {
     await waitFor(() => expect(pilloleDi(area)).toHaveLength(2))
     area.editor.commands.insertContent({ type: 'text', text: ' {{non.esiste}}' })
     await waitFor(() =>
-      expect(pilloleDi(area)).toEqual(['valore:Malta R4', 'senza-valore:Codice interno', 'sconosciuto:{{non.esiste}}'])
+      expect(pilloleDi(area)).toEqual([
+        'valore:Malta R4',
+        'senza-valore:Prodotto · Codice interno',
+        'sconosciuto:{{non.esiste}}',
+      ])
     )
+
+    // La nota: col puntatore sopra la pillola, e sulla pillola selezionata da
+    // tastiera. Il nome del dato sulla grigia, il motivo sulla gialla, niente
+    // sulla rossa.
     const pillole = area.querySelectorAll<HTMLElement>('[data-slot="testo-segnaposto-pillola"]')
-    expect(pillole[0].title).toBe('Nome della famiglia')
-    expect(pillole[1].title).toContain('Il valore cambia da una variante')
+    const nota = () => document.querySelector<HTMLElement>('[data-slot="testo-segnaposto-nota"]')
+    const senzaNota = () => waitFor(() => expect(nota()).not.toBeInTheDocument(), { timeout: 5000 })
+    await userEvent.hover(pillole[0])
+    await waitFor(() => expect(nota()).toHaveTextContent('Famiglia · Nome della famiglia'))
+    await userEvent.hover(pillole[1])
+    await waitFor(() => expect(nota()).toHaveTextContent('Il valore cambia da una variante all’altra.'))
+    await userEvent.hover(pillole[2])
+    await senzaNota()
+    await userEvent.unhover(pillole[2])
     area.editor.commands.focus('end')
+    await senzaNota()
+    area.editor.commands.setNodeSelection(3)
+    await waitFor(() => expect(nota()).toHaveTextContent('Il valore cambia da una variante all’altra.'))
+    area.editor.commands.focus('end')
+    await senzaNota()
 
     // L'incolla come lo riceve l'editor: `userEvent.paste` scrive da sé nel
     // `contenteditable` e si porta via la pillola accanto al cursore.
@@ -696,18 +738,22 @@ export const ElencoProva: Story = {
     })
     const righe = () => [...dati.querySelectorAll<HTMLElement>('button[draggable="true"]')]
     expect(righe()).toHaveLength(VOCI.length)
-    // Un dato senza valore è alto come gli altri: un trattino al posto del
-    // valore, e il perché passando sopra.
+    // Con tutti i dati in vista ogni gruppo ha la sua intestazione, e un dato
+    // senza valore dice perché al posto del valore.
+    const intestazioni = () =>
+      [...dati.querySelectorAll<HTMLElement>('[data-slot="testo-segnaposto-dati-gruppo"]')].map((i) => i.textContent)
+    expect(intestazioni()).toEqual(['Famiglia', 'Qualifica', 'Prodotto', 'Prestazioni', 'Confezione', 'Frasi standard'])
     const senza = righe().find((r) => r.textContent?.startsWith('Codice interno'))!
-    const con = righe().find((r) => r.textContent?.startsWith('Classe'))!
-    expect(senza).toHaveTextContent('Codice interno—Senza valore')
-    expect(senza.title).toContain('Il valore cambia da una variante')
-    expect(Math.abs(senza.getBoundingClientRect().height - con.getBoundingClientRect().height)).toBeLessThan(1)
+    expect(senza).toHaveTextContent('Codice internoIl valore cambia da una variante all’altra.')
+    expect(senza).not.toHaveAttribute('title')
+    expect(senza.closest('[role="group"]')).toHaveAttribute('aria-label', 'Prodotto')
 
     // Il filtro per gruppo, poi la ricerca dentro il gruppo.
     await userEvent.click(within(dati).getByRole('combobox'))
     await userEvent.click(await within(document.body).findByRole('option', { name: 'Confezione' }))
     await waitFor(() => expect(righe()).toHaveLength(3))
+    // Scelto un gruppo lo dice il filtro, e le intestazioni non servono.
+    expect(intestazioni()).toEqual([])
     await userEvent.type(within(dati).getByRole('searchbox'), 'res')
     await waitFor(() => expect(righe().map((r) => r.textContent)).toEqual(['Resa18 kg/m²']))
 
@@ -742,5 +788,198 @@ export const ElencoProva: Story = {
     await userEvent.click(tela.getByRole('button', { name: 'Inserisci un dato' }))
     await waitFor(() => expect(dati).not.toBeInTheDocument())
     expect(destinazione.getBoundingClientRect().width).toBeGreaterThan(stretta + 200)
+  },
+}
+
+// La sola lettura: contrasto pieno, nel giro del `Tab`, e niente che la
+// modifichi: tasti, `inserisci`, un dato rilasciato, il doppio clic.
+export const SolaLetturaProva: Story = {
+  name: 'Sola lettura, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, onChange: fn(), onFocus: fn() },
+  render: (args) => (
+    <div className="flex max-w-2xl flex-col gap-3">
+      <input aria-label="Prima" />
+      <TestoSegnaposto {...args} etichetta="Testo" readOnly defaultValue="La malta {{famiglia.nome}} è pronta." />
+    </div>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const area = await waitFor(() => {
+      const el = canvasElement.querySelector<Area>(AREA)
+      expect(el?.editor).toBeTruthy()
+      return el as Area
+    })
+    const scritto = 'La malta {{famiglia.nome}} è pronta.'
+    await waitFor(() => expect(area).toHaveAttribute('aria-readonly', 'true'))
+    expect(area).toHaveAttribute('contenteditable', 'false')
+    expect(area).not.toHaveAttribute('aria-disabled')
+    expect(getComputedStyle(area).opacity).toBe('1')
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
+
+    // Il `Tab` ci arriva.
+    within(canvasElement).getByRole('textbox', { name: 'Prima' }).focus()
+    await userEvent.tab()
+    expect(document.activeElement).toBe(area)
+    // La selezione segue il fuoco: in Safari ciò che si scrive va dov'è la
+    // selezione, e resterebbe nel campo di prima.
+    expect(area.contains(document.getSelection()?.anchorNode ?? null)).toBe(true)
+
+    // Tasti, prefisso, `inserisci`: il testo resta com'è e l'elenco non c'è.
+    await scrivi('abc {{')
+    const campo = (args.onFocus as ReturnType<typeof fn>).mock.calls[0]?.[0] as TestoSegnapostoRef | undefined
+    campo?.inserisci('{{qualifica.norma}}')
+    expect(valoreDi(area)).toBe(scritto)
+    expect(elenco()).not.toBeInTheDocument()
+
+    // Un dato rilasciato non entra.
+    const carico = new DataTransfer()
+    carico.setData('text/plain', '{{qualifica.norma}}')
+    const dove = area.getBoundingClientRect()
+    area.dispatchEvent(
+      new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: carico, clientX: dove.left + 24, clientY: dove.top + 12 })
+    )
+
+    // Il doppio clic non riapre la pillola.
+    const pillola = area.querySelector<HTMLElement>('[data-slot="testo-segnaposto-pillola"]')!
+    await userEvent.dblClick(pillola)
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
+    expect(valoreDi(area)).toBe(scritto)
+    expect(args.onChange).not.toHaveBeenCalled()
+  },
+}
+
+// Si scrive il prefisso e poi si clicca un dato nell'elenco accanto: il dato
+// prende il posto del prefisso e del suo filtro, e non restano graffe.
+export const InserisciSulPrefissoProva: Story = {
+  ...ConElencoDeiDati,
+  name: 'Inserisci sul prefisso, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const dati = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"]')
+      expect(el).toBeInTheDocument()
+      return el as HTMLElement
+    })
+    const riga = (nome: string) =>
+      [...dati.querySelectorAll<HTMLElement>('button[draggable="true"]')].find((r) => r.textContent?.startsWith(nome))!
+    const inizio = 'Per il ripristino di strutture in calcestruzzo, con resistenza '
+
+    const destinazione = await areaDi(canvasElement, '#dati-destinazione')
+    await scrivi('{{')
+    await aperto()
+    await userEvent.click(riga('Norma'))
+    await waitFor(() => expect(valoreDi(destinazione)).toBe(`${inizio}{{qualifica.norma}}`))
+    await chiuso()
+
+    // Col filtro già cominciato.
+    await areaDi(canvasElement, '#dati-destinazione')
+    await scrivi(' e {{cla')
+    await userEvent.click(riga('Classe'))
+    await waitFor(() => expect(valoreDi(destinazione)).toBe(`${inizio}{{qualifica.norma}} e {{qualifica.classe}}`))
+    expect(pilloleDi(destinazione)).toEqual(['valore:EN 1504-3', 'valore:R4'])
+    await chiuso()
+
+    // Senza prefisso si inserisce e basta, dov'è il cursore.
+    await areaDi(canvasElement, '#dati-destinazione')
+    await scrivi(', ')
+    await userEvent.click(riga('Resa'))
+    await waitFor(() => expect(valoreDi(destinazione).endsWith('{{qualifica.classe}}, {{confezione.resa}}')).toBe(true))
+    await chiuso()
+  },
+}
+
+// Gli spazi dentro le graffe: il dato si riconosce, e il valore resta com'è
+// scritto.
+export const SpaziProva: Story = {
+  name: 'Spazi nelle graffe, prova',
+  tags: ['!dev', '!autodocs'],
+  args: {
+    voci: VOCI,
+    etichetta: 'Testo',
+    defaultValue: 'La malta {{ famiglia.nome }}, codice {{ prodotto.codice }}, {{ non.esiste }}. ',
+  },
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement)
+    await waitFor(() =>
+      expect(pilloleDi(area)).toEqual([
+        'valore:Malta R4',
+        'senza-valore:Prodotto · Codice interno',
+        'sconosciuto:{{ non.esiste }}',
+      ])
+    )
+    await scrivi('{{ qualifica.norma }}')
+    await waitFor(() => expect(pilloleDi(area)).toHaveLength(4))
+    expect(pilloleDi(area)[3]).toBe('valore:EN 1504-3')
+    expect(valoreDi(area)).toBe(
+      'La malta {{ famiglia.nome }}, codice {{ prodotto.codice }}, {{ non.esiste }}. {{ qualifica.norma }}'
+    )
+    await userEvent.keyboard('[Escape]')
+    await chiuso()
+  },
+}
+
+const VOCI_IN_FONDO: VoceSegnaposto[] = Array.from({ length: 24 }, (_, i) => ({
+  gruppo: 'Prodotto',
+  etichetta: `Dato ${i + 1}`,
+  testo: `{{prodotto.dato_${i + 1}}}`,
+  nota: 'Il dato non è compilato.',
+}))
+
+// L'elenco in un riquadro basso, in una pagina senza antenati posizionati: i
+// dati scorrono dentro il riquadro e la pagina resta alta quanto la finestra.
+// Poi spento: niente clic, niente trascinamento, filtro e ricerca fermi.
+export const ElencoNelRiquadroProva: Story = {
+  name: 'Elenco nel riquadro, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI_IN_FONDO },
+  render: function Riquadro(args) {
+    const [spento, setSpento] = useState(false)
+    const [scelte, setScelte] = useState(0)
+    return (
+      <div className="flex w-80 flex-col gap-3">
+        <Button variant="outline" onClick={() => setSpento(!spento)}>
+          Spegni
+        </Button>
+        <output data-prova="scelte">{scelte}</output>
+        <div className="flex h-80 flex-col">
+          <TestoSegnapostoElenco voci={args.voci} disabled={spento} onScegli={() => setScelte(scelte + 1)} className="flex-1" />
+        </div>
+      </div>
+    )
+  },
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const dati = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"]')
+      expect(el).toBeInTheDocument()
+      return el as HTMLElement
+    })
+    const righe = () => [...dati.querySelectorAll<HTMLButtonElement>('button[draggable]')]
+    const scelte = canvasElement.querySelector<HTMLElement>('[data-prova="scelte"]')!
+    expect(righe()).toHaveLength(VOCI_IN_FONDO.length)
+
+    // La pagina non si allunga.
+    const pagina = document.scrollingElement ?? document.documentElement
+    expect(`pagina ${pagina.scrollHeight} su ${pagina.clientHeight}`).toBe(
+      `pagina ${pagina.clientHeight} su ${pagina.clientHeight}`
+    )
+
+    // Le voci stanno nel giro del `Tab`, anche in Safari.
+    within(dati).getByRole('searchbox').focus()
+    await userEvent.tab()
+    expect(document.activeElement).toBe(righe()[0])
+    expect(righe()[0].tabIndex).toBe(0)
+    expect(righe()[0].getAttribute('tabindex')).toBe('0')
+
+    await userEvent.click(righe()[0])
+    await waitFor(() => expect(scelte).toHaveTextContent('1'))
+
+    // Spento.
+    await userEvent.click(tela.getByRole('button', { name: 'Spegni' }))
+    await waitFor(() => expect(righe()[0]).toBeDisabled())
+    expect(righe().every((r) => r.disabled && r.getAttribute('draggable') === 'false')).toBe(true)
+    expect(within(dati).getByRole('searchbox')).toBeDisabled()
+    await userEvent.click(righe()[0], { pointerEventsCheck: 0 })
+    expect(scelte).toHaveTextContent('1')
   },
 }
