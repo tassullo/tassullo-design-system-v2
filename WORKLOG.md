@@ -13551,7 +13551,7 @@ Ramo `fras/proposta-98-suggerimenti-al-cursore`. Una proposta di Anagrafe dell'1
 
 #### Aperti
 
-- **Da confermare con Francesco**: la regola di axe spenta sulle scene del blocco; il nome `tassullo-testo-segnaposto`.
+- Confermati da Francesco il 2026-10-12: la regola di axe spenta sulle scene del blocco e il nome `tassullo-testo-segnaposto`.
 - `tassullo-rich-text-editor` ha lo stesso confronto «`value` diverso dall'ultimo emesso» che qui perdeva testo: da correggere a parte.
 - In WebKit le guardie di fuoco di Base UI dei popover non modali hanno `role="button"` senza nome: vale per tutto il registry, nessuna scena del gate WebKit lo vedeva perché finivano a popup chiuso.
 - Il nome del dato sulla pillola è un `title` nativo. In densità touch le voci dell'elenco sono alte come quelle di `command` (32px).
