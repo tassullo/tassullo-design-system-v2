@@ -13805,4 +13805,17 @@ Con mouse vero (Playwright dalla cartella temporanea, Chromium e WebKit, contro 
 
 - Sopra una pillola il dato le va accanto, in WebKit sempre prima: c'era già (§76).
 - L'immagine in volo non entra in una schermata: in un browser vero la guarda Francesco.
-- `misura:bersagli` non rilanciato. Safari vero non provato da qui.
+- Safari vero non provato da qui.
+
+
+## 2026-10-12 — `v2.0.12` pubblicata
+
+Francesco ha chiesto nella consegna di pubblicare a lavoro finito. PR #111 unita col gate verde in CI sul commit `c995f7e`; l'unione è `a247868`. Etichetta `v2.0.12` su `a247868`, push della sola etichetta; le versioni precedenti restano dove erano. Con la PR si è chiusa la issue #110; resta aperta la #70, rinviata.
+
+Verificato da fuori: alla `v2.0.12` rispondono 200 `registry.json`, `tassullo-testo-segnaposto`, il sorgente del blocco e `registry/tassullo/lib/segnaposto.ts`. Nel blocco servito ci sono `testo-segnaposto-rilascio`, `doveCade`, `mettiDato`, `togliDato`, `closeHistory` e la lettura di `view.dragging.node`; `Dropcursor` e `deleteSelection` compaiono solo nelle note di testa, che `add` toglie, e `prosemirror-dropcursor` non c'è. Dipendenze e file dell'item sono quelli della `v2.0.11`: chi aggiorna non installa pacchetti nuovi.
+
+**Non rompe chi aggiorna.** Cambia ciò che entra nel testo salvato: un dato inserito accanto a una parola porta con sé uno spazio. Il prompt di adozione per Anagrafe, in `stories/ondata5/prompt-anagrafe-110.md` (fuori dal repository) e scritto a Francesco in sessione, lo dice fra le cose che cambiano da sole.
+
+`misura:bersagli` rilanciato sullo Storybook costruito: 6738 bersagli su 551 story, 76 popup aperti, 3755 sotto i 44px, 37 tipi, 1 piccolo nelle due direzioni. Quell'uno è `checkbox`, 16×16px, 896 occorrenze (es. `Blocchi/Data Table`): non viene da questo blocco, che non aggiunge bersagli e non compare nell'elenco. L'ultimo dato a verbale è di 374 story e ne contava zero: da quando c'è non è stato cercato.
+
+Non provato da qui: Safari vero e l'immagine in volo, che non entra in una schermata. Tre decisioni prese in sessione aspettano la conferma di Francesco (voce della proposta #110): lo spazio fra due pillole, l'inizio della prima riga per ciò che si lascia sopra il testo, lo spazio tolto davanti alla punteggiatura.
