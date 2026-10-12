@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, waitFor } from 'storybook/test'
 import {
   BoxesIcon,
+  BracesIcon,
   CalculatorIcon,
   FileTextIcon,
   PencilIcon,
@@ -40,13 +41,19 @@ import {
   SelectValue,
 } from '@/registry/tassullo/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui/tabs'
-import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
+import { AppShell, ColonnaLaterale, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 import { SelettoreContesto, type VoceContesto } from '@/registry/tassullo/blocks/barra-contesto'
 import {
   PageHeader,
   type AzionePagina,
   type LivelloPercorso,
 } from '@/registry/tassullo/blocks/page-header'
+import {
+  TestoSegnaposto,
+  TestoSegnapostoElenco,
+  type TestoSegnapostoRef,
+  type VoceSegnaposto,
+} from '@/registry/tassullo/blocks/testo-segnaposto'
 
 /**
  * Il guscio di un applicativo: la colonna di navigazione a sinistra, la fascia
@@ -96,6 +103,9 @@ import {
  *   scorre la finestra, con la fascia in alto ferma in cima; `"riempie"`
  *   ferma il guscio all'altezza della finestra, per una pagina che è una
  *   lista con lo scorrimento interno.
+ * - `ColonnaLaterale`, esportato dallo stesso file: una colonna a destra del
+ *   contenuto, che la pagina dichiara e il guscio rende. Prende `etichetta`,
+ *   il suo nome per i lettori di schermo.
  *
  * **Regole d'uso.**
  *
@@ -113,6 +123,13 @@ import {
  *   tab di una scheda lunga si fermano sotto la fascia con una fascia loro,
  *   `sticky top-12` col fondo della pagina: la ricetta è nella scena
  *   «Scheda Lunga».
+ * - Ciò che deve restare accanto al contenuto mentre la pagina scorre — un
+ *   elenco da cui trascinare — va in `ColonnaLaterale`: sta sotto la fascia e
+ *   accanto alle tab della pagina, alta fino in fondo alla finestra, e
+ *   stringe il contenuto invece di coprirlo. La pagina non scrive né
+ *   `sticky` né altezze. Quando al contenuto restano meno di 896px la
+ *   colonna sale sopra, bassa, e scorre con la pagina. La scena è «Colonna
+ *   Laterale».
  * - Con `contenuto="riempie"` la pagina rende una colonna
  *   `flex h-full min-h-0 flex-col`, con la tabella come figlio
  *   `min-h-0 flex-1`: è la forma di `altezza="ferma"` di
@@ -606,6 +623,218 @@ export const SchedaLunga: Story = {
     utente: UTENTE,
     azioniUtente: AZIONI_UTENTE,
     children: <PaginaSchedaLunga />,
+  },
+}
+
+const DATI_DA_CITARE: VoceSegnaposto[] = [
+  { gruppo: 'Famiglia', etichetta: 'Nome', testo: '{{famiglia.nome}}', valore: 'Malta R4' },
+  { gruppo: 'Famiglia', etichetta: 'Linea', testo: '{{famiglia.linea}}', valore: 'Ripristino del calcestruzzo' },
+  { gruppo: 'Qualifica', etichetta: 'Norma', testo: '{{qualifica.norma}}', valore: 'EN 1504-3' },
+  { gruppo: 'Qualifica', etichetta: 'Classe', testo: '{{qualifica.classe}}', valore: 'R4' },
+  { gruppo: 'Prodotto', etichetta: 'Nome', testo: '{{prodotto.nome}}', nota: 'Cambia da una variante all’altra.' },
+  { gruppo: 'Prodotto', etichetta: 'Codice interno', testo: '{{prodotto.codice}}', nota: 'Cambia da una variante all’altra.' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza a compressione', testo: '{{prestazione.compressione}}', valore: '≥ 45 N/mm²' },
+  { gruppo: 'Prestazioni', etichetta: 'Adesione al supporto', testo: '{{prestazione.adesione}}', valore: '≥ 2,0 N/mm²' },
+  { gruppo: 'Prestazioni', etichetta: 'Reazione al fuoco', testo: '{{prestazione.fuoco}}', valore: 'A1' },
+  { gruppo: 'Confezione', etichetta: 'Peso del sacco', testo: '{{confezione.peso}}', valore: '25 kg' },
+  { gruppo: 'Confezione', etichetta: 'Resa', testo: '{{confezione.resa}}', valore: '18 kg/m²' },
+  { gruppo: 'Confezione', etichetta: 'Quantità per bancale', testo: '{{confezione.bancale}}', valore: '48 sacchi' },
+]
+
+const FRASE_TESTO =
+  '{{famiglia.nome}} è una malta conforme alla {{qualifica.norma}}, classe {{qualifica.classe}}, con reazione al fuoco {{prestazione.fuoco}} e resistenza a compressione {{prestazione.compressione}}. Si applica a mano o a spruzzo su supporti puliti e bagnati a rifiuto, in strati da 10 a 40 mm.'
+const TESTO_LUNGO = Array.from({ length: 10 }, () => FRASE_TESTO).join('\n')
+const TESTI_SCHEDA = [
+  'Descrizione',
+  "Destinazione d'uso",
+  'Preparazione del supporto',
+  'Applicazione',
+  'Avvertenze',
+  'Voce di capitolato',
+]
+
+/*
+ * La scheda con sei testi lunghi e l'elenco dei dati da citare. L'elenco sta
+ * in `ColonnaLaterale`: la pagina lo dichiara dentro il pannello della tab, e
+ * il guscio lo rende accanto al contenuto, sotto la fascia. La pagina non
+ * scrive `sticky` né altezze; per chiudere la colonna smette di renderla.
+ */
+function PaginaConColonna() {
+  const [aperta, setAperta] = useState(true)
+  const ultimo = useRef<TestoSegnapostoRef | null>(null)
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        percorso={[{ titolo: 'Famiglie', href: '#' }, { titolo: 'Malta R4' }]}
+        azioni={[
+          { titolo: 'Dati da citare', icona: BracesIcon, ruolo: 'secondaria', onClick: () => setAperta(!aperta) },
+        ]}
+      />
+      <Tabs defaultValue="testi">
+        <div
+          data-slot="fascia-tab"
+          className="sticky top-12 z-10 -mx-4 bg-background px-4 py-2 [html:has(&)]:scroll-pt-24"
+        >
+          <TabsList aria-label="Sezioni">
+            <TabsTrigger value="anagrafica">Anagrafica</TabsTrigger>
+            <TabsTrigger value="testi">Testi</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="anagrafica">
+          <PannelloScheda value="anagrafica" titolo="Anagrafica" />
+        </TabsContent>
+        <TabsContent value="testi">
+          <FieldGroup>
+            {TESTI_SCHEDA.map((nome, i) => (
+              <Field key={nome}>
+                <FieldLabel htmlFor={`testo-${i}`}>{nome}</FieldLabel>
+                <TestoSegnaposto
+                  id={`testo-${i}`}
+                  voci={DATI_DA_CITARE}
+                  defaultValue={TESTO_LUNGO}
+                  onFocus={(campo) => {
+                    ultimo.current = campo
+                  }}
+                />
+              </Field>
+            ))}
+          </FieldGroup>
+          {aperta ? (
+            <ColonnaLaterale etichetta="Dati da citare">
+              <div className="flex flex-col gap-0.5">
+                <h2 className="text-base font-medium">Dati da citare</h2>
+                <p className="text-sm text-muted-foreground">Clicca un dato o trascinalo nel testo.</p>
+              </div>
+              <TestoSegnapostoElenco
+                voci={DATI_DA_CITARE}
+                onScegli={(voce) => ultimo.current?.inserisci(voce.testo)}
+                className="flex-1"
+              />
+            </ColonnaLaterale>
+          ) : null}
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+/**
+ * Una scheda con sei testi lunghi e, a destra, l'elenco dei dati da citare.
+ * L'elenco sta in `ColonnaLaterale`: scorrendo la pagina resta fermo sotto la
+ * fascia, accanto alle tab, alto fino in fondo alla finestra, e i suoi dati
+ * scorrono dentro la colonna. Il bottone «Dati da citare» in fascia la toglie
+ * e la rimette: tolta, i testi prendono tutta la larghezza.
+ *
+ * La pagina dichiara la colonna dove le serve, anche dentro il pannello di
+ * una tab, e non scrive né `sticky` né altezze: le dà il guscio.
+ */
+export const ColonnaLateraleScena: Story = {
+  name: 'Colonna Laterale',
+  args: {
+    applicazione: 'Anagrafe',
+    sezioni: SEZIONI,
+    utente: UTENTE,
+    azioniUtente: AZIONI_UTENTE,
+    children: <PaginaConColonna />,
+  },
+}
+
+// La colonna laterale, a pagina scorsa di 1500px: sta sotto la fascia e
+// arriva in fondo alla finestra, la ricerca dell'elenco è in vista, le tab le
+// stanno accanto e i dati scorrono dentro. Tolta, i testi si allargano.
+export const ColonnaLateraleProva: Story = {
+  ...ColonnaLateraleScena,
+  name: 'Colonna Laterale, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    const px = (n: number) => Math.round(n)
+    const colonna = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>('[data-slot="app-shell-colonna"] [data-slot="colonna-laterale"]')
+      expect(el).toBeInTheDocument()
+      return el as HTMLElement
+    })
+    const testo = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>('#testo-0')
+      expect(el).toBeInTheDocument()
+      return el as HTMLElement
+    })
+    const pagina = document.scrollingElement ?? document.documentElement
+    await waitFor(() => expect(`corsa ${pagina.scrollHeight - pagina.clientHeight >= 1500}`).toBe('corsa true'))
+    const bottone = () =>
+      [...canvasElement.querySelectorAll<HTMLElement>('[data-slot="page-header-bar"] button')].find(
+        (b) => b.textContent?.trim() === 'Dati da citare',
+      )!
+    try {
+      window.scrollTo({ top: 1500, behavior: 'instant' })
+      const fascia = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"]')!.getBoundingClientRect()
+      const c = colonna.getBoundingClientRect()
+      expect(`colonna da ${px(c.top)} a ${px(c.bottom)}`).toBe(`colonna da ${px(fascia.bottom)} a ${innerHeight}`)
+      const ricerca = colonna.querySelector<HTMLElement>('input[type="search"]')!.getBoundingClientRect()
+      expect(`ricerca in vista: ${ricerca.top >= fascia.bottom && ricerca.bottom <= innerHeight}`).toBe(
+        'ricerca in vista: true',
+      )
+      const tab = canvasElement.querySelector<HTMLElement>('[data-slot="fascia-tab"]')!.getBoundingClientRect()
+      expect(`tab accanto: ${px(tab.right) <= px(c.left)}, alla stessa altezza: ${px(tab.top) === px(c.top)}`).toBe(
+        'tab accanto: true, alla stessa altezza: true',
+      )
+      // I dati scorrono dentro la colonna, e la pagina non si allunga per loro.
+      const ultimo = [...colonna.querySelectorAll<HTMLElement>('button[draggable]')].at(-1)!
+      ultimo.scrollIntoView({ block: 'nearest' })
+      const u = ultimo.getBoundingClientRect()
+      expect(`ultimo dato in vista: ${u.top >= fascia.bottom && px(u.bottom) <= innerHeight}`).toBe(
+        'ultimo dato in vista: true',
+      )
+      expect(`pagina ferma a ${px(window.scrollY)}`).toBe('pagina ferma a 1500')
+
+      // Tolta, i testi prendono il suo posto.
+      const stretto = testo.getBoundingClientRect().width
+      bottone().click()
+      await waitFor(() => expect(colonna).not.toBeInTheDocument())
+      // Il posto della colonna è largo quanto lei più il suo filo.
+      expect(`testo più largo di ${px(testo.getBoundingClientRect().width - stretto)}`).toBe(
+        `testo più largo di ${px(c.width) + 1}`,
+      )
+    } finally {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      if (!canvasElement.querySelector('[data-slot="colonna-laterale"]')) bottone().click()
+      await waitFor(() => expect(canvasElement.querySelector('[data-slot="colonna-laterale"]')).toBeInTheDocument())
+    }
+  },
+}
+
+// Quando al contenuto restano meno di 896px la colonna sta sopra, a tutta
+// larghezza e bassa, e scorre con la pagina. Il riquadro stretto sta al posto
+// di una finestra stretta: la soglia guarda il contenitore.
+export const ColonnaLateraleStrettaProva: Story = {
+  ...ColonnaLateraleScena,
+  name: 'Colonna Laterale, stretta, prova',
+  tags: ['!dev', '!autodocs'],
+  decorators: [
+    (Scena) => (
+      <div className="max-w-5xl">
+        <Scena />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const px = (n: number) => Math.round(n)
+    const posto = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>('[data-slot="app-shell-colonna"]')
+      expect(el?.querySelector('[data-slot="colonna-laterale"]')).toBeInTheDocument()
+      return el as HTMLElement
+    })
+    const testo = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>('#testo-0')
+      expect(el).toBeInTheDocument()
+      return el as HTMLElement
+    })
+    const fascia = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"]')!.getBoundingClientRect()
+    const c = posto.getBoundingClientRect()
+    expect(`sopra: ${px(c.top) === px(fascia.bottom) && c.bottom <= testo.getBoundingClientRect().top}`).toBe('sopra: true')
+    expect(`larga ${px(c.width)} su ${px(fascia.width)}, alta al più 384: ${c.height <= 384}`).toBe(
+      `larga ${px(fascia.width)} su ${px(fascia.width)}, alta al più 384: true`,
+    )
+    expect(getComputedStyle(posto).position).toBe('static')
   },
 }
 
