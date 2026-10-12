@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { Editor } from '@tiptap/react'
@@ -15,6 +15,7 @@ import {
   type TestoSegnapostoRef,
   type VoceSegnaposto,
 } from '@/registry/tassullo/blocks/testo-segnaposto'
+import { FORMA_SEGNAPOSTO, SPAZI_SEGNAPOSTO, nomeSegnaposto } from '@/registry/tassullo/lib/segnaposto'
 import { Button } from '@/registry/tassullo/ui/button'
 import {
   Dialog,
@@ -61,7 +62,10 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   citare: negli elenchi compare solo cercandolo, o chiedendo di vederli
  *   tutti.
  * - `prefisso`: la stringa che apre l'elenco mentre si scrive, di serie `{{`.
- * - `forma`: la forma di un segnaposto, di serie le doppie graffe.
+ * - `forma`: la forma di un segnaposto, di serie le doppie graffe. Quella
+ *   di serie è `FORMA_SEGNAPOSTO`, in `lib/segnaposto`, un file senza React
+ *   che arriva con il blocco: lì c'è anche `nomeSegnaposto`, che legge il
+ *   nome scritto in un segnaposto.
  * - `readOnly`: il testo si legge e non si modifica; resta nel giro del `Tab`
  *   e si seleziona. `disabled` lo spegne.
  * - `placeholder`, `id`, `aria-invalid`, `aria-describedby`, `etichetta`.
@@ -69,7 +73,10 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   oggetto, per sapere in quale campo inserire da fuori.
  * - `TestoSegnapostoElenco` è l'elenco dei dati da tenere accanto ai testi:
  *   `voci` e `onScegli`; `disabled` lo spegne, per esempio mentre la pagina
- *   salva.
+ *   salva. Filtro, ricerca e voci secondarie in vista li tiene l'elenco, e
+ *   si perdono quando la pagina smette di renderlo. Per tenerli la pagina
+ *   passa `gruppo` e `onGruppo` (`null` è «tutti»), `ricerca` e `onRicerca`,
+ *   `mostraAltri` e `onMostraAltri`.
  *
  * **Le pillole.**
  *
@@ -90,6 +97,13 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * - Qualunque testo con la forma di un segnaposto diventa una pillola, anche
  *   incollato o scritto a mano. Gli spazi dentro le graffe non contano:
  *   `{{ famiglia.nome }}` è lo stesso dato, e il valore resta com'è scritto.
+ * - Chi controlla lo stesso testo altrove, per esempio su un server, deve
+ *   togliere attorno al nome gli stessi spazi del campo, o la pillola dice
+ *   una cosa e il salvataggio un'altra. Sono 24 caratteri: ogni spazio di
+ *   JavaScript tranne l'a capo. L'elenco è in `lib/segnaposto`.
+ * - Nell'elenco che si apre scrivendo il nome di un dato si legge sempre per
+ *   intero, anche su due righe; il valore sta a destra e, se è lungo, si
+ *   accorcia; il motivo di un valore che manca sta sotto il nome.
  * - Un segnaposto attaccato a un'altra graffa, `{{{famiglia.nome}}}`, resta
  *   testo: chi legge la stringa ci trova un segnaposto sbagliato, e una
  *   pillola lo nasconderebbe.
@@ -106,7 +120,8 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * frecce su e giù scorrono le voci, `Invio` o `Tab` inseriscono quella
  * evidenziata, `Esc` chiude l'elenco e lascia il testo com'è. Le frecce di
  * lato selezionano una pillola, e `Invio` la riporta al suo testo. `Ctrl+Z`
- * annulla. Il numero di voci trovate viene annunciato.
+ * annulla. Il numero di voci trovate viene annunciato. Se i dati cambiano
+ * mentre l'elenco è aperto, la voce evidenziata resta la stessa.
  */
 const meta = {
   title: 'Blocchi/Testo con segnaposto',
@@ -452,7 +467,7 @@ export const TastieraProva: Story = {
     await scrivi(' {{zzz')
     await aperto()
     expect(opzioni()).toHaveLength(0)
-    expect(elenco()).toHaveTextContent('Nessuna voce')
+    expect(elenco()).toHaveTextContent('Nessun dato')
     await userEvent.keyboard('[Escape]')
     await chiuso()
     expect(valoreDi(area).endsWith(' {{zzz')).toBe(true)
@@ -1099,5 +1114,307 @@ export const VociSecondarieProva: Story = {
     await userEvent.type(within(dati).getByRole('searchbox'), 'revis')
     await waitFor(() => expect([...righe()].map((r) => r.textContent)).toEqual(['Revisione7']))
     await userEvent.clear(within(dati).getByRole('searchbox'))
+  },
+}
+
+// Le voci cambiano mentre l'elenco è aperto: la scena le toglie quando riceve
+// l'evento, senza togliere il fuoco al testo come farebbe un bottone.
+const TOGLI_VOCE = 'prova:togli-voce'
+
+function ConVociCheCambiano() {
+  const [voci, setVoci] = useState(VOCI)
+  useEffect(() => {
+    const togli = (evento: Event) => {
+      const testo = (evento as CustomEvent<string>).detail
+      setVoci((prima) => prima.filter((voce) => voce.testo !== testo))
+    }
+    window.addEventListener(TOGLI_VOCE, togli)
+    return () => window.removeEventListener(TOGLI_VOCE, togli)
+  }, [])
+  return <TestoSegnaposto etichetta="Testo" voci={voci} />
+}
+
+// Se le voci cambiano a elenco aperto, la voce evidenziata resta la stessa e
+// `Invio` inserisce quella; se è lei a sparire, si torna alla prima.
+export const VoceAttivaProva: Story = {
+  name: 'Voce attiva, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI },
+  render: () => <ConVociCheCambiano />,
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement)
+    const attiva = () => document.getElementById(area.getAttribute('aria-activedescendant') ?? '')?.textContent
+    const togli = (testo: string) => window.dispatchEvent(new CustomEvent(TOGLI_VOCE, { detail: testo }))
+
+    await scrivi('{{')
+    await aperto()
+    await waitFor(() => expect(opzioni()).toHaveLength(VOCI.length))
+    await userEvent.keyboard('[ArrowDown]')
+    await waitFor(() => expect(attiva()).toBe('LineaRipristino del calcestruzzo'))
+
+    // Sparisce una voce prima di quella evidenziata.
+    togli('{{famiglia.nome}}')
+    await waitFor(() => expect(opzioni()).toHaveLength(VOCI.length - 1))
+    await waitFor(() => expect(attiva()).toBe('LineaRipristino del calcestruzzo'))
+    await userEvent.keyboard('[Enter]')
+    await chiuso()
+    expect(valoreDi(area)).toBe('{{famiglia.linea}}')
+
+    // Sparisce la voce evidenziata: si torna alla prima.
+    await scrivi(' {{')
+    await aperto()
+    await userEvent.keyboard('[ArrowDown][ArrowDown]')
+    await waitFor(() => expect(attiva()).toBe('ClasseR4'))
+    togli('{{qualifica.classe}}')
+    await waitFor(() => expect(opzioni()).toHaveLength(VOCI.length - 2))
+    await waitFor(() => expect(attiva()).toBe('LineaRipristino del calcestruzzo'))
+    await userEvent.keyboard('[Escape]')
+    await chiuso()
+  },
+}
+
+// Con una pillola selezionata, il puntatore su un'altra mostra la nota di
+// quella sotto il puntatore; tolto il puntatore torna quella della selezionata.
+export const NotaIndicataProva: Story = {
+  ...Pillole,
+  name: 'Nota della pillola indicata, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement)
+    const pillole = area.querySelectorAll<HTMLElement>('[data-slot="testo-segnaposto-pillola"]')
+    const nota = () => document.querySelector<HTMLElement>('[data-slot="testo-segnaposto-nota"]')
+    const posti: number[] = []
+    area.editor.state.doc.descendants((nodo, posto) => {
+      if (nodo.type.name === 'segnaposto') posti.push(posto)
+    })
+
+    // Selezionata la seconda, senza valore.
+    area.editor.commands.setNodeSelection(posti[1])
+    await waitFor(() => expect(nota()).toHaveTextContent('Il valore cambia da una variante all’altra.'))
+
+    // Il puntatore sulla prima: la nota è la sua, e sta sopra di lei.
+    await userEvent.hover(pillole[0])
+    await waitFor(() => expect(nota()).toHaveTextContent('Confezione · Peso del sacco'))
+    await waitFor(() => {
+      const n = nota()!.getBoundingClientRect()
+      const p = pillole[0].getBoundingClientRect()
+      const centro = p.left + p.width / 2
+      expect(`nota sopra la prima: ${n.left <= centro && centro <= n.right}`).toBe('nota sopra la prima: true')
+    })
+
+    await userEvent.unhover(pillole[0])
+    await waitFor(() => expect(nota()).toHaveTextContent('Il valore cambia da una variante all’altra.'))
+    area.editor.commands.focus('end')
+    await waitFor(() => expect(nota()).not.toBeInTheDocument(), { timeout: 5000 })
+  },
+}
+
+const VOCI_DAI_NOMI_LUNGHI: VoceSegnaposto[] = [
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza a compressione a 28 giorni (Vm)', testo: '{{prestazione.compressione.vm}}', valore: '≥ 45 N/mm²' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza a compressione a 28 giorni (Vc)', testo: '{{prestazione.compressione.vc}}', nota: 'Il valore cambia da una variante all’altra.' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza a compressione a 28 giorni (Condizione)', testo: '{{prestazione.compressione.condizione}}', valore: 'Provini stagionati in acqua a 20 °C, secondo il metodo di prova' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza a compressione a 28 giorni (Nota sul metodo)', testo: '{{prestazione.compressione.nota}}', nota: 'Il dato non è compilato in archivio.' },
+]
+
+/**
+ * Voci che cominciano uguali e finiscono diverse. Nell'elenco che si apre
+ * scrivendo il nome si legge sempre per intero, anche su due righe: è la
+ * coda a distinguere una voce dall'altra. Il valore sta a destra e, se è
+ * lungo, si accorcia lui; il motivo di un valore che manca sta sotto il nome.
+ */
+export const NomiLunghi: Story = {
+  args: { voci: VOCI_DAI_NOMI_LUNGHI, etichetta: 'Descrizione', defaultValue: 'Resistenza: ' },
+  render: (args) => (
+    <div className="max-w-2xl">
+      <TestoSegnaposto {...args} />
+    </div>
+  ),
+  play: apriScrivendo(AREA, '{{', ELENCO),
+}
+
+// Nell'elenco che si apre scrivendo nessun nome è tagliato, e quattro voci
+// che cominciano uguali si leggono diverse.
+export const NomiLunghiProva: Story = {
+  ...NomiLunghi,
+  name: 'Nomi lunghi, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    await areaDi(canvasElement)
+    await scrivi('{{')
+    const popup = await aperto()
+    await waitFor(() => expect(opzioni()).toHaveLength(4))
+    const nomi = opzioni().map((voce) => voce.querySelector<HTMLElement>('[data-slot="testo-segnaposto-voce-nome"]')!)
+    expect(nomi.map((nome) => nome.textContent)).toEqual(VOCI_DAI_NOMI_LUNGHI.map((voce) => voce.etichetta))
+    const tagliati = nomi.filter((nome) => nome.scrollWidth > nome.clientWidth || nome.scrollHeight > nome.clientHeight)
+    expect(`nomi tagliati: ${tagliati.length}`).toBe('nomi tagliati: 0')
+    // Niente esce di lato dall'elenco.
+    expect(`elenco largo ${popup.scrollWidth} su ${popup.clientWidth}`).toBe(`elenco largo ${popup.clientWidth} su ${popup.clientWidth}`)
+    for (const voce of opzioni()) {
+      expect(`voce dentro: ${voce.scrollWidth <= voce.clientWidth}`).toBe('voce dentro: true')
+    }
+    await userEvent.keyboard('[Escape]')
+    await chiuso()
+  },
+}
+
+// L'insieme degli spazi ammessi attorno al nome è quello scritto: si guarda
+// ogni punto di codice di Unicode, con e senza il flag `u`. E il nome si
+// legge togliendo quelli e solo quelli.
+export const InsiemeDegliSpaziProva: Story = {
+  name: 'Insieme degli spazi, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, etichetta: 'Testo' },
+  play: async ({ canvasElement }) => {
+    const ammessi: string[] = []
+    const ammessiConU: string[] = []
+    for (let punto = 0; punto <= 0x10ffff; punto++) {
+      // Le metà di una coppia surrogata non sono caratteri.
+      if (punto >= 0xd800 && punto <= 0xdfff) continue
+      const carattere = String.fromCodePoint(punto)
+      if (/^[^\S\n]$/.test(carattere)) ammessi.push(carattere)
+      if (/^[^\S\n]$/u.test(carattere)) ammessiConU.push(carattere)
+    }
+    expect(ammessi).toHaveLength(24)
+    expect(ammessi.join('')).toBe(SPAZI_SEGNAPOSTO)
+    expect(ammessiConU.join('')).toBe(SPAZI_SEGNAPOSTO)
+
+    // Ognuno dei 24, attorno al nome, lascia lo stesso dato.
+    for (const spazio of SPAZI_SEGNAPOSTO) {
+      const scritto = `{{${spazio}famiglia.nome${spazio}}}`
+      expect(new RegExp(`^(?:${FORMA_SEGNAPOSTO.source})$`, 'u').test(scritto)).toBe(true)
+      expect(nomeSegnaposto(scritto)).toBe('famiglia.nome')
+    }
+    expect(nomeSegnaposto('{{famiglia.nome}}')).toBe('famiglia.nome')
+    // L'a capo no, e nemmeno ciò che `strip()` di altri linguaggi toglie.
+    for (const fuori of ['\n', '\u0085', '\u001c', '\u001f', '​']) {
+      expect(nomeSegnaposto(`{{${fuori}famiglia.nome}}`)).not.toBe('famiglia.nome')
+    }
+    expect(nomeSegnaposto('{{famiglia nome}}')).toBeNull()
+    expect(nomeSegnaposto('{{{famiglia.nome}}}')).toBeNull()
+    expect(nomeSegnaposto('x {{famiglia.nome}}')).toBeNull()
+    expect(nomeSegnaposto('{{}}')).toBeNull()
+
+    // Nel campo: lo spazio di larghezza nulla attorno al nome dà la pillola
+    // col valore, e il testo resta com'è scritto.
+    const area = await areaDi(canvasElement)
+    area.editor.commands.insertContent({ type: 'text', text: '{{﻿famiglia.nome }}' })
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:Malta R4']))
+    expect(valoreDi(area)).toBe('{{﻿famiglia.nome }}')
+  },
+}
+
+function ElencoTenutoFuori() {
+  const [montato, setMontato] = useState(true)
+  const [gruppo, setGruppo] = useState<string | null>(null)
+  const [ricerca, setRicerca] = useState('')
+  const [altri, setAltri] = useState(false)
+  return (
+    <div className="flex max-w-4xl items-start gap-6">
+      <div className="flex flex-col gap-3">
+        <Button variant="outline" aria-expanded={montato} onClick={() => setMontato(!montato)}>
+          Dati da citare
+        </Button>
+        <output data-prova="stato" className="text-sm text-muted-foreground">
+          {`${gruppo ?? 'tutti'} | ${ricerca} | ${altri}`}
+        </output>
+      </div>
+      {montato ? (
+        <div data-prova="fuori" className="flex h-96 w-80 shrink-0 flex-col">
+          <TestoSegnapostoElenco
+            voci={VOCI_CON_SECONDARIE}
+            gruppo={gruppo}
+            onGruppo={setGruppo}
+            ricerca={ricerca}
+            onRicerca={setRicerca}
+            mostraAltri={altri}
+            onMostraAltri={setAltri}
+            className="flex-1"
+          />
+        </div>
+      ) : null}
+      {montato ? (
+        <div data-prova="dentro" className="flex h-96 w-80 shrink-0 flex-col">
+          <TestoSegnapostoElenco voci={VOCI_CON_SECONDARIE} className="flex-1" />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// Filtro, ricerca e voci secondarie tenuti dalla pagina restano quando
+// l'elenco viene tolto e rimesso; senza le prop li tiene l'elenco, come
+// prima, e ripartono da capo.
+export const ElencoTenutoFuoriProva: Story = {
+  name: 'Elenco, stato tenuto fuori, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { voci: VOCI_CON_SECONDARIE },
+  render: () => <ElencoTenutoFuori />,
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const elencoDi = (quale: string) => canvasElement.querySelector<HTMLElement>(`[data-prova="${quale}"]`)!
+    const righe = (quale: string) =>
+      [...elencoDi(quale).querySelectorAll<HTMLElement>('button[draggable]')].map((r) => r.textContent)
+    const stato = canvasElement.querySelector<HTMLElement>('[data-prova="stato"]')!
+
+    for (const quale of ['fuori', 'dentro']) {
+      const dati = within(elencoDi(quale))
+      await userEvent.click(dati.getByRole('combobox'))
+      await userEvent.click(await within(document.body).findByRole('option', { name: 'Prodotto' }))
+      await waitFor(() => expect(righe(quale)).toHaveLength(2))
+      await userEvent.click(dati.getByRole('button', { name: 'Mostra un altro dato' }))
+      await waitFor(() => expect(righe(quale)).toHaveLength(3))
+      await userEvent.type(dati.getByRole('searchbox'), 'lot')
+      await waitFor(() => expect(righe(quale)).toEqual(['LottoIl dato non è compilato.']))
+    }
+    expect(stato).toHaveTextContent('Prodotto | lot | true')
+
+    // Tolto e rimesso.
+    const bottone = tela.getByRole('button', { name: 'Dati da citare' })
+    await userEvent.click(bottone)
+    await waitFor(() => expect(canvasElement.querySelector('[data-prova="fuori"]')).not.toBeInTheDocument())
+    await userEvent.click(bottone)
+    await waitFor(() => expect(elencoDi('fuori')).toBeInTheDocument())
+
+    // Tenuto fuori: com'era.
+    expect(within(elencoDi('fuori')).getByRole('combobox')).toHaveTextContent('Prodotto')
+    expect(within(elencoDi('fuori')).getByRole('searchbox')).toHaveValue('lot')
+    expect(righe('fuori')).toEqual(['LottoIl dato non è compilato.'])
+    // Tenuto dentro: da capo, come prima.
+    expect(within(elencoDi('dentro')).getByRole('combobox')).toHaveTextContent('Tutti i dati')
+    expect(within(elencoDi('dentro')).getByRole('searchbox')).toHaveValue('')
+    expect(righe('dentro')).toHaveLength(VOCI.length)
+
+    // Senza la ricerca le voci secondarie del gruppo restano in vista.
+    await userEvent.clear(within(elencoDi('fuori')).getByRole('searchbox'))
+    await waitFor(() => expect(righe('fuori')).toHaveLength(3))
+    expect(within(elencoDi('fuori')).getByRole('button', { name: 'Mostra meno' })).toHaveAttribute('aria-expanded', 'true')
+
+    // «Tutti i dati» arriva alla pagina come `null`.
+    await userEvent.click(within(elencoDi('fuori')).getByRole('combobox'))
+    await userEvent.click(await within(document.body).findByRole('option', { name: 'Tutti i dati' }))
+    await waitFor(() => expect(stato).toHaveTextContent('tutti | | true'))
+    await userEvent.click(within(elencoDi('fuori')).getByRole('button', { name: 'Mostra meno' }))
+    await waitFor(() => expect(stato).toHaveTextContent('tutti | | false'))
+  },
+}
+
+// Lo stesso testo quando niente corrisponde, nell'elenco che si apre
+// scrivendo e in quello dei dati.
+export const VuotoProva: Story = {
+  ...ConElencoDeiDati,
+  name: 'Niente che corrisponda, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const dati = canvasElement.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"]')!
+    await userEvent.type(within(dati).getByRole('searchbox'), 'zzz')
+    await waitFor(() => expect(dati).toHaveTextContent('Nessun dato'))
+    await userEvent.clear(within(dati).getByRole('searchbox'))
+    await areaDi(canvasElement, '#dati-avvertenze')
+    await scrivi('{{zzz')
+    const popup = await aperto()
+    expect(popup).toHaveTextContent('Nessun dato')
+    expect(within(canvasElement).getAllByRole('status').some((s) => s.textContent === 'Nessun dato')).toBe(true)
+    await userEvent.keyboard('[Escape]')
+    await chiuso()
   },
 }

@@ -13695,3 +13695,51 @@ Verificato da fuori: alla `v2.0.10` rispondono 200 `registry.json`, `tema`, `scr
 Non verificato su Safari vero: l'accesso a Safari è stato negato in sessione, e il colore delle barre lì resta da guardare a occhio.
 
 Per Anagrafe: il prompt per passare dalla `v2.0.8` alla `v2.0.10` (proposte #101 e #103 insieme) l'ha Francesco.
+
+
+## 2026-10-12 — Proposta #107: testo con segnaposto e colonna laterale dopo l'adozione
+
+Ramo `fras/proposta-107-segnaposto-colonna`. Anagrafe ha adottato la `v2.0.10` e ha aperto la #107 con undici punti. Le ragioni e le forme scartate in `DECISIONI.md` §76.
+
+#### Cosa c'è
+
+- **1 · voce attiva per `testo`**: se le `voci` cambiano a elenco aperto resta evidenziata la stessa voce; se sparisce lei, la prima.
+- **2 · nota della pillola**: `indicata ?? selezionata`, il puntatore vince.
+- **3 · nome intero nella tendina** (variante B fra due rese): il nome va a capo, il valore resta a destra e si accorcia, la nota scende sotto il nome.
+- **4 · `id`, `ref` e gli attributi di una `section`** alla radice di `ColonnaLaterale`.
+- **5 · sotto 896px di contenuto la colonna è uno `Sheet` da destra**, con `onChiudi` facoltativa. La soglia resta nel CSS: una spia che la container query allarga, letta da `useAffiancata`. `tassullo-app-shell` dipende ora da `sheet`.
+- **6 · `w-xs` al posto di `w-80`**: 320px nelle due densità (era 480 in touch).
+- **7 · `lib/segnaposto.ts`**, nello stesso item: `FORMA_SEGNAPOSTO`, `SPAZI_SEGNAPOSTO`, `nomeSegnaposto`. L'insieme è scritto anche accanto a `forma`.
+- **8 · «Nessun dato»** anche nella tendina.
+- **9 e 10 · `INTEGRAZIONE.md` §Aggiornare**: si reinstalla ciò che l'app ha già (`scroll-area` serve a chi lo usa), e un file in cui cambia solo `"use client"` si riporta com'era.
+- **11 · `gruppo`/`onGruppo`, `ricerca`/`onRicerca`, `mostraAltri`/`onMostraAltri`** su `TestoSegnapostoElenco`; senza, come prima.
+- `@/prove/apri`: `apriCon`, per un popup che si apre con più di un clic.
+
+#### Le scelte
+
+La proposta lasciava al design system la forma dei punti 3 e 5. Decise in sessione e mandate a Francesco con le foto (`stories/ondata5/foto107/`, fuori dal repository): la tendina com'era e due varianti, e il pannello a 1000×700. Non è arrivata una risposta prima della PR: la riga in `CHECKLIST.md` è `REVIEW`.
+
+#### Problemi
+
+- **«ResizeObserver loop completed with undelivered notifications»** alla prima stesura della soglia: si osservava il contenitore, che cambia altezza quando la colonna entra o esce. Ora si osserva la spia.
+- **Il clic simulato su un bottone della fascia riporta la pagina in cima** (`userEvent.click`, e `locator.click()` di Playwright): il fuoco dato da programma più lo `scroll-padding-top` della radice. Sembrava il difetto del punto 5 rimasto; col mouse vero la pagina resta ferma. Le prove usano `.click()` senza fuoco, o le coordinate.
+- **`shadcn add` toglie tutto ciò che sta prima della prima istruzione**: in `lib/segnaposto.ts` l'elenco dei 24 caratteri stava sopra la prima costante e non sarebbe arrivato. Ora sta sotto.
+- In touch, a finestra stretta, il bottone «Dati da citare» della scena entra nel menu delle azioni: la `play` della scena lo cerca anche lì.
+
+#### Test
+
+Prove nuove, scritte prima delle correzioni e fallite sul codice di partenza in Chromium e in WebKit: `Voce attiva, prova` («Norma» al posto di «Linea»), `Nota della pillola indicata, prova`, `Nomi lunghi, prova` (3 nomi tagliati su 4), `Colonna Laterale, stretta, prova` (colonna da 48 a 431px invece che da 0 a 900), `Colonna Laterale, densità, prova` (480px in touch). Poi `Insieme degli spazi, prova` (tutti i punti di codice di Unicode, con e senza `u`: 24), `Elenco, stato tenuto fuori, prova`, `Niente che corrisponda, prova`. Sei nel gate WebKit. Scene visibili nuove: `Nomi Lunghi`, `Colonna Laterale, stretta`.
+
+Con mouse e tasti veri (Playwright dalla cartella temporanea, Chromium e WebKit, chiaro e scuro, normale e touch, contro lo Storybook di sviluppo): a 1000×700 con 60px di corsa il pannello va da 0 a 700px, le tab restano a 48px (72 in touch), si vedono 6 dati (4 in touch), `Esc` e il clic fuori lo chiudono a pagina ferma e il fuoco torna al bottone; la voce evidenziata resta dopo che ne sparisce una prima; la nota segue il puntatore e torna alla selezionata.
+
+`npm run check` verde: 13 gate, `test:a11y` 549 scene, 2196 scansioni, 0 violazioni; `test:webkit` 22 su 22. `npm run build` verde.
+
+#### Aperti
+
+- La forma dei punti 3 e 5 aspetta lo sguardo di Francesco.
+- Nel pannello un dato si clicca e non si trascina.
+- Una pagina che monta la colonna di serie, in una finestra stretta, si apre col pannello davanti.
+- In WebKit il `Tab` su un bottone della fascia, a pagina scorsa, la fa risalire di 86px (lo `scroll-padding-top`): c'era già.
+- Le scene virtualizzate in WebKit stampano «ResizeObserver loop…» senza fallire: c'era già.
+- `CLAUDE.md`, alla voce `test:webkit`, dice ancora «cinque scene».
+- `misura:bersagli` non rilanciato.

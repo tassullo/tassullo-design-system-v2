@@ -660,6 +660,20 @@ Ogni comando riscrive anche gli item da cui quello dipende. Poi si
 ricopiano le righe del lint dal passo 12, che nella versione nuova possono
 essere cambiate.
 
+**Si reinstalla ciò che l'app ha già.** Se le note di una versione elencano un
+item che l'app non ha mai installato, non lo si aggiunge per aggiornare: è
+cambiato per chi lo usa. È il caso di `scroll-area` nella `v2.0.10`, cambiato
+nel solo colore del cursore: nessun blocco lo importa, e a un'app che non lo
+usava non serve. Un item nuovo arriva da sé il giorno in cui si installa
+qualcosa che ne dipende.
+
+**La riga `"use client"`.** Con `rsc: false` in `components.json`, la riga di
+comando di shadcn a ogni `--overwrite` toglie o mette `"use client"` in testa
+a file che il design system non ha cambiato fra le due versioni, e non sempre
+gli stessi. Se nel diff di un file c'è solo quella riga, il file si riporta
+com'era (`git checkout -- <file>`): `tassullo-controllo` la ignora, ma il diff
+resta più facile da leggere.
+
 **Da una versione che installava il carattere in `src/`** (fino a `v2.0.4`):
 dopo l'aggiornamento del tema si cancellano `src/tassullo-inter.css` e
 `src/tassullo-inter-OFL.txt`, si toglie da `src/index.css` la riga

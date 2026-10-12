@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, waitFor } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import {
   BoxesIcon,
   BracesIcon,
@@ -17,7 +17,7 @@ import {
   UsersIcon,
 } from 'lucide-react'
 
-import { apriCol } from '@/prove/apri'
+import { apriCol, apriCon } from '@/prove/apri'
 import {
   Card,
   CardContent,
@@ -105,7 +105,10 @@ import {
  *   lista con lo scorrimento interno.
  * - `ColonnaLaterale`, esportato dallo stesso file: una colonna a destra del
  *   contenuto, che la pagina dichiara e il guscio rende. Prende `etichetta`,
- *   il suo nome per i lettori di schermo.
+ *   il suo nome per i lettori di schermo; `onChiudi`, chiamato quando il
+ *   pannello delle finestre strette viene chiuso; e `id`, `ref` e gli altri
+ *   attributi, che vanno alla sua radice: servono a collegarla col bottone
+ *   che la apre (`aria-controls`) e a portarci il fuoco.
  *
  * **Regole d'uso.**
  *
@@ -126,10 +129,18 @@ import {
  * - Ciò che deve restare accanto al contenuto mentre la pagina scorre — un
  *   elenco da cui trascinare — va in `ColonnaLaterale`: sta sotto la fascia e
  *   accanto alle tab della pagina, alta fino in fondo alla finestra, e
- *   stringe il contenuto invece di coprirlo. La pagina non scrive né
- *   `sticky` né altezze. Quando al contenuto restano meno di 896px la
- *   colonna sale sopra, bassa, e scorre con la pagina. La scena è «Colonna
- *   Laterale».
+ *   stringe il contenuto invece di coprirlo. È larga 320px in tutte e due
+ *   le densità. La pagina non scrive né `sticky` né altezze. La scena è
+ *   «Colonna Laterale».
+ * - Quando al contenuto restano meno di 896px la colonna è un pannello che
+ *   entra da destra sopra la pagina, alto quanto la finestra. Si apre quando
+ *   la pagina la rende, quindi lì la pagina la rende su richiesta, da un
+ *   bottone, e non di serie. Si chiude con `Esc`, con la crocetta o
+ *   cliccando fuori, e la pagina lo viene a sapere da `onChiudi`: senza, la
+ *   crede ancora aperta e il bottone va premuto due volte. Nel pannello un
+ *   dato si clicca e non si trascina. La scena è «Colonna Laterale, stretta».
+ * - Passando la soglia con la colonna aperta il suo contenuto si rimonta:
+ *   ciò che deve restare, come un filtro, lo tiene la pagina.
  * - Con `contenuto="riempie"` la pagina rende una colonna
  *   `flex h-full min-h-0 flex-col`, con la tabella come figlio
  *   `min-h-0 flex-1`: è la forma di `altezza="ferma"` di
@@ -142,7 +153,9 @@ import {
  * utente hanno un nome accessibile anche quando il testo è nascosto. Sotto i
  * 768px la colonna esce dal DOM e il grilletto apre un pannello laterale: il
  * fuoco resta al suo interno, e `Esc` lo chiude al primo colpo. Il menu
- * dell'utente si apre di lato sulla scrivania e in basso sul telefono.
+ * dell'utente si apre di lato sulla scrivania e in basso sul telefono. Anche
+ * il pannello della colonna laterale tiene il fuoco al suo interno, si chiude
+ * con `Esc` e riporta il fuoco al bottone che l'ha aperto.
  */
 const meta = {
   title: 'Blocchi/App shell',
@@ -659,9 +672,14 @@ const TESTI_SCHEDA = [
  * il guscio lo rende accanto al contenuto, sotto la fascia. La pagina non
  * scrive `sticky` né altezze; per chiudere la colonna smette di renderla.
  */
-function PaginaConColonna() {
-  const [aperta, setAperta] = useState(true)
+function PaginaConColonna({ chiusa = false }: { chiusa?: boolean }) {
+  const [aperta, setAperta] = useState(!chiusa)
   const ultimo = useRef<TestoSegnapostoRef | null>(null)
+  const colonna = useRef<HTMLElement>(null)
+  // Lo stato dell'elenco lo tiene la pagina: chiusa e riaperta la colonna, o
+  // cambiata tab, filtro e ricerca sono dov'erano.
+  const [gruppo, setGruppo] = useState<string | null>(null)
+  const [ricerca, setRicerca] = useState('')
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -700,7 +718,12 @@ function PaginaConColonna() {
             ))}
           </FieldGroup>
           {aperta ? (
-            <ColonnaLaterale etichetta="Dati da citare">
+            <ColonnaLaterale
+              id="dati-da-citare"
+              ref={colonna}
+              etichetta="Dati da citare"
+              onChiudi={() => setAperta(false)}
+            >
               <div className="flex flex-col gap-0.5">
                 <h2 className="text-base font-medium">Dati da citare</h2>
                 <p className="text-sm text-muted-foreground">Clicca un dato o trascinalo nel testo.</p>
@@ -708,6 +731,10 @@ function PaginaConColonna() {
               <TestoSegnapostoElenco
                 voci={DATI_DA_CITARE}
                 onScegli={(voce) => ultimo.current?.inserisci(voce.testo)}
+                gruppo={gruppo}
+                onGruppo={setGruppo}
+                ricerca={ricerca}
+                onRicerca={setRicerca}
                 className="flex-1"
               />
             </ColonnaLaterale>
@@ -758,6 +785,9 @@ export const ColonnaLateraleProva: Story = {
       expect(el).toBeInTheDocument()
       return el as HTMLElement
     })
+    // `id` e gli altri attributi vanno alla radice della colonna.
+    expect(colonna.id).toBe('dati-da-citare')
+    expect(colonna).toHaveAttribute('aria-label', 'Dati da citare')
     const pagina = document.scrollingElement ?? document.documentElement
     await waitFor(() => expect(`corsa ${pagina.scrollHeight - pagina.clientHeight >= 1500}`).toBe('corsa true'))
     const bottone = () =>
@@ -802,13 +832,32 @@ export const ColonnaLateraleProva: Story = {
   },
 }
 
-// Quando al contenuto restano meno di 896px la colonna sta sopra, a tutta
-// larghezza e bassa, e scorre con la pagina. Il riquadro stretto sta al posto
-// di una finestra stretta: la soglia guarda il contenitore.
-export const ColonnaLateraleStrettaProva: Story = {
+// Il bottone «Dati da citare» della fascia; quando la fascia è stretta le
+// azioni stanno nel menu, e la voce è lì.
+async function apriDatiDaCitare(canvasElement: HTMLElement) {
+  const fascia = await waitFor(() => {
+    const el = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"]')
+    expect(el?.querySelector('button')).toBeTruthy()
+    return el as HTMLElement
+  })
+  const bottone = within(fascia).queryByRole('button', { name: 'Dati da citare' })
+  if (bottone) return userEvent.click(bottone)
+  await userEvent.click(fascia.querySelector<HTMLElement>('[data-slot="dropdown-menu-trigger"]')!)
+  await userEvent.click(await within(document.body).findByRole('menuitem', { name: 'Dati da citare' }))
+}
+
+/**
+ * Quando al contenuto restano meno di 896px la colonna non ci sta accanto: è
+ * un pannello che entra da destra, sopra la pagina, alto quanto la finestra.
+ * Lo apre la pagina rendendo `ColonnaLaterale`, come sempre; si chiude con
+ * `Esc`, con la crocetta o cliccando fuori, e avvisa la pagina con
+ * `onChiudi`. Qui il guscio sta in un riquadro stretto, al posto di una
+ * finestra stretta: la soglia guarda lo spazio del contenuto.
+ */
+export const ColonnaLateraleStretta: Story = {
   ...ColonnaLateraleScena,
-  name: 'Colonna Laterale, stretta, prova',
-  tags: ['!dev', '!autodocs'],
+  name: 'Colonna Laterale, stretta',
+  args: { ...ColonnaLateraleScena.args, children: <PaginaConColonna chiusa /> },
   decorators: [
     (Scena) => (
       <div className="max-w-5xl">
@@ -816,25 +865,109 @@ export const ColonnaLateraleStrettaProva: Story = {
       </div>
     ),
   ],
+  play: apriCon(apriDatiDaCitare, 'sheet-content'),
+}
+
+// Sotto soglia, a pagina già scorsa: il pannello si apre tutto in vista, alto
+// quanto la finestra, e non sposta né le tab né il bottone. Si chiude con
+// `Esc` e la pagina lo sa. Lo stato dell'elenco, tenuto dalla pagina, resta.
+export const ColonnaLateraleStrettaProva: Story = {
+  ...ColonnaLateraleStretta,
+  name: 'Colonna Laterale, stretta, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
   play: async ({ canvasElement }) => {
     const px = (n: number) => Math.round(n)
-    const posto = await waitFor(() => {
+    const bottone = () =>
+      [...canvasElement.querySelectorAll<HTMLElement>('[data-slot="page-header-bar"] button')].find(
+        (b) => b.textContent?.trim() === 'Dati da citare',
+      )!
+    const colonna = () => document.querySelector<HTMLElement>('[data-slot="colonna-laterale"]')
+    const tab = () => canvasElement.querySelector<HTMLElement>('[data-slot="fascia-tab"]')!.getBoundingClientRect()
+    await waitFor(() => expect(canvasElement.querySelector('#testo-0')).toBeInTheDocument())
+    await waitFor(() => expect(bottone()).toBeTruthy())
+    expect(colonna()).not.toBeInTheDocument()
+    const pagina = document.scrollingElement ?? document.documentElement
+    await waitFor(() => expect(`corsa ${pagina.scrollHeight - pagina.clientHeight >= 300}`).toBe('corsa true'))
+    try {
+      window.scrollTo({ top: 300, behavior: 'instant' })
+      const tabPrima = tab()
+      // Un clic senza spostare il fuoco, come col mouse: il fuoco dato da
+      // programma a un bottone della fascia riporta la pagina in cima.
+      bottone().click()
+      const c = await waitFor(() => {
+        const el = colonna()
+        expect(el).toBeInTheDocument()
+        return el as HTMLElement
+      })
+      // A pannello fermo: tutto in vista, da cima a fondo della finestra.
+      await waitFor(() => {
+        const r = c.getBoundingClientRect()
+        expect(`colonna da ${px(r.top)} a ${px(r.bottom)}`).toBe(`colonna da 0 a ${innerHeight}`)
+      })
+      expect(c.id).toBe('dati-da-citare')
+      expect(c).toHaveAttribute('aria-label', 'Dati da citare')
+      const titolo = c.querySelector('h2')!.getBoundingClientRect()
+      expect(`titolo in vista: ${titolo.top >= 0 && titolo.bottom <= innerHeight}`).toBe('titolo in vista: true')
+      // Le tab non si sono mosse, e la pagina è dov'era.
+      expect(`tab a ${px(tab().top)}`).toBe(`tab a ${px(tabPrima.top)}`)
+      expect(`pagina ferma a ${px(window.scrollY)}`).toBe('pagina ferma a 300')
+      // Più di due dati alla volta.
+      const scorre = c.querySelector<HTMLElement>('[data-slot="testo-segnaposto-dati"] .overflow-y-auto')!.getBoundingClientRect()
+      const inVista = [...c.querySelectorAll<HTMLElement>('button[draggable]')].filter((b) => {
+        const r = b.getBoundingClientRect()
+        return r.top >= scorre.top && r.bottom <= Math.min(scorre.bottom, innerHeight)
+      })
+      expect(`dati in vista: ${inVista.length >= 4}`).toBe('dati in vista: true')
+
+      // Il filtro, poi `Esc`: la pagina lo sa, e riaprendo il filtro c'è.
+      await userEvent.type(within(c).getByRole('searchbox'), 'res')
+      await waitFor(() => expect(c.querySelectorAll('button[draggable]')).toHaveLength(2))
+      await userEvent.keyboard('[Escape]')
+      await waitFor(() => expect(colonna()).not.toBeInTheDocument(), { timeout: 5000 })
+      bottone().click()
+      const riaperta = await waitFor(() => {
+        const el = colonna()
+        expect(el).toBeInTheDocument()
+        return el as HTMLElement
+      })
+      expect(within(riaperta).getByRole('searchbox')).toHaveValue('res')
+      await userEvent.clear(within(riaperta).getByRole('searchbox'))
+      // La crocetta chiude come `Esc`.
+      await userEvent.click(within(document.body).getByRole('button', { name: 'Chiudi' }))
+      await waitFor(() => expect(colonna()).not.toBeInTheDocument(), { timeout: 5000 })
+    } finally {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  },
+}
+
+// La colonna affiancata è larga uguale nelle due densità: 320px.
+export const ColonnaLateraleDensitaProva: Story = {
+  ...ColonnaLateraleScena,
+  name: 'Colonna Laterale, densità, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    // Il posto della colonna, col suo filo.
+    const colonna = await waitFor(() => {
       const el = canvasElement.querySelector<HTMLElement>('[data-slot="app-shell-colonna"]')
       expect(el?.querySelector('[data-slot="colonna-laterale"]')).toBeInTheDocument()
       return el as HTMLElement
     })
-    const testo = await waitFor(() => {
-      const el = canvasElement.querySelector<HTMLElement>('#testo-0')
-      expect(el).toBeInTheDocument()
-      return el as HTMLElement
-    })
-    const fascia = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"]')!.getBoundingClientRect()
-    const c = posto.getBoundingClientRect()
-    expect(`sopra: ${px(c.top) === px(fascia.bottom) && c.bottom <= testo.getBoundingClientRect().top}`).toBe('sopra: true')
-    expect(`larga ${px(c.width)} su ${px(fascia.width)}, alta al più 384: ${c.height <= 384}`).toBe(
-      `larga ${px(fascia.width)} su ${px(fascia.width)}, alta al più 384: true`,
-    )
-    expect(getComputedStyle(posto).position).toBe('static')
+    const radice = document.documentElement
+    const diPartenza = radice.getAttribute('data-density')
+    const larga = () => Math.round(colonna.getBoundingClientRect().width)
+    try {
+      radice.removeAttribute('data-density')
+      await waitFor(() => expect(`normale ${larga()}`).toBe('normale 320'))
+      radice.setAttribute('data-density', 'touch')
+      // Il bottone cresce: la densità è cambiata davvero.
+      const bottone = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"] button')!
+      await waitFor(() => expect(bottone.getBoundingClientRect().height).toBeGreaterThan(40))
+      expect(`touch ${larga()}`).toBe('touch 320')
+    } finally {
+      if (diPartenza === null) radice.removeAttribute('data-density')
+      else radice.setAttribute('data-density', diPartenza)
+    }
   },
 }
 
