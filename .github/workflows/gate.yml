@@ -23,7 +23,10 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
+      # Tutta la storia: serve a sapere quali file sono cambiati.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -32,11 +35,36 @@ jobs:
 
       - run: npm ci
 
+      # Una modifica di soli documenti (i `.md` alla radice e in `docs/`) non
+      # cambia nessuna scena: salta i gate lenti, cioè le quattro passate di
+      # axe, la passata WebKit e la costruzione della style guide. Gli undici
+      # controlli statici girano sempre. Chi decide è
+      # `scripts/solo-documenti.ts`; se l'elenco dei file non si riesce a
+      # leggere vale «codice», e gira tutto (`docs/DECISIONI.md` §80).
+      - name: Cosa è cambiato
+        id: cosa
+        env:
+          EVENTO: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          PRIMA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENTO" = "pull_request" ]; then
+            file=$(git diff --name-only "origin/$BASE...HEAD" || true)
+          else
+            file=$(git diff --name-only "$PRIMA" "$GITHUB_SHA" || true)
+          fi
+          echo "$file"
+          node scripts/solo-documenti.ts --self-test
+          esito=$(printf '%s\n' "$file" | node scripts/solo-documenti.ts)
+          echo "Modifica di: $esito"
+          echo "esito=$esito" >> "$GITHUB_OUTPUT"
+
       # Chromium per le quattro passate di axe: il gate misura il contrasto e
       # il comportamento dei popup, non la compatibilità fra browser.
       # `--with-deps` serve perché l'immagine di GitHub non porta le librerie
       # di sistema che i browser si aspettano.
       - run: npx playwright install --with-deps chromium
+        if: steps.cosa.outputs.esito != 'documenti'
 
       # WebKit per la sola passata `test:webkit`: le scene di misura che
       # scorrono e cambiano densità sulle righe virtualizzate. Il ciclo di
@@ -44,6 +72,7 @@ jobs:
       # (`docs/DECISIONI.md` §69 e §70). Con le dipendenze di sistema sono
       # circa 107 MB e 52 pacchetti; il tempo si misura alla prima PR.
       - run: npx playwright install --with-deps webkit
+        if: steps.cosa.outputs.esito != 'documenti'
 
       # I tredici gate: gli undici controlli statici — palette, aggiornabilità dei
       # componenti, allineamento di `public/r/` ai sorgenti, riferimenti e
@@ -55,10 +84,16 @@ jobs:
       # poi le quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto},
       # e la passata WebKit sulle scene etichettate `webkit` (`test:webkit`).
       - run: npm run check
+        if: steps.cosa.outputs.esito != 'documenti'
+
+      # Soli documenti: gli undici controlli statici, senza i browser.
+      - run: npm run check:statici
+        if: steps.cosa.outputs.esito == 'documenti'
 
       # La style guide deve anche **costruirsi**: una story che compila nel
       # dev server e non nel build statico è rotta per chi la consulta.
       - run: npm run build-storybook
+        if: steps.cosa.outputs.esito != 'documenti'
 
       # E deve **tipare**. `build-storybook` passa da esbuild, che i tipi non
       # li guarda: fino a M4ter.3 in CI non girava nessun `tsc`, e una prop

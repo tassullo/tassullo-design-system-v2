@@ -14028,3 +14028,25 @@ Ramo `fras/prove-stabili`. Francesco ha ricevuto la terza mail di gate fallito i
 - Perché la pagina si fermi nel gate intero e non in `test:webkit` da solo: non si sa. La misura che manca è il gate intero ripetuto, tre ore per variante.
 - WebKit chiuso a metà corsa (`a247868`): causa mai trovata, e l'attesa lunga non la tocca.
 - Il commit `dd63771` resta con la corsa rossa in elenco.
+
+
+## 2026-10-13 — Una modifica di soli documenti salta i gate lenti
+
+Ramo `fras/gate-soli-documenti`. Francesco, dopo un pomeriggio di attese: «c'è qualcosa che non va». Il tempo era il ciclo: tredici gate tre volte per ogni PR, anche per una voce di diario. Ha detto sì a far saltare i gate lenti alle PR di soli documenti. Ragioni in `DECISIONI.md` §80.
+
+#### Cosa è cambiato
+
+- `scripts/solo-documenti.ts`: dall'elenco dei file cambiati dice `documenti` o `codice`. Documenti sono i `.md` alla radice e in `docs/`; nel dubbio, codice. Autotest di tredici casi.
+- `npm run check:statici`: gli undici controlli senza browser. `npm run check` ora è `check:statici` più `test:a11y` e `test:webkit`: gli stessi tredici, nello stesso ordine.
+- `.github/workflows/gate.yml`: un passo «Cosa è cambiato»; se sono soli documenti, niente browser, `check:statici` al posto di `check`, niente `build-storybook`.
+- `CLAUDE.md`: la regola in §Conduzione e in §Comandi, e le voci della stessa sessione in una PR sola.
+
+#### Misure
+
+- `check:statici` in locale: 21 secondi, verde. `npm run check` intero: circa 6 minuti.
+- Lo script a mano: `WORKLOG.md` più `docs/DECISIONI.md` dà `documenti`; con `package.json` in mezzo dà `codice`; elenco vuoto dà `codice`.
+- Questa PR tocca workflow, script e `package.json`: in CI gira tutto, ed è la prova del ramo «codice». Il ramo «documenti» si vede alla prima PR di soli documenti, che è la prossima voce di diario.
+
+#### Aperti
+
+- `pages.yml` ricostruisce e ripubblica la style guide a ogni push su `main`, anche di soli documenti: non blocca nessuno, non toccato.

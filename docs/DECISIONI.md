@@ -4034,3 +4034,19 @@ Lasciati come sono, e perché: cancellata una pillola restano i suoi due spazi, 
 - **Riprodurre il carico in locale**: con sedici processi di carico su dodici processori sei corse verdi su sei; a priorità bassa la macchina si ferma del tutto.
 
 **Se torna.** Il gate di accessibilità ora nomina la scena fallita e il perché; `test:webkit` lo fa da sé. La misura che manca è il gate intero ripetuto, circa nove minuti a giro: venti giri per variante sono tre ore. Si fa se arriva un'altra corsa rossa che l'attesa lunga non spiega.
+
+## 80. Una modifica di soli documenti salta i gate lenti (2026-10-13)
+
+**Il fatto.** Ogni modifica passava dai tredici gate tre volte: in locale prima della PR (circa 6 minuti), in CI sulla PR (circa 10) e in CI su `main` dopo l'unione (circa 10). Quasi tutto il tempo sta nelle quattro passate di axe e in quella di WebKit. Il 13 ottobre quattro PR di soli documenti, conferme di decisioni e voci di diario, hanno fatto quel giro una dopo l'altra: un pomeriggio, e Francesco ad aspettare.
+
+**La decisione (Francesco, 2026-10-13).** Una modifica di soli documenti non passa dai gate lenti. In CI il workflow guarda i file cambiati e, se sono tutti documenti, lancia `npm run check:statici` al posto di `npm run check`, non installa i browser e non costruisce la style guide. In locale basta `npm run check:statici`, venti secondi. `npm run build` gira sempre.
+
+**Cosa conta come documento.** Un `.md` alla radice del repository o in `docs/`. Lo decide `scripts/solo-documenti.ts`, con un autotest di tredici casi che il workflow lancia a ogni corsa. Sono codice: i `.md` sotto `registry/` e `public/`, che arrivano alle app; i `.mdx`, che sono pagine della style guide; ogni altro file. Un elenco vuoto o che non si riesce a leggere vale «codice»: nel dubbio gira tutto.
+
+**Perché è sicuro.** Nessuna scena e nessun file spedito importa un `.md` (cercato: gli unici riferimenti sono nei commenti). I due controlli che leggono dei documenti sono statici e girano sempre: `check:checklist` legge `CHECKLIST.md`, `check:lint-app` prende la configurazione dal passo 12 di `docs/INTEGRAZIONE.md`. `main` non ha regole di protezione che chiedano un controllo per nome, quindi un passo saltato non blocca un'unione.
+
+**Scartato.**
+- **`paths-ignore` sul workflow**: salta tutto il gate, anche i due controlli che leggono i documenti.
+- **Un quattordicesimo gate** per l'autotest dello script: lo lancia il workflow nel passo che lo usa, ed è lì che serve.
+
+**Insieme a questa**: le voci di diario e le conferme della stessa sessione vanno in una PR sola, non una per risposta.
