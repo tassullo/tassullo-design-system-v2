@@ -13945,3 +13945,28 @@ Il blocco non cambia: ciò che Anagrafe installa alla `v2.0.13` è il codice di 
 
 - Il commit etichettato `v2.0.13` resta con la corsa rossa in elenco: non è stata rilanciata.
 - Quindici corse verdi non provano che una prova che falliva una volta su otto sia ferma: lo dirà il gate nelle prossime corse, e ora dirà anche quale scena.
+
+
+## 2026-10-13 — Proposta #115: le decisioni di sessione sono confermate
+
+Letto il resoconto della `v2.0.13`, Francesco ha scritto: «confermo tutte le decisioni». Sono le nove della voce della proposta #115, e restano come sono nel codice pubblicato: nessun file del registry cambia.
+
+- Virgolette dritte doppie: si contano nella riga, la prima apre e la seconda chiude.
+- Apostrofo, dritto o curvo: tiene il dato attaccato.
+- «Sempre» alla lettera: anche `kg/ {{dato}}` e `{{dato}} %`.
+- `…` fra i segni che seguono; le graffe no.
+- Incolla: stessa regola ai due capi; un dato incollato vale come un dato inserito.
+- Composizioni: niente durante, la regola a composizione finita.
+- Segnaposto scritto a mano per intero: resta dove lo si scrive.
+- Lo spazio messo per una lettera se ne va con lei.
+- Due righe unite: la pillola prende lo spazio di un dato inserito.
+
+**Perché si chiudono così**: ognuna ha la sua ragione in `DECISIONI.md` §78, che ora porta la conferma. La regola comune è una sola: accanto a una pillola uno spazio non si vede, quindi lo mette e lo toglie il blocco, e chi scrive lo corregge con un Annulla o cancellandolo.
+
+Il gate su `main` dopo la PR #117 (`e544808`) è verde.
+
+#### Aperti
+
+- Delle tre decisioni della #110 rimaste «da confermare», due ora discendono dalla regola per lato (lo spazio fra due pillole, lo spazio tolto davanti alla punteggiatura). Resta la terza: ciò che si lascia sopra il testo va all'inizio della prima riga.
+- Composizione vera in WebKit, dettatura, Android, Safari vero: non provati.
+- Il doppio clic su una pillola in WebKit, segnalato a parte.
