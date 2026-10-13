@@ -413,11 +413,12 @@ export const Stati: Story = {
 }
 
 /**
- * Un campo che parte alto otto righe, con la maniglia sul bordo in basso per
- * alzarlo ancora. L'altezza scelta è un minimo: scrivendo oltre, il campo
- * cresce col testo e non scorre mai dentro. Da tastiera la maniglia si muove
- * con le frecce su e giù, una riga alla volta, e `Inizio` torna all'altezza
- * di partenza.
+ * Un campo che parte alto otto righe, con la maniglia nell'angolo in basso a
+ * destra per alzarlo ancora, come in una `textarea`. La maniglia è spenta di
+ * serie: il campo cresce già da solo col testo. L'altezza scelta è un
+ * minimo: scrivendo oltre, il campo cresce e non scorre mai dentro. Da
+ * tastiera la maniglia si muove con le frecce su e giù, una riga alla volta,
+ * e `Inizio` torna all'altezza di partenza.
  */
 export const Altezza: Story = {
   args: { voci: VOCI },

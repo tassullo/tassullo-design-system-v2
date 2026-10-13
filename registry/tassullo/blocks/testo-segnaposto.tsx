@@ -303,8 +303,9 @@ export type TestoSegnapostoProps = {
   /** L'altezza di partenza, in righe di testo. Il campo cresce col testo. */
   righe?: number
   /**
-   * Una maniglia sul bordo in basso per alzare il campo. L'altezza scelta è
-   * un minimo: il campo continua a crescere col testo e non scorre dentro.
+   * Una maniglia nell'angolo in basso a destra per alzare il campo, come
+   * quella di una `textarea`. L'altezza scelta è un minimo: il campo continua
+   * a crescere col testo e non scorre dentro. Spenta di serie.
    */
   ridimensionabile?: boolean
   /** I dati che si possono citare. */
@@ -1711,7 +1712,8 @@ export function TestoSegnaposto({
           aria-valuemin={Math.round(righe ?? RIGHE_DI_SERIE)}
           aria-valuemax={RIGHE_AL_MASSIMO}
           tabIndex={0}
-          className="group/maniglia absolute inset-x-0 bottom-0 flex h-2 cursor-row-resize touch-none items-center justify-center outline-none"
+          // Nell'angolo in basso a destra, come quella di una `textarea`.
+          className="group/maniglia absolute right-0 bottom-0 flex size-5 cursor-ns-resize touch-none items-end justify-end rounded-br-lg p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:text-ring active:text-foreground"
           onPointerDown={(evento) => {
             if (evento.button !== 0) return
             const area = editor.view.dom
@@ -1744,7 +1746,9 @@ export function TestoSegnaposto({
             evento.preventDefault()
           }}
         >
-          <span className="h-1 w-8 rounded-full bg-border transition-colors group-hover/maniglia:bg-muted-foreground group-focus-visible/maniglia:bg-ring group-active/maniglia:bg-muted-foreground" />
+          <svg viewBox="0 0 12 12" aria-hidden="true" className="size-3" fill="none" stroke="currentColor" strokeLinecap="round">
+            <path d="M11 4 4 11M11 8 8 11" />
+          </svg>
         </div>
       ) : null}
       <span role="status" className="sr-only">

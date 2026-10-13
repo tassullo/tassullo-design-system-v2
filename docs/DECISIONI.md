@@ -4079,3 +4079,32 @@ Lasciati come sono, e perché: cancellata una pillola restano i suoi due spazi, 
 
 **Prove.** Ogni punto ha una scena di prova che gira in Chromium e in WebKit: quattro dell'albero e dell'elenco, tre del testo.
 
+
+## 82. Scheda a blocchi: le sette scelte confermate, e la variante `destructive-ghost` (proposta #125, 2026-10-13)
+
+Francesco ha guardato le scelte una alla volta, sulle scene e su forme rese affiancate. Dove questa voce contraddice §81, vale questa.
+
+1. **Albero: lista con la riga corrente, non `tree`.** Confermata: «basta che non cambi nulla a livello grafico». Non cambia.
+2. **Riordino: menu e riga trascinata intera.** Confermata com'è. Il dubbio era che trascinando una riga cambiasse livello: non può, si sposta solo fra le sorelle. Senza un segno che inviti a trascinare, è difficile che capiti per sbaglio. Scartata la maniglia a sinistra: toglie 22px a ogni titolo in un albero largo 288.
+3. **Lo stile dei livelli: senza maiuscoletto.** Rettifica §81. Il secondo livello è a peso medio; i tre livelli si distinguono per peso e rientro.
+4. **La maniglia del testo: resta, spenta di serie, nell'angolo in basso a destra.** Rettifica §81, dove era una barretta al centro del bordo. È la forma che ha già la `Textarea` del design system. In Anagrafe resta spenta: il campo cresce da solo col testo.
+5. **Un testo mai mostrato parte col cursore in fondo.** Confermata.
+6. **Un rosso che non sia il più vistoso della riga: `variant="destructive-ghost"`.** Variante nuova del `Button`, approvata da Francesco fra tre forme rese. Senza fondo, testo `destructive-subtle-foreground`, fondo `destructive-subtle` al passaggio. Scartato: rendere tenue `destructive` (la forma originale di shadcn), perché cambierebbe tutti i bottoni rossi, compresa la conferma finale, che è piena apposta; `ghost` o `outline` con una classe di colore dall'app, che è ciò che le app non scrivono.
+7. **`toggle-group` a scelta singola che non si svuota: una regola d'uso, non codice.** Base UI non ha un'opzione per questo, e il calendario del design system fa già così: il gruppo è controllato e il valore vuoto non si applica. La regola è nella pagina del componente, con la scena `Scelta Che Non Si Svuota` e la sua prova. In Anagrafe le tre righe restano e non sono più un ripiego. Scartato: una prop nuova (divergenza di forma più pesante di una variante) e un blocco a pallini radio (un componente in più per tre righe).
+
+**Una variante nostra si dichiara come un componente nostro.** `registry/componenti-propri.json` ha una chiave nuova, `varianti`: file, variante, cosa fa, strada provata, chi ha approvato, quando. `check:registry` toglie dal confronto di forma le sole varianti dichiarate. Provato che sa fallire: senza la riga, `button.tsx` «diverge dall'originale»; con una riga che non trova più la sua variante, errore anche lì. **Un difetto muto evitato**: due stringhe in più sfasavano le liste con cui si conta il ri-stile, e il rapporto diceva «nessun ri-stile» sul bottone (da 20 componenti ri-stilati a 19); il conto ora si fa senza le varianti dichiarate.
+
+**Trovato guardando le scene, da Francesco.**
+- Nell'albero l'icona dell'errore non era in colonna coi pallini: è larga 16px, i pallini 8, ed erano allineati a destra. Ora ogni pallino sta al centro di un posto largo quanto l'icona, e una prova confronta i tre centri.
+- La legenda sotto l'albero andava a capo, e in fondo a un albero lungo non si vedeva. `ElencoDettaglio` ha `piede`: sta in fondo al dettaglio, allineato al fondo della cornice, e lì la legenda sta su una riga. Senza riga di separazione sopra (Francesco).
+- La voce «N blocchi: senza un testo suo, ne contiene altri» non si capiva: nella legenda delle scene ora c'è il segno com'è nell'albero, «10 blocchi», e accanto «solo contenitore, senza un testo suo».
+
+**L'altezza dell'elenco fermo.** Rettifica §81: l'altezza massima è la finestra meno ciò che sta sopra e sotto l'elenco **a pagina non scorsa** (42 unità con fascia e tab, 28 con la sola fascia, 12 senza guscio), non meno la sola quota di `sticky`. Così la cornice intera, piede compreso, entra nella finestra senza scorrere; prima un albero da 40 blocchi usciva di 24px. Il dettaglio ora è alto quanto l'elenco (`self-start` è sull'elenco e non più sulla riga), o il piede non scenderebbe.
+
+**Aggiunte alla stessa voce, più tardi nella stessa sessione** (Francesco: «affrontiamolo subito in modo da far implementare in un unico giro tutto ad Anagrafe»).
+
+- **Il segno d'errore dell'albero resta l'icona col punto esclamativo.** Proposto un pallino rosso grande come gli altri, reso accanto all'icona: scartato da Francesco. L'allineamento è già a posto col posto largo quanto l'icona.
+- **`tassullo-empty-state` con più azioni.** `azione` porta più bottoni di fila: stanno su una riga, larga quanto i bottoni; se non ci stanno si impilano, **larghi uguali** (Francesco). È una riga `w-fit max-w-full` coi figli che crescono: su una riga non c'è spazio da riempire, a capo la riga è larga quanto lo spazio e ogni bottone la riempie. Nessuna misura, nessuno script.
+- **`Campo`, in `tassullo-form-field`.** La stessa riga di `FormField` senza react-hook-form, con l'errore dato da fuori (`errore`: una frase o un elenco). Nome approvato da Francesco. `FormField` e `Campo` riempiono la stessa `Riga` interna, quindi la grafica è una sola. Il secondo argomento porta l'`id` dell'etichetta, per i controlli che si nominano con `aria-labelledby`.
+- **La tendina con «Aggiungi» (punto 3) non si fa.** Francesco: i titoli sono una scelta fissa, decisi in una tabella a parte, ognuno con le sue traduzioni per le versioni in lingua dello stesso documento; dalla scheda non se ne creano. Il blocco `tassullo-scelta-con-aggiunta` era scritto e provato ed è stato tolto prima di pubblicarlo: un blocco senza un'app che lo usa non entra. Resta nel commit `8951ca7` del ramo, se un giorno servisse. Da lì, due cose da ricordare: una voce scelta passata a Base UI come oggetto nuovo a ogni resa fa tornare nel campo il testo di prima mentre si scrive; e un `data-slot` passato a `ComboboxItem` sostituisce quello della primitiva.
+- **La pagina d'esempio (punto 6) si fa dopo l'adozione di Anagrafe.** Deve rispecchiare la pagina vera, che con questa versione cambia in più punti; scriverla ora vorrebbe dire scriverla su una forma già superata. Anagrafe avvisa sulla #125 quando la pagina è finita: è scritto nel prompt di adozione.

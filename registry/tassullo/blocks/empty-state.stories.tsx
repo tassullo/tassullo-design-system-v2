@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { FileSearchIcon, FolderOpenIcon } from 'lucide-react'
+import { CopyIcon, FileSearchIcon, FolderOpenIcon, ListTreeIcon, PlusIcon } from 'lucide-react'
+import { expect } from 'storybook/test'
 
 import { EmptyState } from '@/registry/tassullo/blocks/empty-state'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -96,4 +97,63 @@ export const SoloTitolo: Story = {
       <EmptyState {...args} />
     </div>
   ),
+}
+
+const TRE_AZIONI = (
+  <>
+    <Button>
+      <ListTreeIcon data-icon="inline-start" />
+      Parti dallo schema comune
+    </Button>
+    <Button variant="outline">
+      <CopyIcon data-icon="inline-start" />
+      Copia da un’altra famiglia
+    </Button>
+    <Button variant="outline">
+      <PlusIcon data-icon="inline-start" />
+      Aggiungi capitolo
+    </Button>
+  </>
+)
+
+/**
+ * Tre strade per uscire dal vuoto: la principale per prima, e le altre due
+ * accanto, sulla stessa riga. Se lo spazio non basta si impilano, larghe
+ * uguali.
+ */
+export const PiuAzioni: Story = {
+  args: {
+    icona: <ListTreeIcon />,
+    titolo: 'La scheda tecnica non ha ancora testi',
+    descrizione: 'Parti dai capitoli più comuni, copia la struttura di un’altra famiglia, oppure aggiungi i capitoli uno per uno.',
+    azione: TRE_AZIONI,
+  },
+}
+
+// Tre azioni: su una riga quando c'è posto, a capo in un contenitore stretto.
+export const PiuAzioniProva: Story = {
+  ...PiuAzioni,
+  name: 'Più Azioni, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: (args) => (
+    <div className="flex flex-col gap-4">
+      <div data-prova="largo" className="w-3xl">
+        <EmptyState {...args} />
+      </div>
+      <div data-prova="stretto" className="w-xs">
+        <EmptyState {...args} />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const righe = (quale: string) =>
+      new Set([...canvasElement.querySelectorAll(`[data-prova="${quale}"] button`)].map((b) => Math.round(b.getBoundingClientRect().top))).size
+    expect(`largo: ${righe('largo')} riga`).toBe('largo: 1 riga')
+    expect(`stretto: ${righe('stretto')} righe`).toBe('stretto: 3 righe')
+    // Impilati sono larghi uguali; su una riga ognuno è largo quanto il suo testo.
+    const larghezze = (quale: string) =>
+      new Set([...canvasElement.querySelectorAll(`[data-prova="${quale}"] button`)].map((b) => Math.round(b.getBoundingClientRect().width))).size
+    expect(`stretto: ${larghezze('stretto')} larghezza`).toBe('stretto: 1 larghezza')
+    expect(`largo: ${larghezze('largo')} larghezze`).toBe('largo: 3 larghezze')
+  },
 }

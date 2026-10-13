@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import * as z from 'zod'
 
-import { FormField } from '@/registry/tassullo/blocks/form-field'
+import { Campo, FormField } from '@/registry/tassullo/blocks/form-field'
+import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-group'
 import { Button } from '@/registry/tassullo/ui/button'
 import { Checkbox } from '@/registry/tassullo/ui/checkbox'
 import {
@@ -345,5 +347,91 @@ export const Adattiva: Story = {
         </div>
       </div>
     )
+  },
+}
+
+function Blocco({ respinto = false }: { respinto?: boolean }) {
+  const [titolo, setTitolo] = useState('Preparazione del supporto')
+  const [livello, setLivello] = useState('sottocapitolo')
+  const [errori, setErrori] = useState<string[]>(respinto ? ['Il titolo c’è già in questa scheda.'] : [])
+  return (
+    <FieldGroup className="max-w-md">
+      <Campo etichetta="Titolo" errore={errori}>
+        {(campo) => (
+          <Input
+            {...campo}
+            value={titolo}
+            onChange={(evento) => {
+              setTitolo(evento.target.value)
+              setErrori([])
+            }}
+          />
+        )}
+      </Campo>
+      <Campo etichetta="Livello" descrizione="Sta sotto un capitolo: può essere un sottocapitolo o un titoletto.">
+        {(campo, { idEtichetta }) => (
+          <ToggleGroup
+            aria-labelledby={idEtichetta}
+            aria-describedby={campo['aria-describedby']}
+            variant="outline"
+            spacing={0}
+            value={[livello]}
+            onValueChange={(scelti) => {
+              if (scelti[0]) setLivello(String(scelti[0]))
+            }}
+          >
+            <ToggleGroupItem value="sottocapitolo">Sottocapitolo</ToggleGroupItem>
+            <ToggleGroupItem value="titoletto">Titoletto</ToggleGroupItem>
+          </ToggleGroup>
+        )}
+      </Campo>
+      <Button className="self-start" onClick={() => setErrori(['Il titolo c’è già in questa scheda.'])}>
+        Salva
+      </Button>
+    </FieldGroup>
+  )
+}
+
+/**
+ * `Campo` è la stessa riga senza react-hook-form: l'errore lo decide chi usa
+ * il campo, per esempio la risposta di un server. Etichetta, aiuto ed errore
+ * sono collegati allo stesso modo. Il secondo campo è un gruppo di bottoni:
+ * prende il nome dall'etichetta con `aria-labelledby`.
+ */
+export const ErroreDaFuori: Story = {
+  args: {} as never,
+  render: () => <Blocco respinto />,
+}
+
+// L'errore dato da fuori: compare e scompare, e i collegamenti lo seguono.
+export const ErroreDaFuoriProva: Story = {
+  name: 'Errore Da Fuori, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: {} as never,
+  render: () => <Blocco />,
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const titolo = tela.getByLabelText('Titolo')
+    // Senza errore: valido, e nessun testo d'errore.
+    expect(titolo).toHaveAttribute('aria-invalid', 'false')
+    expect(titolo).not.toHaveAttribute('aria-describedby')
+    expect(tela.queryByRole('alert')).toBeNull()
+
+    // L'errore arriva da fuori: il campo lo dichiara e lo collega.
+    await userEvent.click(tela.getByRole('button', { name: 'Salva' }))
+    const errore = await tela.findByRole('alert')
+    expect(errore).toHaveTextContent('Il titolo c’è già in questa scheda.')
+    expect(titolo).toHaveAttribute('aria-invalid', 'true')
+    expect(titolo.getAttribute('aria-describedby')).toBe(errore.id)
+    expect(titolo.closest('[data-slot="field"]')).toHaveAttribute('data-invalid', 'true')
+
+    // Tolto l'errore, tutto torna com'era.
+    await userEvent.type(titolo, ' bis')
+    await waitFor(() => expect(tela.queryByRole('alert')).toBeNull())
+    expect(titolo).toHaveAttribute('aria-invalid', 'false')
+
+    // Il gruppo di bottoni prende il nome dall'etichetta e l'aiuto dalla riga.
+    const livello = tela.getByRole('group', { name: 'Livello' })
+    expect(document.getElementById(livello.getAttribute('aria-describedby')!)).toHaveTextContent('Sta sotto un capitolo')
   },
 }

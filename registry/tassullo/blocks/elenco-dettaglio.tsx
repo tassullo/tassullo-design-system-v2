@@ -42,15 +42,24 @@ export type ElencoDettaglioProps = {
   sotto?: "niente" | "fascia" | "fascia-e-tab"
   /** Il dettaglio della voce scelta. */
   children: React.ReactNode
+  /**
+   * Ciò che sta in fondo al dettaglio, allineato al fondo della cornice anche
+   * quando il dettaglio è più corto dell'elenco: per esempio la legenda dei
+   * segni dell'elenco, che lì sta su una riga.
+   */
+  piede?: React.ReactNode
   className?: string
 }
 
-// Dove si ferma l'elenco e quanto può essere alto: la finestra meno ciò che
-// sta fermo sopra, meno un margine sopra e uno sotto.
+// Dove si ferma l'elenco e quanto può essere alto. L'altezza è la finestra
+// meno ciò che sta sopra e sotto l'elenco a pagina non ancora scorsa, così la
+// cornice intera, piede compreso, entra nella finestra senza scorrere: sopra
+// la fascia (12), il margine del contenuto (4), le tab col loro stacco (14) e
+// il margine della cornice (4); sotto, i due margini (8).
 const FERMO = {
-  niente: { classe: "@xl/elenco-dettaglio:top-4", alto: "calc(100svh - var(--spacing) * 8)" },
-  fascia: { classe: "@xl/elenco-dettaglio:top-16", alto: "calc(100svh - var(--spacing) * 20)" },
-  "fascia-e-tab": { classe: "@xl/elenco-dettaglio:top-28", alto: "calc(100svh - var(--spacing) * 32)" },
+  niente: { classe: "@xl/elenco-dettaglio:top-4", alto: "calc(100svh - var(--spacing) * 12)" },
+  fascia: { classe: "@xl/elenco-dettaglio:top-16", alto: "calc(100svh - var(--spacing) * 28)" },
+  "fascia-e-tab": { classe: "@xl/elenco-dettaglio:top-28", alto: "calc(100svh - var(--spacing) * 42)" },
 }
 
 /**
@@ -62,6 +71,7 @@ export function ElencoDettaglio({
   etichettaElenco,
   sotto = "fascia",
   children,
+  piede,
   className,
 }: ElencoDettaglioProps) {
   const fermo = FERMO[sotto]
@@ -70,7 +80,7 @@ export function ElencoDettaglio({
       data-slot="elenco-dettaglio"
       className={cn("@container/elenco-dettaglio rounded-xl bg-card p-4 text-sm text-card-foreground ring-1 ring-foreground/10", className)}
     >
-      <div className="flex flex-col gap-4 @xl/elenco-dettaglio:flex-row @xl/elenco-dettaglio:items-start @xl/elenco-dettaglio:gap-6">
+      <div className="flex flex-col gap-4 @xl/elenco-dettaglio:flex-row @xl/elenco-dettaglio:gap-6">
         <div
           data-slot="elenco-dettaglio-elenco"
           role={etichettaElenco ? "group" : undefined}
@@ -81,7 +91,7 @@ export function ElencoDettaglio({
           // sta sopra il dettaglio e scorre con la pagina.
           className={cn(
             "flex min-w-0 flex-col gap-3 border-b border-border pb-4",
-            "@xl/elenco-dettaglio:sticky @xl/elenco-dettaglio:max-h-(--elenco-dettaglio-alto) @xl/elenco-dettaglio:w-2xs @xl/elenco-dettaglio:shrink-0 @xl/elenco-dettaglio:overflow-y-auto @xl/elenco-dettaglio:border-r @xl/elenco-dettaglio:border-b-0 @xl/elenco-dettaglio:pr-4 @xl/elenco-dettaglio:pb-0",
+            "@xl/elenco-dettaglio:sticky @xl/elenco-dettaglio:max-h-(--elenco-dettaglio-alto) @xl/elenco-dettaglio:w-2xs @xl/elenco-dettaglio:shrink-0 @xl/elenco-dettaglio:self-start @xl/elenco-dettaglio:overflow-y-auto @xl/elenco-dettaglio:border-r @xl/elenco-dettaglio:border-b-0 @xl/elenco-dettaglio:pr-4 @xl/elenco-dettaglio:pb-0",
             fermo.classe
           )}
         >
@@ -89,6 +99,13 @@ export function ElencoDettaglio({
         </div>
         <div data-slot="elenco-dettaglio-dettaglio" className="flex min-w-0 flex-1 flex-col gap-4">
           {children}
+          {/* Il dettaglio è alto quanto l'elenco che ha accanto: il piede
+              scende in fondo. */}
+          {piede ? (
+            <div data-slot="elenco-dettaglio-piede" className="mt-auto">
+              {piede}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -14132,3 +14132,61 @@ PR #127 unita col gate verde in CI (corsa 38446916370, sul commit `3573af7`); l'
 - #125: punti 3, 5 e 6, e il riordino sotto un altro padre.
 - #126: lo script della misura di Anagrafe, o una prova a mano in Safari.
 
+
+
+## 2026-10-13 — Proposta #125: le sette scelte guardate una a una con Francesco
+
+Ramo `fras/proposta-125-conferme`. Francesco: «riproponimi le scelte così le integriamo subito. Una a una». Ogni scelta proposta con la sua ragione, le alternative rese affiancate dove c'era una forma da vedere, e l'indirizzo della scena per provarla. Esiti in `DECISIONI.md` §82.
+
+#### Cosa è cambiato
+
+- `albero.tsx`: secondo livello a peso medio, senza maiuscoletto; i pallini al centro di un posto largo quanto l'icona dell'errore.
+- `testo-segnaposto.tsx`: la maniglia nell'angolo in basso a destra. Resta spenta di serie.
+- `elenco-dettaglio.tsx`: `piede`; l'altezza massima dell'elenco contata a pagina non scorsa; il dettaglio alto quanto l'elenco.
+- `ui/button.tsx`: `variant="destructive-ghost"`, dichiarata in `registry/componenti-propri.json` sotto `varianti`.
+- `scripts/check-registry.ts`: le varianti dichiarate.
+- `ui/toggle-group.stories.tsx`: la regola e la scena `Scelta Che Non Si Svuota`, con la prova. Il componente non cambia.
+- `CLAUDE.md`: le varianti nostre, e il registro che non è più vuoto.
+
+#### Problemi
+
+- Avevo cominciato a togliere la maniglia («sì, toglila») quando Francesco ha scritto di lasciarla spenta: lo script si era fermato su un controllo suo prima di scrivere, quindi non c'era niente da rimettere.
+- Un indirizzo di scena scritto in fondo a una frase si è portato dietro i due punti, e la scena «non esisteva». Gli indirizzi ora vanno da soli su una riga.
+- La style guide accesa da prima non conosceva le classi nuove (`self-start` sull'elenco): riavviata, come nella voce precedente. La porta è tornata 6006.
+- Tolta la legenda da sotto l'albero, l'ultima riga tocca il fondo dell'elenco: la prova «riga in vista» falliva per una frazione di pixel. Ora confronta al pixel.
+- Una scena di lavoro fuori dal repository (le tre forme del bottone) entrava nel gate locale e dava due violazioni di contrasto sue: tolta. In CI non c'era.
+- La riga della checklist è uscita due volte oltre i 500 caratteri, e lo script che scriveva i documenti si fermava a metà.
+
+#### Misure
+
+- Prove nei due motori: albero 7 su 7, elenco e dettaglio 7 su 7, testo con segnaposto 52 su 52, bottone 10 su 10, gruppo di toggle con la scena nuova.
+- `check:registry`: `button.tsx` «forma identica all'originale, 8 stringhe di classi ri-stilate», come prima della variante; 20 componenti ri-stilati.
+- La maniglia nell'angolo, col mouse vero: da 217 a 277px in Chromium e in WebKit.
+
+#### Aperti
+
+- #125: punto 3 (`combobox` con «Aggiungi»), punto 6 (la pagina d'esempio, con la parte a destra completa: Francesco l'ha cercata e non c'è ancora), e del punto 5 `form-field` con errore da fuori ed `empty-state` con tre azioni. Riordino sotto un altro padre.
+- #126: lo script della misura di Anagrafe, o una prova a mano in Safari.
+- L'angolo della maniglia è un bersaglio di 20px: col dito è piccolo.
+
+#### Seguito della stessa sessione: il resto della #125
+
+Francesco ha chiesto di chiudere subito ciò che restava, per un giro solo in Anagrafe, guardando insieme ogni pezzo. Esiti in `DECISIONI.md` §82, in fondo.
+
+- `empty-state.tsx`: più azioni su una riga; impilate, larghe uguali. Scena `Più Azioni` e prova.
+- `form-field.tsx`: `Campo`, con l'errore dato da fuori. Scena `Errore Da Fuori` e prova.
+- `tassullo-scelta-con-aggiunta`: scritto, provato, e tolto. I titoli sono una scelta fissa.
+- Il segno d'errore dell'albero resta l'icona.
+- `stories/ondata3/` (scene temporanee del 27 settembre, fuori da git) spostata nel Cestino del Mac, su richiesta di Francesco: comparivano nella style guide locale ed entravano nel gate locale.
+- La pagina d'esempio (punto 6) rinviata a dopo l'adozione di Anagrafe.
+
+Problemi:
+- Scrivendo davvero nella tendina, in un browser, il testo scritto sopra la voce scelta tornava indietro. La prova non lo vedeva perché svuotava prima il campo. Riprodotto con una prova che falliva, poi corretto. Il blocco è stato tolto lo stesso, per la decisione sopra.
+- `shadcn build` non cancella da `public/r/` il file di un item tolto: `check:registry-build` lo ha segnalato come item di troppo.
+- Il lint «come arriva nell'app» ha rifiutato `Boolean(…)` scritto dentro un elenco di dipendenze.
+
+Aperti: #125 punto 6 e riordino sotto un altro padre; #126.
+
+Francesco, alla fine: la #125 resta aperta apposta, e le piccole modifiche che Anagrafe trova adottando si chiedono lì con un commento, non con una proposta nuova. È scritto nel prompt di adozione, insieme all'avviso da dare a pagina finita per far partire il punto 6.
+
+`npm run check` sull'ultimo stato, in locale: tredici gate verdi; 2.132 scansioni, 0 violazioni (533 scene: le due di `stories/ondata3/` non ci sono più); `test:webkit` 37 su 37.

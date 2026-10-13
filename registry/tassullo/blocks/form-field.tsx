@@ -181,54 +181,144 @@ export function FormField<T extends FieldValues, N extends FieldPath<T>>({
           "aria-invalid": fieldState.invalid,
           "aria-describedby": descritto || undefined,
         }
-
-        const controllo = children(campo)
-        const etichettaResa = (
-          <FieldLabel htmlFor={idCampo}>{etichetta}</FieldLabel>
-        )
-        /*
-         * Aiuto ed errore stanno **dopo** il controllo, ed è l'ordine che
-         * shadcn documenta. Con l'etichetta in coda — interruttori, caselle —
-         * finiscono invece dentro `FieldContent` insieme all'etichetta, o il
-         * testo d'aiuto resterebbe allineato al bordo sinistro della riga
-         * invece che sotto la propria etichetta.
-         */
-        const aiuto = (
-          <>
-            {descrizione ? (
-              <FieldDescription id={idDescrizione}>
-                {descrizione}
-              </FieldDescription>
-            ) : null}
-            {fieldState.invalid ? (
-              <FieldError id={idErrore} errors={[fieldState.error]} />
-            ) : null}
-          </>
-        )
-
         return (
-          <Field
-            data-invalid={fieldState.invalid}
-            orientation={ORIENTAMENTO[orientamento]}
+          <Riga
+            idCampo={idCampo}
+            etichetta={etichetta}
+            descrizione={descrizione}
+            errori={fieldState.invalid ? [fieldState.error] : []}
+            orientamento={orientamento}
+            etichettaInCoda={etichettaInCoda}
           >
-            {etichettaInCoda ? (
-              <>
-                {controllo}
-                <FieldContent>
-                  {etichettaResa}
-                  {aiuto}
-                </FieldContent>
-              </>
-            ) : (
-              <>
-                {etichettaResa}
-                {controllo}
-                {aiuto}
-              </>
-            )}
-          </Field>
+            {children(campo)}
+          </Riga>
         )
       }}
     />
+  )
+}
+
+/** I tre collegamenti che `Campo` passa al controllo. */
+export type CampoLibero = {
+  id: string
+  "aria-invalid": boolean
+  "aria-describedby": string | undefined
+}
+
+export type CampoProps = Pick<
+  FormFieldProps<FieldValues, string>,
+  "etichetta" | "descrizione" | "orientamento" | "etichettaInCoda"
+> & {
+  /**
+   * L'errore, deciso da chi usa il campo: la risposta di un server, un
+   * controllo fatto altrove. Una frase, o più d'una. Senza, il campo è
+   * valido.
+   */
+  errore?: string | readonly string[] | null
+  /**
+   * Il controllo. Riceve le prop già collegate; il secondo argomento porta
+   * l'`id` dell'etichetta, per i controlli che si nominano con
+   * `aria-labelledby` invece che con `htmlFor`, come un gruppo di bottoni.
+   */
+  children: (campo: CampoLibero, altro: { idEtichetta: string }) => ReactNode
+}
+
+/**
+ * La stessa riga di modulo di `FormField`, senza react-hook-form: l'errore
+ * arriva da fuori.
+ *
+ * ```tsx
+ * <Campo etichetta="Titolo" errore={erroreDelServer}>
+ *   {(campo) => <Input {...campo} value={titolo} onChange={…} />}
+ * </Campo>
+ * ```
+ */
+export function Campo({
+  etichetta,
+  descrizione,
+  errore,
+  orientamento = "verticale",
+  etichettaInCoda = false,
+  children,
+}: CampoProps) {
+  const idCampo = useId()
+  const errori = (typeof errore === "string" ? [errore] : [...(errore ?? [])]).filter(Boolean)
+  const nonValido = errori.length > 0
+  const descritto = [descrizione ? `${idCampo}-descrizione` : undefined, nonValido ? `${idCampo}-errore` : undefined]
+    .filter(Boolean)
+    .join(" ")
+  return (
+    <Riga
+      idCampo={idCampo}
+      etichetta={etichetta}
+      descrizione={descrizione}
+      errori={errori.map((message) => ({ message }))}
+      orientamento={orientamento}
+      etichettaInCoda={etichettaInCoda}
+    >
+      {children(
+        { id: idCampo, "aria-invalid": nonValido, "aria-describedby": descritto || undefined },
+        { idEtichetta: `${idCampo}-etichetta` }
+      )}
+    </Riga>
+  )
+}
+
+// La riga com'è resa: etichetta, controllo, aiuto ed errore, coi loro `id`.
+// `FormField` e `Campo` la riempiono, ognuno con la sua fonte dell'errore.
+function Riga({
+  idCampo,
+  etichetta,
+  descrizione,
+  errori,
+  orientamento,
+  etichettaInCoda,
+  children,
+}: {
+  idCampo: string
+  etichetta: ReactNode
+  descrizione: ReactNode
+  errori: ({ message?: string } | undefined)[]
+  orientamento: keyof typeof ORIENTAMENTO
+  etichettaInCoda: boolean
+  children: ReactNode
+}) {
+  const nonValido = errori.length > 0
+  const etichettaResa = (
+    <FieldLabel id={`${idCampo}-etichetta`} htmlFor={idCampo}>
+      {etichetta}
+    </FieldLabel>
+  )
+  /*
+   * Aiuto ed errore stanno **dopo** il controllo, ed è l'ordine che
+   * shadcn documenta. Con l'etichetta in coda — interruttori, caselle —
+   * finiscono invece dentro `FieldContent` insieme all'etichetta, o il
+   * testo d'aiuto resterebbe allineato al bordo sinistro della riga
+   * invece che sotto la propria etichetta.
+   */
+  const aiuto = (
+    <>
+      {descrizione ? <FieldDescription id={`${idCampo}-descrizione`}>{descrizione}</FieldDescription> : null}
+      {nonValido ? <FieldError id={`${idCampo}-errore`} errors={errori} /> : null}
+    </>
+  )
+  return (
+    <Field data-invalid={nonValido} orientation={ORIENTAMENTO[orientamento]}>
+      {etichettaInCoda ? (
+        <>
+          {children}
+          <FieldContent>
+            {etichettaResa}
+            {aiuto}
+          </FieldContent>
+        </>
+      ) : (
+        <>
+          {etichettaResa}
+          {children}
+          {aiuto}
+        </>
+      )}
+    </Field>
   )
 }
