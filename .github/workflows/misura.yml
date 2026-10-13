@@ -1,0 +1,51 @@
+# MISURA, da non unire. Ripete `test:webkit` in tre modi e conta le corse
+# rosse: l'attesa di serie di prima (1000 ms), l'attesa a 5000 ms, e
+# l'attesa a 5000 ms coi file uno alla volta.
+name: Misura
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  misura:
+    if: github.head_ref == 'fras/misura-attese-webkit'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nome: attesa-1000-insieme
+            attesa: 1000
+            opzioni: ""
+          - nome: attesa-5000-insieme
+            attesa: 5000
+            opzioni: ""
+          - nome: attesa-5000-in-fila
+            attesa: 5000
+            opzioni: "--no-file-parallelism"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - name: Quaranta corse di test:webkit (${{ matrix.nome }})
+        env:
+          VITE_ATTESA: ${{ matrix.attesa }}
+        run: |
+          verdi=0; rosse=0
+          for i in $(seq 1 40); do
+            inizio=$(date +%s)
+            if npx vitest run --project=storybook-webkit ${{ matrix.opzioni }} > corsa.log 2>&1; then
+              verdi=$((verdi+1)); esito=verde
+            else
+              rosse=$((rosse+1)); esito=ROSSA
+              sed 's/\x1b\[[0-9;]*m//g' corsa.log | grep -E "^\s*×|FAIL|expected .* to |closed while|imed out|Timeout" | head -8
+            fi
+            echo "corsa $i: $esito, $(( $(date +%s) - inizio )) s"
+          done
+          echo "ESITO ${{ matrix.nome }}: $verdi verdi, $rosse rosse su 40"

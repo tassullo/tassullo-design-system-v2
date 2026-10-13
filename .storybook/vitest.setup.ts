@@ -92,7 +92,8 @@ const parametri = aperto
  * condizione è vera, quindi una corsa verde dura uguale, e una condizione
  * che non diventa mai vera fallisce lo stesso, quattro secondi dopo.
  */
-configure({ asyncUtilTimeout: 5000 })
+// MISURA, da non unire: l'attesa si legge dall'ambiente.
+configure({ asyncUtilTimeout: Number(import.meta.env.VITE_ATTESA ?? 5000) })
 
 setProjectAnnotations([
   getProjectAnnotations(),
