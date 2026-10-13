@@ -14115,3 +14115,20 @@ Da leggere nel codice, senza prova: quando il campo prende il fuoco da un clic, 
 - #125 punto 3 (`combobox` con «Aggiungi»), punto 5 (bottone rosso senza fondo, `toggle-group` che non si svuota, `form-field` con errore da fuori, `empty-state` con tre azioni), punto 6 (la pagina d'esempio). Bottone e `toggle-group` toccano la forma di due primitive shadcn: vanno proposti a Francesco con le varianti rese.
 - Safari vero: non provato, per nessuno dei punti.
 
+
+## 2026-10-13 — v2.0.14 pubblicata
+
+PR #127 unita col gate verde in CI (corsa 38446916370, sul commit `3573af7`); l'unione è `b0f4c1f`. Etichetta `v2.0.14` su `b0f4c1f`, push della sola etichetta; le versioni precedenti restano dove erano. Francesco ha scritto «ci verde» dopo la correzione della prova.
+
+- Dentro: i punti 1, 2 e 4 della proposta #125. Le issue #125 e #126 restano aperte: nessuna delle due è chiusa davvero.
+- **Rompe chi aggiorna, in un punto solo**: `ref` di `TestoSegnaposto` è `null` finché il campo non è pronto.
+- Verifica da fuori: alla `v2.0.14` rispondono 200 `registry.json`, i tre item (`tassullo-albero`, `tassullo-elenco-dettaglio`, `tassullo-testo-segnaposto`) e i tre sorgenti dei blocchi. Nel testo con segnaposto servito ci sono `onPronto`, `ridimensionabile` e lo scambio per `chiave`. `shadcn view …/tassullo-elenco-dettaglio#v2.0.14` risolve l'item.
+- Il prompt di adozione per Anagrafe è in `stories/ondata5/prompt-anagrafe-125.md` (fuori dal repository) e scritto a Francesco in sessione.
+- Mostrate a Francesco tre forme del bottone rosso senza fondo (punto 5), rese accanto ad altri bottoni in chiaro e in scuro: la scelta è sua.
+
+#### Aperti
+
+- Le cinque decisioni di sessione della voce precedente, da confermare.
+- #125: punti 3, 5 e 6, e il riordino sotto un altro padre.
+- #126: lo script della misura di Anagrafe, o una prova a mano in Safari.
+
