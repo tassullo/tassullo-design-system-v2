@@ -13819,3 +13819,28 @@ Verificato da fuori: alla `v2.0.12` rispondono 200 `registry.json`, `tassullo-te
 `misura:bersagli` rilanciato sullo Storybook costruito: 6738 bersagli su 551 story, 76 popup aperti, 3755 sotto i 44px, 37 tipi, 1 piccolo nelle due direzioni. Quell'uno è `checkbox`, 16×16px, 896 occorrenze (es. `Blocchi/Data Table`): non viene da questo blocco, che non aggiunge bersagli e non compare nell'elenco. L'ultimo dato a verbale è di 374 story e ne contava zero: da quando c'è non è stato cercato.
 
 Non provato da qui: Safari vero e l'immagine in volo, che non entra in una schermata. Tre decisioni prese in sessione aspettano la conferma di Francesco (voce della proposta #110): lo spazio fra due pillole, l'inizio della prima riga per ciò che si lascia sopra il testo, lo spazio tolto davanti alla punteggiatura.
+
+
+## 2026-10-13 — Il gate su `main` fallito una volta dopo la `v2.0.12`: WebKit che si chiude
+
+La corsa del gate su `main` al commit etichettato `v2.0.12` (`a247868`, corsa 38303993696) è fallita in `test:webkit`: «Browser connection was closed while running tests», 17 prove passate su 25, nessuna asserzione fallita. Il file nominato è `testo-segnaposto.stories.tsx`; nello stesso momento girava `virtualizzate.stories.tsx`, perché i file girano in parallelo, e dal registro non si distingue quale prova fosse in corso.
+
+Lo stesso codice è verde nelle altre quattro corse del gate: la PR #111 (`c995f7e`), le due della #112 e `main` dopo la #112 (`10b7b0d`). È la prima chiusura del browser in 120 corse; le due rosse di settembre erano asserzioni vere.
+
+#### Misura
+
+- PR in bozza #113, chiusa senza unire: il workflow sostituito da **venti corse di `test:webkit`** su Linux, con `DEBUG=pw:browser`. Venti verdi su venti, 25 prove su 25 ogni volta, nessuna riga di crollo o di chiusura nei registri.
+- In locale, su Mac: dodici corse di fila verdi.
+
+In tutto, sul codice della `v2.0.12`: 36 corse verdi e una rossa. Da sola `test:webkit` non riproduce la chiusura; nel gate vero gira dopo le quattro passate di `test:a11y`, e la misura non lo imita.
+
+#### Cosa non si sa
+
+Se a chiudere WebKit sia stata una delle tre prove nuove sul trascinamento, le prime a far lavorare l'editor con eventi `drag` simulati in WebKit di Linux, o la macchina della CI. La coincidenza col loro arrivo c'è; la misura non la conferma. Nessuna correzione fatta: non c'è un difetto riprodotto da correggere.
+
+Per Anagrafe niente da segnalare: ciò che ha installato è il codice che ha passato il gate.
+
+#### Aperti
+
+- Se la chiusura torna: leggere quale prova era in corso (`--reporter=verbose` e `DEBUG=pw:browser` nel gate, o la misura ripetuta dentro `npm run check` intero) prima di toccare le prove.
+- Il commit etichettato `v2.0.12` resta con la corsa rossa in elenco: non è stata rilanciata.
