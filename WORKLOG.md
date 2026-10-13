@@ -14190,3 +14190,18 @@ Aperti: #125 punto 6 e riordino sotto un altro padre; #126.
 Francesco, alla fine: la #125 resta aperta apposta, e le piccole modifiche che Anagrafe trova adottando si chiedono lì con un commento, non con una proposta nuova. È scritto nel prompt di adozione, insieme all'avviso da dare a pagina finita per far partire il punto 6.
 
 `npm run check` sull'ultimo stato, in locale: tredici gate verdi; 2.132 scansioni, 0 violazioni (533 scene: le due di `stories/ondata3/` non ci sono più); `test:webkit` 37 su 37.
+
+
+## 2026-10-13 — v2.0.15 pubblicata
+
+PR #129 unita col gate verde in CI (corsa 38457355912, sul commit `a15c9b2`); l'unione è `419c678`. Etichetta `v2.0.15` su `419c678`, push della sola etichetta; le versioni precedenti restano dove erano. Francesco: «ci verde, vai».
+
+- Dentro: le sette scelte della #125 confermate, `destructive-ghost`, `Campo`, lo stato vuoto con più azioni, il `piede` dell'elenco con dettaglio. **Non rompe chi aggiorna dalla `v2.0.14`**; chi arriva dalla `v2.0.13` ha il solo punto di rottura della `v2.0.14` (`ref` di `TestoSegnaposto` nullo finché il campo non è pronto).
+- Verifica da fuori: alla `v2.0.15` rispondono 200 `registry.json` e gli item `tassullo-albero`, `tassullo-elenco-dettaglio`, `tassullo-testo-segnaposto`, `button`, `tassullo-form-field`, `tassullo-empty-state`. Nei file serviti ci sono `destructive-ghost`, `piede` e `Campo`, e nell'albero non c'è più il maiuscoletto. `tassullo-scelta-con-aggiunta` risponde 404, com'è giusto: non è stato pubblicato. `shadcn view …/tassullo-albero#v2.0.15` risolve l'item.
+- Il prompt di adozione per Anagrafe è in `stories/ondata5/prompt-anagrafe-125.md` (fuori dal repository): porta dalla `v2.0.13` alla `v2.0.15` in un giro solo, con le decisioni di Francesco, la #125 che resta aperta per le piccole modifiche, e l'avviso da dare a pagina finita.
+
+#### Aperti
+
+- #125: il punto 6 (la pagina d'esempio), quando Anagrafe avvisa che la sua pagina è finita; il riordino sotto un altro padre, se servirà.
+- #126: lo script della misura di Anagrafe, o una prova a mano in Safari.
+- Safari vero: non provato, per nessuno dei pezzi di oggi.
