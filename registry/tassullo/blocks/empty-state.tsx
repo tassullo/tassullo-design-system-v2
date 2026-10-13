@@ -30,7 +30,11 @@ export type EmptyStateProps = {
   titolo: ReactNode
   /** Cosa aspettarsi, o come cercare altrove. */
   descrizione?: ReactNode
-  /** La CTA per uscire dal vuoto, quando ce n'è una sensata. */
+  /**
+   * La CTA per uscire dal vuoto, quando ce n'è una sensata. Se le strade sono
+   * più d'una si passano più bottoni di fila, il principale per primo:
+   * stanno su una riga, e vanno a capo solo se non ci stanno.
+   */
   azione?: ReactNode
   className?: string
 }
@@ -51,7 +55,11 @@ export function EmptyState({
           <EmptyDescription>{descrizione}</EmptyDescription>
         ) : null}
       </EmptyHeader>
-      {azione ? <EmptyContent>{azione}</EmptyContent> : null}
+      {/* Le azioni su una riga, larga quanto serve: nel contenitore di serie,
+          stretto 384px, tre bottoni andavano a capo uno e due. */}
+      {azione ? (
+        <EmptyContent className="max-w-none flex-row flex-wrap justify-center">{azione}</EmptyContent>
+      ) : null}
     </Empty>
   )
 }
