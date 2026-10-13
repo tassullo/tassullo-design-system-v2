@@ -1419,7 +1419,7 @@
         "@tassullo/empty",
         "@tassullo/tema"
       ],
-      "docs": "Il vuoto, in una forma sola:\n\n  <EmptyState\n    icona={<FolderOpenIcon />}\n    titolo=\"Nessuna scheda in questa cartella\"\n    descrizione=\"Le schede tecniche pubblicate compariranno qui.\"\n  />\n\nÈ lo standard unico delle app Tassullo per il vuoto:\ncard guidata con una frase e, quando c'è un'azione sensata, la CTA per\nuscirne — mai una tabella con la sola intestazione.\n\nCompone la primitiva empty (Empty/EmptyHeader/EmptyMedia/EmptyTitle/\nEmptyDescription/EmptyContent), non la sostituisce. Fissa un solo default\nche la primitiva lascia aperto: il bordo tratteggiato è acceso, perché è la\nforma che ogni punto d'uso finora ha scelto a mano.\n\n**Più azioni.** `azione` può portare più bottoni di fila, il principale per\nprimo: stanno su una riga, e vanno a capo solo se non ci stanno. Non serve\nun contenitore intorno."
+      "docs": "Il vuoto, in una forma sola:\n\n  <EmptyState\n    icona={<FolderOpenIcon />}\n    titolo=\"Nessuna scheda in questa cartella\"\n    descrizione=\"Le schede tecniche pubblicate compariranno qui.\"\n  />\n\nÈ lo standard unico delle app Tassullo per il vuoto:\ncard guidata con una frase e, quando c'è un'azione sensata, la CTA per\nuscirne — mai una tabella con la sola intestazione.\n\nCompone la primitiva empty (Empty/EmptyHeader/EmptyMedia/EmptyTitle/\nEmptyDescription/EmptyContent), non la sostituisce. Fissa un solo default\nche la primitiva lascia aperto: il bordo tratteggiato è acceso, perché è la\nforma che ogni punto d'uso finora ha scelto a mano.\n\n**Più azioni.** `azione` può portare più bottoni di fila, il principale per\nprimo: stanno su una riga; se non ci stanno si impilano, larghi uguali. Non\nserve un contenitore intorno."
     },
     {
       "name": "tassullo-error-state",
@@ -1696,28 +1696,6 @@
         "@tassullo/tema"
       ],
       "docs": "Due parti, una cornice:\n\n  <ElencoDettaglio sotto=\"fascia-e-tab\" elenco={<Albero … />}>\n    <BloccoScelto />\n  </ElencoDettaglio>\n\n`elenco` è la parte a sinistra, larga 288px; i figli sono il dettaglio, che\nprende il resto. Aprendo `ColonnaLaterale` si stringe il dettaglio.\n\n**Il piede.** `piede` sta in fondo al dettaglio, allineato al fondo della\ncornice anche quando il dettaglio è più corto dell'elenco. È il posto della\nlegenda dei segni dell'elenco: lì sta su una riga, e resta in vista anche\ncon un elenco lungo.\n\n**Cosa sta fermo sopra.** `sotto` dice cosa resta in cima alla finestra:\n`fascia` (di serie) è la fascia di `tassullo-app-shell`; `fascia-e-tab` è la\nfascia più le tab ferme della pagina scheda; `niente` è una pagina senza\nguscio. L'elenco si ferma lì sotto, e se è più alto della finestra scorre\nper conto suo. La pagina non scrive né `sticky` né altezze.\n\n**Non dentro una `Card`.** La cornice è del blocco: `Card` taglia ciò che\nesce, e un elenco lì dentro non resterebbe fermo rispetto alla finestra. Il\nblocco va direttamente nel pannello della tab.\n\n**Stretto.** Sotto 576px di contenitore (non di schermo) l'elenco sta sopra\nil dettaglio e scorre con la pagina.\n\nCon `tassullo-albero` la riga scelta resta in vista dentro l'elenco senza\nche la pagina si muova."
-    },
-    {
-      "name": "tassullo-scelta-con-aggiunta",
-      "type": "registry:block",
-      "title": "Scelta con aggiunta",
-      "description": "Una tendina in cui si sceglie una voce dell'elenco o si aggiunge quella che si è scritta: «Aggiungi «…»» compare quando nessuna voce porta quel testo, senza contare maiuscole e accenti. Composta su combobox, col filtro di Base UI.",
-      "dependencies": [
-        "@base-ui/react",
-        "lucide-react"
-      ],
-      "files": [
-        {
-          "path": "registry/tassullo/blocks/scelta-con-aggiunta.tsx",
-          "type": "registry:component",
-          "target": "components/blocks/scelta-con-aggiunta.tsx"
-        }
-      ],
-      "registryDependencies": [
-        "@tassullo/combobox",
-        "@tassullo/tema"
-      ],
-      "docs": "La scelta la tiene l'app; il blocco aggiunge la voce che crea.\n\n  <SceltaConAggiunta\n    voci={titoli}\n    valore={titolo}\n    onValore={setTitolo}\n    etichettaDi={(t) => t.nome}\n    chiaveDi={(t) => t.id}\n    onAggiungi={async (nome) => setTitolo(await crea(nome))}\n  />\n\n«Aggiungi «…»» compare in fondo all'elenco quando nessuna voce ha il testo\nscritto. Il confronto non conta maiuscole, accenti e spazi in più, quindi\nnon si propone un doppione di una voce che c'è.\n\n`onAggiungi` riceve il testo ripulito: senza spazi in testa e in coda, e con\nuno spazio solo fra le parole. Se restituisce una promessa, il campo resta\nfermo col testo scritto finché non si chiude. La voce nuova la mette l'app,\nin `voci` e in `valore`: il blocco non tiene niente. Senza `onAggiungi` è una\ntendina che sceglie e basta.\n\nIl `valore` resta nell'elenco anche se non è più fra le `voci`: un titolo\ntolto dall'elenco non sparisce da dove è già usato.\n\n`id`, `aria-invalid` e `aria-describedby` vanno al campo: dentro un modulo si\nusa con `tassullo-form-field`, con `FormField` o con `Campo`."
     },
     {
       "name": "tassullo-diff-view",

@@ -118,7 +118,8 @@ const TRE_AZIONI = (
 
 /**
  * Tre strade per uscire dal vuoto: la principale per prima, e le altre due
- * accanto, sulla stessa riga. Vanno a capo solo se lo spazio non basta.
+ * accanto, sulla stessa riga. Se lo spazio non basta si impilano, larghe
+ * uguali.
  */
 export const PiuAzioni: Story = {
   args: {
@@ -149,5 +150,10 @@ export const PiuAzioniProva: Story = {
       new Set([...canvasElement.querySelectorAll(`[data-prova="${quale}"] button`)].map((b) => Math.round(b.getBoundingClientRect().top))).size
     expect(`largo: ${righe('largo')} riga`).toBe('largo: 1 riga')
     expect(`stretto: ${righe('stretto')} righe`).toBe('stretto: 3 righe')
+    // Impilati sono larghi uguali; su una riga ognuno è largo quanto il suo testo.
+    const larghezze = (quale: string) =>
+      new Set([...canvasElement.querySelectorAll(`[data-prova="${quale}"] button`)].map((b) => Math.round(b.getBoundingClientRect().width))).size
+    expect(`stretto: ${larghezze('stretto')} larghezza`).toBe('stretto: 1 larghezza')
+    expect(`largo: ${larghezze('largo')} larghezze`).toBe('largo: 3 larghezze')
   },
 }
