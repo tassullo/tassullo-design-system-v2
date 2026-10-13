@@ -4012,3 +4012,25 @@ Lasciati come sono, e perché: cancellata una pillola restano i suoi due spazi, 
 **Conferma (2026-10-13).** Pubblicata la `v2.0.13`, Francesco ha confermato tutte le decisioni prese in sessione, così come sono scritte sopra: le virgolette dritte doppie contate nella riga; l'apostrofo, dritto o curvo, che tiene il dato attaccato; «sempre» alla lettera, anche accanto a una barra o a un trattino e prima di `%`; `…` fra i segni che seguono e le graffe no; l'incolla con la stessa regola ai due capi; le composizioni trattate a composizione finita; il segnaposto scritto a mano che resta dove lo si scrive; lo spazio messo per una lettera che se ne va con lei; le righe unite trattate come un dato inserito. Non sono più «da confermare»: per cambiarle serve una proposta nuova o una richiesta di Francesco.
 
 **Il doppio clic in Safari vero (2026-10-13).** Mettendo la pillola in ogni posizione, in WebKit di Playwright il doppio clic su una pillola in mezzo a un testo appena messo la selezionava soltanto, anche sul codice di prima. Francesco l'ha provato in Safari vero: il doppio clic toglie la pillola e mostra il segnaposto scritto, come deve. Era un effetto dello strumento, non un difetto del blocco. Vale la regola di sempre: ciò che un motore di prova mostra e un browser vero no si controlla nel browser vero prima di correggerlo.
+
+## 79. Le prove aspettano fino a cinque secondi (2026-10-13)
+
+**Il fatto.** Dal 23 settembre il gate ha girato 160 volte in CI. Fino all'11 ottobre nessuna corsa rossa su `main`; fra il 12 e il 13 ottobre tre, tutte su codice che nella sua PR era verde, e tutte per una prova instabile:
+- `a247868` (`v2.0.12`): `test:webkit`, WebKit chiuso a metà corsa. Causa mai trovata.
+- `da617f8` (`v2.0.13`): `test:a11y`, due asserzioni instabili in una prova nuova. Corrette (PR #117).
+- `dd63771`: `test:webkit`, `Colonna Laterale, stretta, prova`. Aspettava l'opacità a 0 dopo una transizione di 150 ms; dopo un secondo era a 0,991508.
+
+**La decisione.** `.storybook/vitest.setup.ts` porta l'attesa di `waitFor` da 1000 a 5000 ms per tutte le prove dei due progetti (`configure({ asyncUtilTimeout })`). 253 attese su 261 usavano il valore di serie senza averlo scelto. Una corsa verde dura uguale, perché `waitFor` esce appena la condizione è vera; una condizione che non si avvera fallisce lo stesso, quattro secondi dopo.
+
+**Cosa è provato e cosa no.**
+- Provato: il registro di `dd63771` dice che l'attesa di un secondo è scaduta con la transizione al primo fotogramma. La pagina era ferma da quasi un secondo.
+- Provato: l'impostazione arriva alle prove. Una scena che aspetta 2,5 secondi passa nei due motori.
+- **Non provato che basti.** Misura in CI, PR in bozza #121 chiusa senza unire: `test:webkit` quaranta volte per modo. Attesa a 1000 ms coi file insieme: 40 verdi su 40, media 38 s. Attesa a 5000 ms coi file insieme: 40 su 40, 39 s. Attesa a 5000 ms coi file uno alla volta: 40 su 40, 94 s. Da solo il gate WebKit non riproduce le corse rosse, nemmeno com'era. Con le venti della misura del 13 mattina sono 140 corse isolate verdi su 140.
+- Non provato perché la pagina si fermi. Le tre rosse sono nel gate intero, dove WebKit gira dopo le quattro passate di axe, e tutte su `main`; le corse delle PR sullo stesso codice sono verdi. Tre su otto contro zero su dieci: può essere un caso.
+
+**Scartato.**
+- **I file di WebKit uno alla volta**: costa 55 secondi a corsa e la misura non dice che serva.
+- **Ripetere da sé la prova fallita** (`retry`): un gate che passa al secondo tentativo non dice più che una prova è instabile.
+- **Riprodurre il carico in locale**: con sedici processi di carico su dodici processori sei corse verdi su sei; a priorità bassa la macchina si ferma del tutto.
+
+**Se torna.** Il gate di accessibilità ora nomina la scena fallita e il perché; `test:webkit` lo fa da sé. La misura che manca è il gate intero ripetuto, circa nove minuti a giro: venti giri per variante sono tre ore. Si fa se arriva un'altra corsa rossa che l'attesa lunga non spiega.

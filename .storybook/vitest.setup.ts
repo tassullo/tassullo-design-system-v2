@@ -1,4 +1,5 @@
 import { setProjectAnnotations } from 'storybook/internal/preview-api'
+import { configure } from 'storybook/test'
 // @ts-expect-error — modulo virtuale del builder, senza tipi.
 import { getProjectAnnotations } from 'virtual:/@storybook/builder-vite/project-annotations.js'
 
@@ -73,6 +74,28 @@ const aperto = import.meta.env.VITE_POPUP !== 'chiuso'
 const parametri = aperto
   ? { a11y: { config: { rules: [{ id: 'aria-hidden-focus', enabled: false }] } } }
   : {}
+
+/**
+ * Quanto aspetta un `waitFor` prima di arrendersi: cinque secondi, non uno.
+ *
+ * ── Perché ──────────────────────────────────────────────────────────────
+ *
+ * Il valore di serie è 1000 ms, e 253 attese su 261 lo usavano senza
+ * saperlo. In locale un'attesa finisce in un paio di decimi di secondo. Il
+ * 13 ottobre 2026, in CI, una scena di WebKit è fallita su `main` con una
+ * transizione di 150 ms che dopo un secondo era al primo fotogramma
+ * («expected '0.991508' to be '0'»): in quel punto la pagina era ferma da
+ * quasi un secondo. Era la terza corsa rossa su `main` in ventiquattro ore,
+ * tutte e tre per prove instabili e nessuna per il codice.
+ *
+ * Un'attesa più lunga non nasconde un difetto: `waitFor` esce appena la
+ * condizione è vera, quindi una corsa verde dura uguale, e una condizione
+ * che non diventa mai vera fallisce lo stesso, quattro secondi dopo.
+ *
+ * Non è provato che basti: `test:webkit` da solo, ripetuto 120 volte in CI,
+ * non fallisce nemmeno con l'attesa di prima (`docs/DECISIONI.md` §79).
+ */
+configure({ asyncUtilTimeout: 5000 })
 
 setProjectAnnotations([
   getProjectAnnotations(),

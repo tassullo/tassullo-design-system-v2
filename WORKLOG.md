@@ -13996,3 +13996,35 @@ Due risposte di Francesco, nessun file del registry cambia.
 
 - Composizione vera in WebKit, dettatura, Android: non provati.
 - La proposta #70, rinviata.
+
+
+## 2026-10-13 — Tre corse rosse su `main` in ventiquattro ore: le prove aspettano fino a cinque secondi
+
+Ramo `fras/prove-stabili`. Francesco ha ricevuto la terza mail di gate fallito in due giorni e ha chiesto cosa non va. Il gate su `main` a `dd63771` (corsa 38399890268, un'unione di soli documenti) è fallito in `test:webkit`: `Colonna Laterale, stretta, prova`, «expected '0.991508' to be '0'». La prova è della `v2.0.11`, non di oggi. Ragioni e misure in `DECISIONI.md` §79.
+
+#### Cosa si è trovato
+
+- Su 160 corse dal 23 settembre le rosse sono cinque; su `main` tre, tutte fra il 12 e il 13 ottobre, tutte per prove instabili dei due blocchi nuovi (testo con segnaposto, colonna laterale) e nessuna per il codice pubblicato.
+- La prova di oggi aspettava una transizione di 150 ms con l'attesa di serie, un secondo. 253 attese su 261 usano quel valore senza averlo scelto.
+
+#### Cosa è cambiato
+
+- `waitFor` aspetta fino a cinque secondi in tutte le prove (`.storybook/vitest.setup.ts`). La regola è in `CLAUDE.md`, sotto `test:a11y`.
+- Nessun file del registry, nessuna prova riscritta.
+
+#### Misure
+
+- In CI, PR in bozza #121 chiusa senza unire: `test:webkit` quaranta volte per modo. Attesa a 1 s: 40 su 40 (media 38 s). Attesa a 5 s: 40 su 40 (39 s). Attesa a 5 s coi file in fila: 40 su 40 (94 s). **La misura non riproduce il difetto**, quindi non prova che la correzione basti.
+- In locale sotto carico: sedici processi su dodici processori, sei corse verdi su sei. A priorità bassa le corse non finiscono.
+- Una scena che aspetta 2,5 secondi passa nei due motori: l'impostazione arriva alle prove.
+
+#### Problemi
+
+- Due tentativi di carico in locale hanno fermato la macchina e sono stati interrotti. Mezz'ora persa prima di spostare la misura in CI.
+- I registri di un lavoro in CI non si leggono finché tutta la corsa non è finita: la variante lenta ha tenuto fermi i conti delle altre due per mezz'ora.
+
+#### Aperti
+
+- Perché la pagina si fermi nel gate intero e non in `test:webkit` da solo: non si sa. La misura che manca è il gate intero ripetuto, tre ore per variante.
+- WebKit chiuso a metà corsa (`a247868`): causa mai trovata, e l'attesa lunga non la tocca.
+- Il commit `dd63771` resta con la corsa rossa in elenco.
