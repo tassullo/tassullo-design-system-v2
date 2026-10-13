@@ -14091,6 +14091,7 @@ Da leggere nel codice, senza prova: quando il campo prende il fuoco da un clic, 
 - Il lint «come arriva nell'app» ha rifiutato un `ref` letto da una funzione passata a `menu` durante la resa: il segnale è salito al livello dell'albero.
 - In WebKit un bottone cliccato non prende il fuoco: nella prova il menu si apre da tastiera, o `Esc` non lo chiude.
 - La prova dell'altezza dava il fuoco al testo, e l'editor se lo riprendeva un fotogramma dopo togliendolo alla maniglia.
+- Il gate in CI sulla PR #127 è fallito una volta in `test:webkit` (corsa 38445309997): la prova della tastiera dell'albero apriva un menu mentre quello di prima sfumava, e leggeva «Sposta su» dal menu vecchio. In locale non succedeva. Ora la prova aspetta che il menu sia chiuso; sei corse di fila verdi nei due motori.
 
 #### Misure
 

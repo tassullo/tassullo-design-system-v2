@@ -215,6 +215,9 @@ export const SolaLettura: Story = {
 const voci = (radice: HTMLElement) => [...radice.querySelectorAll<HTMLElement>('[data-slot="albero-voce"]')]
 const titoli = (radice: HTMLElement) => voci(radice).map((v) => v.dataset.id)
 const voce = (radice: HTMLElement, id: string) => voci(radice).find((v) => v.dataset.id === id)!
+// Un menu chiuso sfuma per un momento, e le sue voci restano nel documento:
+// prima di aprirne un altro si aspetta che non ci sia più.
+const menuChiuso = () => waitFor(() => expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull())
 
 // Una fermata sola del `Tab`, le frecce, `Inizio`, `Fine`, `Invio`; la riga
 // scelta; il menu col `Tab` e il riordino dal menu; il titolo che va a capo.
@@ -266,6 +269,7 @@ export const TastieraProva: Story = {
     await userEvent.keyboard('{Enter}')
     await userEvent.click(await within(document.body).findByRole('menuitem', { name: 'Sposta giù' }))
     await waitFor(() => expect(titoli(albero).slice(0, 3)).toEqual(['descrizione', 'campo', 'uso']))
+    await menuChiuso()
     // La prima riga non sale, l'ultima del suo padre non scende.
     // Aperto da tastiera: Safari non dà il fuoco a un bottone cliccato, e
     // `Esc` non arriverebbe al menu.
@@ -273,13 +277,13 @@ export const TastieraProva: Story = {
     await userEvent.keyboard('{Enter}')
     expect(await within(document.body).findByRole('menuitem', { name: 'Sposta su' })).toHaveAttribute('aria-disabled', 'true')
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull())
+    await menuChiuso()
     // Una voce che porta il fuoco altrove: chiuso il menu, il fuoco resta lì
     // e non torna al bottone del menu.
     within(voce(albero, 'campo').parentElement!).getByRole('button', { name: 'Azioni: Campo di applicazione' }).focus()
     await userEvent.keyboard('{Enter}')
     await userEvent.click(await within(document.body).findByRole('menuitem', { name: 'Aggiungi sotto' }))
-    await waitFor(() => expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull())
+    await menuChiuso()
     await waitFor(() => expect(document.activeElement).toBe(tela.getByRole('button', { name: 'Vai alla riga scelta' })))
     // Uscito il fuoco dall'albero, la fermata torna la riga scelta.
     await userEvent.click(tela.getByRole('button', { name: 'Vai alla riga scelta' }))
