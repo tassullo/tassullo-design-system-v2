@@ -13983,3 +13983,16 @@ Le altre due, lo spazio fra due pillole e lo spazio tolto davanti alla punteggia
 - Nella voce della #110 c'era una quarta decisione di sessione, non fra le tre portate alla conferma: dopo lo spostamento il cursore sta dopo la pillola, che prima restava selezionata. Francesco non l'ha nominata.
 - Composizione vera in WebKit, dettatura, Android, Safari vero: non provati.
 - Il doppio clic su una pillola in WebKit, segnalato a parte.
+
+
+## 2026-10-13 — Proposta #110: confermato il cursore; il doppio clic in Safari vero funziona
+
+Due risposte di Francesco, nessun file del registry cambia.
+
+- **«110 confermata»**: la quarta decisione di sessione della #110, dopo lo spostamento il cursore sta dopo la pillola. Con questa le decisioni di sessione della #110 e della #115 sono tutte confermate (`DECISIONI.md` §77 e §78).
+- **Il doppio clic in Safari vero**: toglie la pillola e mostra il segnaposto scritto, cioè fa ciò che deve. Quello visto in WebKit di Playwright (la pillola solo selezionata, in mezzo a un testo appena messo) era un effetto dello strumento. La segnalazione lasciata a parte è ritirata: non c'è un difetto da correggere.
+
+#### Aperti
+
+- Composizione vera in WebKit, dettatura, Android: non provati.
+- La proposta #70, rinviata.
