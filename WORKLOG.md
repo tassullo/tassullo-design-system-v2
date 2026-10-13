@@ -14217,3 +14217,16 @@ Il verdetto definitivo sui pezzi lo dà Anagrafe adottandoli (Francesco): la #12
 
 - #126: Francesco può fare lui la prova in Safari, sulla scena `Con Elenco Dei Dati` o sul banco di Anagrafe: cinque trascinamenti di una pillola col campo senza fuoco e cinque col fuoco. Gliel'avevo scritto in mezzo a un resoconto lungo invece di chiederlo: andava chiesto subito e da solo.
 - #125: il punto 6, dopo l'adozione di Anagrafe.
+
+
+## 2026-10-13 — Proposta #126 chiusa: in Safari vero la pillola si sposta sempre
+
+Francesco ha fatto la prova a mano in Safari, guidato clic per clic, sulla scena `Con Elenco Dei Dati` della `v2.0.15`: **5 su 5** col campo senza fuoco (un clic nel secondo campo, poi il trascinamento della pillola del primo senza cliccarla), **5 su 5** col fuoco. Con le 12 su 12 di WebKit di Playwright in dieci varianti del gesto, il difetto non si riproduce né con lo strumento né a mano.
+
+La issue è chiusa con la ragione scritta e le misure. Nessun file del registry è cambiato. Con ogni probabilità era un effetto dello script di misura di Anagrafe, come il doppio clic sulla pillola dell'altra volta. Si riapre se torna, con lo script esatto.
+
+Nel prompt di adozione per Anagrafe il punto sulla #126 dice ora che è chiusa e perché.
+
+#### Aperti
+
+- #125: il punto 6, dopo l'adozione di Anagrafe.
