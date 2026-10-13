@@ -1,22 +1,8 @@
-# Il gate del registry, in CI.
-#
-# ── Perché questo file è stato scritto prima di poter girare ────────────
-#
-# **Da D4 chiusa (2026-09-10) gira davvero**, su ogni push a `main` e su ogni
-# pull request. Ma è stato committato mesi prima, quando il repo non aveva
-# ancora un `git remote` e quindi nessun GitHub lo leggeva: il criterio di
-# M2.9 era che l'audit diventasse **automatico e continuo**, e la differenza
-# fra «lo faremo» e «è fatto» è un file che parte da sé il giorno in cui il
-# remote esiste. Chi ha chiuso D4 non ha dovuto anche ricordarsi di scrivere
-# la CI, ed è il motivo per cui la nota resta qui.
-#
-# In locale il gate si esegue con lo stesso comando:
-#   npm run check
+# PROVA, DA NON UNIRE: ripete le prove WebKit per misurare quanto spesso il
+# browser si chiude da solo (corsa 38303993696 su main, commit a247868).
 name: Gate
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 jobs:
@@ -32,43 +18,26 @@ jobs:
 
       - run: npm ci
 
-      # Chromium per le quattro passate di axe: il gate misura il contrasto e
-      # il comportamento dei popup, non la compatibilità fra browser.
-      # `--with-deps` serve perché l'immagine di GitHub non porta le librerie
-      # di sistema che i browser si aspettano.
-      - run: npx playwright install --with-deps chromium
-
-      # WebKit per la sola passata `test:webkit`: le scene di misura che
-      # scorrono e cambiano densità sulle righe virtualizzate. Il ciclo di
-      # aggiornamenti che la passata cerca esisteva solo in WebKit
-      # (`docs/DECISIONI.md` §69 e §70). Con le dipendenze di sistema sono
-      # circa 107 MB e 52 pacchetti; il tempo si misura alla prima PR.
       - run: npx playwright install --with-deps webkit
 
-      # I tredici gate: gli undici controlli statici — palette, aggiornabilità dei
-      # componenti, allineamento di `public/r/` ai sorgenti, riferimenti e
-      # import fra item, font, marchio, testo della style guide
-      # (`check:storybook`), testo che arriva a chi installa (`check:spedito`),
-      # lunghezza delle righe di `CHECKLIST.md` (`check:checklist`), autotest
-      # del controllo che le app installano (`check:controllo`), lint di
-      # un'app Vite sui file installati (`check:lint-app`) — e
-      # poi le quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto},
-      # e la passata WebKit sulle scene etichettate `webkit` (`test:webkit`).
-      - run: npm run check
+      - name: Venti corse di test:webkit
+        run: |
+          mkdir -p corse
+          verdi=0; rosse=0
+          for i in $(seq 1 20); do
+            if DEBUG=pw:browser npx vitest run --project=storybook-webkit --reporter=verbose > corse/$i.log 2>&1; then
+              verdi=$((verdi+1)); echo "corsa $i: verde"
+            else
+              rosse=$((rosse+1)); echo "corsa $i: ROSSA"
+              echo "::group::corsa $i, prove e errori"
+              perl -pe 's/\e\[[0-9;]*m//g' corse/$i.log | grep -E "✓|×|↓ .*segnaposto|FAIL|Caused by|Failed to run|Tests |Test Files|pw:browser.*(crash|exit|signal|closed|kill|SIG)|AssertionError|Expected|Received" | grep -v "0 test" | tail -80
+              echo "::endgroup::"
+            fi
+          done
+          echo "verdi $verdi, rosse $rosse"
 
-      # La style guide deve anche **costruirsi**: una story che compila nel
-      # dev server e non nel build statico è rotta per chi la consulta.
-      - run: npm run build-storybook
-
-      # E deve **tipare**. `build-storybook` passa da esbuild, che i tipi non
-      # li guarda: fino a M4ter.3 in CI non girava nessun `tsc`, e una prop
-      # obbligatoria non rispettata da una story sarebbe passata liscia.
-      #
-      # Non è un dettaglio di igiene, è un gate vero, e lo dimostra il caso che
-      # l'ha fatto aggiungere: `alt` su `entity-image`. Misurato il 2026-09-19 —
-      # Base UI scrive `alt=""` su OGNI `<img>` che renda senza alt
-      # (`internals/useRenderElement.js:183`), quindi una foto senza alternativa
-      # testuale diventa in silenzio una foto *decorativa*: axe la promuove e
-      # `test:a11y` resta a zero violazioni. Il solo controllo che la vede è il
-      # tipo, e il tipo qui dentro lo controlla solo questo passo.
-      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corse
+          path: corse
