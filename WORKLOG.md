@@ -13844,3 +13844,42 @@ Per Anagrafe niente da segnalare: ciò che ha installato è il codice che ha pas
 
 - Se la chiusura torna: leggere quale prova era in corso (`--reporter=verbose` e `DEBUG=pw:browser` nel gate, o la misura ripetuta dentro `npm run check` intero) prima di toccare le prove.
 - Il commit etichettato `v2.0.12` resta con la corsa rossa in elenco: non è stata rilanciata.
+
+
+## 2026-10-13 — Proposta #115: lo spazio lato per lato, e lo spazio mentre si scrive
+
+Ramo `fras/proposta-115-segnaposto-spazio`. Anagrafe ha adottato la `v2.0.12` e ha aperto la #115 con due punti sullo spazio automatico di `TestoSegnaposto`. Francesco ha confermato la regola nella consegna e ha lasciato da decidere virgolette dritte, incolla e metodi di immissione. Ragioni e forme scartate in `DECISIONI.md` §78.
+
+#### Cosa c'è
+
+- **1 · regola per lato**: prima del dato lo spazio c'è sempre, tranne a inizio riga, dopo uno spazio, dopo `(` `[` `«` `“` `‘` e dopo l'apostrofo; dopo il dato sempre, tranne a fine riga, prima di uno spazio e prima di `.` `,` `;` `:` `!` `?` `…` `)` `]` `»` `”` `’`. Tendina, `inserisci`, trascinamento, spostamento.
+- **2 · scrivendo**: una lettera o una cifra subito dopo una pillola prende lo spazio prima di sé; subito prima, lo prende dopo. La punteggiatura no. Un Annulla toglie lo spazio e lascia il carattere. `onChange` riceve il testo una volta, già con lo spazio.
+- **Spostando una pillola** dove stava si toglie anche lo spazio rimasto dopo una parentesi aperta. Lasciata dov'era, il documento non si tocca.
+
+#### Decisioni prese in sessione, da confermare
+
+- **Virgolette dritte doppie**: si contano nella riga, la prima apre e la seconda chiude.
+- **Apostrofo**, dritto o curvo: tiene il dato attaccato. Il dritto anche dopo il dato.
+- **`…`** aggiunto ai segni che seguono. Le graffe no.
+- **Incolla**: stessa regola ai due capi; un dato incollato prende gli spazi di un dato inserito. Un Annulla toglie gli spazi e lascia l'incollato.
+- **Composizioni** (tasto morto, dettatura, tastiera a schermo): niente durante, la regola a composizione finita.
+- **Segnaposto scritto a mano per intero**: resta dove lo si scrive.
+- **«Sempre» alla lettera**: anche «kg/ Valore» e «Valore %».
+
+#### Problemi
+
+- **La prima stesura della prova annullava troppo**: `setContent` entra nella cronologia, e un incolla fatto nello stesso istante finiva nel suo passo. La preparazione di ogni caso ora chiude il passo.
+- **Le frecce simulate non spostano il cursore in WebKit** dentro la prova: la cancellazione a mano dello spazio usa un comando dell'editor. Con tastiera vera (`ArrowLeft`, `Backspace`) passa nei due motori.
+- **Copiando una riga intera l'incolla fa una riga nuova**: è l'editor, c'era già. La misura con tastiera vera copia un pezzo di riga.
+
+#### Test
+
+Scritte e fallite sul codice di partenza, in Chromium e in WebKit (8 su 8): `Spazio accanto al dato, prova` (46 casi, ognuno con Annulla), `Spostare una pillola, prova` (dopo il punto, dopo la virgola, da dentro una parentesi, attaccata a mano e lasciata dov'era), `Segno di rilascio, prova` (dall'elenco dopo virgola e punto), `Scrivere accanto a una pillola, prova` (lettere, cifre, accentate, 14 segni dopo e 6 prima, fra due pillole, spazio cancellato, incolla, dato incollato, segnaposto a mano, composizione simulata). Sul file: 29 prove in Chromium e 13 in WebKit, tutte verdi.
+
+Con tastiera e mouse veri (Playwright dalla cartella temporanea, Storybook di sviluppo, `Con Elenco Dei Dati`): 26 controlli in Chromium e 20 in WebKit, poi altri 7 per motore su copia e incolla veri e sullo spostamento di una pillola col mouse passo passo; nessun errore in pagina. In Chromium anche una composizione vera dal protocollo del browser: «´» → «é» dà `{{…}} é`, e «prosegue» composta lettera per lettera dà `{{…}} prosegue`.
+
+#### Aperti
+
+- Composizione vera in WebKit, dettatura, Android, Safari vero: non provati da qui.
+- Le sette decisioni di sessione aspettano la conferma di Francesco.
+- Le tre della #110 (spazio fra due pillole, inizio della prima riga, spazio tolto davanti alla punteggiatura) restano com'erano; la terza ora discende dalla regola per lato.

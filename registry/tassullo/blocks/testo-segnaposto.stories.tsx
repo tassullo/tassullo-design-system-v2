@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { closeHistory } from '@tiptap/pm/history'
 import type { Editor } from '@tiptap/react'
 import { BracesIcon, XIcon } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -92,22 +93,46 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *
  * - Un dato si inserisce in tre modi: scrivendo il prefisso e scegliendo
  *   dall'elenco, trascinandolo nel testo, o con `inserisci` da un bottone.
- * - Un dato inserito accanto a una lettera, a una cifra o a un'altra pillola
- *   prende da sé uno spazio da quella parte, in tutti e tre i modi: la
- *   pillola ha un suo margine e a occhio sembra già staccata, ma nel
- *   documento uscirebbe attaccata alla parola. Non lo prende accanto alla
- *   punteggiatura, a uno spazio che c'è già, all'inizio e alla fine della
- *   riga. Chi vuole il dato attaccato cancella lo spazio. Il cursore resta
- *   subito dopo il dato, e un solo `Ctrl+Z` toglie il dato con i suoi spazi.
+ * - Un dato inserito prende da sé lo spazio che gli serve, lato per lato, in
+ *   tutti e tre i modi e anche quando si sposta una pillola: la pillola ha
+ *   un suo margine e a occhio sembra già staccata, ma nel documento
+ *   uscirebbe attaccata alla parola. **Prima del dato** lo spazio c'è
+ *   sempre, tranne all'inizio della riga, dopo uno spazio che c'è già, dopo
+ *   un segno che apre, cioè `(` `[` `«` `“` `‘`, e dopo l'apostrofo:
+ *   `l'{{famiglia.nome}}`. **Dopo il dato** c'è sempre, tranne alla fine
+ *   della riga, prima di uno spazio che c'è già e prima di un segno che
+ *   chiude o che segue: `.` `,` `;` `:` `!` `?` `…` `)` `]` `»` `”` `’`.
+ *   Quindi dopo una virgola o un punto il dato è staccato, e prima no.
+ * - Le virgolette dritte doppie non dicono da che parte guardano: si contano
+ *   nella riga. La prima apre, la seconda chiude, e così via. L'apostrofo
+ *   dritto tiene sempre il dato attaccato, prima e dopo.
+ * - Chi vuole il dato attaccato cancella lo spazio. Il cursore resta subito
+ *   dopo il dato, e un solo `Ctrl+Z` toglie il dato con i suoi spazi.
+ * - Scrivendo una lettera o una cifra subito dopo una pillola, lo spazio si
+ *   mette prima del carattere; subito prima di una pillola, si mette dopo.
+ *   Con la punteggiatura no. Un solo `Ctrl+Z` toglie lo spazio e lascia il
+ *   carattere, e da lì si continua a scrivere attaccati. Uno spazio
+ *   cancellato a mano resta cancellato.
+ * - Incollando vale lo stesso ai due capi di ciò che si incolla: una lettera
+ *   o una cifra che tocca una pillola prende lo spazio, e un dato incollato,
+ *   da solo o in testa o in coda a un testo, prende gli spazi di un dato
+ *   inserito. Un solo `Ctrl+Z` toglie gli spazi e lascia ciò che si è
+ *   incollato.
+ * - Ciò che entra con una composizione, come un accento fatto con due tasti,
+ *   la dettatura o una tastiera a schermo, prende lo spazio quando la
+ *   composizione è finita: mentre si compone il testo attorno resta fermo.
+ * - Un segnaposto scritto a mano per intero resta dove lo si scrive, anche
+ *   attaccato a una parola.
  * - Trascinando un dato, dall'elenco o da un punto all'altro del testo, segue
  *   il puntatore una pillola piccola, e nel testo un segno arancio verticale
  *   dice dove cadrà. Nello spazio vuoto sotto il testo il dato va in coda
  *   all'ultima riga, sopra il testo all'inizio della prima, e il segno sta
  *   lì. Lasciato su una pillola, il dato le va accanto.
  * - Una pillola spostata si porta via il suo spazio: dove stava non restano
- *   due spazi di fila, né uno spazio davanti a una virgola o in fondo alla
- *   riga; dove arriva prende quelli che servono. Lasciata dov'era, il testo
- *   resta com'era. Un solo `Ctrl+Z` la rimette al suo posto. Col tasto che
+ *   due spazi di fila, né uno spazio davanti a una virgola, dopo una
+ *   parentesi aperta o in fondo alla riga; dove arriva prende quelli che
+ *   servono. Lasciata dov'era, il testo resta com'era, anche se era
+ *   attaccata a una parola. Un solo `Ctrl+Z` la rimette al suo posto. Col tasto che
  *   copia, `Alt` su Mac e `Ctrl` altrove, la pillola si duplica.
  * - Qualunque testo con la forma di un segnaposto diventa una pillola, anche
  *   incollato o scritto a mano. Gli spazi dentro le graffe non contano:
@@ -1545,7 +1570,7 @@ export const SpostareUnaPillolaProva: Story = {
     segnoSu(area, fine())
     rilascia(area, preso.carico, sotto(area))
     expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
-    expect(valoreDi(area)).toBe('Qui un dato e altro testo.\nSeconda riga.{{famiglia.nome}}')
+    expect(valoreDi(area)).toBe('Qui un dato e altro testo.\nSeconda riga. {{famiglia.nome}}')
     expect(segnoDi(area)).not.toBeInTheDocument()
     cursoreDopo(area, '{{famiglia.nome}}')
     expect(document.activeElement).toBe(area)
@@ -1577,7 +1602,7 @@ export const SpostareUnaPillolaProva: Story = {
     expect(preso.inVolo).toEqual(['testo-segnaposto-in-volo:Malta R4 a 0,0'])
     rilascia(area, preso.carico, sotto(area))
     expect(pilloleDi(area)).toEqual(['valore:Malta R4'])
-    expect(valoreDi(area)).toBe('Qui un dato e altro testo.\nSeconda riga.{{famiglia.nome}}')
+    expect(valoreDi(area)).toBe('Qui un dato e altro testo.\nSeconda riga. {{famiglia.nome}}')
 
     // Dalla fine della riga a un altro punto: non resta uno spazio in coda.
     area.editor.commands.setContent(riga('Malta conforme alla {{qualifica.norma}}'))
@@ -1602,6 +1627,46 @@ export const SpostareUnaPillolaProva: Story = {
     const dopoLaPillola = pillola().getBoundingClientRect()
     rilascia(area, preso.carico, { clientX: dopoLaPillola.right - 2, clientY: dopoLaPillola.top + dopoLaPillola.height / 2 })
     expect(valoreDi(area)).toBe(CON_LA_VIRGOLA)
+
+    // In coda a una riga che finisce col punto: lo spazio dopo il punto. E
+    // dove stava, a inizio riga, non resta uno spazio.
+    area.editor.commands.setContent(riga('{{qualifica.norma}} sul testo.'))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, sotto(area))
+    expect(valoreDi(area)).toBe('sul testo. {{qualifica.norma}}')
+    cursoreDopo(area, '{{qualifica.norma}}')
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe('{{qualifica.norma}} sul testo.')
+
+    // Dopo una virgola, dentro la riga.
+    area.editor.commands.setContent(riga('Malta, conforme alla {{qualifica.norma}}'))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, puntoDi(area, dopo(area, 'Malta,')))
+    expect(valoreDi(area)).toBe('Malta, {{qualifica.norma}} conforme alla')
+
+    // Da dentro una parentesi: non resta uno spazio dopo la parentesi aperta.
+    area.editor.commands.setContent(riga('Malta ({{qualifica.norma}} e altre) conforme'))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, sotto(area))
+    expect(valoreDi(area)).toBe('Malta (e altre) conforme {{qualifica.norma}}')
+
+    // Attaccata a mano e lasciata dov'era, prima o dopo di sé: resta
+    // attaccata.
+    area.editor.commands.setContent(riga('Malta,{{qualifica.norma}}conforme'))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, puntoDi(area, dopo(area, 'Malta,')))
+    expect(valoreDi(area)).toBe('Malta,{{qualifica.norma}}conforme')
+    cursoreDopo(area, '{{qualifica.norma}}')
+    preso = prendi(pillola())
+    rilascia(area, preso.carico, puntoDi(area, dopo(area, '￼')))
+    expect(valoreDi(area)).toBe('Malta,{{qualifica.norma}}conforme')
+
+    area.editor.commands.setContent(riga(CON_LA_VIRGOLA))
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
 
     // Col tasto che copia (`Alt` su Mac, `Ctrl` altrove) la pillola resta
     // dov'era, e ce n'è una seconda.
@@ -1668,33 +1733,82 @@ export const SegnoDiRilascioProva: Story = {
     expect(segnoDi(area)).not.toBeInTheDocument()
     area.editor.commands.undo()
 
+    // Dopo una virgola e dopo un punto il dato prende lo spazio.
+    area.editor.commands.setContent(riga('parola,'))
+    rilascia(area, carico, sotto(area))
+    expect(valoreDi(area)).toBe('parola, {{qualifica.norma}}')
+    area.editor.commands.setContent(riga('Fine del testo. Poi altro'))
+    rilascia(area, carico, puntoDi(area, dopo(area, 'testo.')))
+    expect(valoreDi(area)).toBe('Fine del testo. {{qualifica.norma}} Poi altro')
+    area.editor.commands.setContent(riga(DUE_RIGHE.replace('\n', ' ')))
+
     // Un testo che non è un dato, nello spazio vuoto: in coda alla riga,
     // com'è scritto.
     const parole = daFuori(', e basta')
     passa(area, parole, sotto(area))
     segnoSu(area, fine())
     rilascia(area, parole, sotto(area))
-    expect(valoreDi(area)).toBe(`${DUE_RIGHE}, e basta`)
+    expect(valoreDi(area)).toBe(`${DUE_RIGHE.replace('\n', ' ')}, e basta`)
   },
 }
 
+const N = '{{qualifica.norma}}'
 const SPAZI: [scritto: string, atteso: string][] = [
   // Accanto a una lettera o a una cifra: lo spazio, dalla parte che serve.
-  ['malta|', 'malta {{qualifica.norma}}'],
-  ['|malta', '{{qualifica.norma}} malta'],
-  ['mal|ta', 'mal {{qualifica.norma}} ta'],
-  ['classe R4|', 'classe R4 {{qualifica.norma}}'],
-  ['qualità|', 'qualità {{qualifica.norma}}'],
-  // Accanto a un'altra pillola.
-  ['{{famiglia.nome}}|', '{{famiglia.nome}} {{qualifica.norma}}'],
-  // Uno spazio c'è già.
-  ['malta |', 'malta {{qualifica.norma}}'],
-  ['malta | conforme', 'malta {{qualifica.norma}} conforme'],
-  // La punteggiatura, e l'inizio e la fine della riga.
-  ['(|)', '({{qualifica.norma}})'],
-  ['malta,|', 'malta,{{qualifica.norma}}'],
-  ['norma: |.', 'norma: {{qualifica.norma}}.'],
-  ['|', '{{qualifica.norma}}'],
+  ['malta|', `malta ${N}`],
+  ['|malta', `${N} malta`],
+  ['mal|ta', `mal ${N} ta`],
+  ['classe R4|', `classe R4 ${N}`],
+  ['qualità|', `qualità ${N}`],
+  // Accanto a un'altra pillola, prima e dopo.
+  ['{{famiglia.nome}}|', `{{famiglia.nome}} ${N}`],
+  ['|{{famiglia.nome}}', `${N} {{famiglia.nome}}`],
+  // Uno spazio c'è già; l'inizio e la fine della riga.
+  ['malta |', `malta ${N}`],
+  ['malta | conforme', `malta ${N} conforme`],
+  ['|', N],
+  // Prima del dato: dopo un punto, una virgola e ogni altro segno, lo spazio.
+  ['malta,|', `malta, ${N}`],
+  ['testo.|', `testo. ${N}`],
+  ['norma:|', `norma: ${N}`],
+  ['fine;|', `fine; ${N}`],
+  ['«a»|', `«a» ${N}`],
+  ['(a)|', `(a) ${N}`],
+  ['kg/|', `kg/ ${N}`],
+  // Tranne dopo un segno che apre, e dopo l'apostrofo.
+  ['(|', `(${N}`],
+  ['[|', `[${N}`],
+  ['«|', `«${N}`],
+  ['“|', `“${N}`],
+  ['‘|', `‘${N}`],
+  ["l'|", `l'${N}`],
+  ['l’|', `l’${N}`],
+  // Dopo il dato: sempre, tranne prima di un segno che chiude o che segue.
+  ['|(a)', `${N} (a)`],
+  ['|«a»', `${N} «a»`],
+  ['|%', `${N} %`],
+  ['|, e poi', `${N}, e poi`],
+  ['|.', `${N}.`],
+  ['|; poi', `${N}; poi`],
+  ['|: poi', `${N}: poi`],
+  ['|!', `${N}!`],
+  ['|?', `${N}?`],
+  ['|…', `${N}…`],
+  ['(|)', `(${N})`],
+  ['[|]', `[${N}]`],
+  ['«|»', `«${N}»`],
+  ['“|”', `“${N}”`],
+  ['‘|’', `‘${N}’`],
+  ['norma: |.', `norma: ${N}.`],
+  // Le virgolette dritte doppie si contano nella riga: la prima apre, la
+  // seconda chiude.
+  ['dice "|"', `dice "${N}"`],
+  ['dice "ciao|"', `dice "ciao ${N}"`],
+  ['dice "ciao"|', `dice "ciao" ${N}`],
+  ['|"ciao"', `${N} "ciao"`],
+  ['"a" e "|', `"a" e "${N}`],
+  // L'apostrofo dritto tiene il dato attaccato da tutti e due i lati.
+  ["'|'", `'${N}'`],
 ]
 
 // Un testo di una riga, col cursore dov'è la barra.
@@ -1708,13 +1822,18 @@ async function conCursore(area: Area, scritto: string) {
   const cursore = area.editor.state.selection.from
   if (poi) area.editor.commands.insertContentAt(cursore, { type: 'text', text: poi })
   area.editor.commands.setTextSelection(cursore)
+  // Ciò che segue è un passo di Annulla a sé, non il seguito di questo.
+  area.editor.view.dispatch(closeHistory(area.editor.state.tr))
   await waitFor(() => expect(document.activeElement).toBe(area))
 }
 
-// Un dato inserito accanto a una lettera, a una cifra o a un'altra pillola
-// prende uno spazio da quella parte, comunque arrivi: dal bottone o
-// dall'elenco accanto, dall'elenco che si apre scrivendo. Il cursore resta
-// subito dopo il dato, e un solo Annulla toglie il dato con i suoi spazi.
+// Lo spazio accanto a un dato inserito si decide lato per lato, comunque il
+// dato arrivi: dal bottone o dall'elenco accanto, dall'elenco che si apre
+// scrivendo. Prima c'è sempre, tranne a inizio riga, dopo uno spazio, dopo un
+// segno che apre e dopo l'apostrofo; dopo c'è sempre, tranne a fine riga,
+// prima di uno spazio e prima di un segno che chiude o che segue. Il cursore
+// resta subito dopo il dato, e un solo Annulla toglie il dato con i suoi
+// spazi.
 export const SpazioAccantoAlDatoProva: Story = {
   name: 'Spazio accanto al dato, prova',
   tags: ['!dev', '!autodocs', 'webkit'],
@@ -1759,5 +1878,195 @@ export const SpazioAccantoAlDatoProva: Story = {
     area.editor.commands.focus('end')
     await scrivi(' ok')
     expect(valoreDi(area)).toBe('malta{{qualifica.norma}} ok')
+  },
+}
+
+const D = '{{famiglia.nome}}'
+
+// Il cursore è subito dopo un pezzo di testo.
+function cursoreDopoIlTesto(area: Area, pezzo: string) {
+  const { selection } = area.editor.state
+  expect(selection.empty).toBe(true)
+  expect(selection.$from.parent.textBetween(0, selection.$from.parentOffset, undefined, '￼').endsWith(pezzo)).toBe(true)
+}
+
+// Una composizione come la vede l'editor: il testo entra mentre si compone, e
+// alla fine il browser avvisa. Un carattere composto vero non si può mandare
+// da qui.
+function componi(area: Area, testo: string, numero: number) {
+  area.editor.view.dispatch(area.editor.state.tr.insertText(testo).setMeta('composition', numero))
+  const durante = valoreDi(area)
+  area.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: testo }))
+  return durante
+}
+
+// Una lettera o una cifra digitata subito dopo una pillola prende lo spazio
+// prima di sé, e subito prima di una pillola lo prende dopo. La
+// punteggiatura no. Un solo Annulla toglie lo spazio e lascia il carattere;
+// lo spazio cancellato a mano resta cancellato. Lo stesso per ciò che si
+// incolla, e per un carattere composto quando la composizione è finita.
+export const ScrivereAccantoAUnaPillolaProva: Story = {
+  name: 'Scrivere accanto a una pillola, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, etichetta: 'Testo', onChange: fn() },
+  play: async ({ canvasElement, args }) => {
+    const area = await areaDi(canvasElement)
+    const annulla = () => area.editor.commands.undo()
+
+    // Dopo una pillola: una lettera, una cifra, una lettera accentata.
+    for (const carattere of ['p', 'P', '4', 'è']) {
+      await conCursore(area, `${D}|`)
+      await scrivi(carattere)
+      expect(`${carattere} → ${valoreDi(area)}`).toBe(`${carattere} → ${D} ${carattere}`)
+      cursoreDopoIlTesto(area, carattere)
+      // L'app riceve il testo una volta sola, già con lo spazio.
+      expect(args.onChange).toHaveBeenLastCalledWith(`${D} ${carattere}`)
+      expect(args.onChange).not.toHaveBeenCalledWith(`${D}${carattere}`)
+      // Un solo Annulla: via lo spazio, resta il carattere.
+      annulla()
+      expect(`${carattere} ← ${valoreDi(area)}`).toBe(`${carattere} ← ${D}${carattere}`)
+      cursoreDopoIlTesto(area, carattere)
+      // Chi continua a scrivere resta attaccato: lo ha scelto.
+      await scrivi('x')
+      expect(valoreDi(area)).toBe(`${D}${carattere}x`)
+    }
+
+    // Si continua a scrivere: lo spazio è uno, e sta prima della parola.
+    await conCursore(area, `${D}|`)
+    await scrivi('prosegue il testo')
+    expect(valoreDi(area)).toBe(`${D} prosegue il testo`)
+    // Il primo Annulla toglie ciò che si è scritto dopo, non lo spazio.
+    annulla()
+    expect(valoreDi(area)).toBe(`${D} p`)
+    annulla()
+    expect(valoreDi(area)).toBe(`${D}p`)
+
+    // La punteggiatura si attacca al dato, e così ciò che non è lettera né
+    // cifra.
+    for (const segno of [',', '.', ';', ':', '!', '?', ')', ']', '»', '”', '’', '%', '-', ' ']) {
+      await conCursore(area, `${D}|`)
+      await scrivi(segno)
+      expect(`«${segno}» → ${valoreDi(area)}`).toBe(`«${segno}» → ${D}${segno}`)
+    }
+
+    // Lo spazio lo mette chi scrive: non se ne aggiunge un altro.
+    await conCursore(area, `${D}|`)
+    await scrivi(' segue')
+    expect(valoreDi(area)).toBe(`${D} segue`)
+
+    // Prima di una pillola: lo spazio va dopo, e il cursore resta dopo la
+    // lettera. La parola continua attaccata a sé stessa.
+    await conCursore(area, `|${D}`)
+    await scrivi('T')
+    expect(valoreDi(area)).toBe(`T ${D}`)
+    cursoreDopoIlTesto(area, 'T')
+    await scrivi('ipo')
+    expect(valoreDi(area)).toBe(`Tipo ${D}`)
+    await conCursore(area, `|${D}`)
+    await scrivi('7')
+    annulla()
+    expect(valoreDi(area)).toBe(`7${D}`)
+    for (const segno of ['(', '[', '«', '“', "'", ' ']) {
+      await conCursore(area, `|${D}`)
+      await scrivi(segno)
+      expect(`«${segno}» → ${valoreDi(area)}`).toBe(`«${segno}» → ${segno}${D}`)
+    }
+
+    // Fra due pillole attaccate: lo spazio da tutti e due i lati, e un solo
+    // Annulla li toglie insieme.
+    await conCursore(area, `${D}|${N}`)
+    await scrivi('e')
+    expect(valoreDi(area)).toBe(`${D} e ${N}`)
+    cursoreDopoIlTesto(area, 'e')
+    annulla()
+    expect(valoreDi(area)).toBe(`${D}e${N}`)
+
+    // Lontano da una pillola non succede niente.
+    await conCursore(area, `${D} e|`)
+    await scrivi('poi')
+    expect(valoreDi(area)).toBe(`${D} epoi`)
+
+    // Lo spazio cancellato a mano resta cancellato, anche continuando a
+    // scrivere e uscendo dal campo.
+    await conCursore(area, `${D}|`)
+    await scrivi('p')
+    area.editor.commands.deleteRange({ from: 2, to: 3 })
+    expect(valoreDi(area)).toBe(`${D}p`)
+    area.editor.commands.focus('end')
+    await scrivi('oi')
+    expect(valoreDi(area)).toBe(`${D}poi`)
+    area.blur()
+    await waitFor(() => expect(document.activeElement).not.toBe(area))
+    expect(valoreDi(area)).toBe(`${D}poi`)
+    area.editor.commands.focus('end')
+
+    // Con una pillola selezionata, la lettera la sostituisce e basta.
+    await conCursore(area, `malta ${D}|`)
+    await userEvent.keyboard('[ArrowLeft]')
+    expect(area.editor.state.selection.empty).toBe(false)
+    await scrivi('x')
+    expect(valoreDi(area)).toBe('malta x')
+
+    // Incollare: ai due capi di ciò che si incolla vale la stessa regola, e
+    // un solo Annulla toglie gli spazi e lascia il testo incollato.
+    await conCursore(area, `${D}|`)
+    await userEvent.paste('conforme alla norma')
+    expect(valoreDi(area)).toBe(`${D} conforme alla norma`)
+    cursoreDopoIlTesto(area, 'norma')
+    annulla()
+    expect(valoreDi(area)).toBe(`${D}conforme alla norma`)
+    annulla()
+    expect(valoreDi(area)).toBe(D)
+    await conCursore(area, `|${D}`)
+    await userEvent.paste('Tipo')
+    expect(valoreDi(area)).toBe(`Tipo ${D}`)
+    await conCursore(area, `${D}|${N}`)
+    await userEvent.paste('e la')
+    expect(valoreDi(area)).toBe(`${D} e la ${N}`)
+    await conCursore(area, `${D}|`)
+    await userEvent.paste(', poi altro')
+    expect(valoreDi(area)).toBe(`${D}, poi altro`)
+    // Un dato incollato, da solo o in testa o in coda a un testo, prende gli
+    // spazi di un dato inserito.
+    await conCursore(area, 'malta,|conforme')
+    await userEvent.paste(N)
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    expect(valoreDi(area)).toBe(`malta, ${N} conforme`)
+    await conCursore(area, 'malta|.')
+    await userEvent.paste(`conforme alla ${N}`)
+    expect(valoreDi(area)).toBe(`maltaconforme alla ${N}.`)
+    await conCursore(area, '(|)')
+    await userEvent.paste(N)
+    expect(valoreDi(area)).toBe(`(${N})`)
+
+    // Un segnaposto scritto a mano per intero resta dove lo si scrive.
+    await conCursore(area, 'malta|')
+    await scrivi(N)
+    await waitFor(() => expect(pilloleDi(area)).toEqual(['valore:EN 1504-3']))
+    expect(valoreDi(area)).toBe(`malta${N}`)
+    // Le graffe hanno aperto l'elenco: si aspetta che si sia chiuso.
+    await chiuso()
+
+    // Un carattere composto: mentre si compone il testo attorno resta fermo,
+    // e lo spazio arriva a composizione finita. Un solo Annulla lo toglie.
+    await conCursore(area, `${D}|`)
+    expect(componi(area, 'é', 71)).toBe(`${D}é`)
+    await waitFor(() => expect(valoreDi(area)).toBe(`${D} é`))
+    cursoreDopoIlTesto(area, 'é')
+    annulla()
+    expect(valoreDi(area)).toBe(`${D}é`)
+    await conCursore(area, `|${D}`)
+    componi(area, 'Ü', 72)
+    await waitFor(() => expect(valoreDi(area)).toBe(`Ü ${D}`))
+    // Una parola composta per intero, come fa una tastiera a schermo.
+    await conCursore(area, `${D}|`)
+    area.editor.view.dispatch(area.editor.state.tr.insertText('pro').setMeta('composition', 73))
+    expect(componi(area, 'segue', 73)).toBe(`${D}prosegue`)
+    await waitFor(() => expect(valoreDi(area)).toBe(`${D} prosegue`))
+    // Un segno composto non prende lo spazio.
+    await conCursore(area, `${D}|`)
+    componi(area, '…', 74)
+    await new Promise((fatto) => setTimeout(fatto, 50))
+    expect(valoreDi(area)).toBe(`${D}…`)
   },
 }
