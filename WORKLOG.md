@@ -14096,6 +14096,7 @@ Da leggere nel codice, senza prova: quando il campo prende il fuoco da un clic, 
 
 - `npm run check` in locale: tredici gate verdi; 2.272 scansioni, 0 violazioni; `test:webkit` 34 su 34.
 - Prove dei tre file nei due motori: testo con segnaposto 52 su 52, albero 7 su 7, elenco e dettaglio 7 su 7.
+- `misura:bersagli` in densità touch: la riga dell'albero è alta 37px (le voci di menu 32, il bottone di serie 48).
 - Foto a 1280 e 1000px con la colonna laterale aperta, nei due motori: a 1280 l'albero resta a 288px e si stringe il blocco; a 1000 la colonna sta sopra il contenuto, com'è del guscio sotto 896px.
 
 #### Decisioni di sessione, da confermare

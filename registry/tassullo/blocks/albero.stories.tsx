@@ -196,8 +196,8 @@ export const Predefinito: Story = {
 }
 
 /**
- * Il menu di una riga: le voci dell'app, e sotto «Sposta su» e «Sposta giù»,
- * che l'albero aggiunge quando il riordino è acceso.
+ * Il menu di una riga: in cima «Sposta su» e «Sposta giù», che l'albero
+ * aggiunge quando il riordino è acceso, e sotto le voci dell'app.
  */
 export const MenuDiRiga: Story = {
   render: () => <Scheda />,

@@ -459,10 +459,10 @@ function Riga<TNodo extends NodoAlbero>({
               className="w-56"
               finalFocus={comuni.tornaAlBottone}
             >
-              {voci}
+              {/* Prima il riordino, poi le voci dell'app: una voce che
+                  elimina resta l'ultima. */}
               {onSposta ? (
                 <>
-                  {voci ? <DropdownMenuSeparator /> : null}
                   <DropdownMenuGroup>
                     <DropdownMenuItem
                       disabled={indice === 0}
@@ -479,8 +479,10 @@ function Riga<TNodo extends NodoAlbero>({
                       Sposta giù
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
+                  {voci ? <DropdownMenuSeparator /> : null}
                 </>
               ) : null}
+              {voci}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
