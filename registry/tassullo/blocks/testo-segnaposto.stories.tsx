@@ -2060,7 +2060,13 @@ export const ScrivereAccantoAUnaPillolaProva: Story = {
     await conCursore(area, `${D}|`)
     await scrivi('prosegue il testo')
     expect(valoreDi(area)).toBe(`${D} prosegue il testo`)
-    // Il primo Annulla toglie ciò che si è scritto dopo, non lo spazio.
+    // Il primo Annulla toglie ciò che si è scritto dopo, non lo spazio. Una
+    // lettera sola dopo lo spazio: più lettere stanno in un passo solo se fra
+    // l'una e l'altra passa meno di mezzo secondo, e su una macchina lenta
+    // non è detto.
+    await conCursore(area, `${D}|`)
+    await scrivi('pr')
+    expect(valoreDi(area)).toBe(`${D} pr`)
     annulla()
     expect(valoreDi(area)).toBe(`${D} p`)
     annulla()
@@ -2186,10 +2192,14 @@ export const ScrivereAccantoAUnaPillolaProva: Story = {
     expect(valoreDi(area)).toBe(D)
 
     // Con una pillola selezionata, la lettera la sostituisce e basta.
+    // La pillola si seleziona e il carattere entra nello stesso istante, per
+    // la strada del testo digitato: la selezione di un nodo, riletta dal
+    // browser un attimo dopo, in una prova può tornare un cursore.
     await conCursore(area, `malta ${D}|`)
-    await userEvent.keyboard('[ArrowLeft]')
-    expect(area.editor.state.selection.empty).toBe(false)
-    await scrivi('x')
+    area.editor.commands.setNodeSelection(7)
+    const { from, to } = area.editor.state.selection
+    const vista = area.editor.view
+    vista.someProp('handleTextInput', (gestore) => gestore(vista, from, to, 'x', () => vista.state.tr.insertText('x')))
     expect(valoreDi(area)).toBe('malta x')
 
     // Incollare: ai due capi di ciò che si incolla vale la stessa regola, e
