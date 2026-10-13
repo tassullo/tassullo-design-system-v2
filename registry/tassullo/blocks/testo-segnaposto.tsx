@@ -213,12 +213,12 @@ import { UndoRedo } from "@tiptap/extensions"
 import { closeHistory } from "@tiptap/pm/history"
 import type { Node as NodoPM, NodeType, ResolvedPos, Slice } from "@tiptap/pm/model"
 import {
+  EditorState,
   NodeSelection,
   Plugin,
   PluginKey,
   Selection,
   TextSelection,
-  type EditorState,
   type Transaction,
 } from "@tiptap/pm/state"
 import type { EditorView } from "@tiptap/pm/view"
@@ -262,9 +262,14 @@ export type VoceSegnaposto = {
 
 /** Ciò che `ref` riceve: il fuoco, e l'inserimento da fuori. */
 export type TestoSegnapostoRef = {
-  focus: () => void
+  /**
+   * Porta il fuoco nel testo. Senza argomento il cursore resta dov'era;
+   * `'fine'` lo mette in fondo al testo, `'inizio'` in testa.
+   */
+  focus: (dove?: "inizio" | "fine") => void
   /**
    * Inserisce un testo nel punto del cursore; un segnaposto diventa pillola.
+   * In un campo in cui il cursore non è mai stato, il testo va in fondo.
    * Se prima del cursore c'è un prefisso appena scritto, il segnaposto lo
    * sostituisce. Il segnaposto prende lo spazio che gli serve da ogni lato:
    * prima sempre, tranne a inizio riga, dopo uno spazio, dopo un segno che
@@ -284,6 +289,24 @@ export type TestoSegnapostoProps = {
   onBlur?: () => void
   /** Riceve il campo stesso: serve a sapere in quale inserire da fuori. */
   onFocus?: (campo: TestoSegnapostoRef) => void
+  /**
+   * Il campo è pronto: da qui `focus` e `inserisci` hanno effetto. Fino ad
+   * allora `ref` è `null`. Se il campo viene rifatto arriva di nuovo.
+   */
+  onPronto?: (campo: TestoSegnapostoRef) => void
+  /**
+   * Quale testo è, quando lo stesso campo ne mostra uno alla volta. Al cambio
+   * di `chiave` il campo mostra il `value` nuovo senza rimontarsi, e ogni
+   * testo ritrova il suo cursore e il suo Annulla.
+   */
+  chiave?: string
+  /** L'altezza di partenza, in righe di testo. Il campo cresce col testo. */
+  righe?: number
+  /**
+   * Una maniglia sul bordo in basso per alzare il campo. L'altezza scelta è
+   * un minimo: il campo continua a crescere col testo e non scorre dentro.
+   */
+  ridimensionabile?: boolean
   /** I dati che si possono citare. */
   voci: readonly VoceSegnaposto[]
   /** La stringa che apre l'elenco, o più di una. */
@@ -350,6 +373,11 @@ const PILLOLA_PER_STATO = {
 // Le stesse classi di `Textarea`, sull'area di scrittura.
 const AREA =
   "min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-lg whitespace-pre-wrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/30 aria-disabled:cursor-not-allowed aria-disabled:bg-input/50 aria-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_p]:m-0"
+
+// La maniglia conta in righe. Senza `righe` l'area parte da `min-h-16`, che
+// alla densità normale sono due righe e qualcosa.
+const RIGHE_DI_SERIE = 2
+const RIGHE_AL_MASSIMO = 60
 
 type Magazzino = {
   voci: Map<string, VoceSegnaposto>
@@ -1143,17 +1171,29 @@ function Voci({
 // consegnano lo stesso oggetto.
 const maniglie = new WeakMap<Editor, TestoSegnapostoRef>()
 
+// I campi in cui il cursore è già stato messo, da chi scrive o da fuori. In
+// uno mai usato il documento ha il cursore in testa, ma nessuno l'ha messo lì.
+const usati = new WeakSet<Editor>()
+
+const DOVE = { inizio: "start", fine: "end" } as const
+
 function manigliaDi(editor: Editor) {
   let maniglia = maniglie.get(editor)
   if (!maniglia) {
     maniglia = {
-      focus: () => {
-        editor.commands.focus()
+      focus: (dove) => {
+        if (dove) usati.add(editor)
+        editor.commands.focus(dove ? DOVE[dove] : undefined)
       },
       // Testo e basta: se ha la forma di un segnaposto diventa pillola come
       // ogni altro testo.
       inserisci: (testo) => {
         if (!testo || !editor.isEditable) return
+        // Il cursore non è mai stato in questo campo: il testo va in fondo.
+        if (!usati.has(editor)) {
+          usati.add(editor)
+          editor.view.dispatch(editor.state.tr.setSelection(Selection.atEnd(editor.state.doc)))
+        }
         // Un prefisso appena scritto, col suo filtro di una parola: il
         // segnaposto lo sostituisce, come la scelta dall'elenco.
         const magazzino = editor.storage.segnaposto
@@ -1186,6 +1226,18 @@ function manigliaDi(editor: Editor) {
   return maniglia
 }
 
+// Uno stato da capo per lo stesso editor: cronologia vuota, e il cursore in
+// fondo, dove riprende a scrivere chi arriva su un testo.
+function nuovoStato(editor: Editor, contenuto: JSONContent) {
+  const doc = editor.schema.nodeFromJSON(contenuto)
+  return EditorState.create({
+    schema: editor.schema,
+    plugins: editor.state.plugins,
+    doc,
+    selection: Selection.atEnd(doc),
+  })
+}
+
 function attributo(elemento: HTMLElement, nome: string, valore: string | undefined) {
   if (valore === undefined) elemento.removeAttribute(nome)
   else elemento.setAttribute(nome, valore)
@@ -1202,6 +1254,10 @@ export function TestoSegnaposto({
   onChange,
   onBlur,
   onFocus,
+  onPronto,
+  chiave,
+  righe,
+  ridimensionabile = false,
   voci,
   prefisso = "{{",
   forma = FORMA_SEGNAPOSTO,
@@ -1241,6 +1297,13 @@ export function TestoSegnaposto({
   // se l'app li rende in ritardo, sono l'eco di ciò che si è scritto e non
   // un valore deciso da fuori.
   const inViaggio = React.useRef(new Set<string>())
+  // Con `chiave`: lo stato dell'editor di ogni testo già mostrato, cioè
+  // documento, cursore e cronologia, e il testo che aveva quando è uscito.
+  const tenuti = React.useRef(new Map<string, { stato: EditorState; testo: string; usato: boolean }>())
+  const chiaveMostrata = React.useRef(chiave)
+  // L'altezza scelta con la maniglia, in righe: `null` è quella di partenza.
+  const [righeScelte, setRigheScelte] = React.useState<number | null>(null)
+  const presa = React.useRef<{ y: number; righe: number; riga: number } | null>(null)
 
   const prefissi = typeof prefisso === "string" ? [prefisso] : prefisso
   const gruppi = React.useMemo(
@@ -1368,9 +1431,9 @@ export function TestoSegnaposto({
 
   // I gestori dell'editor nascono una volta sola: chiamano l'ultima versione
   // di queste funzioni, che vedono lo stato di adesso.
-  const adesso = React.useRef({ aggiorna, tasto, apriComeTesto, guardaPillole, onChange, onBlur, onFocus })
+  const adesso = React.useRef({ aggiorna, tasto, apriComeTesto, guardaPillole, onChange, onBlur, onFocus, onPronto })
   React.useEffect(() => {
-    adesso.current = { aggiorna, tasto, apriComeTesto, guardaPillole, onChange, onBlur, onFocus }
+    adesso.current = { aggiorna, tasto, apriComeTesto, guardaPillole, onChange, onBlur, onFocus, onPronto }
   })
 
   const editor = useEditor({
@@ -1427,6 +1490,7 @@ export function TestoSegnaposto({
       adesso.current.onBlur?.()
     },
     onFocus: ({ editor: mio }) => {
+      usati.add(mio)
       adesso.current.guardaPillole(mio)
       adesso.current.onFocus?.(manigliaDi(mio))
     },
@@ -1474,6 +1538,42 @@ export function TestoSegnaposto({
     // sorgente e la chiave dei prefissi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, chiaveVoci, senzaValore, forma.source, prefissi.join("\u0000")])
+
+  // Gli stati tenuti sono dell'editor che li ha fatti: se l'editor viene
+  // rifatto non valgono più.
+  React.useEffect(() => () => tenuti.current.clear(), [editor])
+
+  // Un altro testo nello stesso campo. Quello che esce lascia qui il suo
+  // stato; quello che entra lo ritrova, se il suo testo è ancora quello, e
+  // sennò parte da capo. Lo stato si scambia intero: nella cronologia di un
+  // testo non entra mai quello di un altro.
+  React.useEffect(() => {
+    if (!editor || chiave === chiaveMostrata.current) return
+    if (chiaveMostrata.current !== undefined) {
+      tenuti.current.set(chiaveMostrata.current, {
+        stato: editor.state,
+        testo: inTesto(editor),
+        usato: usati.has(editor),
+      })
+    }
+    chiaveMostrata.current = chiave
+    const testo = value ?? ""
+    const tenuto = chiave === undefined ? undefined : tenuti.current.get(chiave)
+    const suo = tenuto?.testo === testo ? tenuto : undefined
+    editor.view.updateState(
+      suo?.stato ??
+        nuovoStato(editor, daTesto(testo, editor.storage.segnaposto.riconosci))
+    )
+    if (suo?.usato) usati.add(editor)
+    else usati.delete(editor)
+    ultimoEmesso.current = testo
+    inViaggio.current.clear()
+    saltata.current = null
+    setAperto(false)
+    setSenzaTesto(editor.isEmpty)
+    // Le voci possono essere cambiate mentre il testo era via.
+    editor.view.dispatch(editor.state.tr.setMeta(chiaveSegnaposto, true).setMeta("addToHistory", false))
+  }, [editor, chiave, value])
 
   // Il valore deciso da fuori.
   React.useEffect(() => {
@@ -1526,11 +1626,28 @@ export function TestoSegnaposto({
     editor.view.dom.removeAttribute("aria-activedescendant")
   }, [editor, aperto])
 
-  React.useImperativeHandle(
-    ref,
-    () => (editor ? manigliaDi(editor) : { focus: () => {}, inserisci: () => {} }),
+  // Finché l'editor non c'è il `ref` è `null`: una maniglia che non fa niente
+  // si lascerebbe chiamare a vuoto.
+  React.useImperativeHandle<TestoSegnapostoRef | null, TestoSegnapostoRef | null>(
+    ref as React.Ref<TestoSegnapostoRef | null> | undefined,
+    () => (editor ? manigliaDi(editor) : null),
     [editor]
   )
+  React.useEffect(() => {
+    if (editor) adesso.current.onPronto?.(manigliaDi(editor))
+  }, [editor])
+
+  // L'altezza minima dell'area: le righe di partenza, o quelle scelte con la
+  // maniglia, più i margini interni. In righe e non in pixel: segue la densità.
+  const righeMinime = righeScelte ?? righe
+  React.useEffect(() => {
+    if (!editor) return
+    const area = editor.view.dom
+    // Il bordo è misurato: non scala con la densità.
+    const bordi = area.offsetHeight - area.clientHeight
+    area.style.minHeight =
+      righeMinime === undefined ? "" : `calc(${righeMinime}lh + var(--spacing) * 4 + ${bordi}px)`
+  }, [editor, righeMinime])
 
   // L'elenco si ancora all'inizio del prefisso, letto dal documento a ogni
   // richiesta: mentre si scrive il filtro non si sposta.
@@ -1584,6 +1701,52 @@ export function TestoSegnaposto({
         </span>
       ) : null}
       <EditorContent editor={editor} />
+      {ridimensionabile && !disabled ? (
+        <div
+          data-slot="testo-segnaposto-maniglia"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Altezza del campo, in righe"
+          aria-valuenow={Math.round(righeScelte ?? righe ?? RIGHE_DI_SERIE)}
+          aria-valuemin={Math.round(righe ?? RIGHE_DI_SERIE)}
+          aria-valuemax={RIGHE_AL_MASSIMO}
+          tabIndex={0}
+          className="group/maniglia absolute inset-x-0 bottom-0 flex h-2 cursor-row-resize touch-none items-center justify-center outline-none"
+          onPointerDown={(evento) => {
+            if (evento.button !== 0) return
+            const area = editor.view.dom
+            const stile = getComputedStyle(area)
+            const riga = parseFloat(stile.lineHeight) || area.clientHeight
+            const interni = parseFloat(stile.paddingTop) + parseFloat(stile.paddingBottom)
+            presa.current = { y: evento.clientY, righe: (area.clientHeight - interni) / riga, riga }
+            // Il puntatore resta della maniglia anche fuori dal suo bordo.
+            if (evento.isTrusted) evento.currentTarget.setPointerCapture(evento.pointerId)
+            evento.preventDefault()
+          }}
+          onPointerMove={(evento) => {
+            const da = presa.current
+            if (!da) return
+            const volute = da.righe + (evento.clientY - da.y) / da.riga
+            setRigheScelte(Math.min(RIGHE_AL_MASSIMO, Math.max(righe ?? RIGHE_DI_SERIE, volute)))
+          }}
+          onPointerUp={() => {
+            presa.current = null
+          }}
+          onPointerCancel={() => {
+            presa.current = null
+          }}
+          onKeyDown={(evento) => {
+            const ora = righeScelte ?? righe ?? RIGHE_DI_SERIE
+            const passo = { ArrowDown: 1, ArrowUp: -1 }[evento.key]
+            if (evento.key === "Home") setRigheScelte(null)
+            else if (passo) setRigheScelte(Math.min(RIGHE_AL_MASSIMO, Math.max(righe ?? RIGHE_DI_SERIE, Math.round(ora) + passo)))
+            else return
+            evento.preventDefault()
+          }}
+        >
+          <span className="h-1 w-8 rounded-full bg-border transition-colors group-hover/maniglia:bg-muted-foreground group-focus-visible/maniglia:bg-ring group-active/maniglia:bg-muted-foreground" />
+        </div>
+      ) : null}
       <span role="status" className="sr-only">
         {annuncio}
       </span>

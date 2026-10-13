@@ -412,6 +412,84 @@ export const Stati: Story = {
   ),
 }
 
+/**
+ * Un campo che parte alto otto righe, con la maniglia sul bordo in basso per
+ * alzarlo ancora. L'altezza scelta è un minimo: scrivendo oltre, il campo
+ * cresce col testo e non scorre mai dentro. Da tastiera la maniglia si muove
+ * con le frecce su e giù, una riga alla volta, e `Inizio` torna all'altezza
+ * di partenza.
+ */
+export const Altezza: Story = {
+  args: { voci: VOCI },
+  render: (args) => (
+    <Field className="max-w-2xl">
+      <FieldLabel htmlFor="altezza">Descrizione</FieldLabel>
+      <TestoSegnaposto {...args} id="altezza" righe={8} ridimensionabile defaultValue={DESCRIZIONE} />
+    </Field>
+  ),
+}
+
+const TESTI = [
+  { chiave: 'descrizione', titolo: 'Descrizione', testo: 'La malta {{famiglia.nome}} è conforme alla {{qualifica.norma}}.' },
+  { chiave: 'uso', titolo: "Destinazione d'uso", testo: 'Per il ripristino di strutture in calcestruzzo.' },
+  { chiave: 'avvertenze', titolo: 'Avvertenze', testo: '' },
+]
+
+function UnoAllaVolta({ voci }: { voci: readonly VoceSegnaposto[] }) {
+  const [testi, setTesti] = useState(() => Object.fromEntries(TESTI.map((t) => [t.chiave, t.testo])))
+  const [scelto, setScelto] = useState(TESTI[0].chiave)
+  const campo = useRef<TestoSegnapostoRef | null>(null)
+  return (
+    <FieldGroup className="max-w-2xl">
+      <div role="group" aria-label="Testi" className="flex flex-wrap gap-2">
+        {TESTI.map((t) => (
+          <Button
+            key={t.chiave}
+            variant={t.chiave === scelto ? 'secondary' : 'outline'}
+            size="sm"
+            aria-pressed={t.chiave === scelto}
+            onClick={() => {
+              setScelto(t.chiave)
+              campo.current?.focus()
+            }}
+          >
+            {t.titolo}
+          </Button>
+        ))}
+        <Button variant="outline" size="sm" onClick={() => campo.current?.inserisci('{{qualifica.classe}}')}>
+          <BracesIcon />
+          Inserisci la classe
+        </Button>
+      </div>
+      <Field>
+        <FieldLabel id="uno-alla-volta">Testo</FieldLabel>
+        <TestoSegnaposto
+          ref={campo}
+          aria-labelledby="uno-alla-volta"
+          voci={voci}
+          righe={5}
+          chiave={scelto}
+          value={testi[scelto]}
+          onChange={(testo) => setTesti((prima) => ({ ...prima, [scelto]: testo }))}
+        />
+      </Field>
+    </FieldGroup>
+  )
+}
+
+/**
+ * Un campo solo per più testi, uno alla volta: scegliendo un testo il campo
+ * resta lo stesso e cambia ciò che mostra. Con `chiave` ogni testo ritrova il
+ * suo cursore e il suo `Ctrl+Z`: l'annulla di un testo non riporta mai quello
+ * di un altro, e tornando su un testo si può ancora annullare ciò che ci si
+ * era scritto. Su un testo in cui il cursore non è mai stato, il cursore
+ * parte dal fondo e un dato inserito da fuori va in fondo.
+ */
+export const UnTestoAllaVolta: Story = {
+  args: { voci: VOCI },
+  render: (args) => <UnoAllaVolta voci={args.voci} />,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Scene di misura: solo per il controllo automatico.
  * ──────────────────────────────────────────────────────────────────────── */
@@ -2263,5 +2341,232 @@ export const ScrivereAccantoAUnaPillolaProva: Story = {
     componi(area, '…', 74)
     await new Promise((fatto) => setTimeout(fatto, 50))
     expect(valoreDi(area)).toBe(`${D}…`)
+  },
+}
+
+const MANIGLIA = '[data-slot="testo-segnaposto-maniglia"]'
+
+// Le righe che l'area mostra: l'altezza interna, tolti i margini, in righe.
+function righeDi(area: HTMLElement) {
+  const stile = getComputedStyle(area)
+  const interni = parseFloat(stile.paddingTop) + parseFloat(stile.paddingBottom)
+  return (area.clientHeight - interni) / parseFloat(stile.lineHeight)
+}
+
+// L'altezza di partenza in righe, la maniglia col puntatore e da tastiera, e
+// il campo che cresce col testo senza mai scorrere dentro.
+export const AltezzaProva: Story = {
+  name: 'Altezza, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, etichetta: 'Testo', righe: 8, ridimensionabile: true, defaultValue: 'Una riga.' },
+  play: async ({ canvasElement }) => {
+    // Senza dare il fuoco al testo: l'editor lo prende un fotogramma dopo, e
+    // lo toglierebbe alla maniglia.
+    const area = await waitFor(() => {
+      const el = canvasElement.querySelector<Area>(AREA)
+      expect(el?.editor).toBeTruthy()
+      return el as Area
+    })
+    const maniglia = canvasElement.querySelector<HTMLElement>(MANIGLIA)!
+
+    // Otto righe di partenza, con una riga sola di testo.
+    expect(righeDi(area)).toBeCloseTo(8, 1)
+    expect(maniglia).toHaveAttribute('role', 'separator')
+    expect(maniglia).toHaveAttribute('aria-valuenow', '8')
+    expect(maniglia).toHaveAttribute('aria-valuemin', '8')
+
+    // Da tastiera: una riga alla volta, mai sotto la partenza, e `Inizio`.
+    maniglia.focus()
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}')
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(10, 1))
+    expect(maniglia).toHaveAttribute('aria-valuenow', '10')
+    await userEvent.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}')
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(8, 1))
+    await userEvent.keyboard('{ArrowDown}{Home}')
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(8, 1))
+
+    // Col puntatore: tre righe più in basso, e poi su oltre la partenza.
+    const riga = parseFloat(getComputedStyle(area).lineHeight)
+    const y = maniglia.getBoundingClientRect().top + 2
+    const puntatore = (tipo: string, dove: number) =>
+      maniglia.dispatchEvent(new PointerEvent(tipo, { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientY: dove }))
+    puntatore('pointerdown', y)
+    puntatore('pointermove', y + riga * 3)
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(11, 1))
+    puntatore('pointermove', y - riga * 20)
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(8, 1))
+    puntatore('pointermove', y + riga * 2)
+    puntatore('pointerup', y + riga * 2)
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(10, 1))
+    // A tasto rilasciato il puntatore non muove più niente.
+    puntatore('pointermove', y + riga * 6)
+    await new Promise((fatto) => setTimeout(fatto, 50))
+    expect(righeDi(area)).toBeCloseTo(10, 1)
+
+    // L'altezza scelta è un minimo: quattordici righe di testo la superano,
+    // e l'area non scorre dentro.
+    area.editor.commands.setContent({
+      type: 'doc',
+      content: Array.from({ length: 14 }, (_, n) => ({ type: 'paragraph', content: [{ type: 'text', text: `Riga ${n + 1}` }] })),
+    })
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(14, 1))
+    expect(area.scrollHeight).toBeLessThanOrEqual(area.clientHeight)
+    expect(getComputedStyle(area).overflowY).toBe('visible')
+    // Tolto il testo torna all'altezza scelta, non a quella di partenza.
+    area.editor.commands.setContent('')
+    await waitFor(() => expect(righeDi(area)).toBeCloseTo(10, 1))
+  },
+}
+
+function DueCampi({ voci, onPronto }: { voci: readonly VoceSegnaposto[]; onPronto: (quale: string, campo: TestoSegnapostoRef) => void }) {
+  const visti = useRef<string[]>([])
+  const secondo = useRef<TestoSegnapostoRef | null>(null)
+  return (
+    <FieldGroup className="max-w-2xl">
+      <TestoSegnaposto
+        etichetta="Primo"
+        voci={voci}
+        defaultValue="Malta conforme"
+        // Ciò che il `ref` riceve, e se in quel momento l'area c'è.
+        ref={(campo) => {
+          visti.current.push(`${campo ? 'campo' : 'null'}:${document.querySelector('[aria-label="Primo"]') ? 'area' : 'niente'}`)
+        }}
+        onPronto={(campo) => {
+          onPronto('primo', campo)
+          campo.focus('fine')
+        }}
+      />
+      <TestoSegnaposto etichetta="Secondo" ref={secondo} voci={voci} defaultValue="Malta conforme alla" onPronto={(campo) => onPronto('secondo', campo)} />
+      <Button variant="outline" className="self-start" onClick={() => secondo.current?.inserisci('{{qualifica.norma}}')}>
+        Inserisci nel secondo
+      </Button>
+      <output data-testid="visti">{visti.current.join(' ')}</output>
+    </FieldGroup>
+  )
+}
+
+// `ref` nullo finché l'editor non c'è, `onPronto`, `focus('fine')`, e
+// `inserisci` in un campo in cui il cursore non è mai stato.
+export const FuocoEInserisciProva: Story = {
+  name: 'Fuoco e inserisci, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI },
+  render: (args) => {
+    const pronto = fn()
+    return (
+      <div data-pronto ref={(el) => void (el && Object.assign(el, { pronto }))}>
+        <DueCampi voci={args.voci} onPronto={pronto} />
+      </div>
+    )
+  },
+  play: async ({ canvasElement }) => {
+    const primo = await waitFor(() => {
+      const el = canvasElement.querySelector<Area>('[aria-label="Primo"]')
+      expect(el?.editor).toBeTruthy()
+      return el as Area
+    })
+    const secondo = canvasElement.querySelector<Area>('[aria-label="Secondo"]')!
+    const pronto = (canvasElement.querySelector('[data-pronto]') as HTMLElement & { pronto: ReturnType<typeof fn> }).pronto
+
+    // `onPronto` è arrivato per tutti e due, con la maniglia vera.
+    await waitFor(() => expect(pronto.mock.calls.map(([quale]) => quale)).toEqual(expect.arrayContaining(['primo', 'secondo'])))
+    for (const [, campo] of pronto.mock.calls) expect(typeof (campo as TestoSegnapostoRef).inserisci).toBe('function')
+
+    // `focus('fine')` chiamato dentro `onPronto` ha avuto effetto: il fuoco è
+    // nel primo campo e il cursore in fondo al testo.
+    await waitFor(() => expect(document.activeElement).toBe(primo))
+    expect(primo.editor.state.selection.from).toBe(primo.editor.state.doc.content.size - 1)
+
+    // Senza argomento il cursore resta dov'era; `'inizio'` lo porta in testa.
+    const campoPrimo = pronto.mock.calls.findLast(([quale]) => quale === 'primo')![1] as TestoSegnapostoRef
+    primo.editor.commands.setTextSelection(4)
+    ;(document.activeElement as HTMLElement).blur()
+    campoPrimo.focus()
+    await waitFor(() => expect(document.activeElement).toBe(primo))
+    expect(primo.editor.state.selection.from).toBe(4)
+    campoPrimo.focus('inizio')
+    await waitFor(() => expect(primo.editor.state.selection.from).toBe(1))
+    campoPrimo.focus('fine')
+    await waitFor(() => expect(primo.editor.state.selection.from).toBe(primo.editor.state.doc.content.size - 1))
+
+    // Nel secondo campo il cursore non è mai stato: il dato va in fondo, con
+    // lo spazio che gli serve, e non in testa.
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Inserisci nel secondo' }))
+    await waitFor(() => expect(valoreDi(secondo)).toBe('Malta conforme alla {{qualifica.norma}}'))
+    // Ora il cursore c'è stato: il dato successivo va dov'è il cursore.
+    secondo.editor.commands.setTextSelection(1)
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Inserisci nel secondo' }))
+    await waitFor(() => expect(valoreDi(secondo)).toBe('{{qualifica.norma}} Malta conforme alla {{qualifica.norma}}'))
+
+    // Il `ref` non ha mai ricevuto una maniglia senza che l'area ci fosse.
+    const visti = within(canvasElement).getByTestId('visti')
+    await userEvent.click(visti)
+    expect(visti.textContent).not.toContain('campo:niente')
+  },
+}
+
+// Un campo solo, tre testi: il campo non si rimonta, e ogni testo tiene il
+// suo cursore e il suo annulla.
+export const UnTestoAllaVoltaProva: Story = {
+  name: 'Un testo alla volta, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI },
+  render: (args) => <UnoAllaVolta voci={args.voci} />,
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const area = await areaDi(canvasElement)
+    const editor = area.editor
+    const scegli = (nome: string) => userEvent.click(tela.getByRole('button', { name: nome }))
+    const annulla = () => area.editor.commands.undo()
+    const [descrizione, uso] = TESTI.map((t) => t.testo)
+
+    // Si scrive nel primo testo, poi si passa al secondo.
+    await scrivi(' Aggiunta.')
+    expect(valoreDi(area)).toBe(`${descrizione} Aggiunta.`)
+    await scegli("Destinazione d'uso")
+    await waitFor(() => expect(valoreDi(area)).toBe(uso))
+    // Il campo è lo stesso: stessa area, stesso editor, e ha ancora il fuoco.
+    expect(canvasElement.querySelector(AREA)).toBe(area)
+    expect(area.editor).toBe(editor)
+    await waitFor(() => expect(document.activeElement).toBe(area))
+    // Su un testo mai usato il cursore parte dal fondo.
+    expect(editor.state.selection.from).toBe(editor.state.doc.content.size - 1)
+
+    // L'annulla del secondo testo non tocca il primo: qui non c'è niente da
+    // annullare, e il testo resta il suo.
+    annulla()
+    expect(valoreDi(area)).toBe(uso)
+    await scrivi(' Prova.')
+    expect(valoreDi(area)).toBe(`${uso} Prova.`)
+    annulla()
+    expect(valoreDi(area)).toBe(uso)
+    annulla()
+    expect(valoreDi(area)).toBe(uso)
+    await scrivi(' Di nuovo.')
+
+    // Tornando al primo, ciò che ci si era scritto si annulla ancora, e le
+    // pillole ci sono.
+    await scegli('Descrizione')
+    await waitFor(() => expect(valoreDi(area)).toBe(`${descrizione} Aggiunta.`))
+    expect(pilloleDi(area)).toEqual(['valore:Malta R4', 'valore:EN 1504-3'])
+    annulla()
+    expect(valoreDi(area)).toBe(descrizione)
+    // E il secondo ha tenuto il suo.
+    await scegli("Destinazione d'uso")
+    await waitFor(() => expect(valoreDi(area)).toBe(`${uso} Di nuovo.`))
+    annulla()
+    expect(valoreDi(area)).toBe(uso)
+
+    // Il terzo testo è vuoto e mai usato: un dato inserito da fuori ci entra.
+    await scegli('Avvertenze')
+    await waitFor(() => expect(valoreDi(area)).toBe(''))
+    await userEvent.click(tela.getByRole('button', { name: 'Inserisci la classe' }))
+    await waitFor(() => expect(valoreDi(area)).toBe('{{qualifica.classe}}'))
+    // In un testo mai usato che ha già del testo, il dato va in fondo.
+    await scegli('Descrizione')
+    await waitFor(() => expect(valoreDi(area)).toBe(descrizione))
+    ;(document.activeElement as HTMLElement).blur()
+    await userEvent.click(tela.getByRole('button', { name: 'Inserisci la classe' }))
+    await waitFor(() => expect(valoreDi(area)).toBe(`${descrizione.slice(0, -1)}. {{qualifica.classe}}`))
   },
 }
