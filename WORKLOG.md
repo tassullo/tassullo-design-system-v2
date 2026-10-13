@@ -14205,3 +14205,28 @@ PR #129 unita col gate verde in CI (corsa 38457355912, sul commit `a15c9b2`); l'
 - #125: il punto 6 (la pagina d'esempio), quando Anagrafe avvisa che la sua pagina è finita; il riordino sotto un altro padre, se servirà.
 - #126: lo script della misura di Anagrafe, o una prova a mano in Safari.
 - Safari vero: non provato, per nessuno dei pezzi di oggi.
+
+
+## 2026-10-13 — Proposta #125: le scene le ha guardate Francesco in Safari
+
+Rettifica alle due voci di oggi, che lasciavano fra gli aperti «Safari vero: non provato». Francesco: «i test in realtà quando mi mandavi i link li ho fatti già io». Le scene di cui ha ricevuto l'indirizzo durante le sette scelte e l'approvazione dei pezzi nuovi le ha aperte in Safari, ed è lì che ha confermato: l'albero, il testo con un campo per più testi, il gruppo a scelta che non si svuota, lo stato vuoto con più azioni, il campo con l'errore dato da fuori. Io non ho guidato Safari: le mie prove restano quelle in Chromium e in WebKit di Playwright. Nessun file del registry cambia.
+
+Il verdetto definitivo sui pezzi lo dà Anagrafe adottandoli (Francesco): la #125 resta aperta per questo.
+
+#### Aperti
+
+- #126: Francesco può fare lui la prova in Safari, sulla scena `Con Elenco Dei Dati` o sul banco di Anagrafe: cinque trascinamenti di una pillola col campo senza fuoco e cinque col fuoco. Gliel'avevo scritto in mezzo a un resoconto lungo invece di chiederlo: andava chiesto subito e da solo.
+- #125: il punto 6, dopo l'adozione di Anagrafe.
+
+
+## 2026-10-13 — Proposta #126 chiusa: in Safari vero la pillola si sposta sempre
+
+Francesco ha fatto la prova a mano in Safari, guidato clic per clic, sulla scena `Con Elenco Dei Dati` della `v2.0.15`: **5 su 5** col campo senza fuoco (un clic nel secondo campo, poi il trascinamento della pillola del primo senza cliccarla), **5 su 5** col fuoco. Con le 12 su 12 di WebKit di Playwright in dieci varianti del gesto, il difetto non si riproduce né con lo strumento né a mano.
+
+La issue è chiusa con la ragione scritta e le misure. Nessun file del registry è cambiato. Con ogni probabilità era un effetto dello script di misura di Anagrafe, come il doppio clic sulla pillola dell'altra volta. Si riapre se torna, con lo script esatto.
+
+Nel prompt di adozione per Anagrafe il punto sulla #126 dice ora che è chiusa e perché.
+
+#### Aperti
+
+- #125: il punto 6, dopo l'adozione di Anagrafe.
