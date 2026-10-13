@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, userEvent, within } from 'storybook/test'
 import {
   AlignCenterIcon,
   AlignLeftIcon,
@@ -39,6 +41,11 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * - A scelta singola il gruppo dice «guarda questa cosa»: la vista, il
  *   periodo, l'ordinamento. Con `multiple` i bottoni sono filtri che si
  *   sommano: «togli dalla lista tutto il resto».
+ * - A scelta singola un clic sul bottone acceso lo spegne, e il gruppo
+ *   resta senza scelta: va bene per un filtro. Quando una scelta deve
+ *   esserci sempre, come il livello di un capitolo, il gruppo si tiene
+ *   controllato e il valore vuoto non si applica: `onValueChange={(scelti) =>
+ *   scelti[0] && setLivello(scelti[0])}`. Il bottone resta acceso.
  * - Il gruppo ha un `aria-label` che dice che cosa si filtra; un bottone di
  *   sola icona ha il suo.
  * - Un conteggio dentro un bottone è uno `<span>` con
@@ -109,6 +116,57 @@ export const SceltaSingola: Story = {
       </ToggleGroupItem>
     </ToggleGroup>
   ),
+}
+
+function Livello() {
+  const [livello, setLivello] = useState('capitolo')
+  return (
+    <ToggleGroup
+      variant="outline"
+      spacing={0}
+      value={[livello]}
+      // Il valore vuoto non si applica: un livello c'è sempre.
+      onValueChange={(scelti) => {
+        if (scelti[0]) setLivello(String(scelti[0]))
+      }}
+      aria-label="Livello"
+    >
+      <ToggleGroupItem value="capitolo">Capitolo</ToggleGroupItem>
+      <ToggleGroupItem value="sottocapitolo">Sottocapitolo</ToggleGroupItem>
+      <ToggleGroupItem value="titoletto">Titoletto</ToggleGroupItem>
+    </ToggleGroup>
+  )
+}
+
+/**
+ * Una scelta c'è sempre: cliccando il bottone acceso non succede niente, e
+ * per cambiare si clicca un altro. Il gruppo è controllato e non applica il
+ * valore vuoto. Nella scena qui sopra, invece, il bottone acceso si spegne.
+ */
+export const SceltaCheNonSiSvuota: Story = {
+  render: () => <Livello />,
+}
+
+// Il bottone acceso, cliccato, resta acceso; un altro bottone prende il suo
+// posto; da tastiera lo stesso.
+export const SceltaCheNonSiSvuotaProva: Story = {
+  name: 'Scelta Che Non Si Svuota, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <Livello />,
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const accesi = () => tela.getAllByRole('button').filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent)
+    expect(accesi()).toEqual(['Capitolo'])
+    await userEvent.click(tela.getByRole('button', { name: 'Capitolo' }))
+    expect(accesi()).toEqual(['Capitolo'])
+    await userEvent.click(tela.getByRole('button', { name: 'Titoletto' }))
+    expect(accesi()).toEqual(['Titoletto'])
+    await userEvent.click(tela.getByRole('button', { name: 'Titoletto' }))
+    expect(accesi()).toEqual(['Titoletto'])
+    tela.getByRole('button', { name: 'Titoletto' }).focus()
+    await userEvent.keyboard('{Enter}')
+    expect(accesi()).toEqual(['Titoletto'])
+  },
 }
 
 /**

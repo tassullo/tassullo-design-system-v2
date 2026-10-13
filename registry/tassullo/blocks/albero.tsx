@@ -139,11 +139,7 @@ export type AlberoProps<TNodo extends NodoAlbero = NodoAlbero> = {
 // Il rientro di una riga e lo stile del suo titolo, per livello. Dal quinto in
 // giù il rientro non cresce più: il titolo non avrebbe posto.
 const RIENTRO = ["pl-2", "pl-6", "pl-10", "pl-14", "pl-18"]
-const TITOLO = [
-  "text-sm font-semibold",
-  "text-xs font-semibold tracking-wide uppercase",
-  "text-sm font-normal",
-]
+const TITOLO = ["text-sm font-semibold", "text-sm font-medium", "text-sm font-normal"]
 
 type Comuni<TNodo extends NodoAlbero> = Pick<AlberoProps<TNodo>, "segno" | "menu" | "onSposta"> & {
   scelto: string | null
@@ -493,8 +489,8 @@ function Riga<TNodo extends NodoAlbero>({
 }
 
 const SEGNO = {
-  pieno: "size-2 shrink-0 rounded-full bg-foreground",
-  vuoto: "size-2 shrink-0 rounded-full border border-muted-foreground",
+  pieno: "size-2 rounded-full bg-foreground",
+  vuoto: "size-2 rounded-full border border-muted-foreground",
 }
 
 /**
@@ -522,7 +518,13 @@ export function AlberoSegno({
       />
     )
   }
-  return <span data-slot="albero-segno" {...aria} className={cn(SEGNO[tipo], className)} />
+  // Il pallino sta al centro di un posto largo quanto l'icona dell'errore: i
+  // segni di righe diverse stanno in colonna.
+  return (
+    <span data-slot="albero-segno" {...aria} className={cn("flex size-4 shrink-0 items-center justify-center", className)}>
+      <span className={SEGNO[tipo]} />
+    </span>
+  )
 }
 
 /** Un conto al posto del segno, per una riga che ne contiene altre: «5 blocchi». */
@@ -530,7 +532,7 @@ export function AlberoConto({ className, ...props }: React.ComponentProps<"span"
   return (
     <span
       data-slot="albero-conto"
-      className={cn("shrink-0 text-xs font-normal tracking-normal text-muted-foreground normal-case", className)}
+      className={cn("shrink-0 text-xs font-normal text-muted-foreground", className)}
       {...props}
     />
   )

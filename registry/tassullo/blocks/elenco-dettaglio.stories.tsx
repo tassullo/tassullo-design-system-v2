@@ -44,6 +44,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui
  * ```
  *
  * **Le prop.** `elenco`, la parte a sinistra; i figli sono il dettaglio.
+ * `piede` sta in fondo al dettaglio, allineato al fondo della cornice: è il
+ * posto della legenda dei segni dell'elenco, che lì sta su una riga.
  * `sotto` dice cosa resta fermo in cima alla finestra sopra il blocco:
  * `fascia`, la fascia del guscio; `fascia-e-tab`, la fascia più le tab ferme
  * di una scheda; `niente`, una pagina senza guscio. `etichettaElenco` dà un
@@ -109,6 +111,22 @@ function Scheda({
     <>
       <ElencoDettaglio
         sotto={sotto}
+        piede={
+          <AlberoLegenda>
+            <li>
+              <AlberoSegno tipo="pieno" />
+              con testo
+            </li>
+            <li>
+              <AlberoSegno tipo="vuoto" />
+              da scrivere
+            </li>
+            <li>
+              <AlberoConto>10 blocchi</AlberoConto>
+              solo contenitore, senza un testo suo
+            </li>
+          </AlberoLegenda>
+        }
         elenco={
           <>
             <div className="flex flex-col gap-0.5">
@@ -132,16 +150,6 @@ function Scheda({
                 )
               }
             />
-            <AlberoLegenda>
-              <li>
-                <AlberoSegno tipo="pieno" />
-                con testo
-              </li>
-              <li>
-                <AlberoSegno tipo="vuoto" />
-                da scrivere
-              </li>
-            </AlberoLegenda>
           </>
         }
       >
@@ -153,7 +161,6 @@ function Scheda({
             aria-labelledby="testo-del-blocco"
             voci={VOCI}
             righe={8}
-            ridimensionabile
             chiave={blocco.id}
             value={blocco.testo}
             onChange={(testo) => setBlocchi((b) => cambia(b, blocco.id, (questo) => ({ ...questo, testo })))}
@@ -278,6 +285,14 @@ export const NelGuscioProva: Story = {
       expect(`accanto: ${dettaglio.getBoundingClientRect().left >= elenco.getBoundingClientRect().right}`).toBe('accanto: true')
       // È più alto della finestra: scorre per conto suo.
       expect(`scorre da sé: ${elenco.scrollHeight > elenco.clientHeight}`).toBe('scorre da sé: true')
+      // Il dettaglio è corto: il piede sta in fondo alla cornice, alla pari
+      // col fondo dell'elenco, non sotto i bottoni.
+      const piede = canvasElement.querySelector<HTMLElement>('[data-slot="elenco-dettaglio-piede"]')!
+      expect(`piede fino a ${px(piede.getBoundingClientRect().bottom)}`).toBe(`piede fino a ${px(elenco.getBoundingClientRect().bottom)}`)
+      expect(piede).toHaveTextContent('solo contenitore')
+      // A pagina non scorsa la cornice intera sta nella finestra: il piede si
+      // legge senza scorrere.
+      expect(`piede in finestra: ${px(piede.getBoundingClientRect().bottom) <= innerHeight}`).toBe('piede in finestra: true')
 
       // Un testo lungo nel blocco scelto, per dare corsa alla pagina.
       const area = await waitFor(() => {
@@ -309,7 +324,11 @@ export const NelGuscioProva: Story = {
       await waitFor(() => {
         const r = ultima.getBoundingClientRect()
         const e = elenco.getBoundingClientRect()
-        expect(`riga in vista: ${r.top >= e.top && r.bottom <= e.bottom}`).toBe('riga in vista: true')
+        // Al pixel: l'ultima riga tocca il fondo dell'elenco, e l'altezza
+        // dell'elenco può avere una frazione.
+        expect(`riga da ${px(r.top)} a ${px(r.bottom)}, in vista: ${px(r.top) >= px(e.top) && px(r.bottom) <= px(e.bottom)}`).toBe(
+          `riga da ${px(r.top)} a ${px(r.bottom)}, in vista: true`
+        )
       })
       // Tornando alla prima, l'elenco torna su.
       await userEvent.keyboard('{Home}{Enter}')

@@ -55,9 +55,9 @@ import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator } from '@/re
  *
  * **Regole d'uso.**
  *
- * - I primi tre livelli hanno ognuno il suo stile: il primo in grassetto, il
- *   secondo in maiuscoletto piccolo, il terzo in tondo. Più in giù resta
- *   quello del terzo, e cambia solo il rientro.
+ * - I primi tre livelli hanno ognuno il suo peso: il primo in grassetto, il
+ *   secondo a peso medio, il terzo in tondo. Più in giù resta quello del
+ *   terzo, e cambia solo il rientro.
  * - Un titolo lungo va a capo: non si tronca.
  * - Ogni segno ha un nome che si legge anche senza vederlo, e sotto l'albero
  *   c'è la legenda. Un conto si scrive per esteso: «5 blocchi».
@@ -113,7 +113,10 @@ const LEGENDA = (
       <AlberoSegno tipo="errore" />
       con un errore
     </li>
-    <li>«N blocchi»: senza un testo suo, ne contiene altri</li>
+    <li>
+      <AlberoConto>10 blocchi</AlberoConto>
+      solo contenitore, senza un testo suo
+    </li>
   </AlberoLegenda>
 )
 
@@ -242,6 +245,16 @@ export const TastieraProva: Story = {
     expect(voce(albero, 'gesso')).toHaveAccessibleName('Supporti a base gesso Da scrivere')
     expect(voce(albero, 'applicazione')).toHaveAccessibleName('Applicazione 10 blocchi')
     expect(voce(albero, 'bagnati')).toHaveAccessibleName('Supporti bagnati Con un errore')
+
+    // I segni stanno in colonna: pallino pieno, pallino vuoto ed errore hanno
+    // lo stesso centro.
+    const centro = (id: string) => {
+      const r = voce(albero, id).querySelector('[data-slot="albero-segno"]')!.getBoundingClientRect()
+      return Math.round(r.left + r.width / 2)
+    }
+    expect(`centri ${centro('assorbenti')} ${centro('gesso')} ${centro('bagnati')}`).toBe(
+      `centri ${centro('assorbenti')} ${centro('assorbenti')} ${centro('assorbenti')}`
+    )
 
     // Il titolo lungo va a capo: la sua riga è più alta di una riga sola.
     const alta = voce(albero, 'sporchi').getBoundingClientRect().height

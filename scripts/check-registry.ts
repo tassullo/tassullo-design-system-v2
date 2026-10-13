@@ -173,6 +173,34 @@ function componentiPropri(): ComponenteProprio[] {
   return JSON.parse(readFileSync(PROPRI_FILE, "utf8")).componenti ?? [];
 }
 
+/**
+ * Una **variante nostra** aggiunta a un componente che un originale shadcn ce
+ * l'ha: una chiave in più dentro `cva`. È una divergenza di forma, quindi vale
+ * la regola dei componenti nostri: approvata da Francesco e dichiarata in
+ * `componenti-propri.json`, sotto `varianti`. Il confronto di forma toglie
+ * dalla nostra copia le sole varianti dichiarate; una variante non dichiarata
+ * resta un errore, e una riga che non trova più la sua variante anche.
+ */
+type VarianteNostra = ComponenteProprio & { variante: string };
+
+function variantiNostre(): VarianteNostra[] {
+  if (!existsSync(PROPRI_FILE)) return [];
+  return JSON.parse(readFileSync(PROPRI_FILE, "utf8")).varianti ?? [];
+}
+
+/** Il sorgente senza le varianti nostre dichiarate per quel file. */
+function senzaVariantiNostre(src: string, nome?: string): string {
+  let pulito = src;
+  for (const v of variantiNostre()) if (v.file === nome) pulito = pulito.replace(rigaDiVariante(v.variante), "");
+  return pulito;
+}
+
+/** La riga di `cva` di una variante: la chiave fra virgolette, la sua stringa, la virgola. */
+function rigaDiVariante(variante: string): RegExp {
+  const nome = variante.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\n[ \\t]*"${nome}":\\s*"(?:[^"\\\\]|\\\\.)*",`);
+}
+
 type Problem = { livello: "errore" | "avviso"; dove: string; cosa: string };
 const problemi: Problem[] = [];
 const err = (dove: string, cosa: string) => problemi.push({ livello: "errore", dove, cosa });
@@ -424,6 +452,7 @@ const SOSTITUZIONI_DI_STACK: { file: string; re: RegExp; con: string; cosa: stri
 function forma(src: string, nome?: string): string {
   let pulito = src.replace(USE_CLIENT_RE, "").replace(REACT_NAMESPACE_IMPORT_RE, "");
   for (const m of MORTE_A_MONTE) if (m.file === nome) pulito = pulito.replace(m.re, "");
+  pulito = senzaVariantiNostre(pulito, nome);
   for (const m of SOSTITUZIONI_DI_STACK)
     if (m.file === nome) pulito = pulito.replace(m.re, m.con);
   // Commenti e stringhe li separa lo scanner (v. `scansiona`): con le due
@@ -781,9 +810,13 @@ function controllaComponenti(): { ristilati: number; token: Set<string> } {
     // Col segnaposto le due liste possono non allinearsi: il conto del ri-stile
     // si tiene solo se hanno la stessa lunghezza. Il set `arbitrariOriginali`
     // invece è per contenuto, quindi resta valido comunque.
-    const allineate = nostreStringhe.length === originaliStringhe.length;
+    // Il conto si fa senza le varianti nostre dichiarate: due stringhe in più
+    // sfaserebbero le liste, e il conto scenderebbe a zero in silenzio. I
+    // valori arbitrari si cercano invece in tutto il file, varianti comprese.
+    const daConfrontare = estraiStringhe(senzaVariantiNostre(nostro, nome));
+    const allineate = daConfrontare.length === originaliStringhe.length;
+    if (allineate) diverse = daConfrontare.filter((nostra, i) => nostra !== originaliStringhe[i]).length;
     for (let i = 0; i < nostreStringhe.length; i++) {
-      if (allineate && nostreStringhe[i] !== originaliStringhe[i]) diverse++;
       for (const m of nostreStringhe[i]!.matchAll(ARBITRARIO_RE)) {
         if (gia.has(m[0])) continue;
         gia.add(m[0]);
@@ -925,6 +958,23 @@ function main(): void {
   for (const c of componentiPropri()) {
     if (!presenti.has(c.file)) {
       err(PROPRI_FILE, `dichiara \`${c.file}\`, che in ${UI_DIR} non esiste (più?).`);
+    }
+  }
+
+  // Le varianti nostre: ogni riga ha i suoi campi e trova ancora la sua variante.
+  for (const v of variantiNostre()) {
+    const dove = `${PROPRI_FILE} (varianti)`;
+    const vuoti = (["file", "variante", "cosaFa", "stradaShadcnProvata", "approvatoDa", "data"] as const).filter(
+      (campo) => !v[campo]?.trim(),
+    );
+    if (vuoti.length > 0) err(dove, `la variante \`${v.variante ?? "?"}\` è senza ${vuoti.join(", ")}.`);
+    const percorso = join(UI_DIR, v.file ?? "");
+    if (!v.file || !existsSync(percorso)) {
+      err(dove, `dichiara \`${v.file}\`, che in ${UI_DIR} non esiste (più?).`);
+    } else if (!rigaDiVariante(v.variante).test(readFileSync(percorso, "utf8"))) {
+      err(dove, `dichiara la variante \`${v.variante}\` di \`${v.file}\`, che nel file non c'è (più?).`);
+    } else {
+      console.log(`  ▣ ${v.file.padEnd(24)} variante NOSTRA «${v.variante}» (approvata da ${v.approvatoDa}, ${v.data})`);
     }
   }
 

@@ -28,7 +28,8 @@ import { Spinner } from '@/registry/tassullo/ui/spinner'
  * ```
  *
  * **Varianti.** `variant`: `default` (l'azione principale, sul colore del
- * brand), `secondary`, `outline`, `ghost`, `destructive`, `link`.
+ * brand), `secondary`, `outline`, `ghost`, `destructive`, `destructive-ghost`,
+ * `link`.
  *
  * **Taglie.** `size`: `xs`, `sm`, `default`, `lg` per i bottoni con testo;
  * `icon-xs`, `icon-sm`, `icon`, `icon-lg` per quelli quadrati di sola icona.
@@ -36,7 +37,9 @@ import { Spinner } from '@/registry/tassullo/ui/spinner'
  *
  * **Regole d'uso.** Un'azione `default` per zona dello schermo; le altre si
  * abbassano a `secondary`, `outline` o `ghost`. `destructive` solo per ciò che
- * non si recupera. Il caricamento non è un prop: si mette uno `Spinner` dentro
+ * non si recupera, ed è il bottone della conferma finale. Un «Elimina» che sta
+ * in una riga accanto ad altri bottoni è `destructive-ghost`: senza fondo, col
+ * testo rosso, così non è il più vistoso della riga. Il caricamento non è un prop: si mette uno `Spinner` dentro
  * il bottone e lo si disabilita. Un bottone di sola icona vuole `aria-label`.
  *
  * **Tastiera e accessibilità.** Si raggiunge con `Tab`, si preme con `Invio` o
@@ -49,7 +52,7 @@ const meta = {
   argTypes: {
     variant: {
       control: 'select',
-      options: ['default', 'secondary', 'outline', 'ghost', 'destructive', 'link'],
+      options: ['default', 'secondary', 'outline', 'ghost', 'destructive', 'destructive-ghost', 'link'],
     },
     size: {
       control: 'select',
@@ -73,6 +76,7 @@ export const Varianti: Story = {
       <Button {...args} variant="outline">Outline</Button>
       <Button {...args} variant="ghost">Ghost</Button>
       <Button {...args} variant="destructive">Destructive</Button>
+      <Button {...args} variant="destructive-ghost">Destructive ghost</Button>
       <Button {...args} variant="link">Link</Button>
     </div>
   ),
@@ -210,7 +214,7 @@ export const Griglia: Story = {
       {(['xs', 'sm', 'default', 'lg'] as const).map((size) => (
         <div key={size} className="flex flex-wrap items-center gap-3">
           <span className="w-16 text-sm text-muted-foreground">{size}</span>
-          {(['default', 'secondary', 'outline', 'ghost', 'destructive', 'link'] as const).map(
+          {(['default', 'secondary', 'outline', 'ghost', 'destructive', 'destructive-ghost', 'link'] as const).map(
             (variant) => (
               <Button key={variant} size={size} variant={variant}>
                 {variant}
