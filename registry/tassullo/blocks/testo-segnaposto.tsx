@@ -147,6 +147,47 @@
  * inserito è una transazione sola con `closeHistory`: un passo di Annulla
  * suo. Ragioni e forme scartate in `docs/DECISIONI.md` §77.
  *
+ * ── Proposta #115 (Anagrafe), 13 ottobre 2026 ────────────────────────────
+ *
+ * Dopo l'adozione della v2.0.12, due punti sullo spazio automatico. Ragioni e
+ * forme scartate in `docs/DECISIONI.md` §78.
+ *
+ * La regola della #110, «non accanto alla punteggiatura», valeva uguale dai
+ * due lati, e dopo una virgola o un punto il dato restava attaccato. Ora si
+ * decide lato per lato (`staccaPrima`, `staccaDopo`): lo spazio c'è sempre,
+ * con le eccezioni scritte accanto alle due espressioni. Deciso in sessione:
+ * le virgolette dritte doppie si contano nella riga; l'apostrofo, dritto o
+ * curvo, tiene il dato attaccato; ai segni della proposta si aggiunge `…`.
+ * `togliDato` legge le stesse due funzioni, quindi toglie anche lo spazio
+ * rimasto dopo una parentesi aperta. Una pillola lasciata dov'era non passa
+ * più da «metti e togli»: non si tocca il documento, o una pillola attaccata
+ * a mano si ritroverebbe staccata.
+ *
+ * Chi scrive una lettera o una cifra attaccata a una pillola: il plugin
+ * `scrittura`. `handleTextInput` segna la transazione del testo digitato, e
+ * `appendTransaction` aggiunge gli spazi in una transazione con
+ * `closeHistory`, che la cronologia tiene come passo a sé anche se è
+ * accodata. Così l'app riceve il testo una volta sola, già con lo spazio, e
+ * un Annulla toglie lo spazio e lascia il carattere. Una transazione vuota
+ * con `closeHistory` chiude il passo: senza, ciò che si scrive entro mezzo
+ * secondo finirebbe nel passo dello spazio. Lo stesso per le transazioni
+ * `paste`. Durante una composizione non si tocca niente: `apply` tiene da
+ * parte il tratto composto, e a `compositionend` più un giro di eventi (i
+ * cambiamenti rimasti l'editor li legge in un microtask) si guardano i suoi
+ * capi. Provato in Chromium con una composizione vera mandata dal protocollo
+ * del browser; in WebKit solo con transazioni simulate.
+ *
+ * Tre casi trovati mettendo la pillola in ogni posizione (Francesco, stessa
+ * sessione: «casi che abbiamo dimenticato»). Lo spazio messo per una lettera
+ * restava quando la lettera si cancellava, e una virgola scritta dopo dava
+ * «Valore ,»: ora il plugin tiene il posto di quegli spazi (`tracce`) e li
+ * toglie quando la lettera accanto viene tolta e al suo posto non c'è più
+ * una lettera, una cifra o una pillola. Unendo due righe una pillola restava
+ * attaccata alla parola dell'altra riga: `unioni` trova i punti in cui si è
+ * tolto qualcosa a cavallo di due righe, e lì vale la regola del dato
+ * inserito. `inserisci` con una selezione su più righe passava dal ramo del
+ * testo qualunque, senza spazi: ora unisce le righe e mette il dato.
+ *
  * ── I ruoli ──────────────────────────────────────────────────────────────
  *
  * L'area è `role="textbox"`, non `combobox`: è su più righe. axe esenta da
@@ -170,13 +211,14 @@ import { Paragraph } from "@tiptap/extension-paragraph"
 import { Text } from "@tiptap/extension-text"
 import { UndoRedo } from "@tiptap/extensions"
 import { closeHistory } from "@tiptap/pm/history"
-import type { Node as NodoPM, NodeType, Slice } from "@tiptap/pm/model"
+import type { Node as NodoPM, NodeType, ResolvedPos, Slice } from "@tiptap/pm/model"
 import {
   NodeSelection,
   Plugin,
   PluginKey,
   Selection,
   TextSelection,
+  type EditorState,
   type Transaction,
 } from "@tiptap/pm/state"
 import type { EditorView } from "@tiptap/pm/view"
@@ -224,9 +266,11 @@ export type TestoSegnapostoRef = {
   /**
    * Inserisce un testo nel punto del cursore; un segnaposto diventa pillola.
    * Se prima del cursore c'è un prefisso appena scritto, il segnaposto lo
-   * sostituisce. Accanto a una lettera, a una cifra o a un'altra pillola il
-   * segnaposto prende uno spazio da quella parte. In un campo disabilitato o
-   * di sola lettura non fa niente.
+   * sostituisce. Il segnaposto prende lo spazio che gli serve da ogni lato:
+   * prima sempre, tranne a inizio riga, dopo uno spazio, dopo un segno che
+   * apre e dopo l'apostrofo; dopo sempre, tranne a fine riga, prima di uno
+   * spazio e prima di un segno che chiude o che segue, come la virgola e il
+   * punto. In un campo disabilitato o di sola lettura non fa niente.
    */
   inserisci: (testo: string) => void
 }
@@ -404,47 +448,300 @@ function datoIn(fetta: Slice, tipo: NodeType, magazzino: Magazzino) {
   return solo.text && eUnDato(magazzino, solo.text) ? tipo.create({ testo: solo.text }) : null
 }
 
-// Un dato si legge attaccato a ciò che ha accanto se è una lettera, una cifra
-// o un'altra pillola. Uno spazio, la punteggiatura, l'inizio e la fine della
-// riga lo staccano già.
-const FINISCE_ATTACCATO = /[\p{L}\p{N}]$/u
-const COMINCIA_ATTACCATO = /^[\p{L}\p{N}]/u
-
-function attaccato(vicino: NodoPM | null, lato: RegExp) {
-  if (!vicino) return false
-  return vicino.isText ? lato.test(vicino.text ?? "") : true
+// Il testo della riga prima e dopo un punto, con un posto per ogni pillola.
+function primaDi($punto: ResolvedPos) {
+  return $punto.parent.textBetween(0, $punto.parentOffset, undefined, PILLOLA_NEL_TESTO)
+}
+function dopoDi($punto: ResolvedPos) {
+  return $punto.parent.textBetween($punto.parentOffset, $punto.parent.content.size, undefined, PILLOLA_NEL_TESTO)
 }
 
-// Mette un dato al posto di ciò che sta fra `da` e `a`, e uno spazio dalla
-// parte in cui si leggerebbe attaccato: la pillola ha un suo margine, a occhio
-// sembra staccata, e nel documento uscirebbe «parolaValore». Il cursore resta
-// subito dopo il dato, prima dello spazio. È una transazione sola e apre un
-// passo di Annulla suo: un `Ctrl+Z` toglie il dato insieme ai suoi spazi, e
-// non ciò che si era scritto prima.
+// Lo spazio accanto a un dato si decide lato per lato. Prima del dato c'è
+// sempre, tranne all'inizio della riga, dopo uno spazio e dopo un segno che
+// apre; l'apostrofo, dritto o curvo, sta con questi: «l'» vuole il dato
+// attaccato. Dopo il dato c'è sempre, tranne alla fine della riga, prima di
+// uno spazio e prima di un segno che chiude o che segue.
+const APRE = /[([«“‘'’]$/u
+const CHIUDE = /^[.,;:!?…)\]»”’']/u
+
+// Le virgolette dritte doppie non dicono da che parte guardano: si contano
+// nella riga. La prima apre, la seconda chiude, e così via.
+function fraVirgolette(prima: string) {
+  return (prima.split('"').length - 1) % 2 === 1
+}
+
+function staccaPrima(prima: string) {
+  if (!prima || /\s$/.test(prima) || APRE.test(prima)) return false
+  return !(prima.endsWith('"') && fraVirgolette(prima))
+}
+
+function staccaDopo(dopo: string, prima: string) {
+  if (!dopo || /^\s/.test(dopo) || CHIUDE.test(dopo)) return false
+  return !(dopo.startsWith('"') && fraVirgolette(prima))
+}
+
+// Mette un dato al posto di ciò che sta fra `da` e `a`, con lo spazio che gli
+// serve da ogni lato: la pillola ha un suo margine, a occhio sembra staccata,
+// e nel documento uscirebbe «parola,Valore». Il cursore resta subito dopo il
+// dato, prima dello spazio. È una transazione sola e apre un passo di Annulla
+// suo: un `Ctrl+Z` toglie il dato insieme ai suoi spazi, e non ciò che si era
+// scritto prima.
 function mettiDato(tr: Transaction, da: number, a: number, dato: NodoPM) {
-  const prima = attaccato(tr.doc.resolve(da).nodeBefore, FINISCE_ATTACCATO)
-  const dopo = attaccato(tr.doc.resolve(a).nodeAfter, COMINCIA_ATTACCATO)
+  const testoPrima = primaDi(tr.doc.resolve(da))
+  const prima = staccaPrima(testoPrima)
+  const dopo = staccaDopo(dopoDi(tr.doc.resolve(a)), testoPrima)
   const spazio = dato.type.schema.text(" ")
   tr.replaceWith(da, a, [...(prima ? [spazio] : []), dato, ...(dopo ? [spazio] : [])])
   const fine = da + (prima ? 1 : 0) + dato.nodeSize
   return closeHistory(tr.setSelection(TextSelection.create(tr.doc, fine)))
 }
 
-// La punteggiatura che chiude: davanti non vuole uno spazio.
-const CHIUDE = /^[,.;:!?…\p{Pe}\p{Pf}]/u
-
 // Toglie la pillola che è stata spostata altrove, e lo spazio che le stava
-// accanto se ora è di troppo: due spazi di fila, uno spazio a inizio o fine
-// riga, uno spazio davanti a una virgola o a un punto.
+// accanto se ora è di troppo: quello che un dato, lì, non avrebbe preso. Due
+// spazi di fila, uno spazio a inizio o fine riga, davanti a una virgola o a
+// un punto, dopo una parentesi aperta.
 function togliDato(tr: Transaction, da: number, a: number) {
   tr.delete(da, a)
   const $qui = tr.doc.resolve(da)
-  const prima = $qui.nodeBefore
-  const dopo = $qui.nodeAfter
-  const spazioPrima = Boolean(prima?.text?.endsWith(" "))
-  const spazioDopo = Boolean(dopo?.text?.startsWith(" "))
-  if (spazioPrima && (spazioDopo || !dopo || CHIUDE.test(dopo.text ?? ""))) tr.delete(da - 1, da)
-  else if (spazioDopo && !prima) tr.delete(da, da + 1)
+  const prima = primaDi($qui)
+  const dopo = dopoDi($qui)
+  if (prima.endsWith(" ") && !staccaDopo(dopo, prima)) tr.delete(da - 1, da)
+  else if (dopo.startsWith(" ") && !staccaPrima(prima)) tr.delete(da, da + 1)
+}
+
+// Una lettera o una cifra attaccata a una pillola: nel documento uscirebbe
+// «Valoreprosegue».
+const FINISCE_ATTACCATO = /[\p{L}\p{N}]$/u
+const COMINCIA_ATTACCATO = /^[\p{L}\p{N}]/u
+
+type Tratto = { da: number; a: number }
+
+function unisci(uno: Tratto | null, altro: Tratto | null) {
+  if (!uno || !altro) return uno ?? altro
+  return { da: Math.min(uno.da, altro.da), a: Math.max(uno.a, altro.a) }
+}
+
+// Lo stesso tratto dopo una transazione: ciò che gli entra ai capi ne fa parte.
+function sposta(tratto: Tratto, tr: Transaction) {
+  return { da: tr.mapping.map(tratto.da, -1), a: tr.mapping.map(tratto.a, 1) }
+}
+
+// Il tratto che una transazione ha messo nel documento.
+function trattoDi(tr: Transaction) {
+  let tratto = null as Tratto | null
+  for (const mappa of tr.mapping.maps) {
+    if (tratto) tratto = { da: mappa.map(tratto.da, -1), a: mappa.map(tratto.a, 1) }
+    mappa.forEach((_da, _a, da, a) => {
+      tratto = unisci(tratto, { da, a })
+    })
+  }
+  return tratto
+}
+
+// Ciò che una transazione dice a `scrittura`: che è testo digitato, che mette
+// gli spazi, che una composizione è finita.
+type Segno = { scritto?: boolean; spazi?: boolean; finita?: boolean; tracce?: Traccia[] }
+// Uno spazio messo per una lettera: `s` è il suo posto, e la pillola gli sta
+// prima o dopo. La lettera sta dall'altra parte.
+type Traccia = { s: number; pillola: "prima" | "dopo" }
+type Scrittura = { attesa: (Tratto & { id: number }) | null; messi: number; tracce: Traccia[] }
+
+const chiaveScrittura = new PluginKey<Scrittura>("testoSegnapostoScrittura")
+
+// Gli spazi ai due capi di un tratto appena scritto o incollato. Una lettera o
+// una cifra che tocca una pillola rimasta fuori dal tratto prende uno spazio
+// da quella parte. Di ciò che si incolla, un dato in testa o in coda prende
+// gli spazi di un dato inserito. Il cursore resta dov'era: dopo ciò che si è
+// scritto, e prima dello spazio che lo segue. È un passo di Annulla a sé: un
+// `Ctrl+Z` toglie gli spazi e lascia ciò che si è scritto.
+function spazi(stato: EditorState, { da, a }: Tratto, tipo: NodeType, incollato: boolean) {
+  if (a <= da) return null
+  const $da = stato.doc.resolve(da)
+  const $a = stato.doc.resolve(a)
+  if (!$da.parent.isTextblock || !$a.parent.isTextblock) return null
+  const capo = (dentro: NodoPM | null, fuori: NodoPM | null, lettera: RegExp, comeDato: () => boolean) => {
+    if (!dentro) return null
+    if (dentro.type === tipo) return incollato && comeDato() ? "dato" : null
+    return fuori?.type === tipo && lettera.test(dentro.text ?? "") ? "lettera" : null
+  }
+  const prima = capo($da.nodeAfter, $da.nodeBefore, COMINCIA_ATTACCATO, () => staccaPrima(primaDi($da)))
+  const dopo = capo($a.nodeBefore, $a.nodeAfter, FINISCE_ATTACCATO, () => staccaDopo(dopoDi($a), primaDi($a)))
+  if (!prima && !dopo) return null
+  const tr = stato.tr
+  if (dopo) tr.insertText(" ", a)
+  if (prima) tr.insertText(" ", da)
+  const tracce: Traccia[] = []
+  if (prima === "lettera") tracce.push({ s: da, pillola: "prima" })
+  if (dopo === "lettera") tracce.push({ s: a + (prima ? 1 : 0), pillola: "dopo" })
+  return chiudi(stato, tr, tracce)
+}
+
+// Lo spazio aggiunto è un passo di Annulla a sé, e il cursore resta prima
+// dello spazio che lo segue.
+function chiudi(stato: EditorState, tr: Transaction, tracce: Traccia[] = []) {
+  const { selection } = stato
+  if (selection instanceof TextSelection && selection.empty) {
+    tr.setSelection(TextSelection.create(tr.doc, tr.mapping.map(selection.head, -1)))
+  }
+  return closeHistory(tr.setMeta(chiaveScrittura, { spazi: true, tracce } satisfies Segno))
+}
+
+// Dove due righe sono diventate una, in una transazione: i punti in cui è
+// stato tolto qualcosa che stava a cavallo di due righe.
+function unioni(tr: Transaction) {
+  const punti: number[] = []
+  tr.mapping.maps.forEach((mappa, passo) => {
+    for (let i = 0; i < punti.length; i++) punti[i] = mappa.map(punti[i], -1)
+    const prima = tr.docs[passo]
+    mappa.forEach((da, a, nuovoDa, nuovoA) => {
+      if (nuovoDa === nuovoA && !prima.resolve(da).sameParent(prima.resolve(a))) punti.push(nuovoDa)
+    })
+  })
+  return punti
+}
+
+// Unendo due righe, una pillola che si ritrova accanto al testo dell'altra
+// riga prende lo spazio di un dato inserito lì.
+function spazioAllUnione(stato: EditorState, punti: number[], tipo: NodeType) {
+  const tr = stato.tr
+  for (const punto of [...new Set(punti)].sort((uno, altro) => altro - uno)) {
+    const $punto = stato.doc.resolve(punto)
+    const prima = $punto.nodeBefore
+    const dopo = $punto.nodeAfter
+    if (!$punto.parent.isTextblock || !prima || !dopo) continue
+    const serve =
+      dopo.type === tipo
+        ? staccaPrima(primaDi($punto))
+        : prima.type === tipo && staccaDopo(dopoDi($punto), primaDi($punto))
+    if (serve) tr.insertText(" ", punto)
+  }
+  return tr.docChanged ? chiudi(stato, tr) : null
+}
+
+// Lo spazio messo per una lettera se ne va con lei: cancellata la lettera, o
+// sostituita con un segno, non resta «Valore ,». Resta se dall'altra parte
+// c'è ancora una lettera, una cifra o una pillola. Sta nello stesso passo di
+// Annulla della cancellazione.
+function spaziRimasti(transazioni: readonly Transaction[], tracce: Traccia[], stato: EditorState, tipo: NodeType) {
+  const daTogliere: number[] = []
+  for (const traccia of tracce) {
+    let s = traccia.s
+    let tolta = false
+    let vivo = true
+    for (const tr of transazioni) {
+      // La lettera sta dall'altra parte dello spazio rispetto alla pillola.
+      const lettera = traccia.pillola === "prima" ? tr.mapping.mapResult(s + 1, 1) : tr.mapping.mapResult(s, -1)
+      const spazio = tr.mapping.mapResult(s, 1)
+      tolta ||= lettera.deleted
+      vivo &&= !spazio.deleted
+      s = spazio.pos
+    }
+    if (!tolta || !vivo || s + 1 > stato.doc.content.size || stato.doc.textBetween(s, s + 1) !== " ") continue
+    const $prima = stato.doc.resolve(s)
+    const $dopo = stato.doc.resolve(s + 1)
+    const [pillola, altro, lato] =
+      traccia.pillola === "prima"
+        ? [$prima.nodeBefore, $dopo.nodeAfter, COMINCIA_ATTACCATO]
+        : [$dopo.nodeAfter, $prima.nodeBefore, FINISCE_ATTACCATO]
+    if (pillola?.type !== tipo) continue
+    if (altro && (altro.type === tipo || lato.test(altro.text ?? ""))) continue
+    daTogliere.push(s)
+  }
+  if (daTogliere.length === 0) return null
+  const tr = stato.tr
+  for (const s of daTogliere.sort((uno, altro) => altro - uno)) tr.delete(s, s + 1)
+  return tr
+}
+
+// Chi scrive o incolla accanto a una pillola. La pillola ha un suo margine, e
+// una lettera digitata subito dopo sembra staccata mentre nel testo non lo è.
+function scrittura(tipo: NodeType) {
+  return new Plugin<Scrittura>({
+    key: chiaveScrittura,
+    state: {
+      init: () => ({ attesa: null, messi: 0, tracce: [] }),
+      apply(tr, { attesa, messi, tracce }) {
+        const segno = tr.getMeta(chiaveScrittura) as Segno | undefined
+        if (segno?.spazi) messi += 1
+        // Gli spazi messi per una lettera si seguono finché ci sono.
+        if (tr.docChanged || segno?.tracce?.length) {
+          tracce = tracce
+            .map((traccia) => ({ ...traccia, esito: tr.mapping.mapResult(traccia.s, 1) }))
+            .filter(({ esito }) => !esito.deleted)
+            .map(({ pillola, esito }) => ({ s: esito.pos, pillola }))
+            .concat(segno?.tracce ?? [])
+        }
+        if (segno?.finita) return { attesa: null, messi, tracce }
+        if (attesa) attesa = { ...sposta(attesa, tr), id: attesa.id }
+        // Ciò che entra mentre si compone si tiene da parte, una composizione
+        // alla volta.
+        const id: number | undefined = tr.getMeta("composition")
+        const composto = tr.docChanged && id !== undefined ? trattoDi(tr) : null
+        if (composto && id !== undefined) {
+          attesa = { ...(attesa?.id === id ? unisci(attesa, composto)! : composto), id }
+        }
+        return { attesa, messi, tracce }
+      },
+    },
+    props: {
+      handleTextInput(vista, _da, _a, _testo, predefinita) {
+        // Mentre si compone un carattere non si tocca niente: il testo
+        // attorno deve restare fermo, o la composizione si interrompe.
+        if (vista.composing) return false
+        vista.dispatch(predefinita().setMeta(chiaveScrittura, { scritto: true } satisfies Segno))
+        return true
+      },
+      handleDOMEvents: {
+        // A composizione finita, e dopo che l'editor ne ha letto il testo, la
+        // regola vale per ciò che si è composto.
+        compositionend(vista) {
+          setTimeout(() => {
+            if (vista.isDestroyed || vista.composing) return
+            const attesa = chiaveScrittura.getState(vista.state)?.attesa
+            if (!attesa) return
+            const tr = spazi(vista.state, attesa, tipo, false)
+            const segno: Segno = { ...(tr?.getMeta(chiaveScrittura) as Segno | undefined), finita: true }
+            vista.dispatch((tr ?? vista.state.tr).setMeta(chiaveScrittura, segno))
+          })
+          return false
+        },
+      },
+    },
+    appendTransaction(transazioni, prima, stato) {
+      if (transazioni.some((tr) => tr.getMeta("history$"))) return null
+      // Mentre si compone non si tocca niente.
+      if (transazioni.some((tr) => tr.getMeta("composition") !== undefined)) return null
+      let tratto: Tratto | null = null
+      let incollato = false
+      let punti: number[] = []
+      for (const tr of transazioni) {
+        if (tratto) tratto = sposta(tratto, tr)
+        punti = punti.map((punto) => tr.mapping.map(punto, -1))
+        if (!tr.docChanged) continue
+        const segno = tr.getMeta(chiaveScrittura) as Segno | undefined
+        const incolla = Boolean(tr.getMeta("paste"))
+        if (segno?.scritto || incolla) {
+          tratto = unisci(tratto, trattoDi(tr))
+          incollato ||= incolla
+        } else if (!segno) {
+          punti.push(...unioni(tr))
+        }
+      }
+      return (
+        (tratto && spazi(stato, tratto, tipo, incollato)) ??
+        spazioAllUnione(stato, punti, tipo) ??
+        spaziRimasti(transazioni, chiaveScrittura.getState(prima)?.tracce ?? [], stato, tipo)
+      )
+    },
+    // Dopo gli spazi il passo di Annulla si chiude: ciò che si scrive subito
+    // dopo non finisce nello stesso passo.
+    view: () => ({
+      update(vista, prima) {
+        const messi = chiaveScrittura.getState(vista.state)?.messi
+        if (messi !== chiaveScrittura.getState(prima)?.messi) vista.dispatch(closeHistory(vista.state.tr))
+      },
+    }),
+  })
 }
 
 // Dove cade ciò che si rilascia in un punto dello schermo. Nel testo, dov'è
@@ -488,7 +785,10 @@ function trascinamento(tipo: NodeType, magazzino: Magazzino) {
         // selezione. Il campo `node` c'è ma non è fra i tipi dichiarati.
         const preso = (vista.dragging as { node?: NodeSelection } | null)?.node
         const origine = spostato ? (preso ?? vista.state.selection) : null
-        if (dato) {
+        if (dato && origine && cade.pos >= origine.from && cade.pos <= origine.to) {
+          // Lasciata dov'era, davanti o dietro di sé: il testo non cambia.
+          tr.setSelection(TextSelection.create(tr.doc, origine.to))
+        } else if (dato) {
           // Prima si mette e poi si toglie: lasciata accanto a dov'era, la
           // pillola ritrova gli spazi che aveva.
           mettiDato(tr, cade.pos, cade.pos, dato)
@@ -686,6 +986,7 @@ const Segnaposto = NodoTiptap.create<Record<string, never>, Magazzino>({
         },
       }),
       trascinamento(tipo, magazzino),
+      scrittura(tipo),
     ]
   },
 })
@@ -861,11 +1162,16 @@ function manigliaDi(editor: Editor) {
         const sostituisce =
           aperta && !/\s/.test(aperta.query) && prefissi.some((p) => p && testo.startsWith(p))
         const { $from, $to } = editor.state.selection
-        if (eUnDato(magazzino, testo) && $from.parent.isTextblock && $from.sameParent($to)) {
+        if (eUnDato(magazzino, testo) && $from.parent.isTextblock && $to.parent.isTextblock) {
           // Un dato entra già pillola, con lo spazio che gli serve attorno.
           const dato = editor.schema.nodes.segnaposto.create({ testo })
+          const tr = editor.state.tr
           const [da, a] = sostituisce ? [aperta.da, aperta.a] : [$from.pos, $to.pos]
-          editor.view.dispatch(mettiDato(editor.state.tr, da, a, dato).scrollIntoView())
+          // Una selezione su più righe: prima le righe si uniscono, e il dato
+          // va dove si sono unite.
+          const suPiuRighe = !sostituisce && !$from.sameParent($to)
+          if (suPiuRighe) tr.delete(da, a)
+          editor.view.dispatch(mettiDato(tr, da, suPiuRighe ? da : a, dato).scrollIntoView())
           editor.view.focus()
         } else if (sostituisce) {
           editor.view.dispatch(editor.state.tr.insertText(testo, aperta.da, aperta.a).scrollIntoView())
