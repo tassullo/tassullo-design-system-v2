@@ -45,7 +45,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 /**
  * Dove stanno le story del registry. Da M3.1 sono **due** cartelle: le
@@ -110,7 +110,10 @@ function dichiarazioni(): Map<string, string> {
   return trovate;
 }
 
-type Esito = { storie: number; falliti: number; regole: Map<string, number> };
+// `scene`: quali scene sono fallite e perché, in una riga. Senza, una corsa
+// rossa dice quante e non quali, e una prova instabile non si ritrova: è
+// successo due volte su `main`, il 12 e il 13 ottobre 2026.
+type Esito = { storie: number; falliti: number; regole: Map<string, number>; scene: string[] };
 
 function esegui(p: Passata, cartella: string): Esito {
   const uscita = join(cartella, `${p.modalita}-${p.popup}.json`);
@@ -126,6 +129,7 @@ function esegui(p: Passata, cartella: string): Esito {
 
   const dati = JSON.parse(readFileSync(uscita, "utf8"));
   const regole = new Map<string, number>();
+  const scene: string[] = [];
   let storie = 0;
   let falliti = 0;
   for (const file of dati.testResults ?? []) {
@@ -138,9 +142,12 @@ function esegui(p: Passata, cartella: string): Esito {
       for (const id of ids.size > 0 ? ids : ["imbracatura"]) {
         regole.set(id, (regole.get(id) ?? 0) + 1);
       }
+      // I colori del terminale via, e gli a capo: il perché sta in una riga.
+      const perche = msg.replace(/\u001b\[[\d;]*m/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
+      scene.push(`${basename(String(file.name ?? ""))} › ${t.fullName ?? t.title}: ${perche}`);
     }
   }
-  return { storie, falliti, regole };
+  return { storie, falliti, regole, scene };
 }
 
 function main() {
@@ -176,6 +183,7 @@ function main() {
         `    ${(p.modalita + "/" + p.popup).padEnd(16)} ${String(e.storie).padStart(4)} story` +
           `  ${String(e.falliti).padStart(3)} violazioni  ${dettaglio}`,
       );
+      for (const scena of e.scene) righe.push(`      ✖ ${scena}`);
     }
 
     console.log("\n  Passate\n");

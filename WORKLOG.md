@@ -13900,3 +13900,48 @@ Con tastiera e mouse veri (Playwright dalla cartella temporanea, Storybook di sv
 - Le nove decisioni di sessione aspettano la conferma di Francesco.
 - Il doppio clic in WebKit, sopra.
 - Le tre della #110 (spazio fra due pillole, inizio della prima riga, spazio tolto davanti alla punteggiatura) restano com'erano; la terza ora discende dalla regola per lato.
+
+
+## 2026-10-13 — `v2.0.13` pubblicata
+
+Francesco ha chiesto nella consegna di pubblicare a lavoro finito. PR #116 unita col gate verde in CI (corsa 38351338544, sul commit `ba84705`); l'unione è `da617f8`. Etichetta `v2.0.13` su `da617f8`, push della sola etichetta; le versioni precedenti restano dove erano. Con la PR si è chiusa la issue #115; resta aperta la #70, rinviata.
+
+Verificato da fuori: alla `v2.0.13` rispondono 200 `registry.json`, `tassullo-testo-segnaposto`, il sorgente del blocco e `registry/tassullo/lib/segnaposto.ts`. Nel blocco servito ci sono `staccaPrima`, `staccaDopo`, `fraVirgolette`, `handleTextInput`, `compositionend`, `spaziRimasti` e `spazioAllUnione`. Dipendenze e file dell'item sono quelli della `v2.0.12`, e `lib/segnaposto.ts` è identico: chi aggiorna non installa pacchetti nuovi e cambia un file solo.
+
+**Non rompe chi aggiorna**: prop e tipi sono gli stessi. Cambia ciò che entra nel testo salvato: lo spazio dopo virgola e punto, e lo spazio accanto alla lettera scritta vicino a una pillola. Il prompt di adozione per Anagrafe è in `stories/ondata5/prompt-anagrafe-115.md` (fuori dal repository) e scritto a Francesco in sessione.
+
+`misura:bersagli` rilanciato sullo Storybook costruito: 6734 bersagli su 553 story, 75 popup aperti, 3753 sotto i 44px, 37 tipi, 1 piccolo nelle due direzioni, che è la `checkbox` di prima. Il blocco non aggiunge bersagli.
+
+Non provato da qui: composizione vera in WebKit, dettatura, Android, Safari vero. Le nove decisioni prese in sessione aspettano la conferma di Francesco (voce della proposta #115). Il doppio clic su una pillola in WebKit è segnalato a parte, non corretto.
+
+
+## 2026-10-13 — Il gate su `main` fallito una volta dopo la `v2.0.13`: due asserzioni instabili in una prova nuova
+
+La corsa del gate su `main` al commit etichettato `v2.0.13` (`da617f8`, corsa 38352080602) è fallita in `test:a11y`: passata chiaro/chiuso, 1 su 512, «imbracatura», cioè una prova fallita e non una regola di axe. Lo stesso codice è verde nella PR #116 (`ba84705`) e nella #117 (`d55ed21`). Il registro non diceva quale scena.
+
+#### Cosa si è trovato
+
+Tutte e due in `Scrivere accanto a una pillola, prova`, scritta in questa sessione:
+
+- **La pillola selezionata con la freccia simulata.** La prova premeva `ArrowLeft` e si aspettava la pillola selezionata; il browser rilegge la selezione un attimo dopo, e ogni tanto la restituisce come cursore. **Visto in locale**, appena il gate ha saputo nominare la scena: stessa firma della corsa in CI (prima passata, chiaro/chiuso, una prova) e messaggio «expected true to be false». Una rossa su 5 corse intere in locale, una su 3 in CI.
+- **Un Annulla che dipendeva dal tempo.** Scritte sedici lettere dopo lo spazio, la prova si aspettava che un solo Annulla le togliesse tutte: la cronologia le tiene in un passo solo se fra un tasto e l'altro passa meno di mezzo secondo. **Provato** con una pausa di 600 ms a metà parola: fallisce. Trovata ragionando, prima dell'altra; non si è mai vista fallire da sola.
+
+**Non provato** quale delle due sia fallita in CI: il rapporto di quella corsa stava in una cartella temporanea. La firma è quella della prima.
+
+#### Cosa è cambiato
+
+- La pillola si seleziona con un comando e il carattere entra nello stesso istante per la strada del testo digitato (`handleTextInput`), senza passare dalla selezione del browser.
+- Dopo lo spazio la prova scrive una lettera sola: il passo dello spazio è chiuso, quindi la lettera sta in un passo suo qualunque sia il tempo. Con 700 ms di pausa passa.
+- **`test:a11y` ora nomina la scena fallita e il perché**, in una riga sotto la passata (`scripts/gate-a11y.ts`). Provato rompendo apposta un'asserzione; alla corsa dopo ha nominato la scena vera. È la seconda corsa rossa su `main` in due giorni di cui non si sapeva la scena.
+
+Il blocco non cambia: ciò che Anagrafe installa alla `v2.0.13` è il codice di prima. Cambiano una prova e uno script.
+
+#### Misure
+
+- Il file del blocco, nei due motori, quindici volte di fila dopo la correzione: 44 prove su 44 ogni volta.
+- `test:webkit` dodici volte di fila prima della correzione: 27 su 27 ogni volta. In due corse, dopo che il Mac era andato in pausa, il processo ha tardato a chiudersi («close timed out after 10000ms»), a prove finite e verdi.
+
+#### Aperti
+
+- Il commit etichettato `v2.0.13` resta con la corsa rossa in elenco: non è stata rilanciata.
+- Quindici corse verdi non provano che una prova che falliva una volta su otto sia ferma: lo dirà il gate nelle prossime corse, e ora dirà anche quale scena.
