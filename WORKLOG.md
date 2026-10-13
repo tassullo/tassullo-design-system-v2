@@ -13900,3 +13900,16 @@ Con tastiera e mouse veri (Playwright dalla cartella temporanea, Storybook di sv
 - Le nove decisioni di sessione aspettano la conferma di Francesco.
 - Il doppio clic in WebKit, sopra.
 - Le tre della #110 (spazio fra due pillole, inizio della prima riga, spazio tolto davanti alla punteggiatura) restano com'erano; la terza ora discende dalla regola per lato.
+
+
+## 2026-10-13 — `v2.0.13` pubblicata
+
+Francesco ha chiesto nella consegna di pubblicare a lavoro finito. PR #116 unita col gate verde in CI (corsa 38351338544, sul commit `ba84705`); l'unione è `da617f8`. Etichetta `v2.0.13` su `da617f8`, push della sola etichetta; le versioni precedenti restano dove erano. Con la PR si è chiusa la issue #115; resta aperta la #70, rinviata.
+
+Verificato da fuori: alla `v2.0.13` rispondono 200 `registry.json`, `tassullo-testo-segnaposto`, il sorgente del blocco e `registry/tassullo/lib/segnaposto.ts`. Nel blocco servito ci sono `staccaPrima`, `staccaDopo`, `fraVirgolette`, `handleTextInput`, `compositionend`, `spaziRimasti` e `spazioAllUnione`. Dipendenze e file dell'item sono quelli della `v2.0.12`, e `lib/segnaposto.ts` è identico: chi aggiorna non installa pacchetti nuovi e cambia un file solo.
+
+**Non rompe chi aggiorna**: prop e tipi sono gli stessi. Cambia ciò che entra nel testo salvato: lo spazio dopo virgola e punto, e lo spazio accanto alla lettera scritta vicino a una pillola. Il prompt di adozione per Anagrafe è in `stories/ondata5/prompt-anagrafe-115.md` (fuori dal repository) e scritto a Francesco in sessione.
+
+`misura:bersagli` rilanciato sullo Storybook costruito: 6734 bersagli su 553 story, 75 popup aperti, 3753 sotto i 44px, 37 tipi, 1 piccolo nelle due direzioni, che è la `checkbox` di prima. Il blocco non aggiunge bersagli.
+
+Non provato da qui: composizione vera in WebKit, dettatura, Android, Safari vero. Le nove decisioni prese in sessione aspettano la conferma di Francesco (voce della proposta #115). Il doppio clic su una pillola in WebKit è segnalato a parte, non corretto.
