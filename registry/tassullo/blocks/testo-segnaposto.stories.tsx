@@ -113,6 +113,14 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   Con la punteggiatura no. Un solo `Ctrl+Z` toglie lo spazio e lascia il
  *   carattere, e da lì si continua a scrivere attaccati. Uno spazio
  *   cancellato a mano resta cancellato.
+ * - Lo spazio messo per una lettera se ne va con lei: cancellata la lettera,
+ *   o sostituita con una virgola, non resta uno spazio che nessuno ha
+ *   scritto. Lo spazio scritto a mano non si tocca.
+ * - Unendo due righe, una pillola che si ritrova accanto al testo dell'altra
+ *   riga prende lo spazio di un dato inserito lì. Un solo `Ctrl+Z` toglie lo
+ *   spazio e lascia le righe unite. Sulla stessa riga, chi cancella ciò che
+ *   sta fra una pillola e una parola ha cancellato anche gli spazi: restano
+ *   attaccate.
  * - Incollando vale lo stesso ai due capi di ciò che si incolla: una lettera
  *   o una cifra che tocca una pillola prende lo spazio, e un dato incollato,
  *   da solo o in testa o in coda a un testo, prende gli spazi di un dato
@@ -1900,6 +1908,118 @@ function componi(area: Area, testo: string, numero: number) {
   return durante
 }
 
+// Più righe, col cursore all'inizio di una di loro.
+async function conRighe(area: Area, righe: string[], riga = 1) {
+  const magazzino = area.editor.storage.segnaposto
+  area.editor.commands.setContent({
+    type: 'doc',
+    content: righe.map((testo) => {
+      const pezzi: { type: string; text?: string; attrs?: { testo: string } }[] = []
+      let da = 0
+      for (const trovato of testo.matchAll(magazzino.riconosci)) {
+        if (trovato.index > da) pezzi.push({ type: 'text', text: testo.slice(da, trovato.index) })
+        pezzi.push({ type: 'segnaposto', attrs: { testo: trovato[0] } })
+        da = trovato.index + trovato[0].length
+      }
+      if (da < testo.length) pezzi.push({ type: 'text', text: testo.slice(da) })
+      return { type: 'paragraph', content: pezzi }
+    }),
+  })
+  area.editor.commands.focus()
+  let inizio = 1
+  area.editor.state.doc.forEach((_nodo, scarto, indice) => {
+    if (indice === riga) inizio = scarto + 1
+  })
+  area.editor.commands.setTextSelection(inizio)
+  area.editor.view.dispatch(closeHistory(area.editor.state.tr))
+  await waitFor(() => expect(document.activeElement).toBe(area))
+}
+
+// Unendo due righe, una pillola che si ritrova accanto al testo dell'altra
+// prende lo spazio di un dato inserito lì. Un solo Annulla toglie lo spazio
+// e lascia le righe unite. E un dato inserito su una selezione di più righe
+// segue la regola come ogni altro.
+export const UnireDueRigheProva: Story = {
+  name: 'Unire due righe, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI, etichetta: 'Testo', onFocus: fn() },
+  play: async ({ canvasElement, args }) => {
+    const area = await areaDi(canvasElement)
+    const campo = (args.onFocus as ReturnType<typeof fn>).mock.calls[0][0] as TestoSegnapostoRef
+    const UNITE: [righe: string[], atteso: string][] = [
+      // La seconda riga comincia con una pillola.
+      [['parola', `${D} resto`], `parola ${D} resto`],
+      [['norma:', D], `norma: ${D}`],
+      [['testo.', D], `testo. ${D}`],
+      [[N, D], `${N} ${D}`],
+      [['(', D], `(${D}`],
+      [["l'", D], `l'${D}`],
+      [['parola ', D], `parola ${D}`],
+      // La prima riga finisce con una pillola.
+      [[D, 'parola'], `${D} parola`],
+      [[D, '(nota)'], `${D} (nota)`],
+      [[D, ', poi'], `${D}, poi`],
+      [[D, '.'], `${D}.`],
+      [[D, ' parola'], `${D} parola`],
+      // Nessuna pillola dove le righe si uniscono: niente.
+      [['parola', 'altra'], 'parolaaltra'],
+      [[`${D} parola`, `altra ${N}`], `${D} parolaaltra ${N}`],
+      [[D, ''], D],
+      [['', D], D],
+    ]
+    for (const [righe, atteso] of UNITE) {
+      // Con `Backspace` all'inizio della seconda riga.
+      await conRighe(area, righe)
+      await userEvent.keyboard('[Backspace]')
+      expect(`${righe.join(' ⏎ ')} → ${valoreDi(area)}`).toBe(`${righe.join(' ⏎ ')} → ${atteso}`)
+      // Il cursore resta dove le righe si sono unite, prima dello spazio.
+      const { $from } = area.editor.state.selection
+      expect($from.parentOffset).toBe(area.editor.state.doc.resolve(1).parent.content.size - righe[1].replace(D, '￼').replace(N, '￼').length - (atteso.length - righe.join('').length))
+      if (atteso !== righe.join('')) {
+        area.editor.commands.undo()
+        expect(`${righe.join(' ⏎ ')} ← ${valoreDi(area)}`).toBe(`${righe.join(' ⏎ ')} ← ${righe.join('')}`)
+        area.editor.commands.undo()
+        expect(valoreDi(area)).toBe(righe.join('\n'))
+      }
+      // Con `Canc` alla fine della prima.
+      await conRighe(area, righe)
+      area.editor.commands.setTextSelection(area.editor.state.doc.firstChild!.content.size + 1)
+      await userEvent.keyboard('[Delete]')
+      expect(`${righe.join(' ⏎ ')} ⇒ ${valoreDi(area)}`).toBe(`${righe.join(' ⏎ ')} ⇒ ${atteso}`)
+    }
+
+    // Una selezione a cavallo di due righe, cancellata: lo stesso.
+    await conRighe(area, [`uno ${D} e`, `poi due`])
+    area.editor.commands.setTextSelection({ from: 6, to: 13 })
+    await userEvent.keyboard('[Backspace]')
+    expect(valoreDi(area)).toBe(`uno ${D} due`)
+    await conRighe(area, [`uno ${D} e`, `poi, due`])
+    area.editor.commands.setTextSelection({ from: 6, to: 13 })
+    await userEvent.keyboard('[Backspace]')
+    expect(valoreDi(area)).toBe(`uno ${D}, due`)
+
+    // Sulla stessa riga, chi cancella ciò che sta fra pillola e parola ha
+    // cancellato anche gli spazi: restano cancellati.
+    await conRighe(area, [`${D} e parola`], 0)
+    area.editor.commands.setTextSelection({ from: 2, to: 5 })
+    await userEvent.keyboard('[Backspace]')
+    expect(valoreDi(area)).toBe(`${D}parola`)
+
+    // Un dato inserito su una selezione di più righe.
+    await conRighe(area, ['prima', `${D} seconda`])
+    area.editor.commands.setTextSelection({ from: 3, to: 9 })
+    campo.inserisci(N)
+    expect(valoreDi(area)).toBe(`pr ${N} seconda`)
+    cursoreDopo(area, N)
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe(`prima\n${D} seconda`)
+    await conRighe(area, ['norma (', 'vecchia) vale'])
+    area.editor.commands.setTextSelection({ from: 8, to: 17 })
+    campo.inserisci(N)
+    expect(valoreDi(area)).toBe(`norma (${N}) vale`)
+  },
+}
+
 // Una lettera o una cifra digitata subito dopo una pillola prende lo spazio
 // prima di sé, e subito prima di una pillola lo prende dopo. La
 // punteggiatura no. Un solo Annulla toglie lo spazio e lascia il carattere;
@@ -1912,6 +2032,11 @@ export const ScrivereAccantoAUnaPillolaProva: Story = {
   play: async ({ canvasElement, args }) => {
     const area = await areaDi(canvasElement)
     const annulla = () => area.editor.commands.undo()
+    // Il carattere prima del cursore, come con `Backspace`.
+    const cancella = () => {
+      const { head } = area.editor.state.selection
+      area.editor.commands.deleteRange({ from: head - 1, to: head })
+    }
 
     // Dopo una pillola: una lettera, una cifra, una lettera accentata.
     for (const carattere of ['p', 'P', '4', 'è']) {
@@ -1999,6 +2124,66 @@ export const ScrivereAccantoAUnaPillolaProva: Story = {
     await waitFor(() => expect(document.activeElement).not.toBe(area))
     expect(valoreDi(area)).toBe(`${D}poi`)
     area.editor.commands.focus('end')
+
+    // Lo spazio messo per una lettera se ne va con lei: cancellata la
+    // lettera, non resta uno spazio che nessuno ha scritto.
+    await conCursore(area, `${D}|`)
+    await scrivi('p')
+    cancella()
+    expect(valoreDi(area)).toBe(D)
+    await scrivi(',')
+    expect(valoreDi(area)).toBe(`${D},`)
+    // L'Annulla rimette la lettera col suo spazio.
+    await conCursore(area, `${D}|`)
+    await scrivi('p')
+    cancella()
+    annulla()
+    expect(valoreDi(area)).toBe(`${D} p`)
+    await conCursore(area, `${D}|`)
+    await scrivi('per')
+    cancella()
+    cancella()
+    cancella()
+    expect(valoreDi(area)).toBe(D)
+    await conCursore(area, `|${D}`)
+    await scrivi('T')
+    cancella()
+    expect(valoreDi(area)).toBe(D)
+    await conCursore(area, `${D}| resto`)
+    await scrivi('p')
+    cancella()
+    expect(valoreDi(area)).toBe(`${D} resto`)
+    await conCursore(area, `${D}|${N}`)
+    await scrivi('e')
+    cancella()
+    expect(valoreDi(area)).toBe(`${D}${N}`)
+    // Sostituita con un segno: lo stesso.
+    await conCursore(area, `${D}|`)
+    await scrivi('p')
+    area.editor.commands.setTextSelection({ from: 3, to: 4 })
+    await scrivi(',')
+    expect(valoreDi(area)).toBe(`${D},`)
+    // Sostituita con un'altra lettera, o tolta la prima lettera di una
+    // parola: lo spazio serve ancora, e resta.
+    await conCursore(area, `${D}|`)
+    await scrivi('p')
+    area.editor.commands.setTextSelection({ from: 3, to: 4 })
+    await scrivi('q')
+    expect(valoreDi(area)).toBe(`${D} q`)
+    await conCursore(area, `${D}|`)
+    await scrivi('prosegue')
+    area.editor.commands.deleteRange({ from: 3, to: 4 })
+    expect(valoreDi(area)).toBe(`${D} rosegue`)
+    // Lo spazio scritto a mano non si tocca.
+    await conCursore(area, `${D}|`)
+    await scrivi(' p')
+    cancella()
+    expect(valoreDi(area)).toBe(`${D} `)
+    // Lo stesso per ciò che si è incollato.
+    await conCursore(area, `${D}|`)
+    await userEvent.paste('ab')
+    area.editor.commands.deleteRange({ from: 3, to: 5 })
+    expect(valoreDi(area)).toBe(D)
 
     // Con una pillola selezionata, la lettera la sostituisce e basta.
     await conCursore(area, `malta ${D}|`)
