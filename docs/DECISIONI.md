@@ -4050,3 +4050,32 @@ Lasciati come sono, e perché: cancellata una pillola restano i suoi due spazi, 
 - **Un quattordicesimo gate** per l'autotest dello script: lo lancia il workflow nel passo che lo usa, ed è lì che serve.
 
 **Insieme a questa**: le voci di diario e le conferme della stessa sessione vanno in una PR sola, non una per risposta.
+
+## 81. Scheda a blocchi: l'albero, l'elenco fermo accanto al dettaglio, un campo solo per più testi (proposta #125, 2026-10-13)
+
+**Il fatto.** In Anagrafe i testi di una scheda diventano un albero di blocchi, uno alla volta a destra dell'albero. La forma era composta a mano sul banco, con una dozzina di ripieghi. Questa voce copre i punti 1, 2 e 4 della proposta, usciti con la `v2.0.14`; i punti 3, 5 e 6 restano aperti.
+
+**L'albero è una lista con la riga corrente, non un `tree` di ARIA** (deciso in sessione, da confermare). Un `treeitem` non può avere controlli dentro, e ogni riga ha il suo menu; un `treeitem` si «seleziona», mentre qui la riga scelta dice dove si è, come la voce attiva di un indice; e niente si apre o si chiude. Quindi `nav` col nome, liste annidate che dicono il livello da sé, un bottone per riga con `aria-current`, il menu accanto. Dal `tree` si prende la tastiera: una fermata del `Tab`, frecce, `Inizio`, `Fine`. Il bottone di riga è un `button` del blocco e non `Button`: le sei classi che l'app forzava servivano tutte a disfare ciò che `Button` fa.
+
+**Il riordino: la riga intera, senza maniglia, e da tastiera dal menu** (deciso in sessione, da confermare). `@dnd-kit` come `data-table`. Il sensore del mouse parte dopo 6px e quello del dito dopo 250 ms, quindi clic e scorrimento restano tali. Il sensore da tastiera di `@dnd-kit` vuole `Invio` e `Spazio`, che sulla riga scelgono: non c'è, e il blocco aggiunge al menu «Sposta su» e «Sposta giù». Si trascina l'elemento di lista, che contiene le righe interne: un capitolo se le porta dietro. Conta la riga sotto il puntatore e non il centro di ciò che si trascina: un capitolo alto quattro righe, misurato dal centro, cadeva una riga più in là. Gli annunci di `@dnd-kit`, in inglese e pensati per la tastiera, sono spenti. **Sotto un altro padre non si sposta**: è un'altra consegna.
+
+**Il fuoco dopo una voce di menu.** Mentre il menu è aperto il resto della pagina non prende il fuoco: un `focus()` nel clic della voce va perso (provato: il fuoco finiva sul `body`). La voce indica l'elemento con `posto.fuocoAltrove(() => elemento)`, e il blocco lo consegna a `finalFocus`, che lo legge a menu chiuso.
+
+**Elenco e dettaglio è un blocco nuovo, con la cornice sua.** Non una variante di `tassullo-split-view`: quello è un confronto fra due colonne alla pari, 50 e 50 con la maniglia, alte quanto il riquadro e ognuna col suo scorrimento. Non una colonna del guscio a sinistra: sarebbe della pagina intera, e l'elenco è di una tab. La cornice è del blocco perché `Card` ha `overflow-hidden`, che fa della card il riquadro di scorrimento dei figli: lì dentro uno `sticky` non resta fermo rispetto alla finestra. L'elenco è `w-2xs`, 288px in tutte e due le densità (`w-72` in touch ne fa 432).
+
+**Quanto è alto ciò che sta fermo sopra: una prop, non una misura.** Il guscio non dichiara l'altezza della fascia in una variabile e le tab ferme sono una ricetta di pagina. `sotto` vale `niente`, `fascia` o `fascia-e-tab`, e sceglie `top-4`, `top-16` o `top-28`: le stesse 12 unità per fascia che `scroll-pt-12` e `scroll-pt-24` scrivono già, più 4 di margine. L'altezza massima è una variabile CSS in `calc()` sugli stessi numeri. Scartato: leggere `scroll-padding-top` a runtime (cambia quando le tab si montano, e andrebbe osservato); una variabile impostata dal guscio con `[html:has(&)]`, perché fra due regole di pari peso l'ordine non è garantito.
+
+**La riga scelta in vista.** L'albero muove solo lo scorrimento del riquadro che lo contiene, se ce n'è uno: `scrollIntoView` avrebbe mosso anche la pagina.
+
+**Portare un elemento in vista sotto fascia e tab** (punto 5, risposta senza codice, da verificare nell'adozione): `scroll-padding-top` sulla radice c'è già, lo mette il guscio (`scroll-pt-12`) e la ricetta delle tab ferme lo porta a `scroll-pt-24`. `scrollIntoView` lo rispetta. Se le tab di Anagrafe non portano quella classe, è lì che manca.
+
+**Testo con segnaposto.**
+- `righe`: l'altezza minima è `calc(N lh + i margini interni)`, quindi segue la densità. Il bordo è misurato.
+- La maniglia conta in righe, e la sua altezza è un minimo: il campo cresce col testo e non ha scorrimento suo. È un `separator` con le frecce e `Inizio`. La forma è una sola, da confermare su ciò che si vede.
+- `focus('fine' | 'inizio')`. Senza argomento il cursore resta dov'era, come prima.
+- `inserisci` in un campo in cui il cursore non è mai stato mette il dato in fondo. «Mai stato» vuol dire: nessun fuoco, nessun `focus(dove)`, nessun `inserisci`.
+- `ref` è `null` finché l'editor non c'è, e `onPronto` riceve il campo. **Rompe chi chiamava `ref.current.focus()` senza `?.`** prima che il campo fosse pronto: prima non succedeva niente, ora è un errore.
+- `chiave`: un campo solo per più testi. Al cambio lo stato dell'editor (documento, cursore, cronologia) di chi esce si mette da parte e quello di chi entra si riprende, se il suo testo è ancora lo stesso `value`; sennò parte da capo, col cursore in fondo. Lo stato si scambia intero con `view.updateState`: nella cronologia di un testo non entra mai quello di un altro. Risponde alla domanda della proposta: sì, si può cambiare blocco senza rimontare l'editor tenendo l'annulla.
+
+**Prove.** Ogni punto ha una scena di prova che gira in Chromium e in WebKit: quattro dell'albero e dell'elenco, tre del testo.
+

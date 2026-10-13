@@ -14055,3 +14055,63 @@ Ramo `fras/gate-soli-documenti`. Francesco, dopo un pomeriggio di attese: «c'è
 ## 2026-10-13 — Il salto dei gate lenti, provato sulla prima PR di soli documenti
 
 PR #123 unita col gate verde in CI: lì il passo «Cosa è cambiato» ha detto `codice`, perché la PR toccava workflow e script, e sono girati i tredici gate e `build-storybook`; `check:statici` saltato. Questa voce è la prima modifica di soli documenti dopo l'unione, e serve a vedere l'altro ramo: i tempi sono nella PR e nella voce che segue, se servirà correggere.
+
+
+## 2026-10-13 — Proposte #125 e #126: l'albero, l'elenco fermo, il testo a più chiavi; il difetto di WebKit non si riproduce
+
+Ramo `fras/proposta-125`. Francesco ha chiesto di lavorare le due proposte aperte da Anagrafe. Ragioni in `DECISIONI.md` §81.
+
+#### #126: non riprodotta
+
+In WebKit di Playwright 1.63 (lo stesso della misura di Anagrafe) una pillola presa in un campo senza fuoco si sposta **12 volte su 12**. Provato con un puntatore vero, ogni tentativo su una pagina appena aperta:
+
+- sulla scena `Con Elenco Dei Dati` e sul banco di Anagrafe (porta 5191, due campi veri);
+- col testo già lì e col testo scritto come nella issue (`parola{{`, voce, `, poi altro`, a capo);
+- fuoco tolto con un clic in un altro campo e con un `focus()` su un bottone;
+- pausa fra il clic che toglie il fuoco e la presa: 0, 10, 25, 50, 100, 300, 600 ms;
+- tasto giù per 0, 60, 150, 300, 700 ms prima di muovere;
+- `locator.dragTo`, un passo solo, due passi, venti passi; 1× e 2×.
+
+Chromium 12 su 12 negli stessi casi. Una serie di fallimenti a periodo tre era del mio ciclo (tre pressioni nello stesso punto entro mezzo secondo sono un doppio e un triplo clic). **Nessun file cambiato per la #126.** Sul legame con la chiusura di WebKit in CI: non c'è niente che lo sostenga; le prove di trascinamento del gate mandano eventi `DragEvent` costruiti, non un puntatore, quindi non passano dal punto in cui WebKit decide se un trascinamento parte.
+
+Da leggere nel codice, senza prova: quando il campo prende il fuoco da un clic, 20 ms dopo `prosemirror-view` riscrive la selezione del documento nel DOM. È la sola cosa che succede in più rispetto al campo già col fuoco.
+
+#### #125, punti 1, 2 e 4
+
+- `tassullo-albero` (`blocks/albero.tsx`): `Albero`, `AlberoSegno`, `AlberoConto`, `AlberoLegenda`.
+- `tassullo-elenco-dettaglio` (`blocks/elenco-dettaglio.tsx`): `ElencoDettaglio`.
+- `tassullo-testo-segnaposto`: `righe`, `ridimensionabile`, `focus(dove)`, `onPronto`, `ref` nullo finché non è pronto, `chiave`.
+- `.storybook/prove/scheda-blocchi.ts`: i dati d'esempio (6, 20 e 40 blocchi), fuori dal registry.
+- `registry.json` e `public/r/`: due item nuovi, `docs` del testo con segnaposto.
+
+#### Problemi
+
+- Lo Storybook acceso da prima dei file nuovi serviva un CSS vecchio: mancavano `pl-6` e le varianti `@xl/elenco-dettaglio`, e la scena sembrava impilata. Riavviato, le foto tornano. Le prove non ne risentivano: costruiscono da capo.
+- `Card` ha `overflow-hidden`: l'elenco `sticky` dentro una card non stava fermo. Da qui la cornice del blocco.
+- Il lint «come arriva nell'app» ha rifiutato un `ref` letto da una funzione passata a `menu` durante la resa: il segnale è salito al livello dell'albero.
+- In WebKit un bottone cliccato non prende il fuoco: nella prova il menu si apre da tastiera, o `Esc` non lo chiude.
+- La prova dell'altezza dava il fuoco al testo, e l'editor se lo riprendeva un fotogramma dopo togliendolo alla maniglia.
+- Il gate in CI sulla PR #127 è fallito una volta in `test:webkit` (corsa 38445309997): la prova della tastiera dell'albero apriva un menu mentre quello di prima sfumava, e leggeva «Sposta su» dal menu vecchio. In locale non succedeva. Ora la prova aspetta che il menu sia chiuso; sei corse di fila verdi nei due motori.
+
+#### Misure
+
+- `npm run check` in locale: tredici gate verdi; 2.272 scansioni, 0 violazioni; `test:webkit` 34 su 34.
+- Prove dei tre file nei due motori: testo con segnaposto 52 su 52, albero 7 su 7, elenco e dettaglio 7 su 7.
+- `misura:bersagli` in densità touch: la riga dell'albero è alta 37px (le voci di menu 32, il bottone di serie 48).
+- Foto a 1280 e 1000px con la colonna laterale aperta, nei due motori: a 1280 l'albero resta a 288px e si stringe il blocco; a 1000 la colonna sta sopra il contenuto, com'è del guscio sotto 896px.
+
+#### Decisioni di sessione, da confermare
+
+- Lista con `aria-current`, non `tree`.
+- Si trascina la riga intera, senza maniglia; da tastiera si riordina dal menu.
+- Lo stile dei tre livelli è quello del banco di Anagrafe (grassetto, maiuscoletto piccolo, tondo).
+- La forma della maniglia del testo: una barretta al centro del bordo in basso.
+- Un testo mai mostrato parte col cursore in fondo.
+
+#### Aperti
+
+- #126: serve lo script della misura di Anagrafe, o una prova a mano in Safari.
+- #125 punto 1: riordino sotto un altro padre.
+- #125 punto 3 (`combobox` con «Aggiungi»), punto 5 (bottone rosso senza fondo, `toggle-group` che non si svuota, `form-field` con errore da fuori, `empty-state` con tre azioni), punto 6 (la pagina d'esempio). Bottone e `toggle-group` toccano la forma di due primitive shadcn: vanno proposti a Francesco con le varianti rese.
+- Safari vero: non provato, per nessuno dei punti.
+
