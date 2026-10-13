@@ -81,16 +81,19 @@ const parametri = aperto
  * ── Perché ──────────────────────────────────────────────────────────────
  *
  * Il valore di serie è 1000 ms, e 253 attese su 261 lo usavano senza
- * saperlo. In locale un'attesa finisce in un paio di decimi di secondo. In
- * CI la macchina ha quattro processori e i file girano insieme: il 13
- * ottobre 2026 una scena di WebKit è fallita su `main` con una transizione
- * di 150 ms che dopo un secondo era al primo fotogramma («expected
- * '0.991508' to be '0'»). Era la terza corsa rossa su `main` in ventiquattro
- * ore, tutte e tre per prove instabili e nessuna per il codice.
+ * saperlo. In locale un'attesa finisce in un paio di decimi di secondo. Il
+ * 13 ottobre 2026, in CI, una scena di WebKit è fallita su `main` con una
+ * transizione di 150 ms che dopo un secondo era al primo fotogramma
+ * («expected '0.991508' to be '0'»): in quel punto la pagina era ferma da
+ * quasi un secondo. Era la terza corsa rossa su `main` in ventiquattro ore,
+ * tutte e tre per prove instabili e nessuna per il codice.
  *
  * Un'attesa più lunga non nasconde un difetto: `waitFor` esce appena la
  * condizione è vera, quindi una corsa verde dura uguale, e una condizione
  * che non diventa mai vera fallisce lo stesso, quattro secondi dopo.
+ *
+ * Non è provato che basti: `test:webkit` da solo, ripetuto 120 volte in CI,
+ * non fallisce nemmeno con l'attesa di prima (`docs/DECISIONI.md` §79).
  */
 configure({ asyncUtilTimeout: 5000 })
 
