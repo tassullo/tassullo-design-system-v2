@@ -13970,3 +13970,16 @@ Il gate su `main` dopo la PR #117 (`e544808`) è verde.
 - Delle tre decisioni della #110 rimaste «da confermare», due ora discendono dalla regola per lato (lo spazio fra due pillole, lo spazio tolto davanti alla punteggiatura). Resta la terza: ciò che si lascia sopra il testo va all'inizio della prima riga.
 - Composizione vera in WebKit, dettatura, Android, Safari vero: non provati.
 - Il doppio clic su una pillola in WebKit, segnalato a parte.
+
+
+## 2026-10-13 — Proposta #110: confermata la decisione rimasta aperta
+
+Francesco ha scritto: «confermo anche la decisione della #110». È quella che restava delle tre lasciate «da confermare» alla pubblicazione della `v2.0.12`: **ciò che si lascia sopra il testo va all'inizio della prima riga**. La ragione è in `DECISIONI.md` §77: chi lascia un dato sopra il testo lo vuole davanti. Resta com'è nel codice pubblicato: nessun file del registry cambia.
+
+Le altre due, lo spazio fra due pillole e lo spazio tolto davanti alla punteggiatura, discendono dalla regola per lato, confermata oggi con le decisioni della #115 (§78).
+
+#### Aperti
+
+- Nella voce della #110 c'era una quarta decisione di sessione, non fra le tre portate alla conferma: dopo lo spostamento il cursore sta dopo la pillola, che prima restava selezionata. Francesco non l'ha nominata.
+- Composizione vera in WebKit, dettatura, Android, Safari vero: non provati.
+- Il doppio clic su una pillola in WebKit, segnalato a parte.

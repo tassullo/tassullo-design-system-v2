@@ -3962,6 +3962,8 @@ Anagrafe ha adottato la `v2.0.11` e ha riportato quattro punti, tutti dentro `Te
 
 **Misure e limiti.** Con mouse vero (Playwright, Chromium e WebKit, contro lo Storybook di sviluppo, scena `Con Elenco Dei Dati`): una pillola mai selezionata trascinata sotto il testo, 5 pillole prima e 5 dopo; segno sempre 2×16px, mai il vecchio; sopra il testo segno a x=27 nei due motori; un dato dall'elenco lasciato dentro «strutture» dà «strut {{qualifica.norma}} ture». Sopra una pillola il dato le va accanto, e in WebKit sempre prima: aperto da §76, non toccato. In sola lettura il segno non compare.
 
+**Conferma (2026-10-13).** Francesco ha confermato la decisione rimasta aperta di questa voce: **ciò che si lascia sopra il testo va all'inizio della prima riga**, non in coda. Delle altre due prese in sessione e rimaste «da confermare», lo spazio accanto a un'altra pillola e lo spazio tolto davanti alla punteggiatura dove stava una pillola spostata, la regola è ora quella per lato di §78, confermata lo stesso giorno.
+
 ## 78. Testo con segnaposto: lo spazio lato per lato, e lo spazio mentre si scrive (proposta #115, 2026-10-13)
 
 Anagrafe ha adottato la `v2.0.12` e ha riportato due casi in cui il documento esce ancora con le parole attaccate. Per ognuno c'è una prova che sul codice di prima fallisce in Chromium e in WebKit.
