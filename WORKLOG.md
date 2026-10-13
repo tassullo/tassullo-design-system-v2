@@ -14050,3 +14050,8 @@ Ramo `fras/gate-soli-documenti`. Francesco, dopo un pomeriggio di attese: «c'è
 #### Aperti
 
 - `pages.yml` ricostruisce e ripubblica la style guide a ogni push su `main`, anche di soli documenti: non blocca nessuno, non toccato.
+
+
+## 2026-10-13 — Il salto dei gate lenti, provato sulla prima PR di soli documenti
+
+PR #123 unita col gate verde in CI: lì il passo «Cosa è cambiato» ha detto `codice`, perché la PR toccava workflow e script, e sono girati i tredici gate e `build-storybook`; `check:statici` saltato. Questa voce è la prima modifica di soli documenti dopo l'unione, e serve a vedere l'altro ramo: i tempi sono nella PR e nella voce che segue, se servirà correggere.
