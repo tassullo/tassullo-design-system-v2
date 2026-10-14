@@ -14270,3 +14270,18 @@ Problemi:
 
 - La `v2.0.16` coi ritocchi ai blocchi, da pubblicare dopo l'unione; poi Anagrafe toglie i ripieghi e adotta la barra.
 - Punto 5 della #125 (l'altezza dell'elenco fermo non conta l'introduzione sopra la cornice): non toccato.
+
+
+## 2026-10-14 — v2.0.16 pubblicata
+
+PR #132 unita col gate verde in CI; l'unione è `6f6e349`. Etichetta `v2.0.16` su `6f6e349`, push della sola etichetta. Francesco: «ci verde, vai».
+
+- Dentro: la pagina d'esempio `Pagine/Scheda a blocchi`; il blocco nuovo `tassullo-barra-salva`; nell'albero `AlberoSegno tipo="avviso"`, `NodoAlbero.livello` e il riordino che resta montato quando cambia `fermo`; nel testo con segnaposto `focus('fine', { scorri: false })` e la cronologia nuova a un `value` deciso da fuori; lo stato vuoto che impila tutte le azioni o nessuna.
+- **Non rompe chi aggiorna dalla `v2.0.15`**: le prop nuove sono facoltative. Due cambi di comportamento da sapere: un nodo che ha già un campo `livello` lo vede usato per il peso del titolo (in Anagrafe è proprio ciò che serve); `Ctrl+Z` dopo un `value` cambiato da fuori non torna più al testo di prima.
+- Verifica da fuori: alla `v2.0.16` rispondono 200 `registry.json` e `tassullo-barra-salva`; nei file serviti di albero e testo con segnaposto ci sono `avviso` e `scorri`; `shadcn view …/tassullo-barra-salva#v2.0.16` risolve l'item.
+- Sulla #125 il commento con cosa deve cambiare Anagrafe, e l'avviso che la versione è uscita.
+
+#### Aperti
+
+- #125: l'adozione della `v2.0.16` in Anagrafe (ripieghi via, barra ferma in tutte le schede); il punto 5, l'altezza dell'elenco fermo che non conta ciò che sta sopra la cornice.
+- `tassullo-pagina-scheda` mostra ancora il modulo che si accende con «Modifica»: con la barra ferma, va riallineata al modulo sempre modificabile.
