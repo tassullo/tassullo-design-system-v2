@@ -14366,3 +14366,18 @@ Test: `npm run check` in locale, tredici gate verdi; 2.244 scansioni, 0 violazio
 #### Aperti
 
 - La `v2.0.19`, dopo l'unione; poi il brief di adozione sulla #125 e la chiusura della #125.
+
+
+## 2026-10-14 — v2.0.19 pubblicata, #125 chiusa
+
+PR #138 unita col gate verde in CI; l'unione è `3e81adb` (porta con sé anche la PR #137, il diario della `v2.0.18`). Etichetta `v2.0.19` su `3e81adb`, push della sola etichetta. Francesco: «ci verde, vai».
+
+- Dentro: `tassullo-barra-salva` coi bordi scritti sull'elemento, senza `flushSync`: in WebKit niente più «ResizeObserver loop completed with undelivered notifications» tornando su una tab montata con la colonna aperta.
+- **Non rompe chi aggiorna dalla `v2.0.18`**: prop e comportamento invariati.
+- Verifica da fuori: alla `v2.0.19` rispondono 200 `registry.json` e `tassullo-barra-salva`; nel file servito c'è `data-misurata`; `shadcn view …/tassullo-barra-salva#v2.0.19` risolve l'item.
+- Sulla #125 il brief di adozione (solo `tassullo-barra-salva` da reinstallare; cosa verificare in Chrome e Safari) e il commento di chiusura con versioni e pezzi. La #125 è chiusa; se Anagrafe cambierà la forma della pagina, aprirà una proposta nuova che la cita. Bozze in `stories/ondata5/commenti-125-v2.0.19.md` (fuori dal repository).
+
+#### Aperti
+
+- Anagrafe: reinstallare `tassullo-barra-salva` alla `v2.0.19` e provare in Safari vero, che qui non si è potuto.
+- `tassullo-empty-state` usa lo stesso schema (`flushSync` dentro l'osservatore): nessun caso noto, `DECISIONI.md` §83.
