@@ -14333,3 +14333,18 @@ Test: `npm run check` in locale, tredici gate verdi; 2.240 scansioni, 0 violazio
 #### Aperti
 
 - La `v2.0.18`, dopo l'unione; poi il prompt di adozione per Anagrafe (`stories/ondata5/`, fuori dal repository).
+
+
+## 2026-10-14 — v2.0.18 pubblicata
+
+PR #136 unita col gate verde in CI; l'unione è `cb524d9`. Etichetta `v2.0.18` su `cb524d9`, push della sola etichetta. Francesco: «ci verde, vai».
+
+- Dentro: `tassullo-barra-salva` coi bordi dell'area del contenuto anche dentro una card; `tassullo-app-shell` con `data-slot="app-shell-contenuto"` e il posto in fondo per la barra.
+- **Non rompe chi aggiorna dalla `v2.0.17`.**
+- Verifica da fuori: alla `v2.0.18` rispondono 200 `registry.json`, `tassullo-barra-salva`, `tassullo-app-shell`; nei file serviti c'è `app-shell-contenuto`; `shadcn view …/tassullo-barra-salva#v2.0.18` risolve l'item.
+- Sulla #125 l'avviso: Anagrafe adotta direttamente la `v2.0.18`.
+- Il prompt di adozione per Anagrafe è in `stories/ondata5/prompt-anagrafe-125-v2.0.18.md` (fuori dal repository): dalla `v2.0.15` alla `v2.0.18` in un giro solo.
+
+#### Aperti
+
+- #125: l'adozione in Anagrafe.
