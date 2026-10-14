@@ -41,10 +41,10 @@ import { Input } from '@/registry/tassullo/ui/input'
  *
  * **Regole d'uso.**
  *
- * - Va in fondo al modulo, come ultimo figlio, dentro l'area del contenuto del
- *   guscio. Sta in fondo alla finestra anche su una pagina corta, larga quanto
- *   l'area del contenuto: non copre la barra laterale né la colonna laterale.
- *   Nella pagina lascia uno spazio alto quanto lei, e a fine pagina il
+ * - Va in fondo al modulo, come ultimo figlio, anche se il modulo sta dentro
+ *   una `Card`. Sta in fondo alla finestra anche su una pagina corta, larga
+ *   quanto l'area del contenuto del guscio: non copre la barra laterale né la
+ *   colonna laterale. L'area le lascia il posto in fondo, e a fine pagina il
  *   contenuto finisce sopra la barra.
  * - Sparisce se si torna com'era: «da salvare» è un confronto con ciò che è
  *   salvato, non un segno che resta acceso alla prima battuta.
@@ -71,7 +71,16 @@ const UTENTE = { nome: 'Stefano', cognome: 'Bertolini', email: 'sbertolini@esemp
 const CAMPI = Array.from({ length: 14 }, (_, n) => ({ nome: `campo-${n + 1}`, etichetta: `Campo ${n + 1}`, valore: `Valore ${n + 1}` }))
 const SALVATI = Object.fromEntries(CAMPI.map((c) => [c.nome, c.valore]))
 
-function Scheda({ inCorsoAllInizio = false, quanti = CAMPI.length }: { inCorsoAllInizio?: boolean; quanti?: number }) {
+function Scheda({
+  inCorsoAllInizio = false,
+  quanti = CAMPI.length,
+  nellaCard = false,
+}: {
+  inCorsoAllInizio?: boolean
+  quanti?: number
+  /** La barra dentro la card del modulo, come la tengono le schede delle app. */
+  nellaCard?: boolean
+}) {
   const [salvati, setSalvati] = useState(SALVATI)
   const [valori, setValori] = useState(
     inCorsoAllInizio ? { ...SALVATI, 'campo-1': 'Valore cambiato' } : SALVATI
@@ -108,9 +117,10 @@ function Scheda({ inCorsoAllInizio = false, quanti = CAMPI.length }: { inCorsoAl
                 </Field>
               ))}
             </FieldGroup>
+            {nellaCard ? <BarraSalva sporco={sporco} inCorso={inCorso} onAnnulla={() => setValori(salvati)} /> : null}
           </CardContent>
         </Card>
-        <BarraSalva sporco={sporco} inCorso={inCorso} onAnnulla={() => setValori(salvati)} />
+        {nellaCard ? null : <BarraSalva sporco={sporco} inCorso={inCorso} onAnnulla={() => setValori(salvati)} />}
       </form>
     </AppShell>
   )
@@ -194,14 +204,58 @@ export const PaginaCortaProva: Story = {
     expect(`pagina corta: ${document.documentElement.scrollHeight <= innerHeight}`).toBe('pagina corta: true')
     await userEvent.type(campo, 'x')
     await waitFor(() => expect(barra()).toBeTruthy())
-    const area = canvasElement.querySelector<HTMLElement>('[data-slot="barra-salva-posto"]')!.parentElement!.closest('main') ?? document.body
     await waitFor(() => expect(`fondo ${Math.round(barra()!.getBoundingClientRect().bottom)}`).toBe(`fondo ${innerHeight}`))
-    // Non copre la barra laterale: comincia dove comincia l'area del contenuto.
-    const fascia = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"]') ?? area
-    await waitFor(() =>
-      expect(`sinistra ${Math.round(barra()!.getBoundingClientRect().left)}, posto ${Math.round(canvasElement.querySelector<HTMLElement>('[data-slot="barra-salva-posto"]')!.getBoundingClientRect().left)}`).toBe(
-        `sinistra ${Math.round(fascia.getBoundingClientRect().left)}, posto ${Math.round(fascia.getBoundingClientRect().left) + 16}`
+    // Non copre la barra laterale: ha i bordi dell'area del contenuto.
+    const area = canvasElement.querySelector<HTMLElement>('[data-slot="app-shell-contenuto"]')!
+    await waitFor(() => {
+      const b = barra()!.getBoundingClientRect()
+      const a = area.getBoundingClientRect()
+      expect(`barra da ${Math.round(b.left)} a ${Math.round(b.right)}`).toBe(`barra da ${Math.round(a.left)} a ${Math.round(a.right)}`)
+    })
+  },
+}
+
+/**
+ * La barra dentro la card del modulo, dove le schede delle app la tengono: è
+ * larga quanto l'area del contenuto, non quanto la card, e la card non ha un
+ * vuoto in fondo.
+ */
+export const DentroUnaCard: Story = {
+  name: 'Dentro una Card',
+  render: () => <Scheda nellaCard inCorsoAllInizio={false} />,
+}
+
+// Dentro una card: bordi dell'area del contenuto, niente vuoto nella card, e
+// a fine pagina la card finisce sopra la barra.
+export const DentroUnaCardProva: Story = {
+  ...DentroUnaCard,
+  name: 'Dentro una Card, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const campo = await waitFor(() => tela.getByLabelText('Campo 1'))
+    const card = canvasElement.querySelector<HTMLElement>('[data-slot="card"]')!
+    const area = canvasElement.querySelector<HTMLElement>('[data-slot="app-shell-contenuto"]')!
+    const altaPrima = Math.round(card.getBoundingClientRect().height)
+    try {
+      await userEvent.type(campo, 'x')
+      await waitFor(() => expect(barra()).toBeTruthy())
+      const bordi = () => {
+        const b = barra()!.getBoundingClientRect()
+        const a = area.getBoundingClientRect()
+        return `barra da ${Math.round(b.left)} a ${Math.round(b.right)}, area da ${Math.round(a.left)} a ${Math.round(a.right)}`
+      }
+      await waitFor(() => expect(bordi()).toMatch(/^barra da (\d+) a (\d+), area da \1 a \2$/))
+      expect(`card alta ${Math.round(card.getBoundingClientRect().height)}`).toBe(`card alta ${altaPrima}`)
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
+      await waitFor(() =>
+        expect(`card sopra la barra: ${card.getBoundingClientRect().bottom <= barra()!.getBoundingClientRect().top}`).toBe(
+          'card sopra la barra: true'
+        )
       )
-    )
+      expect(`fondo ${Math.round(barra()!.getBoundingClientRect().bottom)}`).toBe(`fondo ${innerHeight}`)
+    } finally {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
   },
 }

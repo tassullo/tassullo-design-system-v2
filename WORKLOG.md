@@ -14318,3 +14318,18 @@ PR #134 unita col gate verde in CI; l'unione è `c2f766d`. Etichetta `v2.0.17` s
 #### Aperti
 
 - #125: l'adozione della `v2.0.17` in Anagrafe (ripieghi via, barra ferma in tutte le schede). La #125 resta aperta per ciò che Anagrafe trova adottando.
+
+
+## 2026-10-14 — Barra di salvataggio dentro una card
+
+Preparando il prompt di adozione per Anagrafe: in nove pagine su nove `BarraSalva` sta dentro il modulo, e il modulo dentro una `Card`. Con la `v2.0.17` la barra lì usciva rientrata del margine della card (da 272 a 1424px, area del contenuto da 256 a 1440) e lasciava un vuoto di 56px in fondo alla card. Proposte due strade a Francesco (correggere il blocco, o far spostare la barra ad Anagrafe in nove pagine): «procedi con la 1». Ramo `fras/barra-salva-nella-card`; ragioni in `DECISIONI.md` §83, in fondo.
+
+- `tassullo-app-shell`: l'area del contenuto ha `data-slot="app-shell-contenuto"` e, finché dentro c'è una barra, il margine in fondo alto anche quanto lei (`pb-18`).
+- `tassullo-barra-salva`: nel guscio prende i bordi dall'area del contenuto, e il segnaposto esce dal flusso; fuori dal guscio resta com'era.
+- Scena `Dentro una Card` con prova: col codice della `v2.0.17` fallisce in Chromium e WebKit, con la correzione passa. La prova `Pagina corta` ora confronta la barra coi bordi dell'area, non più col segnaposto.
+
+Test: `npm run check` in locale, tredici gate verdi; 2.240 scansioni, 0 violazioni; WebKit 45 su 45. Le prove di barra, guscio, elenco con dettaglio, pagina scheda e scheda a blocchi, tre volte nei due motori: 47 su 47 e 9 su 9 ogni volta.
+
+#### Aperti
+
+- La `v2.0.18`, dopo l'unione; poi il prompt di adozione per Anagrafe (`stories/ondata5/`, fuori dal repository).
