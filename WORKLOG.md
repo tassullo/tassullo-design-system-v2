@@ -14304,3 +14304,17 @@ Test: `npm run check` in locale, tredici gate verdi; 2.232 scansioni, 0 violazio
 #### Aperti
 
 - La `v2.0.17`, dopo l'unione; poi l'adozione in Anagrafe.
+
+
+## 2026-10-14 — v2.0.17 pubblicata
+
+PR #134 unita col gate verde in CI; l'unione è `c2f766d`. Etichetta `v2.0.17` su `c2f766d`, push della sola etichetta. Francesco: «ci verde, vai».
+
+- Dentro: l'elenco fermo che conta ciò che sta sopra la cornice (punto 5 della #125); `tassullo-barra-salva` fissa in fondo alla finestra, coi bottoni raggiungibili appena compare; `tassullo-pagina-scheda` sempre modificabile, con la barra.
+- **Non rompe chi aggiorna dalla `v2.0.16`**. `tassullo-pagina-scheda` cambia forma (via `modifica`, `anagrafica` è un nodo, nuovo `salvataggio`), ma è una pagina d'esempio: chi l'ha ricomposta tiene la sua copia.
+- Verifica da fuori: alla `v2.0.17` rispondono 200 `registry.json`, `tassullo-barra-salva`, `tassullo-pagina-scheda`, `tassullo-elenco-dettaglio`; nei file serviti ci sono `opacity-0` (barra) e `scrollY` (elenco); `shadcn view …/tassullo-barra-salva#v2.0.17` risolve l'item.
+- Sulla #125 l'avviso: il lato design system della proposta è chiuso.
+
+#### Aperti
+
+- #125: l'adozione della `v2.0.17` in Anagrafe (ripieghi via, barra ferma in tutte le schede). La #125 resta aperta per ciò che Anagrafe trova adottando.
