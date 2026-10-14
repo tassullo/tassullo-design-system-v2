@@ -264,9 +264,12 @@ export type VoceSegnaposto = {
 export type TestoSegnapostoRef = {
   /**
    * Porta il fuoco nel testo. Senza argomento il cursore resta dov'era;
-   * `'fine'` lo mette in fondo al testo, `'inizio'` in testa.
+   * `'fine'` lo mette in fondo al testo, `'inizio'` in testa. Di serie la
+   * pagina scorre fino al cursore; con `{ scorri: false }` resta dov'è, per
+   * chi porta in vista da sé qualcosa di più grande, come la testa del blocco
+   * che contiene il campo.
    */
-  focus: (dove?: "inizio" | "fine") => void
+  focus: (dove?: "inizio" | "fine", opzioni?: { scorri?: boolean }) => void
   /**
    * Inserisce un testo nel punto del cursore; un segnaposto diventa pillola.
    * In un campo in cui il cursore non è mai stato, il testo va in fondo.
@@ -1182,9 +1185,9 @@ function manigliaDi(editor: Editor) {
   let maniglia = maniglie.get(editor)
   if (!maniglia) {
     maniglia = {
-      focus: (dove) => {
+      focus: (dove, opzioni) => {
         if (dove) usati.add(editor)
-        editor.commands.focus(dove ? DOVE[dove] : undefined)
+        editor.commands.focus(dove ? DOVE[dove] : undefined, { scrollIntoView: opzioni?.scorri !== false })
       },
       // Testo e basta: se ha la forma di un segnaposto diventa pillola come
       // ogni altro testo.
@@ -1583,9 +1586,17 @@ export function TestoSegnaposto({
     if (inViaggio.current.has(value)) return
     inViaggio.current.clear()
     ultimoEmesso.current = value
-    editor.commands.setContent(daTesto(value, editor.storage.segnaposto.riconosci), {
-      emitUpdate: false,
-    })
+    // Il testo deciso da fuori parte con una cronologia nuova, come un testo
+    // che entra con `chiave`: `Ctrl+Z` non riporta ciò che l'app ha scartato.
+    // Il cursore resta dov'era, dentro il testo nuovo.
+    const prima = editor.state.selection.from
+    const stato = nuovoStato(editor, daTesto(value, editor.storage.segnaposto.riconosci))
+    editor.view.updateState(
+      usati.has(editor)
+        ? stato.apply(stato.tr.setSelection(Selection.near(stato.doc.resolve(Math.min(prima, stato.doc.content.size)))))
+        : stato
+    )
+    editor.view.dispatch(editor.state.tr.setMeta(chiaveSegnaposto, true).setMeta("addToHistory", false))
     setSenzaTesto(editor.isEmpty)
   }, [editor, value])
 

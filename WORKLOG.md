@@ -14230,3 +14230,42 @@ Nel prompt di adozione per Anagrafe il punto sulla #126 dice ora che è chiusa e
 #### Aperti
 
 - #125: il punto 6, dopo l'adozione di Anagrafe.
+
+
+## 2026-10-14 — Proposta #125, punto 6: la pagina d'esempio «Scheda a blocchi»
+
+Anagrafe ha adottato la `v2.0.15` ed è in produzione (commit `91b1ecc` di Anagrafe). Sulla #125 due commenti: i quattro ripieghi rimasti e i limiti visti adottando, poi «pagina finita» coi file. Francesco ha chiesto la pagina d'esempio fra le «Pagine/…», fedele alla tab «Testi» di Anagrafe, e ha lasciato a me la scelta sui ripieghi. Ramo `fras/scheda-a-blocchi`.
+
+Attività:
+- Letti i sei file di Anagrafe al commit `91b1ecc` (`TestiBlocchi`, `AlberoBlocchi`, `SceltaTitolo`, `TestiEditor`, `blocchiTesto`, `strutturaBlocchi`) e guardata la pagina sul banco (`localhost:5191/famiglie/2`, ruolo admin), compreso il messaggio con cui il banco respinge un dato che non esiste.
+- **I ripieghi** (`DECISIONI.md` §83): `AlberoSegno tipo="avviso"`; `NodoAlbero.livello`, che decide il peso e non il rientro; `focus('fine', { scorri: false })` nel testo con segnaposto; il peso della tendina non era un ripiego (`className="font-semibold"` sul `ComboboxInput`, il campo lo eredita).
+- **La pagina**: `stories/SchedaABlocchi.stories.tsx`, titolo `Pagine/Scheda a blocchi`, con le regole pure in `stories/scheda-a-blocchi/struttura.ts` e i dati inventati in `dati.ts`. Guscio con le sezioni di Anagrafe, tab ferme, introduzione e «Inserisci un dato», la cornice con albero e blocco scelto, la card a campi fissi, «Salva» e «Annulla» in fondo, la colonna «Dati da citare», il dialogo di conferma e «Copia da un'altra famiglia». Salvataggio in memoria, con 600 ms di attesa per vedere i campi fermi.
+- Scene: `Predefinita` (20 blocchi), `Scheda Lunga` (40), `Scheda Vuota`, `Sola Lettura` (col triangolo), `Colonna Aperta`, `Cornice Stretta`, `Menu di Riga` e `Tendina del Titolo` (popup aperti per il gate). Prove: scrittura (scegliere, scrivere e tornare com'era, livello, riordino dal menu, aggiungere dal menu e dare il titolo, eliminare con e senza dialogo, «Annulla»), salvataggio respinto, scheda vuota, colonna aperta, cornice stretta, sola lettura.
+- Albero: i dati d'esempio (`.storybook/prove/scheda-blocchi.ts`) hanno ora tre titoletti sotto «Avvertenze», come il banco di Anagrafe; la scena `Predefinito` ha un avviso; nuova prova `Livello e avviso`. Testo con segnaposto: nuova prova `Fuoco senza scorrere`.
+
+Problemi:
+- Un elenco `a11y.config.rules` nei `parameters` di una scena sostituisce quello dell'imbracatura: spegnendo `scrollable-region-focusable` la pagina riaccendeva `aria-hidden-focus` nella passata a popup aperto. Ripetuta la condizione nella pagina; scritto in §83.
+- Il bottone che apre la tendina del titolo è il `button-name` accettato del combobox: escluso il nodo, come nelle scene del combobox.
+- Nella prova, l'«Annulla» del dialogo di conferma resta nel documento mentre il dialogo sfuma: si aspetta che sparisca prima di premere l'«Annulla» della tab.
+- La prova `Fuoco senza scorrere` è fallita una volta in WebKit nel gate intero (pagina scorsa di 597px): la prendeva il campo stesso, perché l'aiuto `areaDi` della prova gli dà il fuoco col cursore in fondo e lo porta in vista un fotogramma dopo. La prova ora aspetta l'editor senza dargli il fuoco, e controlla che la pagina sia in cima prima di partire: tre giri in WebKit, verdi.
+- `tsc -b` non guarda `stories/`: i tipi della pagina li ho controllati con una configurazione temporanea fuori dal repository.
+
+Test: `npm run check:statici` verde; `test:a11y` 2.196 scansioni in quattro passate, 0 violazioni (549 scene); `test:webkit` verde dopo la correzione della prova. Il gate dopo le correzioni del seguito: in fondo.
+
+#### Seguito della stessa sessione: le correzioni chieste guardando la pagina
+
+Francesco ha guardato la pagina mentre la scrivevo. Esiti in `DECISIONI.md` §83, in fondo.
+
+- «Salva» e «Annulla» in una barra ferma in fondo alla finestra, scelta fra tre posizioni rese e mandate come immagini (in fondo alla pagina, barra ferma, nella fascia). A fine pagina la barra restava più alta del margine del contenuto: ora `-mb-4`, 57px in cima e in fondo. Vale per tutte le schede di Anagrafe.
+- Tolte la riga sotto «Livello» e la voce «10 blocchi — solo contenitore» della legenda (anche nelle scene dell'albero e dell'elenco con dettaglio). Il percorso sopra il blocco resta: tolto e rimesso, Francesco ci ha ripensato.
+- Corretti nei blocchi tre limiti visti da Anagrafe: lo stato vuoto impila tutte le azioni o nessuna (punto 6); il testo con segnaposto riparte con una cronologia nuova a un `value` deciso da fuori (punto 7); l'albero non si rifà quando cambia `fermo` (punto 8). Ognuno con una prova che, senza la correzione, fallisce: provato togliendola.
+
+Problemi:
+- Lo stato vuoto osservava sé stesso: impilando cambiava altezza e l'osservatore si rivedeva nello stesso fotogramma. Ora osserva un riferimento alto zero.
+- La prova del punto 7 passava anche col difetto: scrivere e premere il bottone in meno di mezzo secondo unisce le due cose nella cronologia. Ora aspetta 700ms.
+
+#### Aperti
+
+- Proposto a Francesco un blocco `tassullo-barra-salva` per la barra ferma, da usare in tutte le schede di Anagrafe: in attesa di risposta. Il commento sulla #125 lo aspetta.
+- La `v2.0.16` coi ritocchi ai blocchi, da pubblicare dopo l'unione; poi Anagrafe toglie i ripieghi e adotta la barra.
+- Punto 5 della #125 (l'altezza dell'elenco fermo non conta l'introduzione sopra la cornice): non toccato.

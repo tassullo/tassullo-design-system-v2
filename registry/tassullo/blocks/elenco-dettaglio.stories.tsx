@@ -121,10 +121,6 @@ function Scheda({
               <AlberoSegno tipo="vuoto" />
               da scrivere
             </li>
-            <li>
-              <AlberoConto>10 blocchi</AlberoConto>
-              solo contenitore, senza un testo suo
-            </li>
           </AlberoLegenda>
         }
         elenco={
@@ -289,7 +285,7 @@ export const NelGuscioProva: Story = {
       // col fondo dell'elenco, non sotto i bottoni.
       const piede = canvasElement.querySelector<HTMLElement>('[data-slot="elenco-dettaglio-piede"]')!
       expect(`piede fino a ${px(piede.getBoundingClientRect().bottom)}`).toBe(`piede fino a ${px(elenco.getBoundingClientRect().bottom)}`)
-      expect(piede).toHaveTextContent('solo contenitore')
+      expect(piede).toHaveTextContent('da scrivere')
       // A pagina non scorsa la cornice intera sta nella finestra: il piede si
       // legge senza scorrere.
       expect(`piede in finestra: ${px(piede.getBoundingClientRect().bottom) <= innerHeight}`).toBe('piede in finestra: true')

@@ -8,6 +8,8 @@ export type BloccoScheda = {
   id: string
   titolo: string
   testo: string
+  /** Il livello del titolo, quando non è quello dell'annidamento. */
+  livello?: number
   figli?: BloccoScheda[]
 }
 
@@ -50,10 +52,12 @@ export const SCHEDA_LUNGA: BloccoScheda[] = [
       blocco('successive', 'Lavorazioni successive', ''),
     ]),
   ]),
+  // Tre titoletti messi direttamente sotto un capitolo: il secondo livello si
+  // può saltare.
   blocco('avvertenze', 'Avvertenze', '', [
-    blocco('gelo', 'Protezione dal gelo'),
-    blocco('caldo', 'Alte temperature'),
-    blocco('vento', 'Vento e pioggia battente', ''),
+    { ...blocco('gelo', 'Protezione dal gelo'), livello: 3 },
+    { ...blocco('caldo', 'Alte temperature'), livello: 3 },
+    { ...blocco('vento', 'Vento e pioggia battente', ''), livello: 3 },
   ]),
   blocco('stoccaggio', 'Stoccaggio'),
   blocco('capitolato', 'Voce di capitolato'),

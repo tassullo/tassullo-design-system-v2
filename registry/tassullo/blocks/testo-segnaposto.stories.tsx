@@ -55,7 +55,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * **Le prop.**
  *
  * - `value`, `defaultValue`, `onChange`: il testo è una stringa, e `onChange`
- *   riceve la stringa.
+ *   riceve la stringa. Un `value` deciso da fuori, per esempio da un
+ *   «Annulla» della pagina, riparte con una cronologia nuova: `Ctrl+Z` non
+ *   riporta il testo scartato.
  * - `voci`: i dati che si possono citare. Ognuno ha `testo`, il segnaposto
  *   com'è scritto nel valore; `etichetta`, il nome del dato; `gruppo`;
  *   `valore`, il valore di oggi, che è ciò che la pillola mostra; `nota`,
@@ -70,7 +72,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   e si seleziona. `disabled` lo spegne.
  * - `placeholder`, `id`, `aria-invalid`, `aria-describedby`, `etichetta`.
  * - `ref` dà `focus()` e `inserisci(testo)`; `onFocus` riceve lo stesso
- *   oggetto, per sapere in quale campo inserire da fuori.
+ *   oggetto, per sapere in quale campo inserire da fuori. `focus('fine')`
+ *   porta in vista il cursore; `focus('fine', { scorri: false })` lascia la
+ *   pagina dov'è, per chi porta in vista da sé qualcosa di più grande.
  * - `TestoSegnapostoElenco` è l'elenco dei dati da tenere accanto ai testi:
  *   `voci` e `onScegli`; `disabled` lo spegne, per esempio mentre la pagina
  *   salva. Filtro e ricerca li tiene l'elenco, e si perdono quando la pagina
@@ -2503,6 +2507,111 @@ export const FuocoEInserisciProva: Story = {
     const visti = within(canvasElement).getByTestId('visti')
     await userEvent.click(visti)
     expect(visti.textContent).not.toContain('campo:niente')
+  },
+}
+
+// `focus('fine')` porta in vista il cursore; con `{ scorri: false }` la
+// pagina resta dov'è, e il fuoco arriva lo stesso.
+export const FuocoSenzaScorrereProva: Story = {
+  name: 'Fuoco senza scorrere, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI },
+  render: (args) => {
+    const presa: { campo?: TestoSegnapostoRef } = {}
+    return (
+      <div data-presa ref={(el) => void (el && Object.assign(el, { presa }))}>
+        <TestoSegnaposto
+          etichetta="Lungo"
+          className="max-w-2xl"
+          voci={args.voci}
+          defaultValue={Array.from({ length: 80 }, (_, n) => `Riga ${n + 1}`).join('\n')}
+          onPronto={(campo) => {
+            presa.campo = campo
+          }}
+        />
+      </div>
+    )
+  },
+  play: async ({ canvasElement }) => {
+    // Senza `areaDi`, che dà il fuoco al campo e lo porta in vista.
+    const area = await waitFor(() => {
+      const el = canvasElement.querySelector<Area>(AREA)
+      expect(el?.editor).toBeTruthy()
+      return el as Area
+    })
+    const presa = (canvasElement.querySelector('[data-presa]') as HTMLElement & { presa: { campo?: TestoSegnapostoRef } }).presa
+    const campo = await waitFor(() => {
+      expect(presa.campo).toBeTruthy()
+      return presa.campo!
+    })
+    const pagina = document.scrollingElement ?? document.documentElement
+    try {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      await new Promise((fatto) => requestAnimationFrame(() => requestAnimationFrame(fatto)))
+      expect(`pagina in cima: ${pagina.scrollTop}`).toBe('pagina in cima: 0')
+      expect(`il testo esce dalla finestra: ${area.getBoundingClientRect().bottom > innerHeight}`).toBe('il testo esce dalla finestra: true')
+      campo.focus('fine', { scorri: false })
+      await waitFor(() => expect(document.activeElement).toBe(area))
+      await waitFor(() => expect(area.editor.state.selection.from).toBe(area.editor.state.doc.content.size - 1))
+      // Due fotogrammi dopo il fuoco: la pagina non si è mossa.
+      await new Promise((fatto) => requestAnimationFrame(() => requestAnimationFrame(fatto)))
+      expect(`scorsa di ${pagina.scrollTop}`).toBe('scorsa di 0')
+      // Di serie, invece, la pagina scende fino al cursore.
+      ;(document.activeElement as HTMLElement).blur()
+      campo.focus('fine')
+      await waitFor(() => expect(`scorsa: ${pagina.scrollTop > 0}`).toBe('scorsa: true'))
+    } finally {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  },
+}
+
+function ConAnnulla({ voci }: { voci: readonly VoceSegnaposto[] }) {
+  const salvato = 'La malta {{famiglia.nome}} è conforme.'
+  const [testo, setTesto] = useState(salvato)
+  return (
+    <FieldGroup className="max-w-2xl">
+      <TestoSegnaposto etichetta="Testo" chiave="descrizione" voci={voci} value={testo} onChange={setTesto} />
+      <Button variant="outline" className="self-start" onClick={() => setTesto(salvato)}>
+        Annulla le modifiche
+      </Button>
+      <output data-testid="valore">{testo}</output>
+    </FieldGroup>
+  )
+}
+
+// Un valore deciso da fuori, con la stessa `chiave`: dopo, `Ctrl+Z` non
+// riporta il testo scartato, e la pagina non torna da salvare.
+export const ValoreDaFuoriProva: Story = {
+  name: 'Valore da fuori, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI },
+  render: (args) => <ConAnnulla voci={args.voci} />,
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const area = await areaDi(canvasElement)
+    const salvato = 'La malta {{famiglia.nome}} è conforme.'
+    await scrivi(' Aggiunta.')
+    await waitFor(() => expect(tela.getByTestId('valore')).toHaveTextContent(`${salvato} Aggiunta.`))
+    // Una pausa, come fra lo scrivere e il premere un bottone: sotto il mezzo
+    // secondo la cronologia unirebbe il cambio da fuori a ciò che si è scritto.
+    await new Promise((fatto) => setTimeout(fatto, 700))
+    await userEvent.click(tela.getByRole('button', { name: 'Annulla le modifiche' }))
+    await waitFor(() => expect(valoreDi(area)).toBe(salvato))
+    // Il campo riprende il fuoco, e l'annulla non ha niente da riportare.
+    area.editor.commands.focus('end')
+    await waitFor(() => expect(document.activeElement).toBe(area))
+    await userEvent.keyboard('{Control>}z{/Control}')
+    await userEvent.keyboard('{Meta>}z{/Meta}')
+    area.editor.commands.undo()
+    expect(valoreDi(area)).toBe(salvato)
+    expect(tela.getByTestId('valore')).toHaveTextContent(salvato)
+    expect(tela.getByTestId('valore')).not.toHaveTextContent('Aggiunta')
+    // Ciò che si scrive dopo si annulla come sempre.
+    await scrivi(' Nuova.')
+    await waitFor(() => expect(valoreDi(area)).toBe(`${salvato} Nuova.`))
+    area.editor.commands.undo()
+    await waitFor(() => expect(valoreDi(area)).toBe(salvato))
   },
 }
 

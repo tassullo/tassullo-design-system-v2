@@ -48,7 +48,7 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "cn"
-import { AlertCircleIcon, ArrowDownIcon, ArrowUpIcon, EllipsisVerticalIcon } from "lucide-react"
+import { AlertCircleIcon, ArrowDownIcon, ArrowUpIcon, EllipsisVerticalIcon, TriangleAlertIcon } from "lucide-react"
 
 import { Button } from "@/registry/tassullo/ui/button"
 import {
@@ -69,6 +69,13 @@ export type NodoAlbero = {
    * non è un testo.
    */
   nome?: string
+  /**
+   * Il livello del titolo, da 1, quando non è quello dell'annidamento: ne
+   * decide il peso. Serve a una riga che salta un livello, come un titoletto
+   * messo direttamente sotto un capitolo. Il rientro resta quello
+   * dell'annidamento, che dice dove sta la riga.
+   */
+  livello?: number
   figli?: readonly NodoAlbero[]
 }
 
@@ -136,8 +143,9 @@ export type AlberoProps<TNodo extends NodoAlbero = NodoAlbero> = {
   className?: string
 }
 
-// Il rientro di una riga e lo stile del suo titolo, per livello. Dal quinto in
-// giù il rientro non cresce più: il titolo non avrebbe posto.
+// Il rientro di una riga, per annidamento, e lo stile del suo titolo, per
+// livello. Dal quinto in giù il rientro non cresce più: il titolo non avrebbe
+// posto.
 const RIENTRO = ["pl-2", "pl-6", "pl-10", "pl-14", "pl-18"]
 const TITOLO = ["text-sm font-semibold", "text-sm font-medium", "text-sm font-normal"]
 
@@ -298,7 +306,11 @@ export function Albero<TNodo extends NodoAlbero = NodoAlbero>({
         if (!evento.currentTarget.contains(evento.relatedTarget)) setAttiva(null)
       }}
     >
-      {onSposta && !fermo ? (
+      {/* Il contesto del riordino c'è finché c'è `onSposta`, anche da fermo: se
+          entrasse e uscisse con `fermo`, le righe si rifarebbero a ogni
+          salvataggio, e la riga col fuoco lo perderebbe. Da fermo le righe non
+          si trascinano (`useSortable` è spento). */}
+      {onSposta ? (
         <DndContext
           id={idContesto}
           sensors={sensori}
@@ -341,7 +353,7 @@ function Lista<TNodo extends NodoAlbero>({
   ))
   return (
     <ul data-slot="albero-lista" className="flex flex-col gap-0.5">
-      {comuni.onSposta && !comuni.fermo ? (
+      {comuni.onSposta ? (
         <SortableContext items={nodi.map((nodo) => nodo.id)} strategy={verticalListSortingStrategy}>
           {righe}
         </SortableContext>
@@ -421,7 +433,7 @@ function Riga<TNodo extends NodoAlbero>({
         >
           <span
             data-slot="albero-titolo"
-            className={cn("min-w-0 flex-1 break-words", TITOLO[Math.min(livello, TITOLO.length) - 1])}
+            className={cn("min-w-0 flex-1 break-words", TITOLO[Math.min(Math.max(nodo.livello ?? livello, 1), TITOLO.length) - 1])}
           >
             {nodo.titolo}
           </span>
@@ -494,24 +506,27 @@ const SEGNO = {
 }
 
 /**
- * Il segno di stato di una riga: un pallino pieno, uno vuoto, o un errore.
- * Con `nome` si legge anche senza vederlo; senza, è un disegno e basta, come
- * nella legenda, dove accanto c'è già il testo.
+ * Il segno di stato di una riga: un pallino pieno, uno vuoto, un errore o un
+ * avviso. L'errore è ciò che un salvataggio ha respinto; l'avviso è ciò che
+ * l'app vede da sé e che un salvataggio respingerebbe, anche su una riga che
+ * nessuno ha toccato. Con `nome` si legge anche senza vederlo; senza, è un
+ * disegno e basta, come nella legenda, dove accanto c'è già il testo.
  */
 export function AlberoSegno({
   tipo,
   nome,
   className,
 }: {
-  tipo: "pieno" | "vuoto" | "errore"
+  tipo: "pieno" | "vuoto" | "errore" | "avviso"
   /** Cosa dice il segno, per i lettori di schermo: «Con testo», «Da scrivere». */
   nome?: string
   className?: string
 }) {
   const aria = nome ? ({ role: "img", "aria-label": nome } as const) : ({ "aria-hidden": true } as const)
-  if (tipo === "errore") {
+  if (tipo === "errore" || tipo === "avviso") {
+    const Icona = tipo === "errore" ? AlertCircleIcon : TriangleAlertIcon
     return (
-      <AlertCircleIcon
+      <Icona
         data-slot="albero-segno"
         {...aria}
         className={cn("size-4 shrink-0 text-destructive-subtle-foreground", className)}
