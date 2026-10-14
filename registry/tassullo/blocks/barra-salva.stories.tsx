@@ -147,6 +147,9 @@ export const ComportamentoProva: Story = {
       await userEvent.type(campo, 'x')
       await waitFor(() => expect(barra()).toBeTruthy())
       expect(barra()).toHaveTextContent('Modifiche non salvate')
+      // Appena la barra c'è, i due bottoni si raggiungono: nessun istante in
+      // cui il testo si vede e i bottoni no.
+      expect(within(barra()!).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual(['Annulla', 'Salva'])
       await userEvent.keyboard('{Backspace}')
       await waitFor(() => expect(barra()).toBeNull())
 

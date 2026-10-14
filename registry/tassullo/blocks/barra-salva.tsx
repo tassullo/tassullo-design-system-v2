@@ -110,7 +110,11 @@ export function BarraSalva({
         }
         className={cn(
           "fixed bottom-0 z-10 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border bg-background px-4 py-3",
-          !riquadro && "invisible",
+          // Finché lo spazio non è misurato la barra non si vede e non si
+          // clicca. Non `invisible`: la visibilità si eredita, e coi bottoni
+          // in `transition-all` resterebbero nascosti per tutta la transizione
+          // dopo che la barra è comparsa.
+          !riquadro && "pointer-events-none opacity-0",
           className
         )}
       >

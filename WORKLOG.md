@@ -14297,7 +14297,7 @@ Francesco: «pensavo avessimo finito il lavoro lato DS. Va ultimato, poi passo a
 
 Problemi:
 - Su WebKit la prima misura della barra arrivava prima che il guscio avesse finito di disporsi: la prova aspetta, e l'osservatore la corregge un fotogramma dopo.
-- `Scheda vuota, prova` instabile nel gate (2 passate su 4): le prove della pagina aspettano che il bottone della barra si trovi. Causa del mezzo istante non chiarita.
+- `Scheda vuota, prova` instabile nel gate locale (2 passate su 4): l'avevo fatta aspettare senza trovare la causa. La CI della PR #134 è poi caduta su `Comportamento, prova` in WebKit, stesso sintomo. Causa: la barra non misurata era `invisible`, e i bottoni in `transition-all` restavano nascosti per i 150ms della transizione dopo che la barra compariva. Ora `opacity-0 pointer-events-none`; la prova lo controlla e col codice di prima fallisce sempre. Francesco: «succede troppo spesso, datti una regolata!»: una prova instabile si spiega prima di andare avanti.
 
 Test: `npm run check` in locale, tredici gate verdi; 2.232 scansioni, 0 violazioni; `test:webkit` 44 su 44. Le tre prove nuove falliscono togliendo la correzione (punto 5, misurato; barra fissa e pagina scheda, per costruzione: col blocco di prima la barra non esiste o sta a metà).
 
