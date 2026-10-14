@@ -51,6 +51,7 @@ import {
   type PostoAlbero,
 } from '@/registry/tassullo/blocks/albero'
 import { AppShell, ColonnaLaterale, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
+import { BarraSalva } from '@/registry/tassullo/blocks/barra-salva'
 import { ConfirmDialog } from '@/registry/tassullo/blocks/confirm-dialog'
 import { ElencoDettaglio } from '@/registry/tassullo/blocks/elenco-dettaglio'
 import { EmptyState } from '@/registry/tassullo/blocks/empty-state'
@@ -142,7 +143,7 @@ import {
  * Ogni pezzo viene dal registry: il guscio, le tab ferme, `tassullo-elenco-dettaglio`
  * con `tassullo-albero` a sinistra e il blocco scelto a destra,
  * `tassullo-testo-segnaposto` per i testi e per la colonna dei dati,
- * `tassullo-form-field` (`Campo`), `tassullo-empty-state`,
+ * `tassullo-form-field` (`Campo`), `tassullo-empty-state`, `tassullo-barra-salva`,
  * `tassullo-confirm-dialog`, `tassullo-responsive-dialog`. Ciò che resta della
  * pagina è il modo di metterli insieme, e le regole della scheda: stanno nel
  * codice della style guide, in `stories/scheda-a-blocchi/` — `struttura.ts`
@@ -164,8 +165,9 @@ import {
  * - A destra il blocco scelto, uno solo: il percorso dei padri, il titolo, il
  *   livello, il testo, «Elimina il blocco» e i due passi
  *   al blocco prima e dopo, col titolo del blocco d'arrivo.
- * - Sotto la cornice la seconda card, a campi fissi; in fondo «Salva» e
- *   «Annulla», che compaiono alla prima modifica e spariscono se si torna
+ * - Sotto la cornice la seconda card, a campi fissi. «Salva» e «Annulla»
+ *   stanno in una barra ferma in fondo alla finestra: compare alla prima
+ *   modifica, da qualunque punto della pagina, e sparisce se si torna
  *   com'era.
  *
  * **Regole d'uso.**
@@ -586,26 +588,8 @@ function TabTesti({ blocchi, scrive = true, colonna = false, stretta = false, vi
             </FieldGroup>
           </CardContent>
         </Card>
-        {/* «Salva» e «Annulla» compaiono con la prima modifica, in una barra ferma in fondo alla
-            finestra: si vedono da qualunque punto della pagina, e spariscono se si torna com'era.
-            `-mx-4 -mb-4` la allargano sul margine del contenuto: a fine pagina tocca il fondo
-            della finestra come mentre si scorre, e non sembra più alta. `scroll-pb-16` sulla
-            radice: un campo raggiunto col `Tab` non finisce sotto la barra. */}
-        {sporco || inCorso ? (
-          <div
-            data-slot="barra-salva"
-            className="sticky bottom-0 z-10 -mx-4 -mb-4 flex items-center justify-end gap-3 border-t border-border bg-background px-4 py-3 [html:has(&)]:scroll-pb-16"
-          >
-            <span className="text-sm text-muted-foreground">Modifiche non salvate</span>
-            <Button type="button" variant="outline" disabled={inCorso} onClick={annulla}>
-              Annulla
-            </Button>
-            <Button type="submit" disabled={inCorso}>
-              {inCorso ? <Spinner data-icon="inline-start" /> : null}
-              Salva
-            </Button>
-          </div>
-        ) : null}
+        {/* In fondo al modulo, come ultimo figlio: la barra sta ferma in fondo alla finestra. */}
+        <BarraSalva sporco={sporco} inCorso={inCorso} onAnnulla={annulla} />
       </form>
       {/* Fuori dal `form`: `Invio` nella ricerca non salva. Solo con la tab in vista: la
           colonna la rende il guscio, fuori dal pannello, e resterebbe accanto alle altre tab. */}

@@ -14260,12 +14260,13 @@ Francesco ha guardato la pagina mentre la scrivevo. Esiti in `DECISIONI.md` §83
 - Tolte la riga sotto «Livello» e la voce «10 blocchi — solo contenitore» della legenda (anche nelle scene dell'albero e dell'elenco con dettaglio). Il percorso sopra il blocco resta: tolto e rimesso, Francesco ci ha ripensato.
 - Corretti nei blocchi tre limiti visti da Anagrafe: lo stato vuoto impila tutte le azioni o nessuna (punto 6); il testo con segnaposto riparte con una cronologia nuova a un `value` deciso da fuori (punto 7); l'albero non si rifà quando cambia `fermo` (punto 8). Ognuno con una prova che, senza la correzione, fallisce: provato togliendola.
 
+- Nuovo blocco `tassullo-barra-salva`, approvato da Francesco per tutte le schede che si modificano: la barra ferma, con scena, scena «in corso» e una prova (compare e sparisce, alta uguale in cima e in fondo alla pagina, «Annulla» e «Salva»). La pagina d'esempio la usa.
+
 Problemi:
 - Lo stato vuoto osservava sé stesso: impilando cambiava altezza e l'osservatore si rivedeva nello stesso fotogramma. Ora osserva un riferimento alto zero.
 - La prova del punto 7 passava anche col difetto: scrivere e premere il bottone in meno di mezzo secondo unisce le due cose nella cronologia. Ora aspetta 700ms.
 
 #### Aperti
 
-- Proposto a Francesco un blocco `tassullo-barra-salva` per la barra ferma, da usare in tutte le schede di Anagrafe: in attesa di risposta. Il commento sulla #125 lo aspetta.
 - La `v2.0.16` coi ritocchi ai blocchi, da pubblicare dopo l'unione; poi Anagrafe toglie i ripieghi e adotta la barra.
 - Punto 5 della #125 (l'altezza dell'elenco fermo non conta l'introduzione sopra la cornice): non toccato.
