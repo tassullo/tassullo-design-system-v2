@@ -14285,3 +14285,22 @@ PR #132 unita col gate verde in CI; l'unione è `6f6e349`. Etichetta `v2.0.16` s
 
 - #125: l'adozione della `v2.0.16` in Anagrafe (ripieghi via, barra ferma in tutte le schede); il punto 5, l'altezza dell'elenco fermo che non conta ciò che sta sopra la cornice.
 - `tassullo-pagina-scheda` mostra ancora il modulo che si accende con «Modifica»: con la barra ferma, va riallineata al modulo sempre modificabile.
+
+
+## 2026-10-14 — Proposta #125: chiuso il lato design system
+
+Francesco: «pensavo avessimo finito il lavoro lato DS. Va ultimato, poi passo ad Anagrafe». Ramo `fras/scheda-a-blocchi-fine`. Esiti in `DECISIONI.md` §83, in fondo.
+
+- Punto 5: l'elenco fermo di `tassullo-elenco-dettaglio` conta ciò che sta fra le tab e la cornice. Scena `Con Introduzione` con la sua prova.
+- `tassullo-pagina-scheda`: campi sempre modificabili, niente «Modifica», barra ferma fuori dai pannelli. Prova `Salvataggio`.
+- `tassullo-barra-salva`: da `sticky` a `fixed`, perché su una pagina corta restava a metà schermo. Prova `Pagina corta`.
+
+Problemi:
+- Su WebKit la prima misura della barra arrivava prima che il guscio avesse finito di disporsi: la prova aspetta, e l'osservatore la corregge un fotogramma dopo.
+- `Scheda vuota, prova` instabile nel gate (2 passate su 4): le prove della pagina aspettano che il bottone della barra si trovi. Causa del mezzo istante non chiarita.
+
+Test: `npm run check` in locale, tredici gate verdi; 2.232 scansioni, 0 violazioni; `test:webkit` 44 su 44. Le tre prove nuove falliscono togliendo la correzione (punto 5, misurato; barra fissa e pagina scheda, per costruzione: col blocco di prima la barra non esiste o sta a metà).
+
+#### Aperti
+
+- La `v2.0.17`, dopo l'unione; poi l'adozione in Anagrafe.

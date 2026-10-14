@@ -1637,6 +1637,15 @@ const areaTesto = () =>
   document.querySelector<Area>('[data-slot="elenco-dettaglio-dettaglio"] [data-slot="testo-segnaposto-area"]')!
 const valore = () => areaTesto().editor.getText({ blockSeparator: '\n' })
 const bottone = (nome: string | RegExp) => within(document.body).queryByRole('button', { name: nome })
+// «Salva» e «Annulla» stanno nella barra ferma: si premono quando la barra è al suo posto e si vede.
+async function premiNellaBarra(nome: 'Salva' | 'Annulla') {
+  const pulsante = await waitFor(() => {
+    const barra = document.querySelector<HTMLElement>('[data-slot="barra-salva"]')
+    expect(barra).toBeVisible()
+    return within(barra!).getByRole('button', { name: nome })
+  })
+  await userEvent.click(pulsante)
+}
 const menuChiuso = () => waitFor(() => expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull())
 
 async function pronta() {
@@ -1734,7 +1743,7 @@ export const ScritturaProva: Story = {
     await waitFor(() => expect(document.body).toHaveTextContent('9 blocchi, 1 da scrivere'))
     await waitFor(() => expect(within(document.body).queryByRole('alertdialog')).toBeNull())
     // «Annulla» li rimette.
-    await userEvent.click(bottone('Annulla')!)
+    await premiNellaBarra('Annulla')
     await waitFor(() => expect(document.body).toHaveTextContent('20 blocchi, 3 da scrivere'))
     expect(bottone('Salva')).toBeNull()
   },
@@ -1757,7 +1766,7 @@ export const SalvataggioRespintoProva: Story = {
     )
     // Si sceglie un altro blocco, poi si salva: torna scelto quello respinto.
     await userEvent.click(rigaDi('Descrizione'))
-    await userEvent.click(bottone('Salva')!)
+    await premiNellaBarra('Salva')
     await waitFor(() => expect(scelta()).toHaveTextContent("Destinazione d'uso"), { timeout: 5000 })
     await waitFor(() => expect(document.body).toHaveTextContent('{{boh.x}}: non è fra i dati che questa scheda può citare.'))
     expect(within(scelta()!).getByRole('img', { name: 'Con un errore' })).toBeTruthy()
@@ -1771,7 +1780,7 @@ export const SalvataggioRespintoProva: Story = {
     // Tornato com'era, non resta niente da salvare: si scrive qualcosa di buono.
     await areaTesto().editor.commands.focus('end')
     await scrivi(' Fine.')
-    await userEvent.click(bottone('Salva')!)
+    await premiNellaBarra('Salva')
     await waitFor(() => expect(document.body).toHaveTextContent('Testi salvati.'), { timeout: 5000 })
     await waitFor(() => expect(bottone('Salva')).toBeNull())
   },
@@ -1788,7 +1797,7 @@ export const SchedaVuotaProva: Story = {
     await waitFor(() => expect(righe()).toHaveLength(4))
     await waitFor(() => expect(document.activeElement).toBe(scelta()))
     expect(document.body).toHaveTextContent('4 blocchi, 4 da scrivere')
-    await userEvent.click(bottone('Annulla')!)
+    await premiNellaBarra('Annulla')
     await waitFor(() => expect(righe()).toHaveLength(0))
 
     await userEvent.click(bottone('Copia da un’altra famiglia')!)

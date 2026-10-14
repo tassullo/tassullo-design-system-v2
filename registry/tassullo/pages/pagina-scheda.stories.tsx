@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, waitFor } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, type UseFormReturn } from 'react-hook-form'
 import * as z from 'zod'
 import { BookOpenIcon, DownloadIcon, FileTextIcon, TrashIcon } from 'lucide-react'
 
@@ -34,7 +34,8 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
 /**
  * La scheda di un'entità: il suo nome nel percorso, le azioni nella fascia,
  * e sotto tre schede — i dati, i documenti, lo storico delle revisioni.
- * Il modulo dei dati è sempre lo stesso, e si abilita per la modifica.
+ * I campi sono sempre modificabili, e «Salva» e «Annulla» compaiono alla
+ * prima modifica in una barra ferma in fondo alla finestra.
  *
  * **Quando sì, quando no.** Per il dettaglio di un record che si consulta e
  * si corregge: una norma, un prodotto, un sistema. L'elenco da cui ci si
@@ -51,22 +52,20 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  * ```
  *
  * **I blocchi che la compongono**, da installare nell'app per nome:
- * `tassullo-page-header`, `tabs`, `card`, `tassullo-version-timeline` per
- * lo storico, `tassullo-page-skeleton` e `tassullo-error-state` per gli
- * stati.
+ * `tassullo-page-header`, `tabs`, `card`, `tassullo-barra-salva`,
+ * `tassullo-version-timeline` per lo storico, `tassullo-page-skeleton` e
+ * `tassullo-error-state` per gli stati.
  *
  * **Com'è fatto l'esempio: le prop.**
  *
  * - `percorso`: il suo ultimo livello è il nome dell'entità, ed è lì che si
  *   legge. La pagina non ha un titolo proprio.
- * - `azioni`: le azioni della pagina, nella fascia. Il blocco aggiunge in
- *   coda «Modifica», che in modifica diventa «Annulla».
- * - `anagrafica`: una funzione che riceve `modifica` e rende il modulo. È
- *   sempre lo stesso modulo: i campi sono disabilitati quando `modifica` è
- *   falso, `<Input {...campo} disabled={!modifica} />`.
- * - `modifica` e `onModificaChange`: la modifica controllata dall'app, per
- *   tornare alla lettura quando il salvataggio riesce. Assenti, il blocco la
- *   tiene da sé.
+ * - `azioni`: le azioni della pagina, nella fascia.
+ * - `anagrafica`: i campi, sempre modificabili per chi ha il ruolo.
+ * - `salvataggio`: `sporco`, `inCorso`, `onSalva` e `onAnnulla` della barra
+ *   ferma. Con react-hook-form: `sporco` è `formState.isDirty`, `onSalva` è
+ *   `handleSubmit(…)`, `onAnnulla` è `reset()`. Senza, la scheda si legge
+ *   soltanto.
  * - `documenti`: un nodo libero, perché un allegato può essere un PDF, una
  *   foto, un disegno.
  * - `storico`: `revisioni` dalla più recente alla più vecchia, e
@@ -80,8 +79,10 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  *
  * - Il nome dell'entità si scrive una volta, nel percorso. Lo stato
  *   dell'entità è un campo del modulo come gli altri, con la sua etichetta.
- * - Un modulo solo, che si abilita: un campo che cambia forma passando alla
- *   modifica fa saltare la scheda intera.
+ * - Niente «Modifica» che accende i campi: sono sempre modificabili, e la
+ *   barra di «Salva» compare alla prima modifica e sparisce dopo il
+ *   salvataggio o se si torna com'era. Si vede da qualunque scheda, e cambiare
+ *   scheda non perde le modifiche.
  * - Il contenuto di ogni scheda sta dentro una `Card`, staccato dal fondo
  *   della pagina.
  * - Le schede restano ferme sotto la fascia mentre la pagina scorre, in una
@@ -96,7 +97,7 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  *
  * **Tastiera e accessibilità.** Le schede si scorrono con le frecce, come in
  * `tabs`; nella forma stretta la `Select` si apre con `Invio`, `Spazio` o le
- * frecce. I campi disabilitati si leggono ma non prendono il fuoco.
+ * frecce. `Invio` in un campo salva, come ogni invio di modulo.
  */
 const meta = {
   title: 'Pagine/Scheda',
@@ -193,38 +194,26 @@ const REVISIONI: VersionTimelineEntry[] = [
 ]
 
 /**
- * Lo stesso albero in lettura e in modifica: `disabled={!modifica}` su ogni
- * campo, mai un componente diverso. `Annulla` scarta le modifiche non
- * salvate (`form.reset(dati)`), non solo esce dalla modalità — altrimenti
- * riaprendo "Modifica" si ritroverebbero i valori scartati.
+ * I campi della norma, sempre modificabili. Il modulo lo tiene la scheda
+ * (`form`), perché la barra di «Salva» sta fuori dal pannello e lo legge.
  */
 function AnagraficaForm({
-  dati,
-  modifica,
+  form,
+  inCorso,
   onSalva,
-  onAnnulla,
 }: {
-  dati: NormaModulo
-  modifica: boolean
-  onSalva: (dati: NormaModulo) => void
-  onAnnulla: () => void
+  form: UseFormReturn<NormaModulo>
+  inCorso: boolean
+  onSalva: () => void
 }) {
-  const form = useForm<NormaModulo>({
-    resolver: zodResolver(NORMA_SCHEMA),
-    defaultValues: dati,
-  })
-
-  // Rientrando in modifica (o dopo un salvataggio, che la torna a `pronto`)
-  // il form riparte dai dati correnti — non da un residuo di una modifica
-  // scartata in un giro precedente.
-  useEffect(() => {
-    if (modifica) form.reset(dati)
-  }, [modifica, dati, form])
-
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={form.handleSubmit((valori) => onSalva(valori))}
+      noValidate
+      onSubmit={(evento) => {
+        evento.preventDefault()
+        onSalva()
+      }}
     >
       {/*
         Tre righe, non una griglia libera: **codice, ente e stato** stanno
@@ -246,24 +235,15 @@ function AnagraficaForm({
       <FieldGroup>
         <div className="grid grid-cols-1 gap-4 @lg/field-group:grid-cols-3">
           <FormField control={form.control} nome="codice" etichetta="Codice">
-            {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
+            {(campo) => <Input {...campo} autoComplete="off" disabled={inCorso} />}
           </FormField>
           <FormField control={form.control} nome="ente" etichetta="Ente">
-            {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
+            {(campo) => <Input {...campo} autoComplete="off" disabled={inCorso} />}
           </FormField>
-          {/*
-            **Lo stato è un campo, e si modifica** (2026-09-21, indirizzo di
-            Francesco). Prima era un `<Badge>` appeso al titolo: l'unico dato
-            della pagina senza un'etichetta che dicesse di che cosa fosse il
-            valore, e per giunta in sola lettura in una pagina che ha un
-            «Modifica». Qui è un `FormField` come gli altri, con lo stesso
-            `disabled={!modifica}`: in lettura mostra il valore, in modifica si
-            apre. È anche la ragione per cui non può stare nel blocco — v. il
-            commento su `STATI`.
-          */}
+          {/* Lo stato è un campo come gli altri, con la sua etichetta. */}
           <FormField control={form.control} nome="stato" etichetta="Stato">
             {({ onChange, value, ...campo }) => (
-              <Select value={value} onValueChange={onChange} disabled={!modifica}>
+              <Select value={value} onValueChange={onChange} disabled={inCorso}>
                 <SelectTrigger {...campo}>
                   <SelectValue />
                 </SelectTrigger>
@@ -279,7 +259,7 @@ function AnagraficaForm({
           </FormField>
           <div className="@lg/field-group:col-span-3">
             <FormField control={form.control} nome="titolo" etichetta="Titolo">
-              {(campo) => <Input {...campo} autoComplete="off" disabled={!modifica} />}
+              {(campo) => <Input {...campo} autoComplete="off" disabled={inCorso} />}
             </FormField>
           </div>
           <div className="@lg/field-group:col-span-3">
@@ -297,35 +277,13 @@ function AnagraficaForm({
                 <Textarea
                   {...campo}
                   rows={3}
-                  disabled={!modifica}
-                  // **In lettura l'altezza tirata a mano si butta via.**
-                  // `textarea` ha la maniglia di ridimensionamento, e il browser
-                  // scrive l'altezza scelta in uno `style` **in linea** che
-                  // sopravvive all'uscita dalla modifica. Finché la si allarga
-                  // non fa danni; tirandola **sotto** il contenuto il testo
-                  // resta tagliato — misurato: maniglia a 43px, `min-h-16` la
-                  // riporta a 64, contenuto 72, **10px fuori** — e in lettura il
-                  // campo è `disabled`, quindi la maniglia non c'è più e da
-                  // tastiera non ci si scorre dentro. `h-auto!` scavalca lo
-                  // stile in linea (una classe `!important` vince su uno stile
-                  // in linea non importante) e lascia lavorare
-                  // `field-sizing-content`, che la primitiva ha già: in lettura
-                  // il campo è sempre alto quanto il suo testo.
-                  className={modifica ? undefined : 'h-auto!'}
+                  disabled={inCorso}
                 />
               )}
             </FormField>
           </div>
         </div>
       </FieldGroup>
-      {modifica ? (
-        <div className="flex gap-2">
-          <Button type="submit">Salva</Button>
-          <Button type="button" variant="outline" onClick={onAnnulla}>
-            Annulla
-          </Button>
-        </div>
-      ) : null}
     </form>
   )
 }
@@ -365,42 +323,42 @@ function Documenti() {
   )
 }
 
-function Scheda({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
+function Scheda({ stato, confrontabile = false }: { stato?: 'pronto' | 'caricamento' | 'errore'; confrontabile?: boolean }) {
   const [dati, setDati] = useState(NORMA)
-  const [inModifica, setInModifica] = useState(false)
+  const [inCorso, setInCorso] = useState(false)
+  const form = useForm<NormaModulo>({ resolver: zodResolver(NORMA_SCHEMA), defaultValues: dati })
+  // Il salvataggio finto: un attimo coi campi fermi, poi i valori salvati
+  // diventano quelli da cui si riparte, e la barra sparisce.
+  const salva = form.handleSubmit(async (valori) => {
+    setInCorso(true)
+    await new Promise((fatto) => setTimeout(fatto, 400))
+    setDati(valori)
+    form.reset(valori)
+    setInCorso(false)
+  })
 
   return (
     <PaginaScheda
       percorso={[{ titolo: 'Norme', href: '#' }, { titolo: dati.codice }]}
       azioni={[{ titolo: 'Elimina', icona: TrashIcon, ruolo: 'distruttiva' }]}
       stato={stato}
-      // `modifica` è controllata qui: è la story (che sa quando il
-      // "salvataggio" finto è riuscito) a decidere di tornare alla
-      // lettura, esattamente come farebbe l'app vera al successo della
-      // propria mutation.
-      modifica={inModifica}
-      onModificaChange={setInModifica}
-      anagrafica={(modifica) => (
-        <AnagraficaForm
-          dati={dati}
-          modifica={modifica}
-          onSalva={(nuovi) => {
-            setDati(nuovi)
-            setInModifica(false)
-          }}
-          onAnnulla={() => setInModifica(false)}
-        />
-      )}
+      anagrafica={<AnagraficaForm form={form} inCorso={inCorso} onSalva={() => void salva()} />}
+      salvataggio={{
+        sporco: form.formState.isDirty,
+        inCorso,
+        onSalva: () => void salva(),
+        onAnnulla: () => form.reset(),
+      }}
       documenti={<Documenti />}
-      storico={{ revisioni: REVISIONI }}
+      storico={{ revisioni: REVISIONI, confrontabile }}
     />
   )
 }
 
-function Guscio({ stato }: { stato?: 'pronto' | 'caricamento' | 'errore' }) {
+function Guscio({ stato, confrontabile }: { stato?: 'pronto' | 'caricamento' | 'errore'; confrontabile?: boolean }) {
   return (
     <AppShell applicazione="Anagrafe" collassa="icona" utente={UTENTE} sezioni={SEZIONI}>
-      <Scheda stato={stato} />
+      <Scheda stato={stato} confrontabile={confrontabile} />
     </AppShell>
   )
 }
@@ -442,8 +400,9 @@ async function provaGrigliaDati({ canvasElement }: { canvasElement: HTMLElement 
 
 /**
  * Il caso comune: il nome della norma nell'ultimo livello del percorso,
- * «Elimina» e «Modifica» accanto, i campi disabilitati — lo stato è uno di
- * loro — e uno storico di tre revisioni.
+ * «Elimina» accanto, i campi sempre modificabili — lo stato è uno di loro — e
+ * uno storico di tre revisioni. Si cambia un campo: in fondo alla finestra
+ * compare la barra di «Salva» e «Annulla».
  */
 export const ConDati: Story = {
   render: () => <Guscio />,
@@ -474,15 +433,43 @@ export const Errore: Story = {
  * abilita. Il confronto vero e proprio lo mostra `tassullo-diff-view`.
  */
 export const StoricoConfrontabile: Story = {
-  render: () => (
-    <AppShell applicazione="Anagrafe" collassa="icona" utente={UTENTE} sezioni={SEZIONI}>
-      <PaginaScheda
-        percorso={[{ titolo: 'Norme', href: '#' }, { titolo: NORMA.codice }]}
-        anagrafica={(modifica) => (
-          <AnagraficaForm dati={NORMA} modifica={modifica} onSalva={() => {}} onAnnulla={() => {}} />
-        )}
-        storico={{ revisioni: REVISIONI, confrontabile: true }}
-      />
-    </AppShell>
-  ),
+  render: () => <Guscio confrontabile />,
+}
+
+const barra = () => document.querySelector<HTMLElement>('[data-slot="barra-salva"]')
+
+// La barra: compare alla modifica, resta cambiando scheda e le modifiche
+// restano; «Annulla» rimette; un errore la lascia; «Salva» salva e la toglie.
+export const SalvataggioProva: Story = {
+  name: 'Salvataggio, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => <Guscio />,
+  play: async ({ canvasElement }) => {
+    const pagina = within(canvasElement)
+    const codice = await waitFor(() => pagina.getByLabelText('Codice'))
+    expect(barra()).toBeNull()
+    expect(pagina.queryByRole('button', { name: 'Modifica' })).toBeNull()
+
+    await userEvent.type(codice, '-2')
+    await waitFor(() => expect(barra()).toBeTruthy())
+    await userEvent.click(pagina.getByRole('tab', { name: 'Documenti' }))
+    expect(barra()).toBeTruthy()
+    await userEvent.click(pagina.getByRole('tab', { name: 'Anagrafica' }))
+    expect(pagina.getByLabelText('Codice')).toHaveValue('UNI EN 1090-2')
+
+    await userEvent.click(within(barra()!).getByRole('button', { name: 'Annulla' }))
+    await waitFor(() => expect(barra()).toBeNull())
+    expect(pagina.getByLabelText('Codice')).toHaveValue('UNI EN 1090')
+
+    // Un campo obbligatorio vuoto: l'errore sotto il campo, la barra resta.
+    await userEvent.clear(pagina.getByLabelText('Codice'))
+    await userEvent.click(within(barra()!).getByRole('button', { name: 'Salva' }))
+    await waitFor(() => expect(canvasElement).toHaveTextContent('Il codice è obbligatorio'))
+    expect(barra()).toBeTruthy()
+
+    await userEvent.type(pagina.getByLabelText('Codice'), 'UNI EN 1993')
+    await userEvent.click(within(barra()!).getByRole('button', { name: 'Salva' }))
+    await waitFor(() => expect(barra()).toBeNull())
+    expect(document.body).toHaveTextContent('UNI EN 1993')
+  },
 }

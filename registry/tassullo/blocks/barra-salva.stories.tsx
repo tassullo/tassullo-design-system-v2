@@ -42,8 +42,10 @@ import { Input } from '@/registry/tassullo/ui/input'
  * **Regole d'uso.**
  *
  * - Va in fondo al modulo, come ultimo figlio, dentro l'area del contenuto del
- *   guscio: lì sta ferma in fondo alla finestra, e a fine pagina tocca ancora
- *   il fondo.
+ *   guscio. Sta in fondo alla finestra anche su una pagina corta, larga quanto
+ *   l'area del contenuto: non copre la barra laterale né la colonna laterale.
+ *   Nella pagina lascia uno spazio alto quanto lei, e a fine pagina il
+ *   contenuto finisce sopra la barra.
  * - Sparisce se si torna com'era: «da salvare» è un confronto con ciò che è
  *   salvato, non un segno che resta acceso alla prima battuta.
  * - Non nella fascia: in alto a destra stanno le azioni della pagina.
@@ -69,7 +71,7 @@ const UTENTE = { nome: 'Stefano', cognome: 'Bertolini', email: 'sbertolini@esemp
 const CAMPI = Array.from({ length: 14 }, (_, n) => ({ nome: `campo-${n + 1}`, etichetta: `Campo ${n + 1}`, valore: `Valore ${n + 1}` }))
 const SALVATI = Object.fromEntries(CAMPI.map((c) => [c.nome, c.valore]))
 
-function Scheda({ inCorsoAllInizio = false }: { inCorsoAllInizio?: boolean }) {
+function Scheda({ inCorsoAllInizio = false, quanti = CAMPI.length }: { inCorsoAllInizio?: boolean; quanti?: number }) {
   const [salvati, setSalvati] = useState(SALVATI)
   const [valori, setValori] = useState(
     inCorsoAllInizio ? { ...SALVATI, 'campo-1': 'Valore cambiato' } : SALVATI
@@ -94,7 +96,7 @@ function Scheda({ inCorsoAllInizio = false }: { inCorsoAllInizio?: boolean }) {
         <Card>
           <CardContent>
             <FieldGroup>
-              {CAMPI.map((c) => (
+              {CAMPI.slice(0, quanti).map((c) => (
                 <Field key={c.nome}>
                   <FieldLabel htmlFor={c.nome}>{c.etichetta}</FieldLabel>
                   <Input
@@ -174,5 +176,29 @@ export const ComportamentoProva: Story = {
     } finally {
       window.scrollTo({ top: 0, behavior: 'instant' })
     }
+  },
+}
+
+// Su una pagina più corta della finestra la barra sta in fondo alla finestra,
+// non subito sotto il contenuto; ed è larga quanto l'area del contenuto.
+export const PaginaCortaProva: Story = {
+  name: 'Pagina corta, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <Scheda quanti={2} />,
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const campo = await waitFor(() => tela.getByLabelText('Campo 1'))
+    expect(`pagina corta: ${document.documentElement.scrollHeight <= innerHeight}`).toBe('pagina corta: true')
+    await userEvent.type(campo, 'x')
+    await waitFor(() => expect(barra()).toBeTruthy())
+    const area = canvasElement.querySelector<HTMLElement>('[data-slot="barra-salva-posto"]')!.parentElement!.closest('main') ?? document.body
+    await waitFor(() => expect(`fondo ${Math.round(barra()!.getBoundingClientRect().bottom)}`).toBe(`fondo ${innerHeight}`))
+    // Non copre la barra laterale: comincia dove comincia l'area del contenuto.
+    const fascia = canvasElement.querySelector<HTMLElement>('[data-slot="page-header-bar"]') ?? area
+    await waitFor(() =>
+      expect(`sinistra ${Math.round(barra()!.getBoundingClientRect().left)}, posto ${Math.round(canvasElement.querySelector<HTMLElement>('[data-slot="barra-salva-posto"]')!.getBoundingClientRect().left)}`).toBe(
+        `sinistra ${Math.round(fascia.getBoundingClientRect().left)}, posto ${Math.round(fascia.getBoundingClientRect().left) + 16}`
+      )
+    )
   },
 }
