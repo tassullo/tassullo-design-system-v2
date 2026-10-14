@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { CopyIcon, FileSearchIcon, FolderOpenIcon, ListTreeIcon, PlusIcon } from 'lucide-react'
-import { expect } from 'storybook/test'
+import { expect, waitFor } from 'storybook/test'
 
 import { EmptyState } from '@/registry/tassullo/blocks/empty-state'
 import { Button } from '@/registry/tassullo/ui/button'
@@ -118,8 +118,8 @@ const TRE_AZIONI = (
 
 /**
  * Tre strade per uscire dal vuoto: la principale per prima, e le altre due
- * accanto, sulla stessa riga. Se lo spazio non basta si impilano, larghe
- * uguali.
+ * accanto, sulla stessa riga. Se non ci stanno tutte si impilano tutte,
+ * larghe uguali: mai due su una riga e la terza sotto.
  */
 export const PiuAzioni: Story = {
   args: {
@@ -130,7 +130,8 @@ export const PiuAzioni: Story = {
   },
 }
 
-// Tre azioni: su una riga quando c'è posto, a capo in un contenitore stretto.
+// Tre azioni: su una riga quando c'è posto, tutte impilate quando non ci stanno
+// tutte, anche dove due ci starebbero; e si riprende allargando.
 export const PiuAzioniProva: Story = {
   ...PiuAzioni,
   name: 'Più Azioni, prova',
@@ -138,6 +139,9 @@ export const PiuAzioniProva: Story = {
   render: (args) => (
     <div className="flex flex-col gap-4">
       <div data-prova="largo" className="w-3xl">
+        <EmptyState {...args} />
+      </div>
+      <div data-prova="medio" className="w-lg">
         <EmptyState {...args} />
       </div>
       <div data-prova="stretto" className="w-xs">
@@ -148,12 +152,21 @@ export const PiuAzioniProva: Story = {
   play: async ({ canvasElement }) => {
     const righe = (quale: string) =>
       new Set([...canvasElement.querySelectorAll(`[data-prova="${quale}"] button`)].map((b) => Math.round(b.getBoundingClientRect().top))).size
+    // La misura arriva col primo disegno della pagina.
+    await waitFor(() => expect(`stretto: ${righe('stretto')} righe`).toBe('stretto: 3 righe'))
     expect(`largo: ${righe('largo')} riga`).toBe('largo: 1 riga')
-    expect(`stretto: ${righe('stretto')} righe`).toBe('stretto: 3 righe')
     // Impilati sono larghi uguali; su una riga ognuno è largo quanto il suo testo.
     const larghezze = (quale: string) =>
       new Set([...canvasElement.querySelectorAll(`[data-prova="${quale}"] button`)].map((b) => Math.round(b.getBoundingClientRect().width))).size
     expect(`stretto: ${larghezze('stretto')} larghezza`).toBe('stretto: 1 larghezza')
     expect(`largo: ${larghezze('largo')} larghezze`).toBe('largo: 3 larghezze')
+    // Due ci starebbero, tre no: tutte e tre impilate, larghe uguali.
+    expect(`medio: ${righe('medio')} righe, ${larghezze('medio')} larghezza`).toBe('medio: 3 righe, 1 larghezza')
+    // Allargato, tornano su una riga; ristretto, di nuovo impilate.
+    const medio = canvasElement.querySelector<HTMLElement>('[data-prova="medio"]')!
+    medio.className = 'w-3xl'
+    await waitFor(() => expect(`medio largo: ${righe('medio')} riga`).toBe('medio largo: 1 riga'))
+    medio.className = 'w-lg'
+    await waitFor(() => expect(`medio: ${righe('medio')} righe`).toBe('medio: 3 righe'))
   },
 }

@@ -45,10 +45,11 @@ import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator } from '@/re
  * />
  * ```
  *
- * **Le prop.** `nodi`: ogni nodo ha `id`, `titolo` e i suoi `figli`. `scelto`
- * e `onScegli`: la riga scelta la tiene l'app. `segno`: ciò che sta a destra
- * del titolo, deciso dall'app riga per riga; `AlberoSegno` disegna un pallino
- * pieno, uno vuoto o un errore, `AlberoConto` un conto. `menu`: le voci del
+ * **Le prop.** `nodi`: ogni nodo ha `id`, `titolo` e i suoi `figli`, e può
+ * avere un `livello` suo. `scelto` e `onScegli`: la riga scelta la tiene
+ * l'app. `segno`: ciò che sta a destra del titolo, deciso dall'app riga per
+ * riga; `AlberoSegno` disegna un pallino pieno, uno vuoto, un errore o un
+ * avviso, `AlberoConto` un conto. `menu`: le voci del
  * menu di riga. `onSposta`: accende il riordino. `fermo`: menu e riordino
  * fermi, per esempio mentre si salva. `AlberoLegenda` è l'elenco dei segni da
  * mettere sotto.
@@ -58,9 +59,18 @@ import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator } from '@/re
  * - I primi tre livelli hanno ognuno il suo peso: il primo in grassetto, il
  *   secondo a peso medio, il terzo in tondo. Più in giù resta quello del
  *   terzo, e cambia solo il rientro.
+ * - Una riga che salta un livello, come un titoletto messo direttamente sotto
+ *   un capitolo, porta il suo `livello`: pesa come un titoletto, e il rientro
+ *   resta quello del posto in cui sta. Il nome del livello, per chi non vede,
+ *   lo scrive l'app nel titolo.
+ * - L'errore è ciò che un salvataggio ha respinto. L'avviso è ciò che l'app
+ *   vede da sé e che un salvataggio respingerebbe, anche su una riga che
+ *   nessuno ha toccato: per esempio un testo che cita un dato che non si può
+ *   citare.
  * - Un titolo lungo va a capo: non si tronca.
  * - Ogni segno ha un nome che si legge anche senza vederlo, e sotto l'albero
- *   c'è la legenda. Un conto si scrive per esteso: «5 blocchi».
+ *   c'è la legenda. Un conto si scrive per esteso, «5 blocchi», e si legge
+ *   da solo: nella legenda non serve una voce.
  * - Il menu di riga si vede al passaggio, sulla riga scelta e quando la riga
  *   ha il fuoco. Le voci le dà l'app; una voce che porta il fuoco altrove,
  *   come «Aggiungi», indica con `fuocoAltrove` l'elemento che lo prende.
@@ -88,9 +98,11 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const segnoDi = (blocco: BloccoScheda, errori: readonly string[] = []) =>
+const segnoDi = (blocco: BloccoScheda, errori: readonly string[] = [], avvisi: readonly string[] = []) =>
   errori.includes(blocco.id) ? (
     <AlberoSegno tipo="errore" nome="Con un errore" />
+  ) : avvisi.includes(blocco.id) ? (
+    <AlberoSegno tipo="avviso" nome="Con un dato che non si può citare" />
   ) : blocco.testo ? (
     <AlberoSegno tipo="pieno" nome="Con testo" />
   ) : (blocco.figli ?? []).length > 0 ? (
@@ -114,8 +126,8 @@ const LEGENDA = (
       con un errore
     </li>
     <li>
-      <AlberoConto>10 blocchi</AlberoConto>
-      solo contenitore, senza un testo suo
+      <AlberoSegno tipo="avviso" />
+      con un dato che non si può citare
     </li>
   </AlberoLegenda>
 )
@@ -141,7 +153,7 @@ function Scheda({
         nodi={blocchi}
         scelto={scelto}
         onScegli={setScelto}
-        segno={(blocco) => segnoDi(blocco, ['bagnati'])}
+        segno={(blocco) => segnoDi(blocco, ['bagnati'], ['caldo'])}
         fermo={fermo}
         menu={
           sola
@@ -191,8 +203,10 @@ function Scheda({
 /**
  * La struttura di una scheda tecnica: venti blocchi su tre livelli. A destra
  * di ogni titolo il segno di com'è messo il blocco: con testo, da scrivere,
- * con un errore, oppure quanti blocchi contiene. Le righe si trascinano fra
- * quelle dello stesso padre, e un titolo lungo va a capo.
+ * con un errore, con un avviso, oppure quanti blocchi contiene. Le righe si
+ * trascinano fra quelle dello stesso padre, e un titolo lungo va a capo.
+ * Sotto «Avvertenze» ci sono tre titoletti senza un sottocapitolo in mezzo:
+ * pesano come titoletti, al rientro del secondo posto.
  */
 export const Predefinito: Story = {
   render: () => <Scheda />,
@@ -360,5 +374,70 @@ export const RiordinoProva: Story = {
     await userEvent.click(voce(albero, 'campo'))
     await waitFor(() => expect(voce(albero, 'campo')).toHaveAttribute('aria-current', 'true'))
     expect(titoli(albero)).toEqual(prima)
+  },
+}
+
+// Un titoletto messo direttamente sotto un capitolo pesa come un titoletto,
+// al rientro di un sottocapitolo; l'avviso ha il suo nome e il suo disegno.
+export const LivelloEAvvisoProva: Story = {
+  name: 'Livello e avviso, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <Scheda />,
+  play: async ({ canvasElement }) => {
+    const albero = canvasElement
+    const titolo = (id: string) => voce(albero, id).querySelector<HTMLElement>('[data-slot="albero-titolo"]')!
+    const peso = (id: string) => getComputedStyle(titolo(id)).fontWeight
+    const rientro = (id: string) => getComputedStyle(voce(albero, id)).paddingLeft
+    // Annidati allo stesso posto: lo stesso rientro.
+    expect(rientro('gelo')).toBe(rientro('supporto'))
+    // Il peso lo decide il livello: il titoletto come gli altri titoletti.
+    expect(`gelo ${peso('gelo')}, supporto ${peso('supporto')}`).toBe(`gelo ${peso('sporchi')}, supporto 500`)
+    expect(peso('sporchi')).toBe('400')
+    // Il segno d'avviso si legge, ed è il triangolo.
+    const avviso = within(voce(albero, 'caldo')).getByRole('img', { name: 'Con un dato che non si può citare' })
+    expect(avviso.tagName.toLowerCase()).toBe('svg')
+    expect(avviso).toHaveClass('lucide-triangle-alert')
+  },
+}
+
+function FermoDaFuori({ onSposta }: { onSposta: (mossa: MossaAlbero) => void }) {
+  const [fermo, setFermo] = useState(false)
+  const [scelto, setScelto] = useState('descrizione')
+  return (
+    <div data-fermo ref={(el) => void (el && Object.assign(el, { setFermo }))} className="max-w-2xs">
+      <Albero
+        etichetta="Struttura della scheda tecnica"
+        nodi={SCHEDA_LUNGA}
+        scelto={scelto}
+        onScegli={setScelto}
+        onSposta={onSposta}
+        fermo={fermo}
+      />
+    </div>
+  )
+}
+
+// Un salvataggio che comincia e finisce (`fermo`) non rifà le righe: la riga
+// col fuoco lo tiene, e da ferma non si trascina.
+export const FermoProva: Story = {
+  name: 'Fermo, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { onSposta: fn() },
+  render: (args) => <FermoDaFuori onSposta={args.onSposta!} />,
+  play: async ({ canvasElement }) => {
+    const radice = canvasElement.querySelector('[data-fermo]') as HTMLElement & { setFermo: (fermo: boolean) => void }
+    const riga = voce(canvasElement, 'campo')
+    riga.focus()
+    expect(document.activeElement).toBe(riga)
+    radice.setFermo(true)
+    await waitFor(() => expect(voce(canvasElement, 'campo').closest('[data-slot="albero-riga"]')).toBeTruthy())
+    expect(`stessa riga: ${voce(canvasElement, 'campo') === riga}, col fuoco: ${document.activeElement === riga}`).toBe(
+      'stessa riga: true, col fuoco: true'
+    )
+    radice.setFermo(false)
+    await new Promise((fatto) => setTimeout(fatto, 50))
+    expect(`stessa riga: ${voce(canvasElement, 'campo') === riga}, col fuoco: ${document.activeElement === riga}`).toBe(
+      'stessa riga: true, col fuoco: true'
+    )
   },
 }
