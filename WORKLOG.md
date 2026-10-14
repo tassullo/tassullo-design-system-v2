@@ -14348,3 +14348,21 @@ PR #136 unita col gate verde in CI; l'unione è `cb524d9`. Etichetta `v2.0.18` s
 #### Aperti
 
 - #125: l'adozione in Anagrafe.
+
+
+## 2026-10-14 — Barra di salvataggio: il messaggio dell'osservatore in WebKit
+
+Anagrafe ha adottato la `v2.0.18` (commit `7fa2e1e` di Anagrafe, ultimo commento sulla #125) e ha segnalato una cosa sola: in WebKit, tornando sulla tab «Testi» con un testo da salvare, la console scrive «ResizeObserver loop completed with undelivered notifications». Ramo `fras/barra-salva-webkit`, sopra quello della PR #137. Ragioni in `DECISIONI.md` §83, in fondo.
+
+- Riprodotto in Playwright WebKit 1.63 su `Pagine/Scheda a blocchi → Colonna aperta`: si scrive, si va su «Anagrafica», si torna. Non si riproduce senza la colonna laterale, né su una scena con le sole tab e la barra (provata e tolta: non mostrava niente).
+- Causa: il `flushSync` della barra dentro l'osservatore rendeva anche l'aggiornamento in coda dell'elenco fermo, che cambiava l'altezza della pagina nello stesso giro.
+- `tassullo-barra-salva`: i bordi si scrivono sull'elemento, senza render; `data-misurata` al posto dello stato. Prop e comportamento invariati.
+- Prova `Cambio di tab, prova` in `stories/SchedaABlocchi.stories.tsx`, etichetta `webkit`: col codice di prima fallisce 2 volte su 2 (un messaggio per giro di tab), con la correzione passa 3 su 3. Controlla anche i bordi della barra a ogni misura dell'area.
+
+Non provato in Safari vero: lì cliccare non è permesso a questa sessione. Resta nel brief di adozione.
+
+Test: `npm run check` in locale, tredici gate verdi; 2.244 scansioni, 0 violazioni; WebKit 46 su 46.
+
+#### Aperti
+
+- La `v2.0.19`, dopo l'unione; poi il brief di adozione sulla #125 e la chiusura della #125.

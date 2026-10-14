@@ -1836,6 +1836,65 @@ export const ColonnaApertaProva: Story = {
   },
 }
 
+// Con la colonna aperta e un testo da salvare, si cambia tab e si torna. Al
+// ritorno l'area del contenuto si stringe e l'elenco fermo si rimisura: in
+// WebKit la barra di salvataggio, che si rimisurava con un render sincrono,
+// faceva scrivere in console «ResizeObserver loop completed with undelivered
+// notifications». Si controlla anche che la barra stia sui bordi dell'area a
+// ogni misura, cioè prima che la pagina si disegni.
+const fotogramma = () => new Promise((fatto) => requestAnimationFrame(fatto))
+export const CambioDiTabProva: Story = {
+  name: 'Cambio di tab, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <Pagina blocchi={SCHEDA} colonna />,
+  play: async () => {
+    await pronta()
+    await waitFor(() => expect(document.querySelector('[data-slot="colonna-laterale"]')).toBeTruthy())
+    await userEvent.click(rigaDi('Campo di applicazione'))
+    await waitFor(() => expect(document.activeElement).toBe(areaTesto()))
+    await scrivi(' Aggiunta.')
+    const barra = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('[data-slot="barra-salva"]')
+      expect(el).toBeVisible()
+      return el!
+    })
+    const area = document.querySelector<HTMLElement>('[data-slot="app-shell-contenuto"]')!
+    const errori: string[] = []
+    const fuoriPosto: string[] = []
+    const ascolta = (evento: ErrorEvent) => {
+      errori.push(evento.message)
+      evento.preventDefault()
+    }
+    const bordi = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect()
+      return `da ${Math.round(r.left)} a ${Math.round(r.right)}`
+    }
+    // Creato dopo quello della barra, l'osservatore è chiamato dopo di lei. Con
+    // la tab nascosta la barra non si dispone, e non si confronta.
+    const controllo = new ResizeObserver(() => {
+      if (barra.getClientRects().length > 0 && bordi(barra) !== bordi(area)) fuoriPosto.push(`barra ${bordi(barra)}, area ${bordi(area)}`)
+    })
+    window.addEventListener('error', ascolta)
+    controllo.observe(area)
+    try {
+      for (let giro = 0; giro < 2; giro++) {
+        await userEvent.click(within(document.body).getByRole('tab', { name: 'Anagrafica' }))
+        await waitFor(() => expect(document.querySelector('[data-slot="colonna-laterale"]')).toBeNull())
+        await userEvent.click(within(document.body).getByRole('tab', { name: 'Testi' }))
+        await waitFor(() => expect(document.querySelector('[data-slot="colonna-laterale"]')).toBeTruthy())
+        await waitFor(() => expect(barra).toBeVisible())
+        for (let n = 0; n < 3; n++) await fotogramma()
+      }
+      expect(errori).toEqual([])
+      expect(fuoriPosto).toEqual([])
+      expect(bordi(barra)).toBe(bordi(area))
+    } finally {
+      controllo.disconnect()
+      window.removeEventListener('error', ascolta)
+    }
+  },
+}
+
 // La cornice stretta: l'albero sopra, il blocco sotto, niente di fermo.
 export const CorniceStrettaProva: Story = {
   name: 'Cornice stretta, prova',

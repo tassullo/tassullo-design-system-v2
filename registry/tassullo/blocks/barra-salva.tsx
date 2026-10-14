@@ -40,9 +40,21 @@
  *
  * `scroll-pb-16` sulla radice del documento, finché la barra c'è: è alta 14
  * unità più il bordo, e un campo raggiunto col `Tab` non le finisce sotto.
+ *
+ * ── I bordi senza render ─────────────────────────────────────────────────
+ *
+ * Fino alla v2.0.18 i bordi erano uno stato, scritto con `flushSync` dentro
+ * l'osservatore. In WebKit, in una tab montata anche quando non si vede, con
+ * la colonna laterale aperta: si cambia tab e si torna, l'area si stringe, e
+ * il render sincrono eseguiva anche l'aggiornamento in attesa dell'elenco
+ * fermo di `tassullo-elenco-dettaglio`, che cambiava l'altezza della pagina
+ * dentro l'osservatore. La console scriveva «ResizeObserver loop completed
+ * with undelivered notifications» (proposta #125, trovato da Anagrafe). Ora
+ * i bordi si scrivono sull'elemento, e `data-misurata` toglie l'opacità zero:
+ * stesso istante, prima che la pagina si disegni, e nessun render. Prova
+ * `Pagine/Scheda a blocchi → Cambio di tab, prova`, in WebKit.
  */
 import * as React from "react"
-import { flushSync } from "react-dom"
 import { cn } from "cn"
 
 import { Button } from "@/registry/tassullo/ui/button"
@@ -79,23 +91,28 @@ export function BarraSalva({
 }: BarraSalvaProps) {
   const visibile = sporco || inCorso
   const posto = React.useRef<HTMLDivElement>(null)
-  const [riquadro, setRiquadro] = React.useState<{ sinistra: number; larghezza: number } | null>(null)
+  const barra = React.useRef<HTMLDivElement>(null)
   React.useLayoutEffect(() => {
     const el = posto.current
-    if (!el || typeof ResizeObserver === "undefined") return
+    if (!el) return
     // Nel guscio i bordi sono quelli dell'area del contenuto; fuori, quelli
     // del segnaposto, che il suo `-mx-4` allarga già del margine.
     const misurato = el.closest<HTMLElement>('[data-slot="app-shell-contenuto"]') ?? el
+    // I bordi si scrivono sulla barra, senza un render: l'osservatore chiama
+    // prima che la pagina si disegni, quindi nessun fotogramma con la barra
+    // fuori posto. Un render sincrono qui eseguirebbe anche gli aggiornamenti
+    // in attesa del resto della pagina, che cambierebbero le misure dentro
+    // l'osservatore.
     const leggi = () => {
+      const b = barra.current
+      if (!b) return
       const r = misurato.getBoundingClientRect()
-      const bordi = { sinistra: r.left, larghezza: r.width }
-      // Prima che la pagina si disegni: niente fotogramma con la barra fuori posto.
-      flushSync(() =>
-        setRiquadro((prima) =>
-          prima?.sinistra === bordi.sinistra && prima.larghezza === bordi.larghezza ? prima : bordi
-        )
-      )
+      b.style.left = `${r.left}px`
+      b.style.width = `${r.width}px`
+      b.dataset.misurata = ""
     }
+    leggi()
+    if (typeof ResizeObserver === "undefined") return
     const osservatore = new ResizeObserver(leggi)
     osservatore.observe(misurato)
     window.addEventListener("resize", leggi)
@@ -118,15 +135,15 @@ export function BarraSalva({
         className="-mx-4 h-14 shrink-0 in-data-[slot=app-shell-contenuto]:absolute in-data-[slot=app-shell-contenuto]:h-0 [html:has(&)]:scroll-pb-16"
       />
       <div
+        ref={barra}
         data-slot="barra-salva"
-        style={riquadro ? { left: riquadro.sinistra, width: riquadro.larghezza } : undefined}
         className={cn(
           "fixed bottom-0 z-10 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border bg-background px-4 py-3",
           // Finché lo spazio non è misurato la barra non si vede e non si
           // clicca. Non `invisible`: la visibilità si eredita, e coi bottoni
           // in `transition-all` resterebbero nascosti per tutta la transizione
           // dopo che la barra è comparsa.
-          !riquadro && "pointer-events-none opacity-0",
+          "not-data-misurata:pointer-events-none not-data-misurata:opacity-0",
           className
         )}
       >
