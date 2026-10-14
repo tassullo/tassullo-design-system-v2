@@ -55,7 +55,10 @@ export type ElencoDettaglioProps = {
 // meno ciò che sta sopra e sotto l'elenco a pagina non ancora scorsa, così la
 // cornice intera, piede compreso, entra nella finestra senza scorrere: sopra
 // la fascia (12), il margine del contenuto (4), le tab col loro stacco (14) e
-// il margine della cornice (4); sotto, i due margini (8).
+// il margine della cornice (4); sotto, i due margini (8). Sono le misure di
+// una cornice messa subito sotto le tab: se sopra c'è altro (una riga
+// d'introduzione, un bottone), il blocco misura dove comincia davvero e
+// toglie anche quello.
 const FERMO = {
   niente: { classe: "@xl/elenco-dettaglio:top-4", alto: "calc(100svh - var(--spacing) * 12)" },
   fascia: { classe: "@xl/elenco-dettaglio:top-16", alto: "calc(100svh - var(--spacing) * 28)" },
@@ -75,8 +78,25 @@ export function ElencoDettaglio({
   className,
 }: ElencoDettaglioProps) {
   const fermo = FERMO[sotto]
+  const cornice = React.useRef<HTMLDivElement>(null)
+  // Dove comincia la cornice nel documento, a pagina non scorsa. Cambia se
+  // cambia ciò che le sta sopra, o la larghezza: si rilegge quando cambia
+  // l'altezza della pagina.
+  const [sopra, setSopra] = React.useState<number | null>(null)
+  React.useEffect(() => {
+    const el = cornice.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const leggi = () => setSopra(Math.round(el.getBoundingClientRect().top + window.scrollY))
+    const osservatore = new ResizeObserver(leggi)
+    osservatore.observe(document.body)
+    return () => osservatore.disconnect()
+  }, [])
+  // Sotto la cornice, a pagina non scorsa: il margine interno sopra
+  // l'elenco (4), e sotto i due margini e il margine interno (8).
+  const alto = sopra === null ? fermo.alto : `min(${fermo.alto}, calc(100svh - ${sopra}px - var(--spacing) * 12))`
   return (
     <div
+      ref={cornice}
       data-slot="elenco-dettaglio"
       className={cn("@container/elenco-dettaglio rounded-xl bg-card p-4 text-sm text-card-foreground ring-1 ring-foreground/10", className)}
     >
@@ -85,7 +105,7 @@ export function ElencoDettaglio({
           data-slot="elenco-dettaglio-elenco"
           role={etichettaElenco ? "group" : undefined}
           aria-label={etichettaElenco}
-          style={{ "--elenco-dettaglio-alto": fermo.alto } as React.CSSProperties}
+          style={{ "--elenco-dettaglio-alto": alto } as React.CSSProperties}
           // Affiancato: una larghezza sola, fermo sotto ciò che sta in cima,
           // e se è più alto della finestra scorre per conto suo. Impilato:
           // sta sopra il dettaglio e scorre con la pagina.

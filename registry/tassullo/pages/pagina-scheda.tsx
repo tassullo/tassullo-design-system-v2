@@ -51,31 +51,22 @@
  * resto del registry: non un contenitore nuovo, solo il posto giusto in cui
  * mettere ciò che ogni tab riceve.
  *
- * ── `anagrafica`: un solo albero, disabilitato — non due viste diverse ───
+ * ── `anagrafica`: un modulo sempre modificabile, con la barra ferma ──────
  *
- * Prima versione di questo blocco (M4.3, prima correzione): `lettura` e
- * `modifica` erano due `ReactNode` distinti, uno statico e uno con
- * `tassullo-form-field`. **Corretto su indicazione di Francesco**: un campo
- * che cambia forma fra lettura e modifica — da testo a riquadro con bordo —
- * fa muovere l'intera scheda al clic su "Modifica", ed è un salto che
- * un form vero non fa. La forma giusta è **un solo form, sempre montato**:
- * gli stessi `Input`/`Select`/`Textarea` di `tassullo-form-field`, disabili
- * quando la scheda non è in modifica — lo stesso principio dei campi di
- * un modulo bancario, mai un componente diverso a seconda dello stato.
+ * Fino alla `v2.0.16` il modulo era sempre montato e **disabilitato** fuori
+ * dalla modifica, con «Modifica»/«Annulla» in coda alle azioni della fascia.
+ * Anagrafe è passata intanto al modulo **sempre modificabile** per chi ha il
+ * ruolo (2026-10-02), e la proposta #125 ha portato «Salva» e «Annulla» in
+ * una barra ferma in fondo alla finestra (`tassullo-barra-salva`, 2026-10-14).
+ * Questa pagina d'esempio si allinea: niente «Modifica», `anagrafica` è un
+ * nodo e non più una funzione di `modifica`, e `salvataggio` porta lo stato
+ * della barra. La barra sta **fuori dai pannelli**, in fondo alla scheda: si
+ * vede da qualunque tab finché c'è qualcosa da salvare, e il pannello
+ * dell'anagrafica resta montato (`keepMounted`) perché le modifiche non si
+ * perdano cambiando tab.
  *
- * Per questo `anagrafica` è una **funzione di `modifica`**, non un nodo: il
- * form dell'app riceve il booleano e decide da sé come disabilitare ogni
- * campo — tipicamente `<Input {...campo} disabled={!modifica} />`. Il
- * blocco non impone *come* si disabilita (un `Input` di shadcn si sbianca da
- * sé in `disabled`): sa solo *quando*.
- *
- * `modifica`/`onModificaChange` restano **controllabili**, non solo uno
- * stato interno: senza, il blocco non avrebbe modo di tornare alla lettura
- * dopo un salvataggio riuscito, perché quel successo lo sa solo il `<form>`
- * dell'app — che sta *dentro* `anagrafica`, opaco al blocco. Non
- * controllate, restano uno stato interno (il caso comune, un "Annulla" che
- * basta a sé stesso); controllate, l'app decide quando uscire dalla modifica
- * — tipicamente nel gestore di successo della propria `mutation`.
+ * Resta vero ciò che diceva la versione di prima: un modulo solo, che non
+ * cambia forma. Senza la modalità di modifica non c'è più niente che cambi.
  *
  * ── `storico` rende sempre `VersionTimeline`, `documenti` non rende niente da sé ─
  *
@@ -88,9 +79,9 @@
  * stessa scelta di `barra` in `tassullo-data-table`.
  */
 import { useRef, useState, type ReactNode } from "react"
-import { PencilIcon, XIcon } from "lucide-react"
 
 import { cn } from "cn"
+import { BarraSalva } from "@/registry/tassullo/blocks/barra-salva"
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
 import { PageHeader, type AzionePagina, type LivelloPercorso } from "@/registry/tassullo/blocks/page-header"
 import { PageSkeleton } from "@/registry/tassullo/blocks/page-skeleton"
@@ -127,19 +118,22 @@ export type PaginaSchedaProps = {
   /**
    * Le azioni della pagina. **Rendono nella fascia**, insieme al percorso, e
    * non sopra le tab: `PageHeader` le ripiega da sé in un menu quando la
-   * fascia si stringe. Il blocco aggiunge in coda il «Modifica»/«Annulla»
-   * della modifica in riga, che è sua e non dell'app.
+   * fascia si stringe.
    */
   azioni?: AzionePagina[]
-  /** Controllata: l'app decide quando uscire dalla modifica (tipicamente al successo del salvataggio). Assente, resta uno stato interno. */
-  modifica?: boolean
-  onModificaChange?: (modifica: boolean) => void
+  /** I campi della scheda, sempre modificabili per chi ha il ruolo. */
+  anagrafica: ReactNode
   /**
-   * Il form, sempre lo stesso albero — riceve `modifica` e decide da sé come
-   * disabilitare i campi (`<Input {...campo} disabled={!modifica} />`).
-   * Non due viste: la stessa, con o senza controlli attivi.
+   * Lo stato della barra di «Salva» e «Annulla», ferma in fondo alla finestra:
+   * c'è finché `sporco` è vero, da qualunque tab. Senza, la scheda si legge
+   * soltanto.
    */
-  anagrafica: (modifica: boolean) => ReactNode
+  salvataggio?: {
+    sporco: boolean
+    inCorso?: boolean
+    onSalva: () => void
+    onAnnulla: () => void
+  }
   /** Libero: un allegato di Norma è un PDF, uno di Prodotto una foto — nessuna forma sola. */
   documenti?: ReactNode
   storico?: SezioneStorico
@@ -156,9 +150,8 @@ export type PaginaSchedaProps = {
 export function PaginaScheda({
   percorso,
   azioni = [],
-  modifica: modificaControllata,
-  onModificaChange,
   anagrafica,
+  salvataggio,
   documenti,
   storico,
   etichetteTab,
@@ -167,15 +160,9 @@ export function PaginaScheda({
   onRiprovaErrore,
   className,
 }: PaginaSchedaProps) {
-  const [modificaPropria, setModificaPropria] = useState(false)
   const [tab, setTab] = useState("anagrafica")
   const radiceTab = useRef<HTMLDivElement>(null)
   const fasciaTab = useRef<HTMLDivElement>(null)
-  const modifica = modificaControllata ?? modificaPropria
-  function impostaModifica(v: boolean) {
-    setModificaPropria(v)
-    onModificaChange?.(v)
-  }
 
   // Cambiando tab con le tab già ferme sotto la fascia, la finestra torna
   // all'inizio del pannello: senza, il pannello nuovo si aprirebbe a metà, con
@@ -216,19 +203,10 @@ export function PaginaScheda({
     { value: "storico", label: etichetteTab?.storico ?? "Storico" },
   ]
 
-  const toggleModifica: AzionePagina = modifica
-    ? { titolo: "Annulla", icona: XIcon, ruolo: "secondaria", onClick: () => impostaModifica(false) }
-    : { titolo: "Modifica", icona: PencilIcon, ruolo: "secondaria", onClick: () => impostaModifica(true) }
-
   return (
     <div data-slot="pagina-scheda" className={cn("flex flex-col gap-4", className)}>
-      {/*
-        Le azioni salgono nella fascia, col percorso. Il
-        «Modifica»/«Annulla» va **in coda**, dopo quelle dell'app: è l'azione
-        che il blocco aggiunge di suo, e in un ripiegamento a menu si legge
-        ultima, dove chi cerca un comando di pagina se l'aspetta.
-      */}
-      <PageHeader percorso={percorso} azioni={[...azioni, toggleModifica]} />
+      {/* Le azioni salgono nella fascia, col percorso. */}
+      <PageHeader percorso={percorso} azioni={azioni} />
 
       <Tabs
         ref={radiceTab}
@@ -278,9 +256,10 @@ export function PaginaScheda({
             </SelectContent>
           </Select>
         </div>
-        <TabsContent value="anagrafica">
+        {/* Montata anche quando non si vede: le modifiche non si perdono cambiando tab. */}
+        <TabsContent value="anagrafica" keepMounted>
           <Card>
-            <CardContent>{anagrafica(modifica)}</CardContent>
+            <CardContent>{anagrafica}</CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="documenti">
@@ -302,6 +281,15 @@ export function PaginaScheda({
           </Card>
         </TabsContent>
       </Tabs>
+      {/* Fuori dai pannelli: la barra si vede da qualunque tab finché c'è qualcosa da salvare. */}
+      {salvataggio ? (
+        <BarraSalva
+          sporco={salvataggio.sporco}
+          inCorso={salvataggio.inCorso}
+          onSalva={salvataggio.onSalva}
+          onAnnulla={salvataggio.onAnnulla}
+        />
+      ) : null}
     </div>
   )
 }

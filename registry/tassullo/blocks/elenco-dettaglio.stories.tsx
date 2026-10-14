@@ -63,7 +63,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui
  *   schermo.
  * - Le misure di `sotto` sono quelle della fascia del guscio e delle tab
  *   ferme della pagina scheda: una pagina con altro di fermo in cima non è
- *   coperta.
+ *   coperta. Ciò che sta fra le tab e la cornice e scorre via, come una riga
+ *   d'introduzione, il blocco lo misura da sé: a pagina non scorsa la cornice
+ *   entra lo stesso nella finestra.
  *
  * **Tastiera e accessibilità.** Il blocco non aggiunge fermate: il `Tab`
  * attraversa l'elenco e poi il dettaglio. L'elenco che scorre si scorre da
@@ -203,7 +205,7 @@ const SEZIONI: SezioneNav[] = [
 ]
 const UTENTE = { nome: 'Stefano', cognome: 'Bertolini', email: 'sbertolini@esempio.it', ruolo: 'Redattore' }
 
-function Pagina({ iniziale }: { iniziale: BloccoScheda[] }) {
+function Pagina({ iniziale, introduzione = false }: { iniziale: BloccoScheda[]; introduzione?: boolean }) {
   const [colonna, setColonna] = useState(false)
   return (
     <AppShell applicazione="Anagrafe" sezioni={SEZIONI} utente={UTENTE}>
@@ -222,7 +224,19 @@ function Pagina({ iniziale }: { iniziale: BloccoScheda[] }) {
           <TabsContent value="anagrafica">
             <p className="text-sm text-muted-foreground">I dati della famiglia.</p>
           </TabsContent>
-          <TabsContent value="testi">
+          <TabsContent value="testi" className="flex flex-col gap-4">
+            {introduzione ? (
+              <div className="flex flex-col items-start gap-2">
+                <p className="text-sm text-muted-foreground">
+                  I valori non si scrivono a mano: si citano. Scrivi due graffe aperte e scegli il dato, oppure apri
+                  l'elenco dei dati da citare. Un dato rosso non si può citare in questa scheda, e il testo non si salva.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setColonna(!colonna)}>
+                  <BracesIcon data-icon="inline-start" />
+                  Inserisci un dato
+                </Button>
+              </div>
+            ) : null}
             <Scheda iniziale={iniziale} sotto="fascia-e-tab" colonna={colonna} />
           </TabsContent>
         </Tabs>
@@ -240,6 +254,17 @@ function Pagina({ iniziale }: { iniziale: BloccoScheda[] }) {
 export const NelGuscio: Story = {
   parameters: { layout: 'fullscreen' },
   render: () => <Pagina iniziale={SCHEDA_DA_QUARANTA} />,
+}
+
+/**
+ * Con qualcosa fra le tab e la cornice: una riga d'introduzione e un bottone.
+ * L'elenco lo conta, e a pagina non scorsa la cornice entra lo stesso nella
+ * finestra, piede compreso.
+ */
+export const ConIntroduzione: Story = {
+  name: 'Con Introduzione',
+  parameters: { layout: 'fullscreen' },
+  render: () => <Pagina iniziale={SCHEDA_DA_QUARANTA} introduzione />,
 }
 
 /**
@@ -368,5 +393,28 @@ export const StrettaProva: Story = {
     expect(getComputedStyle(elenco).position).toBe('static')
     expect(`scorre da sé: ${elenco.scrollHeight > elenco.clientHeight}`).toBe('scorre da sé: false')
     expect(within(canvasElement).getByRole('navigation', { name: 'Struttura della scheda tecnica' })).toBeInTheDocument()
+  },
+}
+
+// Con l'introduzione sopra la cornice: a pagina non scorsa il piede è nella
+// finestra, e l'elenco scorre per conto suo.
+export const ConIntroduzioneProva: Story = {
+  ...ConIntroduzione,
+  name: 'Con Introduzione, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    const elenco = await waitFor(() => {
+      const el = parte(canvasElement, 'elenco')
+      expect(el).toBeInTheDocument()
+      return el
+    })
+    const piede = canvasElement.querySelector<HTMLElement>('[data-slot="elenco-dettaglio-piede"]')!
+    expect(`scorre da sé: ${elenco.scrollHeight > elenco.clientHeight}`).toBe('scorre da sé: true')
+    await waitFor(() =>
+      expect(`piede fino a ${px(piede.getBoundingClientRect().bottom)}, in finestra: ${px(piede.getBoundingClientRect().bottom) <= innerHeight}`).toBe(
+        `piede fino a ${px(piede.getBoundingClientRect().bottom)}, in finestra: true`
+      )
+    )
   },
 }
