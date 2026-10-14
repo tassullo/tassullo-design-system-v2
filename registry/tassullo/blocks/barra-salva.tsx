@@ -23,12 +23,20 @@
  * nella pagina resta al suo posto uno spazio alto quanto lei: a fine pagina
  * il contenuto finisce sopra la barra, non sotto.
  *
- * La larghezza la prende dallo spazio: stessi bordi dell'area del contenuto
- * del guscio, allargati del suo margine (`p-4`, che segue la densità), come
- * le tab ferme (`-mx-4 px-4`). Così non copre la barra laterale, né la
- * colonna laterale quando è aperta. Lo spazio si rimisura quando cambia
- * larghezza (barra laterale chiusa o aperta, colonna laterale) e quando la
- * finestra cambia misura.
+ * Dentro il guscio la barra prende i bordi dall'area del contenuto
+ * (`data-slot="app-shell-contenuto"`), ovunque stia nel modulo: anche dentro
+ * una `Card`, dove le app tengono i moduli delle schede (in Anagrafe, nove
+ * pagine su nove). La prima forma li prendeva dallo spazio lasciato nel
+ * modulo, e dentro una card la barra usciva rientrata del margine della card,
+ * con un vuoto alto quanto lei in fondo alla card. Ora lo spazio in fondo lo
+ * lascia l'area del contenuto, alzando il suo margine finché la barra c'è, e
+ * nel modulo resta solo un segnaposto senza altezza, fuori dal flusso. Così
+ * non copre la barra laterale, né la colonna laterale quando è aperta.
+ *
+ * Fuori dal guscio la barra prende i bordi dal segnaposto, allargato del
+ * margine (`-mx-4`, come le tab ferme) e alto quanto lei.
+ * I bordi si rimisurano quando l'area cambia larghezza (barra laterale chiusa
+ * o aperta, colonna laterale) e quando la finestra cambia misura.
  *
  * `scroll-pb-16` sulla radice del documento, finché la barra c'è: è alta 14
  * unità più il bordo, e un campo raggiunto col `Tab` non le finisce sotto.
@@ -75,17 +83,21 @@ export function BarraSalva({
   React.useLayoutEffect(() => {
     const el = posto.current
     if (!el || typeof ResizeObserver === "undefined") return
+    // Nel guscio i bordi sono quelli dell'area del contenuto; fuori, quelli
+    // del segnaposto, che il suo `-mx-4` allarga già del margine.
+    const misurato = el.closest<HTMLElement>('[data-slot="app-shell-contenuto"]') ?? el
     const leggi = () => {
-      const r = el.getBoundingClientRect()
+      const r = misurato.getBoundingClientRect()
+      const bordi = { sinistra: r.left, larghezza: r.width }
       // Prima che la pagina si disegni: niente fotogramma con la barra fuori posto.
       flushSync(() =>
         setRiquadro((prima) =>
-          prima?.sinistra === r.left && prima.larghezza === r.width ? prima : { sinistra: r.left, larghezza: r.width }
+          prima?.sinistra === bordi.sinistra && prima.larghezza === bordi.larghezza ? prima : bordi
         )
       )
     }
     const osservatore = new ResizeObserver(leggi)
-    osservatore.observe(el)
+    osservatore.observe(misurato)
     window.addEventListener("resize", leggi)
     return () => {
       osservatore.disconnect()
@@ -96,18 +108,18 @@ export function BarraSalva({
   if (!visibile) return null
   return (
     <>
-      {/* Il posto della barra nella pagina: a fine pagina il contenuto finisce sopra di lei. */}
-      <div ref={posto} data-slot="barra-salva-posto" aria-hidden className="h-14 shrink-0 [html:has(&)]:scroll-pb-16" />
+      {/* Il segnaposto: fuori dal guscio tiene il posto della barra in fondo
+          alla pagina, largo quanto lei; nel guscio il posto lo lascia l'area
+          del contenuto, e il segnaposto esce dal flusso. */}
+      <div
+        ref={posto}
+        data-slot="barra-salva-posto"
+        aria-hidden
+        className="-mx-4 h-14 shrink-0 in-data-[slot=app-shell-contenuto]:absolute in-data-[slot=app-shell-contenuto]:h-0 [html:has(&)]:scroll-pb-16"
+      />
       <div
         data-slot="barra-salva"
-        style={
-          riquadro
-            ? {
-                left: `calc(${riquadro.sinistra}px - var(--spacing) * 4)`,
-                width: `calc(${riquadro.larghezza}px + var(--spacing) * 8)`,
-              }
-            : undefined
-        }
+        style={riquadro ? { left: riquadro.sinistra, width: riquadro.larghezza } : undefined}
         className={cn(
           "fixed bottom-0 z-10 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border bg-background px-4 py-3",
           // Finché lo spazio non è misurato la barra non si vede e non si

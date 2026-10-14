@@ -901,9 +901,16 @@ export function AppShell({
                   contenuto === "riempie" && "min-h-0 grid-rows-1",
                 )}
               >
+                {/*
+                 * L'area del contenuto. `tassullo-barra-salva` ne prende i
+                 * bordi, ovunque stia nel modulo, e quando c'è l'area le
+                 * lascia il posto in fondo: il suo margine più l'altezza
+                 * della barra (14).
+                 */}
                 <div
+                  data-slot="app-shell-contenuto"
                   className={cn(
-                    "col-start-1 row-start-1 min-w-0 flex-1 p-4",
+                    "col-start-1 row-start-1 min-w-0 flex-1 p-4 has-data-[slot=barra-salva-posto]:pb-18",
                     larghezza === "pagina" && "mx-auto w-full max-w-page",
                     contenuto === "scorre" && "isolate",
                     contenuto === "riempie" && "flex min-h-0 flex-col overflow-hidden",
