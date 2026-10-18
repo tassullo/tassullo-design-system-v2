@@ -29,7 +29,23 @@ l'app su un ramo, il v1 tolto nello stesso lavoro, in produzione l'app finita. L
 sono misurate in §64: appena entra Tailwind le pagine v1 cambiano aspetto, e finché il v1 è
 caricato anche le pagine v2 escono sbagliate. La convivenza dei due temi non si fa.
 
-Le sessioni, nell'ordine in cui si sono fatte su Anagrafe:
+**Prima di cominciare** si guarda l'app, perché da queste risposte dipende come si
+conduce il ramo:
+
+| da verificare | perché conta | dove si guarda |
+|---|---|---|
+| come va in produzione | se ogni push sul ramo principale va online, una migrazione a metà non deve mai arrivarci | il workflow di deploy |
+| chi altro ci lavora durante il passaggio | un ramo lungo si incrocia col lavoro degli altri: ci si accorda su chi tocca le pagine in migrazione, e il ramo si riallinea spesso | — |
+| le regole sui rami | se l'app vuole rami brevi, il ramo della migrazione è un'eccezione da scrivere nel suo `CLAUDE.md` prima di aprirlo, con la ragione | `CLAUDE.md` dell'app |
+| quale v1 è installato | fino alla 1.1 le classi sono ricopiate nel CSS dell'app, dalla 1.2.0 c'è un secondo `@import`: cambia cosa si toglie alla fine | `package-lock.json` |
+| se l'app usa react-hook-form | `tassullo-form-field` lo richiede; senza, si usa `Field` e i moduli non si riscrivono | `package.json` |
+| se l'app si usa in campo | `data-density="touch"` su `<html>` (`docs/INTEGRAZIONE.md`, passo 9) | — |
+| cosa il design system sa già dell'app | pagine già ricomposte, prerequisiti di backend, decisioni prese | `docs/ANALISI-COPERTURA-APP.md` (Officina e Studio: §1, §7, §8); `docs/SPEC-AUTH.md` per un accesso diverso dal solo Microsoft |
+
+La versione da fissare è l'ultima etichetta pubblicata quando si comincia, dalla pagina
+[*Tags*](https://github.com/tassullo/tassullo-design-system-v2/tags).
+
+Le sessioni, nell'ordine in cui si sono fatte su Anagrafe (i prompt sono in fondo, §4):
 
 | sessione | cosa | dove |
 |---|---|---|
@@ -119,3 +135,129 @@ Tre regole valgono per tutta la durata del ramo:
 
 Una issue è finita quando la versione che la chiude è adottata nell'app e non resta nessun
 `// in attesa di …#<n>` nel suo codice.
+
+## 4. I prompt, sessione per sessione
+
+Dire a Claude Code «implementa il nuovo design system» non basta: una sessione aperta
+nell'app conosce solo il repository dell'app, e finché la migrazione non è chiusa il suo
+`CLAUDE.md` descrive il v1. Dopo il passo 0 l'MCP di shadcn mostra i componenti del
+registry, ma non questi documenti. Ogni prompt qui sotto fa quindi clonare il design system
+**in sola lettura**, in una cartella temporanea fuori dal repository dell'app, e dice cosa
+leggere. Si incollano in Claude Code aperto nella radice dell'app, sostituendo le parti fra
+parentesi angolari.
+
+Dopo la chiusura non servono più: il `CLAUDE.md` dell'app contiene le regole e gli
+indirizzi, e ogni sessione li trova da sé. Restano gli ultimi due, per le proposte e per le
+versioni nuove.
+
+### Passo 0
+
+```text
+Portiamo <app> sul Design System Tassullo 2.0 con la procedura standard.
+Clona in sola lettura https://github.com/tassullo/tassullo-design-system-v2
+in una cartella temporanea fuori da questo repository, e leggi
+docs/PROCEDURA-APP.md e la sezione «Passo 0» di docs/GUIDA-MIGRAZIONE.md.
+
+Rispondi prima alle domande di «Prima di cominciare» della procedura, guardando
+questo repository, e fermati se una risposta cambia il piano.
+
+Poi, su un ramo secondo le regole di questo repository:
+- crea components.json nella cartella del frontend e .mcp.json a mano nella
+  radice, come dice la guida. Nell'indirizzo del registry metti l'ultima
+  etichetta pubblicata (git ls-remote --tags sul repository del design system);
+- aggiungi al CLAUDE.md la riga del passo 0;
+- se le regole di questo repository vogliono rami brevi, proponimi il testo
+  dell'eccezione per il ramo della migrazione, con la ragione.
+Non installare niente e non toccare altri file. Verifica con git status che
+cambino solo questi, poi apri la PR.
+```
+
+Unita la PR, si chiude e si riapre Claude Code, si approva il server `shadcn` e gli si
+chiede «cerca nel registry Tassullo un dialogo di conferma»: deve trovare
+`tassullo-confirm-dialog`.
+
+### Inventario
+
+```text
+Aggiorna il clone del design system e leggi la sezione «Prima del ramo:
+l'inventario» di docs/GUIDA-MIGRAZIONE.md, ciò che docs/ANALISI-COPERTURA-APP.md
+dice di <app> e, se l'accesso non è solo con Microsoft, docs/SPEC-AUTH.md.
+
+Per ogni pagina dell'app: cos'è (lista, scheda, dialogo, cruscotto) e quale
+pagina d'esempio o blocco del v2 la sostituisce, chiedendolo all'MCP di
+shadcn (registry @tassullo). Esegui i grep della guida e annota, leggendo il
+codice, ciò che a grep sfugge: azioni che cancellano senza conferma, errori
+mostrati dietro una finestra aperta, barre di tab scritte a mano.
+
+Scrivi il piano della migrazione in <percorso fuori dal repository>: ordine
+delle pagine, gruppi per sessione, tutto ciò che non va perso coi numeri di
+riga, e le lacune candidate con il testo della proposta pronto (non aprirle).
+Non modificare niente nel repository.
+```
+
+### Fondamenta e guscio
+
+```text
+Apri il ramo della migrazione, <nome del ramo>. Aggiorna il clone del design
+system e segui docs/GUIDA-MIGRAZIONE.md, «Il ramo, nell'ordine», passi 1–4,
+con i rimandi a docs/INTEGRAZIONE.md: Tailwind e alias senza riscrivere
+vite.config.ts, App.tsx e index.css; cancella il components.json del passo 0
+prima di shadcn init e rimetti il registry con la stessa etichetta; tema,
+palette di partenza, collegamento di Inter in index.html; tassullo-app-shell
+al posto della navigazione e <Toaster />; data-density="touch" su <html> se
+l'app si usa in campo. Non migrare ancora le pagine e non giudicare l'aspetto:
+col v1 caricato è sbagliato per costruzione. Poi npx tsc -b, npm run build,
+commit.
+```
+
+### Le pagine, un gruppo per sessione
+
+```text
+Sul ramo <nome del ramo>, migra le pagine <elenco> seguendo il piano in
+<percorso> e i passi 5–6 di docs/GUIDA-MIGRAZIONE.md (aggiorna prima il
+clone). Per ogni pagina: leggi la pagina d'esempio più vicina con
+npx shadcn@latest view @tassullo/<pagina>, installa i blocchi che servono con
+npx shadcn@latest add @tassullo/<item>, riscrivi la pagina applicando le
+tabelle di sostituzione, cancella il suo CSS. Un commit per pagina, e aggiorna
+l'elenco degli item installati nel piano.
+Se manca qualcosa non scriverlo in casa e non ritoccare i file del design
+system: usa il componente più vicino con // in attesa di
+tassullo-design-system-v2#<n> e prepara la proposta secondo
+docs/PROCEDURA-APP.md, «Proposte». Alla fine npx tsc -b e npm run build.
+```
+
+### Chiusura
+
+```text
+Sul ramo <nome del ramo>, con tutte le pagine migrate: aggiorna il clone e
+segui i passi 7–9 di docs/GUIDA-MIGRAZIONE.md e i passi 11–12 di
+docs/INTEGRAZIONE.md. Via il v1; verifica con tassullo-controllo, i grep
+esclusi i file installati, npx tsc -b e npm run build; controllo e lint nella
+CI dell'app; documenti dell'app: il blocco «Regole da inserire nel CLAUDE.md»
+tal quale al posto della sezione di stile del v1, la specifica delle
+interfacce se c'è, la voce di manutenzione nella roadmap e il paragrafo
+«Design system» nella checklist con versione e item installati. Dimmi quali
+pagine guardare nel browser e in quali modalità, poi apri la PR.
+```
+
+### Una proposta
+
+```text
+Apri una proposta al design system secondo docs/PROCEDURA-APP.md, «Proposte»,
+del repository tassullo/tassullo-design-system-v2, col modulo «Proposta»
+(gh issue create -R tassullo/tassullo-design-system-v2 --label proposta).
+Il bisogno: <cosa serve, per funzione>. La issue è pubblica: niente dati veri.
+Nel codice lascia il componente più vicino con // in attesa di
+tassullo-design-system-v2#<n>.
+```
+
+### Una versione nuova
+
+```text
+Il design system ha pubblicato <etichetta>, che chiude le issue <#n, #m>.
+Leggi i commenti di adozione su quelle issue e segui docs/PROCEDURA-APP.md,
+«Riadozione», del repository tassullo/tassullo-design-system-v2: etichetta
+nuova in components.json, --overwrite degli item già installati col tema per
+primo, via i commenti «in attesa di» e i ripieghi, diff, tassullo-controllo,
+npx tsc -b, npm run build. Poi scrivi l'esito su ogni issue.
+```
