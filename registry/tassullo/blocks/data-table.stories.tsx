@@ -2974,6 +2974,95 @@ export const RidimensionabileConMenuRigaProva: StoryObj<typeof DataTable<Prodott
   play: provaColonnaElastica,
 }
 
+function MenuAzioniConVoceLunga() {
+  const prodotto = useDataTableRow<Prodotto>()
+  return (
+    <>
+      <RowMenuItem onClick={() => console.info(`Modifica ${prodotto.codice}`)}>
+        <PencilIcon aria-hidden />
+        Modifica
+      </RowMenuItem>
+      <RowMenuItem onClick={() => console.info(`Copia sulle varianti di ${prodotto.codice}`)}>
+        <CopyIcon aria-hidden />
+        Uguale per le altre varianti…
+      </RowMenuItem>
+      <RowMenuSeparator />
+      <RowMenuItem
+        variant="destructive"
+        onClick={() => console.info(`Elimina ${prodotto.codice}`)}
+      >
+        <Trash2Icon aria-hidden />
+        Elimina
+      </RowMenuItem>
+    </>
+  )
+}
+
+/**
+ * Il menu «⋯» è largo quanto la sua voce più lunga, non quanto il bottone che
+ * lo apre: «Uguale per le altre varianti…» sta su una riga, come nel menu del
+ * tasto destro.
+ */
+export const MenuRigaConVoceLunga: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Menu Riga Con Voce Lunga',
+  args: {
+    colonne: COLONNE_MENU_RIGA,
+    dati: PRODOTTI.slice(0, 5),
+    idRiga: (p: Prodotto) => p.id,
+    menuRiga: {
+      menu: <MenuAzioniConVoceLunga />,
+      ariaLabel: (p: Prodotto) => `Azioni su ${p.nome}`,
+    },
+    cerca: false,
+    colonneNascondibili: false,
+    piePagina: false,
+  },
+  play: apriCol('[aria-label^="Azioni su"]', 'dropdown-menu-content'),
+}
+
+// Scena di misura di «Menu Riga Con Voce Lunga». Apre il menu «⋯» e controlla
+// che la voce lunga sia alta quanto una voce corta (una riga sola) e che il
+// pannello sia più largo del suo minimo di serie. Col pannello largo quanto il
+// grilletto la voce andava su tre righe: 64px contro 27, in densità normale.
+// Poi lo richiude e lo riapre con `apriCol`, che nella passata a popup chiusi
+// non apre niente.
+export const MenuRigaConVoceLungaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  ...MenuRigaConVoceLunga,
+  name: 'Menu Riga Con Voce Lunga, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaMenuRigaConVoceLunga,
+}
+
+async function provaMenuRigaConVoceLunga(contesto: { canvasElement: HTMLElement }) {
+  const grillettoMenu = await waitFor(() => {
+    const el = contesto.canvasElement.querySelector<HTMLElement>('[aria-label^="Azioni su"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  await userEvent.click(grillettoMenu)
+  const pannello = await waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  const voci = () => [...pannello.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+  await waitFor(() => expect(voci()).toHaveLength(3))
+  const altezza = (el: HTMLElement) => el.getBoundingClientRect().height
+  const [corta, lunga] = voci()
+  expect(lunga.textContent).toContain('Uguale per le altre varianti')
+  await waitFor(() => expect(Math.abs(altezza(lunga) - altezza(corta))).toBeLessThan(1))
+  // Il minimo di serie è `min-w-32`: il pannello deve averlo superato per
+  // far stare la voce, non coincidere con lui.
+  const minimo = parseFloat(getComputedStyle(pannello).minWidth)
+  expect(pannello.getBoundingClientRect().width).toBeGreaterThan(minimo + 1)
+
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() =>
+    expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull()
+  )
+  await apriCol('[aria-label^="Azioni su"]', 'dropdown-menu-content')(contesto)
+}
+
 // La prova misura le larghezze rese. «Famiglia», senza `size`, non ha una
 // `width` nel `<colgroup>` e prende lo spazio che avanza; le altre colonne,
 // «⋯» compresa, restano alla loro `size`. Prima TanStack dava a «Famiglia»
