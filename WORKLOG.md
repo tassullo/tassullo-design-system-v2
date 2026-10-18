@@ -14383,6 +14383,30 @@ PR #138 unita col gate verde in CI; l'unione è `3e81adb` (porta con sé anche l
 - `tassullo-empty-state` usa lo stesso schema (`flushSync` dentro l'osservatore): nessun caso noto, `DECISIONI.md` §83.
 
 
+## 2026-10-18 — #148: il menu di riga largo quanto le sue voci
+
+Anagrafe (proposta #148): il menu «⋯» di riga di `tassullo-data-table` prendeva la larghezza del bottone che lo apre — `DropdownMenuContent` ha `w-(--anchor-width)` con `min-w-32`, cioè 128px (192 in touch) — e «Uguale per le altre varianti…» andava su tre righe. Il menu col tasto destro, con le stesse voci, non ha il problema: `ContextMenuContent` non ha un'ancora e prende la larghezza delle voci. Tre varianti rese e affiancate in chiaro, scuro, normale e touch (A oggi, B largo quanto le voci, C larghezza fissa). Francesco: «Procedi con la B». Ramo `fras/menu-riga-largo`.
+
+- `tassullo-data-table`, `MenuAzioniRiga`: `w-auto max-w-(--available-width)` sul pannello. Il primo dà la larghezza delle voci, il secondo (variabile di Base UI, come `max-h-(--available-height)` di shadcn) lo tiene dentro la finestra: senza, sul telefono, una voce lunghissima portava il pannello a 375px e 5px fuori dal bordo. Correzione nel blocco, non in `ui/dropdown-menu.tsx`: gli altri menu tengono la larghezza di serie.
+- Scene `Menu Riga Con Voce Lunga` e `…, prova` in `data-table.stories.tsx`: la prova apre il menu e controlla che la voce lunga sia alta quanto una corta e che il pannello superi il minimo di serie. Col codice di prima fallisce, con la correzione passa.
+- Misure con clic veri in Chromium e WebKit, a 1100 e 375px, normale e touch, chiaro e scuro: pannello 215px (249 in touch), voci tutte di una riga (27px, 36 in touch), bordo destro allineato al bottone, dentro la finestra. Voce lunghissima a 375px: pannello 365px, 5px di margine per lato, voce su due righe. Tastiera: `Enter` apre, `↓` va sulla voce lunga, `Esc` riporta il fuoco sul bottone, nei due motori.
+
+Trovato strada facendo, non un difetto: in WebKit un clic **simulato** su un bottone «⋯» del tutto fuori vista (tabella scorsa di lato, a 375px o in touch) apre il menu e lo richiude subito, perché la tabella scorre per mostrare il bottone e il menu si chiude allo scorrimento, come vuole. Succede anche senza questa correzione. Con un clic vero, anche sul bottone mezzo nascosto al bordo, il menu resta aperto 3 volte su 3 nei due motori: una persona non può cliccare un bottone che non vede. Le misure si prendono quindi portando prima il bottone in vista.
+
+
+## 2026-10-18 — v2.0.20 pubblicata, #148 chiusa
+
+PR #149 unita col gate verde in CI; l'unione è `78d2177`. Etichetta `v2.0.20` su `78d2177`, push della sola etichetta. Francesco: «Il gate della 149 è verde: unisci e pubblica la v2.0.20». La #148 si è chiusa da sé con la PR (`Closes #148`).
+
+- Dentro: il menu «⋯» di riga di `tassullo-data-table` largo quanto la sua voce più lunga, mai oltre la finestra.
+- **Non rompe chi aggiorna dalla `v2.0.19`**: prop e comportamento invariati, cambia solo la larghezza del pannello.
+- Verifica da fuori: alla `v2.0.20` rispondono 200 `registry.json`, `public/r/tassullo-data-table.json` e il sorgente del blocco; `shadcn view …/tassullo-data-table#v2.0.20` risolve l'item, e il file che restituisce porta `max-w-(--available-width)`.
+
+#### Aperti
+
+- Anagrafe: reinstallare `tassullo-data-table` alla `v2.0.20`.
+
+
 ## 2026-10-18 — Il procedimento di Anagrafe diventa lo standard per ogni app
 
 Ramo `fras/procedura-standard-app`. Nasce dalla guida per portare Officina e Studio sul v2, preparata prima per Roberto come documento a parte e poi, su richiesta di Francesco, portata qui in forma valida per chiunque. Francesco: il procedimento di Anagrafe «lo renderei lo standard per ogni applicazione», per la prima implementazione, per le proposte e per la riadozione. Ragioni in `DECISIONI.md` §84.
