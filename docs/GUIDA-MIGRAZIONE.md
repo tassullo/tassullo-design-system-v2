@@ -31,9 +31,10 @@ app, pagina migrata dopo pagina migrata. È stato misurato su Anagrafe (`docs/DE
 
 Si può rimediare (la ricetta è in §64, e costa una ventina di righe di CSS con `@scope` e
 livelli), ma le pagine v1 cambiano comunque carattere e corpo. Per Anagrafe si è scelto di
-non farlo: un ramo solo, e nessuna fase intermedia in produzione. È la scelta predefinita
-di questa guida; un'altra app può rifarla, e se decide di far convivere i due temi segue
-§64.
+non farlo: un ramo solo, e nessuna fase intermedia in produzione. **Da allora è lo standard
+per ogni app** (`docs/DECISIONI.md` §84): la ricetta di §64 resta come misura, non come
+strada. L'ordine delle sessioni, le proposte al design system e l'adozione delle versioni
+successive sono in `docs/PROCEDURA-APP.md`.
 
 ## Passo 0 — consultare il v2 dall'app, senza installare niente
 
@@ -68,10 +69,14 @@ shadcn, invece di riscriverli. Installarli richiede la migrazione; consultarli n
        "hooks": "@/hooks"
      },
      "registries": {
-       "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.6/public/r/{name}.json"
+       "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/vX.Y.Z/public/r/{name}.json"
      }
    }
    ```
+
+   Al posto di `vX.Y.Z` va l'ultima etichetta pubblicata, presa dalla pagina
+   [*Tags*](https://github.com/tassullo/tassullo-design-system-v2/tags) del repository: il design system cambia versione spesso, e
+   questo documento non ne cita una.
 
 2. `.mcp.json`, nella radice del repository (la cartella da cui parte Claude Code),
    **scritto a mano**. Se il frontend sta nella radice:
@@ -365,7 +370,8 @@ Vanno decise nell'app, durante la migrazione.
 - **Le scelte con un valore libero** (`<datalist>`, o una tendina con «Altro» che apre un
   campo) non hanno un componente nel v2: la scelta si fa dalla lista, con `combobox` o
   `select`. Se l'app ha davvero bisogno di un valore fuori lista, si propone al design
-  system (modulo «Proposta»), non si scrive in casa.
+  system (modulo «Proposta»), non si scrive in casa. Come si apre una proposta e come si
+  adotta la versione che la risolve: `docs/PROCEDURA-APP.md`, «Proposte» e «Riadozione».
 - **Gli errori dentro le finestre**: un errore del server durante un salvataggio si mostra
   dentro il dialogo aperto, non nell'avviso della pagina che sta dietro.
 - **Le azioni che cancellano** passano da `tassullo-confirm-dialog`, o da

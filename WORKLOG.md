@@ -14405,3 +14405,20 @@ PR #149 unita col gate verde in CI; l'unione è `78d2177`. Etichetta `v2.0.20` s
 #### Aperti
 
 - Anagrafe: reinstallare `tassullo-data-table` alla `v2.0.20`.
+
+
+## 2026-10-18 — Il procedimento di Anagrafe diventa lo standard per ogni app
+
+Ramo `fras/procedura-standard-app`. Nasce dalla guida per portare Officina e Studio sul v2, preparata prima per Roberto come documento a parte e poi, su richiesta di Francesco, portata qui in forma valida per chiunque. Francesco: il procedimento di Anagrafe «lo renderei lo standard per ogni applicazione», per la prima implementazione, per le proposte e per la riadozione. Ragioni in `DECISIONI.md` §84.
+
+- **`docs/PROCEDURA-APP.md`**, nuovo: i tre momenti (prima implementazione, proposte, riadozione), le sessioni nell'ordine seguito su Anagrafe, chi fa cosa dalla parte dell'app e da quella del design system, quando una issue è finita. Ricostruito dal diario delle ondate 1–4 e della #125. In più le verifiche da fare sull'app prima di cominciare e i prompt delle sessioni, generici: una sessione nell'app non conosce questo repository finché il `CLAUDE.md` dell'app non lo nomina, quindi ogni prompt fa clonare il design system in sola lettura e dice cosa leggere. Il documento a parte per Roberto è eliminato. Nell'introduzione della style guide, la sezione «Portare un'app sul design system»: i tre momenti e il rimando alla procedura, senza ricopiare i prompt (due copie si separano, e `check:storybook` non accetterebbe nel testo visibile i nomi dei documenti interni che i prompt citano).
+- **`GUIDA-MIGRAZIONE.md`**: «in un colpo solo» non è più la scelta predefinita che un'app può rifare, è lo standard; rimandi alla procedura.
+- **`INTEGRAZIONE.md`**: rimandi alla procedura nel blocco per il `CLAUDE.md` delle app e in «Aggiornare».
+- **Nessuna versione da fissare nei documenti** (Francesco: «è pericoloso citarne una specifica»). Erano fermi alla `v2.0.6` con l'ultima etichetta alla `v2.0.19`. Ora `vX.Y.Z` e il rimando alla pagina *Tags* in `README.md`, `INTEGRAZIONE.md`, `GUIDA-MIGRAZIONE.md` e nell'introduzione della style guide. Le versioni citate come storia restano.
+- `CLAUDE.md` (§Regola permanente) e la riga di D6 in `CHECKLIST.md` rimandano alla procedura.
+
+Non è una modifica di soli documenti: cambia `stories/Introduzione.mdx`, quindi gira il gate intero.
+
+#### Aperti
+
+- Officina e Studio: quando cominciano lo decidono loro (D6).

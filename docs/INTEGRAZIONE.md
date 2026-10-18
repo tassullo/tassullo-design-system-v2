@@ -147,7 +147,7 @@ quello Base UI.
 
 ```json
 "registries": {
-  "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/v2.0.4/public/r/{name}.json"
+  "@tassullo": "https://raw.githubusercontent.com/tassullo/tassullo-design-system-v2/vX.Y.Z/public/r/{name}.json"
 }
 ```
 
@@ -155,9 +155,11 @@ Senza questa riga i componenti che dipendono da altri componenti del catalogo
 — quasi tutti i blocchi e tutte le pagine — falliscono con
 `Unknown registry "@tassullo"`, e l'MCP del passo 5 non vede il catalogo.
 
-**La versione sta nell'indirizzo.** `v2.0.6` è l'etichetta della versione: fissata
+**La versione sta nell'indirizzo.** Al posto di `vX.Y.Z` si scrive l'etichetta della
+versione, l'ultima pubblicata quando si comincia: questo documento non ne cita una,
+perché il design system cambia versione spesso. Fissata
 lì, l'app riceve sempre gli stessi file, e non cambia niente finché non si decide di
-aggiornare. Le etichette sono elencate nella pagina *Tags* del repository su GitHub;
+aggiornare. Le etichette sono elencate nella pagina [*Tags*](https://github.com/tassullo/tassullo-design-system-v2/tags) del repository su GitHub;
 una versione più recente si adotta cambiando l'etichetta nell'indirizzo (vedi
 «Aggiornare»). Al posto dell'etichetta si può scrivere `main`, l'ultima versione
 pubblicata: serve a provare, non a un'app in produzione, perché ogni `add` porterebbe
@@ -648,9 +650,11 @@ propone al design system come variante del tema.
 
 ## Aggiornare
 
-Una versione nuova si adotta in due gesti. Prima si cambia l'etichetta
-nell'indirizzo di `@tassullo` in `components.json` (per esempio da `v2.0.1` a
-`v2.0.6`); poi si reinstallano gli item installati per nome, il tema per primo:
+Quando la versione nuova risponde a una proposta dell'app, la issue porta un
+commento con cosa reinstallare e cosa togliere: il ciclo è in
+`docs/PROCEDURA-APP.md`. Una versione nuova si adotta in due gesti. Prima si cambia l'etichetta
+nell'indirizzo di `@tassullo` in `components.json` (dalla versione installata
+all'ultima della pagina *Tags*); poi si reinstallano gli item installati per nome, il tema per primo:
 
 ```bash
 npx shadcn@latest add @tassullo/<item> --overwrite
@@ -682,7 +686,7 @@ collegamento del passo 6. Se il nome del file del carattere cambia (cambia
 solo con una versione nuova di Inter), il collegamento si aggiorna allo stesso
 modo; `tassullo-controllo` segnala le tre cose. Poi si guarda il diff: se l'app aveva modificato un file in casa, è qui che la modifica si perde
 — ed è la ragione per cui non si modifica. Cosa è cambiato fra due versioni lo
-dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/v2.0.5...v2.0.6`.
+dice GitHub: `github.com/tassullo/tassullo-design-system-v2/compare/<installata>...<nuova>`.
 
 ## Regole da inserire nel CLAUDE.md della nuova app
 
@@ -736,7 +740,9 @@ installati, non le cartelle: un file nuovo dell'app può stare accanto a loro.
   schermate con dati reali. Nel frattempo si usa il componente più vicino così
   com'è, con un commento `// in attesa di tassullo-design-system-v2#<numero>`;
   quando la proposta è chiusa si reinstalla e il commento si toglie. Mai una
-  versione «per ora» nell'app.
+  versione «per ora» nell'app. Il ciclo intero — proposta, versione nuova,
+  adozione, esito scritto sulla issue — è in
+  https://github.com/tassullo/tassullo-design-system-v2/blob/main/docs/PROCEDURA-APP.md.
 - In `components.json` il campo `"style"` resta `"base-nova"`: è ciò che fa
   arrivare le primitive Base UI.
 
@@ -842,7 +848,7 @@ design system, non si spegne la regola: si apre una proposta.
 
 **Aggiornare.**
 - La versione del design system sta nell'indirizzo di `@tassullo` in
-  `components.json`: un'etichetta git come `v2.0.6` (l'elenco è nella pagina
+  `components.json`: un'etichetta git nella forma `vX.Y.Z` (l'elenco è nella pagina
   *Tags* del repository su GitHub). `main`, l'ultima versione pubblicata, serve
   solo a provare.
 - Un item si aggiorna reinstallandolo, poi si legge il diff:
@@ -852,7 +858,7 @@ design system, non si spegne la regola: si apre una proposta.
 - La forma lunga, `tassullo/tassullo-design-system-v2/<item>`, qui non serve.
   Senza `#` prende `main` qualunque cosa dica `components.json`, e un solo
   `add` porterebbe file di due versioni; se proprio si usa, porta `#` e la
-  stessa versione (`…/badge#v2.0.6`).
+  stessa versione (`…/badge#vX.Y.Z`).
 ```
 
 ## Nel piano dell'app
@@ -885,7 +891,7 @@ design system, non si spegne la regola: si apre una proposta.
 ## Design system
 
 > Lo stile viene dal Design System Tassullo 2.0
-> (`tassullo/tassullo-design-system-v2`). **Versione installata: `v2.0.6`**,
+> (`tassullo/tassullo-design-system-v2`). **Versione installata: `vX.Y.Z`**,
 > quella scritta in `components.json`. **Item installati per
 > nome**: `tema`, `tassullo-controllo`, `tassullo-app-shell`, `tassullo-page-header`, `tassullo-data-table` — le primitive
 > arrivano come dipendenze e non si elencano. Un item nuovo si aggiunge qui
