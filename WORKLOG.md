@@ -14381,3 +14381,14 @@ PR #138 unita col gate verde in CI; l'unione è `3e81adb` (porta con sé anche l
 
 - Anagrafe: reinstallare `tassullo-barra-salva` alla `v2.0.19` e provare in Safari vero, che qui non si è potuto.
 - `tassullo-empty-state` usa lo stesso schema (`flushSync` dentro l'osservatore): nessun caso noto, `DECISIONI.md` §83.
+
+
+## 2026-10-18 — #148: il menu di riga largo quanto le sue voci
+
+Anagrafe (proposta #148): il menu «⋯» di riga di `tassullo-data-table` prendeva la larghezza del bottone che lo apre — `DropdownMenuContent` ha `w-(--anchor-width)` con `min-w-32`, cioè 128px (192 in touch) — e «Uguale per le altre varianti…» andava su tre righe. Il menu col tasto destro, con le stesse voci, non ha il problema: `ContextMenuContent` non ha un'ancora e prende la larghezza delle voci. Tre varianti rese e affiancate in chiaro, scuro, normale e touch (A oggi, B largo quanto le voci, C larghezza fissa). Francesco: «Procedi con la B». Ramo `fras/menu-riga-largo`.
+
+- `tassullo-data-table`, `MenuAzioniRiga`: `w-auto max-w-(--available-width)` sul pannello. Il primo dà la larghezza delle voci, il secondo (variabile di Base UI, come `max-h-(--available-height)` di shadcn) lo tiene dentro la finestra: senza, sul telefono, una voce lunghissima portava il pannello a 375px e 5px fuori dal bordo. Correzione nel blocco, non in `ui/dropdown-menu.tsx`: gli altri menu tengono la larghezza di serie.
+- Scene `Menu Riga Con Voce Lunga` e `…, prova` in `data-table.stories.tsx`: la prova apre il menu e controlla che la voce lunga sia alta quanto una corta e che il pannello superi il minimo di serie. Col codice di prima fallisce, con la correzione passa.
+- Misure con clic veri in Chromium e WebKit, a 1100 e 375px, normale e touch, chiaro e scuro: pannello 215px (249 in touch), voci tutte di una riga (27px, 36 in touch), bordo destro allineato al bottone, dentro la finestra. Voce lunghissima a 375px: pannello 365px, 5px di margine per lato, voce su due righe. Tastiera: `Enter` apre, `↓` va sulla voce lunga, `Esc` riporta il fuoco sul bottone, nei due motori.
+
+Trovato strada facendo, non un difetto: in WebKit un clic **simulato** su un bottone «⋯» del tutto fuori vista (tabella scorsa di lato, a 375px o in touch) apre il menu e lo richiude subito, perché la tabella scorre per mostrare il bottone e il menu si chiude allo scorrimento, come vuole. Succede anche senza questa correzione. Con un clic vero, anche sul bottone mezzo nascosto al bordo, il menu resta aperto 3 volte su 3 nei due motori: una persona non può cliccare un bottone che non vede. Le misure si prendono quindi portando prima il bottone in vista.

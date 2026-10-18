@@ -1433,7 +1433,13 @@ function MenuAzioniRiga<TDato>({
       >
         <EllipsisVerticalIcon aria-hidden />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      {/* `w-auto`: il pannello è largo quanto la voce più lunga, come il menu
+          del tasto destro con le stesse voci. Di serie `DropdownMenuContent`
+          prende la larghezza del grilletto, qui un bottone-icona, e una voce
+          come «Uguale per le altre varianti…» andrebbe su tre righe. Resta il
+          minimo di serie. `max-w-(--available-width)`: il pannello non esce
+          dalla finestra, e su un telefono una voce più larga va a capo. */}
+      <DropdownMenuContent align="end" className="w-auto max-w-(--available-width)">
         <ContestoTipoMenuRiga.Provider value="dropdown">
           <ContestoRigaMenu.Provider value={riga}>{menu}</ContestoRigaMenu.Provider>
         </ContestoTipoMenuRiga.Provider>
