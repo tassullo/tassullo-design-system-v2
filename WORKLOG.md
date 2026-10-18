@@ -14392,3 +14392,16 @@ Anagrafe (proposta #148): il menu «⋯» di riga di `tassullo-data-table` prend
 - Misure con clic veri in Chromium e WebKit, a 1100 e 375px, normale e touch, chiaro e scuro: pannello 215px (249 in touch), voci tutte di una riga (27px, 36 in touch), bordo destro allineato al bottone, dentro la finestra. Voce lunghissima a 375px: pannello 365px, 5px di margine per lato, voce su due righe. Tastiera: `Enter` apre, `↓` va sulla voce lunga, `Esc` riporta il fuoco sul bottone, nei due motori.
 
 Trovato strada facendo, non un difetto: in WebKit un clic **simulato** su un bottone «⋯» del tutto fuori vista (tabella scorsa di lato, a 375px o in touch) apre il menu e lo richiude subito, perché la tabella scorre per mostrare il bottone e il menu si chiude allo scorrimento, come vuole. Succede anche senza questa correzione. Con un clic vero, anche sul bottone mezzo nascosto al bordo, il menu resta aperto 3 volte su 3 nei due motori: una persona non può cliccare un bottone che non vede. Le misure si prendono quindi portando prima il bottone in vista.
+
+
+## 2026-10-18 — v2.0.20 pubblicata, #148 chiusa
+
+PR #149 unita col gate verde in CI; l'unione è `78d2177`. Etichetta `v2.0.20` su `78d2177`, push della sola etichetta. Francesco: «Il gate della 149 è verde: unisci e pubblica la v2.0.20». La #148 si è chiusa da sé con la PR (`Closes #148`).
+
+- Dentro: il menu «⋯» di riga di `tassullo-data-table` largo quanto la sua voce più lunga, mai oltre la finestra.
+- **Non rompe chi aggiorna dalla `v2.0.19`**: prop e comportamento invariati, cambia solo la larghezza del pannello.
+- Verifica da fuori: alla `v2.0.20` rispondono 200 `registry.json`, `public/r/tassullo-data-table.json` e il sorgente del blocco; `shadcn view …/tassullo-data-table#v2.0.20` risolve l'item, e il file che restituisce porta `max-w-(--available-width)`.
+
+#### Aperti
+
+- Anagrafe: reinstallare `tassullo-data-table` alla `v2.0.20`.
