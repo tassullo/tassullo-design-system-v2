@@ -37,9 +37,21 @@
  * dichiara di aprirlo, il gate lo **segnala**: è il solo modo di distinguere
  * «misurato e pulito» da «mai guardato».
  *
+ * ── Una passata che non misura niente è rossa ───────────────────────────
+ *
+ * Il 2026-10-18, in un ambiente dove Playwright non trovava il suo browser,
+ * il gate ha stampato «✔ 0 scansioni» ed è uscito con 0. Vitest era uscito
+ * con 1, ma il suo rapporto JSON diceva `success: true` con zero test, e lo
+ * script leggeva solo il rapporto. Un ambiente rotto passava per pulito.
+ * Ora una passata è **guasta**, e il gate rosso, se non ha misurato nessuna
+ * story o se vitest esce con errore senza un test fallito che lo spieghi; il
+ * gate dice perché, con la prima riga d'errore di vitest. `valuta()` è la
+ * regola, e `--self-test` la prova sui casi che la decidono.
+ *
  * Uso:
  *   npm run test:a11y            le quattro passate
  *   npm run test:a11y -- --una   solo chiaro/chiuso, per iterare in fretta
+ *   node scripts/gate-a11y.ts --self-test
  */
 
 import { spawnSync } from "node:child_process";
@@ -113,15 +125,62 @@ function dichiarazioni(): Map<string, string> {
 // `scene`: quali scene sono fallite e perché, in una riga. Senza, una corsa
 // rossa dice quante e non quali, e una prova instabile non si ritrova: è
 // successo due volte su `main`, il 12 e il 13 ottobre 2026.
-type Esito = { storie: number; falliti: number; regole: Map<string, number>; scene: string[] };
+type Esito = {
+  storie: number;
+  falliti: number;
+  regole: Map<string, number>;
+  scene: string[];
+  guasto?: string;
+};
+
+/** I codici di colore del terminale via. */
+function senzaColori(testo: string): string {
+  return testo.replace(/\u001b\[[\d;]*m/g, "");
+}
+
+/**
+ * Se la passata non ha misurato davvero, il perché; altrimenti `undefined`.
+ * `stato` è il codice d'uscita di vitest, `uscita` il suo testo.
+ */
+function valuta(stato: number | null, storie: number, falliti: number, uscita: string): string | undefined {
+  const primaRiga = senzaColori(uscita)
+    .split("\n")
+    .map((r) => r.trim())
+    .find((r) => /error/i.test(r));
+  const dettaglio = primaRiga ? `: ${primaRiga.slice(0, 200)}` : "";
+  if (storie === 0) return `nessuna story misurata (vitest uscito con ${stato})${dettaglio}`;
+  if (stato !== 0 && falliti === 0) return `vitest uscito con ${stato} senza un test fallito${dettaglio}`;
+  return undefined;
+}
+
+function autotest() {
+  const casi: [string, number | null, number, number, boolean][] = [
+    ["browser che non parte: 0 story, uscita 1", 1, 0, 0, true],
+    ["0 story, uscita 0", 0, 0, 0, true],
+    ["processo ucciso: uscita null", null, 386, 0, true],
+    ["errore senza test fallito", 1, 386, 0, true],
+    ["violazioni vere", 1, 386, 2, false],
+    ["passata pulita", 0, 386, 0, false],
+  ];
+  let ok = true;
+  for (const [nome, stato, storie, falliti, guasta] of casi) {
+    const g = valuta(stato, storie, falliti, "x\nError: browserType.launch: Executable doesn't exist\n");
+    const giusto = Boolean(g) === guasta;
+    ok &&= giusto;
+    console.log(`  ${giusto ? "✔" : "✖"} ${nome}: ${g ?? "misurata"}`);
+  }
+  if (!ok) process.exit(1);
+  console.log("\n✔ Il gate sa riconoscere una passata che non ha misurato niente.\n");
+}
 
 function esegui(p: Passata, cartella: string): Esito {
   const uscita = join(cartella, `${p.modalita}-${p.popup}.json`);
-  spawnSync(
+  const vitest = spawnSync(
     "npx",
     ["vitest", "run", "--project=storybook", "--reporter=json", `--outputFile=${uscita}`],
     {
-      stdio: "ignore",
+      encoding: "utf8",
+      maxBuffer: 256 * 1024 * 1024,
       env: { ...process.env, VITE_MODALITA: p.modalita, VITE_POPUP: p.popup },
     },
   );
@@ -143,14 +202,16 @@ function esegui(p: Passata, cartella: string): Esito {
         regole.set(id, (regole.get(id) ?? 0) + 1);
       }
       // I colori del terminale via, e gli a capo: il perché sta in una riga.
-      const perche = msg.replace(/\u001b\[[\d;]*m/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
+      const perche = senzaColori(msg).replace(/\s+/g, " ").trim().slice(0, 300);
       scene.push(`${basename(String(file.name ?? ""))} › ${t.fullName ?? t.title}: ${perche}`);
     }
   }
-  return { storie, falliti, regole, scene };
+  const guasto = valuta(vitest.status, storie, falliti, `${vitest.stderr ?? ""}\n${vitest.stdout ?? ""}`);
+  return { storie, falliti, regole, scene, guasto };
 }
 
 function main() {
+  if (process.argv.includes("--self-test")) return autotest();
   const soloUna = process.argv.includes("--una");
   const passate = soloUna ? PASSATE.slice(0, 1) : PASSATE;
   const cartella = mkdtempSync(join(tmpdir(), "gate-a11y-"));
@@ -167,6 +228,7 @@ function main() {
 
     let totScansioni = 0;
     let totFalliti = 0;
+    let guaste = 0;
     const tutte = new Map<string, number>();
     const righe: string[] = [];
 
@@ -184,16 +246,21 @@ function main() {
           `  ${String(e.falliti).padStart(3)} violazioni  ${dettaglio}`,
       );
       for (const scena of e.scene) righe.push(`      ✖ ${scena}`);
+      if (e.guasto) {
+        guaste++;
+        righe.push(`      ✖ passata guasta, ${e.guasto}`);
+      }
     }
 
     console.log("\n  Passate\n");
     for (const r of righe) console.log(r);
 
-    const verde = totFalliti === 0 && scoperti.length === 0;
+    const verde = totFalliti === 0 && scoperti.length === 0 && guaste === 0;
     console.log(
       `\n${verde ? "✔" : "✖"} ${totScansioni} scansioni` +
         ` (${passate.length} passate), ${totFalliti} violazioni` +
         (scoperti.length > 0 ? `, ${scoperti.length} popup mai aperto: ${scoperti.join(", ")}` : "") +
+        (guaste > 0 ? `, ${guaste} passata/e guasta/e: il gate non ha misurato` : "") +
         "\n",
     );
     if (!verde) process.exit(1);

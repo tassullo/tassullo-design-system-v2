@@ -14422,3 +14422,14 @@ Non è una modifica di soli documenti: cambia `stories/Introduzione.mdx`, quindi
 #### Aperti
 
 - Officina e Studio: quando cominciano lo decidono loro (D6).
+
+
+## 2026-10-18 — `test:a11y`: una passata che non misura niente è rossa
+
+Ramo `fras/gate-a11y-zero-scansioni`. Trovato lavorando alla PR #150: in questa sessione il browser di Playwright non parte, e il gate di accessibilità usciva verde con «0 scansioni». Francesco: «avvia il compito per correggere il gate a11y». Ragioni in `DECISIONI.md` §85.
+
+- `scripts/gate-a11y.ts`: vitest con l'uscita catturata invece di `stdio: "ignore"`; `valuta()` dichiara guasta una passata con zero story, o con un'uscita d'errore senza test fallito, e il gate la nomina con la prima riga d'errore. `--self-test`, sei casi.
+- `package.json`: `test:a11y` lancia prima l'autotest; `-- --una` arriva ancora alla passata.
+- `CLAUDE.md`, §Comandi: una riga sotto `test:a11y`.
+
+Test: autotest verde; `npm run test:a11y -- --una` qui rosso con il motivo (Executable doesn't exist), e verde con `vitest.config.ts` puntato per la prova al Chromium installato (563 story, 0 violazioni; modifica non committata). `test:webkit` qui esce con 1 da sé, `misura:bersagli` muore al lancio del browser: nessuno dei due aveva il difetto. `npm run check:statici` verde; il gate intero lo fa la CI.
