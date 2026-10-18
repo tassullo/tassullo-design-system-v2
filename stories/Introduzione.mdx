@@ -74,8 +74,11 @@ In produzione conviene fissare la versione con un tag, così nessuna app si
 aggiorna da sola:
 
 ```bash
-npx shadcn@latest add tassullo/tassullo-design-system-v2/button#v2.0.6
+npx shadcn@latest add tassullo/tassullo-design-system-v2/button#vX.Y.Z
 ```
+
+Al posto di `vX.Y.Z` va l'ultima etichetta pubblicata, dalla pagina
+[*Tags*](https://github.com/tassullo/tassullo-design-system-v2/tags) del repository.
 
 Un'app nuova ha bisogno, prima del primo comando, di Tailwind v4, dell'alias
 `@/*` e del registry `@tassullo` dichiarato in `components.json`. I passi

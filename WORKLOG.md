@@ -14381,3 +14381,20 @@ PR #138 unita col gate verde in CI; l'unione è `3e81adb` (porta con sé anche l
 
 - Anagrafe: reinstallare `tassullo-barra-salva` alla `v2.0.19` e provare in Safari vero, che qui non si è potuto.
 - `tassullo-empty-state` usa lo stesso schema (`flushSync` dentro l'osservatore): nessun caso noto, `DECISIONI.md` §83.
+
+
+## 2026-10-18 — Il procedimento di Anagrafe diventa lo standard per ogni app
+
+Ramo `fras/procedura-standard-app`. Nasce dalla guida per portare Officina e Studio sul v2, preparata per Roberto come documento a parte (privato, fuori dal repository). Francesco: il procedimento di Anagrafe «lo renderei lo standard per ogni applicazione», per la prima implementazione, per le proposte e per la riadozione. Ragioni in `DECISIONI.md` §84.
+
+- **`docs/PROCEDURA-APP.md`**, nuovo: i tre momenti (prima implementazione, proposte, riadozione), le sessioni nell'ordine seguito su Anagrafe, chi fa cosa dalla parte dell'app e da quella del design system, quando una issue è finita. Ricostruito dal diario delle ondate 1–4 e della #125.
+- **`GUIDA-MIGRAZIONE.md`**: «in un colpo solo» non è più la scelta predefinita che un'app può rifare, è lo standard; rimandi alla procedura.
+- **`INTEGRAZIONE.md`**: rimandi alla procedura nel blocco per il `CLAUDE.md` delle app e in «Aggiornare».
+- **Nessuna versione da fissare nei documenti** (Francesco: «è pericoloso citarne una specifica»). Erano fermi alla `v2.0.6` con l'ultima etichetta alla `v2.0.19`. Ora `vX.Y.Z` e il rimando alla pagina *Tags* in `README.md`, `INTEGRAZIONE.md`, `GUIDA-MIGRAZIONE.md` e nell'introduzione della style guide. Le versioni citate come storia restano.
+- `CLAUDE.md` (§Regola permanente) e la riga di D6 in `CHECKLIST.md` rimandano alla procedura.
+
+Non è una modifica di soli documenti: cambia `stories/Introduzione.mdx`, quindi gira il gate intero.
+
+#### Aperti
+
+- Officina e Studio: quando cominciano lo decidono loro (D6).
