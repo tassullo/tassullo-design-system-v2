@@ -21,7 +21,7 @@
     "check:font": "node scripts/build-font-css.ts",
     "logo:build": "node scripts/build-logo-css.ts --write",
     "check:logo": "node scripts/build-logo-css.ts",
-    "test:a11y": "node scripts/gate-a11y.ts",
+    "test:a11y": "node scripts/gate-a11y.ts --self-test && node scripts/gate-a11y.ts",
     "test:webkit": "vitest run --project=storybook-webkit",
     "misura:bersagli": "node scripts/misura-bersagli.ts",
     "check:riferimenti": "node scripts/check-riferimenti.ts",

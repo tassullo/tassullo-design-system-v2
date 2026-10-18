@@ -4164,3 +4164,13 @@ Ora i bordi si scrivono sull'elemento (`style.left`, `style.width`) e `data-misu
 - **Le versioni nei documenti per le app**: Francesco, sullo stesso giro, «il DS continua ad evolversi e cambiare versione. È pericoloso citarne una specifica». I documenti erano fermi alla `v2.0.6` (README, `INTEGRAZIONE.md`, `GUIDA-MIGRAZIONE.md`, l'introduzione della style guide) mentre l'ultima etichetta era la `v2.0.19`: chi li seguiva alla lettera installava una versione di tredici rilasci prima. Ora gli esempi portano il segnaposto `vX.Y.Z` e il rimando alla pagina *Tags*; le versioni citate come storia («fino a `v2.0.4`») restano. Cade così anche il passo, fatto fino alla `v2.0.6` e poi saltato, di aggiornare gli indirizzi dei documenti a ogni etichetta.
 
 Scritto in `docs/PROCEDURA-APP.md`, che è il documento operativo; `GUIDA-MIGRAZIONE.md` e `INTEGRAZIONE.md` ci rimandano.
+
+## 85. Una passata di `test:a11y` che non misura niente è rossa (2026-10-18)
+
+**Il difetto.** In una sessione nel cloud la versione di Playwright del lockfile (1.63) non trovava il suo Chromium, e `npm run test:a11y -- --una` ha stampato «✔ 0 scansioni (1 passate), 0 violazioni» uscendo con 0. Vitest era uscito con **1** («Unhandled Error», `browserType.launch: Executable doesn't exist`), ma lo script lanciava vitest con `stdio: "ignore"`, non ne guardava il codice d'uscita, e il rapporto JSON diceva `success: true` con `numTotalTests: 0` e 95 file «passati». È la famiglia muta di §22 («un popup non aperto non è un popup senza violazioni»), un gradino più in alto: un ambiente rotto passava per un ambiente pulito.
+
+**La regola.** Una passata è **guasta**, e il gate esce con 1, se non ha misurato nessuna story, oppure se vitest esce con un codice diverso da 0 senza un test fallito che lo spieghi (un file che non si carica, un processo ucciso). Il gate lo scrive sotto la passata, con la prima riga d'errore di vitest. Le violazioni restano violazioni: un'uscita 1 con test falliti si conta come prima.
+
+**Le prove.** `valuta()` è la regola; `--self-test` la prova su sei casi (browser che non parte, zero story con uscita 0, processo ucciso, errore senza test fallito, violazioni vere, passata pulita) e gira in testa a `npm run test:a11y`. Nell'ambiente rotto: «✖ passata guasta, nessuna story misurata (vitest uscito con 1): … Executable doesn't exist …», uscita 1. Con lo stesso codice e un Chromium che parte (puntato per la prova, senza committare): 563 story, 0 violazioni, uscita 0.
+
+**Gli altri due strumenti col browser non hanno lo stesso punto cieco**: `test:webkit` è `vitest run` nudo ed esce con 1 (verificato nello stesso ambiente, senza WebKit), e `misura:bersagli` muore su `chromium.launch()`.
