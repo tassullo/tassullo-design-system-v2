@@ -14446,3 +14446,18 @@ Anagrafe (proposta #153): il campo deve proporre il dato mentre si scrive, senza
 #### Aperti
 
 - Anagrafe: reinstallare `tassullo-testo-segnaposto` quando la versione è pubblicata, accendere `proponi`, e passare le voci con i dati prima dei loro dettagli, o una voce per dato come ha in programma.
+
+
+## 2026-10-20 — v2.0.21 pubblicata, #153 chiusa
+
+PR #155 unita col gate verde in CI; l'unione è `d4b2cb1`. Etichetta `v2.0.21` su `d4b2cb1`, push della sola etichetta. Francesco: «Pubblica la v2.0.21: etichetta sul commit di unione, verifica da fuori, voce di diario e brief di adozione per Anagrafe». La #153 si è chiusa da sé con la PR (`Closes #153`).
+
+- Dentro: la prop `proponi` di `tassullo-testo-segnaposto`, i dati proposti mentre si scrive, e la nuova dipendenza `@tassullo/kbd`.
+- **Non rompe chi aggiorna dalla `v2.0.20`**: la prop è nuova e spenta di serie; senza, il campo si comporta come prima.
+- Verifica da fuori: alla `v2.0.21` rispondono 200 `registry.json`, `public/r/tassullo-testo-segnaposto.json`, `public/r/kbd.json` e il sorgente del blocco; `shadcn view …/tassullo-testo-segnaposto#v2.0.21` risolve l'item, che porta `proponi` e `@tassullo/kbd`.
+- L'etichetta è annotata, le precedenti sono leggere: per la CLI non cambia niente, risolve il commit.
+- Il brief di adozione per Anagrafe è nella risposta in chat, non in un file.
+
+#### Aperti
+
+- Anagrafe: reinstallare `tassullo-testo-segnaposto` alla `v2.0.21`, accendere `proponi`, e passare le voci con i dati prima dei loro dettagli (o una voce per dato), provando in Chrome e Safari.
