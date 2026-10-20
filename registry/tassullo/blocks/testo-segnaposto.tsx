@@ -188,6 +188,25 @@
  * inserito. `inserisci` con una selezione su più righe passava dal ramo del
  * testo qualunque, senza spazi: ora unisce le righe e mette il dato.
  *
+ * ── Proposta #153 (Anagrafe), 20 ottobre 2026 ────────────────────────────
+ *
+ * `proponi`: il campo propone i dati mentre si scrive, senza il prefisso.
+ * Forma provata da Francesco su una story temporanea con i due sistemi
+ * insieme, e approvata. Il dato **non sostituisce la parola**, come chiedeva
+ * la proposta, ma entra al cursore: la pillola mostra il valore, e «Impastare
+ * con acqua» sarebbe diventato «Impastare con ca. 0,20 l/kg». La parola fa
+ * comparire le proposte, e chi scrive le porta con sé fino a dove il dato
+ * serve: «Conservare per » + `Tab` → «Conservare per 12 mesi».
+ *
+ * Le proposte non prendono la tastiera finché non le si chiama: `Invio` va a
+ * capo, le frecce muovono il cursore, lo spazio è uno spazio. `Tab` inserisce
+ * la sola proposta, o entra nel menù se sono più d'una (Francesco: «le
+ * frecce si spostano nel menù una volta premuto tab»). `Esc` chiude fino
+ * alla parola successiva. Lo stesso `Popover` dell'elenco del prefisso, con
+ * le voci in fila e il gruppo accanto al nome: raggrupparle le avrebbe
+ * riordinate per gruppo, e l'ordine qui è quello della vicinanza alla
+ * parola. Ragioni, misure e forme scartate in `docs/DECISIONI.md` §86.
+ *
  * ── I ruoli ──────────────────────────────────────────────────────────────
  *
  * L'area è `role="textbox"`, non `combobox`: è su più righe. axe esenta da
@@ -235,6 +254,7 @@ import {
 import { FORMA_SEGNAPOSTO } from "@/registry/tassullo/lib/segnaposto"
 import { Input } from "@/registry/tassullo/ui/input"
 import { Item } from "@/registry/tassullo/ui/item"
+import { Kbd } from "@/registry/tassullo/ui/kbd"
 import { Label } from "@/registry/tassullo/ui/label"
 import {
   Select,
@@ -315,6 +335,17 @@ export type TestoSegnapostoProps = {
   voci: readonly VoceSegnaposto[]
   /** La stringa che apre l'elenco, o più di una. */
   prefisso?: string | readonly string[]
+  /**
+   * Propone i dati mentre si scrive, senza il prefisso: quando una parola di
+   * almeno quattro lettere somiglia al nome di un dato, vicino alla parola
+   * compaiono fino a cinque proposte. Restano mentre si continua a scrivere,
+   * fino a fine frase o per quattro parole. `Tab` inserisce il dato dove sta
+   * il cursore; con più proposte il primo `Tab` porta nel menù, le frecce
+   * scelgono, `Tab` o `Invio` inseriscono. `Esc` le chiude fino alla parola
+   * successiva. Finché non si preme `Tab`, `Invio`, frecce e spazio fanno ciò
+   * che fanno sempre. Spenta di serie.
+   */
+  proponi?: boolean
   /**
    * La forma di un segnaposto. Un testo che la rispetta diventa una pillola
    * anche se non è fra le voci: è il segnaposto sbagliato, e si vede.
@@ -1146,6 +1177,94 @@ function leggiSessione(editor: Editor, prefissi: readonly string[]): Sessione | 
   return { da: $from.start() + inizio, a: $from.pos, query }
 }
 
+// Le proposte mentre si scrive: da quante lettere, per quante parole dopo
+// quella che le ha fatte comparire, quante al massimo.
+const PROPOSTE_LETTERE = 4
+const PROPOSTE_PAROLE_DOPO = 4
+const PROPOSTE_MASSIMO = 5
+
+// Le parole frequenti di una frase, che non fanno comparire niente, né
+// scritte né nel nome di un dato.
+const PAROLE_COMUNI = new Set([
+  "della", "delle", "dello", "degli", "nella", "nelle", "nello", "negli",
+  "alla", "alle", "allo", "agli", "dalla", "dalle", "dallo", "dagli",
+  "sulla", "sulle", "sullo", "sugli", "come", "sono", "anche", "ogni",
+  "questo", "questa", "questi", "queste", "quello", "quella", "prima", "dopo",
+  "senza", "circa", "oltre", "fino", "tutto", "tutta", "tutti", "tutte",
+  "sempre", "deve", "devono", "viene", "vengono",
+])
+
+// Una parola scritta somiglia a una del nome se ne è l'inizio («conser» e
+// «conservazione») o se hanno la stessa radice: almeno cinque lettere in
+// comune, e diverse al più nelle ultime due della più corta («conservare» e
+// «conservazione», non «massa» e «massima»).
+function somiglia(scritta: string, delNome: string) {
+  if (delNome.length < PROPOSTE_LETTERE || PAROLE_COMUNI.has(delNome)) return false
+  if (delNome.startsWith(scritta)) return true
+  let comuni = 0
+  while (comuni < scritta.length && scritta[comuni] === delNome[comuni]) comuni++
+  return comuni >= Math.max(PROPOSTE_LETTERE + 1, Math.min(scritta.length, delNome.length) - 2)
+}
+
+// Quanto un dato è vicino alla parola: 0 se il nome comincia con lei, 1 se ha
+// una parola che comincia con lei, 2 se ne ha una che le somiglia soltanto.
+// `null` se non le somiglia.
+function vicinanza(scritta: string, voce: VoceSegnaposto) {
+  const delNome = parole(voce.etichetta)
+  if (!delNome.some((parola) => somiglia(scritta, parola))) return null
+  if (delNome[0] !== undefined && somiglia(scritta, delNome[0])) return 0
+  if (delNome.some((parola) => parola.startsWith(scritta))) return 1
+  return 2
+}
+
+// Le prime proposte per una parola: le più vicine prima, e a parità
+// nell'ordine delle voci. Si cerca nel solo nome del dato.
+function proposteDi(voci: readonly VoceSegnaposto[], parola: string) {
+  const [scritta] = parole(parola)
+  if (!scritta || scritta.length < PROPOSTE_LETTERE || PAROLE_COMUNI.has(scritta)) {
+    return { voci: [], altre: 0 }
+  }
+  const trovate: { voce: VoceSegnaposto; posto: number; vicinanza: number }[] = []
+  voci.forEach((voce, posto) => {
+    const quanto = vicinanza(scritta, voce)
+    if (quanto !== null) trovate.push({ voce, posto, vicinanza: quanto })
+  })
+  trovate.sort((a, b) => a.vicinanza - b.vicinanza || a.posto - b.posto)
+  return {
+    voci: trovate.slice(0, PROPOSTE_MASSIMO).map((trovata) => trovata.voce),
+    altre: Math.max(0, trovate.length - PROPOSTE_MASSIMO),
+  }
+}
+
+// `inizio` è la posizione nel documento della parola che ha fatto comparire
+// le proposte: l'elenco si ancora lì, e `Esc` salta quella parola.
+type Proposta = { inizio: number; voci: VoceSegnaposto[]; altre: number }
+
+// La fine di una frase: un punto che non sta fra due cifre, il punto e
+// virgola, i punti esclamativo e interrogativo. E una pillola: il dato è già
+// stato messo.
+const FINE_FRASE = new RegExp(`[.;!?](?!\\p{N})|${PILLOLA_NEL_TESTO}`, "gu")
+
+// Le proposte di adesso, lette dal testo prima del cursore: l'ultima parola
+// della frase che somiglia a un dato, se dopo di lei ce ne sono al più
+// quattro.
+function leggiProposta(editor: Editor, voci: readonly VoceSegnaposto[]): Proposta | null {
+  const { $from, empty } = editor.state.selection
+  if (!empty || !$from.parent.isTextblock) return null
+  const prima = $from.parent.textBetween(0, $from.parentOffset, undefined, PILLOLA_NEL_TESTO)
+  let da = 0
+  for (const fine of prima.matchAll(FINE_FRASE)) da = fine.index + fine[0].length
+  const scritte = [...prima.slice(da).matchAll(/\p{L}+/gu)]
+  const ultima = scritte.length - 1
+  for (let posto = ultima; posto >= 0 && ultima - posto <= PROPOSTE_PAROLE_DOPO; posto--) {
+    const scritta = scritte[posto]
+    if (!scritta) continue
+    const trovate = proposteDi(voci, scritta[0])
+    if (trovate.voci.length > 0) return { inizio: $from.start() + da + scritta.index, ...trovate }
+  }
+  return null
+}
+
 // Sta dentro il popup, quindi esiste solo a elenco montato: legge gli `id`
 // che cmdk ha dato all'elenco e alla voce attiva, e tiene la voce in vista.
 function Voci({
@@ -1264,6 +1383,7 @@ export function TestoSegnaposto({
   ridimensionabile = false,
   voci,
   prefisso = "{{",
+  proponi = false,
   forma = FORMA_SEGNAPOSTO,
   vuoto = "Nessun dato",
   senzaValore = "Senza valore",
@@ -1286,6 +1406,16 @@ export function TestoSegnaposto({
   // La voce evidenziata si ricorda per il suo testo, non per il posto: se le
   // voci cambiano a elenco aperto resta lei. `null` è la prima.
   const [attivaTesto, setAttivaTesto] = React.useState<string | null>(null)
+  // Le proposte mentre si scrive, con `proponi`. Come la sessione, restano a
+  // elenco chiuso finché sfuma. `nelMenu` dopo il primo `Tab`: da lì le frecce
+  // scelgono. `modo` dice cosa mostra l'elenco, anche mentre sfuma.
+  const [proposta, setProposta] = React.useState<Proposta | null>(null)
+  const [propostaAperta, setPropostaAperta] = React.useState(false)
+  const [nelMenu, setNelMenu] = React.useState(false)
+  const [modo, setModo] = React.useState<"prefisso" | "proposta">("prefisso")
+  // La parola chiusa con `Esc`: le sue proposte non tornano finché si scrive
+  // dietro di lei.
+  const propostaSaltata = React.useRef<number | null>(null)
   const [senzaTesto, setSenzaTesto] = React.useState(!(value ?? defaultValue))
   // La pillola sotto il puntatore e quella selezionata: la loro nota si
   // legge in un tooltip.
@@ -1320,6 +1450,11 @@ export function TestoSegnaposto({
     0,
     trovate.findIndex((voce) => voce.testo === attivaTesto)
   )
+  const proposte = proposta?.voci ?? []
+  const propostaAttiva = Math.max(
+    0,
+    proposte.findIndex((voce) => voce.testo === attivaTesto)
+  )
 
   // Le voci cambiano a ogni resa se l'app le scrive sul posto: ciò che conta
   // è il contenuto, in una chiave sola.
@@ -1328,13 +1463,29 @@ export function TestoSegnaposto({
     .join("\u0001")
 
   function aggiorna(editor: Editor, scrivendo: boolean) {
-    if (!editor.isEditable) return setAperto(false)
+    // Dentro un prefisso, aperto o chiuso con `Esc`, si cerca un dato: le
+    // proposte non compaiono.
+    if (aggiornaPrefisso(editor, scrivendo)) chiudiProposta()
+    else aggiornaProposta(editor, scrivendo)
+  }
+
+  // Vero se il cursore sta dietro un prefisso con l'elenco aperto, o chiuso
+  // con `Esc`.
+  function aggiornaPrefisso(editor: Editor, scrivendo: boolean) {
+    if (!editor.isEditable) {
+      setAperto(false)
+      return false
+    }
     const letta = leggiSessione(editor, prefissi)
     if (!letta) {
       saltata.current = null
-      return setAperto(false)
+      setAperto(false)
+      return false
     }
-    if (saltata.current === letta.da) return setAperto(false)
+    if (saltata.current === letta.da) {
+      setAperto(false)
+      return true
+    }
     saltata.current = null
 
     const continua = aperto && sessione?.da === letta.da
@@ -1345,11 +1496,93 @@ export function TestoSegnaposto({
     // più niente e si è andati oltre la prima parola.
     const comincia = scrivendo && quante > 0 && (letta.query === "" || !conSpazi)
     const prosegue = continua && (quante > 0 || !conSpazi)
-    if (!comincia && !prosegue) return setAperto(false)
+    if (!comincia && !prosegue) {
+      setAperto(false)
+      return false
+    }
 
     if (!continua || letta.query !== sessione?.query) setAttivaTesto(null)
     setSessione(letta)
     setAperto(true)
+    setModo("prefisso")
+    return true
+  }
+
+  // Le proposte compaiono scrivendo, e restano finché la parola che le ha
+  // fatte comparire è ancora quella: spostando il cursore altrove si chiudono.
+  function aggiornaProposta(editor: Editor, scrivendo: boolean) {
+    if (!proponi || !editor.isEditable) return chiudiProposta()
+    const letta = leggiProposta(editor, voci)
+    if (!letta) {
+      propostaSaltata.current = null
+      return chiudiProposta()
+    }
+    if (propostaSaltata.current === letta.inizio) return chiudiProposta()
+    propostaSaltata.current = null
+    const continua = propostaAperta && proposta?.inizio === letta.inizio
+    if (!scrivendo && !continua) return chiudiProposta()
+    const stesse =
+      continua && proposta.voci.map((voce) => voce.testo).join("\u0000") === letta.voci.map((voce) => voce.testo).join("\u0000")
+    if (!stesse) {
+      setNelMenu(false)
+      setAttivaTesto(null)
+    }
+    setProposta(letta)
+    setPropostaAperta(true)
+    setModo("proposta")
+  }
+
+  function chiudiProposta() {
+    setPropostaAperta(false)
+    setNelMenu(false)
+  }
+
+  // Il dato entra dove sta il cursore, non al posto della parola.
+  function inserisciProposta(editor: Editor, voce: VoceSegnaposto) {
+    const { state, view } = editor
+    const { from } = state.selection
+    const nodo = state.schema.nodes.segnaposto.create({ testo: voce.testo })
+    view.dispatch(mettiDato(state.tr, from, from, nodo).scrollIntoView())
+    view.focus()
+    chiudiProposta()
+  }
+
+  // I tasti con le proposte in mostra. Fino al primo `Tab` passano solo `Tab`
+  // ed `Esc`; nel menù anche frecce e `Invio`. Ogni altro tasto riporta alla
+  // scrittura.
+  function tastoProposta(editor: Editor, evento: KeyboardEvent) {
+    if (!proposta || evento.isComposing) return false
+    const conModificatori = evento.altKey || evento.ctrlKey || evento.metaKey || evento.shiftKey
+    if (evento.key === "Escape") {
+      evento.stopPropagation()
+      propostaSaltata.current = proposta.inizio
+      chiudiProposta()
+      return true
+    }
+    if (evento.key === "Tab" && !conModificatori) {
+      if (proposte.length === 1 || nelMenu) {
+        const voce = proposte[nelMenu ? propostaAttiva : 0]
+        if (voce) inserisciProposta(editor, voce)
+      } else {
+        setNelMenu(true)
+        setAttivaTesto(null)
+      }
+      return true
+    }
+    if (!nelMenu) return false
+    if (!conModificatori && (evento.key === "ArrowDown" || evento.key === "ArrowUp")) {
+      const passo = evento.key === "ArrowDown" ? 1 : -1
+      const voce = proposte[(propostaAttiva + passo + proposte.length) % proposte.length]
+      if (voce) setAttivaTesto(voce.testo)
+      return true
+    }
+    if (!conModificatori && evento.key === "Enter") {
+      const voce = proposte[propostaAttiva]
+      if (voce) inserisciProposta(editor, voce)
+      return true
+    }
+    setNelMenu(false)
+    return false
   }
 
   function chiudiPerQuestoPrefisso() {
@@ -1388,6 +1621,7 @@ export function TestoSegnaposto({
   }
 
   function tasto(editor: Editor, evento: KeyboardEvent) {
+    if (!aperto && propostaAperta) return tastoProposta(editor, evento)
     if (!aperto) {
       const { selection } = editor.state
       const pillola = selection instanceof NodeSelection && selection.node.type.name === "segnaposto"
@@ -1490,6 +1724,8 @@ export function TestoSegnaposto({
     },
     onBlur: () => {
       setAperto(false)
+      setPropostaAperta(false)
+      setNelMenu(false)
       setSelezionata(null)
       adesso.current.onBlur?.()
     },
@@ -1633,10 +1869,10 @@ export function TestoSegnaposto({
   }, [editor, id, etichetta, etichettataDa, descrittaDa, nonValido, disabled, readOnly])
 
   React.useEffect(() => {
-    if (!editor || aperto) return
+    if (!editor || aperto || propostaAperta) return
     editor.view.dom.removeAttribute("aria-controls")
     editor.view.dom.removeAttribute("aria-activedescendant")
-  }, [editor, aperto])
+  }, [editor, aperto, propostaAperta])
 
   // Finché l'editor non c'è il `ref` è `null`: una maniglia che non fa niente
   // si lascerebbe chiamare a vuoto.
@@ -1679,15 +1915,16 @@ export function TestoSegnaposto({
     [editor]
   )
   React.useEffect(() => {
-    if (sessione) inizio.current = sessione.da
-  }, [sessione])
+    if (sessione && modo === "prefisso") inizio.current = sessione.da
+    if (proposta && modo === "proposta") inizio.current = proposta.inizio
+  }, [sessione, proposta, modo])
 
   if (!editor) return null
 
   // Con l'elenco aperto la nota non si mostra: coprirebbe le voci. Fra la
   // pillola sotto il puntatore e quella selezionata vale la prima: è lì che
   // si sta guardando.
-  const conNota = aperto ? null : (indicata ?? selezionata)
+  const conNota = aperto || propostaAperta ? null : (indicata ?? selezionata)
   const nota = conNota?.dataset.nota
   // Mentre il tooltip sfuma tiene la nota e la pillola che aveva: passando a
   // una pillola senza nota, come la rossa, non resta un riquadro vuoto.
@@ -1699,7 +1936,42 @@ export function TestoSegnaposto({
   if (aperto) {
     if (trovate.length === 0) annuncio = vuoto
     else annuncio = trovate.length === 1 ? "1 voce" : `${trovate.length} voci`
+  } else if (propostaAperta && proposta && !nelMenu) {
+    const [sola] = proposte
+    const su = proposta.altre > 0 ? ` su ${proposte.length + proposta.altre}` : ""
+    annuncio =
+      proposte.length === 1 && sola
+        ? `Proposta: ${sola.etichetta}. Tab per inserirla.`
+        : `${proposte.length} proposte${su}. Tab per sceglierle.`
   }
+
+  const inProposta = modo === "proposta"
+
+  // Come nell'elenco dei dati: in piccolo il nome, per intero anche su più
+  // righe, e sotto in evidenza il valore di oggi; se manca, il perché. Le
+  // proposte hanno il gruppo accanto al nome.
+  const righeDellaVoce = (voce: VoceSegnaposto, conGruppo: boolean) => (
+    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span
+        data-slot="testo-segnaposto-voce-nome"
+        className="text-xs break-words text-muted-foreground group-data-selected/command-item:text-foreground"
+      >
+        {conGruppo && voce.gruppo ? `${voce.gruppo} · ${voce.etichetta}` : voce.etichetta}
+      </span>
+      {voce.valore ? (
+        <span className="font-medium break-words">{voce.valore}</span>
+      ) : (
+        <span className="break-words text-muted-foreground group-data-selected/command-item:text-foreground">
+          {voce.nota || (
+            <>
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">{senzaValore}</span>
+            </>
+          )}
+        </span>
+      )}
+    </span>
+  )
 
   return (
     <div data-slot="testo-segnaposto" className={cn("relative w-full", className)}>
@@ -1784,10 +2056,13 @@ export function TestoSegnaposto({
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>
       <PopoverPrimitive.Root
-        open={aperto}
+        open={aperto || propostaAperta}
         onOpenChange={(apri, dettagli) => {
           if (apri) return
-          if (dettagli.reason === "escape-key") chiudiPerQuestoPrefisso()
+          if (modo === "proposta") {
+            if (dettagli.reason === "escape-key" && proposta) propostaSaltata.current = proposta.inizio
+            chiudiProposta()
+          } else if (dettagli.reason === "escape-key") chiudiPerQuestoPrefisso()
           else setAperto(false)
         }}
       >
@@ -1801,6 +2076,7 @@ export function TestoSegnaposto({
           >
             <PopoverPrimitive.Popup
               data-slot="testo-segnaposto-elenco"
+              data-modo={modo}
               aria-label={etichettaElenco}
               initialFocus={false}
               finalFocus={false}
@@ -1809,66 +2085,97 @@ export function TestoSegnaposto({
               className="z-50 flex w-md max-w-(--available-width) origin-(--transform-origin) flex-col rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
             >
               <Voci
-                attiva={attiva}
+                // Prima del primo `Tab` nessuna proposta è evidenziata: le
+                // frecce muovono ancora il cursore.
+                attiva={inProposta ? (nelMenu ? propostaAttiva : -1) : attiva}
                 onPronte={(elenco, voce) => {
-                  if (!aperto) return
+                  if (!aperto && !propostaAperta) return
                   attributo(editor.view.dom, "aria-controls", elenco)
                   attributo(editor.view.dom, "aria-activedescendant", voce)
                 }}
               >
                 <Command
                   shouldFilter={false}
-                  value={String(attiva)}
+                  value={inProposta ? (nelMenu ? String(propostaAttiva) : "") : String(attiva)}
                   onValueChange={(valore) => {
-                    const voce = valore === "" ? undefined : trovate[Number(valore)]
+                    if (inProposta && !nelMenu) return
+                    const voce = valore === "" ? undefined : (inProposta ? proposte : trovate)[Number(valore)]
                     if (voce) setAttivaTesto(voce.testo)
                   }}
                 >
                   <CommandList label={etichettaElenco}>
-                    {trovate.length === 0 ? <CommandEmpty>{vuoto}</CommandEmpty> : null}
-                    {gruppi.map((gruppo) => (
-                      <CommandGroup key={gruppo.nome} heading={gruppo.nome || undefined}>
-                        {gruppo.voci.map((voce, posto) => {
-                          const valore = String(gruppo.da + posto)
-                          return (
-                            <CommandItem
-                              key={valore}
-                              value={valore}
-                              onSelect={() => scegli(editor, voce)}
-                              className="items-start [&>svg:last-child]:hidden"
-                            >
-                              {/* Come nell'elenco dei dati: in piccolo il
-                                  nome, per intero anche su più righe, e
-                                  sotto in evidenza il valore di oggi; se
-                                  manca, il perché. */}
-                              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                <span
-                                  data-slot="testo-segnaposto-voce-nome"
-                                  className="text-xs break-words text-muted-foreground group-data-selected/command-item:text-foreground"
-                                >
-                                  {voce.etichetta}
-                                </span>
-                                {voce.valore ? (
-                                  <span className="font-medium break-words">{voce.valore}</span>
-                                ) : (
-                                  <span className="break-words text-muted-foreground group-data-selected/command-item:text-foreground">
-                                    {voce.nota || (
-                                      <>
-                                        <span aria-hidden="true">—</span>
-                                        <span className="sr-only">{senzaValore}</span>
-                                      </>
-                                    )}
-                                  </span>
-                                )}
-                              </span>
-                            </CommandItem>
-                          )
-                        })}
+                    {inProposta ? (
+                      // In fila, nell'ordine della vicinanza alla parola: il
+                      // gruppo sta accanto al nome, non sopra.
+                      <CommandGroup>
+                        {proposte.map((voce, posto) => (
+                          <CommandItem
+                            key={voce.testo}
+                            value={String(posto)}
+                            onSelect={() => inserisciProposta(editor, voce)}
+                            className="items-start [&>svg:last-child]:hidden"
+                          >
+                            {righeDellaVoce(voce, true)}
+                          </CommandItem>
+                        ))}
                       </CommandGroup>
-                    ))}
+                    ) : (
+                      <>
+                        {trovate.length === 0 ? <CommandEmpty>{vuoto}</CommandEmpty> : null}
+                        {gruppi.map((gruppo) => (
+                          <CommandGroup key={gruppo.nome} heading={gruppo.nome || undefined}>
+                            {gruppo.voci.map((voce, posto) => {
+                              const valore = String(gruppo.da + posto)
+                              return (
+                                <CommandItem
+                                  key={valore}
+                                  value={valore}
+                                  onSelect={() => scegli(editor, voce)}
+                                  className="items-start [&>svg:last-child]:hidden"
+                                >
+                                  {righeDellaVoce(voce, false)}
+                                </CommandItem>
+                              )
+                            })}
+                          </CommandGroup>
+                        ))}
+                      </>
+                    )}
                   </CommandList>
                 </Command>
               </Voci>
+              {inProposta && proposta ? (
+                // Ciò che i tasti fanno, a schermo. Chi usa un lettore di
+                // schermo lo sente dall'annuncio.
+                <div
+                  data-slot="testo-segnaposto-proposte-aiuto"
+                  aria-hidden="true"
+                  className="flex flex-col gap-1 border-t border-border px-3 py-2 text-xs text-muted-foreground"
+                >
+                  <span className="flex flex-wrap items-center gap-1">
+                    {nelMenu ? (
+                      <>
+                        <Kbd>↑</Kbd>
+                        <Kbd>↓</Kbd> scegli · <Kbd>Tab</Kbd> inserisci · <Kbd>Esc</Kbd> torna al testo
+                      </>
+                    ) : proposte.length === 1 ? (
+                      <>
+                        <Kbd>Tab</Kbd> inserisci · <Kbd>Esc</Kbd> chiudi
+                      </>
+                    ) : (
+                      <>
+                        <Kbd>Tab</Kbd> scegli · <Kbd>Esc</Kbd> chiudi
+                      </>
+                    )}
+                  </span>
+                  {proposta.altre > 0 ? (
+                    <span>
+                      {proposta.altre === 1 ? "E un altro" : `E altri ${proposta.altre}`}: continua a scrivere
+                      {prefissi[0] ? `, o scrivi ${prefissi[0]} per vederli tutti` : ""}.
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </PopoverPrimitive.Popup>
           </PopoverPrimitive.Positioner>
         </PopoverPrimitive.Portal>

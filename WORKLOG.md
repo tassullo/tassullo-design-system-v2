@@ -14433,3 +14433,16 @@ Ramo `fras/gate-a11y-zero-scansioni`. Trovato lavorando alla PR #150: in questa 
 - `CLAUDE.md`, §Comandi: una riga sotto `test:a11y`.
 
 Test: autotest verde; `npm run test:a11y -- --una` qui rosso con il motivo (Executable doesn't exist), e verde con `vitest.config.ts` puntato per la prova al Chromium installato (563 story, 0 violazioni; modifica non committata). `test:webkit` qui esce con 1 da sé, `misura:bersagli` muore al lancio del browser: nessuno dei due aveva il difetto. `npm run check:statici` verde; il gate intero lo fa la CI.
+
+
+## 2026-10-20 — #153: il testo con segnaposto propone i dati mentre si scrive
+
+Anagrafe (proposta #153): il campo deve proporre il dato mentre si scrive, senza il prefisso `{{`. Valutata con Francesco in chat: la forma chiesta (la parola diventa la pillola) perdeva la parola, perché la pillola mostra il valore. Prova su una story temporanea con i due sistemi insieme, prima con 18 dati e poi con 183 fatti come quelli di Anagrafe (letti in sola lettura da `binding._citabili`: ogni prestazione porta valore più sei dettagli). Francesco: «mi piace la proposta. Approvata». Risposta pubblicata sulla issue. Ramo `fras/proposte-153`. Ragioni, misure e forme scartate in `DECISIONI.md` §86.
+
+- `tassullo-testo-segnaposto`: prop `proponi`, spenta di serie. Le proposte compaiono dalla quarta lettera, cercando nel solo nome del dato (inizio di parola o stessa radice), al massimo cinque, le più vicine prima e a parità nell'ordine delle `voci`, col gruppo accanto al nome. Restano per quattro parole o fino a fine frase. `Tab` mette il dato al cursore; con più proposte il primo `Tab` porta nel menù. `Esc` chiude fino alla parola dopo. In fondo i tasti e «E altri N». Stesso `Popover` del prefisso (`data-modo` dice quale dei due), annuncio per i lettori di schermo. Nuova dipendenza `@tassullo/kbd`.
+- Scene `Proposte` e `Proposte, prova` in `testo-segnaposto.stories.tsx`; prosa della pagina e `docs` dell'item aggiornati.
+- Prove: le 39 scene del blocco verdi in Chromium; la prova nuova fallisce con `proponi` acceso di serie. Tasti veri in Chromium e WebKit, nove casi, uguali. Resa in chiaro, scuro, touch. Misura dell'ordine sul blocco con 183 dati: primo dato giusto 11 volte su 11; con l'elenco di oggi i dettagli possono spingere fuori dati di un'altra sorgente («Massa»).
+
+#### Aperti
+
+- Anagrafe: reinstallare `tassullo-testo-segnaposto` quando la versione è pubblicata, accendere `proponi`, e passare le voci con i dati prima dei loro dettagli, o una voce per dato come ha in programma.
