@@ -64,6 +64,8 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  *   perché il valore manca. I dati si mostrano sempre tutti, nell'elenco che
  *   si apre scrivendo e in quello accanto ai testi.
  * - `prefisso`: la stringa che apre l'elenco mentre si scrive, di serie `{{`.
+ * - `proponi`: il campo propone i dati mentre si scrive, senza il prefisso.
+ *   Spenta di serie.
  * - `forma`: la forma di un segnaposto, di serie le doppie graffe. Quella
  *   di serie è `FORMA_SEGNAPOSTO`, in `lib/segnaposto`, un file senza React
  *   che arriva con il blocco: lì c'è anche `nomeSegnaposto`, che legge il
@@ -168,12 +170,36 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/registry/tass
  * - Dentro un modulo si usa con `tassullo-form-field`: l'etichetta del campo
  *   si collega da sé.
  *
+ * **Le proposte mentre si scrive.** Con `proponi`, quando una parola di
+ * almeno quattro lettere somiglia al nome di un dato, sotto la parola
+ * compaiono fino a cinque proposte, le più vicine prima, ognuna col suo
+ * gruppo. Si cerca nel nome del dato, non nel valore. Le proposte restano
+ * mentre si continua a scrivere, fino a fine frase o per quattro parole, e il
+ * dato entra **dove sta il cursore**, non al posto della parola: si scrive
+ * «Conservare per », si preme `Tab`, e si legge «Conservare per 12 mesi».
+ *
+ * - Con una proposta sola `Tab` la inserisce.
+ * - Con più d'una il primo `Tab` porta nel menù: le frecce scelgono, `Tab` o
+ *   `Invio` inseriscono.
+ * - `Esc` chiude le proposte fino alla parola successiva.
+ * - Finché non si preme `Tab` le proposte non prendono la tastiera: `Invio`
+ *   va a capo, le frecce muovono il cursore, lo spazio è uno spazio, e `Tab`
+ *   a proposte chiuse esce dal campo.
+ * - Se le proposte sono più di cinque, in fondo si legge quante ne restano:
+ *   una parola in più le restringe, e `{{` le mostra tutte.
+ * - L'elenco che si apre col prefisso resta com'è: dentro un prefisso le
+ *   proposte non compaiono.
+ * - A parità di vicinanza conta l'ordine delle `voci`: chi le passa mette
+ *   prima i dati che si citano più spesso, e dopo i loro dettagli.
+ *
  * **Tastiera e accessibilità.** Il fuoco resta nel testo. A elenco aperto le
  * frecce su e giù scorrono le voci, `Invio` o `Tab` inseriscono quella
  * evidenziata, `Esc` chiude l'elenco e lascia il testo com'è. Le frecce di
  * lato selezionano una pillola, e `Invio` la riporta al suo testo. `Ctrl+Z`
  * annulla. Il numero di voci trovate viene annunciato. Se i dati cambiano
- * mentre l'elenco è aperto, la voce evidenziata resta la stessa.
+ * mentre l'elenco è aperto, la voce evidenziata resta la stessa. Con
+ * `proponi` si annuncia quante proposte ci sono e che `Tab` le sceglie; nel
+ * menù, come nell'elenco, si legge la proposta evidenziata.
  */
 const meta = {
   title: 'Blocchi/Testo con segnaposto',
@@ -280,6 +306,58 @@ export const Pillole: Story = {
       />
     </Field>
   ),
+}
+
+const VOCI_IMPASTO: VoceSegnaposto[] = [
+  ...VOCI,
+  { gruppo: 'Impasto', etichetta: "Acqua d'impasto", testo: '{{impasto.acqua}}', valore: 'ca. 0,20 l/kg' },
+  { gruppo: 'Impasto', etichetta: 'Tempo di lavorabilità', testo: '{{impasto.lavorabilita}}', valore: '60 minuti' },
+  { gruppo: 'Impasto', etichetta: 'Spessore minimo per strato', testo: '{{impasto.spessore_min}}', valore: '5 mm' },
+  { gruppo: 'Impasto', etichetta: 'Spessore massimo per strato', testo: '{{impasto.spessore_max}}', valore: '40 mm' },
+  { gruppo: 'Confezione', etichetta: 'Tempo di conservazione', testo: '{{confezione.conservazione}}', valore: '12 mesi' },
+]
+
+function ConProposte({ voci }: { voci: readonly VoceSegnaposto[] }) {
+  const [testo, setTesto] = useState('')
+  return (
+    <FieldGroup className="max-w-2xl">
+      <Field>
+        <FieldLabel htmlFor="preparazione">Preparazione dell'impasto</FieldLabel>
+        <TestoSegnaposto
+          id="preparazione"
+          aria-describedby="preparazione-aiuto"
+          voci={voci}
+          value={testo}
+          onChange={setTesto}
+          righe={4}
+          proponi
+        />
+        <FieldDescription id="preparazione-aiuto">
+          Scrivi la frase: i dati compaiono da soli. Con {'{{'} si vedono tutti.
+        </FieldDescription>
+      </Field>
+      <Field>
+        <FieldLabel id="preparazione-valore">Il valore salvato</FieldLabel>
+        <pre
+          aria-labelledby="preparazione-valore"
+          className="rounded-lg border border-border bg-muted p-2.5 font-mono text-xs whitespace-pre-wrap"
+        >
+          {testo}
+        </pre>
+      </Field>
+    </FieldGroup>
+  )
+}
+
+/**
+ * Con `proponi` i dati compaiono mentre si scrive. Da provare: «Impastare
+ * con acqua», poi `Tab`; «Conservare per», poi `Tab`; «Applicare con
+ * spessore», poi `Tab` per entrare nel menù e le frecce per scegliere.
+ */
+export const Proposte: Story = {
+  args: { voci: VOCI_IMPASTO },
+  render: (args) => <ConProposte voci={args.voci} />,
+  play: apriScrivendo(AREA, 'Impastare con acqua', ELENCO),
 }
 
 const CAMPI = [
@@ -2678,5 +2756,115 @@ export const UnTestoAllaVoltaProva: Story = {
     ;(document.activeElement as HTMLElement).blur()
     await userEvent.click(tela.getByRole('button', { name: 'Inserisci la classe' }))
     await waitFor(() => expect(valoreDi(area)).toBe(`${descrizione.slice(0, -1)}. {{qualifica.classe}}`))
+  },
+}
+
+const VOCI_PROPOSTE: VoceSegnaposto[] = [
+  ...VOCI_IMPASTO,
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza a flessione', testo: '{{prestazione.flessione}}', valore: '≥ 8 N/mm²' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza a trazione', testo: '{{prestazione.trazione}}', valore: '≥ 3 N/mm²' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza al taglio', testo: '{{prestazione.taglio}}', valore: '≥ 2 N/mm²' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza ai cicli di gelo e disgelo', testo: '{{prestazione.gelo}}', valore: '≥ 2,0 N/mm²' },
+  { gruppo: 'Prestazioni', etichetta: 'Resistenza alla carbonatazione', testo: '{{prestazione.carbonatazione}}', valore: 'Supera' },
+  { gruppo: 'Prestazioni', etichetta: "Resistenza all'abrasione", testo: '{{prestazione.abrasione}}', valore: 'AR 1' },
+]
+
+const proposte = () => elenco()?.dataset.modo === 'proposta'
+
+// Le proposte mentre si scrive: compaiono alla parola, restano finché si
+// scrive, il dato entra al cursore. Fino al primo `Tab` la tastiera resta al
+// testo. Il campo senza `proponi` non propone niente.
+export const ProposteProva: Story = {
+  name: 'Proposte, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { voci: VOCI_PROPOSTE },
+  render: (args) => (
+    <div className="flex max-w-2xl flex-col gap-3">
+      <TestoSegnaposto etichetta="Con le proposte" voci={args.voci} proponi />
+      <TestoSegnaposto etichetta="Senza le proposte" voci={args.voci} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const area = await areaDi(canvasElement, `${AREA}[aria-label="Con le proposte"]`)
+    const stato = within(canvasElement).getAllByRole('status')[0]
+
+    // Dalla quarta lettera; il nome col suo gruppo, e sotto il valore.
+    await scrivi('Versare nel miscelatore acq')
+    expect(elenco()).not.toBeInTheDocument()
+    await scrivi('u')
+    await aperto()
+    expect(proposte()).toBe(true)
+    await waitFor(() => expect(opzioni().map((o) => o.textContent)).toEqual(["Impasto · Acqua d'impastoca. 0,20 l/kg"]))
+    expect(stato).toHaveTextContent("Proposta: Acqua d'impasto. Tab per inserirla.")
+    expect(area).not.toHaveAttribute('aria-activedescendant')
+    expect(document.getElementById(area.getAttribute('aria-controls') ?? '')).toHaveAttribute('role', 'listbox')
+
+    // Si continua a scrivere e restano; `Tab` mette il dato al cursore.
+    await scrivi('a ')
+    await aperto()
+    await userEvent.keyboard('[Tab]')
+    await chiuso()
+    expect(valoreDi(area)).toBe('Versare nel miscelatore acqua {{impasto.acqua}}')
+    expect(document.activeElement).toBe(area)
+
+    // La parola fa comparire il dato, che entra più avanti nella frase.
+    await scrivi(' e mescolare. Conservare')
+    await aperto()
+    await scrivi(' per ')
+    await waitFor(() => expect(opzioni().map((o) => o.textContent)).toEqual(['Confezione · Tempo di conservazione12 mesi']))
+    await userEvent.keyboard('[Tab]')
+    await chiuso()
+    expect(valoreDi(area)).toBe('Versare nel miscelatore acqua {{impasto.acqua}} e mescolare. Conservare per {{confezione.conservazione}}')
+
+    // Più proposte: le frecce restano al testo fino al primo `Tab`, che
+    // porta nel menù; da lì scelgono, e `Invio` inserisce.
+    await scrivi('. Applicare con spessore ')
+    await aperto()
+    await waitFor(() => expect(opzioni()).toHaveLength(2))
+    expect(stato).toHaveTextContent('2 proposte. Tab per sceglierle.')
+    await userEvent.keyboard('[ArrowDown]')
+    expect(area).not.toHaveAttribute('aria-activedescendant')
+    await userEvent.keyboard('[Tab]')
+    await waitFor(() => expect(area.getAttribute('aria-activedescendant')).toBe(opzioni()[0].id))
+    expect(document.activeElement).toBe(area)
+    await userEvent.keyboard('[ArrowDown]')
+    await waitFor(() => expect(area.getAttribute('aria-activedescendant')).toBe(opzioni()[1].id))
+    await userEvent.keyboard('[Enter]')
+    await chiuso()
+    expect(valoreDi(area).endsWith('Applicare con spessore {{impasto.spessore_max}}')).toBe(true)
+
+    // Più di cinque: le più vicine, e quante ne restano. `Esc` chiude fino
+    // alla parola dopo.
+    await scrivi('. Resistenza')
+    await aperto()
+    await waitFor(() => expect(opzioni()).toHaveLength(5))
+    expect(stato).toHaveTextContent('5 proposte su 7. Tab per sceglierle.')
+    expect(elenco()).toHaveTextContent('E altri 2: continua a scrivere, o scrivi {{ per vederli tutti.')
+    await userEvent.keyboard('[Escape]')
+    await chiuso()
+    await scrivi(' alta')
+    expect(elenco()).not.toBeInTheDocument()
+
+    // Senza `Tab`, `Invio` va a capo.
+    await scrivi('. Peso')
+    await aperto()
+    await userEvent.keyboard('[Enter]')
+    await chiuso()
+    expect(valoreDi(area).endsWith('Resistenza alta. Peso\n')).toBe(true)
+
+    // Dentro il prefisso c'è il solo elenco di sempre.
+    await scrivi('{{resa')
+    await aperto()
+    expect(proposte()).toBe(false)
+    await waitFor(() => expect(opzioni()).toHaveLength(1))
+    await userEvent.keyboard('[Enter]')
+    await chiuso()
+    expect(valoreDi(area).endsWith('Peso\n{{confezione.resa}}')).toBe(true)
+
+    // Senza `proponi` non compare niente.
+    const senza = await areaDi(canvasElement, `${AREA}[aria-label="Senza le proposte"]`)
+    await scrivi('Impastare con acqua')
+    expect(elenco()).not.toBeInTheDocument()
+    expect(valoreDi(senza)).toBe('Impastare con acqua')
   },
 }
