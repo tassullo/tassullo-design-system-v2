@@ -14474,4 +14474,17 @@ Anagrafe (proposta #158): la ricerca «Cerca un dato» di `TestoSegnapostoElenco
 
 #### Aperti
 
-- Pubblicare la versione e scrivere sulla #158 il commento di adozione: per Anagrafe basta reinstallare `tassullo-testo-segnaposto`, nessun cambiamento nel suo codice.
+- ~~Pubblicare la versione e scrivere sulla #158 il commento di adozione~~: fatto, voce dopo.
+
+## 2026-10-27 — v2.0.22 pubblicata, #158 chiusa
+
+PR #159 unita col gate verde in CI (12 minuti); l'unione è `028e766`. Etichetta annotata `v2.0.22` su `028e766`, push della sola etichetta. Francesco: «Pubblica la v2.0.22: etichetta sul commit di unione, verifica da fuori, voce di diario e commento di adozione sulla #158». La #158 si è chiusa da sé con la PR (`Closes #158`).
+
+- Dentro: la ricerca di `TestoSegnapostoElenco` che trova un dato anche dal valore.
+- **Non rompe chi aggiorna dalla `v2.0.21`**: nessuna prop aggiunta o tolta, nessun item nuovo.
+- Verifica da fuori: alla `v2.0.22` rispondono 200 `registry.json`, `public/r/tassullo-testo-segnaposto.json` e il sorgente del blocco; `shadcn view …/tassullo-testo-segnaposto#v2.0.22` risolve l'item, che porta `filtra(delGruppo, cercato, true)`.
+- Sulla #158 il commento di adozione (da reinstallare, niente da cambiare nel codice, cosa provare in Chrome e Safari, non rompe).
+
+#### Aperti
+
+- Anagrafe: reinstallare `tassullo-testo-segnaposto` alla `v2.0.22` e provare la ricerca nel valore in Chrome e Safari.
