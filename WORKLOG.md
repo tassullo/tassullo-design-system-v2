@@ -14461,3 +14461,17 @@ PR #155 unita col gate verde in CI; l'unione è `d4b2cb1`. Etichetta `v2.0.21` s
 #### Aperti
 
 - Anagrafe: reinstallare `tassullo-testo-segnaposto` alla `v2.0.21`, accendere `proponi`, e passare le voci con i dati prima dei loro dettagli (o una voce per dato), provando in Chrome e Safari.
+
+
+## 2026-10-27 — #158: la ricerca dell'elenco dei dati guarda anche il valore
+
+Anagrafe (proposta #158): la ricerca «Cerca un dato» di `TestoSegnapostoElenco` trovava un dato solo da nome, segnaposto e gruppo, non dal valore che l'elenco mostra in evidenza. Le due strade provate dall'app non bastavano: filtrare le voci prima (il blocco le rifiltra sul nome) e la ricerca controllata (il filtro resta quello interno). Francesco: «Accetto la #158: ricerca anche nel valore, di serie, senza prop nuova, solo nell'elenco». Ramo `fras/proposte-158`.
+
+- `tassullo-testo-segnaposto`: `filtra` prende `conValore`, che aggiunge `voce.valore` alle parole in cui si cerca; lo passa la sola `TestoSegnapostoElenco`. Il menù del prefisso e le proposte di `proponi` (che hanno una ricerca loro) restano sul nome. Stessa regola di prima: ogni parola scritta è l'inizio di una parola.
+- Perché di serie: l'elenco mostra il valore in evidenza, e si cerca ciò che si vede; una prop sarebbe un'opzione da mantenere per un comportamento che nessuno vorrebbe spento. Il costo: con valori lunghi (le frasi standard) una parola comune trova qualche dato in più.
+- Testi: JSDoc del componente, `docs` dell'item, prosa della scena `Con elenco dei dati`, nota in testa al file.
+- Prove: in `Elenco dei dati, prova` «EN 1504» lascia la sola «Norma» (valore «EN 1504-3»), cancellata la ricerca tornano tutti. Col codice di prima la prova fallisce (`expected [] to deeply equal [ 'NormaEN 1504-3' ]`). Le 39 scene del blocco verdi in Chromium.
+
+#### Aperti
+
+- Pubblicare la versione e scrivere sulla #158 il commento di adozione: per Anagrafe basta reinstallare `tassullo-testo-segnaposto`, nessun cambiamento nel suo codice.

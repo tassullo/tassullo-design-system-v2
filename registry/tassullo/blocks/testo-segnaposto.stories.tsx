@@ -420,7 +420,8 @@ function PaginaConElenco({ voci }: { voci: readonly VoceSegnaposto[] }) {
 /**
  * Più testi e un solo elenco di dati, in una colonna a destra che stringe la
  * pagina invece di coprirla. In cima il filtro e la ricerca restano fermi, e
- * i dati scorrono, ognuno sotto il nome del suo gruppo. Ogni dato si clicca,
+ * i dati scorrono, ognuno sotto il nome del suo gruppo. La ricerca trova un
+ * dato dal nome, dal gruppo o dal valore. Ogni dato si clicca,
  * e va dove era il cursore nell'ultimo testo usato, oppure si trascina nel
  * punto voluto. Un dato senza valore dice perché al posto del valore.
  *
@@ -989,6 +990,14 @@ export const ElencoProva: Story = {
       'elenco dentro il riquadro: true'
     )
     expect(`scorre dentro: ${scorre.scrollHeight > scorre.clientHeight}`).toBe('scorre dentro: true')
+
+    // La ricerca guarda anche il valore: «EN 1504» trova la «Norma», che vale
+    // «EN 1504-3».
+    const ricerca = within(dati).getByRole('searchbox')
+    await userEvent.type(ricerca, 'EN 1504')
+    await waitFor(() => expect(righe().map((r) => r.textContent)).toEqual(['NormaEN 1504-3']))
+    await userEvent.clear(ricerca)
+    await waitFor(() => expect(righe()).toHaveLength(VOCI.length))
 
     // Il filtro per gruppo, poi la ricerca dentro il gruppo.
     await userEvent.click(within(dati).getByRole('combobox'))

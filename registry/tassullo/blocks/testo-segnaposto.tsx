@@ -207,6 +207,14 @@
  * riordinate per gruppo, e l'ordine qui è quello della vicinanza alla
  * parola. Ragioni, misure e forme scartate in `docs/DECISIONI.md` §86.
  *
+ * ── Proposta #158 (Anagrafe), 27 ottobre 2026 ────────────────────────────
+ *
+ * La ricerca di `TestoSegnapostoElenco` trova un dato anche dal valore di
+ * oggi, con la stessa regola dell'inizio di parola: «EN 1504» trova «Codice
+ * ed edizione». Di serie e senza una prop (Francesco): l'elenco mostra il
+ * valore in evidenza, e si cerca ciò che si vede. Il menù del prefisso e le
+ * proposte di `proponi` restano sul nome.
+ *
  * ── I ruoli ──────────────────────────────────────────────────────────────
  *
  * L'area è `role="textbox"`, non `combobox`: è su più righe. axe esenta da
@@ -1111,12 +1119,14 @@ function parole(testo: string) {
 
 // Ogni parola scritta deve essere l'inizio di una parola dell'etichetta, del
 // segnaposto o del nome del gruppo. L'inizio e non un pezzo qualunque: «res»
-// trova «Resistenza» e non «prestazione».
-function filtra(voci: readonly VoceSegnaposto[], query: string) {
+// trova «Resistenza» e non «prestazione». Con `conValore` conta anche il
+// valore di oggi: «EN 1504» trova la «Norma» che vale «EN 1504-3».
+function filtra(voci: readonly VoceSegnaposto[], query: string, conValore = false) {
   const cercate = parole(query)
   if (cercate.length === 0) return [...voci]
   return voci.filter((voce) => {
-    const presenti = parole(`${voce.etichetta} ${voce.testo} ${voce.gruppo ?? ""}`)
+    const valore = conValore ? (voce.valore ?? "") : ""
+    const presenti = parole(`${voce.etichetta} ${voce.testo} ${voce.gruppo ?? ""} ${valore}`)
     return cercate.every((cercata) =>
       presenti.some((presente) => presente.startsWith(cercata))
     )
@@ -2235,7 +2245,8 @@ function useStato<T>(fuori: T | undefined, iniziale: T, onCambia?: (valore: T) =
 /**
  * L'elenco dei dati da citare: in cima il filtro per gruppo e la ricerca,
  * che restano fermi, e sotto i dati, che scorrono, sotto il nome del loro
- * gruppo. Ci sono sempre tutti. Ogni dato mostra in piccolo il nome e in evidenza il valore di
+ * gruppo. Ci sono sempre tutti, e la ricerca guarda il nome, il gruppo e il
+ * valore. Ogni dato mostra in piccolo il nome e in evidenza il valore di
  * oggi; se non ne ha, il motivo scritto nella sua `nota`, o un trattino. Si
  * clicca o si trascina dentro un `TestoSegnaposto`.
  */
@@ -2260,7 +2271,9 @@ export function TestoSegnapostoElenco({
   // Un gruppo che fra le voci non c'è, o non c'è più, vale «tutti».
   const gruppo = scelto !== null && nomi.includes(scelto) ? scelto : TUTTI
   const delGruppo = gruppo === TUTTI ? voci : voci.filter((voce) => voce.gruppo === gruppo)
-  const mostrate = filtra(delGruppo, cercato)
+  // Qui si cerca anche nel valore, che l'elenco mostra in evidenza; nel menù
+  // del prefisso no.
+  const mostrate = filtra(delGruppo, cercato, true)
   // Con tutti i dati in vista ogni gruppo ha la sua intestazione: due «Nome»
   // di gruppi diversi si distinguono. Scelto un gruppo, lo dice il filtro.
   const gruppi =
