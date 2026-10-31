@@ -14505,4 +14505,17 @@ Anagrafe (proposta #162): in un dialogo, dopo un cambio pagina e qualche «Ingra
 #### Aperti
 
 - Il ritardo del worker di pdfjs nel giro completo di Chromium: causa non trovata (sopra cosa è escluso). Se un'altra scena dovrà aspettare una pagina disegnata, va ripreso.
-- Pubblicare la versione e scrivere sulla #162 il commento di adozione: Anagrafe reinstalla `tassullo-pdf-preview`; il `Suspense` attorno al `lazy` resta utile solo per il caricamento del modulo.
+- ~~Pubblicare la versione e il commento di adozione~~: fatto, voce sotto.
+
+## 2026-10-31 — v2.0.23 pubblicata, #162 chiusa
+
+PR #163 unita col gate verde in CI (14 minuti); l'unione è `fdf9534`. Etichetta annotata `v2.0.23` su `fdf9534`, push della sola etichetta. Francesco: «Sì, unisci», poi «Sì, pubblica». La #162 si è chiusa da sé con la PR (`Closes #162`).
+
+- Dentro: la pagina di `tassullo-pdf-preview` che non cresce più con lo zoom, il riquadro raggiungibile col `Tab`, `suspense={false}` (barra e sagoma mentre il PDF carica), la barra coi numeri nei gruppi dei bottoni, a sinistra.
+- **Non rompe chi aggiorna dalla `v2.0.22`**: nessuna prop aggiunta o tolta, nessun item nuovo. Cambia l'aspetto della barra, e il riquadro della pagina è un passo di `Tab` in più.
+- Verifica da fuori: alla `v2.0.23` rispondono 200 `registry.json`, `public/r/tassullo-pdf-preview.json` e il sorgente del blocco; `shadcn view …/tassullo-pdf-preview#v2.0.23` risolve l'item, che porta `contain-inline-size` e `ButtonGroupText`.
+- Sulla #162 il commento di adozione: da reinstallare, niente da cambiare nel codice, cosa provare in Chrome e Safari, non rompe.
+
+#### Aperti
+
+- Anagrafe: reinstallare `tassullo-pdf-preview` alla `v2.0.23` e provare zoom, cambio pagina e barra nel dialogo, in Chrome e Safari.
