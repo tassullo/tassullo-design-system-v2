@@ -77,7 +77,7 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
 import { cn } from "cn"
 import { Button } from "@/registry/tassullo/ui/button"
-import { ButtonGroup } from "@/registry/tassullo/ui/button-group"
+import { ButtonGroup, ButtonGroupText } from "@/registry/tassullo/ui/button-group"
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
 import { Skeleton } from "@/registry/tassullo/ui/skeleton"
 
@@ -145,7 +145,10 @@ export function PdfPreview({
       data-slot="pdf-preview"
       className={cn("flex flex-col gap-3 rounded-lg border bg-muted/30 p-3", className)}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Ogni numero sta dentro il gruppo dei suoi bottoni, e i due gruppi stanno a sinistra:
+          a pagina larga, sparsi su tutta la riga, il numero finiva lontano dai bottoni.
+          La percentuale ha una larghezza minima, o «Ingrandisci» si sposterebbe passando da 75% a 100%. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <ButtonGroup>
           <Button
             type="button"
@@ -157,6 +160,9 @@ export function PdfPreview({
           >
             <ChevronLeftIcon />
           </Button>
+          <ButtonGroupText className="bg-background font-normal text-muted-foreground tabular-nums dark:border-input dark:bg-input/30">
+            Pagina {pagina} di {numeroPagine ?? "—"}
+          </ButtonGroupText>
           <Button
             type="button"
             variant="outline"
@@ -168,9 +174,6 @@ export function PdfPreview({
             <ChevronRightIcon />
           </Button>
         </ButtonGroup>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          Pagina {pagina} di {numeroPagine ?? "—"}
-        </span>
         <ButtonGroup>
           <Button
             type="button"
@@ -182,6 +185,9 @@ export function PdfPreview({
           >
             <ZoomOutIcon />
           </Button>
+          <ButtonGroupText className="min-w-16 justify-center bg-background font-normal text-muted-foreground tabular-nums dark:border-input dark:bg-input/30">
+            {Math.round(zoom * 100)}%
+          </ButtonGroupText>
           <Button
             type="button"
             variant="outline"
@@ -193,9 +199,6 @@ export function PdfPreview({
             <ZoomInIcon />
           </Button>
         </ButtonGroup>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {Math.round(zoom * 100)}%
-        </span>
       </div>
 
       {/* La larghezza della pagina si misura da qui: `contain-inline-size` la rende indipendente
