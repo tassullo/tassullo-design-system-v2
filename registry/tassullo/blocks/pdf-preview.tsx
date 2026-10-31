@@ -39,12 +39,16 @@
  * scritto per `file-upload`: il messaggio arriva già tradotto da chi chiama,
  * questo blocco non sa nulla del perché un PDF non si è aperto.
  *
- * **`error` da solo non basta.** Verificato in Chromium: un 404 sul file fa
- * *lanciare* `<Document>` durante il render, non passare da `onLoadError` —
- * la promessa interna di `react-pdf` rifiuta prima che il componente riesca
- * a intercettarla. `error` copre i PDF che si scaricano ma non si parsano;
- * il confine di errore React qui sotto copre il resto, con lo stesso
- * `ErrorState`.
+ * **`suspense={false}`, o `loading` ed `error` non contano.** `react-pdf` 11
+ * usa React Suspense per impostazione predefinita, e in quel modo ignora le
+ * due prop: mentre il PDF carica sospende l'intero blocco fino al `Suspense`
+ * più vicino — in Storybook non si vedeva niente, nell'app il ripiego del
+ * suo `lazy` al posto di barra e pagina — e un errore lo lancia al confine.
+ * Accertato verificando la #162 (2 s di ritardo sul PDF: prima nessun pezzo
+ * del blocco, ora barra e sagoma). La nota che stava qui, «un 404 fa
+ * lanciare `<Document>` durante il render», descriveva proprio quella
+ * sospensione. Il confine di errore qui sotto resta, per ciò che si rompe
+ * disegnando, con lo stesso `ErrorState`.
  *
  * **La pagina si adatta alla cornice, non a una scala assoluta.** Prima
  * versione: `<Page scale={zoom}>` con `zoom` iniziale a `1`, cioè la
@@ -53,6 +57,17 @@
  * `ResizeObserver` misura la larghezza disponibile e `<Page width={…}>`
  * ci scala dentro: `zoom` è ora relativo a quella misura, non alla pagina
  * reale — a 100% la pagina **combacia** con la cornice, non trabocca.
+ *
+ * **Il riquadro misurato non deve dipendere dalla pagina** (proposta #162 di
+ * Anagrafe). Dentro una griglia — il corpo di un dialogo — il riquadro si
+ * allargava con la pagina ingrandita, l'osservatore leggeva la larghezza
+ * nuova e la pagina cresceva di un altro fattore `zoom`, senza limite: in
+ * Chromium e in WebKit, al primo «Ingrandisci». `contain-inline-size` toglie
+ * la pagina dal calcolo della larghezza del riquadro; da lì la pagina
+ * ingrandita scorre davvero, quindi il riquadro prende `tabIndex`/`region`
+ * (axe, `scrollable-region-focusable`) e `justify-center-safe`, senza il
+ * quale il bordo sinistro della pagina restava fuori portata. La prova è
+ * «Zoom in una griglia, prova» nelle story.
  */
 import { Component, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
@@ -62,7 +77,7 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
 import { cn } from "cn"
 import { Button } from "@/registry/tassullo/ui/button"
-import { ButtonGroup } from "@/registry/tassullo/ui/button-group"
+import { ButtonGroup, ButtonGroupText } from "@/registry/tassullo/ui/button-group"
 import { ErrorState } from "@/registry/tassullo/blocks/error-state"
 import { Skeleton } from "@/registry/tassullo/ui/skeleton"
 
@@ -130,7 +145,10 @@ export function PdfPreview({
       data-slot="pdf-preview"
       className={cn("flex flex-col gap-3 rounded-lg border bg-muted/30 p-3", className)}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Ogni numero sta dentro il gruppo dei suoi bottoni, e i due gruppi stanno a sinistra:
+          a pagina larga, sparsi su tutta la riga, il numero finiva lontano dai bottoni.
+          La percentuale ha una larghezza minima, o «Ingrandisci» si sposterebbe passando da 75% a 100%. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <ButtonGroup>
           <Button
             type="button"
@@ -142,6 +160,9 @@ export function PdfPreview({
           >
             <ChevronLeftIcon />
           </Button>
+          <ButtonGroupText className="bg-background font-normal text-muted-foreground tabular-nums dark:border-input dark:bg-input/30">
+            Pagina {pagina} di {numeroPagine ?? "—"}
+          </ButtonGroupText>
           <Button
             type="button"
             variant="outline"
@@ -153,9 +174,6 @@ export function PdfPreview({
             <ChevronRightIcon />
           </Button>
         </ButtonGroup>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          Pagina {pagina} di {numeroPagine ?? "—"}
-        </span>
         <ButtonGroup>
           <Button
             type="button"
@@ -167,6 +185,9 @@ export function PdfPreview({
           >
             <ZoomOutIcon />
           </Button>
+          <ButtonGroupText className="min-w-16 justify-center bg-background font-normal text-muted-foreground tabular-nums dark:border-input dark:bg-input/30">
+            {Math.round(zoom * 100)}%
+          </ButtonGroupText>
           <Button
             type="button"
             variant="outline"
@@ -178,14 +199,18 @@ export function PdfPreview({
             <ZoomInIcon />
           </Button>
         </ButtonGroup>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {Math.round(zoom * 100)}%
-        </span>
       </div>
 
+      {/* La larghezza della pagina si misura da qui: `contain-inline-size` la rende indipendente
+          dalla pagina che contiene, o lo zoom la allargherebbe a ogni misura senza limite.
+          Ingrandita, la pagina scorre dentro il riquadro, che si raggiunge col `Tab` e scorre con le frecce;
+          `justify-center-safe` tiene raggiungibile il bordo sinistro. */}
       <div
         ref={contenitoreRef}
-        className="flex justify-center overflow-auto rounded-md bg-background p-4"
+        role="region"
+        aria-label="Pagina del documento"
+        tabIndex={0}
+        className="flex justify-center-safe overflow-auto rounded-md border border-transparent bg-background p-4 outline-none contain-inline-size focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/30"
       >
         <ConfineDocumento
           key={typeof file === "string" ? file : undefined}
@@ -194,6 +219,7 @@ export function PdfPreview({
         >
           <Document
             file={file}
+            suspense={false}
             loading={<Skeleton className="h-96 w-full max-w-md" />}
             error={<ErrorState messaggio={messaggioErrore} onRiprova={onRiprova} />}
             onLoadSuccess={({ numPages }) => setNumeroPagine(numPages)}
