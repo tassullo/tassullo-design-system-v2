@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 
 import { PdfPreview } from '@/registry/tassullo/blocks/pdf-preview'
 
@@ -35,7 +36,8 @@ import { PdfPreview } from '@/registry/tassullo/blocks/pdf-preview'
  *   apre, lo stato di errore di `tassullo-error-state`, con «Riprova».
  *
  * **Tastiera e accessibilità.** Pagina precedente e successiva, riduci e
- * ingrandisci sono bottoni con un nome, raggiungibili col `Tab`.
+ * ingrandisci sono bottoni con un nome, raggiungibili col `Tab`. Anche la
+ * pagina si raggiunge col `Tab`: ingrandita, scorre con le frecce.
  */
 const meta = {
   title: 'Blocchi/Anteprima PDF',
@@ -74,4 +76,49 @@ export const Errore: Story = {
       <PdfPreview {...args} />
     </div>
   ),
+}
+
+// Dentro una griglia, come il corpo di un dialogo, il riquadro della pagina
+// non si allarga con lo zoom: la pagina ingrandita scorre dentro il riquadro,
+// e il suo bordo sinistro si raggiunge scorrendo. Prima il riquadro si
+// allargava insieme alla pagina, la misura successiva lo allargava ancora, e
+// la pagina cresceva senza limite (in Chromium e in WebKit).
+// Gira nel solo progetto WebKit (`!test`): nel giro completo di Chromium il
+// worker di pdfjs parte con 5–9 secondi di ritardo e la pagina non arriva in
+// tempo; il blocco è comunque scansionato da axe nella scena «Scheda Tecnica».
+export const ZoomInUnaGrigliaProva: Story = {
+  name: 'Zoom in una griglia, prova',
+  tags: ['!dev', '!autodocs', '!test', 'webkit'],
+  args: { file: 'esempi/scheda-tecnica-esempio.pdf' },
+  render: (args) => (
+    <div className="grid w-full max-w-3xl gap-4 rounded-xl border p-4">
+      <div className="flex flex-col gap-3">
+        <PdfPreview {...args} />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const anteprima = () => canvasElement.querySelector<HTMLElement>('[data-slot="pdf-preview"]')!
+    const riquadro = () => anteprima().children[1] as HTMLElement
+    const pagina = () => anteprima().querySelector('canvas')
+    const larghezzaPagina = () => Math.round(pagina()?.getBoundingClientRect().width ?? 0)
+    await waitFor(() => expect(larghezzaPagina()).toBeGreaterThan(0))
+    const larghezzaRiquadro = riquadro().getBoundingClientRect().width
+    const spazio = riquadro().clientWidth - 2 * parseFloat(getComputedStyle(riquadro()).paddingLeft)
+
+    await userEvent.click(tela.getByRole('button', { name: 'Pagina successiva' }))
+    await userEvent.click(tela.getByRole('button', { name: 'Pagina successiva' }))
+    for (const zoom of [1.25, 1.5, 1.75, 2]) {
+      await userEvent.click(tela.getByRole('button', { name: 'Ingrandisci' }))
+      await waitFor(() => expect(Math.abs(larghezzaPagina() - spazio * zoom)).toBeLessThanOrEqual(1))
+      expect(riquadro().getBoundingClientRect().width).toBe(larghezzaRiquadro)
+    }
+    riquadro().scrollLeft = 0
+    expect(pagina()!.getBoundingClientRect().left).toBeGreaterThanOrEqual(riquadro().getBoundingClientRect().left)
+
+    await userEvent.click(tela.getByRole('button', { name: 'Riduci' }))
+    await waitFor(() => expect(Math.abs(larghezzaPagina() - spazio * 1.75)).toBeLessThanOrEqual(1))
+    expect(riquadro().getBoundingClientRect().width).toBe(larghezzaRiquadro)
+  },
 }

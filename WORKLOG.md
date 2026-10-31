@@ -14488,3 +14488,20 @@ PR #159 unita col gate verde in CI (12 minuti); l'unione è `028e766`. Etichetta
 #### Aperti
 
 - Anagrafe: reinstallare `tassullo-testo-segnaposto` alla `v2.0.22` e provare la ricerca nel valore in Chrome e Safari.
+
+## 2026-10-31 — #162: l'anteprima PDF non cresce più con lo zoom
+
+Anagrafe (proposta #162): in un dialogo, dopo un cambio pagina e qualche «Ingrandisci», la pagina di `tassullo-pdf-preview` diventava bianca, col `<canvas>` largo decine di milioni di pixel. Francesco: «Sì, procedi» sulla correzione proposta. Ramo `fras/proposte-162`.
+
+- **Causa, misurata.** La pagina è larga `larghezzaContenitore × zoom`, e la larghezza la legge un `ResizeObserver` sul riquadro che contiene la pagina. Dentro una griglia — il corpo di `DialogContent`, una colonna `auto` che si allarga col contenuto — il riquadro cresceva insieme alla pagina, la misura successiva era più grande e la pagina cresceva di un altro fattore `zoom`. In una scena che copia il dialogo di Anagrafe (Chromium di Playwright): riquadro 710 px a 100%, 1.684 al primo «Ingrandisci», poi senza fermarsi. Anche in una griglia nuda. Non era intermittente: l'ipotesi della proposta era giusta, la rarità in Anagrafe dipende dal suo contorno.
+- **Correzione**, tutta nelle classi del riquadro: `contain-inline-size` toglie la pagina dal calcolo della sua larghezza (riquadro fermo a 710 px fino al 200% e dopo «Riduci»); `justify-center-safe`, perché col centro normale il bordo sinistro della pagina ingrandita restava fuori portata dello scorrimento (misurato: tagliato con la sola prima classe, intero con tutte e due). Il tetto sulla larghezza che la proposta chiedeva non serve: il ciclo non può più partire.
+- **Da lì la pagina scorre davvero**, e axe ha segnalato `scrollable-region-focusable`: il riquadro prende `role="region"`, `aria-label="Pagina del documento"`, `tabIndex={0}` (lo schema di `split-view`) e il contorno di fuoco dei campi. Provato in Chromium: `Tab` arriva sul riquadro, le frecce lo scorrono di lato.
+- **Secondo difetto, trovato verificando.** `react-pdf` 11 (installato col blocco fin dalla prima versione) usa Suspense per impostazione predefinita e ignora `loading` ed `error`: mentre il PDF carica sospende l'intero blocco fino al `Suspense` più vicino. Con 2 s di ritardo sul PDF: prima nessun pezzo del blocco (in Anagrafe il ripiego del suo `lazy` al posto di barra e pagina), con `suspense={false}` barra e sagoma della pagina. La nota in testa al file sul «404 che fa lanciare `<Document>`» descriveva questa sospensione; riscritta.
+- **Prova**: `Zoom in una griglia, prova` — due pagine avanti, quattro «Ingrandisci», «Riduci»; a ogni passo la pagina è larga `spazio × zoom` e il riquadro non cambia, e il bordo sinistro si raggiunge. Col codice di prima fallisce in Chromium e in WebKit (riquadro 708 → 877). Gira nel **solo progetto WebKit** (`!test`, `webkit`): nel giro completo di Chromium la pagina non arrivava entro i 5 s del `waitFor`.
+- **Perché la prova sta fuori da Chromium, misurato a metà.** Nel giro completo (566 scene) il worker di pdfjs viene creato 5–9 s dopo il montaggio, mentre da sola la scena disegna la pagina in 0,25 s. Escluse: la pagina della prova nascosta (`visible`, 60 fotogrammi al secondo), la cache di `react-pdf` condivisa fra le scene (stesso ritardo con un indirizzo diverso), il ripiego sul worker finto (nessun `pdfjsWorker`, nessun avviso). `react-pdf` chiama `getDocument` subito (letto `useResource`/`Document`): il ritardo sta dentro pdfjs o nel browser sotto carico, e non l'ho trovato. Il blocco resta scansionato da axe in `Scheda Tecnica`.
+- Gate: `npm run check` verde, 2260 scansioni a 0 violazioni, WebKit 47 scene.
+
+#### Aperti
+
+- Il ritardo del worker di pdfjs nel giro completo di Chromium: causa non trovata (sopra cosa è escluso). Se un'altra scena dovrà aspettare una pagina disegnata, va ripreso.
+- Pubblicare la versione e scrivere sulla #162 il commento di adozione: Anagrafe reinstalla `tassullo-pdf-preview`; il `Suspense` attorno al `lazy` resta utile solo per il caricamento del modulo.
