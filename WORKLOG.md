@@ -14532,3 +14532,28 @@ Anagrafe (proposta #165) chiede i pezzi di interfaccia del suo canale di support
 #### Aperti
 
 - Fare #165a, #165b, #165c. Anagrafe nel frattempo usa i suoi componenti (sua F183).
+
+## 2026-11-01 — #165b: galleria di immagini e filo dei messaggi
+
+Secondo dei tre passi di #165. Due blocchi generici in `registry/tassullo/blocks/`, con story e item: non sanno niente del supporto. Riferimento: `ScreenshotRichiesta.tsx` e `FiloRisposte.tsx` di Anagrafe al commit `589247a5` (letti, non toccati). Ramo `fras/proposta-165b-cdcb2a`, partito da `fras/proposta-165` (PR #166).
+
+- **`tassullo-galleria-immagini`.** Miniature in griglia, 2 colonne e 3 da `@lg` della galleria stessa (container query sul blocco, non sull'antenato: misurato 2 colonne a 352px, 3 a 640px nella stessa finestra). Clic o `Invio` aprono `tassullo-responsive-dialog` quasi a tutta finestra (`md:h-11/12 md:max-w-7xl`, come Anagrafe). Prop: `immagini` (`id`, `nome?`), `carica(immagine, segnale)` che dà URL o `Blob`, `etichetta` («Screenshot» → «Screenshot 2 di 5»), `forma`.
+  - **Una lettura per immagine.** Anagrafe scaricava due volte, miniatura e ingrandimento. Qui ogni miniatura carica e dice lo stato alla galleria; il dialogo riusa l'URL. Il `Blob` diventa URL e si revoca allo smontaggio; `segnale` si interrompe se la miniatura sparisce prima.
+  - **`carica` nuova a ogni render** (in Anagrafe lo è) si legge con `useEffectEvent`: l'effetto dipende solo da `id` e numero del tentativo (`docs/DECISIONI.md` §17).
+  - **Stati per immagine**: caricamento (`Skeleton`), errore (icona nella miniatura; nel grande «L'immagine non si carica.» e «Riprova»), anche se la promessa riesce ma l'`<img>` non decodifica.
+  - **Tastiera, oltre Anagrafe**: `←`/`→` scorrono le immagini; il fuoco torna sulla miniatura di partenza (`finalFocus`, il dialogo non ha grilletto); «Precedente»/«Successivo» agli estremi sono spenti con `focusableWhenDisabled`, così il fuoco non cade sul fondo (in Anagrafe cadeva). Il bottone di `button` stila solo `disabled:`, che con `aria-disabled` non scatta: `aria-disabled:opacity-50` sul punto d'uso, stringa di classi e non variante.
+  - **Chiudendo, il pannello non si svuota più**: la prima stesura azzerava l'immagine aperta insieme all'apertura, e il cassetto scendeva vuoto (preso dalla prova a 375). Ora apertura e immagine mostrata sono due stati.
+  - **Scelta di Francesco, il piede del cassetto: variante C** fra tre rese e affiancate (A tre bottoni impilati con «Precedente» in fondo, B «Chiudi» in cima). Sul telefono «Precedente» e «Successivo» affiancati sotto l'immagine, «Chiudi» in fondo; sulla scrivania in fila a destra nello stesso ordine. Si ottiene con `className="flex-col"` sul piede, che vince sul `flex-col-reverse` del cassetto.
+- **`tassullo-filo-messaggi`.** `messaggi` (`id`, `autore`, `testo`, `data`: `Date` o ISO con fuso) in qualunque ordine, li ordina dal più vecchio (Anagrafe si fidava dell'API). Data `gg/mm/aaaa, hh:mm` nel fuso di Roma, come Anagrafe e come le date numeriche del registry (`data-table`, `pagina-dashboard`); il registry non ha un modulo date, la formattatrice sta nel blocco. Testo intero, `whitespace-pre-wrap wrap-anywhere`; `role="listitem"` su ogni `Item`, perché `ItemGroup` è `role="list"`. `vuoto`, di serie «Nessun messaggio».
+- `galleria-immagini` aggiunta a `CON_POPUP` di `scripts/gate-a11y.ts`; le scene aprono con `apriCol`. Le immagini d'esempio sono finte schermate disegnate su canvas coi token letti a runtime (niente rete, niente binari, niente hex).
+
+#### Prove
+
+- **Axe ha preso un difetto vero** alla prima corsa del gate: in `Una sola` (immagine 1200×900) l'immagine grande scorre dentro il suo riquadro, e da tastiera non ci si arrivava (`scrollable-region-focusable`, passate `aperto`, chiaro e scuro). Il riquadro ora è `role="region"` col nome dell'immagine e `tabIndex={0}`, come in `tassullo-pdf-preview`, e scorre con le frecce su e giù. Effetto collaterale buono: aprendo il dialogo il fuoco va sull'immagine, non più su «Precedente» spento.
+- Chromium di Playwright dalla cartella temporanea contro lo Storybook di sviluppo, a 1440 e 375: `Tab` sulle miniature, `Invio` apre la seconda («Screenshot 2 di 3») col fuoco sull'immagine, `→ →` si ferma alla terza, `Tab` gira dentro il dialogo (immagine, Precedente, Successivo spento ma raggiungibile, Chiudi, X; nel cassetto senza X), `Invio` su Precedente torna alla seconda, `Esc` chiude e il fuoco torna su «Ingrandisci Screenshot 2». A 375 nessun elemento esce dal riquadro (galleria e filo, sette scene); l'indirizzo lungo del filo va a capo dentro la card.
+- **Da sapere sullo strumento**: con `Tab` premuto a raffica (nessuna attesa fra i tasti) il fuoco esce dal dialogo, anche su `Primitive/Dialog → Fuoco intrappolato`, che non è stato toccato. Con 200 ms fra un tasto e l'altro resta dentro, in tutti e tre. Le guardie di Base UI spostano il fuoco al giro dopo: non è un difetto dei blocchi, ma una prova di trappola va scritta con l'attesa.
+- `npm run check` verde: tredici gate, axe 2296 scansioni in quattro passate, 0 violazioni; WebKit 47 prove.
+
+#### Aperti
+
+- #165c (dialogo e pagine) può partire quando #165a e #165b sono unite.

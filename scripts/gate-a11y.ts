@@ -87,6 +87,7 @@ const CON_POPUP = [
   "drawer",
   "dropdown-menu",
   "foglio-gruppi",
+  "galleria-immagini",
   "hover-card",
   "page-header",
   "popover",
