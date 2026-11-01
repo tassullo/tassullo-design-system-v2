@@ -110,7 +110,7 @@
       "name": "supporto",
       "type": "registry:lib",
       "title": "Tipi del supporto",
-      "description": "I tipi del canale di supporto, uguali in tutte le app: tipo e stato di una richiesta, risposte, scheda e dettagli tecnici, i limiti (titolo 140 caratteri, 5 screenshot PNG o JPEG fino a 10 MB), il nome e il tono di ogni stato (Ricevuta neutro, Aperta info, In lavorazione warning, Chiusa success) e la data e ora nell'ora italiana.",
+      "description": "I tipi del canale di supporto, uguali in tutte le app: tipo e stato di una richiesta, risposte, scheda e dettagli tecnici, i limiti (titolo 140 caratteri, 5 screenshot PNG o JPEG fino a 10 MB), il nome e il tono di ogni stato (Ricevuta neutro, Aperta info, In lavorazione warning, Chiusa success) e la data e ora nell'ora italiana; per l'amministratore la riga con la issue e i tentativi d'invio, lo stato del collegamento con GitHub e i nomi delle sue variabili d'ambiente.",
       "dependencies": [
         "lucide-react"
       ],
@@ -123,7 +123,7 @@
       "registryDependencies": [
         "@tassullo/toni"
       ],
-      "docs": "  import { STATO_RICHIESTA, TIPO_RICHIESTA, formattaDataOra } from '@/lib/supporto'\n  import { TONO } from '@/lib/toni'\n\n  const s = STATO_RICHIESTA[richiesta.stato]\n  <Badge className={TONO[s.tono]}>{s.testo}</Badge>\n\nI valori e i nomi dei campi sono quelli del contratto del server del supporto\n(errore, richiesta, domanda; ricevuta, aperta, in_lavorazione, chiusa): il tipo\n«Proposta» ha per valore `richiesta`. Il tipo `Richiesta` porta i soli campi che\nle pagine modello leggono; un'app che ne riceve altri lo estende nel suo codice.\n\n`DatiRichiesta` è ciò che consegna il dialogo `tassullo-richiesta-supporto`."
+      "docs": "  import { STATO_RICHIESTA, TIPO_RICHIESTA, formattaDataOra } from '@/lib/supporto'\n  import { TONO } from '@/lib/toni'\n\n  const s = STATO_RICHIESTA[richiesta.stato]\n  <Badge className={TONO[s.tono]}>{s.testo}</Badge>\n\nI valori e i nomi dei campi sono quelli del contratto del server del supporto\n(errore, richiesta, domanda; ricevuta, aperta, in_lavorazione, chiusa): il tipo\n«Proposta» ha per valore `richiesta`. Il tipo `Richiesta` porta i soli campi che\nle pagine modello leggono; un'app che ne riceve altri lo estende nel suo codice.\n\n`DatiRichiesta` è ciò che consegna il dialogo `tassullo-richiesta-supporto`.\n\n`RichiestaAmministratore`, `invioFallito`, `StatoCollegamento` e\n`VARIABILI_COLLEGAMENTO` servono alla pagina dell'amministratore\n(`tassullo-pagina-supporto-admin`); `formattaData` scrive la sola data."
     },
     {
       "name": "tassullo-controllo",
@@ -2080,6 +2080,42 @@
         "@tassullo/tema"
       ],
       "docs": "Pagina d'esempio, non un componente da importare: mostra come `card`,\n`tassullo-galleria-immagini`, `tassullo-filo-messaggi` e `tassullo-page-header`\nstanno insieme nella scheda di una richiesta di supporto. Il codice intero si legge\ncon `npx shadcn@latest view @tassullo/tassullo-pagina-supporto-richiesta` o\ndall'MCP; nell'app la pagina si riscrive nella cartella delle pagine.\n\nRiceve `richiesta`, `stato` (anche `non-trovata`, che non dice se la richiesta\nesiste), `percorsoLista`, `onAggiorna`, `caricaScreenshot(screenshot, segnale)` per\ngli screenshot autenticati e `amministratore`, che mostra i dettagli tecnici: a\ndestra quando l'area del contenuto è larga almeno 896px, sotto altrimenti. Segnare\nlette le risposte nuove resta all'app."
+    },
+    {
+      "name": "tassullo-pagina-supporto-admin",
+      "type": "registry:block",
+      "title": "Pagina del supporto, amministrazione",
+      "description": "La vista dell'amministratore sul canale di supporto: avvisi sul collegamento con GitHub (non configurato, token in scadenza, token scaduto), card del collegamento in coppie termine–valore, tabella di tutte le richieste con Titolo, Tipo, Data, Utente, Stato (anche «Invio fallito»), Issue e Invio a GitHub con «Riprova invio» nella riga, filtri per stato e tipo. Pagina d'esempio: mostra come si compongono i blocchi. Si legge con npx shadcn view o dall'MCP e si ricompone nell'app; non si installa e non si importa.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-supporto-admin.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-supporto-admin.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-data-table-filtro-reset",
+        "@tassullo/tassullo-data-table-filtro-sfaccettato",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/supporto",
+        "@tassullo/numeri",
+        "@tassullo/toni",
+        "@tassullo/alert",
+        "@tassullo/badge",
+        "@tassullo/button",
+        "@tassullo/card",
+        "@tassullo/spinner",
+        "@tassullo/tema"
+      ],
+      "docs": "Pagina d'esempio, non un componente da importare: mostra come `alert`, `card`,\n`tassullo-page-header` e `tassullo-data-table` coi filtri stanno insieme nella\nvista dell'amministratore sul canale di supporto. Il codice intero si legge con\n`npx shadcn@latest view @tassullo/tassullo-pagina-supporto-admin` o dall'MCP;\nnell'app la pagina si riscrive nella cartella delle pagine, e si installano per\nnome i blocchi che usa.\n\nNon legge i dati e non conosce il router: riceve `richieste`\n(`RichiestaAmministratore` di `supporto`), `collegamentoGitHub`\n(`StatoCollegamento`), i due stati di caricamento con i loro errori,\n`onRiprovaInvio(richiesta)` e `invioInCorso`, `onAggiorna` e\n`collegamento(richiesta)`, l'elemento che rende il titolo come collegamento alla\nscheda. È una schermata tecnica: l'errore dell'invio si mostra così come arriva."
     },
     {
       "name": "stepper",

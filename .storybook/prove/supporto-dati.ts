@@ -1,6 +1,11 @@
 // Dati inventati per le scene delle due pagine del supporto. Fuori da ogni
 // item: nessuna app li riceve.
-import type { Richiesta, RichiestaScheda } from '@/registry/tassullo/lib/supporto'
+import type {
+  Richiesta,
+  RichiestaAmministratore,
+  RichiestaScheda,
+  StatoCollegamento,
+} from '@/registry/tassullo/lib/supporto'
 
 export const RICHIESTE: Richiesta[] = [
   { id: 41, tipo: 'errore', titolo: 'Il listino 2027 non si salva: compare un errore rosso dopo «Salva»', descrizione: '', stato: 'in_lavorazione', creato_il: '2026-10-30T09:12:00+01:00', n_risposte: 3, non_lette: 2 },
@@ -92,4 +97,56 @@ export const SCREENSHOT_TOLTI: RichiestaScheda = {
   ],
   screenshot: [],
   screenshot_tolti: 2,
+}
+
+const UTENTI = ['Stefano Bertolini', 'Giorgio Pedrotti', 'Chiara Zanon', 'Luca Moser']
+const ISSUE = 'https://github.com/esempio/supporto/issues/'
+
+// Le stesse richieste, viste dall'amministratore: due non sono partite.
+export const RICHIESTE_ADMIN: RichiestaAmministratore[] = RICHIESTE.map((r, i) => {
+  const utente = UTENTI[i % UTENTI.length]
+  const email = `${utente.split(' ')[0].toLowerCase()}@esempio.it`
+  if (r.stato === 'ricevuta') {
+    return {
+      ...r,
+      utente_nome: utente,
+      utente_email: email,
+      invio_tentativi: 2,
+      invio_ultimo_errore: 'GitHub ha risposto 401 Bad credentials',
+    }
+  }
+  const numero = 57 - i
+  return {
+    ...r,
+    utente_nome: utente,
+    utente_email: email,
+    github_numero: numero,
+    github_url: `${ISSUE}${numero}`,
+    invio_tentativi: i === 2 ? 4 : 1,
+  }
+})
+
+RICHIESTE_ADMIN.splice(1, 0, {
+  id: 42,
+  tipo: 'errore',
+  titolo: 'La stampa della scheda tecnica esce senza il marchio CE quando il prodotto ha più di una norma armonizzata',
+  descrizione: '',
+  stato: 'ricevuta',
+  creato_il: '2026-10-31T18:22:00+01:00',
+  n_risposte: 0,
+  non_lette: 0,
+  utente_nome: 'Chiara Zanon',
+  utente_email: 'chiara@esempio.it',
+  invio_tentativi: 1,
+  invio_ultimo_errore:
+    'POST https://api.github.com/repos/esempio/supporto/issues: 422 Unprocessable Entity — Validation Failed: {"resource":"Issue","code":"custom","field":"body","message":"body is too long (maximum is 65536 characters)"}',
+})
+
+export const COLLEGAMENTO: StatoCollegamento = {
+  configurato: true,
+  repo: 'esempio/supporto',
+  token: { stato: 'valida', scadenza: '2027-03-31', giorni: 150 },
+  preavviso_giorni: 14,
+  non_inviate: 2,
+  ultima_sincronizzazione: '2026-11-01T19:55:00+01:00',
 }

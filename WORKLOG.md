@@ -14626,3 +14626,24 @@ Primo passo della proposta #171 di Anagrafe (sulla `v2.0.24`, adozione nel commi
 #### Aperti
 
 - #171b: pagina d'esempio `tassullo-pagina-supporto-admin` e tipi dell'amministratore in `lib/supporto.ts`.
+
+## 2026-11-01 — #171b: pagina d'esempio dell'amministratore del supporto
+
+Secondo passo della proposta #171. Ramo `fras/proposta-171b`, partito da `fras/proposta-171a` (PR #172, non ancora unita). Riferimento: `AdminSupporto.tsx` e `supportoAnagrafe.ts` di Anagrafe al commit `5222bec8` (letti con `gh api`, non toccati).
+
+- **`tassullo-pagina-supporto-admin`** (pagina d'esempio, come le altre: si legge e si ricompone, non si installa). Fascia «Amministrazione › Supporto» con «Aggiorna»; avvisi in cima (`Alert` coi toni di `lib/toni`: collegamento non configurato e token in scadenza `warning`, token scaduto `destructive`, variabili in `<code>`); card «Collegamento con GitHub» in coppie termine–valore (`grid-cols-termine`); `tassullo-data-table` infinita e `altezza="ferma"` con Titolo (collegamento su una riga, troncato col `title`, colonna elastica), Tipo, Data, Utente (nome, mai l'email), Stato (più «Invio fallito» `destructive`, anche nel filtro), Issue (`#n` su GitHub, «—»), Invio a GitHub («Riuscito», «Riuscito al N° tentativo», o tentativi, ultimo errore su due righe e «Riprova invio»). Non legge i dati e non conosce il router: `collegamento(richiesta)` e «Riprova invio» passano per un contesto, così le colonne restano una costante. Due stati separati, collegamento ed elenco, ognuno col suo errore così com'è.
+- **`lib/supporto.ts`**: `RichiestaAmministratore` (estende `Richiesta` con issue, assegnatario e tentativi), `invioFallito`, `StatoCollegamento` (il contratto di `GET /api/supporto/stato` di Anagrafe), `VARIABILI_COLLEGAMENTO` coi nomi delle due variabili d'ambiente, `formattaData` (la sola data; una data `AAAA-MM-GG` si legge come quel giorno e non come la mezzanotte UTC).
+- **Rispetto ad Anagrafe, tre correzioni prese guardando la pagina**: (1) le larghezze stavano in 1150px con la colonna Titolo a 240, più dello spazio a 1440 con la colonna aperta: ristrette di 10px ciascuna, ora 1150 col titolo a 300 e niente scorrimento di lato; (2) l'errore lungo dell'invio (un indirizzo senza spazi) usciva dalla cella: `wrap-break-word` dentro un contenitore `items-start` non cambia la larghezza minima, `wrap-anywhere` sì; (3) a 375 avvisi e card prendevano tutta l'altezza e la tabella restava alta zero righe: ora ha `min-h-128` e la pagina scorre (`overflow-y-auto`, con `-mx-px px-px` perché l'anello delle card non sia tagliato ai lati). A 1440×900 la pagina non scorre (misurato: 0px).
+- **Scene** in `Pagine/Supporto, amministrazione`: Di serie, Token in scadenza, Token scaduto, Non configurato, Caricamento, Errore, e una prova (`!dev`): due «Invio fallito», nessuna email in pagina, `#52` su GitHub, «Riprova invio» spento durante l'invio e poi la riga con `#58` e «Riuscito al 2° tentativo». Dati inventati in `.storybook/prove/supporto-dati.ts`.
+- `docs/INTEGRAZIONE.md`: nove pagine d'esempio.
+- **Niente schede sotto 1024px**, a differenza della pagina di chi scrive: è una schermata tecnica da scrivania, come in Anagrafe; sul telefono la tabella scorre di lato nel suo riquadro.
+
+#### Prove
+
+- **Due errori miei nella prova della pagina, trovati dal gate**: durante il nuovo invio lo spinner (`aria-label="Caricamento"`) entra nel nome del bottone, quindi (1) cercare di nuovo «Riprova invio» per nome dava il bottone dell'altra riga, e (2) «un solo Riprova invio» era già vero durante l'attesa, prima che la riga cambiasse. Ora la prova tiene il riferimento al bottone cliccato e aspetta il collegamento `#58`, che compare solo a invio riuscito. Poi 3 giri su 3 in Chromium e 2 su 2 in WebKit (con l'etichetta `webkit` messa per la prova e tolta).
+- `npm run check:statici` verde; `test:a11y` al primo giro aveva anche `data-grid › Celle Tipizzate, calendario, prova` rossa in una passata su quattro (vedi sotto).
+- A 1440×900 la pagina non scorre (0px), a 375 la tabella mostra 6 righe e scorre la pagina, niente esce di lato; nessun elemento esce dalla sua cella.
+
+#### Aperti
+
+- **`data-grid`, prove instabili sotto carico**: «Celle Tipizzate, prova» è caduta nella CI della PR #172 (scuro/aperto: la cella attiva 39,5px sotto il fondo del riquadro dopo 5 s, cioè non è stata portata in vista) e «Celle Tipizzate, calendario, prova» nel primo giro locale di #171b (chiaro/aperto). Da sole passano 5 giri su 5. Codice non toccato da #171; su `main` le ultime corse sono verdi. La griglia porta in vista la cella col fuoco nativo, con `scroll-padding` e lo scorrimento agganciato alle righe (`snap-proximity`): indizio, non causa. Da indagare a parte, senza ritoccare le prove prima di aver trovato la causa.
