@@ -14598,3 +14598,16 @@ Ultimo dei tre passi di #165. Ramo `fras/proposta-165c`, da `main` con #165a e #
 #### Aperti
 
 - Commento di adozione per Anagrafe: preparato, da pubblicare quando Francesco decide (cosa installare, cosa togliere, che l'incolla non c'è).
+
+## 2026-11-01 — v2.0.24 pubblicata, #165 chiusa
+
+PR #167 (#165a), #168 (#165b) e #169 (#165c) unite col gate verde in CI; l'ultima unione è `9cd15e2`, e la #165 si è chiusa da sé con `Closes #165`. Etichetta annotata `v2.0.24` su `9cd15e2`, push della sola etichetta. Francesco: «Sì, unisci e avvia», «Sì, unisci», poi «Sì, pubblica». I tre passi li hanno fatti tre sessioni separate (le prime due in parallelo, partite dal ramo della PR #166); la #168 è entrata dopo un conflitto su `registry.json`, `public/r/` e diario, risolto dalla sua sessione rigenerando `public/r/`.
+
+- Dentro: `tassullo-file-upload` a miniature col tetto ai file (niente incolla, scelta di Francesco), `tassullo-galleria-immagini`, `tassullo-filo-messaggi`, `tassullo-richiesta-supporto`, `supporto` (`lib/supporto.ts`), le pagine `tassullo-pagina-supporto` e `tassullo-pagina-supporto-richiesta`. Il dettaglio sta nelle voci dei tre passi, qui sopra.
+- **Non rompe chi aggiorna dalla `v2.0.23`**: item nuovi; `file-upload` di serie resta com'era, salvo la dimensione scritta con la virgola.
+- Verifica da fuori: alla `v2.0.24` rispondono 200 `registry.json` e i JSON in `public/r/` dei sette item; `shadcn view …/tassullo-richiesta-supporto#v2.0.24` risolve l'item.
+- Sulla #165 il commento di adozione: cosa installare, quali componenti di Anagrafe togliere e con cosa, che l'incolla non c'è, cosa provare in Chrome e Safari.
+
+#### Aperti
+
+- Anagrafe: adottare il kit alla `v2.0.24` e scrivere l'esito sulla #165.
