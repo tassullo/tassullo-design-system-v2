@@ -14519,3 +14519,16 @@ PR #163 unita col gate verde in CI (14 minuti); l'unione è `fdf9534`. Etichetta
 #### Aperti
 
 - Anagrafe: reinstallare `tassullo-pdf-preview` alla `v2.0.23` e provare zoom, cambio pagina e barra nel dialogo, in Chrome e Safari.
+
+## 2026-11-01 — #165 accettata, in forma riorganizzata
+
+Anagrafe (proposta #165) chiede i pezzi di interfaccia del suo canale di supporto: chi usa l'app apre una richiesta (errore, proposta, domanda) con screenshot, la richiesta diventa una issue nel repository dell'app e le risposte tornano nell'app. Il server resta di ogni app. Letti i sorgenti citati (commit `589247a5` di Anagrafe) e confrontati col registry. Francesco: «Sì, riorganizzata». Ramo `fras/proposta-165`, solo documenti.
+
+- **Cosa c'è già.** `tassullo-file-upload` sceglie e valida i file e mostra l'avanzamento, ma come elenco: niente miniature, niente incolla. Nessuna galleria. `tassullo-version-timeline` non fa da filo di risposte, perché ha stati fissi. **Il badge sulla voce di navigazione c'è già**: `app-shell` accetta `badge` su ogni voce (`SidebarMenuBadge`), quindi il punto facoltativo della proposta non chiede niente.
+- **Perché riorganizzata.** Metà dei pezzi non ha niente di «supporto». Le miniature con l'incolla vanno **dentro `file-upload`**, perché servono anche alle foto dei prodotti; galleria e filo diventano blocchi con un nome generico (`tassullo-galleria-immagini`, `tassullo-filo-messaggi`), come chiedeva la proposta stessa per la galleria. Resta legato al supporto solo ciò che deve essere uguale in tutte le app: il dialogo, le due pagine modello e i tipi con i toni degli stati (`lib/supporto.ts`).
+- **Tutti blocchi**, in `registry/tassullo/blocks/`: nessuna riga in `componenti-propri.json`, nessuna primitiva nuova. I mattoni ci sono tutti (`responsive-dialog`, `radio-group`, `item`, `field`, `alert`, `progress`).
+- **Tre righe in `CHECKLIST.md`**: #165a (`file-upload`), #165b (galleria e filo), #165c (dialogo e pagine, dopo le prime due).
+
+#### Aperti
+
+- Fare #165a, #165b, #165c. Anagrafe nel frattempo usa i suoi componenti (sua F183).
