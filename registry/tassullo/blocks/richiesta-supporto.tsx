@@ -11,7 +11,7 @@
  * - **niente incolla con Ctrl+V**: Francesco l'ha tolto in #165a; gli
  *   screenshot si scelgono dal computer o si trascinano;
  * - le miniature e il tetto sono quelli di `tassullo-file-upload`
- *   (`forma="miniature"`, `massimo`/`presenti`), non un elenco composto a
+ *   (`forma="miniature-compatte"`, `massimo`/`presenti`), non un elenco composto a
  *   mano.
  *
  * Il modulo non usa react-hook-form: quattro campi e una validazione all'invio
@@ -198,7 +198,7 @@ export function RichiestaSupporto({
 
   return (
     <ResponsiveDialog open={aperto} onOpenChange={cambiaApertura} forma={forma}>
-      <ResponsiveDialogContent className="sm:max-w-2xl">
+      <ResponsiveDialogContent className="md:max-w-4xl">
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>Apri una richiesta</ResponsiveDialogTitle>
           {descrizione ? <ResponsiveDialogDescription>{descrizione}</ResponsiveDialogDescription> : null}
@@ -262,7 +262,7 @@ export function RichiestaSupporto({
               <FieldSet>
                 <FieldLegend variant="label">Screenshot (facoltativo)</FieldLegend>
                 <FileUploadList
-                  forma="miniature"
+                  forma="miniature-compatte"
                   file={screenshot.map((s) => ({
                     id: s.id,
                     nome: s.file.name,

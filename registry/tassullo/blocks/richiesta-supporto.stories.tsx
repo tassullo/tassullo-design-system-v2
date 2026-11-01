@@ -67,7 +67,7 @@ import { Button } from '@/registry/tassullo/ui/button'
  *   uno. La descrizione cresce col testo fino a un'altezza, poi scorre
  *   dentro il campo.
  * - Gli screenshot si scelgono dal computer o si trascinano sul bottone; si
- *   tolgono con la crocetta accanto al nome. Al tetto il bottone si spegne e
+ *   tolgono con la crocetta sopra l'immagine. Al tetto il bottone si spegne e
  *   la frase sotto dice perché. Incollare un'immagine dagli appunti non
  *   aggiunge uno screenshot.
  * - Gli errori dei campi compaiono al primo invio e da lì seguono quello che

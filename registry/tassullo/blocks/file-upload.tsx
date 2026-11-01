@@ -53,8 +53,17 @@
  * «sparisce», «spento con frase», «conto sempre visibile»). L'incolla da
  * appunti chiesto dalla proposta **non c'è**: Francesco l'ha tolto, restano
  * la scelta dal computer e il trascinamento.
+ *
+ * ── Tre forme in più (proposta #171, 2026-11-01) ─────────────────────────
+ *
+ * Anagrafe: con 5 screenshot il dialogo del supporto superava l'altezza di
+ * un portatile da 14". Francesco ha scelto fra sei forme rese di tenerne tre,
+ * scelte dall'app: `miniature-compatte` (A, «Togli» sull'immagine e nome
+ * sotto: è quella del dialogo del supporto), `solo-immagini` (C) e
+ * `righe-con-immagine` (H1, immagine 16:9 a sinistra, nome e peso a destra).
+ * Il peso sparisce dalle due forme a griglia.
  */
-import { useCallback } from "react"
+import { useCallback, type ReactNode } from "react"
 import {
   CheckIcon,
   FileIcon,
@@ -107,7 +116,7 @@ export type FileUploadItem = {
   /** Il motivo del fallimento, già tradotto: mai un codice, mai la risposta grezza del server. */
   errore?: string
   /**
-   * L'immagine della miniatura, con `forma="miniature"`. Un `File` appena
+   * L'immagine della voce, con le forme a immagine di `FileUploadList`. Un `File` appena
    * scelto si passa così com'è: l'indirizzo locale lo apre e lo libera il
    * blocco. Una stringa è un indirizzo già pronto. Assente, la miniatura
    * mostra l'icona del file.
@@ -286,16 +295,34 @@ export function FileUpload({
   )
 }
 
+type FormaElenco =
+  | "righe"
+  | "miniature"
+  | "miniature-compatte"
+  | "solo-immagini"
+  | "righe-con-immagine"
+
+const GRIGLIA: Record<Exclude<FormaElenco, "righe">, string> = {
+  miniature: "grid-cols-2 gap-3 @md:grid-cols-3 @3xl:grid-cols-4",
+  "miniature-compatte": "grid-cols-3 gap-2 @xl:grid-cols-5",
+  "solo-immagini": "grid-cols-3 gap-2 @xl:grid-cols-5",
+  "righe-con-immagine": "grid-cols-1 gap-2 @xl:grid-cols-2",
+}
+
 export type FileUploadListProps = {
   file: FileUploadItem[]
   /** Assente, la riga non ha bottone di rimozione — il caso degli allegati già caricati che non si tolgono da qui. */
   onRimuovi?: (id: string) => void
   /**
-   * `"righe"`, di serie: un file per riga. `"miniature"`: una griglia di
-   * miniature, due colonne dove il posto è poco e di più dove ce n'è, per
-   * le immagini.
+   * `"righe"`, di serie: un file per riga. Per le immagini:
+   * `"miniature"`, una griglia di miniature grandi, due colonne dove il
+   * posto è poco e di più dove ce n'è; `"miniature-compatte"`, miniature
+   * piccole col nome sotto e «Togli» sopra l'immagine, tre per riga sul
+   * telefono e cinque dove c'è posto; `"solo-immagini"`, le stesse senza il
+   * nome, che si legge passandoci sopra; `"righe-con-immagine"`, l'immagine
+   * a sinistra e nome e peso a destra, una o due colonne.
    */
-  forma?: "righe" | "miniature"
+  forma?: FormaElenco
   className?: string
 }
 
@@ -307,15 +334,17 @@ export function FileUploadList({
 }: FileUploadListProps) {
   if (!file.length) return null
 
-  if (forma === "miniature") {
+  if (forma !== "righe") {
+    const Voce = VOCE[forma]
     return (
       <div className={cn("@container", className)}>
         <ul
           data-slot="file-upload-miniature"
-          className="grid grid-cols-2 gap-3 @md:grid-cols-3 @3xl:grid-cols-4"
+          data-forma={forma}
+          className={cn("grid", GRIGLIA[forma])}
         >
           {file.map((voce) => (
-            <Miniatura key={voce.id} voce={voce} onRimuovi={onRimuovi} />
+            <Voce key={voce.id} voce={voce} onRimuovi={onRimuovi} />
           ))}
         </ul>
       </div>
@@ -394,9 +423,11 @@ export function FileUploadList({
 function ImmagineMiniatura({
   anteprima,
   nome,
+  className,
 }: {
   anteprima: Blob | string
   nome: string
+  className?: string
 }) {
   const apri = useCallback(
     (immagine: HTMLImageElement | null) => {
@@ -413,7 +444,7 @@ function ImmagineMiniatura({
       ref={apri}
       src={typeof anteprima === "string" ? anteprima : undefined}
       alt={`Anteprima di ${nome}`}
-      className="aspect-4/3 w-full bg-muted object-cover"
+      className={cn("aspect-4/3 w-full bg-muted object-cover", className)}
     />
   )
 }
@@ -468,4 +499,154 @@ function Miniatura({
       </div>
     </li>
   )
+}
+
+type PropsVoce = {
+  voce: FileUploadItem
+  onRimuovi?: (id: string) => void
+}
+
+/** L'immagine, o l'icona del file se manca, nel rapporto della forma. */
+function Anteprima({
+  voce,
+  className,
+}: {
+  voce: FileUploadItem
+  className?: string
+}) {
+  return voce.anteprima ? (
+    <ImmagineMiniatura
+      anteprima={voce.anteprima}
+      nome={voce.nome}
+      className={className}
+    />
+  ) : (
+    <div
+      className={cn(
+        "flex items-center justify-center bg-muted text-muted-foreground",
+        className
+      )}
+    >
+      <FileIcon className="size-5" />
+    </div>
+  )
+}
+
+/** «Togli» sopra l'immagine, nell'angolo; durante l'invio non c'è. */
+function TogliSopra({ voce, onRimuovi }: PropsVoce) {
+  if (!onRimuovi || voce.stato === "in-corso") return null
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="icon-xs"
+      className="absolute top-1 right-1"
+      onClick={() => onRimuovi(voce.id)}
+      aria-label={`Togli ${voce.nome}`}
+    >
+      <XIcon />
+    </Button>
+  )
+}
+
+/** Sotto il nome: la barra durante l'invio, il motivo se è fallito. */
+function StatoVoce({ voce }: { voce: FileUploadItem }) {
+  if (voce.stato === "in-corso") {
+    return <Progress value={voce.progresso ?? 0} aria-label={voce.nome} />
+  }
+  if (voce.stato === "fallito" && voce.errore) {
+    return (
+      <span className="text-destructive-subtle-foreground">{voce.errore}</span>
+    )
+  }
+  return null
+}
+
+const CORNICE_VOCE =
+  "min-w-0 overflow-hidden rounded-lg border bg-card text-sm data-[stato=fallito]:border-destructive-border data-[stato=fallito]:bg-destructive-subtle"
+
+function MiniaturaCompatta({ voce, onRimuovi }: PropsVoce) {
+  return (
+    <li
+      data-slot="file-upload-miniatura"
+      data-stato={voce.stato}
+      className={cn("relative flex flex-col", CORNICE_VOCE)}
+    >
+      <Anteprima voce={voce} className="aspect-video w-full" />
+      <TogliSopra voce={voce} onRimuovi={onRimuovi} />
+      <div className="flex flex-col gap-1 px-2 py-1">
+        <span className="truncate font-medium" title={voce.nome}>
+          {voce.nome}
+        </span>
+        <StatoVoce voce={voce} />
+      </div>
+    </li>
+  )
+}
+
+function SoloImmagine({ voce, onRimuovi }: PropsVoce) {
+  return (
+    <li
+      data-slot="file-upload-miniatura"
+      data-stato={voce.stato}
+      title={voce.nome}
+      className={cn("relative flex flex-col", CORNICE_VOCE)}
+    >
+      <Anteprima voce={voce} className="aspect-video w-full" />
+      <TogliSopra voce={voce} onRimuovi={onRimuovi} />
+      {voce.stato === "in-corso" ||
+      (voce.stato === "fallito" && voce.errore) ? (
+        <div className="px-2 py-1.5">
+          <StatoVoce voce={voce} />
+        </div>
+      ) : null}
+    </li>
+  )
+}
+
+function RigaConImmagine({ voce, onRimuovi }: PropsVoce) {
+  return (
+    <li
+      data-slot="file-upload-miniatura"
+      data-stato={voce.stato}
+      className={cn("flex items-center gap-3 p-1.5 pr-1", CORNICE_VOCE)}
+    >
+      <Anteprima voce={voce} className="aspect-video w-24 shrink-0 rounded-md" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="truncate font-medium" title={voce.nome}>
+          {voce.nome}
+        </span>
+        {voce.stato === "in-corso" ||
+        (voce.stato === "fallito" && voce.errore) ? (
+          <StatoVoce voce={voce} />
+        ) : (
+          <span className="text-muted-foreground tabular-nums">
+            {formattaDimensione(voce.dimensione)}
+          </span>
+        )}
+      </div>
+      {onRimuovi && voce.stato !== "in-corso" ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0"
+          onClick={() => onRimuovi(voce.id)}
+          aria-label={`Togli ${voce.nome}`}
+        >
+          <XIcon />
+        </Button>
+      ) : null}
+    </li>
+  )
+}
+
+const VOCE: Record<
+  Exclude<FormaElenco, "righe">,
+  (props: PropsVoce) => ReactNode
+> = {
+  miniature: Miniatura,
+  "miniature-compatte": MiniaturaCompatta,
+  "solo-immagini": SoloImmagine,
+  "righe-con-immagine": RigaConImmagine,
 }

@@ -14611,3 +14611,18 @@ PR #167 (#165a), #168 (#165b) e #169 (#165c) unite col gate verde in CI; l'ultim
 #### Aperti
 
 - Anagrafe: adottare il kit alla `v2.0.24` e scrivere l'esito sulla #165.
+
+## 2026-11-01 — #171a: dialogo del supporto più largo e miniature compatte
+
+Primo passo della proposta #171 di Anagrafe (sulla `v2.0.24`, adozione nel commit `5222bec8`): con 5 screenshot, su un portatile da 14", il dialogo «Apri una richiesta» superava l'altezza della finestra. Ramo `fras/proposta-171a`.
+
+- **Scelte di Francesco, una alla volta, su forme rese a 1440 e sul telefono.** (1) Fra A («Togli» sull'immagine, nome sotto), B («Togli» accanto al nome) e C (solo immagini): **più di una, scelte dall'app** — A e C, più una forma orizzontale da provare. (2) Fra quattro orizzontali (H1 immagine 16:9 e nome e peso a destra; H2 immagine quadrata piccola e solo il nome; H3 immagine più grande, nome su due righe, formato, peso e misure; H4 come H1 con «Togli» sull'immagine): **H1**. (3) Il dialogo del supporto usa **A**.
+- **`FileUploadList`, tre forme nuove**: `miniature-compatte` (A; griglia 3 colonne, 5 da `@xl` del contenitore; immagine 16:9, nome troncato col `title`, niente peso, «Togli» `secondary` `icon-xs` nell'angolo dell'immagine), `solo-immagini` (C; come A senza il nome, che sta nel `title` della voce), `righe-con-immagine` (H1; 1 colonna, 2 da `@xl`; immagine 16:9 larga 24 a sinistra, nome e peso, crocetta in fondo). In tutte la barra durante l'invio senza «Togli», il motivo se fallisce, l'icona del file senza `anteprima`. La griglia porta `data-forma`. `miniature` e `righe` restano come erano.
+- **«Togli» sull'immagine** contraddice la scelta di #165a («accanto al nome») per le miniature grandi, che resta: nelle compatte a 5 colonne accanto al nome non c'è posto. Deciso da Francesco con la scelta (3).
+- **`tassullo-richiesta-supporto`**: `md:max-w-4xl` invece di `sm:max-w-2xl` (sotto 768px è un cassetto) e `forma="miniature-compatte"`. Misurato in Chromium a 1440×860 al tetto: dialogo circa 718px, il corpo non scorre, griglia 5 colonne circa 120px (prima tre colonne su due righe, circa 600px secondo la proposta). A 375: 3 colonne, griglia 186px, niente esce di lato.
+- **Scene**: «Miniature compatte», «Solo immagini», «Righe con immagine», e tre prove (`!dev`): colonne a 672px (5, 5, 2), nome scritto o nel `title`, «Togli» con `Invio`, barra durante l'invio senza «Togli».
+- **Test**: `npm run check` verde, tredici gate, axe 2428 scansioni in quattro passate, 0 violazioni.
+
+#### Aperti
+
+- #171b: pagina d'esempio `tassullo-pagina-supporto-admin` e tipi dell'amministratore in `lib/supporto.ts`.

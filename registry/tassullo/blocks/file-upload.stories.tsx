@@ -55,9 +55,12 @@ import {
  *   tiene già.
  * - `FileUploadList`: `file`, l'elenco che l'app tiene nel suo stato, e
  *   `onRimuovi`. Ogni file è in coda, in corso con il suo avanzamento,
- *   riuscito o fallito. `forma="miniature"` lo mostra come griglia di
- *   miniature, e ogni voce porta la sua `anteprima`: il file appena scelto,
- *   così com'è, o l'indirizzo di un'immagine già caricata.
+ *   riuscito o fallito. Per le immagini ci sono quattro forme, e ogni voce
+ *   porta la sua `anteprima`: il file appena scelto, così com'è, o
+ *   l'indirizzo di un'immagine già caricata. `"miniature"` è la griglia di
+ *   miniature grandi; `"miniature-compatte"` sono piccole, col nome sotto;
+ *   `"solo-immagini"` senza il nome; `"righe-con-immagine"` mette
+ *   l'immagine a sinistra e nome e peso a destra.
  *
  * **Regole d'uso.**
  *
@@ -72,8 +75,12 @@ import {
  *   avviso a comparsa sparisce da solo, e va bene per confermare una
  *   sostituzione riuscita.
  * - Le immagini si mostrano a miniature: si riconoscono a colpo d'occhio,
- *   mentre due nomi come `image.png` non si distinguono. Le miniature stanno
- *   su due colonne dove il posto è poco e su tre o quattro dove ce n'è.
+ *   mentre due nomi come `image.png` non si distinguono. Le miniature grandi
+ *   stanno su due colonne dove il posto è poco e su tre o quattro dove ce
+ *   n'è. Dove lo spazio è poco, come in un dialogo, si usano le compatte:
+ *   tre per riga sul telefono, cinque dove c'è posto. Le sole immagini sono
+ *   per le immagini che si riconoscono da sé; le righe con immagine per
+ *   quando conta leggere il nome.
  * - Con un tetto, il blocco conta i file che l'app tiene già. Se se ne
  *   scelgono più di quanti ne entrano, entrano i primi e gli altri tornano
  *   con il loro messaggio. Al tetto il bottone si spegne e la cornice dice
@@ -84,8 +91,9 @@ import {
  * cornice c'è un bottone, che si raggiunge col `Tab` e con `Invio` o `Spazio`
  * apre la scelta dei file. La cornice in sé non riceve il fuoco. Nella forma
  * compatta il bottone è tutto il blocco, e il file si trascina sopra di lui.
- * Ogni miniatura ha il suo bottone «Togli», che si raggiunge col `Tab`; la
- * miniatura in invio non ne ha.
+ * Ogni miniatura ha il suo bottone «Togli», accanto al nome o sopra
+ * l'immagine secondo la forma, che si raggiunge col `Tab`; la miniatura in
+ * invio non ne ha.
  */
 const meta = {
   title: 'Blocchi/Caricamento file',
@@ -492,12 +500,75 @@ export const MiniatureColBottone: Story = {
   render: () => <DemoMiniature quante={4} forma="bottone" />,
 }
 
-function DemoMiniature({ quante, forma }: { quante: number; forma: 'zona' | 'bottone' }) {
-  const immagini = useImmaginiDemo(NOMI_DEMO.slice(0, quante))
-  return immagini ? <ScenaMiniature iniziali={immagini} forma={forma} /> : null
+/**
+ * Miniature piccole, col nome sotto e la crocetta sopra l'immagine: tre per
+ * riga sul telefono e cinque dove c'è posto, il peso non c'è. È la forma del
+ * dialogo del supporto, dove cinque screenshot devono stare in poco spazio.
+ *
+ * ```tsx
+ * <FileUploadList forma="miniature-compatte" file={immagini} onRimuovi={togli} />
+ * ```
+ */
+export const MiniatureCompatte: Story = {
+  name: 'Miniature compatte',
+  args: { onFile: () => {} },
+  render: () => <DemoMiniature quante={4} forma="bottone" elenco="miniature-compatte" />,
 }
 
-function ScenaMiniature({ iniziali, forma }: { iniziali: File[]; forma: 'zona' | 'bottone' }) {
+/**
+ * Le sole immagini, con la crocetta sopra: la forma più bassa. Il nome si
+ * legge passandoci sopra col puntatore, quindi va bene dove le immagini si
+ * riconoscono da sé.
+ *
+ * ```tsx
+ * <FileUploadList forma="solo-immagini" file={immagini} onRimuovi={togli} />
+ * ```
+ */
+export const SoloImmagini: Story = {
+  name: 'Solo immagini',
+  args: { onFile: () => {} },
+  render: () => <DemoMiniature quante={4} forma="bottone" elenco="solo-immagini" />,
+}
+
+/**
+ * L'immagine a sinistra, nome e peso a destra, la crocetta in fondo: una
+ * colonna sul telefono, due dove c'è posto. Il nome si legge meglio che
+ * nelle griglie.
+ *
+ * ```tsx
+ * <FileUploadList forma="righe-con-immagine" file={immagini} onRimuovi={togli} />
+ * ```
+ */
+export const RigheConImmagine: Story = {
+  name: 'Righe con immagine',
+  args: { onFile: () => {} },
+  render: () => <DemoMiniature quante={4} forma="bottone" elenco="righe-con-immagine" />,
+}
+
+type FormaImmagini = 'miniature' | 'miniature-compatte' | 'solo-immagini' | 'righe-con-immagine'
+
+function DemoMiniature({
+  quante,
+  forma,
+  elenco = 'miniature',
+}: {
+  quante: number
+  forma: 'zona' | 'bottone'
+  elenco?: FormaImmagini
+}) {
+  const immagini = useImmaginiDemo(NOMI_DEMO.slice(0, quante))
+  return immagini ? <ScenaMiniature iniziali={immagini} forma={forma} elenco={elenco} /> : null
+}
+
+function ScenaMiniature({
+  iniziali,
+  forma,
+  elenco,
+}: {
+  iniziali: File[]
+  forma: 'zona' | 'bottone'
+  elenco: FormaImmagini
+}) {
   const voce = (file: File): FileUploadItem => ({
     id: nuovoIdDemo(),
     nome: file.name,
@@ -549,7 +620,7 @@ function ScenaMiniature({ iniziali, forma }: { iniziali: File[]; forma: 'zona' |
             descrizione="Fino a 5 immagini PNG o JPEG, ciascuna fino a 10 MB"
           />
           <FileUploadList
-            forma="miniature"
+            forma={elenco}
             file={immagini}
             onRimuovi={(id) => setImmagini((prima) => prima.filter((i) => i.id !== id))}
           />
@@ -557,7 +628,7 @@ function ScenaMiniature({ iniziali, forma }: { iniziali: File[]; forma: 'zona' |
       ) : (
         <>
           <FileUploadList
-            forma="miniature"
+            forma={elenco}
             file={immagini}
             onRimuovi={(id) => setImmagini((prima) => prima.filter((i) => i.id !== id))}
           />
@@ -664,4 +735,51 @@ export const MiniatureColBottoneProva: Story = {
     await waitFor(() => expect(miniature()).toHaveLength(4))
     await expect(c.getByRole('button', { name: "Aggiungi un'immagine" })).toBeEnabled()
   },
+}
+
+// Scene di misura delle tre forme compatte: quante colonne a 672px, il nome
+// scritto o nel suggerimento, la crocetta da tastiera, e durante l'invio la
+// barra al posto della crocetta. `!dev` le toglie dalla barra e da Docs; il
+// gate le esegue.
+function provaForma(elenco: FormaImmagini, colonne: number, nomeScritto: boolean): Story {
+  return {
+    tags: ['!dev', '!autodocs'],
+    args: { onFile: () => {} },
+    render: () => <DemoMiniature quante={4} forma="bottone" elenco={elenco} />,
+    play: async ({ canvasElement }) => {
+      const c = within(canvasElement)
+      const miniature = () => canvasElement.querySelectorAll('[data-slot="file-upload-miniatura"]')
+      await waitFor(() => expect(miniature()).toHaveLength(4))
+      const griglia = canvasElement.querySelector<HTMLElement>('[data-slot="file-upload-miniature"]')!
+      await expect(griglia.dataset.forma).toBe(elenco)
+      await expect(getComputedStyle(griglia).gridTemplateColumns.split(' ')).toHaveLength(colonne)
+      const lungo = 'errore-scheda-prodotto-tassullo-t30.png'
+      if (nomeScritto) await expect(c.getByTitle(lungo)).toHaveTextContent(lungo)
+      else await expect(miniature()[1]).toHaveAttribute('title', lungo)
+
+      c.getByRole('button', { name: `Togli ${lungo}` }).focus()
+      await userEvent.keyboard('{Enter}')
+      await waitFor(() => expect(miniature()).toHaveLength(3))
+
+      await userEvent.click(c.getByRole('button', { name: 'Invia' }))
+      await waitFor(() => expect(c.getAllByRole('progressbar')).toHaveLength(3))
+      await expect(c.queryAllByRole('button', { name: /^Togli/ })).toHaveLength(0)
+      await waitFor(() => expect(c.getAllByRole('button', { name: /^Togli/ })).toHaveLength(3))
+    },
+  }
+}
+
+export const MiniatureCompatteProva: Story = {
+  name: 'Miniature compatte, prova',
+  ...provaForma('miniature-compatte', 5, true),
+}
+
+export const SoloImmaginiProva: Story = {
+  name: 'Solo immagini, prova',
+  ...provaForma('solo-immagini', 5, false),
+}
+
+export const RigheConImmagineProva: Story = {
+  name: 'Righe con immagine, prova',
+  ...provaForma('righe-con-immagine', 2, true),
 }
