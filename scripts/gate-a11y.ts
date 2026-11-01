@@ -92,6 +92,7 @@ const CON_POPUP = [
   "page-header",
   "popover",
   "responsive-dialog",
+  "richiesta-supporto",
   "rich-text-editor",
   "select",
   "sheet",
