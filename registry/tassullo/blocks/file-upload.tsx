@@ -42,6 +42,17 @@
  * che l'app tiene in stato: in coda, in corso (con `progresso`), riuscito o
  * fallito — la stessa forma serve per gli allegati già caricati in
  * precedenza, passati con `stato: "riuscito"` e nessuna barra.
+ *
+ * ── Miniature e tetto (proposta #165, passo #165a, 2026-11-01) ───────────
+ *
+ * `FileUploadList forma="miniature"` mette le immagini in una griglia, due
+ * colonne e di più dove c'è posto (container query, non la finestra);
+ * «Togli» accanto al nome, scelto da Francesco fra tre forme (sull'immagine,
+ * accanto al nome, bottone di testo sotto). `massimo` e `presenti` sono il
+ * tetto: al tetto il bottone si spegne e una frase lo dice (scelta fra
+ * «sparisce», «spento con frase», «conto sempre visibile»). L'incolla da
+ * appunti chiesto dalla proposta **non c'è**: Francesco l'ha tolto, restano
+ * la scelta dal computer e il trascinamento.
  */
 import { useCallback } from "react"
 import {
@@ -64,6 +75,7 @@ import {
   EmptyTitle,
 } from "@/registry/tassullo/ui/empty"
 import { Progress } from "@/registry/tassullo/ui/progress"
+import { decimale, intero } from "@/registry/tassullo/lib/numeri"
 
 const MESSAGGI_RIFIUTO: Record<string, string> = {
   "file-invalid-type": "Tipo di file non supportato",
@@ -73,7 +85,7 @@ const MESSAGGI_RIFIUTO: Record<string, string> = {
 }
 
 function formattaDimensione(byte: number) {
-  if (byte < 1024) return `${byte} B`
+  if (byte < 1024) return `${intero(byte)} B`
   const unita = ["KB", "MB", "GB"] as const
   let valore = byte / 1024
   let indice = 0
@@ -81,7 +93,7 @@ function formattaDimensione(byte: number) {
     valore /= 1024
     indice++
   }
-  return `${valore.toFixed(valore < 10 ? 1 : 0)} ${unita[indice]}`
+  return `${decimale(valore, valore < 10 ? 1 : 0)} ${unita[indice]}`
 }
 
 export type FileUploadItem = {
@@ -94,6 +106,13 @@ export type FileUploadItem = {
   progresso?: number
   /** Il motivo del fallimento, già tradotto: mai un codice, mai la risposta grezza del server. */
   errore?: string
+  /**
+   * L'immagine della miniatura, con `forma="miniature"`. Un `File` appena
+   * scelto si passa così com'è: l'indirizzo locale lo apre e lo libera il
+   * blocco. Una stringa è un indirizzo già pronto. Assente, la miniatura
+   * mostra l'icona del file.
+   */
+  anteprima?: Blob | string
 }
 
 type FileUploadComuni = {
@@ -104,6 +123,16 @@ type FileUploadComuni = {
   /** Come l'`accept` nativo di `<input type="file">`: `{ "application/pdf": [".pdf"] }`. */
   accetta?: Accept
   dimensioneMassima?: number
+  /**
+   * Il tetto al numero di file, contando anche quelli già scelti
+   * (`presenti`). Di una scelta che lo supera entrano i primi che ci stanno;
+   * gli altri arrivano a `onRifiutati`. Al tetto il blocco si spegne, e
+   * la cornice lo dice al posto della `descrizione`; accanto al bottone
+   * della forma compatta la frase la scrive l'app.
+   */
+  massimo?: number
+  /** Quanti file l'app tiene già, per il conto di `massimo`. Di serie 0. */
+  presenti?: number
   multiplo?: boolean
   disabilitato?: boolean
   etichettaBottone?: string
@@ -135,6 +164,8 @@ export function FileUpload({
   onRifiutati,
   accetta,
   dimensioneMassima,
+  massimo,
+  presenti = 0,
   multiplo = true,
   disabilitato,
   forma = "zona",
@@ -143,19 +174,27 @@ export function FileUpload({
   etichettaBottone = "Scegli dal computer",
   className,
 }: FileUploadProps) {
+  const posto =
+    massimo === undefined ? Infinity : Math.max(0, massimo - presenti)
+  const spento = disabilitato || posto === 0
+
   const onDrop = useCallback(
     (accettati: File[], rifiutati: FileRejection[]) => {
-      if (accettati.length) onFile(accettati)
-      if (rifiutati.length) {
-        onRifiutati?.(
-          rifiutati.map((rifiutato) => ({
-            file: rifiutato.file,
-            errore: rifiutato.errors[0]?.message ?? "File rifiutato",
-          }))
-        )
-      }
+      const entrano = accettati.slice(0, posto)
+      const scartati = [
+        ...rifiutati.map((rifiutato) => ({
+          file: rifiutato.file,
+          errore: rifiutato.errors[0]?.message ?? "File rifiutato",
+        })),
+        ...accettati.slice(posto).map((file) => ({
+          file,
+          errore: `Oltre il massimo di ${intero(massimo ?? 0)} file`,
+        })),
+      ]
+      if (entrano.length) onFile(entrano)
+      if (scartati.length) onRifiutati?.(scartati)
     },
-    [onFile, onRifiutati]
+    [onFile, onRifiutati, posto, massimo]
   )
 
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
@@ -163,7 +202,7 @@ export function FileUpload({
     accept: accetta,
     maxSize: dimensioneMassima,
     multiple: multiplo,
-    disabled: disabilitato,
+    disabled: spento,
     noClick: true,
     noKeyboard: true,
     getErrorMessage: (errore) => MESSAGGI_RIFIUTO[errore.code] ?? errore.message,
@@ -190,7 +229,7 @@ export function FileUpload({
           variant="outline"
           size="sm"
           onClick={open}
-          disabled={disabilitato}
+          disabled={spento}
           data-drag-active={isDragActive}
           // Le stesse classi col prefisso `dark:`: in scuro il bordo del
           // bottone `outline` è `dark:border-input`, che vincerebbe.
@@ -223,7 +262,14 @@ export function FileUpload({
           <UploadIcon />
         </EmptyMedia>
         <EmptyTitle>{etichetta}</EmptyTitle>
-        {descrizione ? <EmptyDescription>{descrizione}</EmptyDescription> : null}
+        {posto === 0 ? (
+          <EmptyDescription>
+            Hai raggiunto il massimo di {intero(massimo ?? 0)} file. Togline
+            uno per aggiungerne un altro.
+          </EmptyDescription>
+        ) : descrizione ? (
+          <EmptyDescription>{descrizione}</EmptyDescription>
+        ) : null}
       </EmptyHeader>
       <EmptyContent>
         <Button
@@ -231,7 +277,7 @@ export function FileUpload({
           variant="outline"
           size="sm"
           onClick={open}
-          disabled={disabilitato}
+          disabled={spento}
         >
           {etichettaBottone}
         </Button>
@@ -244,15 +290,37 @@ export type FileUploadListProps = {
   file: FileUploadItem[]
   /** Assente, la riga non ha bottone di rimozione — il caso degli allegati già caricati che non si tolgono da qui. */
   onRimuovi?: (id: string) => void
+  /**
+   * `"righe"`, di serie: un file per riga. `"miniature"`: una griglia di
+   * miniature, due colonne dove il posto è poco e di più dove ce n'è, per
+   * le immagini.
+   */
+  forma?: "righe" | "miniature"
   className?: string
 }
 
 export function FileUploadList({
   file,
   onRimuovi,
+  forma = "righe",
   className,
 }: FileUploadListProps) {
   if (!file.length) return null
+
+  if (forma === "miniature") {
+    return (
+      <div className={cn("@container", className)}>
+        <ul
+          data-slot="file-upload-miniature"
+          className="grid grid-cols-2 gap-3 @md:grid-cols-3 @3xl:grid-cols-4"
+        >
+          {file.map((voce) => (
+            <Miniatura key={voce.id} voce={voce} onRimuovi={onRimuovi} />
+          ))}
+        </ul>
+      </div>
+    )
+  }
 
   return (
     <ul
@@ -315,5 +383,89 @@ export function FileUploadList({
         </li>
       ))}
     </ul>
+  )
+}
+
+/**
+ * L'immagine di una miniatura. Un `Blob` diventa un indirizzo locale quando
+ * l'immagine entra nella pagina e si libera quando ne esce: con la funzione
+ * di pulizia del `ref`, non con un effetto che riscriverebbe lo stato.
+ */
+function ImmagineMiniatura({
+  anteprima,
+  nome,
+}: {
+  anteprima: Blob | string
+  nome: string
+}) {
+  const apri = useCallback(
+    (immagine: HTMLImageElement | null) => {
+      if (!immagine || typeof anteprima === "string") return
+      const indirizzo = URL.createObjectURL(anteprima)
+      immagine.src = indirizzo
+      return () => URL.revokeObjectURL(indirizzo)
+    },
+    [anteprima]
+  )
+
+  return (
+    <img
+      ref={apri}
+      src={typeof anteprima === "string" ? anteprima : undefined}
+      alt={`Anteprima di ${nome}`}
+      className="aspect-4/3 w-full bg-muted object-cover"
+    />
+  )
+}
+
+function Miniatura({
+  voce,
+  onRimuovi,
+}: {
+  voce: FileUploadItem
+  onRimuovi?: (id: string) => void
+}) {
+  return (
+    <li
+      data-slot="file-upload-miniatura"
+      data-stato={voce.stato}
+      className="flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card text-sm data-[stato=fallito]:border-destructive-border data-[stato=fallito]:bg-destructive-subtle"
+    >
+      {voce.anteprima ? (
+        <ImmagineMiniatura anteprima={voce.anteprima} nome={voce.nome} />
+      ) : (
+        <div className="flex aspect-4/3 w-full items-center justify-center bg-muted text-muted-foreground">
+          <FileIcon className="size-6" />
+        </div>
+      )}
+      <div className="flex items-start gap-1 p-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="truncate font-medium">{voce.nome}</span>
+          {voce.stato === "in-corso" ? (
+            <Progress value={voce.progresso ?? 0} aria-label={voce.nome} />
+          ) : voce.stato === "fallito" && voce.errore ? (
+            <span className="text-destructive-subtle-foreground">
+              {voce.errore}
+            </span>
+          ) : (
+            <span className="text-muted-foreground tabular-nums">
+              {formattaDimensione(voce.dimensione)}
+            </span>
+          )}
+        </div>
+        {/* Durante l'invio la miniatura non si toglie: al posto della dimensione c'è la barra. */}
+        {onRimuovi && voce.stato !== "in-corso" ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onRimuovi(voce.id)}
+            aria-label={`Togli ${voce.nome}`}
+          >
+            <XIcon />
+          </Button>
+        ) : null}
+      </div>
+    </li>
   )
 }

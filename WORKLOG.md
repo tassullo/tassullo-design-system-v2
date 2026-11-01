@@ -14533,6 +14533,22 @@ Anagrafe (proposta #165) chiede i pezzi di interfaccia del suo canale di support
 
 - Fare #165a, #165b, #165c. Anagrafe nel frattempo usa i suoi componenti (sua F183).
 
+## 2026-11-01 — #165a: `file-upload` a miniature e con un tetto
+
+Primo dei tre passi di #165. Ramo `fras/proposta-165a-2d10de`, partito da `fras/proposta-165` (PR #166, non ancora unita). Riferimento letto: `DialogoRichiestaSupporto.tsx` di Anagrafe al commit `589247a5`, che compone le miniature a mano con `Item` e tiene il conto del tetto da sé.
+
+- **Tre scelte di Francesco, una alla volta, su varianti rese.** (1) Dove sta «Togli» sulla miniatura: sull'immagine, **accanto al nome**, bottone di testo sotto → accanto al nome (non copre la foto, è come l'elenco a righe). (2) Dove funziona Ctrl+V: solo sul bottone, nel contenitore dell'app, in tutta la pagina → **nessuno: l'incolla si toglie**, restano la scelta dal computer e il trascinamento; «lo comunichiamo poi ad Anagrafe». (3) Cosa succede al tetto: il bottone sparisce, **si spegne e una frase lo dice**, il conto sempre visibile → spento con la frase.
+- **`FileUploadList forma="miniature"`**: griglia `@container`, 2 colonne, 3 da `@md`, 4 da `@3xl`; misurata 3 colonne nella scena larga 672px a 1440 e 2 a 375, in chiaro e scuro, senza scorrimento di lato. Ogni voce porta `anteprima` (`Blob | string`): un `File` diventa un indirizzo locale nella funzione `ref` dell'immagine e si libera nella sua pulizia — non un effetto con `setState`, che il lint delle app (`react-hooks` 7) rifiuta, né un `useMemo`, che in StrictMode libererebbe l'indirizzo ancora in uso. Durante l'invio la miniatura ha la barra al posto della dimensione e niente «Togli». Senza `anteprima` mostra l'icona del file. Di serie (`"righe"`) l'elenco resta com'era.
+- **`massimo` e `presenti` su `FileUpload`**: di una scelta che supera il posto entrano i primi, gli altri vanno a `onRifiutati` con «Oltre il massimo di N file», insieme ai rifiuti di tipo e dimensione. Al tetto il blocco si spegne; la cornice scrive «Hai raggiunto il massimo di N file. Togline uno per aggiungerne un altro.» al posto della descrizione; con la forma compatta la frase la scrive l'app (la scena «Miniature col bottone» mostra come). Non si usa `maxFiles` di react-dropzone: conta solo la singola scelta e la rifiuta tutta.
+- **Le dimensioni escono con la virgola** («3,5 KB»): `formattaDimensione` passa da `decimale()`/`intero()` di `lib/numeri` (approvato da Francesco nella stessa PR). Vale anche per l'elenco a righe, che prima scriveva «3.5 KB». L'item dichiara `@tassullo/numeri`.
+- **Scene nuove**: «Miniature», «Miniature col bottone», e due prove (`!dev`): tetto superato con una scelta di tre, crocette con `Invio` e `Spazio`, tre colonne, indirizzo `blob:`, barra durante l'invio senza «Togli»; nella forma compatta bottone spento e frase dell'app al tetto, poi di nuovo acceso. Immagini d'esempio disegnate su canvas coi colori del tema.
+- **Test**: `npm run check` verde, 13 gate, `test:a11y` 2276 scansioni (4 passate) con 0 violazioni. Le prove da tastiera girano nel Chromium di Playwright del gate.
+
+#### Aperti
+
+- **Dire ad Anagrafe che l'incolla non c'è**: il suo dialogo oggi lo ha; con #165c il dialogo del design system non lo avrà. Da scrivere nel commento di adozione.
+- #165b e #165c.
+
 ## 2026-11-01 — #165b: galleria di immagini e filo dei messaggi
 
 Secondo dei tre passi di #165. Due blocchi generici in `registry/tassullo/blocks/`, con story e item: non sanno niente del supporto. Riferimento: `ScreenshotRichiesta.tsx` e `FiloRisposte.tsx` di Anagrafe al commit `589247a5` (letti, non toccati). Ramo `fras/proposta-165b-cdcb2a`, partito da `fras/proposta-165` (PR #166).
@@ -14556,4 +14572,4 @@ Secondo dei tre passi di #165. Due blocchi generici in `registry/tassullo/blocks
 
 #### Aperti
 
-- #165c (dialogo e pagine) può partire quando #165a e #165b sono unite.
+- #165c (dialogo e pagine) può partire quando questa è unita: #165a è già in `main`.
