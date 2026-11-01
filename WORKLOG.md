@@ -14647,3 +14647,18 @@ Secondo passo della proposta #171. Ramo `fras/proposta-171b`, partito da `fras/p
 #### Aperti
 
 - **`data-grid`, prove instabili sotto carico**: «Celle Tipizzate, prova» è caduta nella CI della PR #172 (scuro/aperto: la cella attiva 39,5px sotto il fondo del riquadro dopo 5 s, cioè non è stata portata in vista) e «Celle Tipizzate, calendario, prova» nel primo giro locale di #171b (chiaro/aperto). Da sole passano 5 giri su 5. Codice non toccato da #171; su `main` le ultime corse sono verdi. La griglia porta in vista la cella col fuoco nativo, con `scroll-padding` e lo scorrimento agganciato alle righe (`snap-proximity`): indizio, non causa. Da indagare a parte, senza ritoccare le prove prima di aver trovato la causa.
+
+## 2026-11-01 — v2.0.25 pubblicata, #171 chiusa
+
+PR #172 (#171a) e #173 (#171b) unite col gate verde in CI; prima di cancellare il ramo di base la #173 è stata riportata su `main`, come vuole §Conduzione. L'ultima unione è `6adb8be`, gate su `main` verde; la #171 si è chiusa da sé con `Closes #171`. Etichetta annotata `v2.0.25` su `6adb8be`, push della sola etichetta. Francesco: «Unisci», poi «Sì procedi».
+
+- Dentro: tre forme compatte di `FileUploadList` (`miniature-compatte`, `solo-immagini`, `righe-con-immagine`), il dialogo del supporto largo `md:max-w-4xl` con le compatte, la pagina d'esempio `tassullo-pagina-supporto-admin`, e in `lib/supporto.ts` `RichiestaAmministratore`, `invioFallito`, `StatoCollegamento`, `VARIABILI_COLLEGAMENTO`, `formattaData`.
+- **Non rompe chi aggiorna dalla `v2.0.24`**: forme e tipi nuovi; cambia l'aspetto del dialogo del supporto, che è l'oggetto della proposta.
+- Il job della #172 era caduto la prima volta su `data-grid › Celle Tipizzate, prova` (codice non toccato); rilanciato, verde. Il caso è negli «Aperti» di #171b, e c'è una sessione proposta per trovarne la causa.
+- Verifica da fuori: alla `v2.0.25` rispondono 200 `registry.json` e i JSON in `public/r/` dei quattro item toccati; `shadcn view …/tassullo-pagina-supporto-admin#v2.0.25` e `…/tassullo-file-upload#v2.0.25` risolvono, il secondo con `miniature-compatte`.
+- Sulla #171 il commento di adozione: le tre forme, cosa reinstallare, i tipi che passano da `supportoAnagrafe.ts` a `@/lib/supporto`, come ricomporre `AdminSupporto.tsx`, cosa provare in Chrome e Safari.
+
+#### Aperti
+
+- Anagrafe: adottare alla `v2.0.25` e scrivere l'esito sulla #171.
+- `data-grid`: prove instabili nel gate intero, da spiegare.
