@@ -14637,3 +14637,13 @@ Secondo passo della proposta #171. Ramo `fras/proposta-171b`, partito da `fras/p
 - **Scene** in `Pagine/Supporto, amministrazione`: Di serie, Token in scadenza, Token scaduto, Non configurato, Caricamento, Errore, e una prova (`!dev`): due «Invio fallito», nessuna email in pagina, `#52` su GitHub, «Riprova invio» spento durante l'invio e poi la riga con `#58` e «Riuscito al 2° tentativo». Dati inventati in `.storybook/prove/supporto-dati.ts`.
 - `docs/INTEGRAZIONE.md`: nove pagine d'esempio.
 - **Niente schede sotto 1024px**, a differenza della pagina di chi scrive: è una schermata tecnica da scrivania, come in Anagrafe; sul telefono la tabella scorre di lato nel suo riquadro.
+
+#### Prove
+
+- **Due errori miei nella prova della pagina, trovati dal gate**: durante il nuovo invio lo spinner (`aria-label="Caricamento"`) entra nel nome del bottone, quindi (1) cercare di nuovo «Riprova invio» per nome dava il bottone dell'altra riga, e (2) «un solo Riprova invio» era già vero durante l'attesa, prima che la riga cambiasse. Ora la prova tiene il riferimento al bottone cliccato e aspetta il collegamento `#58`, che compare solo a invio riuscito. Poi 3 giri su 3 in Chromium e 2 su 2 in WebKit (con l'etichetta `webkit` messa per la prova e tolta).
+- `npm run check:statici` verde; `test:a11y` al primo giro aveva anche `data-grid › Celle Tipizzate, calendario, prova` rossa in una passata su quattro (vedi sotto).
+- A 1440×900 la pagina non scorre (0px), a 375 la tabella mostra 6 righe e scorre la pagina, niente esce di lato; nessun elemento esce dalla sua cella.
+
+#### Aperti
+
+- **`data-grid`, prove instabili sotto carico**: «Celle Tipizzate, prova» è caduta nella CI della PR #172 (scuro/aperto: la cella attiva 39,5px sotto il fondo del riquadro dopo 5 s, cioè non è stata portata in vista) e «Celle Tipizzate, calendario, prova» nel primo giro locale di #171b (chiaro/aperto). Da sole passano 5 giri su 5. Codice non toccato da #171; su `main` le ultime corse sono verdi. La griglia porta in vista la cella col fuoco nativo, con `scroll-padding` e lo scorrimento agganciato alle righe (`snap-proximity`): indizio, non causa. Da indagare a parte, senza ritoccare le prove prima di aver trovato la causa.

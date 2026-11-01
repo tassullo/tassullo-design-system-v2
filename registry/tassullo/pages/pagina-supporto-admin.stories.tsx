@@ -239,10 +239,15 @@ export const Prova: Story = {
     )
     const bottoni = c.getAllByRole('button', { name: 'Riprova invio' })
     await expect(bottoni).toHaveLength(2)
-    await userEvent.click(bottoni[0])
-    await waitFor(() => expect(c.getAllByRole('button', { name: 'Riprova invio' })[0]).toBeDisabled())
-    await waitFor(() => expect(c.getAllByRole('button', { name: 'Riprova invio' })).toHaveLength(1))
-    await expect(c.getByRole('link', { name: '#58' })).toBeInTheDocument()
+    // Durante l'invio lo spinner entra nel nome del bottone: si tiene il
+    // riferimento a quello cliccato invece di cercarlo di nuovo per nome.
+    const primo = bottoni[0]
+    await userEvent.click(primo)
+    await waitFor(() => expect(primo).toBeDisabled())
+    // La riga è cambiata solo quando c'è la issue: prima, il conto dei
+    // bottoni torna già a uno, perché quello in attesa ha un altro nome.
+    await waitFor(() => expect(c.getByRole('link', { name: '#58' })).toBeInTheDocument())
     await expect(c.getByText('Riuscito al 2° tentativo')).toBeInTheDocument()
+    await expect(c.getAllByRole('button', { name: 'Riprova invio' })).toHaveLength(1)
   },
 }
