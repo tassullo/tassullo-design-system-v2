@@ -467,7 +467,7 @@ I file arrivano in `src/components/`: le primitive in `src/components/ui/`, i
 blocchi in `src/components/blocks/`, e si importano con l'alias
 `@/components/…`.
 
-**Le pagine d'esempio.** Per non partire da zero, il registry ha sei pagine
+**Le pagine d'esempio.** Per non partire da zero, il registry ha otto pagine
 d'esempio che mostrano come i blocchi stanno insieme:
 
 | pagina d'esempio | per cosa |
@@ -478,6 +478,8 @@ d'esempio che mostrano come i blocchi stanno insieme:
 | `tassullo-pagina-admin` | utenti e ruoli |
 | `tassullo-pagina-login` | l'accesso, con Microsoft e/o credenziali |
 | `tassullo-pagina-errore` | 404, accesso negato, errore del server, manutenzione |
+| `tassullo-pagina-supporto` | l'elenco delle richieste di supporto di chi usa l'app |
+| `tassullo-pagina-supporto-richiesta` | la scheda di una richiesta di supporto, coi dettagli tecnici per l'amministratore |
 
 Si guardano nella style guide, sezione *Pagine*, e se ne legge il codice
 intero con `npx shadcn@latest view @tassullo/tassullo-pagina-lista`, o

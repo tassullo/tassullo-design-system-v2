@@ -14573,3 +14573,28 @@ Secondo dei tre passi di #165. Due blocchi generici in `registry/tassullo/blocks
 #### Aperti
 
 - #165c (dialogo e pagine) può partire quando questa è unita: #165a è già in `main`.
+
+## 2026-11-01 — #165c: dialogo della richiesta di supporto e due pagine
+
+Ultimo dei tre passi di #165. Ramo `fras/proposta-165c`, da `main` con #165a e #165b unite. Riferimento: `DialogoRichiestaSupporto.tsx`, `Supporto.tsx`, `SupportoRichiesta.tsx`, `AdminSupporto.tsx` e `lib/supporto.ts` di Anagrafe al commit `589247a5` (letti, non toccati).
+
+- **`lib/supporto.ts`** (item `supporto`, `registry:lib`). Tipi (`TipoRichiesta`, `StatoRichiesta`, `Richiesta`, `RichiestaScheda`, `Risposta`, `DettagliTecnici`, `DatiRichiesta`), limiti (titolo 140, descrizione 10.000, 5 screenshot PNG/JPEG fino a 10 MB), `STATO_RICHIESTA` coi toni di `lib/toni` (Ricevuta neutro, Aperta info, In lavorazione warning, Chiusa success), `TIPO_RICHIESTA` con frase e icona, `formattaDataOra` (gg/mm/aaaa, hh:mm, ora di Roma, come il filo). **Valori e nomi dei campi sono quelli di Anagrafe** (`richiesta` per «Proposta», `in_lavorazione`, campi `snake_case`), cioè del contratto del server in `docs/SUPPORTO.md` di Anagrafe: un'app li riceve così e non li traduce. `Richiesta` porta solo i campi che le pagine leggono; i campi di GitHub e dei tentativi d'invio li aggiunge l'app estendendo il tipo.
+- **`tassullo-richiesta-supporto`**. Dialogo in `tassullo-responsive-dialog` (cassetto sotto 768px), controllato (`aperto`, `onApertoChange`). Tipo con tre scelte a scheda (`radio-group` in `FieldLabel`, in fila da `md`), titolo, descrizione (`min-h-32 max-h-80`: cresce e poi scorre), screenshot con `FileUploadList forma="miniature"` e `FileUpload forma="bottone"` con `massimo`/`presenti`; la frase sotto il bottone la scrive il blocco e al tetto cambia. Errore d'invio in un `Alert` sopra i bottoni, col `message` dell'errore rifiutato da `onInvia`. Durante l'invio campi spenti, barra sulle miniature (`avanzamento`), e la chiusura non passa (Esc, clic fuori, cassetto). Riuscito l'invio si chiude e si svuota; **annullando la bozza resta** (un Esc per sbaglio non perde una descrizione lunga). Niente react-hook-form: `Campo` di `form-field` fa i collegamenti, la validazione è all'invio e poi segue quello che si scrive; un invio a vuoto porta il fuoco sul primo campo da correggere.
+  - **Niente incolla**, come deciso in #165a.
+  - **Scelta di Francesco, la forma degli screenshot: A, il bottone** (come Anagrafe), fra due varianti rese e affiancate a 1440 e 375; B era la cornice di trascinamento, più alta in fondo al modulo.
+- **`tassullo-pagina-supporto`** (elenco). Fascia «Supporto» con «Apri una richiesta» e «Aggiorna»; `tassullo-data-table` a scorrimento infinito con Titolo (collegamento, colonna elastica, minimo 240), Tipo, Data, Stato, Risposte con «n nuove», filtri per stato e tipo; sotto 1024px una scheda per richiesta; vuoto con l'invito. Non conosce il router: `collegamento(richiesta)` dà l'elemento del collegamento, che la pagina completa con `useRender` di Base UI; passa per un contesto, così le colonne restano una costante.
+- **`tassullo-pagina-supporto-richiesta`** (scheda). Richiesta (stato, tipo, data, testo; per «Ricevuta» la frase che rassicura), galleria (`caricaScreenshot` per le immagini autenticate), screenshot tolti detti, filo delle risposte; con `amministratore` la colonna «Dettagli inviati» a destra da `@4xl` del contenitore (pagina, versioni, browser, schermo, lingua, chiamate non riuscite in un `collapsible`). `stato="non-trovata"` non dice se la richiesta esiste.
+- **Il badge della voce «Supporto»** è in scena in `Pagine/Supporto`: `badge` sulla voce di `app-shell`, la somma delle risposte non lette; nel menu utente «Apri una richiesta».
+- `richiesta-supporto` aggiunta a `CON_POPUP` di `scripts/gate-a11y.ts`. Le finte schermate e i dati d'esempio delle scene stanno in `.storybook/prove/` (`schermate.ts`, `supporto-dati.ts`), fuori dagli item. `docs/INTEGRAZIONE.md`: otto pagine d'esempio.
+
+#### Prove
+
+- Axe sulle 23 scene nuove nelle quattro passate: 0 violazioni. A mano le *incomplete*: solo `aria-hidden-focus` sullo sfondo reso inerte dal dialogo (l'eccezione nota).
+- Chromium di Playwright dalla cartella temporanea, 200 ms fra un tasto e l'altro, a 1440 (dialogo) e 375 (cassetto): `Invio` sul bottone apre; nel dialogo il fuoco va sulla prima scelta, nel cassetto sul pannello; le frecce cambiano il tipo (Errore → Proposta → Domanda e ritorno); `Tab` gira dentro (scelta, titolo, descrizione, «Scegli le immagini», Annulla, Invia, e la X nel dialogo) e non esce; invio a vuoto → fuoco sul titolo; `Invio` nel titolo invia → fuoco sulla descrizione; `Esc` durante l'invio non chiude; a invio riuscito si chiude, il fuoco torna su «Apri una richiesta» e riaperto è vuoto; `Esc` chiude. A 375 niente esce di lato (dialogo al tetto, schede, scheda dell'amministratore).
+- **Da sapere sullo strumento**: il tasto `Invio` simulato da `userEvent` non fa l'invio implicito di un modulo il cui bottone sta fuori (`form=`), mentre il browser sì. La prova automatica clicca il bottone; l'`Invio` nel titolo è misurato in Chromium.
+- **Da sapere su Storybook**: classi nuove in un file creato a server acceso (qui `@4xl:grid-cols-3` della scheda) non entrano nel CSS finché non si riavvia; sembrava un difetto della pagina.
+- `npm run check` verde: tredici gate, axe 2404 scansioni in quattro passate, 0 violazioni; WebKit 47 prove.
+
+#### Aperti
+
+- Commento di adozione per Anagrafe: preparato, da pubblicare quando Francesco decide (cosa installare, cosa togliere, che l'incolla non c'è).

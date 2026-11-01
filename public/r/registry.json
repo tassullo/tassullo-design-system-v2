@@ -107,6 +107,25 @@
       "docs": "  import { decimale, intero, valuta } from '@/lib/numeri'\n\n  intero(15402)        // \"15.402\"\n  decimale(106.376)    // \"106,38\"\n  decimale(3.14159, 3) // \"3,142\"\n  valuta(2086.93)      // \"2.086,93 €\"\n\nPerche non basta Intl.NumberFormat('it-IT'): il CLDR italiano dichiara\nminimumGroupingDigits 2, cioe raggruppa solo da cinque cifre in su. Un\nimporto di quattro cifre esce quindi 2086,93 e uno di cinque 12.345,67 — il\nseparatore non e assente, e INTERMITTENTE, e proprio nella fascia fra mille\ne diecimila che in un computo o in un listino e la maggior parte delle\nrighe. Due numeri incolonnati, uno col punto e uno senza, si leggono di\nordini di grandezza diversi, e tabular-nums allinea le cifre ma non inventa\nun separatore che non c'e.\n\nLa convenzione Tassullo e quindi sempre il punto delle migliaia\n(useGrouping: 'always').\n\nPer un caso che le tre funzioni non coprono si parte da `formattatore`, che\ne la convenzione piu le opzioni che servono:\n\n  const PERCENTO = formattatore({ style: 'percent', maximumFractionDigits: 1 })\n\nLe istanze Intl sono costruite una volta sola e memorizzate: costruirne una\ndentro la cella di una tabella vuol dire costruirla una volta per riga a\nogni render.\n\nNON si formattano di qui un anno, un codice, un identificativo o un CAP:\nsono stringhe scritte con delle cifre, e 2026 diventerebbe 2.026. Se\nsommarne due non ha senso, non e un numero."
     },
     {
+      "name": "supporto",
+      "type": "registry:lib",
+      "title": "Tipi del supporto",
+      "description": "I tipi del canale di supporto, uguali in tutte le app: tipo e stato di una richiesta, risposte, scheda e dettagli tecnici, i limiti (titolo 140 caratteri, 5 screenshot PNG o JPEG fino a 10 MB), il nome e il tono di ogni stato (Ricevuta neutro, Aperta info, In lavorazione warning, Chiusa success) e la data e ora nell'ora italiana.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/lib/supporto.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/toni"
+      ],
+      "docs": "  import { STATO_RICHIESTA, TIPO_RICHIESTA, formattaDataOra } from '@/lib/supporto'\n  import { TONO } from '@/lib/toni'\n\n  const s = STATO_RICHIESTA[richiesta.stato]\n  <Badge className={TONO[s.tono]}>{s.testo}</Badge>\n\nI valori e i nomi dei campi sono quelli del contratto del server del supporto\n(errore, richiesta, domanda; ricevuta, aperta, in_lavorazione, chiusa): il tipo\n«Proposta» ha per valore `richiesta`. Il tipo `Richiesta` porta i soli campi che\nle pagine modello leggono; un'app che ne riceve altri lo estende nel suo codice.\n\n`DatiRichiesta` è ciò che consegna il dialogo `tassullo-richiesta-supporto`."
+    },
+    {
       "name": "tassullo-controllo",
       "type": "registry:item",
       "title": "Controllo del design system",
@@ -1610,6 +1629,38 @@
       "docs": "Un blocco, un uso:\n\n  <FiloMessaggi messaggi={risposte} vuoto=\"Nessuna risposta ancora\" />\n\nOgni messaggio ha `id`, `autore`, `testo` e `data` (una `Date` o un istante\nISO con il fuso). Arrivano in qualunque ordine: il filo li mette dal più\nvecchio. Il testo si mostra intero, con gli a capo, e un indirizzo lungo va a\ncapo dentro il riquadro."
     },
     {
+      "name": "tassullo-richiesta-supporto",
+      "type": "registry:block",
+      "title": "Richiesta di supporto",
+      "description": "Il dialogo «Apri una richiesta» (cassetto sotto 768px): tipo fra Errore, Proposta e Domanda, titolo, descrizione che cresce col testo, fino a 5 screenshot a miniature. Non chiama l'API: consegna i dati a onInvia e mostra avanzamento; l'errore sta dentro il dialogo, che durante l'invio non si chiude.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/richiesta-supporto.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/richiesta-supporto.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/tassullo-responsive-dialog",
+        "@tassullo/tassullo-file-upload",
+        "@tassullo/tassullo-form-field",
+        "@tassullo/supporto",
+        "@tassullo/numeri",
+        "@tassullo/alert",
+        "@tassullo/button",
+        "@tassullo/field",
+        "@tassullo/input",
+        "@tassullo/radio-group",
+        "@tassullo/spinner",
+        "@tassullo/textarea",
+        "@tassullo/tema"
+      ],
+      "docs": "Si monta una volta nel guscio e si apre dal menu utente o dalla pagina «Supporto»:\n\n  <RichiestaSupporto\n    aperto={aperto}\n    onApertoChange={setAperto}\n    avanzamento={avanzamento}\n    onInvia={async (dati) => {\n      const creata = await inviaRichiesta(dati, contesto, setAvanzamento)\n      toast.success('Richiesta inviata. La trovi in «Supporto».')\n      navigate(`/supporto/${creata.id}`)\n    }}\n  />\n\n`onInvia` riceve `{ tipo, titolo, descrizione, screenshot: File[] }`, già puliti.\nRiuscita la promessa, il dialogo si chiude e si svuota; rifiutata, resta aperto e\nmostra il `message` dell'errore, che arriva già tradotto. Il contesto tecnico\n(pagina, versione, browser, errori recenti) lo aggiunge l'app e chi scrive non lo\nvede. Annullando, quello che si è scritto resta per la prossima apertura.\n\nGli screenshot si scelgono dal computer o si trascinano sul bottone; incollare\ndagli appunti non li aggiunge. `massimo` (di serie 5) fa da tetto."
+    },
+    {
       "name": "tassullo-rich-text-editor",
       "type": "registry:block",
       "title": "Editor di testo",
@@ -1959,6 +2010,76 @@
         "@tassullo/toni"
       ],
       "docs": "Pagina d'esempio, non un componente da importare: mostra come la primitiva\n`empty` e i toni di `lib/toni` stanno insieme in una pagina di stato di\nsistema. Il codice intero si legge con `npx shadcn@latest view\n@tassullo/tassullo-pagina-errore` o dall'MCP; nell'app la pagina si riscrive\nnella cartella delle pagine, e si installano per nome i blocchi che usa. Non\nsi installa e non si importa: una pagina installata con `add` finirebbe in\n`components/pages/` senza servire.\n\n`variante` sceglie fra `404`, `accesso-negato`, `errore-server`, `manutenzione` — ognuna ha icona, titolo e messaggio di default (tutti sovrascrivibili) e un tono di `lib/toni` tranne il 404, che non è un fatto grave. `azione` è un nodo, non una callback fissa (come `EmptyState.azione`, non come `ErrorState.onRiprova`): cambia natura da variante a variante — un link di navigazione, un bottone che ritenta, un `mailto:` — e il blocco non sa quale sia né se serva un router. Assente, nessuna CTA compare: è raccomandata, non imposta dal blocco.\n\n`schermoIntero` sceglie se la pagina si monta dentro il contenuto esistente (default per `404` e `accesso-negato`: la navigazione resta, l'utente ha sbagliato un link interno o aperto una rotta riservata) o fuori dal guscio, sul modello di `tassullo-pagina-login` — marchio in testa, sfondo pieno (default per `errore-server` e `manutenzione`: capitano spesso prima che il guscio abbia dati per popolarsi, mostrarli dentro `AppShell` vorrebbe dire mostrare una barra vuota o rotta). Il default si sovrascrive per un caso che lo richiede davvero.\n\nIl messaggio di `accesso-negato` dice la verità su Anagrafe: l'utente senza ruoli non è bloccato, è in sola lettura, come già rende `soloLettura` di `tassullo-pagina-admin` — questa variante serve per una rotta che non ha proprio nulla da mostrare senza un ruolo preciso, e il default lo dice esplicitamente invece di un generico «non hai i permessi»."
+    },
+    {
+      "name": "tassullo-pagina-supporto",
+      "type": "registry:block",
+      "title": "Pagina del supporto",
+      "description": "L'elenco delle richieste di supporto: fascia «Supporto» con «Apri una richiesta» e «Aggiorna», tabella a scorrimento infinito con Titolo (collegamento, colonna elastica), Tipo, Data, Stato e Risposte con «n nuove», filtri per stato e tipo; sotto 1024px una scheda per richiesta. Pagina d'esempio: mostra come si compongono i blocchi. Si legge con npx shadcn view o dall'MCP e si ricompone nell'app; non si installa e non si importa.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-supporto.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-supporto.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/tassullo-data-table",
+        "@tassullo/tassullo-data-table-filtro-reset",
+        "@tassullo/tassullo-data-table-filtro-sfaccettato",
+        "@tassullo/tassullo-empty-state",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/use-soglia",
+        "@tassullo/supporto",
+        "@tassullo/numeri",
+        "@tassullo/toni",
+        "@tassullo/badge",
+        "@tassullo/button",
+        "@tassullo/card",
+        "@tassullo/tema"
+      ],
+      "docs": "Pagina d'esempio, non un componente da importare: mostra come\n`tassullo-page-header`, `tassullo-data-table` coi filtri, `tassullo-empty-state`,\n`tassullo-error-state` e `tassullo-page-skeleton` stanno insieme nell'elenco delle\nrichieste di supporto. Il codice intero si legge con `npx shadcn@latest view\n@tassullo/tassullo-pagina-supporto` o dall'MCP; nell'app la pagina si riscrive\nnella cartella delle pagine, e si installano per nome i blocchi che usa.\n\nNon legge i dati e non conosce il router: riceve `richieste`, `stato`,\n`onApriRichiesta`, `onAggiorna` e `collegamento(richiesta)`, l'elemento che rende\nil titolo come collegamento alla scheda (il `Link` del router). Il conto delle\nrisposte da leggere, sommato su tutte le richieste, va nel `badge` della voce\n«Supporto» di `tassullo-app-shell`."
+    },
+    {
+      "name": "tassullo-pagina-supporto-richiesta",
+      "type": "registry:block",
+      "title": "Pagina di una richiesta di supporto",
+      "description": "La scheda di una richiesta di supporto a tutta larghezza: stato, tipo, data e testo, gli screenshot in una galleria, le risposte in un filo; per l'amministratore una colonna a destra coi dettagli tecnici inviati (pagina, versioni, browser, chiamate non riuscite). Pagina d'esempio: mostra come si compongono i blocchi. Si legge con npx shadcn view o dall'MCP e si ricompone nell'app; non si installa e non si importa.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/pages/pagina-supporto-richiesta.tsx",
+          "type": "registry:component",
+          "target": "components/pages/pagina-supporto-richiesta.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/tassullo-empty-state",
+        "@tassullo/tassullo-error-state",
+        "@tassullo/tassullo-filo-messaggi",
+        "@tassullo/tassullo-galleria-immagini",
+        "@tassullo/tassullo-page-header",
+        "@tassullo/tassullo-page-skeleton",
+        "@tassullo/supporto",
+        "@tassullo/numeri",
+        "@tassullo/toni",
+        "@tassullo/badge",
+        "@tassullo/button",
+        "@tassullo/card",
+        "@tassullo/collapsible",
+        "@tassullo/tema"
+      ],
+      "docs": "Pagina d'esempio, non un componente da importare: mostra come `card`,\n`tassullo-galleria-immagini`, `tassullo-filo-messaggi` e `tassullo-page-header`\nstanno insieme nella scheda di una richiesta di supporto. Il codice intero si legge\ncon `npx shadcn@latest view @tassullo/tassullo-pagina-supporto-richiesta` o\ndall'MCP; nell'app la pagina si riscrive nella cartella delle pagine.\n\nRiceve `richiesta`, `stato` (anche `non-trovata`, che non dice se la richiesta\nesiste), `percorsoLista`, `onAggiorna`, `caricaScreenshot(screenshot, segnale)` per\ngli screenshot autenticati e `amministratore`, che mostra i dettagli tecnici: a\ndestra quando l'area del contenuto è larga almeno 896px, sotto altrimenti. Segnare\nlette le risposte nuove resta all'app."
     },
     {
       "name": "stepper",
