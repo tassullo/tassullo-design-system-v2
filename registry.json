@@ -1564,6 +1564,52 @@
       "docs": "Un blocco, due modalità:\n\n  <VersionTimeline revisioni={revisioni} />\n  <VersionTimeline revisioni={revisioni} confrontabile onConfronta={(a, b) => apriConfronto(a, b)} />\n\nCinque stati (`bozza | in-revisione | approvato | rifiutato | superato`),\nognuno con la propria tripletta di token (`success`/`warning`/`destructive`\n+ `-subtle`/`-border`), come badge ed errori altrove nel design system.\n\n**Il confronto è una selezione, non una diff.** In `confrontabile` due\ncheckbox per riga scelgono due revisioni — la terza si disabilita finché non\nse ne scarta una — e `onConfronta` riceve le due voci scelte quando l'app\nclicca \"Confronta\". Renderizzare la differenza vera è compito di\n`tassullo-diff-view`: questo blocco si ferma alla scelta, come `FileUpload` non carica\nniente da sé.\n\nshadcn non ha una `timeline`: il blocco compone primitive esistenti —\nbadge, avatar, checkbox, button."
     },
     {
+      "name": "tassullo-galleria-immagini",
+      "type": "registry:block",
+      "title": "Galleria di immagini",
+      "description": "Miniature in una griglia (due colonne, tre dove c'è posto) e l'immagine grande in un dialogo adattivo quasi a tutta finestra, con Precedente, Successivo e Chiudi. Le immagini le dà una funzione dell'app, URL o Blob, così possono essere autenticate; caricamento ed errore per ogni immagine.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/galleria-immagini.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/galleria-immagini.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/tassullo-responsive-dialog",
+        "@tassullo/button",
+        "@tassullo/skeleton",
+        "@tassullo/numeri",
+        "@tassullo/tema"
+      ],
+      "docs": "Un blocco, un uso:\n\n  <GalleriaImmagini\n    immagini={richiesta.screenshot}\n    etichetta=\"Screenshot\"\n    carica={(s, segnale) => scarica(`/api/screenshot/${s.id}`, { signal: segnale })}\n  />\n\n`carica(immagine, segnale)` restituisce un URL o un `Blob`: è il punto in cui\nl'app mette l'autenticazione. Il blocco trasforma il `Blob` in un indirizzo e\nlo libera quando la miniatura si smonta; ogni immagine si scarica una volta\nsola, e l'ingrandimento usa quella della miniatura. Una promessa rifiutata è\nun'immagine che non si carica: la miniatura mostra un'icona, l'immagine grande\noffre «Riprova».\n\nDue colonne, tre da 512px di larghezza della galleria (container query, non\nla finestra). Nel dialogo `←` e `→` scorrono le immagini; alla chiusura il\nfuoco torna sulla miniatura di partenza."
+    },
+    {
+      "name": "tassullo-filo-messaggi",
+      "type": "registry:block",
+      "title": "Filo di messaggi",
+      "description": "Un filo di messaggi dal più vecchio al più recente: autore, data e ora (gg/mm/aaaa, hh:mm, ora italiana) e il testo intero, con i suoi a capo, che va a capo anche con indirizzi lunghi. Una frase quando è vuoto.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/filo-messaggi.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/filo-messaggi.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/item",
+        "@tassullo/tema"
+      ],
+      "docs": "Un blocco, un uso:\n\n  <FiloMessaggi messaggi={risposte} vuoto=\"Nessuna risposta ancora\" />\n\nOgni messaggio ha `id`, `autore`, `testo` e `data` (una `Date` o un istante\nISO con il fuso). Arrivano in qualunque ordine: il filo li mette dal più\nvecchio. Il testo si mostra intero, con gli a capo, e un indirizzo lungo va a\ncapo dentro il riquadro."
+    },
+    {
       "name": "tassullo-rich-text-editor",
       "type": "registry:block",
       "title": "Editor di testo",
