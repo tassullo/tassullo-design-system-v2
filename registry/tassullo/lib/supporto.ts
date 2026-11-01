@@ -11,8 +11,13 @@
  * `richiesta`, come lì.
  *
  * Nel tipo `Richiesta` stanno i soli campi che le pagine modello leggono.
- * Un'app che ne riceve altri (il numero della issue, i tentativi d'invio)
- * estende il tipo nel suo codice: `interface RichiestaApp extends Richiesta`.
+ * Un'app che ne riceve altri estende il tipo nel suo codice:
+ * `interface RichiestaApp extends Richiesta`.
+ *
+ * Proposta #171, passo #171b: `RichiestaAmministratore` e
+ * `StatoCollegamento` per la pagina d'esempio dell'amministratore, dai tipi
+ * propri di Anagrafe (`frontend/src/lib/supportoAnagrafe.ts` al commit
+ * `5222bec8`) e dal contratto di `GET /api/supporto/stato`.
  */
 import {
   BugIcon,
@@ -112,6 +117,54 @@ export interface Richiesta {
   n_screenshot?: number
 }
 
+/**
+ * Una riga dell'elenco dell'amministratore: la richiesta, la sua issue su
+ * GitHub e i tentativi d'invio.
+ */
+export interface RichiestaAmministratore extends Richiesta {
+  /** Il numero della issue su GitHub; assente finché la richiesta non è partita. */
+  github_numero?: number | null
+  github_url?: string | null
+  github_assegnatario?: string | null
+  /** Quante volte l'app ha provato a mandarla a GitHub. */
+  invio_tentativi?: number
+  invio_ultimo_il?: string | null
+  /** L'errore dell'ultimo tentativo non riuscito, così come lo dà il server. */
+  invio_ultimo_errore?: string | null
+}
+
+/** Una richiesta ancora «ricevuta» con un errore d'invio scritto: non è partita. */
+export function invioFallito(richiesta: RichiestaAmministratore) {
+  return richiesta.stato === "ricevuta" && Boolean(richiesta.invio_ultimo_errore)
+}
+
+/** Il collegamento con GitHub, visto dall'amministratore. */
+export interface StatoCollegamento {
+  /** Se il token è impostato in questo ambiente. */
+  configurato: boolean
+  /** Il repository dove arrivano le richieste, `proprietario/nome`. */
+  repo: string
+  token: {
+    stato: "valida" | "in_scadenza" | "scaduta" | "non_dichiarata"
+    /** La data di scadenza, `AAAA-MM-GG`. */
+    scadenza: string | null
+    /** I giorni che mancano alla scadenza. */
+    giorni: number | null
+    nota?: string
+  }
+  /** Da quanti giorni prima della scadenza il token è «in scadenza». */
+  preavviso_giorni?: number
+  /** Le richieste salvate e non ancora arrivate a GitHub. */
+  non_inviate: number
+  ultima_sincronizzazione: string | null
+}
+
+/** Le variabili d'ambiente del collegamento con GitHub, come le nominano gli avvisi. */
+export const VARIABILI_COLLEGAMENTO = {
+  token: "GITHUB_SUPPORTO_TOKEN",
+  scadenza: "GITHUB_SUPPORTO_TOKEN_SCADENZA",
+}
+
 /** Una chiamata all'API non riuscita poco prima dell'invio. */
 export interface ErroreRegistrato {
   quando: string | null
@@ -167,4 +220,25 @@ export function formattaDataOra(valore: string | Date | null | undefined) {
   if (!valore) return ""
   const data = valore instanceof Date ? valore : new Date(valore)
   return Number.isNaN(data.getTime()) ? "" : DATA_ORA.format(data)
+}
+
+const DATA = new Intl.DateTimeFormat("it-IT", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "Europe/Rome",
+})
+
+/**
+ * La sola data, `gg/mm/aaaa`: la scadenza del token. Una data senza ora,
+ * `AAAA-MM-GG`, si legge come quel giorno, non come la mezzanotte UTC. Un
+ * valore che non è una data dà la stringa vuota.
+ */
+export function formattaData(valore: string | Date | null | undefined) {
+  if (!valore) return ""
+  const data =
+    valore instanceof Date
+      ? valore
+      : new Date(/^\d{4}-\d{2}-\d{2}$/.test(valore) ? `${valore}T12:00:00` : valore)
+  return Number.isNaN(data.getTime()) ? "" : DATA.format(data)
 }
