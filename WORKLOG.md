@@ -14621,6 +14621,7 @@ Primo passo della proposta #171 di Anagrafe (sulla `v2.0.24`, adozione nel commi
 - **«Togli» sull'immagine** contraddice la scelta di #165a («accanto al nome») per le miniature grandi, che resta: nelle compatte a 5 colonne accanto al nome non c'è posto. Deciso da Francesco con la scelta (3).
 - **`tassullo-richiesta-supporto`**: `md:max-w-4xl` invece di `sm:max-w-2xl` (sotto 768px è un cassetto) e `forma="miniature-compatte"`. Misurato in Chromium a 1440×860 al tetto: dialogo circa 718px, il corpo non scorre, griglia 5 colonne circa 120px (prima tre colonne su due righe, circa 600px secondo la proposta). A 375: 3 colonne, griglia 186px, niente esce di lato.
 - **Scene**: «Miniature compatte», «Solo immagini», «Righe con immagine», e tre prove (`!dev`): colonne a 672px (5, 5, 2), nome scritto o nel `title`, «Togli» con `Invio`, barra durante l'invio senza «Togli».
+- **Test**: `npm run check` verde, tredici gate, axe 2428 scansioni in quattro passate, 0 violazioni.
 
 #### Aperti
 
