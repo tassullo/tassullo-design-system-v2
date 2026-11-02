@@ -1586,6 +1586,121 @@ const PER_PAGINA = [10, 25, 50, 100]
 const PASSO_INFINITO = 40
 
 /**
+ * Lo stato che `memoria` tiene nella sessione del browser: quello che chi
+ * torna alla lista si aspetta di ritrovare. La selezione no: un'azione di
+ * massa su righe scelte un'ora prima, in un'altra pagina, è un errore che
+ * aspetta di succedere. Larghezze, colonne bloccate e ordine delle colonne
+ * nemmeno: sono preferenze, non il punto a cui si era arrivati.
+ */
+interface StatoRicordato {
+  ricerca: string
+  filtri: ColumnFiltersState
+  ordinamento: SortingState
+  visibilita: ColumnVisibilityState
+  /** La pagina, contata da 0, con la paginazione a numeri. */
+  pagina: number
+  /** Le righe caricate, in `perPagina="infinito"`. */
+  caricate: number
+  /** Lo scorrimento del riquadro della tabella, in pixel. */
+  scorrimento: { alto: number; sinistra: number }
+}
+
+const PREFISSO_MEMORIA = "tassullo-data-table:"
+
+const eNumero = (valore: unknown): valore is number =>
+  typeof valore === "number" && Number.isFinite(valore) && valore >= 0
+
+/**
+ * Lo stato salvato sotto `chiave`, campo per campo: un campo che non ha la
+ * forma attesa si ignora e gli altri restano. La sessione del browser può non
+ * esserci (finestra privata, dati del sito bloccati) o contenere un valore
+ * scritto da una versione precedente del blocco: in entrambi i casi la
+ * tabella parte com'è di serie, senza errori.
+ */
+function leggiMemoria(chiave: string | undefined): Partial<StatoRicordato> | undefined {
+  if (!chiave) return undefined
+  let grezzo: unknown
+  try {
+    const testo = window.sessionStorage.getItem(PREFISSO_MEMORIA + chiave)
+    if (!testo) return undefined
+    grezzo = JSON.parse(testo)
+  } catch {
+    return undefined
+  }
+  if (typeof grezzo !== "object" || grezzo === null) return undefined
+  const s = grezzo as Record<string, unknown>
+  const fuori: Partial<StatoRicordato> = {}
+  if (typeof s.ricerca === "string") fuori.ricerca = s.ricerca
+  if (Array.isArray(s.filtri))
+    fuori.filtri = s.filtri.filter(
+      (f): f is ColumnFiltersState[number] =>
+        typeof f === "object" && f !== null && typeof f.id === "string" && "value" in f
+    )
+  if (Array.isArray(s.ordinamento))
+    fuori.ordinamento = s.ordinamento.filter(
+      (o): o is SortingState[number] =>
+        typeof o === "object" && o !== null && typeof o.id === "string" && typeof o.desc === "boolean"
+    )
+  if (typeof s.visibilita === "object" && s.visibilita !== null && !Array.isArray(s.visibilita))
+    fuori.visibilita = Object.fromEntries(
+      Object.entries(s.visibilita).filter(([, visibile]) => typeof visibile === "boolean")
+    )
+  if (eNumero(s.pagina)) fuori.pagina = Math.floor(s.pagina)
+  if (eNumero(s.caricate)) fuori.caricate = Math.floor(s.caricate)
+  const sc = s.scorrimento as Record<string, unknown> | undefined
+  if (sc && eNumero(sc.alto) && eNumero(sc.sinistra))
+    fuori.scorrimento = { alto: sc.alto, sinistra: sc.sinistra }
+  return fuori
+}
+
+function scriviMemoria(chiave: string, stato: StatoRicordato) {
+  try {
+    window.sessionStorage.setItem(PREFISSO_MEMORIA + chiave, JSON.stringify(stato))
+  } catch {
+    // Sessione del browser piena o bloccata: la tabella funziona lo stesso,
+    // solo non si ricorderà.
+  }
+}
+
+/**
+ * I filtri ripresi dalla memoria, tolti quelli che sui dati di adesso non
+ * lasciano nessuna riga. Il caso tipico: si filtra per uno stato, si apre
+ * l'ultima riga in quello stato e la si cambia; tornando, il filtro
+ * nasconderebbe tutto, e nella tendina quel valore non c'è più per toglierlo.
+ *
+ * Nei filtri a scelta multipla (`arrHas`, `arrHasAny`) si guarda valore per
+ * valore: un valore che non trova righe si toglie e gli altri restano, perché
+ * le scelte si sommano. Negli altri filtri (intervalli, date, filtri della
+ * pagina) si guarda il filtro intero.
+ */
+function filtriConRighe<TDato extends RowData>(
+  tabella: IstanzaTabella<TDato>,
+  filtri: ColumnFiltersState
+): ColumnFiltersState {
+  const righe = tabella.getCoreRowModel().flatRows
+  const trova = (id: string, valore: unknown) => {
+    const filtra = tabella.getColumn(id)?.getFilterFn()
+    if (!filtra) return true
+    const risolto = filtra.resolveFilterValue?.(valore) ?? valore
+    return righe.some((riga) => filtra(riga, id, risolto, () => {}))
+  }
+  const fuori: ColumnFiltersState = []
+  for (const filtro of filtri) {
+    const filtra = tabella.getColumn(filtro.id)?.getFilterFn() as unknown
+    const aScelte =
+      filtra === caratteristiche.filterFns.arrHas || filtra === caratteristiche.filterFns.arrHasAny
+    if (aScelte && Array.isArray(filtro.value)) {
+      const rimasti = filtro.value.filter((valore) => trova(filtro.id, [valore]))
+      if (rimasti.length > 0)
+        fuori.push(rimasti.length === filtro.value.length ? filtro : { ...filtro, value: rimasti })
+    } else if (trova(filtro.id, filtro.value)) {
+      fuori.push(filtro)
+    }
+  }
+  return fuori
+}
+
+/**
  * La paginazione: quante righe per pagina, a che pagina si è, e i quattro
  * salti.
  *
@@ -3946,6 +4061,31 @@ export type DataTableProps<TDato extends RowData> = {
    * per rendere qualcosa: per quello c'è `barra`.
    */
   onTabellaPronta?: (tabella: IstanzaTabella<TDato>) => void
+  // Una prop e non uno stato controllato: ogni lista della colonna deve
+  // ricordare allo stesso modo, e con `statoIniziale`/`onStatoChange` ogni
+  // pagina scriverebbe il proprio salvataggio. Lo scorrimento ripreso è solo
+  // quello del riquadro (`altezza="ferma"`, `"virtuale"`, o di lato): con
+  // l'altezza naturale scorre la pagina, che non è della tabella.
+  /**
+   * Ricorda, per la sessione del browser, ricerca, filtri di colonna,
+   * ordinamento, colonne nascoste, pagina e scorrimento della tabella, e li
+   * riprende quando la tabella torna sulla pagina: chi apre una riga e torna
+   * alla lista la ritrova com'era. Il valore è la chiave, una per lista
+   * (`memoria="prodotti"`): due tabelle con la stessa chiave si scrivono sopra
+   * a vicenda.
+   *
+   * Ripresi anche dai filtri della `barra`, che leggono lo stato dalla
+   * tabella. Un filtro che sui dati di adesso non lascia nessuna riga si
+   * scarta, e nei filtri a scelta multipla si scartano i soli valori che non
+   * trovano righe. Lo scorrimento si riprende quando le righe ci sono; con
+   * `perPagina="infinito"` si ricaricano quante righe servivano. Lo
+   * scorrimento ripreso è quello del riquadro della tabella: con l'altezza
+   * naturale scorre la pagina, e non si riprende.
+   *
+   * La selezione delle righe non si ricorda. Chiusa la scheda del browser, la
+   * memoria si perde.
+   */
+  memoria?: string
   // @internal Wiring privata per `<DataGrid>`, non pensata per
   // essere passata da una pagina. Con `perPagina="virtuale"`, consegna a
   // `DataTableVirtualizedBody` il controllo del fuoco — la Data Grid lo
@@ -4013,6 +4153,7 @@ export function DataTable<TDato extends RowData>({
   barra,
   className,
   onTabellaPronta,
+  memoria,
   internoGriglia,
   attributiTabella,
 }: DataTableProps<TDato>) {
@@ -4029,6 +4170,9 @@ export function DataTable<TDato extends RowData>({
   // grezzo divergerebbero appena si scorre. Ricade su `"naturale"`.
   const infinito = perPaginaInfinito && !trascinamento
   const virtualizzata = perPaginaVirtuale && !trascinamento
+  // Solo qui la pagina conta: con `"infinito"`, `"virtuale"` e il riordino
+  // tutte le righe stanno in una pagina sola.
+  const aNumeri = typeof perPagina === "number" && !trascinamento
   const fermo = altezza === "ferma"
   // `colonneBloccabili` implica `ridimensionabile`: lo scarto sticky del pin
   // generalizzato si calcola dalle larghezze acquisite (v. `MetaColonna`,
@@ -4037,10 +4181,19 @@ export function DataTable<TDato extends RowData>({
   // `colonneBloccabili` sostituisce `bloccaPrimaColonna`, non lo somma: i due
   // meccanismi disegnano lo sticky in due modi incompatibili (v. il prop).
   const bloccoLegacy = bloccaPrimaColonna && !colonneBloccabili
-  const [ordinamento, setOrdinamento] = React.useState<SortingState>([])
-  const [filtri, setFiltri] = React.useState<ColumnFiltersState>([])
-  const [ricerca, setRicerca] = React.useState("")
-  const [visibilita, setVisibilita] = React.useState<ColumnVisibilityState>({})
+  /**
+   * Lo stato salvato da `memoria`, letto una volta sola, al montaggio: dopo,
+   * la memoria la scrive la tabella e non la rilegge più.
+   */
+  const [ricordato] = React.useState(() => leggiMemoria(memoria))
+  const [ordinamento, setOrdinamento] = React.useState<SortingState>(
+    () => ricordato?.ordinamento ?? []
+  )
+  const [filtri, setFiltri] = React.useState<ColumnFiltersState>(() => ricordato?.filtri ?? [])
+  const [ricerca, setRicerca] = React.useState(() => ricordato?.ricerca ?? "")
+  const [visibilita, setVisibilita] = React.useState<ColumnVisibilityState>(
+    () => ricordato?.visibilita ?? {}
+  )
   const [scelte, setScelte] = React.useState({})
   /**
    * Le larghezze **acquisite** dall'utente (`ridimensionabile`/
@@ -4092,7 +4245,9 @@ export function DataTable<TDato extends RowData>({
    * `PASSO_INFINITO` alla volta, quando la sentinella in fondo alla tabella
    * entra nel contenitore che scorre (v. l'effetto più sotto).
    */
-  const [caricate, setCaricate] = React.useState(PASSO_INFINITO)
+  const [caricate, setCaricate] = React.useState(() =>
+    Math.max(PASSO_INFINITO, ricordato?.caricate ?? 0)
+  )
 
   /**
    * La colonna delle caselle si aggiunge qui e non la scrive la pagina: è
@@ -4273,7 +4428,7 @@ export function DataTable<TDato extends RowData>({
     enableGlobalFilter: !trascinamento,
     initialState: {
       pagination: {
-        pageIndex: 0,
+        pageIndex: aNumeri ? (ricordato?.pagina ?? 0) : 0,
         // `"virtuale"` non pagina affatto: tutte le righe filtrate entrano nel
         // modello, ed è `DataTableVirtualizedBody` a decidere quali montare
         // davvero. `Number.MAX_SAFE_INTEGER` invece di ricalcolare la
@@ -4311,6 +4466,29 @@ export function DataTable<TDato extends RowData>({
   React.useEffect(() => {
     onTabellaPronta?.(tabella)
   })
+
+  /**
+   * Lo stato ripreso da `memoria` si controlla sui dati appena ci sono, una
+   * volta sola: via le colonne che non esistono più, e via i filtri che non
+   * lasciano righe (`filtriConRighe`). Aggiustato in fase di render, come
+   * `caricate` più sotto, e non in un effetto: la prima tabella che si vede è
+   * già quella giusta. Se i dati arrivano dopo il montaggio, il controllo
+   * aspetta loro.
+   */
+  const [daVerificare, setDaVerificare] = React.useState(() => ricordato !== undefined)
+  if (daVerificare && tabella.getCoreRowModel().rows.length > 0) {
+    setDaVerificare(false)
+    const colonneVere = tabella.getAllFlatColumnsById()
+    const esiste = (id: string) => Object.hasOwn(colonneVere, id)
+    const filtriBuoni = filtriConRighe(
+      tabella,
+      filtri.filter((f) => esiste(f.id))
+    )
+    if (JSON.stringify(filtriBuoni) !== JSON.stringify(filtri)) setFiltri(filtriBuoni)
+    if (ordinamento.some((o) => !esiste(o.id))) setOrdinamento(ordinamento.filter((o) => esiste(o.id)))
+    if (Object.keys(visibilita).some((id) => !esiste(id)))
+      setVisibilita(Object.fromEntries(Object.entries(visibilita).filter(([id]) => esiste(id))))
+  }
 
   /**
    * Le righe scelte, per la barra. È un calcolo in fase di render e non un
@@ -4633,6 +4811,118 @@ export function DataTable<TDato extends RowData>({
 
   const radiceRef = React.useRef<HTMLDivElement>(null)
   const piePaginaRef = React.useRef<HTMLDivElement>(null)
+
+  /**
+   * **`memoria`: cosa si salva.** Lo stato in una stringa sola, che fa da
+   * dipendenza dell'effetto che scrive: `filtri` e gli altri sono oggetti
+   * nuovi a ogni cambio, la stringa cambia solo quando cambia il contenuto.
+   * Lo scorrimento sta a parte, in una `ref`, perché cambia a ogni fotogramma
+   * e non deve far rendere la tabella.
+   */
+  const paginaVista = tabella.state.pagination?.pageIndex ?? 0
+  const istantanea = memoria
+    ? JSON.stringify({
+        ricerca,
+        filtri,
+        ordinamento,
+        visibilita,
+        pagina: aNumeri ? paginaVista : 0,
+        caricate: infinito ? caricate : 0,
+      })
+    : ""
+  const statoRef = React.useRef<Omit<StatoRicordato, "scorrimento"> | undefined>(undefined)
+  const scorrimentoRef = React.useRef(ricordato?.scorrimento ?? { alto: 0, sinistra: 0 })
+  const salva = React.useCallback(() => {
+    if (memoria && statoRef.current)
+      scriviMemoria(memoria, { ...statoRef.current, scorrimento: scorrimentoRef.current })
+  }, [memoria])
+  React.useEffect(() => {
+    if (!istantanea) return
+    statoRef.current = JSON.parse(istantanea)
+    salva()
+  }, [istantanea, salva])
+
+  /**
+   * **`memoria`: cosa resta da riprendere** dopo il montaggio. La pagina,
+   * perché TanStack la riporta alla prima quando arrivano i dati; e lo
+   * scorrimento, che si può dare solo quando il riquadro ha righe e altezza.
+   */
+  const daRiprendereRef = React.useRef({
+    pagina: aNumeri ? ricordato?.pagina : undefined,
+    scorrimento: ricordato?.scorrimento,
+  })
+  // Senza dipendenze: gira a ogni commit finché resta qualcosa da riprendere,
+  // perché le condizioni (dati arrivati, altezza misurata, righe caricate)
+  // arrivano in commit diversi, e quale arrivi per ultima dipende dalla pagina.
+  React.useEffect(() => {
+    const da = daRiprendereRef.current
+    if (da.pagina === undefined && !da.scorrimento) return
+    if (tabella.getCoreRowModel().rows.length === 0) return
+    // La pagina resta da ridare fino al primo gesto: TanStack torna alla
+    // prima pagina a ogni cambio di `dati`, e un'app che ricarica la lista
+    // appena tornati la perderebbe subito dopo averla ritrovata.
+    if (da.pagina !== undefined) {
+      const voluta = Math.min(da.pagina, Math.max(0, tabella.getPageCount() - 1))
+      if (paginaVista !== voluta) tabella.setPageIndex(voluta)
+    }
+    const scorrimento = da.scorrimento
+    const riquadro = contenitoreRef.current?.querySelector<HTMLElement>(
+      '[data-slot="table-container"]'
+    )
+    if (!scorrimento || !riquadro) return
+    // Con l'altezza ferma si aspetta la misura del riquadro: porta con sé il
+    // margine dell'intestazione per l'aggancio delle righe, e uno
+    // scorrimento dato prima il browser lo riaggancia una riga più su.
+    if (fermo && altezzaMax === undefined) return
+    const manca =
+      riquadro.scrollHeight - riquadro.clientHeight < scorrimento.alto ||
+      riquadro.scrollWidth - riquadro.clientWidth < scorrimento.sinistra
+    // Il riquadro non è ancora lungo abbastanza, ma lo diventerà: righe
+    // ancora da caricare. Se invece non cambierà più (i dati sono meno di
+    // prima), si va fin dove si può.
+    if (manca && infinito && caricate < totaleFiltrate) return
+    da.scorrimento = undefined
+    riquadro.scrollTop = scorrimento.alto
+    riquadro.scrollLeft = scorrimento.sinistra
+  })
+
+  /**
+   * **`memoria`: lo scorrimento si salva scorrendo**, e la ripresa di pagina
+   * e scorrimento si abbandona al primo gesto dentro la tabella — un clic,
+   * un tasto, la rotella, un dito —: chi ha già cominciato a muoversi non
+   * deve vedersi spostare la lista sotto la mano quando arrivano le righe.
+   */
+  React.useEffect(() => {
+    if (!memoria) return
+    const radice = radiceRef.current
+    const riquadro = contenitoreRef.current?.querySelector<HTMLElement>(
+      '[data-slot="table-container"]'
+    )
+    if (!radice || !riquadro) return
+    const leggi = () => {
+      scorrimentoRef.current = { alto: riquadro.scrollTop, sinistra: riquadro.scrollLeft }
+    }
+    const abbandona = () => {
+      const da = daRiprendereRef.current
+      da.pagina = undefined
+      if (!da.scorrimento) return
+      da.scorrimento = undefined
+      leggi()
+      salva()
+    }
+    const alloScorrere = () => {
+      if (daRiprendereRef.current.scorrimento) return
+      leggi()
+      salva()
+    }
+    const gesti = ["pointerdown", "keydown", "wheel", "touchstart"] as const
+    for (const gesto of gesti) radice.addEventListener(gesto, abbandona, { passive: true })
+    riquadro.addEventListener("scroll", alloScorrere, { passive: true })
+    return () => {
+      for (const gesto of gesti) radice.removeEventListener(gesto, abbandona)
+      riquadro.removeEventListener("scroll", alloScorrere)
+    }
+  }, [memoria, salva])
 
   /**
    * **Il riquadro finisce sempre su un confine di riga.** `flex-shrink`
