@@ -14679,3 +14679,21 @@ Proposta #161 di Anagrafe su `tassullo-elenco-dettaglio`. Ramo `fras/proposta-16
 - Prove del blocco in WebKit (4) e in Chromium (9) verdi.
 - `npm run check` verde: undici statici; `test:a11y` 2464 scansioni in quattro passate, 0 violazioni; `test:webkit` 48 su 48.
 - **Il primo giro del gate intero si è fermato** alla prima passata di axe (chiaro/chiuso) e ci è rimasto quasi due ore, col browser di prova a CPU zero e nessun errore. Fermato a mano: la passata da sola è finita in circa due minuti, e poi il gate lento intero è passato senza intoppi. Non dipende dalla modifica (nessuna prova del blocco coinvolta); il Mac era probabilmente in sospensione o col processo rallentato. Se si ripete, guardare la CPU del browser headless prima di aspettare.
+
+#### Aperti
+
+- Anagrafe: adottare alla `v2.0.26` e scrivere l'esito sulla #161.
+
+## 2026-11-02 — v2.0.26 pubblicata, #161 chiusa
+
+PR #176 unita col gate verde in CI (14 minuti); unione `3afe455`, la #161 si è chiusa da sé con `Closes #161`. Etichetta annotata `v2.0.26` su `3afe455`, push della sola etichetta. Francesco: «Sì, unisci», poi «Sì, pubblica».
+
+- Dentro: `altezza?: "cornice" | "finestra"` di `tassullo-elenco-dettaglio`.
+- **Non rompe chi aggiorna dalla `v2.0.25`**: prop nuova, di serie com'era.
+- Verifica da fuori: alla `v2.0.26` rispondono 200 `registry.json`, `public/r/tassullo-elenco-dettaglio.json` e il sorgente del blocco, che contiene `altezza === "finestra"`; `shadcn view …/tassullo-elenco-dettaglio#v2.0.26` risolve l'item, con la prop.
+- Sulla #161 il commento di adozione: cosa reinstallare, la prop da scrivere nella tab con la card, il commento da togliere, cosa provare in Chrome e Safari.
+
+#### Aperti
+
+- Anagrafe: adottare alla `v2.0.26` e scrivere l'esito sulla #161.
+- #175 (Anagrafe, aperta il 2026-11-02): miniature che spariscono in Chrome dopo un invio fallito, e dialogo del supporto ancora troppo alto con l'avviso d'errore. Da valutare.
