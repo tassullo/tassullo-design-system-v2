@@ -14696,4 +14696,25 @@ PR #176 unita col gate verde in CI (14 minuti); unione `3afe455`, la #161 si è 
 #### Aperti
 
 - Anagrafe: adottare alla `v2.0.26` e scrivere l'esito sulla #161.
-- #175 (Anagrafe, aperta il 2026-11-02): miniature che spariscono in Chrome dopo un invio fallito, e dialogo del supporto ancora troppo alto con l'avviso d'errore. Da valutare.
+- #175 (Anagrafe, aperta il 2026-11-02): miniature che spariscono in Chrome dopo un invio fallito, e dialogo del supporto ancora troppo alto con l'avviso d'errore. Presa nella voce qui sotto.
+
+## 2026-11-02 — #175: miniature che spariscono in Chrome, dialogo più basso con l'errore
+
+Proposta #175 di Anagrafe su `tassullo-richiesta-supporto` (sulla `v2.0.25`). Ramo `fras/proposta-175`, partito da `fras/v2.0.26-pubblicata` (PR #177, non ancora unita) perché tocca gli stessi due documenti. Francesco: «Sì, procedi», poi la forma «C, una riga».
+
+- **Il difetto delle miniature** è di Chrome, e scatta quando nello stesso aggiornamento sparisce la barra di avanzamento dentro il contenitore della griglia e ricompare il bottone degli screenshot subito dopo. Misure e tabella in `docs/DECISIONI.md` §87. Riprodotto con una prova provvisoria in Chromium: prima e durante l'invio la griglia è 864×121, dopo l'errore 0×0 senza riquadri.
+- **Correzione**: durante l'invio il bottone e la sua frase restano montati, col bottone spento (`disabilitato={inCorso}`). Il dialogo non cambia più altezza durante l'invio.
+- **L'altezza del dialogo con l'errore.** Rese quattro forme a 1512×830 (5 screenshot, descrizione lunga, invio fallito), fotografate con Chromium sulla style guide costruita: oggi 830 e scorre; A (descrizione `max-h-48`) 830 e scorre; B (A più `solo-immagini`) 810; C (A più bottone e frase su una riga) 809. Scelta **C**: tiene il nome sotto la miniatura. La descrizione oltre 192px scorre dentro il campo; il bottone e la frase vanno su una riga dove c'è posto (`flex-wrap`), e sul telefono la frase torna a capo sotto il bottone.
+- **Scartato: far scorrere il dialogo fino all'avviso quando arriva l'errore.** Con C, anche a 1440×780 l'avviso resta in vista e si taglia solo un pezzo del piede.
+- **Le foto prese dentro le prove di vitest escono tagliate** (l'iframe è ridotto nella cornice dell'orchestratore): le foto da mostrare si prendono con Playwright, dalla cartella temporanea, sulla style guide costruita e servita in HTTP.
+- **Scene di misura nuove**: `Errore d'invio, prova` (durante l'invio il bottone è spento; dopo l'errore la griglia ha il suo riquadro, le tre miniature hanno una larghezza, «Togli» ne toglie una; senza la correzione «griglia 0 riquadri») e `Al tetto con l'errore, prova` (5 screenshot, dodici paragrafi, invio fallito: la descrizione scorre e il dialogo sta in 830px; senza la forma C «dialogo alto 900»).
+
+#### Prove
+
+- Al primo giro del gate le due prove nuove fallivano nelle passate a popup chiuso: aprivano il dialogo con `apri`, che lo apre solo nelle passate a popup aperto. Ora cliccano il bottone da sé, come `Prova`; il file del dialogo passa nelle quattro passate, e senza la modifica le due prove falliscono.
+- `npm run check`: undici statici verdi; `test:a11y` 2472 scansioni, una sola caduta, `data-grid › Celle Tipizzate, prova` (chiaro/aperto, «expected -39.5 to be greater than or equal to 4»), la prova instabile già negli aperti, in un codice non toccato; da sola passa. `test:webkit` 48 su 48, lanciato a parte.
+
+#### Aperti
+
+- Anagrafe: adottare alla versione nuova e scrivere l'esito sulla #175.
+- `data-grid › Celle Tipizzate, prova`: caduta di nuovo nel gate intero in locale, con lo stesso −39,5. Da spiegare.

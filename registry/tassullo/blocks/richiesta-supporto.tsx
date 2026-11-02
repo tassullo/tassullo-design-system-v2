@@ -253,7 +253,7 @@ export function RichiestaSupporto({
                     placeholder="Cosa stavi facendo, cosa ti aspettavi e cosa è successo"
                     value={testo}
                     onChange={(e) => setTesto(e.target.value)}
-                    className="min-h-32 max-h-80"
+                    className="min-h-32 max-h-48"
                     disabled={inCorso}
                   />
                 )}
@@ -273,27 +273,29 @@ export function RichiestaSupporto({
                   }))}
                   onRimuovi={togli}
                 />
-                {inCorso ? null : (
-                  <div className="flex flex-col items-start gap-2">
-                    <FileUpload
-                      forma="bottone"
-                      etichettaBottone={screenshot.length ? "Aggiungi un'immagine" : "Scegli le immagini"}
-                      accetta={SCREENSHOT_FORMATI}
-                      dimensioneMassima={SCREENSHOT_DIMENSIONE_MASSIMA}
-                      massimo={massimo}
-                      presenti={screenshot.length}
-                      onFile={aggiungi}
-                      onRifiutati={(rifiutati) =>
-                        setErroriFile(rifiutati.map((r) => `«${r.file.name}»: ${r.errore.toLowerCase()}.`))
-                      }
-                    />
-                    <FieldDescription>
-                      {pieno
-                        ? `Hai raggiunto il massimo di ${intero(massimo)} immagini. Togline una per aggiungerne un'altra.`
-                        : `Fino a ${intero(massimo)} immagini PNG o JPEG, ciascuna fino a 10 MB.`}
-                    </FieldDescription>
-                  </div>
-                )}
+                {/* Il bottone e la frase su una riga, dove c'è posto. Durante l'invio il bottone resta,
+                    spento: toglierlo e rimetterlo insieme alla barra delle miniature fa perdere a Chrome
+                    la griglia, che resta alta zero. */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <FileUpload
+                    forma="bottone"
+                    disabilitato={inCorso}
+                    etichettaBottone={screenshot.length ? "Aggiungi un'immagine" : "Scegli le immagini"}
+                    accetta={SCREENSHOT_FORMATI}
+                    dimensioneMassima={SCREENSHOT_DIMENSIONE_MASSIMA}
+                    massimo={massimo}
+                    presenti={screenshot.length}
+                    onFile={aggiungi}
+                    onRifiutati={(rifiutati) =>
+                      setErroriFile(rifiutati.map((r) => `«${r.file.name}»: ${r.errore.toLowerCase()}.`))
+                    }
+                  />
+                  <FieldDescription>
+                    {pieno
+                      ? `Hai raggiunto il massimo di ${intero(massimo)} immagini. Togline una per aggiungerne un'altra.`
+                      : `Fino a ${intero(massimo)} immagini PNG o JPEG, ciascuna fino a 10 MB.`}
+                  </FieldDescription>
+                </div>
                 {erroriFile.length ? <FieldError errors={erroriFile.map((message) => ({ message }))} /> : null}
               </FieldSet>
 
