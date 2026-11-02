@@ -18,7 +18,9 @@ import { ElencoDettaglio, type ElencoDettaglioProps } from '@/registry/tassullo/
 import { PageHeader } from '@/registry/tassullo/blocks/page-header'
 import { TestoSegnaposto, TestoSegnapostoElenco, type VoceSegnaposto } from '@/registry/tassullo/blocks/testo-segnaposto'
 import { Button } from '@/registry/tassullo/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/registry/tassullo/ui/card'
 import { Field, FieldLabel } from '@/registry/tassullo/ui/field'
+import { Input } from '@/registry/tassullo/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui/tabs'
 
 /**
@@ -48,8 +50,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui
  * posto della legenda dei segni dell'elenco, che lì sta su una riga.
  * `sotto` dice cosa resta fermo in cima alla finestra sopra il blocco:
  * `fascia`, la fascia del guscio; `fascia-e-tab`, la fascia più le tab ferme
- * di una scheda; `niente`, una pagina senza guscio. `etichettaElenco` dà un
- * nome alla parte dell'elenco, se il suo contenuto non ne ha già uno.
+ * di una scheda; `niente`, una pagina senza guscio. `altezza` dice quanto
+ * può essere alto l'elenco: `cornice`, di serie, fa entrare la cornice intera
+ * nella finestra a pagina non scorsa; `finestra` gli dà tutta la finestra
+ * sotto ciò che sta fermo, e serve quando sopra la cornice c'è altro
+ * contenuto alto. `etichettaElenco` dà un nome alla parte dell'elenco, se il
+ * suo contenuto non ne ha già uno.
  *
  * **Regole d'uso.**
  *
@@ -66,6 +72,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/registry/tassullo/ui
  *   coperta. Ciò che sta fra le tab e la cornice e scorre via, come una riga
  *   d'introduzione, il blocco lo misura da sé: a pagina non scorsa la cornice
  *   entra lo stesso nella finestra.
+ * - Se sopra la cornice c'è qualcosa di alto, come una card con dei campi,
+ *   quel conto lascia all'elenco poche righe anche dopo che si è fermato. Lì
+ *   si scrive `altezza="finestra"`: a pagina non scorsa l'elenco esce dal
+ *   fondo della finestra, e scorrendo si ferma sotto le tab alto quanto la
+ *   finestra.
  *
  * **Tastiera e accessibilità.** Il blocco non aggiunge fermate: il `Tab`
  * attraversa l'elenco e poi il dettaglio. L'elenco che scorre si scorre da
@@ -95,10 +106,12 @@ const VOCI: VoceSegnaposto[] = [
 function Scheda({
   iniziale,
   sotto,
+  altezza,
   colonna = false,
 }: {
   iniziale: BloccoScheda[]
   sotto: ElencoDettaglioProps['sotto']
+  altezza?: ElencoDettaglioProps['altezza']
   colonna?: boolean
 }) {
   const [blocchi, setBlocchi] = useState(iniziale)
@@ -113,6 +126,7 @@ function Scheda({
     <>
       <ElencoDettaglio
         sotto={sotto}
+        altezza={altezza}
         piede={
           <AlberoLegenda>
             <li>
@@ -205,7 +219,17 @@ const SEZIONI: SezioneNav[] = [
 ]
 const UTENTE = { nome: 'Stefano', cognome: 'Bertolini', email: 'sbertolini@esempio.it', ruolo: 'Redattore' }
 
-function Pagina({ iniziale, introduzione = false }: { iniziale: BloccoScheda[]; introduzione?: boolean }) {
+function Pagina({
+  iniziale,
+  introduzione = false,
+  card = false,
+  altezza,
+}: {
+  iniziale: BloccoScheda[]
+  introduzione?: boolean
+  card?: boolean
+  altezza?: ElencoDettaglioProps['altezza']
+}) {
   const [colonna, setColonna] = useState(false)
   return (
     <AppShell applicazione="Anagrafe" sezioni={SEZIONI} utente={UTENTE}>
@@ -237,7 +261,28 @@ function Pagina({ iniziale, introduzione = false }: { iniziale: BloccoScheda[]; 
                 </Button>
               </div>
             ) : null}
-            <Scheda iniziale={iniziale} sotto="fascia-e-tab" colonna={colonna} />
+            {card ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dati della scheda</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="scheda-titolo">Titolo</FieldLabel>
+                    <Input id="scheda-titolo" defaultValue="Scheda tecnica Malta R4" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="scheda-revisione">Revisione</FieldLabel>
+                    <Input id="scheda-revisione" defaultValue="3" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="scheda-redattore">Redattore</FieldLabel>
+                    <Input id="scheda-redattore" defaultValue="Stefano Bertolini" />
+                  </Field>
+                </CardContent>
+              </Card>
+            ) : null}
+            <Scheda iniziale={iniziale} sotto="fascia-e-tab" altezza={altezza} colonna={colonna} />
           </TabsContent>
         </Tabs>
       </div>
@@ -265,6 +310,17 @@ export const ConIntroduzione: Story = {
   name: 'Con Introduzione',
   parameters: { layout: 'fullscreen' },
   render: () => <Pagina iniziale={SCHEDA_DA_QUARANTA} introduzione />,
+}
+
+/**
+ * Con una card di tre campi sopra la cornice, e `altezza="finestra"`. A
+ * pagina non scorsa l'elenco esce dal fondo della finestra; scorrendo si
+ * ferma sotto le tab, alto quanto la finestra.
+ */
+export const ConCardSopra: Story = {
+  name: 'Con Card Sopra',
+  parameters: { layout: 'fullscreen' },
+  render: () => <Pagina iniziale={SCHEDA_DA_QUARANTA} card altezza="finestra" />,
 }
 
 /**
@@ -416,5 +472,54 @@ export const ConIntroduzioneProva: Story = {
         `piede fino a ${px(piede.getBoundingClientRect().bottom)}, in finestra: true`
       )
     )
+  },
+}
+
+// Con la card sopra la cornice e `altezza="finestra"`: a pagina non scorsa
+// l'elenco esce dal fondo; scorsa la pagina, si ferma sotto le tab e va fino
+// al fondo della finestra, coi margini della cornice.
+export const ConCardSopraProva: Story = {
+  ...ConCardSopra,
+  name: 'Con Card Sopra, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    const elenco = await waitFor(() => {
+      const el = parte(canvasElement, 'elenco')
+      expect(el).toBeInTheDocument()
+      return el
+    })
+    const pagina = document.scrollingElement ?? document.documentElement
+    const unita = parseFloat(getComputedStyle(elenco).paddingRight) / 4
+    // L'altezza di `fascia-e-tab`: la finestra meno 42 unità.
+    const atteso = px(innerHeight - unita * 42)
+    try {
+      expect(`scorre da sé: ${elenco.scrollHeight > elenco.clientHeight}`).toBe('scorre da sé: true')
+      await waitFor(() => expect(`elenco alto ${px(elenco.getBoundingClientRect().height)}`).toBe(`elenco alto ${atteso}`))
+      expect(`esce dal fondo: ${elenco.getBoundingClientRect().bottom > innerHeight}`).toBe('esce dal fondo: true')
+
+      // Un testo lungo nel blocco scelto, per dare corsa alla pagina.
+      const area = await waitFor(() => {
+        const el = canvasElement.querySelector<HTMLElement & { editor: { commands: { setContent: (c: unknown) => void } } }>(
+          '[data-slot="testo-segnaposto-area"]'
+        )
+        expect(el?.editor).toBeTruthy()
+        return el!
+      })
+      area.editor.commands.setContent({
+        type: 'doc',
+        content: Array.from({ length: 70 }, (_, n) => ({ type: 'paragraph', content: [{ type: 'text', text: `Riga ${n + 1}` }] })),
+      })
+      await waitFor(() => expect(`corsa ${pagina.scrollHeight - pagina.clientHeight >= 1000}`).toBe('corsa true'))
+      window.scrollTo({ top: 1000, behavior: 'instant' })
+
+      // Fermo sotto le tab, alto uguale, e il fondo dentro la finestra.
+      const tab = canvasElement.querySelector<HTMLElement>('[data-slot="fascia-tab"]')!.getBoundingClientRect()
+      await waitFor(() => expect(`elenco da ${px(elenco.getBoundingClientRect().top)}`).toBe(`elenco da ${px(tab.bottom + unita * 4)}`))
+      expect(`elenco alto ${px(elenco.getBoundingClientRect().height)}`).toBe(`elenco alto ${atteso}`)
+      expect(`in finestra: ${px(elenco.getBoundingClientRect().bottom) <= innerHeight}`).toBe('in finestra: true')
+    } finally {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
   },
 }

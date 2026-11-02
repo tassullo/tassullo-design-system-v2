@@ -14662,3 +14662,20 @@ PR #172 (#171a) e #173 (#171b) unite col gate verde in CI; prima di cancellare i
 
 - Anagrafe: adottare alla `v2.0.25` e scrivere l'esito sulla #171.
 - `data-grid`: prove instabili nel gate intero, da spiegare.
+
+## 2026-11-02 — #161: elenco alto quanto la finestra, con altro sopra la cornice
+
+Proposta #161 di Anagrafe su `tassullo-elenco-dettaglio`. Ramo `fras/proposta-161`. Francesco: «Sì, procedi» sull'opzione descritta nella proposta.
+
+- **Il difetto.** Da `v2.0.17` l'altezza massima dell'elenco è la più piccola fra quella di `sotto` e «finestra meno dove comincia la cornice a pagina non scorsa meno 12 unità», perché la cornice intera, piede compreso, entri nella finestra. Con una riga d'introduzione va bene; con una card di campi sopra la cornice l'elenco resta di poche righe anche dopo essersi fermato sotto le tab, e chi lo usa scorre due cose.
+- **`altezza?: "cornice" | "finestra"`**, di serie `cornice`, che è il comportamento di prima e non cambia per nessuno. Con `finestra` l'altezza è quella di `sotto` (la finestra meno ciò che sta fermo in cima e i margini della cornice), e il blocco non misura più dove comincia la cornice: l'osservatore su `body` non si accende. A pagina non scorsa l'elenco esce dal fondo; scorrendo si ferma sotto le tab con tutta l'altezza.
+- **Perché un'opzione e non una regola automatica.** Un'altezza che cresce mentre la pagina scorre andrebbe bene nei due casi senza opzioni, ma cambierebbe l'altezza della pagina a ogni passo di scorrimento: è la famiglia del ciclo che esisteva solo in WebKit scorrendo (`docs/DECISIONI.md` §69). Scartata.
+- **Da sapere per chi la usa**: con `finestra`, a pagina non scorsa, la rotella sopra l'elenco scorre prima l'elenco e poi la pagina. È il comportamento del browser con un riquadro che scorre.
+- **Scena `Con Card Sopra`** (card «Dati della scheda» con tre campi sopra la cornice, quaranta blocchi, `altezza="finestra"`) e **`Con Card Sopra, prova`** (`webkit`): a pagina non scorsa elenco alto «finestra meno 42 unità» ed esce dal fondo; con un testo lungo nel blocco e la pagina scorsa di 1000px, fermo 4 unità sotto le tab, alto uguale, fondo dentro la finestra.
+- **La prova misura la differenza**: con la stessa scena in `cornice` fallisce, «elenco alto 442» invece di 732, a 1440×900. Nella pagina della documentazione del blocco, `altezza` è fra le prop e nelle regole d'uso.
+
+#### Prove
+
+- Prove del blocco in WebKit (4) e in Chromium (9) verdi.
+- `npm run check` verde: undici statici; `test:a11y` 2464 scansioni in quattro passate, 0 violazioni; `test:webkit` 48 su 48.
+- **Il primo giro del gate intero si è fermato** alla prima passata di axe (chiaro/chiuso) e ci è rimasto quasi due ore, col browser di prova a CPU zero e nessun errore. Fermato a mano: la passata da sola è finita in circa due minuti, e poi il gate lento intero è passato senza intoppi. Non dipende dalla modifica (nessuna prova del blocco coinvolta); il Mac era probabilmente in sospensione o col processo rallentato. Se si ripete, guardare la CPU del browser headless prima di aspettare.
