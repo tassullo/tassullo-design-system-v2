@@ -14718,3 +14718,17 @@ Proposta #175 di Anagrafe su `tassullo-richiesta-supporto` (sulla `v2.0.25`). Ra
 
 - Anagrafe: adottare alla versione nuova e scrivere l'esito sulla #175.
 - `data-grid › Celle Tipizzate, prova`: caduta di nuovo nel gate intero in locale, con lo stesso −39,5. Da spiegare.
+
+## 2026-11-02 — v2.0.27 pubblicata, #175 chiusa
+
+PR #177 e #178 unite col gate verde in CI. Prima di unire la #177 la #178 è stata spostata su `main`, poi è stata unita: unione `2de2e76`. La #175 si è chiusa da sé con `Closes #175`. Etichetta annotata `v2.0.27` su `2de2e76`, push della sola etichetta. Francesco: «Sì, unisci», poi «Sì, pubblica».
+
+- Dentro: `tassullo-richiesta-supporto` con il bottone degli screenshot che resta, spento, durante l'invio (§87), la descrizione a `max-h-48`, e il bottone e la frase su una riga.
+- **Non rompe chi aggiorna dalla `v2.0.25` o dalla `v2.0.26`**: le prop non cambiano. Cambia solo l'aspetto: durante l'invio il bottone si vede, spento.
+- Verifica da fuori: alla `v2.0.27` rispondono 200 `registry.json`, `public/r/tassullo-richiesta-supporto.json` e il sorgente del blocco, che contiene `disabilitato={inCorso}` e `max-h-48`; `shadcn view …/tassullo-richiesta-supporto#v2.0.27` risolve l'item, con le due modifiche.
+- Sulla #175 il commento di adozione: la causa, le tre forme misurate e perché la terza, cosa reinstallare, il commento da togliere, cosa provare in Chrome, in Safari e sul telefono.
+
+#### Aperti
+
+- Anagrafe: adottare alla `v2.0.26` (#161) e alla `v2.0.27` (#175), e scrivere l'esito sulle due issue.
+- `data-grid › Celle Tipizzate, prova`: da spiegare (voce qui sopra).
