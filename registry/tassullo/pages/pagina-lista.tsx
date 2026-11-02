@@ -93,6 +93,14 @@ export type PaginaListaProps<TDato extends RowData> = {
   colonneBloccabili?: DataTableProps<TDato>["colonneBloccabili"]
   colonneRiordinabili?: DataTableProps<TDato>["colonneRiordinabili"]
   menuRiga?: DataTableProps<TDato>["menuRiga"]
+  /**
+   * Passa a `tassullo-data-table`: la tabella ricorda ricerca, filtri,
+   * ordinamento, pagina e scorrimento, e li riprende quando si torna alla
+   * lista. Il valore è la chiave, una per lista (`memoria="norme"`). Va su
+   * ogni lista da cui si apre una scheda e a cui si torna; con `idRiga` si
+   * ritrova anche la riga aperta.
+   */
+  memoria?: DataTableProps<TDato>["memoria"]
   // **La seconda faccia, per quando la tabella non ci sta.**
   //
   // Passandola, sotto `soglia` il blocco rende **questo** al posto della
@@ -164,6 +172,7 @@ export function PaginaLista<TDato extends RowData>({
   colonneBloccabili,
   colonneRiordinabili,
   menuRiga,
+  memoria,
   facciaStretta,
   soglia = "(min-width: 1024px)",
   faccia = "auto",
@@ -221,6 +230,7 @@ export function PaginaLista<TDato extends RowData>({
           colonneBloccabili={colonneBloccabili}
           colonneRiordinabili={colonneRiordinabili}
           menuRiga={menuRiga}
+          memoria={memoria}
           className="min-h-0 flex-1"
         />
       )}

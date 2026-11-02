@@ -80,6 +80,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  *     <DataTable
  *       colonne={colonne}
  *       dati={norme}
+ *       idRiga={(n) => String(n.id)}
+ *       memoria="norme"
  *       cerca="Cerca codice, titolo…"
  *       perPagina={25}
  *       altezza="ferma"
@@ -97,9 +99,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * - `colonne`, `dati` e le opzioni della tabella — `cerca`, `vuoto`,
  *   `nomeRighe`, `perPagina`, `bloccaPrimaColonna`, `barra`, `idRiga`,
  *   `ridimensionabile`, `colonneBloccabili`, `colonneRiordinabili`,
- *   `menuRiga` — passano a `tassullo-data-table` così come sono. La tabella
- *   ha sempre `altezza="ferma"`: riempie lo spazio che il guscio le lascia e
- *   scorre al suo interno, con qualunque paginazione.
+ *   `menuRiga`, `memoria` — passano a `tassullo-data-table` così come sono.
+ *   La tabella ha sempre `altezza="ferma"`: riempie lo spazio che il guscio
+ *   le lascia e scorre al suo interno, con qualunque paginazione.
  * - `stato`: `"pronto"`, il predefinito, `"caricamento"` o `"errore"`, uno
  *   alla volta. Solo in `"pronto"` contano i `dati`; `messaggioErrore` e
  *   `onRiprovaErrore` servono all'errore.
@@ -110,6 +112,33 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  *   risolve togliendo il filtro.
  * - `facciaStretta`, `soglia` e `faccia`: la seconda forma della pagina, per
  *   quando la tabella non ci sta. Qui sotto.
+ *
+ * ## Tornare alla lista
+ *
+ * Da una lista si apre una riga, cioè si va a un'altra pagina, e poi si
+ * torna. Con `memoria` la tabella ritrova la ricerca, i filtri,
+ * l'ordinamento, la pagina e lo scorrimento com'erano, e con `idRiga` riporta
+ * in vista la riga aperta se nel frattempo i dati l'hanno spostata.
+ *
+ * - **Quando sì**: su ogni lista da cui si apre una scheda e a cui si torna.
+ *   In pratica, su tutte le liste della colonna di navigazione.
+ * - **Una chiave per lista**: due tabelle con la stessa chiave si scrivono
+ *   sopra a vicenda.
+ * - **Una chiave per vista**, quando la stessa pagina mostra liste diverse:
+ *   la memoria si legge una volta sola, quando la tabella si monta. Cambiando
+ *   vista si cambia anche la `key` della tabella, o della pagina che la
+ *   contiene, perché riparta con la chiave nuova.
+ * - **Da sapere**: ricorda solo lo stato che tiene la tabella, compresi i
+ *   filtri della `barra` che lo leggono dalla tabella. Un filtro che la
+ *   pagina applica ai dati prima di passarli, per esempio una `Select` nella
+ *   `barra` che sceglie fra gli archivi, non lo ricorda: resta all'app.
+ * - Non ricorda la selezione delle righe. Chiusa la scheda del browser, la
+ *   memoria si perde.
+ *
+ * In queste scene ogni scena ha la sua chiave: lasciando la scena e
+ * tornandoci, la tabella è com'era. Lo scorrimento e la riga aperta si
+ * provano meglio su una lista lunga: `Pagine/Prodotti (Anagrafe)`, scena
+ * «Soglia della pagina».
  *
  * ## La faccia stretta
  *
@@ -614,10 +643,12 @@ function Norme({
   dati,
   stato,
   faccia,
+  memoria,
 }: {
   dati: Norma[]
   stato?: 'pronto' | 'caricamento' | 'errore'
   faccia?: 'auto' | 'tabella' | 'schede'
+  memoria?: string
 }) {
   // Lo stato dei filtri della faccia stretta vive **qui**, non dentro
   // `SchedeNorme`: attraversare la soglia avanti e indietro non lo perde.
@@ -669,6 +700,7 @@ function Norme({
       // menu «⋮» copre ordinamento e blocco; il riordino per trascinamento
       // resta dimostrato in `Blocchi/Data Table` → `Colonne Riordinabili`.
       idRiga={(n) => String(n.id)}
+      memoria={memoria}
       ridimensionabile
       colonneBloccabili
       menuRiga={{ menu: <MenuAzioniNorma />, ariaLabel: (n) => `Azioni su ${n.codice}` }}
@@ -691,10 +723,12 @@ function Guscio({
   dati,
   stato,
   faccia,
+  memoria,
 }: {
   dati: Norma[]
   stato?: 'pronto' | 'caricamento' | 'errore'
   faccia?: 'auto' | 'tabella' | 'schede'
+  memoria?: string
 }) {
   return (
     // `contenuto="riempie"`: `pagina-lista` riempie sempre lo schermo, a
@@ -708,7 +742,7 @@ function Guscio({
       utente={UTENTE}
       sezioni={SEZIONI}
     >
-      <Norme dati={dati} stato={stato} faccia={faccia} />
+      <Norme dati={dati} stato={stato} faccia={faccia} memoria={memoria} />
     </AppShell>
   )
 }
@@ -717,13 +751,16 @@ function Guscio({
  * Il caso comune: 48 norme, la ricerca, due filtri sfaccettati e la
  * paginazione a 25. Le colonne si ridimensionano e si bloccano dal menu «⋮»
  * delle intestazioni; il menu di riga si apre dalla tendina «⋯» o col tasto
- * destro. La scena passa `faccia="tabella"`.
+ * destro. Con `memoria`, lasciando la scena e tornandoci ricerca, filtri e
+ * ordinamento sono com'erano. La scena apre da sé il menu della prima riga,
+ * che conta come la riga aperta: al ritorno la tabella la riporta in vista.
+ * La scena passa `faccia="tabella"`.
  */
 export const ConDati: Story = {
   // `faccia="tabella"`, non `'auto'`: la faccia larga a ogni larghezza della
   // finestra, anche in una prova automatica. La scena che dipende davvero
   // dalla finestra è `Soglia della pagina`, sotto.
-  render: () => <Guscio dati={NORME} faccia="tabella" />,
+  render: () => <Guscio dati={NORME} faccia="tabella" memoria="norme" />,
   // Non il primo `dropdown-menu-trigger` della pagina: quello è il menu
   // utente della sidebar (`AppShell`), montato prima della tabella nel DOM.
   // Il grilletto di riga vive dentro il `<tbody>`.
@@ -750,7 +787,7 @@ export const FacciaStretta: Story = {
  */
 export const SogliaDellaPagina: Story = {
   name: 'Soglia della pagina',
-  render: () => <Guscio dati={NORME} />,
+  render: () => <Guscio dati={NORME} memoria="norme-soglia" />,
 }
 
 /**
@@ -762,7 +799,7 @@ export const PocheRighe: Story = {
   // ferma sul contenuto e tiene il piè in vista — e sotto soglia un riquadro
   // non c'è. Lasciandola in `'auto'` cambierebbe soggetto restringendo la
   // finestra, senza dirlo.
-  render: () => <Guscio dati={NORME.slice(0, 6)} faccia="tabella" />,
+  render: () => <Guscio dati={NORME.slice(0, 6)} faccia="tabella" memoria="norme-poche" />,
 }
 
 /** `stato="caricamento"`: `PageSkeleton` al posto della tabella. */
