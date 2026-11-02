@@ -14757,3 +14757,12 @@ Proposta #180 di Anagrafe su `tassullo-data-table`: tornando dalla scheda di una
 - Anagrafe: adottare alla versione nuova, con `memoria` in ogni lista della colonna, e scrivere l'esito sulla #180.
 - La caduta del secondo passo dello scorrimento infinito nella prova (sopra): da spiegare se ricompare.
 - `data-grid › Celle Tipizzate, prova`: ancora da spiegare.
+
+### Seguito: la riga aperta, e la caduta della CI spiegata
+
+PR #181 aperta, gate in CI caduto due volte su `Memoria, prova` (3 passate su 4, gli stessi numeri il secondo giro: «scrollTop 2633 di 2633, sentinella a 501 col fondo del riquadro a 502»). Nel frattempo Francesco ha chiesto anche la riga: tornare alla riga 40 aperta, non solo allo stesso scorrimento.
+
+- **La riga aperta**: le righe portano `data-riga={riga.id}`; un clic dentro il riquadro salva l'id subito. Al ritorno, dopo lo scorrimento, se la riga non è intera nel riquadro la si porta a metà; se è già in vista non si muove. Rese quattro forme di segno (foto in chiaro e scuro, fondo grigio, arancio tenue, contorno, niente): Francesco «D, nessun segno». Prova nuova `Memoria con la riga aperta, prova` (memoria con scorrimento zero e la centesima riga: al ritorno la riga è intera, sotto l'intestazione e lontana dal fondo); la prova principale controlla anche che la riga aperta sia salvata.
+- **La caduta della CI**: riprodotta in locale (1 su 6) e tracciata nell'osservatore dello scorrimento infinito. Le due notifiche arrivavano insieme e il codice leggeva la prima, «fuori vista». Corretto leggendo l'ultima. Difetto di prima, non di `memoria`: la prova è la prima che scorre in fondo due volte di fila. `docs/DECISIONI.md` §88.
+- La prova principale apriva la prima riga in vista, che poteva essere coperta a metà dall'intestazione (e al ritorno la tabella la centrava, giustamente): ora apre la prima riga intera.
+- `npm run check` intero: tredici gate verdi, `test:a11y` 2492 scansioni con 0 violazioni (anche la prova instabile della griglia è passata), `test:webkit` 48 su 48. Le cinque prove `Memoria` in Chromium: 10 giri su 10 dopo la correzione.

@@ -4801,7 +4801,8 @@ function ListaConScheda(props: ListaProps) {
  * colonne nascoste, pagina e scorrimento per la sessione del browser. Si
  * cerca, si filtra, si scorre, si apre un codice: la scheda prende il posto
  * della lista. Con «Torna alla lista» la tabella è com'era, anche coi
- * filtri della barra.
+ * filtri della barra, e il codice aperto è in vista anche se nel frattempo i
+ * dati sono cambiati.
  *
  * ```tsx
  * <DataTable memoria="prodotti" colonne={COLONNE} dati={prodotti} perPagina="infinito" altezza="ferma" />
@@ -4840,11 +4841,11 @@ function codiciResi(canvasElement: HTMLElement) {
   )
 }
 
-// Il primo codice che si vede sotto l'intestazione ferma del riquadro.
+// Il codice della prima riga intera sotto l'intestazione ferma del riquadro.
 function primoCodiceInVista(riquadro: HTMLElement) {
   const sotto = riquadro.querySelector('thead')?.getBoundingClientRect().bottom ?? 0
   const riga = [...riquadro.querySelectorAll('tbody tr')].find(
-    (tr) => tr.getBoundingClientRect().bottom > sotto + 1 && tr.querySelector('button')
+    (tr) => tr.getBoundingClientRect().top >= sotto - 1 && tr.querySelector('button')
   )
   return riga?.querySelector('button')?.textContent
 }
@@ -4929,6 +4930,11 @@ async function provaMemoria({ canvasElement }: { canvasElement: HTMLElement }) {
 
   await userEvent.click(canvas.getByRole('button', { name: primo as string }))
   await waitFor(() => expect(canvasElement.querySelector('[data-slot="table-container"]')).toBeNull())
+  // La riga aperta è salvata: è quella da ritrovare al ritorno.
+  const salvata = JSON.parse(
+    window.sessionStorage.getItem(`tassullo-data-table:${CHIAVE_PROVA}`) ?? '{}'
+  )
+  expect(salvata.riga).toBe(PRODOTTI.find((p) => p.codice === primo)?.id)
   await userEvent.click(canvas.getByRole('button', { name: 'Torna alla lista' }))
 
   await waitFor(() => expect(canvas.getByRole('searchbox')).toHaveValue('a'))
@@ -5048,4 +5054,47 @@ export const MemoriaScartiProva: StoryObj<typeof DataTable<Prodotto>> = {
   },
   render: () => <ListaConScheda chiave={CHIAVE_PROVA_SCARTI} perPagina={25} />,
   play: provaMemoriaScarti,
+}
+
+const CHIAVE_PROVA_RIGA = 'prova-memoria-riga'
+const RIGA_DA_RITROVARE = PRODOTTI[99]
+
+// La riga aperta torna in vista anche se lo scorrimento salvato non la
+// mostra più, come quando nel frattempo sono cambiati i dati: la memoria dice
+// scorrimento zero e la centesima riga, e al ritorno la centesima riga dev'essere
+// intera nel riquadro, sotto l'intestazione e lontana dal fondo.
+async function provaMemoriaRiga({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => {
+    const riquadro = riquadroDi(canvasElement)
+    const tr = riquadro.querySelector(`tr[data-riga="${RIGA_DA_RITROVARE.id}"]`)
+    expect(tr).toBeTruthy()
+    const riga = (tr as HTMLElement).getBoundingClientRect()
+    const sotto = riquadro.querySelector('thead')?.getBoundingClientRect().bottom ?? 0
+    const fondo = riquadro.getBoundingClientRect().top + riquadro.clientTop + riquadro.clientHeight
+    expect(riquadro.scrollTop).toBeGreaterThan(0)
+    expect(riga.top).toBeGreaterThanOrEqual(sotto - 1)
+    expect(riga.bottom).toBeLessThanOrEqual(fondo - riga.height)
+  })
+}
+
+export const MemoriaRigaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Memoria con la riga aperta, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: () => {
+    window.sessionStorage.setItem(
+      `tassullo-data-table:${CHIAVE_PROVA_RIGA}`,
+      JSON.stringify({
+        ricerca: '',
+        filtri: [],
+        ordinamento: [],
+        visibilita: {},
+        pagina: 0,
+        caricate: 120,
+        scorrimento: { alto: 0, sinistra: 0 },
+        riga: RIGA_DA_RITROVARE.id,
+      })
+    )
+  },
+  render: () => <ListaConScheda chiave={CHIAVE_PROVA_RIGA} />,
+  play: provaMemoriaRiga,
 }

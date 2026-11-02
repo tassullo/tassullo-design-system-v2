@@ -1603,6 +1603,8 @@ interface StatoRicordato {
   caricate: number
   /** Lo scorrimento del riquadro della tabella, in pixel. */
   scorrimento: { alto: number; sinistra: number }
+  /** L'id dell'ultima riga su cui si è cliccato: quella da cui si è usciti. */
+  riga?: string
 }
 
 const PREFISSO_MEMORIA = "tassullo-data-table:"
@@ -1650,6 +1652,7 @@ function leggiMemoria(chiave: string | undefined): Partial<StatoRicordato> | und
   const sc = s.scorrimento as Record<string, unknown> | undefined
   if (sc && eNumero(sc.alto) && eNumero(sc.sinistra))
     fuori.scorrimento = { alto: sc.alto, sinistra: sc.sinistra }
+  if (typeof s.riga === "string") fuori.riga = s.riga
   return fuori
 }
 
@@ -2789,6 +2792,7 @@ function RigaCorpo<TDato extends RowData>({
       style={stile}
       className={cn(className, trascinabile && isDragging && "bg-muted/50 opacity-80")}
       data-state={dataState}
+      data-riga={riga.id}
     >
       {children}
     </TableRow>
@@ -3372,6 +3376,7 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
             onKeyDown={senzaFocoRiga ? undefined : (evento) => onKeyDownRiga(evento, elemento.index)}
             className="group/riga outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             data-state={riga.getIsSelected() ? "selected" : undefined}
+            data-riga={riga.id}
           >
             {celle.map((cella, indice) => {
               // La fascia di una riga madre, come nel corpo non virtualizzato.
@@ -4082,6 +4087,10 @@ export type DataTableProps<TDato extends RowData> = {
    * scorrimento ripreso è quello del riquadro della tabella: con l'altezza
    * naturale scorre la pagina, e non si riprende.
    *
+   * Si ricorda anche l'ultima riga su cui si è cliccato, cioè quella che si è
+   * aperta: al ritorno, se lo scorrimento non la mostra più perché i dati
+   * sono cambiati, la si riporta in vista. Per riconoscerla serve `idRiga`.
+   *
    * La selezione delle righe non si ricorda. Chiusa la scheda del browser, la
    * memoria si perde.
    */
@@ -4774,7 +4783,12 @@ export function DataTable<TDato extends RowData>({
 
     const oss = new IntersectionObserver(
       (voci) => {
-        if (!voci[0]?.isIntersecting) return
+        // L'ultima voce, non la prima: se si scorre in fondo prima che il
+        // browser consegni la notifica iniziale, arrivano insieme «fuori
+        // vista» (all'osservazione) e «in vista» (dopo lo scorrimento), in
+        // quest'ordine. Leggendo la prima il passo non si caricava più, con la
+        // sentinella in vista, finché non si scorreva di nuovo.
+        if (!voci[voci.length - 1]?.isIntersecting) return
         setCaricate((prima) =>
           prima < totaleRef.current ? Math.min(prima + PASSO_INFINITO, totaleRef.current) : prima
         )
@@ -4832,10 +4846,16 @@ export function DataTable<TDato extends RowData>({
     : ""
   const statoRef = React.useRef<Omit<StatoRicordato, "scorrimento"> | undefined>(undefined)
   const scorrimentoRef = React.useRef(ricordato?.scorrimento ?? { alto: 0, sinistra: 0 })
+  const ultimaRigaRef = React.useRef(ricordato?.riga)
   const salva = React.useCallback(() => {
     if (memoria && statoRef.current)
-      scriviMemoria(memoria, { ...statoRef.current, scorrimento: scorrimentoRef.current })
+      scriviMemoria(memoria, {
+        ...statoRef.current,
+        scorrimento: scorrimentoRef.current,
+        riga: ultimaRigaRef.current,
+      })
   }, [memoria])
+
   React.useEffect(() => {
     if (!istantanea) return
     statoRef.current = JSON.parse(istantanea)
@@ -4850,13 +4870,14 @@ export function DataTable<TDato extends RowData>({
   const daRiprendereRef = React.useRef({
     pagina: aNumeri ? ricordato?.pagina : undefined,
     scorrimento: ricordato?.scorrimento,
+    riga: ricordato?.riga,
   })
   // Senza dipendenze: gira a ogni commit finché resta qualcosa da riprendere,
   // perché le condizioni (dati arrivati, altezza misurata, righe caricate)
   // arrivano in commit diversi, e quale arrivi per ultima dipende dalla pagina.
   React.useEffect(() => {
     const da = daRiprendereRef.current
-    if (da.pagina === undefined && !da.scorrimento) return
+    if (da.pagina === undefined && !da.scorrimento && !da.riga) return
     if (tabella.getCoreRowModel().rows.length === 0) return
     // La pagina resta da ridare fino al primo gesto: TanStack torna alla
     // prima pagina a ogni cambio di `dati`, e un'app che ricarica la lista
@@ -4865,25 +4886,46 @@ export function DataTable<TDato extends RowData>({
       const voluta = Math.min(da.pagina, Math.max(0, tabella.getPageCount() - 1))
       if (paginaVista !== voluta) tabella.setPageIndex(voluta)
     }
-    const scorrimento = da.scorrimento
     const riquadro = contenitoreRef.current?.querySelector<HTMLElement>(
       '[data-slot="table-container"]'
     )
-    if (!scorrimento || !riquadro) return
+    if (!riquadro) return
     // Con l'altezza ferma si aspetta la misura del riquadro: porta con sé il
     // margine dell'intestazione per l'aggancio delle righe, e uno
     // scorrimento dato prima il browser lo riaggancia una riga più su.
     if (fermo && altezzaMax === undefined) return
-    const manca =
-      riquadro.scrollHeight - riquadro.clientHeight < scorrimento.alto ||
-      riquadro.scrollWidth - riquadro.clientWidth < scorrimento.sinistra
-    // Il riquadro non è ancora lungo abbastanza, ma lo diventerà: righe
-    // ancora da caricare. Se invece non cambierà più (i dati sono meno di
-    // prima), si va fin dove si può.
-    if (manca && infinito && caricate < totaleFiltrate) return
-    da.scorrimento = undefined
-    riquadro.scrollTop = scorrimento.alto
-    riquadro.scrollLeft = scorrimento.sinistra
+    const scorrimento = da.scorrimento
+    if (scorrimento) {
+      const manca =
+        riquadro.scrollHeight - riquadro.clientHeight < scorrimento.alto ||
+        riquadro.scrollWidth - riquadro.clientWidth < scorrimento.sinistra
+      // Il riquadro non è ancora lungo abbastanza, ma lo diventerà: righe
+      // ancora da caricare. Se invece non cambierà più (i dati sono meno di
+      // prima), si va fin dove si può.
+      if (manca && infinito && caricate < totaleFiltrate) return
+      da.scorrimento = undefined
+      riquadro.scrollTop = scorrimento.alto
+      riquadro.scrollLeft = scorrimento.sinistra
+    }
+    // Poi la riga da cui si era usciti: se i dati sono cambiati, lo stesso
+    // scorrimento può mostrarne altre. Se non è intera fra l'intestazione e
+    // il fondo del riquadro la si porta a metà, dove l'occhio la trova; se è
+    // già in vista non si muove niente. Se la riga non c'è più (filtrata,
+    // tolta) resta lo scorrimento.
+    const riga = da.riga
+    if (riga) {
+      da.riga = undefined
+      const tr = riquadro.querySelector<HTMLElement>(`tr[data-riga="${window.CSS.escape(riga)}"]`)
+      if (tr) {
+        const r = tr.getBoundingClientRect()
+        const bordo = riquadro.getBoundingClientRect()
+        const sotto = riquadro.querySelector("thead")?.getBoundingClientRect().bottom ?? bordo.top
+        const fondo = bordo.top + riquadro.clientTop + riquadro.clientHeight
+        // Un pixel di tolleranza in basso: il filo dell'ultima riga sta sotto
+        // il bordo del riquadro apposta (v. il tetto dell'altezza ferma).
+        if (r.top < sotto - 1 || r.bottom > fondo + 1) tr.scrollIntoView({ block: "center" })
+      }
+    }
   })
 
   /**
@@ -4905,6 +4947,7 @@ export function DataTable<TDato extends RowData>({
     const abbandona = () => {
       const da = daRiprendereRef.current
       da.pagina = undefined
+      da.riga = undefined
       if (!da.scorrimento) return
       da.scorrimento = undefined
       leggi()
@@ -4915,12 +4958,24 @@ export function DataTable<TDato extends RowData>({
       leggi()
       salva()
     }
+    // L'ultima riga su cui si clicca, anche col tasto Invio su un
+    // collegamento: è quella che si apre, e quella da ritrovare al ritorno.
+    // Si salva subito, prima che l'app cambi pagina e la tabella si smonti.
+    const alClic = (evento: MouseEvent) => {
+      const tr = (evento.target as Element | null)?.closest<HTMLElement>("tr[data-riga]")
+      if (!tr || !riquadro.contains(tr)) return
+      ultimaRigaRef.current = tr.dataset.riga
+      leggi()
+      salva()
+    }
     const gesti = ["pointerdown", "keydown", "wheel", "touchstart"] as const
     for (const gesto of gesti) radice.addEventListener(gesto, abbandona, { passive: true })
     riquadro.addEventListener("scroll", alloScorrere, { passive: true })
+    riquadro.addEventListener("click", alClic)
     return () => {
       for (const gesto of gesti) radice.removeEventListener(gesto, abbandona)
       riquadro.removeEventListener("scroll", alloScorrere)
+      riquadro.removeEventListener("click", alClic)
     }
   }, [memoria, salva])
 
