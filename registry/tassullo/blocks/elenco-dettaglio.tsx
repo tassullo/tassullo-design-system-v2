@@ -40,6 +40,15 @@ export type ElencoDettaglioProps = {
    * scheda, `niente` una pagina senza guscio. L'elenco si ferma lì sotto.
    */
   sotto?: "niente" | "fascia" | "fascia-e-tab"
+  /**
+   * Quanto può essere alto l'elenco. `cornice`: la cornice intera, piede
+   * compreso, entra nella finestra a pagina non scorsa, e l'elenco toglie
+   * anche ciò che le sta sopra. `finestra`: l'elenco è alto quanto la finestra
+   * sotto ciò che resta fermo in cima; a pagina non scorsa può uscire dal
+   * fondo, e scorrendo si ferma sotto ciò che sta in cima con tutta l'altezza.
+   * Serve quando sopra la cornice c'è altro contenuto alto.
+   */
+  altezza?: "cornice" | "finestra"
   /** Il dettaglio della voce scelta. */
   children: React.ReactNode
   /**
@@ -58,7 +67,8 @@ export type ElencoDettaglioProps = {
 // il margine della cornice (4); sotto, i due margini (8). Sono le misure di
 // una cornice messa subito sotto le tab: se sopra c'è altro (una riga
 // d'introduzione, un bottone), il blocco misura dove comincia davvero e
-// toglie anche quello.
+// toglie anche quello. Con `altezza="finestra"` non lo toglie: l'altezza è
+// quella scritta qui, e la si vede intera quando l'elenco si è fermato.
 const FERMO = {
   niente: { classe: "@xl/elenco-dettaglio:top-4", alto: "calc(100svh - var(--spacing) * 12)" },
   fascia: { classe: "@xl/elenco-dettaglio:top-16", alto: "calc(100svh - var(--spacing) * 28)" },
@@ -73,6 +83,7 @@ export function ElencoDettaglio({
   elenco,
   etichettaElenco,
   sotto = "fascia",
+  altezza = "cornice",
   children,
   piede,
   className,
@@ -81,19 +92,22 @@ export function ElencoDettaglio({
   const cornice = React.useRef<HTMLDivElement>(null)
   // Dove comincia la cornice nel documento, a pagina non scorsa. Cambia se
   // cambia ciò che le sta sopra, o la larghezza: si rilegge quando cambia
-  // l'altezza della pagina.
+  // l'altezza della pagina. Con `finestra` non serve, e non si misura.
   const [sopra, setSopra] = React.useState<number | null>(null)
   React.useEffect(() => {
     const el = cornice.current
-    if (!el || typeof ResizeObserver === "undefined") return
+    if (altezza !== "cornice" || !el || typeof ResizeObserver === "undefined") return
     const leggi = () => setSopra(Math.round(el.getBoundingClientRect().top + window.scrollY))
     const osservatore = new ResizeObserver(leggi)
     osservatore.observe(document.body)
     return () => osservatore.disconnect()
-  }, [])
+  }, [altezza])
   // Sotto la cornice, a pagina non scorsa: il margine interno sopra
   // l'elenco (4), e sotto i due margini e il margine interno (8).
-  const alto = sopra === null ? fermo.alto : `min(${fermo.alto}, calc(100svh - ${sopra}px - var(--spacing) * 12))`
+  const alto =
+    altezza === "finestra" || sopra === null
+      ? fermo.alto
+      : `min(${fermo.alto}, calc(100svh - ${sopra}px - var(--spacing) * 12))`
   return (
     <div
       ref={cornice}
