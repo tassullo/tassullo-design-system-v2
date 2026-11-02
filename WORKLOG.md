@@ -14766,3 +14766,17 @@ PR #181 aperta, gate in CI caduto due volte su `Memoria, prova` (3 passate su 4,
 - **La caduta della CI**: riprodotta in locale (1 su 6) e tracciata nell'osservatore dello scorrimento infinito. Le due notifiche arrivavano insieme e il codice leggeva la prima, «fuori vista». Corretto leggendo l'ultima. Difetto di prima, non di `memoria`: la prova è la prima che scorre in fondo due volte di fila. `docs/DECISIONI.md` §88.
 - La prova principale apriva la prima riga in vista, che poteva essere coperta a metà dall'intestazione (e al ritorno la tabella la centrava, giustamente): ora apre la prima riga intera.
 - `npm run check` intero: tredici gate verdi, `test:a11y` 2492 scansioni con 0 violazioni (anche la prova instabile della griglia è passata), `test:webkit` 48 su 48. Le cinque prove `Memoria` in Chromium: 10 giri su 10 dopo la correzione.
+
+## 2026-11-02 — v2.0.28 pubblicata, #180 chiusa
+
+PR #181 unita col gate verde in CI (15 minuti); unione `efc244f`, la #180 si è chiusa da sé con `Closes #180`. Etichetta annotata `v2.0.28` su `efc244f`, push della sola etichetta. Francesco: «Sì, unisci al verde», poi «Unisci», poi «Sì, pubblica».
+
+- Dentro: `memoria` di `tassullo-data-table` (ricerca, filtri, ordinamento, colonne nascoste, pagina, righe caricate, scorrimento del riquadro, riga aperta riportata in vista senza segno) e la correzione dello scorrimento infinito che non caricava scorrendo in fondo subito dopo un passo.
+- **Non rompe chi aggiorna**: la prop è nuova e facoltativa.
+- Verifica da fuori: alla `v2.0.28` rispondono 200 `registry.json`, `public/r/tassullo-data-table.json` e il sorgente del blocco, che contiene `memoria?: string`, `voci[voci.length - 1]` e `data-riga={riga.id}`; `shadcn view …/tassullo-data-table#v2.0.28` risolve l'item con le tre cose e col `docs` che dice `memoria`.
+- Sulla #180 il commento di adozione: cosa si ricorda, la riga aperta, i casi limite, il difetto corretto, cosa reinstallare, cosa cambiare nelle liste (`memoria`, `idRiga`), cosa provare in Chrome e Safari.
+
+#### Aperti
+
+- Anagrafe: adottare alla `v2.0.28` con `memoria` in ogni lista della colonna, e scrivere l'esito sulla #180. Restano da adottare anche la `v2.0.26` (#161) e la `v2.0.27` (#175) se non già fatto.
+- `data-grid › Celle Tipizzate, prova`: ancora da spiegare (nel gate intero di questa sessione è passata).
