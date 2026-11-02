@@ -4196,3 +4196,24 @@ Scartato: riconoscere un dettaglio dalla parentesi nel nome, per metterlo in fon
 **Le prove.** `Proposte, prova` (Chromium, nel gate): quarta lettera, il dato al cursore, la parola prima, due proposte con le frecce che restano al testo fino a `Tab`, più di cinque con «E altri 2», `Esc` fino alla parola dopo, `Invio` a capo, il prefisso, il campo senza `proponi`. Con `proponi` acceso di serie la prova fallisce. A mano, con tasti veri, in Chromium e WebKit: gli stessi casi più il clic su una proposta, un tasto nel menù che torna alla scrittura, `Ctrl+Z` dopo l'inserimento (toglie il dato, e le proposte tornano), `Tab` a proposte chiuse che esce dal campo. Uguali nei due motori. Resa guardata in chiaro, scuro e touch.
 
 **Per ora non si cerca nel valore** («0,20» che propone il dato che vale 0,20, chiesto dalla proposta come domanda aperta): un numero come «12» corrisponde a troppi dati.
+
+## 87. Chrome perde il contenuto di un contenitore `@container` se due cambi arrivano insieme (proposta #175, 2026-11-02)
+
+**Il difetto.** Nel dialogo del supporto, dopo un invio fallito, la griglia delle miniature restava al suo posto ma senza nessun riquadro: `display: grid` calcolato, `getClientRects()` vuoto, `checkVisibility()` falso, il genitore `@container` largo quanto il dialogo e alto 0. Le miniature c'erano nel DOM e «Togli» non si cliccava. Solo Chromium (Chrome 156, Chromium di Playwright), mai WebKit, in tutte le forme a griglia di `FileUploadList`.
+
+**Quando scatta, misurato togliendo una cosa alla volta** (prova in Chromium, 3 screenshot, invio rifiutato):
+
+| Cosa cambia | Griglia dopo l'errore |
+|---|---|
+| niente | 0 riquadri |
+| il bottone degli screenshot resta montato durante l'invio | 1 riquadro |
+| la barra di avanzamento nelle miniature non compare mai | 1 riquadro |
+| `container-type: normal` sul contenitore della griglia, prima dell'invio | 1 riquadro |
+| `container-type: normal` sul gruppo esterno (`field-group`) | 0 riquadri |
+| `container-type: normal` sul contenitore della griglia, dopo l'errore | 0 riquadri |
+
+Servono tutte e due le cose nello stesso aggiornamento: dentro il contenitore della griglia sparisce la barra di ogni miniatura, e subito dopo il contenitore, nello stesso `fieldset`, ricompare il bottone con la sua frase. Chrome non ricostruisce più i riquadri del contenuto del contenitore, e non li ricostruisce nemmeno scrivendo, ridimensionando o togliendo dopo la container query: per questo, nella proposta, la container query sembrava estranea.
+
+**La correzione è nel dialogo, non nella griglia.** Durante l'invio il bottone e la sua frase restano montati, col bottone spento (`disabilitato`). Toglie una delle due condizioni, e in più il dialogo non cambia altezza durante l'invio. La prova `Errore d'invio, prova` fallisce senza la correzione con «griglia 0 riquadri».
+
+**Il difetto di Chrome resta possibile altrove**: un contenitore `@container` il cui contenuto cambia nello stesso aggiornamento in cui si monta un fratello subito dopo di lui. Se una composizione nuova fa sparire qualcosa in Chromium e non in WebKit, guardare prima `getClientRects()` dell'elemento: vuoto con `display` normale è questo.

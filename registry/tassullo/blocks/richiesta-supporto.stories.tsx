@@ -72,8 +72,9 @@ import { Button } from '@/registry/tassullo/ui/button'
  *   aggiunge uno screenshot.
  * - Gli errori dei campi compaiono al primo invio e da lì seguono quello che
  *   si scrive. L'errore dell'invio sta dentro il dialogo, sopra i bottoni.
- * - Durante l'invio i campi sono spenti e il dialogo non si chiude: né con
- *   `Esc`, né col clic fuori, né trascinando il cassetto.
+ * - Durante l'invio i campi e il bottone degli screenshot sono spenti, e il
+ *   dialogo non si chiude: né con `Esc`, né col clic fuori, né trascinando
+ *   il cassetto.
  * - Annullando, quello che si è scritto resta: riaprendo il dialogo lo si
  *   ritrova. Si svuota solo dopo un invio riuscito.
  *
@@ -299,3 +300,68 @@ export const Prova: Story = {
   },
 }
 
+
+// Scena di misura: durante l'invio il bottone degli screenshot è spento e
+// resta al suo posto; a invio fallito le miniature si vedono ancora, con le
+// loro misure, e «Togli» ne toglie una. In Chromium, togliendo il bottone
+// durante l'invio, la griglia restava alta zero dopo l'errore.
+export const ErroreDInvioProva: Story = {
+  name: "Errore d'invio, prova",
+  tags: ['!dev', '!autodocs'],
+  render: () => <Demo esito="fallisce" />,
+  play: async ({ canvasElement }) => {
+    // Si apre da sé: `apri` lo apre solo nelle passate a popup aperto.
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Apri una richiesta' }))
+    await corpo().findByLabelText('Titolo')
+    await compila()
+    await aggiungiSchermate(3)
+    const griglia = () => document.querySelector<HTMLElement>('[data-slot="file-upload-miniature"]')!
+    const bottone = () => corpo().getByRole('button', { name: "Aggiungi un'immagine" })
+    await userEvent.click(corpo().getByRole('button', { name: 'Invia la richiesta' }))
+    await waitFor(() => expect(corpo().getByLabelText('Titolo')).toBeDisabled())
+    await expect(bottone()).toBeDisabled()
+    await waitFor(() => expect(corpo().getByText(/il server non risponde/)).toBeInTheDocument())
+    await waitFor(() =>
+      expect(`griglia ${griglia().getClientRects().length} riquadri, alta ${Math.round(griglia().getBoundingClientRect().height) > 0}`).toBe(
+        'griglia 1 riquadri, alta true',
+      ),
+    )
+    const miniature = [...document.querySelectorAll<HTMLElement>('[data-slot="file-upload-miniatura"]')]
+    expect(miniature.map((m) => Math.round(m.getBoundingClientRect().width) > 0)).toEqual([true, true, true])
+    await expect(bottone()).toBeEnabled()
+    await userEvent.click(corpo().getByRole('button', { name: 'Togli screenshot-1.png' }))
+    await waitFor(() => expect(document.querySelectorAll('[data-slot="file-upload-miniatura"]')).toHaveLength(2))
+  },
+}
+
+// Scena di misura: al tetto degli screenshot, con una descrizione lunga e
+// l'avviso d'errore, il dialogo sta in 830px, la finestra di un portatile da
+// 14". La descrizione oltre la sua altezza scorre dentro il campo.
+export const AlTettoConErroreProva: Story = {
+  name: "Al tetto con l'errore, prova",
+  tags: ['!dev', '!autodocs'],
+  render: () => <Demo esito="fallisce" />,
+  play: async ({ canvasElement }) => {
+    // Si apre da sé: `apri` lo apre solo nelle passate a popup aperto.
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Apri una richiesta' }))
+    await corpo().findByLabelText('Titolo')
+    await userEvent.type(corpo().getByLabelText('Titolo'), 'Il listino non si salva')
+    await userEvent.click(corpo().getByLabelText('Descrizione'))
+    await userEvent.paste(
+      Array.from(
+        { length: 12 },
+        (_, n) => `Paragrafo ${n + 1}: nella scheda del listino premo «Salva», compare un errore rosso e riaprendo la scheda trovo i prezzi di prima.`,
+      ).join('\n\n'),
+    )
+    await aggiungiSchermate(5)
+    await userEvent.click(corpo().getByRole('button', { name: 'Invia la richiesta' }))
+    await waitFor(() => expect(corpo().getByText(/il server non risponde/)).toBeInTheDocument())
+    const descrizione = corpo().getByLabelText('Descrizione')
+    await expect(`la descrizione scorre: ${descrizione.scrollHeight > descrizione.clientHeight}`).toBe('la descrizione scorre: true')
+    const dialogo = document.querySelector<HTMLElement>('[data-slot="responsive-dialog-content"]')!
+    await waitFor(() => {
+      const alto = Math.round(dialogo.getBoundingClientRect().height)
+      expect(`dialogo alto ${alto}, entra in 830: ${alto <= 830}`).toBe(`dialogo alto ${alto}, entra in 830: true`)
+    })
+  },
+}
