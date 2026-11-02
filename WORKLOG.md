@@ -14732,3 +14732,37 @@ PR #177 e #178 unite col gate verde in CI. Prima di unire la #177 la #178 è sta
 
 - Anagrafe: adottare alla `v2.0.26` (#161) e alla `v2.0.27` (#175), e scrivere l'esito sulle due issue.
 - `data-grid › Celle Tipizzate, prova`: da spiegare (voce qui sopra).
+
+## 2026-11-02 — #180: la tabella che ricorda ricerca, filtri, ordinamento e scorrimento
+
+Proposta #180 di Anagrafe su `tassullo-data-table`: tornando dalla scheda di una riga la lista ripartiva da zero. Ramo `fras/proposta-180`. Francesco: «Sì, forma memoria» (fra `memoria` e `statoIniziale`/`onStatoChange`). Decisione e fatti accertati in `docs/DECISIONI.md` §88.
+
+- **`memoria?: string`**: la chiave, una per lista. Salva in `sessionStorage` (`tassullo-data-table:<chiave>`) ricerca, filtri di colonna, ordinamento, colonne nascoste, pagina, righe caricate e scorrimento del riquadro; li legge una volta, al montaggio. Lettura campo per campo (un campo scritto male si ignora), ogni accesso in `try/catch`: senza sessione del browser la tabella parte com'è di serie. Senza `memoria` non cambia niente.
+- **I filtri ripresi si controllano sui dati** appena ci sono (in fase di render, come `caricate`): via colonne inesistenti e filtri senza righe; nei filtri a scelta multipla valore per valore (`filtriConRighe`). I filtri della `barra` li vedono da sé, perché leggono lo stato dalla tabella.
+- **Pagina e scorrimento si riprendono dopo**, in un effetto senza dipendenze che gira finché resta qualcosa: la pagina fino al primo gesto dentro la tabella (TanStack torna alla prima pagina a ogni cambio di `dati`), lo scorrimento quando il riquadro ha righe e, con `altezza="ferma"`, la sua misura. Con `"infinito"` si ricaricano le righe che c'erano. Al primo gesto la ripresa si abbandona.
+- **Non si ricordano** selezione, larghezze, colonne bloccate, ordine delle colonne; né lo scorrimento della pagina con l'altezza naturale.
+- **Scena `Memoria`** (lista che apre la scheda al posto di sé e la rimonta con «Torna alla lista»), e tre prove: `Memoria, prova` (ricerca, due stati, ordine decrescente per nome, colonna nascosta, 120 righe caricate e 1.503px di scorrimento: al ritorno tutto uguale, stesso primo codice in vista); `Memoria con le pagine, prova` (paginazione a numeri, dati che arrivano dopo il montaggio e poi di nuovo: si torna a pagina 3 con gli stessi codici); `Memoria con filtri spariti, prova` (memoria scritta da un'altra versione: resta il solo «bozza», niente avvisi in console). Togliendo il controllo dei filtri e l'attesa della misura cadono la prima e la terza.
+- `registry.json`: il `docs` dell'item dice `memoria`. `public/r/` ricompilato.
+
+#### Prove
+
+- Le quattro prove della scena, in Chromium: verdi 20 volte su 20, anche col file intero (70 scene). In WebKit, aggiungendo l'etichetta per un giro: verdi.
+- **Una caduta non spiegata**, due volte in tutto, al primo giro e a uno dei giri con le correzioni tolte: al secondo scorrimento fino in fondo il passo successivo non arrivava («expected 80 to be greater than 80»). Non riprodotta dopo. La prova ora scrive nel messaggio dove stavano riquadro e sentinella, così la prossima volta la causa si legge.
+- A mano nella style guide: «calce» nella ricerca, scorrimento a 413px, apertura di RA-114, ritorno: ricerca e scorrimento ritrovati.
+- `npm run check:statici` verde (lint delle app: sulla tabella il solo avviso di prima).
+- `npm run test:a11y`: 2488 scansioni in 4 passate, una sola caduta, `data-grid › Celle Tipizzate, prova` (chiaro/chiuso, «expected -39.5 to be greater than or equal to 4»), la prova instabile già negli aperti, in codice non toccato; da sola passa. Le scene nuove: 0 violazioni. `npm run test:webkit` 48 su 48.
+
+#### Aperti
+
+- Anagrafe: adottare alla versione nuova, con `memoria` in ogni lista della colonna, e scrivere l'esito sulla #180.
+- La caduta del secondo passo dello scorrimento infinito nella prova (sopra): da spiegare se ricompare.
+- `data-grid › Celle Tipizzate, prova`: ancora da spiegare.
+
+### Seguito: la riga aperta, e la caduta della CI spiegata
+
+PR #181 aperta, gate in CI caduto due volte su `Memoria, prova` (3 passate su 4, gli stessi numeri il secondo giro: «scrollTop 2633 di 2633, sentinella a 501 col fondo del riquadro a 502»). Nel frattempo Francesco ha chiesto anche la riga: tornare alla riga 40 aperta, non solo allo stesso scorrimento.
+
+- **La riga aperta**: le righe portano `data-riga={riga.id}`; un clic dentro il riquadro salva l'id subito. Al ritorno, dopo lo scorrimento, se la riga non è intera nel riquadro la si porta a metà; se è già in vista non si muove. Rese quattro forme di segno (foto in chiaro e scuro, fondo grigio, arancio tenue, contorno, niente): Francesco «D, nessun segno». Prova nuova `Memoria con la riga aperta, prova` (memoria con scorrimento zero e la centesima riga: al ritorno la riga è intera, sotto l'intestazione e lontana dal fondo); la prova principale controlla anche che la riga aperta sia salvata.
+- **La caduta della CI**: riprodotta in locale (1 su 6) e tracciata nell'osservatore dello scorrimento infinito. Le due notifiche arrivavano insieme e il codice leggeva la prima, «fuori vista». Corretto leggendo l'ultima. Difetto di prima, non di `memoria`: la prova è la prima che scorre in fondo due volte di fila. `docs/DECISIONI.md` §88.
+- La prova principale apriva la prima riga in vista, che poteva essere coperta a metà dall'intestazione (e al ritorno la tabella la centrava, giustamente): ora apre la prima riga intera.
+- `npm run check` intero: tredici gate verdi, `test:a11y` 2492 scansioni con 0 violazioni (anche la prova instabile della griglia è passata), `test:webkit` 48 su 48. Le cinque prove `Memoria` in Chromium: 10 giri su 10 dopo la correzione.

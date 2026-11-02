@@ -4685,3 +4685,416 @@ export const BadgeInCellaStrettaProva: StoryObj<typeof DataTable<Caratteristica>
   tags: ['!dev', '!autodocs'],
   play: provaBadgeInCellaStretta,
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+ * `memoria`: la lista che si ritrova com'era
+ *
+ * Una lista che apre la scheda di un prodotto al posto di sé, come una
+ * rotta nuova di un'app: la tabella si smonta, e «Torna alla lista» la
+ * rimonta. Ogni scena ha la propria chiave, così una non eredita lo stato
+ * dell'altra.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+const ApriProdotto = React.createContext<(prodotto: Prodotto) => void>(() => {})
+
+function CellaCodiceApribile({ prodotto }: { prodotto: Prodotto }) {
+  const apri = React.useContext(ApriProdotto)
+  return (
+    <Button
+      type="button"
+      variant="link"
+      size="sm"
+      className="h-auto p-0 font-normal"
+      onClick={() => apri(prodotto)}
+    >
+      {prodotto.codice}
+    </Button>
+  )
+}
+
+const COLONNE_MEMORIA = colFiltri.columns([
+  colFiltri.accessor('codice', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+    meta: { titolo: 'Codice', larghezza: 'w-32' },
+    sortFn: 'alphanumeric',
+    cell: ({ row }) => <CellaCodiceApribile prodotto={row.original} />,
+  }),
+  ...COLONNE_FILTRI,
+])
+
+type ListaProps = {
+  chiave: string
+  perPagina?: 'infinito' | 25
+  /**
+   * I dati arrivano dopo il montaggio, come da una richiesta di rete, e dopo
+   * altrettanto arrivano di nuovo, come quando l'app ricarica la lista.
+   */
+  datiDopo?: number
+}
+
+// La lista si monta da capo a ogni ritorno, come la pagina di una rotta: i
+// suoi dati ripartono vuoti se arrivano dalla rete.
+function ListaProdotti({ chiave, perPagina = 'infinito', datiDopo }: ListaProps) {
+  const [dati, setDati] = React.useState<Prodotto[]>(datiDopo ? [] : PRODOTTI)
+  const [ricaricata, setRicaricata] = React.useState(false)
+  React.useEffect(() => {
+    if (!datiDopo) return
+    const arrivo = setTimeout(() => setDati(PRODOTTI), datiDopo)
+    const ricarica = setTimeout(() => {
+      setDati([...PRODOTTI])
+      setRicaricata(true)
+    }, 2 * datiDopo)
+    return () => {
+      clearTimeout(arrivo)
+      clearTimeout(ricarica)
+    }
+  }, [datiDopo])
+
+  const ferma = perPagina === 'infinito'
+  return (
+    <div data-ricaricata={ricaricata || undefined} className={ferma ? 'flex h-140 flex-col' : undefined}>
+      <DataTable
+        memoria={chiave}
+        colonne={COLONNE_MEMORIA}
+        dati={dati}
+        idRiga={(p) => p.id}
+        cerca="Cerca per codice, nome o famiglia…"
+        nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
+        perPagina={perPagina}
+        altezza={ferma ? 'ferma' : 'naturale'}
+        className={ferma ? 'min-h-0 flex-1' : undefined}
+        barra={(_scelti, tabella) => (
+          <>
+            <FiltroSfaccettato tabella={tabella} accessore="stato" titolo="Stato" />
+            <FiltroSfaccettato tabella={tabella} accessore="famiglia" titolo="Famiglia" />
+            <FiltroResetTutti tabella={tabella} />
+          </>
+        )}
+      />
+    </div>
+  )
+}
+
+function ListaConScheda(props: ListaProps) {
+  const [aperto, setAperto] = React.useState<Prodotto | null>(null)
+  if (aperto)
+    return (
+      <div className="flex h-140 flex-col items-start gap-4">
+        <Button type="button" variant="outline" size="sm" onClick={() => setAperto(null)}>
+          Torna alla lista
+        </Button>
+        <h2 className="text-xl font-semibold">{aperto.nome}</h2>
+        <p className="text-sm text-muted-foreground">
+          {aperto.codice} · {aperto.famiglia} · {aperto.stato}
+        </p>
+      </div>
+    )
+  return (
+    <ApriProdotto.Provider value={setAperto}>
+      <ListaProdotti {...props} />
+    </ApriProdotto.Provider>
+  )
+}
+
+/**
+ * Con `memoria="prodotti"` la tabella ricorda ricerca, filtri, ordinamento,
+ * colonne nascoste, pagina e scorrimento per la sessione del browser. Si
+ * cerca, si filtra, si scorre, si apre un codice: la scheda prende il posto
+ * della lista. Con «Torna alla lista» la tabella è com'era, anche coi
+ * filtri della barra, e il codice aperto è in vista anche se nel frattempo i
+ * dati sono cambiati.
+ *
+ * ```tsx
+ * <DataTable memoria="prodotti" colonne={COLONNE} dati={prodotti} perPagina="infinito" altezza="ferma" />
+ * ```
+ *
+ * La chiave è una per lista. Lo scorrimento ripreso è quello del riquadro
+ * della tabella, con `altezza="ferma"` o in orizzontale; con l'altezza
+ * naturale scorre la pagina, e non si riprende. La selezione delle righe non
+ * si ricorda.
+ */
+export const Memoria: StoryObj<typeof DataTable<Prodotto>> = {
+  render: () => <ListaConScheda chiave="esempio-prodotti" />,
+}
+
+const CHIAVE_PROVA = 'prova-memoria'
+
+function dimentica(chiave: string) {
+  return () => {
+    try {
+      window.sessionStorage.removeItem(`tassullo-data-table:${chiave}`)
+    } catch {
+      // La sessione del browser non c'è: niente da dimenticare.
+    }
+  }
+}
+
+function riquadroDi(canvasElement: HTMLElement) {
+  const el = canvasElement.querySelector<HTMLElement>('[data-slot="table-container"]')
+  expect(el).toBeTruthy()
+  return el as HTMLElement
+}
+
+function codiciResi(canvasElement: HTMLElement) {
+  return [...canvasElement.querySelectorAll('tbody tr td:first-child button')].map(
+    (b) => b.textContent
+  )
+}
+
+// Il codice della prima riga intera sotto l'intestazione ferma del riquadro.
+function primoCodiceInVista(riquadro: HTMLElement) {
+  const sotto = riquadro.querySelector('thead')?.getBoundingClientRect().bottom ?? 0
+  const riga = [...riquadro.querySelectorAll('tbody tr')].find(
+    (tr) => tr.getBoundingClientRect().top >= sotto - 1 && tr.querySelector('button')
+  )
+  return riga?.querySelector('button')?.textContent
+}
+
+async function scegliFiltro(canvasElement: HTMLElement, titolo: string, voci: string[]) {
+  const canvas = within(canvasElement)
+  await userEvent.click(canvas.getByRole('button', { name: new RegExp(`^${titolo}`) }))
+  const pannello = await waitFor(() => {
+    const el = document.querySelector<HTMLElement>('[data-slot="popover-content"]')
+    expect(el).toBeTruthy()
+    return el as HTMLElement
+  })
+  for (const voce of voci)
+    await userEvent.click(within(pannello).getByRole('option', { name: new RegExp(`^${voce}`) }))
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(document.querySelector('[data-slot="popover-content"]')).toBeNull())
+}
+
+// La prova fa il giro intero, coi dati già presenti al montaggio: cerca,
+// filtra per due stati, ordina per nome decrescente, nasconde la colonna
+// Famiglia, scorre oltre il primo passo dello scorrimento infinito, apre un
+// codice e torna. Al ritorno tutto dev'essere com'era: il testo nella
+// ricerca, il grilletto del filtro coi due stati, l'ordinamento, la colonna
+// nascosta, le righe caricate e il primo codice in vista.
+async function provaMemoria({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  await userEvent.type(canvas.getByRole('searchbox'), 'a')
+  await scegliFiltro(canvasElement, 'Stato', ['bozza', 'pubblicato'])
+  const ordinaNome = () => canvas.getByRole('button', { name: /^Ordina per Nome/ })
+  await userEvent.click(ordinaNome())
+  await userEvent.click(ordinaNome())
+  await waitFor(() =>
+    expect(ordinaNome().closest('th')?.getAttribute('aria-sort')).toBe('descending')
+  )
+  await userEvent.click(canvas.getByRole('button', { name: 'Colonne' }))
+  await userEvent.click(await within(document.body).findByRole('menuitemcheckbox', { name: 'Famiglia' }))
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() =>
+    expect(canvas.queryByRole('button', { name: /^Ordina per Famiglia/ })).toBeNull()
+  )
+
+  const attese = PRODOTTI.filter(
+    (p) =>
+      (p.stato === 'bozza' || p.stato === 'pubblicato') &&
+      [p.codice, p.nome, p.famiglia, p.stato].some((v) => v.toLowerCase().includes('a'))
+  ).length
+  expect(attese).toBeGreaterThan(120)
+
+  const riquadro = riquadroDi(canvasElement)
+  // Due scorrimenti fino in fondo: ognuno porta in vista la sentinella e
+  // carica un passo in più.
+  for (let passo = 0; passo < 2; passo++) {
+    const prima = codiciResi(canvasElement).length
+    fireEvent.scroll(riquadro, { target: { scrollTop: riquadro.scrollHeight } })
+    // Se il passo non arriva, il messaggio dice dove stavano riquadro e
+    // sentinella: è la misura che serve per capire perché.
+    await waitFor(() => {
+      const sentinella = riquadro.querySelector('tbody tr[aria-hidden]')?.getBoundingClientRect()
+      const bordo = riquadro.getBoundingClientRect()
+      expect(
+        codiciResi(canvasElement).length,
+        `passo ${passo}: scrollTop ${riquadro.scrollTop} di ${riquadro.scrollHeight - riquadro.clientHeight}, ` +
+          `sentinella a ${sentinella?.top} col fondo del riquadro a ${bordo.bottom}`
+      ).toBeGreaterThan(prima)
+    })
+  }
+  const caricateAllAndata = codiciResi(canvasElement).length
+  expect(caricateAllAndata).toBeGreaterThanOrEqual(80)
+  fireEvent.scroll(riquadro, { target: { scrollTop: 1500 } })
+  // Le righe sono `snap-start`: il browser porta il riquadro sulla riga più
+  // vicina dopo lo scorrimento. Si legge la posizione quando è ferma.
+  let alto = -1
+  await waitFor(async () => {
+    const prima = riquadro.scrollTop
+    await new Promise((fatto) => setTimeout(fatto, 150))
+    expect(riquadro.scrollTop).toBe(prima)
+    expect(prima).toBeGreaterThan(1000)
+    alto = prima
+  })
+  const primo = primoCodiceInVista(riquadro)
+  expect(primo).toBeTruthy()
+
+  await userEvent.click(canvas.getByRole('button', { name: primo as string }))
+  await waitFor(() => expect(canvasElement.querySelector('[data-slot="table-container"]')).toBeNull())
+  // La riga aperta è salvata: è quella da ritrovare al ritorno.
+  const salvata = JSON.parse(
+    window.sessionStorage.getItem(`tassullo-data-table:${CHIAVE_PROVA}`) ?? '{}'
+  )
+  expect(salvata.riga).toBe(PRODOTTI.find((p) => p.codice === primo)?.id)
+  await userEvent.click(canvas.getByRole('button', { name: 'Torna alla lista' }))
+
+  await waitFor(() => expect(canvas.getByRole('searchbox')).toHaveValue('a'))
+  const stato = canvas.getByRole('button', { name: /^Stato/ })
+  expect(stato.textContent).toContain('bozza')
+  expect(stato.textContent).toContain('pubblicato')
+  expect(ordinaNome().closest('th')?.getAttribute('aria-sort')).toBe('descending')
+  expect(canvas.queryByRole('button', { name: /^Ordina per Famiglia/ })).toBeNull()
+  await waitFor(() => {
+    const ritorno = riquadroDi(canvasElement)
+    expect(codiciResi(canvasElement).length).toBeGreaterThanOrEqual(caricateAllAndata)
+    expect(Math.abs(ritorno.scrollTop - alto)).toBeLessThanOrEqual(1)
+    expect(primoCodiceInVista(ritorno)).toBe(primo)
+  })
+}
+
+// Scena di misura di «Memoria»: la stessa lista con una chiave sua, che la
+// scena cancella prima di montarsi, con la prova.
+export const MemoriaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Memoria, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: dimentica(CHIAVE_PROVA),
+  render: () => <ListaConScheda chiave={CHIAVE_PROVA} />,
+  play: provaMemoria,
+}
+
+const CHIAVE_PROVA_PAGINE = 'prova-memoria-pagine'
+
+// La paginazione a numeri, coi dati che arrivano dopo il montaggio e poi di
+// nuovo, ricaricati: TanStack riporta la tabella alla prima pagina a ogni
+// cambio dei dati, e la pagina ricordata va ridata ogni volta, finché non si
+// tocca la tabella. Si va alla terza pagina, si apre un codice e si torna.
+async function provaMemoriaPagine({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  await waitFor(() => {
+    expect(canvasElement.querySelector('[data-ricaricata]')).toBeTruthy()
+    expect(codiciResi(canvasElement)).toHaveLength(25)
+  })
+  await userEvent.click(canvas.getByRole('button', { name: 'Pagina successiva' }))
+  await userEvent.click(canvas.getByRole('button', { name: 'Pagina successiva' }))
+  await waitFor(() => expect(canvasElement.textContent).toMatch(/Pagina 3 di/))
+  const codici = codiciResi(canvasElement)
+  await userEvent.click(canvas.getByRole('button', { name: codici[0] as string }))
+  await userEvent.click(canvas.getByRole('button', { name: 'Torna alla lista' }))
+  await waitFor(() => {
+    expect(canvasElement.querySelector('[data-ricaricata]')).toBeTruthy()
+    expect(canvasElement.textContent).toMatch(/Pagina 3 di/)
+    expect(codiciResi(canvasElement)).toEqual(codici)
+  })
+}
+
+export const MemoriaPagineProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Memoria con le pagine, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: dimentica(CHIAVE_PROVA_PAGINE),
+  render: () => <ListaConScheda chiave={CHIAVE_PROVA_PAGINE} perPagina={25} datiDopo={50} />,
+  play: provaMemoriaPagine,
+}
+
+const CHIAVE_PROVA_SCARTI = 'prova-memoria-scarti'
+
+// Una memoria scritta da un'altra versione della lista: un filtro con un
+// valore che nei dati non c'è più, uno coi soli valori spariti, uno su una
+// colonna tolta, un ordinamento sulla stessa colonna e una pagina scritta male.
+// Si tiene il solo «bozza», e la tabella parte senza avvisi in console.
+const MEMORIA_VECCHIA = {
+  ricerca: '',
+  filtri: [
+    { id: 'stato', value: ['bozza', 'sospeso'] },
+    { id: 'famiglia', value: ['Famiglia che non esiste'] },
+    { id: 'listino', value: ['A'] },
+  ],
+  ordinamento: [{ id: 'listino', desc: false }],
+  visibilita: { listino: false },
+  pagina: 'terza',
+  caricate: 40,
+  scorrimento: { alto: 0, sinistra: 0 },
+}
+
+const avvisiMemoria: string[] = []
+
+async function provaMemoriaScarti({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const bozze = PRODOTTI.filter((p) => p.stato === 'bozza').length
+  await waitFor(() =>
+    expect(canvas.getByText(new RegExp(`^${intero(bozze)} prodotti`))).toBeTruthy()
+  )
+  const stato = canvas.getByRole('button', { name: /^Stato/ })
+  expect(stato.textContent).toContain('bozza')
+  expect(stato.textContent).not.toContain('sospeso')
+  expect(canvas.getByRole('button', { name: /^Famiglia/ }).textContent).not.toContain('Famiglia che')
+  const salvata = JSON.parse(
+    window.sessionStorage.getItem(`tassullo-data-table:${CHIAVE_PROVA_SCARTI}`) ?? '{}'
+  )
+  expect(salvata.filtri).toEqual([{ id: 'stato', value: ['bozza'] }])
+  expect(salvata.ordinamento).toEqual([])
+  expect(avvisiMemoria).toEqual([])
+}
+
+export const MemoriaScartiProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Memoria con filtri spariti, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: () => {
+    window.sessionStorage.setItem(
+      `tassullo-data-table:${CHIAVE_PROVA_SCARTI}`,
+      JSON.stringify(MEMORIA_VECCHIA)
+    )
+    avvisiMemoria.length = 0
+    const originale = console.warn
+    console.warn = (...argomenti: unknown[]) => {
+      avvisiMemoria.push(argomenti.map(String).join(' '))
+      originale(...argomenti)
+    }
+    return () => {
+      console.warn = originale
+    }
+  },
+  render: () => <ListaConScheda chiave={CHIAVE_PROVA_SCARTI} perPagina={25} />,
+  play: provaMemoriaScarti,
+}
+
+const CHIAVE_PROVA_RIGA = 'prova-memoria-riga'
+const RIGA_DA_RITROVARE = PRODOTTI[99]
+
+// La riga aperta torna in vista anche se lo scorrimento salvato non la
+// mostra più, come quando nel frattempo sono cambiati i dati: la memoria dice
+// scorrimento zero e la centesima riga, e al ritorno la centesima riga dev'essere
+// intera nel riquadro, sotto l'intestazione e lontana dal fondo.
+async function provaMemoriaRiga({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => {
+    const riquadro = riquadroDi(canvasElement)
+    const tr = riquadro.querySelector(`tr[data-riga="${RIGA_DA_RITROVARE.id}"]`)
+    expect(tr).toBeTruthy()
+    const riga = (tr as HTMLElement).getBoundingClientRect()
+    const sotto = riquadro.querySelector('thead')?.getBoundingClientRect().bottom ?? 0
+    const fondo = riquadro.getBoundingClientRect().top + riquadro.clientTop + riquadro.clientHeight
+    expect(riquadro.scrollTop).toBeGreaterThan(0)
+    expect(riga.top).toBeGreaterThanOrEqual(sotto - 1)
+    expect(riga.bottom).toBeLessThanOrEqual(fondo - riga.height)
+  })
+}
+
+export const MemoriaRigaProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Memoria con la riga aperta, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: () => {
+    window.sessionStorage.setItem(
+      `tassullo-data-table:${CHIAVE_PROVA_RIGA}`,
+      JSON.stringify({
+        ricerca: '',
+        filtri: [],
+        ordinamento: [],
+        visibilita: {},
+        pagina: 0,
+        caricate: 120,
+        scorrimento: { alto: 0, sinistra: 0 },
+        riga: RIGA_DA_RITROVARE.id,
+      })
+    )
+  },
+  render: () => <ListaConScheda chiave={CHIAVE_PROVA_RIGA} />,
+  play: provaMemoriaRiga,
+}
