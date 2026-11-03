@@ -4812,6 +4812,11 @@ function ListaConScheda(props: ListaProps) {
  * della tabella, con `altezza="ferma"` o in orizzontale; con l'altezza
  * naturale scorre la pagina, e non si riprende. La selezione delle righe non
  * si ricorda.
+ *
+ * La riga aperta è l'ultima in cui si è cliccato, ovunque dentro la riga:
+ * anche sul menu «⋯» delle azioni, perché da lì si sceglie di solito
+ * un'azione che porta fuori dalla lista, e al ritorno quella riga va
+ * ritrovata.
  */
 export const Memoria: StoryObj<typeof DataTable<Prodotto>> = {
   render: () => <ListaConScheda chiave="esempio-prodotti" />,
