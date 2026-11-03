@@ -601,8 +601,42 @@ async function aperto() {
   })
 }
 
+// Se l'elenco non si chiude, l'errore dice in che stato era la pagina: senza
+// queste righe la caduta, che capita di rado e solo nel gate intero, non
+// lascia niente da leggere.
 async function chiuso() {
-  await waitFor(() => expect(elenco()).not.toBeInTheDocument(), { timeout: 5000 })
+  try {
+    await waitFor(() => expect(elenco()).not.toBeInTheDocument(), { timeout: 5000 })
+  } catch (errore) {
+    throw new Error(`${await statoDellaPagina(elenco())}\n${String(errore).slice(0, 300)}`)
+  }
+}
+
+async function statoDellaPagina(popup: HTMLElement | null) {
+  const fotogrammi = await new Promise<string>((fatto) => {
+    const tempo = setTimeout(() => fatto('nessun fotogramma in 1 s'), 1000)
+    requestAnimationFrame(() => {
+      clearTimeout(tempo)
+      fatto('fotogrammi sì')
+    })
+  })
+  const attributi = (n: Element) =>
+    [...n.attributes]
+      .filter((a) => a.name.startsWith('data-') || a.name === 'role')
+      .map((a) => `${a.name}="${a.value.slice(0, 30)}"`)
+      .join(' ')
+  const catena: string[] = []
+  for (let n = popup; n && n !== document.body; n = n.parentElement) catena.push(`<${n.tagName.toLowerCase()} ${attributi(n)}>`)
+  const animazioni = popup
+    ?.getAnimations({ subtree: true })
+    .map((a) => `${a instanceof CSSAnimation ? a.animationName : 'transizione'}:${a.playState}:${Math.round(Number(a.currentTime))}`)
+  const attivo = document.activeElement
+  return [
+    `pagina ${document.visibilityState}, fuoco ${document.hasFocus()}, ${fotogrammi}`,
+    `elemento attivo ${attivo?.tagName.toLowerCase()} ${attivo ? attributi(attivo) : ''}`,
+    `animazioni ${JSON.stringify(animazioni ?? [])}`,
+    `elenco ${catena.join(' ⟵ ') || 'assente'}`,
+  ].join('\n')
 }
 
 // L'area col fuoco e il cursore in fondo.

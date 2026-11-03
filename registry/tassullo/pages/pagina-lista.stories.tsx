@@ -132,6 +132,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  *   filtri della `barra` che lo leggono dalla tabella. Un filtro che la
  *   pagina applica ai dati prima di passarli, per esempio una `Select` nella
  *   `barra` che sceglie fra gli archivi, non lo ricorda: resta all'app.
+ * - **La riga aperta** è l'ultima in cui si è cliccato, anche sul menu «⋯»
+ *   delle azioni: da lì si sceglie di solito un'azione che porta fuori dalla
+ *   lista.
  * - Non ricorda la selezione delle righe. Chiusa la scheda del browser, la
  *   memoria si perde.
  *

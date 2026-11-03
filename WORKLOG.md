@@ -14848,6 +14848,35 @@ PR #185 (la causa della prova instabile della griglia) unita col gate verde, uni
 - `data-grid › Celle Tipizzate, calendario, prova` e le cinque di `testo-segnaposto`: ancora da spiegare.
 - Se aprire il menu «⋯» di una riga debba contare come «riga aperta» per `memoria`.
 
+## 2026-11-03 — `testo-segnaposto`: le cinque prove che cadevano insieme, cercate e non riprodotte; il menu «⋯» conta come riga aperta
+
+Francesco: «chiudiamo le cose lato DS prima di avvisare anagrafe». Ramo `fras/testo-segnaposto-instabile`. La prova del calendario della griglia è passata alla sessione che l'aveva già studiata.
+
+#### Il menu «⋯» e `memoria`
+
+- Deciso da Francesco: il clic sul menu «⋯» di una riga **conta** come riga aperta. Dal menu si sceglie di solito un'azione che porta fuori dalla lista (modifica, duplica), e al ritorno quella riga va ritrovata. Il codice non cambia: la regola è scritta nella scena `Memoria` della tabella, nella sezione «Tornare alla lista» di `Pagine/Lista` e nei `docs` di `tassullo-data-table`.
+
+#### `testo-segnaposto`: cosa si sa
+
+- **Le due cadute note**, entrambe in locale e mai in CI (cercate nei registri delle ultime dieci corse fallite del gate: zero righe di `testo-segnaposto`): una passata intera (scuro/chiuso, poi chiaro/aperto nell'altra), con cinque prove giù insieme. Quattro aspettano che l'elenco dei suggerimenti sparisca dopo un tasto (`Esc`, `Invio` o `Tab`) e lo trovano ancora lì dopo 5 s; la quinta, `Elenco, stato tenuto fuori, prova`, ha due violazioni axe (`aria-hidden-focus` su una guardia del fuoco, `aria-input-field-name`), cioè anche lì un popup, la `Select` dei gruppi, ancora montato.
+- **Quindi non è la tastiera**: tre tasti diversi e due componenti diversi (il `Popover` dell'elenco e la `Select`) restano aperti nella stessa passata. Il punto comune è come Base UI smonta un popup: aspetta che finisca l'animazione d'uscita, e un'animazione CSS avanza solo coi fotogrammi della pagina. È un indizio, non una causa: non l'ho visto accadere.
+- **Non riprodotta in nove passate intere** scuro/chiuso: sei in coppie parallele, tre con lo Storybook di sviluppo acceso accanto (la condizione della prima caduta). Tutte 623 su 623. Il file da solo, 39 su 39.
+- **La sonda resta**: `chiuso()` in `testo-segnaposto.stories.tsx`, se l'elenco non si chiude, fallisce dicendo se la pagina era visibile e aveva il fuoco, se i fotogrammi scattavano, quali animazioni erano ferme e a che punto, e gli attributi dell'elenco fino al portale. La prova non è allentata: aspetta lo stesso tempo e asserisce la stessa cosa. Alla prossima caduta l'errore dirà se l'indizio delle animazioni è giusto.
+
+#### Visto per strada
+
+- In ogni passata compaiono 44–48 righe «ResizeObserver loop completed with undelivered notifications», stampate dal browser e senza conseguenze sul risultato (vitest esce con 0). Non indagate.
+- Due passate di vitest lanciate insieme possono far fallire l'importazione di un file di scene («Unexpected token '}'») alla prima corsa: scrivono la stessa cache di Vite. È un limite di come le ho lanciate io, non del gate.
+
+#### Prove
+
+- `npm run build` e `npm run check` verdi: 2492 scansioni in 4 passate, 0 violazioni, nessuna prova caduta; WebKit 48 su 48.
+
+#### Aperti
+
+- `testo-segnaposto`: alla prossima caduta, leggere l'errore della sonda.
+- `data-grid › Celle Tipizzate, calendario, prova`: nella sessione della griglia.
+
 ## 2026-11-03 — `data-grid`: la prova «Celle Tipizzate, calendario, prova» che cadeva a tratti, spiegata
 
 Affidata dalla sessione di #183, perché Francesco vuole chiudere le prove instabili del design system prima di avvisare Anagrafe. Ramo `fras/calendario-griglia`, da `main` con #184, #185 e #186.
