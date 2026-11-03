@@ -14781,6 +14781,33 @@ PR #181 unita col gate verde in CI (15 minuti); unione `efc244f`, la #180 si è 
 - Anagrafe: adottare alla `v2.0.28` con `memoria` in ogni lista della colonna, e scrivere l'esito sulla #180. Restano da adottare anche la `v2.0.26` (#161) e la `v2.0.27` (#175) se non già fatto.
 - `data-grid › Celle Tipizzate, prova`: ancora da spiegare (nel gate intero di questa sessione è passata).
 
+## 2026-11-02 — `data-grid`: la prova «Celle Tipizzate, prova» che cadeva a tratti, spiegata
+
+Sessione aperta dalla sessione di #183 per trovare la causa della prova instabile negli «Aperti» da #171b (cadute nella CI di #172 e #184 e nei gate locali, sempre «expected -39.5 to be greater than or equal to 4»). Ramo `fras/griglia-scorrimento`, da `main`.
+
+#### La causa
+
+- **Il difetto è della tabella virtualizzata, non della prova.** A ogni freccia la griglia chiede al virtualizzatore di TanStack di portare in vista la riga (`scrollToIndex`) e sposta il fuoco nativo sulla cella. Il browser porta in vista la cella rispettando lo `scroll-padding` del riquadro (intestazione ferma sopra, margine sotto); il virtualizzatore non lo sapeva, e il suo punto «riga in fondo» lasciava la riga sotto il fondo di quanto è alta l'intestazione: 40px, −39,5 per la cella.
+- **Due condizioni insieme, viste con una sonda dentro il virtualizzatore**: (1) il tasto arriva prima che il virtualizzatore abbia letto lo scorrimento del passo prima (lo legge una volta per fotogramma), e allora sceglie l'allineamento in fondo e scrive il suo punto corto; (2) per 5 secondi dopo `scrollToIndex` il virtualizzatore insegue quel punto e lo riscrive se cambia, e cambia di mezzo pixel a ogni riga montata e misurata (36,5 contro la stima di 37). Visto: il fuoco porta il riquadro a 603, una misura lo riporta a 403, la cella resta 39,5px sotto il fondo e nessuno la riporta su. Il ritmo dipende dal carico: per questo cadeva solo nel gate intero.
+- **Indizio scartato**: lo scorrimento agganciato alle righe (`snap-proximity`) sposta il riquadro di pochi pixel ma non c'entra con la caduta.
+- **E la #181 non è la causa**, anche se da lì la prova cadeva in ogni corsa della CI (3 su 3, dati della sessione di #183): con la sonda, la tabella di prima della #181 (`a527582`) cade 8 volte su 12, quella di `main` 9 su 12, quella corretta 0 su 12. Il difetto c'era già; la #181, che aggiunge lavoro a ogni render della tabella, ha al più cambiato il ritmo del gate.
+
+#### La correzione
+
+- `DataTableVirtualizedBody` passa al virtualizzatore `scrollPaddingStart`/`scrollPaddingEnd` letti dal riquadro: lo `scroll-padding` che il browser calcola, tradotto nel riferimento del corpo (con l'intestazione ferma: 0 sopra, intestazione più margine sotto). Rimisurati a ogni render del corpo e con un `ResizeObserver` su riquadro e intestazione. Vale anche per la tabella virtualizzata senza griglia, che porta in vista le righe allo stesso modo. Nessuna prova ritoccata.
+- `docs/DECISIONI.md` §89, con le quattro cose da sapere per tracciare un difetto di scorrimento (il gate non stampa i `console.log`, la cache di Storybook in `node_modules/.cache/storybook/`, la sonda va eseguita dentro la pagina, due scrittori dello stesso `scrollTop` devono calcolare lo stesso punto).
+
+#### Prove
+
+- **Sonda** (scratchpad, non nel repo): il ciclo della prova eseguito dentro la pagina allo stesso ritmo di `userEvent`, contro lo Storybook di sviluppo. Codice di prima: **3 cadute su 5**, tutte a −39,5. Con la correzione: **0 su 15**. Da Playwright, un tasto per volta, il difetto non si riproduce mai (un viaggio fra processi è più lungo di un fotogramma), e nemmeno col rallentamento della CPU.
+- **`npm run test:a11y`, tre corse intere**: tutte le scene della griglia verdi in 12 passate su 12, comprese «Celle Tipizzate, prova» e «Celle Tipizzate, calendario, prova». Due corse su tre cadute in una passata (scuro/chiuso, poi chiaro/aperto) su cinque prove di `testo-segnaposto.stories.tsx`, le stesse già negli aperti; quel blocco non usa la tabella. La seconda corsa è verde intera: 2492 scansioni, 0 violazioni.
+- `npm run registry:build`: `public/r/tassullo-data-table.json` rigenerato.
+
+#### Aperti
+
+- `Celle Tipizzate, calendario, prova`: caduta una volta sola (gate locale sul ramo di #183, scuro/aperto) con «expected <div data-riga-id="voce-t-3" …> to be null»: dopo lo scorrimento di 180px il calendario si chiude ma esce anche la modifica, il campo della data non c'è più e il fuoco è sulla cella. La scena non passa da `scrollToIndex`, quindi questa correzione non la spiega; nel codice non ho trovato chi chiuda la modifica in quel punto. Non riprodotta: 8 giri su 8 con la sonda, 20 corse del file della griglia in quattro processi paralleli (scuro/aperto) sia col codice di prima sia con quello corretto, tre gate interi. Da riprendere se ricapita.
+- `testo-segnaposto`: le cinque prove che cadono insieme in una passata sotto carico, da spiegare in una sessione a parte.
+
 ## 2026-11-02 — #183: la pagina lista con `memoria`
 
 Proposta #183 di Anagrafe: la pagina d'esempio `tassullo-pagina-lista` non mostrava `memoria`, che le liste di Anagrafe usano da quando hanno adottato la `v2.0.28` (esito scritto sulla #180: commit `5f29a6a`, prove in Chrome e Safari verdi). Ramo `fras/proposta-183`. Francesco: «Sì, realizzala», sulla proposta che comprendeva anche la scena di Prodotti.
@@ -14803,5 +14830,5 @@ Proposta #183 di Anagrafe: la pagina d'esempio `tassullo-pagina-lista` non mostr
 #### Aperti
 
 - Anagrafe: rileggere l'esempio alla versione nuova; niente da reinstallare (la pagina d'esempio non si installa).
-- `data-grid › Celle Tipizzate, prova` e `Celle Tipizzate, calendario, prova`, e le cinque di `testo-segnaposto` cadute una volta sotto carico: da spiegare.
+- `data-grid › Celle Tipizzate, prova`: spiegata e corretta nella #185 (voce sopra). Restano `Celle Tipizzate, calendario, prova` e le cinque di `testo-segnaposto`, negli «Aperti» della voce sopra.
 - Se aprire il menu «⋯» di una riga debba contare come «riga aperta» per `memoria` (sopra).

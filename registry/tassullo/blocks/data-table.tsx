@@ -3176,11 +3176,67 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
   alVirtualizzatore?: (vaiA: (indice: number) => void) => void
 }) {
   const stimaRef = React.useRef(44)
+
+  /**
+   * **Dove una riga è «in vista», misurato come lo misura il browser.** Le
+   * posizioni del virtualizzatore partono dal corpo della tabella, ma il
+   * riquadro che scorre ha sopra l'intestazione, e il CSS gli dà uno
+   * `scroll-padding` (l'intestazione ferma sopra, un margine sotto). Il fuoco
+   * nativo porta in vista una cella rispettando quei margini; il
+   * virtualizzatore, che non li conosce, calcolava un bersaglio più corto
+   * dell'altezza dell'intestazione. Dopo `scrollToIndex` il virtualizzatore
+   * insegue il suo bersaglio per qualche secondo, e ogni misura di riga in
+   * quel tempo lo faceva riscrivere: la cella appena portata in vista dal
+   * fuoco tornava sotto il fondo del riquadro, nascosta. Con gli stessi
+   * margini i due calcoli danno lo stesso punto.
+   *
+   * Si traducono nel riferimento del corpo: `inizio` è lo `scroll-padding`
+   * alto meno la distanza del corpo dal capo del riquadro (zero con
+   * l'intestazione ferma, che copre esattamente quanto occupa); `fine` è lo
+   * `scroll-padding` basso più quella distanza.
+   */
+  const [margini, setMargini] = React.useState({ inizio: 0, fine: 0 })
+  const misuraMargini = React.useCallback(() => {
+    const corpo = scrollEl?.querySelector(":scope > table > tbody")
+    if (!scrollEl || !corpo) return
+    const stile = getComputedStyle(scrollEl)
+    const sopra = Number.parseFloat(stile.scrollPaddingTop) || 0
+    const sotto = Number.parseFloat(stile.scrollPaddingBottom) || 0
+    const distanza =
+      corpo.getBoundingClientRect().top -
+      scrollEl.getBoundingClientRect().top -
+      scrollEl.clientTop +
+      scrollEl.scrollTop
+    const inizio = sopra - distanza
+    const fine = sotto + distanza
+    setMargini((prima) =>
+      Math.abs(prima.inizio - inizio) < 0.5 && Math.abs(prima.fine - fine) < 0.5
+        ? prima
+        : { inizio, fine }
+    )
+  }, [scrollEl])
+  // A ogni render: lo `scroll-padding` alto viene dall'altezza
+  // dell'intestazione, che la tabella misura e scrive in un render suo,
+  // dopo il primo di questo corpo.
+  React.useLayoutEffect(misuraMargini)
+  React.useEffect(() => {
+    if (!scrollEl) return
+    // L'intestazione cambia altezza con la densità e col carattere caricato
+    // anche quando questo corpo non si rende di nuovo.
+    const osservatore = new ResizeObserver(misuraMargini)
+    osservatore.observe(scrollEl)
+    const testata = scrollEl.querySelector(":scope > table > thead")
+    if (testata) osservatore.observe(testata)
+    return () => osservatore.disconnect()
+  }, [scrollEl, misuraMargini])
+
   const virtualizzatore = useVirtualizer({
     count: righe.length,
     getScrollElement: () => scrollEl,
     estimateSize: () => stimaRef.current,
     overscan: 10,
+    scrollPaddingStart: margini.inizio,
+    scrollPaddingEnd: margini.fine,
   })
 
   /**
