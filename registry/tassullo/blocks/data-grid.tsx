@@ -2038,6 +2038,11 @@ function CellaDataGriglia<TDato extends RowData>({
               apriCalendario()
               return
             }
+            // A calendario aperto i tasti sono suoi. Il fuoco ci entra al
+            // fotogramma dopo l'apertura, e un `Esc` arrivato prima lo
+            // riceverebbe ancora il campo, che annullerebbe la modifica: il
+            // calendario lo chiude da sé, e il fuoco resta nel campo.
+            if (calendarioApertoRef.current) return
             motore.onKeyDownCella(evento, id)
           }}
           onBlur={(evento) => {
