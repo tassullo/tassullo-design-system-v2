@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { PlusIcon, Trash2Icon } from 'lucide-react'
 import * as React from 'react'
-import { expect, userEvent, waitFor } from 'storybook/test'
+import { expect, fireEvent, userEvent, waitFor } from 'storybook/test'
 import * as z from 'zod'
 
 import {
@@ -706,6 +706,43 @@ export const CelleTipizzateCalendarioProva: Story = {
   name: 'Celle Tipizzate, calendario, prova',
   tags: ['!dev', '!autodocs'],
   play: calendarioSiChiudeScorrendo,
+}
+
+// Prova: `Esc` premuto prima che il fuoco sia entrato nel calendario chiude il
+// calendario e lascia la modifica aperta. Il fuoco entra nel calendario al
+// fotogramma dopo l'apertura: `↓` ed `Esc` mandati nello stesso giro arrivano
+// tutti e due al campo, sempre, mentre con i tasti simulati succedeva solo a
+// macchina carica. Prima il campo passava `Esc` alla modifica, che si chiudeva.
+async function escPrimaDelFuocoNelCalendario({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = () =>
+    canvasElement.querySelector<HTMLElement>('[data-riga-id="voce-t-3"][data-colonna-id="scadenza"]')
+  const campo = () => canvasElement.querySelector<HTMLInputElement>('input[aria-label="scadenza"]')
+  const calendario = () =>
+    document.querySelector('[data-slot="popover-content"][aria-label="Scegli la data"]')
+  await waitFor(() => expect(cella()).toBeTruthy())
+
+  await userEvent.click(cella()!)
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+
+  fireEvent.keyDown(campo()!, { key: 'ArrowDown' })
+  expect(calendario()).toBeTruthy()
+  expect(document.activeElement).toBe(campo())
+  fireEvent.keyDown(campo()!, { key: 'Escape' })
+
+  await waitFor(() => {
+    expect(calendario()).toBeNull()
+    expect(campo()).toBeTruthy()
+    expect(document.activeElement).toBe(campo())
+  })
+}
+
+// Scena di misura di `Esc` prima del fuoco nel calendario: nascosta come quelle sopra.
+export const CelleTipizzateCalendarioEscProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, calendario ed Esc subito, prova',
+  tags: ['!dev', '!autodocs'],
+  play: escPrimaDelFuocoNelCalendario,
 }
 
 /* ────────────────────────────────────────────────────────────────────────

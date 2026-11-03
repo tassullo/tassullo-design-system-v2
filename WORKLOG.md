@@ -14847,3 +14847,27 @@ PR #185 (la causa della prova instabile della griglia) unita col gate verde, uni
 - Anagrafe: adottare alla `v2.0.29` e scrivere l'esito sulla #183.
 - `data-grid › Celle Tipizzate, calendario, prova` e le cinque di `testo-segnaposto`: ancora da spiegare.
 - Se aprire il menu «⋯» di una riga debba contare come «riga aperta» per `memoria`.
+
+## 2026-11-03 — `data-grid`: la prova «Celle Tipizzate, calendario, prova» che cadeva a tratti, spiegata
+
+Affidata dalla sessione di #183, perché Francesco vuole chiudere le prove instabili del design system prima di avvisare Anagrafe. Ramo `fras/calendario-griglia`, da `main` con #184, #185 e #186.
+
+#### La causa
+
+Base UI porta il fuoco nel popup al fotogramma **dopo** l'apertura (`enqueueFocus`, in un `requestAnimationFrame`). La prova riapre il calendario con `↓`, aspetta solo che il popup ci sia, poi preme `Esc`. Se il fotogramma non è ancora passato, `Esc` lo riceve il campo della data, che lo passa alla modifica, e la modifica si annulla: campo sparito, fuoco sulla cella `voce-t-3`. È esattamente il messaggio della caduta. Succede solo quando la macchina è carica, perché solo allora il fotogramma arriva dopo il tasto. `docs/DECISIONI.md` §90.
+
+#### La correzione
+
+In `CellaDataGriglia`, a calendario aperto il campo non passa i tasti alla modifica: `Esc` lo prende Base UI, che chiude il calendario, e il fuoco resta nel campo. Prova nuova `Celle Tipizzate, calendario ed Esc subito, prova`, che manda `↓` ed `Esc` nello stesso giro con `fireEvent`: senza la correzione cade 3 volte su 3, con la correzione passa. La prova di prima non è stata toccata.
+
+#### Prove
+
+- Sotto carico, con la traccia temporanea nel codice (tolta prima del commit): 12 corse intere del progetto `storybook` (623 scene ciascuna), tre processi insieme più uno Storybook di sviluppo, carico della macchina a 22. La prova del calendario non è mai caduta, quindi la traccia nel gate non l'ha colta.
+- Sonda in Chromium contro lo Storybook di sviluppo: `↓` poi `Esc` dopo un giro di microtask, oppure con i fotogrammi rallentati di 150 ms, chiude la modifica ogni volta; con `Esc` dopo un `setTimeout`, mai. Con la correzione, in tutti e tre i casi il calendario si chiude e il fuoco resta nel campo.
+- `npm run check` verde (13 gate).
+- `npm run registry:build`: `public/r/tassullo-data-grid.json` rigenerato.
+
+#### Aperti
+
+- Nelle corse sotto carico sono cadute anche scene che con la griglia del calendario non c'entrano. Al primo giro di un processo, 7 scene diverse con `STACK_TRACE_ERROR`: tre vitest partiti insieme sulla stessa cache, rumore d'avvio. In un altro giro, una volta, `virtualizzate › Griglia editabile, scorre e cambia densità`, anche lei con `STACK_TRACE_ERROR` e nessun messaggio nel JSON. Non indagate.
+- `testo-segnaposto`: le cinque prove instabili, in carico a un'altra sessione.
