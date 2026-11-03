@@ -14832,3 +14832,18 @@ Proposta #183 di Anagrafe: la pagina d'esempio `tassullo-pagina-lista` non mostr
 - Anagrafe: rileggere l'esempio alla versione nuova; niente da reinstallare (la pagina d'esempio non si installa).
 - `data-grid › Celle Tipizzate, prova`: spiegata e corretta nella #185 (voce sopra). Restano `Celle Tipizzate, calendario, prova` e le cinque di `testo-segnaposto`, negli «Aperti» della voce sopra.
 - Se aprire il menu «⋯» di una riga debba contare come «riga aperta» per `memoria` (sopra).
+
+## 2026-11-03 — v2.0.29 pubblicata, #183 chiusa
+
+PR #185 (la causa della prova instabile della griglia) unita col gate verde, unione `857fd97`; `main` riportato nella #184, conflitto nel diario risolto tenendo le due voci; #184 unita col gate verde, unione `dc9b029`, la #183 si è chiusa da sé con `Closes #183`. Etichetta annotata `v2.0.29` su `dc9b029`, push della sola etichetta. Francesco: «Sì, procedi», poi «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `memoria` di `tassullo-pagina-lista`, con la regola d'uso nella pagina Lista (#183), e la tabella virtualizzata che porta in vista la riga mossa con le frecce rispettando lo `scroll-padding` del riquadro (#185, `docs/DECISIONI.md` §89).
+- **Non rompe chi aggiorna**: la prop è nuova e facoltativa, la correzione non cambia nessuna prop.
+- Verifica da fuori: alla `v2.0.29` rispondono 200 `registry.json`, `public/r/tassullo-pagina-lista.json`, `public/r/tassullo-data-table.json` e i due sorgenti; quello della pagina contiene `memoria={memoria}`, quello della tabella `scrollPaddingStart`; `shadcn view …#v2.0.29` risolve i due item, con le stesse cose dentro.
+- Sulla #183 il commento di adozione: cosa c'è, `tassullo-data-table` da reinstallare, la pagina d'esempio da rileggere, nessun ripiego, cosa provare in Chrome e Safari, il clic sul menu «⋯» che conta come riga aperta.
+
+#### Aperti
+
+- Anagrafe: adottare alla `v2.0.29` e scrivere l'esito sulla #183.
+- `data-grid › Celle Tipizzate, calendario, prova` e le cinque di `testo-segnaposto`: ancora da spiegare.
+- Se aprire il menu «⋯» di una riga debba contare come «riga aperta» per `memoria`.
