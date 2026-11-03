@@ -14900,3 +14900,17 @@ In `CellaDataGriglia`, a calendario aperto il campo non passa i tasti alla modif
 
 - Nelle corse sotto carico sono cadute anche scene che con la griglia del calendario non c'entrano. Al primo giro di un processo, 7 scene diverse con `STACK_TRACE_ERROR`: tre vitest partiti insieme sulla stessa cache, rumore d'avvio. In un altro giro, una volta, `virtualizzate › Griglia editabile, scorre e cambia densità`, anche lei con `STACK_TRACE_ERROR` e nessun messaggio nel JSON. Non indagate.
 - `testo-segnaposto`: le cinque prove instabili, in carico a un'altra sessione.
+
+## 2026-11-03 — v2.0.30 pubblicata
+
+PR #187 (il menu «⋯» come riga aperta scritto, la sonda di `testo-segnaposto`) unita col gate verde, unione `ee78ab9`; `main` riportato nella #188, conflitto nel diario risolto tenendo le due voci; #188 (il calendario della griglia) unita col gate verde, unione `3d7f653`. Etichetta annotata `v2.0.30` su `3d7f653`, push della sola etichetta. Francesco: «Sì, uniscila» per la #187, «Sì, uniscila» per la #188, poi «Sì, pubblica».
+
+- Dentro: `tassullo-data-grid`, a calendario aperto il campo lascia i tasti al calendario, così un `Esc` arrivato prima del fuoco non annulla più la modifica (`docs/DECISIONI.md` §90); `tassullo-data-table`, la nota d'uso che il clic sul menu «⋯» conta come riga aperta.
+- **Non rompe chi aggiorna**: nessuna prop cambiata.
+- Verifica da fuori: alla `v2.0.30` rispondono 200 `registry.json`, `public/r/tassullo-data-grid.json`, `public/r/tassullo-data-table.json` e il sorgente della griglia, che contiene `if (calendarioApertoRef.current) return`; `shadcn view …#v2.0.30` risolve i due item, con le stesse cose dentro.
+- Nessuna issue chiusa da questa versione, quindi nessun commento di adozione.
+
+#### Aperti
+
+- Anagrafe: adottare alla `v2.0.30` (non più alla `v2.0.29`) e scrivere l'esito sulla #183.
+- `testo-segnaposto`: alla prossima caduta, leggere l'errore della sonda.
