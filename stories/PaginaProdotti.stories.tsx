@@ -121,7 +121,10 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * - `tassullo-data-table` con `perPagina="infinito"` e `altezza="ferma"`: la
  *   tabella carica le righe man mano che si scorre, dentro un riquadro che
  *   si ferma all'altezza della finestra, con le intestazioni sempre in
- *   vista. `nomeRighe` scrive il conteggio «220 prodotti».
+ *   vista. `nomeRighe` scrive il conteggio «220 prodotti». Con
+ *   `memoria="prodotti"` e `idRiga`, chi apre un prodotto e torna alla lista
+ *   ritrova ricerca, filtri, ordinamento, righe caricate e scorrimento, con la
+ *   riga aperta in vista.
  * - Colonne che si allargano col trascinamento (`ridimensionabile`) e si
  *   bloccano (`colonneBloccabili`); ogni intestazione è
  *   `IntestazioneColonnaMenu`, un solo grilletto «⋮» per ordinare e
@@ -864,10 +867,12 @@ function PaginaProdotti({
   dati,
   faccia = 'auto',
   soglia = '(min-width: 1024px)',
+  memoria,
 }: {
   dati: Prodotto[]
   faccia?: 'auto' | 'tabella' | 'schede'
   soglia?: string
+  memoria?: string
 }) {
   // I dati diventano stato di pagina: Elimina toglie davvero una riga,
   // Modifica scrive davvero sulla riga (M3bis.11b) — non più un array
@@ -936,6 +941,7 @@ function PaginaProdotti({
           colonne={COLONNE}
           dati={prodotti}
           idRiga={(p) => String(p.id)}
+          memoria={memoria}
           cerca="Cerca nome, variante, codice…"
           perPagina="infinito"
           altezza="ferma"
@@ -1066,10 +1072,12 @@ function Guscio({
   dati,
   faccia,
   soglia,
+  memoria,
 }: {
   dati: Prodotto[]
   faccia?: 'auto' | 'tabella' | 'schede'
   soglia?: string
+  memoria?: string
 }) {
   return (
     <AppShell
@@ -1080,7 +1088,7 @@ function Guscio({
       azioniUtente={AZIONI_UTENTE}
       sezioni={SEZIONI}
     >
-      <PaginaProdotti dati={dati} faccia={faccia} soglia={soglia} />
+      <PaginaProdotti dati={dati} faccia={faccia} soglia={soglia} memoria={memoria} />
     </AppShell>
   )
 }
@@ -1088,14 +1096,18 @@ function Guscio({
 /**
  * Il caso comune: 220 prodotti, lo scorrimento che carica le righe man
  * mano, la ricerca, i filtri sfaccettati, il menu «⋮» delle intestazioni e
- * il menu di riga con «Modifica» ed «Elimina» funzionanti. La scena passa
+ * il menu di riga con «Modifica» ed «Elimina» funzionanti. Con `memoria`,
+ * lasciando la scena e tornandoci ricerca, filtri e ordinamento sono
+ * com'erano. La scena apre da sé il menu della prima riga, che conta come la
+ * riga aperta: al ritorno la tabella la riporta in vista. Lo scorrimento
+ * ripreso si vede in «Soglia della pagina». La scena passa
  * `faccia="tabella"`.
  */
 export const ConDati: Story = {
   // `faccia="tabella"`, non `'auto'`: la faccia larga a ogni larghezza della
   // finestra, anche in una prova automatica. La scena che dipende davvero
   // dalla finestra è `Soglia della pagina`, sotto.
-  render: () => <Guscio dati={PRODOTTI} faccia="tabella" />,
+  render: () => <Guscio dati={PRODOTTI} faccia="tabella" memoria="prodotti" />,
   // Non il primo `dropdown-menu-trigger` della pagina: quello è il menu
   // utente della sidebar (`AppShell`), montato prima della tabella nel DOM,
   // e nemmeno quello del menu colonna, in `thead`. Il grilletto di riga
@@ -1109,11 +1121,13 @@ export const ConDati: Story = {
 // che rende un non-bottone. Il registro degli avvisi di Base UI si svuota
 // prima del render, perché ogni messaggio lo scrive una volta per pagina e
 // una scena precedente lo avrebbe già consumato. `!dev` la toglie dalla
-// barra e da Docs; il gate la esegue.
+// barra e da Docs; il gate la esegue. Senza `memoria`: conta le righe
+// dell'apertura, che una visita precedente a «Con dati» cambierebbe.
 const erroriConsole: string[] = []
 
 export const ConDatiProva: Story = {
   ...ConDati,
+  render: () => <Guscio dati={PRODOTTI} faccia="tabella" />,
   name: 'Con dati, prova',
   tags: ['!dev', '!autodocs'],
   beforeEach: () => {
@@ -1162,7 +1176,7 @@ export const FacciaStretta: Story = {
  */
 export const SogliaDellaPagina: Story = {
   name: 'Soglia della pagina',
-  render: () => <Guscio dati={PRODOTTI} />,
+  render: () => <Guscio dati={PRODOTTI} memoria="prodotti-soglia" />,
 }
 
 /**

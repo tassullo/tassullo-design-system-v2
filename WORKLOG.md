@@ -14807,3 +14807,28 @@ Sessione aperta dalla sessione di #183 per trovare la causa della prova instabil
 
 - `Celle Tipizzate, calendario, prova`: caduta una volta sola (gate locale sul ramo di #183, scuro/aperto) con «expected <div data-riga-id="voce-t-3" …> to be null»: dopo lo scorrimento di 180px il calendario si chiude ma esce anche la modifica, il campo della data non c'è più e il fuoco è sulla cella. La scena non passa da `scrollToIndex`, quindi questa correzione non la spiega; nel codice non ho trovato chi chiuda la modifica in quel punto. Non riprodotta: 8 giri su 8 con la sonda, 20 corse del file della griglia in quattro processi paralleli (scuro/aperto) sia col codice di prima sia con quello corretto, tre gate interi. Da riprendere se ricapita.
 - `testo-segnaposto`: le cinque prove che cadono insieme in una passata sotto carico, da spiegare in una sessione a parte.
+
+## 2026-11-02 — #183: la pagina lista con `memoria`
+
+Proposta #183 di Anagrafe: la pagina d'esempio `tassullo-pagina-lista` non mostrava `memoria`, che le liste di Anagrafe usano da quando hanno adottato la `v2.0.28` (esito scritto sulla #180: commit `5f29a6a`, prove in Chrome e Safari verdi). Ramo `fras/proposta-183`. Francesco: «Sì, realizzala», sulla proposta che comprendeva anche la scena di Prodotti.
+
+- **Il vuoto era più largo di quanto diceva la issue**: `PaginaLista` non accettava `memoria` e non la passava alla tabella, quindi chi componeva la pagina col blocco non aveva modo di accenderla. Ora è una prop come `idRiga`, passata a `DataTable` così com'è.
+- **Scene**: `memoria` in `Pagine/Lista` (`Con dati`, `Poche righe`, `Soglia della pagina`) e in `Pagine/Prodotti (Anagrafe)` (`Con dati`, `Soglia della pagina`), **una chiave per scena**: sulla stessa pagina Docs, con una chiave sola, si scriverebbero sopra a vicenda. `Con dati, prova` di Prodotti resta **senza** memoria, perché conta le 40 righe dell'apertura, che una visita precedente a `Con dati` cambierebbe.
+- **Regola d'uso** in `Pagine/Lista`, sezione «Tornare alla lista»: quando metterla, una chiave per lista, una per vista con `key` sulla tabella (la memoria si legge solo al montaggio, e cambiando chiave senza rimontare la tabella scriverebbe lo stato vecchio sotto la chiave nuova), e i filtri che la pagina applica prima della tabella che restano all'app. L'esempio di codice in testa porta `idRiga` e `memoria`. `registry.json`: il `docs` dell'item lo dice; `public/r/` ricompilato.
+
+#### Prove
+
+- Playwright dalla cartella temporanea contro lo Storybook acceso, Chromium e WebKit, 1440×900, uscendo dalla scena verso un'altra e tornando:
+  - `Pagine/Lista › Con dati`: ricerca «EN» ripresa; `Poche righe`, chiave diversa, parte vuota.
+  - `Pagine/Prodotti › Soglia della pagina`: scorrimento con la rotella a 2460px (120 righe caricate), clic sulla riga 68: al ritorno 2460px, 120 righe, la riga 68 intera nel riquadro.
+  - `Con dati, prova`: 40 righe all'apertura, come prima.
+- **Da sapere, scoperto provando**: nelle due scene `Con dati` la `play` apre il menu «⋯» della prima riga, e la tabella conta qualunque clic dentro la riga, anche sul grilletto del menu, come la riga aperta. Al ritorno quindi la tabella riporta in vista la prima riga e lo scorrimento si perde. È il comportamento giusto della tabella, non un difetto della pagina; le due scene ora dicono che ricerca, filtri e ordinamento tornano, e rimandano a `Soglia della pagina` per lo scorrimento. Resta una domanda sulla tabella, non aperta: se aprire il menu di riga debba contare come «aprire la riga».
+- `npm run check:statici` verde.
+- `npm run test:a11y`, due corse intere, 2492 scansioni in 4 passate: **0 violazioni axe** in entrambe; cadute solo prove («imbracatura») in file non toccati, e diverse fra una corsa e l'altra. Prima corsa (con lo Storybook di sviluppo acceso accanto): cinque prove di `testo-segnaposto.stories.tsx` nella sola passata scuro/chiuso; da sole, scuro/chiuso, 39 su 39 per tre volte. Seconda corsa (Storybook spento): `testo-segnaposto` verde; cadute `data-grid › Celle Tipizzate, prova` (chiaro/chiuso e chiaro/aperto, «expected -39.5 to be greater than or equal to 4», la stessa già negli aperti) e `Celle Tipizzate, calendario, prova` (scuro/aperto, una riga che doveva essere sparita). La modifica tocca solo la pagina lista e due file di scene, nessuno dei due usati da quelle prove, e le chiavi di `memoria` sono proprie delle scene: niente stato che passi da una scena all'altra. Prove non toccate, causa non cercata in questa sessione.
+- `npm run test:webkit` 48 su 48.
+
+#### Aperti
+
+- Anagrafe: rileggere l'esempio alla versione nuova; niente da reinstallare (la pagina d'esempio non si installa).
+- `data-grid › Celle Tipizzate, prova`: spiegata e corretta nella #185 (voce sopra). Restano `Celle Tipizzate, calendario, prova` e le cinque di `testo-segnaposto`, negli «Aperti» della voce sopra.
+- Se aprire il menu «⋯» di una riga debba contare come «riga aperta» per `memoria` (sopra).
