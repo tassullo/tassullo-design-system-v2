@@ -141,12 +141,6 @@ export function RichiestaSupporto({
   const errori = tentato ? controlla(titolo, testo) : { titolo: null, descrizione: null }
   const pieno = screenshot.length >= massimo
 
-  function cambiaApertura(nuovo: boolean) {
-    // Durante l'invio il dialogo non si chiude: né con Esc, né col clic fuori, né trascinando il cassetto.
-    if (!nuovo && inCorso) return
-    onApertoChange(nuovo)
-  }
-
   function aggiungi(file: File[]) {
     setErroriFile([])
     setScreenshot((prima) => [...prima, ...file.map((f) => ({ id: `screenshot-${prossimoId++}`, file: f }))])
@@ -196,8 +190,9 @@ export function RichiestaSupporto({
     onApertoChange(false)
   }
 
+  // Durante l'invio il dialogo non si chiude: né con Esc, né col clic fuori, né trascinando il cassetto.
   return (
-    <ResponsiveDialog open={aperto} onOpenChange={cambiaApertura} forma={forma}>
+    <ResponsiveDialog open={aperto} onOpenChange={(nuovo) => onApertoChange(nuovo)} inCorso={inCorso} forma={forma}>
       <ResponsiveDialogContent className="md:max-w-4xl">
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>Apri una richiesta</ResponsiveDialogTitle>
