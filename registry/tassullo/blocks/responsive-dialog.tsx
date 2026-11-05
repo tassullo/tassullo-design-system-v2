@@ -76,10 +76,44 @@
  * incoraggia, perché con react-hook-form lo stato sta in `useForm()` e non nel
  * DOM. Succede solo trascinando il bordo della finestra attraverso i 768px
  * mentre si compila: raro, e il rimedio esiste.
+ *
+ * ── La chiusura protetta: `sporco` e `inCorso` ──────────────────────────
+ *
+ * Proposta #190 di Studio, 2026-11-05, approvata da Francesco lo stesso
+ * giorno. Un dialogo lungo chiuso per sbaglio — Esc, un tocco fuori,
+ * «Annulla», la crocetta, il gesto del cassetto, il tasto «indietro» di
+ * Android — perdeva tutto senza avviso, e ogni app lo intercettava da sé con
+ * `onOpenChange` più un `tassullo-confirm-dialog`. Qui la cosa si fa una
+ * volta: con `sporco` ogni chiusura chiesta da chi usa l'app si ferma con
+ * `cancel()` di Base UI e si apre una conferma; con `inCorso` si ferma e
+ * basta. Passa solo la chiusura imperativa (`imperative-action`), che è
+ * quella con cui il blocco chiude dopo la conferma, e quella dell'app che
+ * mette `open={false}`, che non passa da `onOpenChange` affatto.
+ *
+ * Perché `cancel()` e non il solo «non inoltro all'app»: nel cassetto, a
+ * gesto annullato, Base UI riporta subito il pannello al suo posto
+ * (`DrawerViewport`, ramo `isCanceled`). Senza `cancel()`, in forma
+ * controllata, se ne accorgerebbe solo al fotogramma dopo, e in forma non
+ * controllata il cassetto si chiuderebbe.
+ *
+ * I testi sono quelli consigliati, uguali in tutte le app; `testiChiusura`
+ * ne cambia uno o più dove un dialogo ha bisogno di dire altro (deciso da
+ * Francesco lo stesso giorno: «testi consigliati», non obbligati).
+ *
+ * La conferma si rende **dentro** `ResponsiveDialogContent`, non accanto:
+ * è la forma annidata di `confirm-dialog` (proposta #60), in cui `Esc`
+ * chiude la sola conferma e il dialogo sotto resta com'era.
  */
-import { createContext, useContext, type ComponentProps } from "react"
+import {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react"
 
 import { cn } from "cn"
+import { ConfirmDialog } from "@/registry/tassullo/blocks/confirm-dialog"
 import { useIsMobile } from "@/registry/tassullo/hooks/use-mobile"
 import {
   Dialog,
@@ -179,7 +213,63 @@ export type ResponsiveDialogProps = ComponentProps<typeof Dialog> & {
    * due.
    */
   forma?: "auto" | Forma
+  /**
+   * Il contenuto ha modifiche non salvate. Ogni chiusura chiesta da chi usa
+   * l'app — `Esc`, un clic fuori, «Annulla», la crocetta, il gesto che
+   * abbassa il cassetto, il tasto «indietro» del telefono — si ferma, e il
+   * dialogo chiede se chiudere e perdere le modifiche. Con un modulo
+   * react-hook-form è `formState.isDirty`.
+   */
+  sporco?: boolean
+  /**
+   * Un invio è in corso: il dialogo non si chiude in nessun modo, finché
+   * l'invio non finisce.
+   */
+  inCorso?: boolean
+  /**
+   * I testi della domanda, dove servono parole diverse da quelle consigliate.
+   * Si passano solo quelli da cambiare; gli altri restano i consigliati.
+   */
+  testiChiusura?: TestiChiusura
 }
+
+/**
+ * I testi della domanda che compare chiudendo un dialogo con modifiche non
+ * salvate.
+ */
+export type TestiChiusura = {
+  /** La domanda. Consigliato: «Chiudere senza salvare?». */
+  titolo?: string
+  /** La spiegazione. Consigliata: «Le modifiche che hai fatto andranno perse.». */
+  descrizione?: string
+  /** Il bottone che torna al modulo. Consigliato: «Continua a modificare». */
+  annulla?: string
+  /** Il bottone che chiude e perde le modifiche. Consigliato: «Chiudi senza salvare». */
+  conferma?: string
+}
+
+// I testi consigliati, quelli che si usano se l'app non ne passa altri. Non
+// esportati: un file di componenti che esporta anche costanti spegne
+// l'aggiornamento a caldo di Vite (`react-refresh/only-export-components`).
+const TESTI_CHIUSURA: Required<TestiChiusura> = {
+  titolo: "Chiudere senza salvare?",
+  descrizione: "Le modifiche che hai fatto andranno perse.",
+  annulla: "Continua a modificare",
+  conferma: "Chiudi senza salvare",
+}
+
+type DialogActions = NonNullable<
+  NonNullable<ComponentProps<typeof Dialog>["actionsRef"]>["current"]
+>
+
+type Protezione = {
+  testi: Required<TestiChiusura>
+  chiede: boolean
+  setChiede: (chiede: boolean) => void
+  chiudi: () => void
+}
+
+const ProtezioneCtx = createContext<Protezione | null>(null)
 
 /**
  * La radice. Monta `Dialog` o `Drawer` e lo dice ai figli attraverso il
@@ -188,15 +278,89 @@ export type ResponsiveDialogProps = ComponentProps<typeof Dialog> & {
  */
 export function ResponsiveDialog({
   forma = "auto",
+  sporco = false,
+  inCorso = false,
+  testiChiusura,
+  onOpenChange,
+  actionsRef,
   ...props
 }: ResponsiveDialogProps) {
   const stretto = useIsMobile()
   const scelta: Forma = forma === "auto" ? (stretto ? "drawer" : "dialog") : forma
   const Radice = scelta === "dialog" ? Dialog : DrawerComeDialog
+
+  const [chiede, setChiede] = useState(false)
+  const azioniNostre = useRef<DialogActions | null>(null)
+  const azioni = actionsRef ?? azioniNostre
+
+  const cambia: NonNullable<ResponsiveDialogProps["onOpenChange"]> = (
+    aperto,
+    dettagli,
+  ) => {
+    // La chiusura imperativa passa sempre: è quella con cui il blocco chiude
+    // dopo la conferma, o con cui l'app chiude di proposito.
+    if (!aperto && dettagli.reason !== "imperative-action") {
+      if (inCorso) {
+        dettagli.cancel()
+        return
+      }
+      if (sporco) {
+        // `cancel()` ferma Base UI: nel cassetto il pannello trascinato
+        // torna subito al suo posto, invece di chiudersi.
+        dettagli.cancel()
+        setChiede(true)
+        return
+      }
+    }
+    onOpenChange?.(aperto, dettagli)
+  }
+
+  const protezione: Protezione = {
+    // Campo per campo, non con lo spread: un `titolo: undefined` passato
+    // dall'app cancellerebbe il testo consigliato invece di lasciarlo.
+    testi: {
+      titolo: testiChiusura?.titolo ?? TESTI_CHIUSURA.titolo,
+      descrizione: testiChiusura?.descrizione ?? TESTI_CHIUSURA.descrizione,
+      annulla: testiChiusura?.annulla ?? TESTI_CHIUSURA.annulla,
+      conferma: testiChiusura?.conferma ?? TESTI_CHIUSURA.conferma,
+    },
+    chiede,
+    setChiede,
+    chiudi: () => {
+      setChiede(false)
+      azioni.current?.close()
+    },
+  }
+
   return (
     <FormaCtx.Provider value={scelta}>
-      <Radice {...props} />
+      <ProtezioneCtx.Provider value={protezione}>
+        <Radice {...props} actionsRef={azioni} onOpenChange={cambia} />
+      </ProtezioneCtx.Provider>
     </FormaCtx.Provider>
+  )
+}
+
+/*
+ * La domanda della chiusura protetta. Sta dentro il pannello, così Base UI la
+ * tratta come dialogo annidato: `Esc` chiude lei e non il dialogo sotto.
+ * «Continua a modificare» è il primo bottone, quindi è lui a prendere il
+ * fuoco all'apertura: un `Invio` dato di riflesso non butta via niente.
+ */
+function DomandaChiusura() {
+  const protezione = useContext(ProtezioneCtx)
+  if (!protezione) return null
+  return (
+    <ConfirmDialog
+      aperto={protezione.chiede}
+      onApertoChange={protezione.setChiede}
+      titolo={protezione.testi.titolo}
+      descrizione={protezione.testi.descrizione}
+      annulla={protezione.testi.annulla}
+      conferma={protezione.testi.conferma}
+      tono="distruttivo"
+      onConferma={protezione.chiudi}
+    />
   )
 }
 
@@ -245,6 +409,7 @@ export function ResponsiveDialogClose(
  */
 export function ResponsiveDialogContent({
   className,
+  children,
   ...props
 }: ComponentProps<typeof DialogContent>) {
   const forma = useFormaDialogo()
@@ -254,7 +419,10 @@ export function ResponsiveDialogContent({
         data-slot="responsive-dialog-content"
         className={cn("max-h-dvh overflow-y-auto", className)}
         {...props}
-      />
+      >
+        {children}
+        <DomandaChiusura />
+      </DialogContent>
     )
   }
   /*
@@ -271,7 +439,10 @@ export function ResponsiveDialogContent({
       data-slot="responsive-dialog-content"
       className={className}
       {...restoCassetto}
-    />
+    >
+      {children}
+      <DomandaChiusura />
+    </DrawerContentComeDialog>
   )
 }
 

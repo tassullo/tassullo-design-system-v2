@@ -14914,3 +14914,28 @@ PR #187 (il menu «⋯» come riga aperta scritto, la sonda di `testo-segnaposto
 
 - Anagrafe: adottare alla `v2.0.30` (non più alla `v2.0.29`) e scrivere l'esito sulla #183.
 - `testo-segnaposto`: alla prossima caduta, leggere l'errore della sonda.
+
+## 2026-11-05 — #190: la chiusura protetta del dialogo adattivo
+
+Proposta #190 di Studio, la prima aperta da Studio: un dialogo lungo chiuso per sbaglio perdeva tutto senza avviso, e ogni app intercettava la chiusura da sé con `onOpenChange` più un `tassullo-confirm-dialog`. Ramo `fras/dialogo-chiusura-protetta`. Francesco: «Sì, procedi», sulla proposta delle due prop su `tassullo-responsive-dialog`.
+
+#### Cosa cambia
+
+- **`ResponsiveDialog` ha due prop nuove, facoltative**: `sporco` (stesso nome di `tassullo-barra-salva`) e `inCorso`. Con `sporco` ogni chiusura chiesta da chi usa l'app si ferma con `cancel()` di Base UI e si apre la domanda; con `inCorso` si ferma e basta. Passa solo la chiusura imperativa (`imperative-action`), con cui il blocco chiude dopo la conferma; e la chiusura dell'app con `open={false}`, che da `onOpenChange` non passa affatto.
+- **Perché `cancel()` e non il solo «non inoltro»**: nel cassetto, a gesto annullato, Base UI riporta subito il pannello al suo posto (`DrawerViewport`, ramo `isCanceled`). Senza, in forma controllata se ne accorgerebbe solo al fotogramma dopo, e in forma non controllata il cassetto si chiuderebbe. Il motivo `close-watcher` (il tasto «indietro» di Android) è coperto allo stesso modo.
+- **La domanda è `tassullo-confirm-dialog`, resa dentro `ResponsiveDialogContent`**: è la forma annidata della proposta #60, in cui `Esc` chiude la sola domanda. Testi fissi, uguali in tutte le app: «Chiudere senza salvare?», «Le modifiche che hai fatto andranno perse.», «Continua a modificare» (primo bottone, prende il fuoco) e «Chiudi senza salvare» (distruttivo). Confermando, il blocco chiude con `actionsRef.close()` (quello dell'app, se lo passa), quindi l'app riceve la chiusura da `onOpenChange` come ogni altra.
+- **Testi consigliati, non obbligati** (Francesco, dopo aver visto le foto: «sì, vanno bene», ma un'app deve poter mettere testi suoi). Prop `testiChiusura` con `titolo`, `descrizione`, `annulla`, `conferma`, tutti facoltativi: quelli non passati restano i consigliati. Si compongono campo per campo, non con lo spread, perché un `titolo: undefined` cancellerebbe il consigliato. La costante dei consigliati non è esportata: in un file di componenti spegnerebbe l'aggiornamento a caldo di Vite. Scena `testi propri` e la sua prova, che cade se il titolo proprio viene ignorato.
+- **`tassullo-richiesta-supporto`** usa `inCorso` al posto del suo blocco fatto a mano. Non usa `sporco`: tiene già il testo fra un'apertura e l'altra, quindi chiudendo non si perde niente.
+- `registry.json`: `tassullo-confirm-dialog` fra le dipendenze del dialogo adattivo; nei `docs` la regola d'uso, e tolto il «limite noto» di `useIsMobile` un fotogramma dopo, che il codice non ha più (legge la finestra durante il render).
+
+#### Prove
+
+- Quattro scene di prova (più quella dei testi propri) in `Blocchi/Dialogo adattivo` (dialogo e cassetto, modifiche e invio in corso): senza modifiche `Esc` chiude; con una modifica `Esc`, «Annulla» e il clic sul velo chiedono, il fuoco va su «Continua a modificare», tornando il testo c'è ancora; «Chiudi senza salvare» chiude e l'app lo sa (il modulo è tornato com'era); con `inCorso` niente chiude. **Togliendo la protezione cadono 4 su 4.** Due scene per gli occhi, `Con modifiche non salvate` e la sua forma a cassetto.
+- **Il gesto del cassetto**, Playwright dalla cartella temporanea contro lo Storybook acceso, 375×812, tocco emulato in Chromium (CDP e `TouchEvent` sintetici, stesso esito): senza modifiche il gesto chiude; con una modifica il cassetto resta alla sua altezza (424 → 424px), compare la domanda, fuoco su «Continua a modificare».
+- **In WebKit il gesto non si è potuto provare**: su macOS WebKit non ha il costruttore `Touch`, `PointerEvent` sintetici non muovono il cassetto nemmeno senza protezione, e il cassetto di Base UI non si chiude trascinando col mouse in nessuno dei due motori (provati quattro punti di partenza). Il ramo `cancel()` è JavaScript che non dipende dal motore; resta da guardare su un iPhone vero. Le quattro scene di prova, invece, passano in WebKit fino all'ultimo passo.
+- `npm run check` verde, 13 gate, rilanciato dopo i testi propri: 2528 scansioni in 4 passate (632 story), 0 violazioni; WebKit 48 su 48. Gli avvisi di `check:lint-app` sono tutti su file non toccati.
+
+#### Aperti
+
+- Il gesto del cassetto su un iPhone vero (Safari), con la style guide pubblicata.
+- Studio: adottare alla versione nuova, togliere l'intercettazione fatta a mano dai cinque dialoghi e scrivere l'esito sulla #190.
