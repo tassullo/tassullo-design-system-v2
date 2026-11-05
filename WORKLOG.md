@@ -14939,3 +14939,20 @@ Proposta #190 di Studio, la prima aperta da Studio: un dialogo lungo chiuso per 
 
 - Il gesto del cassetto su un iPhone vero (Safari), con la style guide pubblicata.
 - Studio: adottare alla versione nuova, togliere l'intercettazione fatta a mano dai cinque dialoghi e scrivere l'esito sulla #190.
+
+## 2026-11-05 — v2.0.31 pubblicata, #190 chiusa
+
+PR #191 unita col gate verde, unione `c340d4e`; la #190 si è chiusa da sé con `Closes #190`. Etichetta annotata `v2.0.31` su `c340d4e`, push della sola etichetta. Francesco: «Gate verde, unisci», poi «Sì, pubblica».
+
+- **Il gate in CI si era fermato**, e va saputo. La prima corsa (sul primo commit) è rimasta ferma più di 14 minuti al passo `playwright install --with-deps webkit`, e il secondo commit, coi testi propri, GitHub non l'aveva agganciato alla PR, anche se il ramo lo conteneva: niente corsa per lui. Nello stesso quarto d'ora GitHub rifiutava a tratti i push (via SSH «Permission denied (publickey)» con la chiave valida, via HTTPS «Internal Server Error») e la richiesta di fermare la corsa (502), con la pagina di stato «All Systems Operational». Corsa ferma fermata (Francesco: «Sì, rilancia»), commit vuoto `3171235` per far ripartire il gate: verde in 11 minuti, poi l'unione. Al primo «Gate verde, unisci» il gate su GitHub verde non era: l'unione aspetta il controllo, non la parola.
+- Dentro: `tassullo-responsive-dialog` con `sporco`, `inCorso` e `testiChiusura` (#190, voce sopra); `tassullo-richiesta-supporto` che usa `inCorso`.
+- **Non rompe chi aggiorna**: le prop sono nuove e facoltative.
+- Verifica da fuori: alla `v2.0.31` rispondono 200 `registry.json`, `public/r/tassullo-responsive-dialog.json`, `public/r/tassullo-richiesta-supporto.json` e i due sorgenti; il sorgente del dialogo contiene `testiChiusura` e `dettagli.cancel()`, l'item porta `@tassullo/tassullo-confirm-dialog` fra le dipendenze; `shadcn view …#v2.0.31` risolve l'item, con le stesse cose dentro.
+- Sulla #190 il commento di adozione: cosa c'è, i due item da reinstallare, i ripieghi da togliere nei cinque dialoghi, il caso del «Salva» scritto come `ResponsiveDialogClose`, cosa provare, e la richiesta di provare il gesto su un iPhone vero.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.31`, togliere i ripieghi e scrivere l'esito sulla #190.
+- Il gesto del cassetto su un iPhone vero (Safari).
+- Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183 (dalla voce della `v2.0.30`).
+- `testo-segnaposto`: alla prossima caduta, leggere l'errore della sonda.
