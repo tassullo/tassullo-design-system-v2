@@ -17,6 +17,7 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
   ResponsiveDialogTrigger,
+  type ResponsiveDialogProps,
 } from '@/registry/tassullo/blocks/responsive-dialog'
 import { Button } from '@/registry/tassullo/ui/button'
 import { Spinner } from '@/registry/tassullo/ui/spinner'
@@ -106,7 +107,11 @@ import { Textarea } from '@/registry/tassullo/ui/textarea'
  *   quella chiusura non chiede niente. Un «Salva» scritto come
  *   `ResponsiveDialogClose` verrebbe invece fermato, se `sporco` è ancora
  *   vero.
- * - Il testo della domanda è lo stesso in tutte le app, e non si cambia.
+ * - I testi della domanda sono quelli consigliati, e vanno bene quasi
+ *   sempre. Dove un dialogo deve dire altro, `testiChiusura` ne cambia uno o
+ *   più — `titolo`, `descrizione`, `annulla`, `conferma` — e gli altri
+ *   restano i consigliati. Il bottone che chiude dice sempre cosa si perde:
+ *   «Chiudi senza salvare», «Scarta la bozza», non «OK».
  *
  * **Tastiera e accessibilità.** In tutte e due le forme il fuoco entra nel
  * pannello e ci resta, `Esc` chiude e il fuoco torna al grilletto. Titolo e
@@ -273,10 +278,12 @@ function ScenaModifiche({
   forma,
   didascalia,
   inCorsoFisso = false,
+  testiChiusura,
 }: {
   forma: 'auto' | 'dialog' | 'drawer'
   didascalia: string
   inCorsoFisso?: boolean
+  testiChiusura?: ResponsiveDialogProps['testiChiusura']
 }) {
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -295,6 +302,7 @@ function ScenaModifiche({
       }}
       sporco={form.formState.isDirty}
       inCorso={inCorso}
+      testiChiusura={testiChiusura}
     >
       <ResponsiveDialogTrigger render={<Button>Modifica prodotto</Button>} />
       <ContenutoModulo
@@ -497,4 +505,51 @@ export const InvioInCorsoCassettoProva: Story = {
   args: {},
   render: () => <ScenaModifiche forma="drawer" didascalia="Invio in corso." inCorsoFisso />,
   play: provaInCorso('drawer-overlay'),
+}
+
+/**
+ * Con `testiChiusura`: i testi della domanda cambiati dall'app, qui per una
+ * bozza. Quelli non passati restano i consigliati.
+ */
+export const ConTestiPropri: Story = {
+  name: 'Con modifiche non salvate, testi propri',
+  args: {},
+  render: () => (
+    <ScenaModifiche
+      forma="dialog"
+      didascalia="Cambia la denominazione, poi prova a chiudere."
+      testiChiusura={{
+        titolo: 'Scartare la bozza?',
+        conferma: 'Scarta la bozza',
+      }}
+    />
+  ),
+  play: apriCol('[data-slot="responsive-dialog-trigger"]', 'responsive-dialog-content'),
+}
+
+/*
+ * La prova dei testi propri: i due passati compaiono, i due non passati
+ * restano i consigliati, e il bottone col testo proprio chiude davvero.
+ */
+async function provaTestiPropri({ canvasElement }: { canvasElement: HTMLElement }) {
+  await apriCol('[data-slot="responsive-dialog-trigger"]', 'responsive-dialog-content')({
+    canvasElement,
+  })
+  if (!pannello()) return
+  await userEvent.type(within(pannello()!).getByLabelText('Denominazione'), ' bis')
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(domanda()).toBeInTheDocument())
+  const d = within(domanda()!)
+  expect(d.getByRole('heading')).toHaveTextContent('Scartare la bozza?')
+  expect(domanda()).toHaveTextContent('Le modifiche che hai fatto andranno perse.')
+  expect(d.getByRole('button', { name: 'Continua a modificare' })).toBeInTheDocument()
+  await userEvent.click(d.getByRole('button', { name: 'Scarta la bozza' }))
+  await waitFor(() => expect(pannello()).not.toBeInTheDocument())
+}
+
+export const ConTestiPropriProva: Story = {
+  ...ConTestiPropri,
+  name: 'Con modifiche non salvate, testi propri, prova',
+  tags: ['!dev', '!autodocs'],
+  play: provaTestiPropri,
 }

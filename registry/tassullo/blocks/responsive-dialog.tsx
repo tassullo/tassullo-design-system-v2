@@ -96,6 +96,10 @@
  * controllata, se ne accorgerebbe solo al fotogramma dopo, e in forma non
  * controllata il cassetto si chiuderebbe.
  *
+ * I testi sono quelli consigliati, uguali in tutte le app; `testiChiusura`
+ * ne cambia uno o più dove un dialogo ha bisogno di dire altro (deciso da
+ * Francesco lo stesso giorno: «testi consigliati», non obbligati).
+ *
  * La conferma si rende **dentro** `ResponsiveDialogContent`, non accanto:
  * è la forma annidata di `confirm-dialog` (proposta #60), in cui `Esc`
  * chiude la sola conferma e il dialogo sotto resta com'era.
@@ -222,6 +226,36 @@ export type ResponsiveDialogProps = ComponentProps<typeof Dialog> & {
    * l'invio non finisce.
    */
   inCorso?: boolean
+  /**
+   * I testi della domanda, dove servono parole diverse da quelle consigliate.
+   * Si passano solo quelli da cambiare; gli altri restano i consigliati.
+   */
+  testiChiusura?: TestiChiusura
+}
+
+/**
+ * I testi della domanda che compare chiudendo un dialogo con modifiche non
+ * salvate.
+ */
+export type TestiChiusura = {
+  /** La domanda. Consigliato: «Chiudere senza salvare?». */
+  titolo?: string
+  /** La spiegazione. Consigliata: «Le modifiche che hai fatto andranno perse.». */
+  descrizione?: string
+  /** Il bottone che torna al modulo. Consigliato: «Continua a modificare». */
+  annulla?: string
+  /** Il bottone che chiude e perde le modifiche. Consigliato: «Chiudi senza salvare». */
+  conferma?: string
+}
+
+// I testi consigliati, quelli che si usano se l'app non ne passa altri. Non
+// esportati: un file di componenti che esporta anche costanti spegne
+// l'aggiornamento a caldo di Vite (`react-refresh/only-export-components`).
+const TESTI_CHIUSURA: Required<TestiChiusura> = {
+  titolo: "Chiudere senza salvare?",
+  descrizione: "Le modifiche che hai fatto andranno perse.",
+  annulla: "Continua a modificare",
+  conferma: "Chiudi senza salvare",
 }
 
 type DialogActions = NonNullable<
@@ -229,6 +263,7 @@ type DialogActions = NonNullable<
 >
 
 type Protezione = {
+  testi: Required<TestiChiusura>
   chiede: boolean
   setChiede: (chiede: boolean) => void
   chiudi: () => void
@@ -245,6 +280,7 @@ export function ResponsiveDialog({
   forma = "auto",
   sporco = false,
   inCorso = false,
+  testiChiusura,
   onOpenChange,
   actionsRef,
   ...props
@@ -280,6 +316,14 @@ export function ResponsiveDialog({
   }
 
   const protezione: Protezione = {
+    // Campo per campo, non con lo spread: un `titolo: undefined` passato
+    // dall'app cancellerebbe il testo consigliato invece di lasciarlo.
+    testi: {
+      titolo: testiChiusura?.titolo ?? TESTI_CHIUSURA.titolo,
+      descrizione: testiChiusura?.descrizione ?? TESTI_CHIUSURA.descrizione,
+      annulla: testiChiusura?.annulla ?? TESTI_CHIUSURA.annulla,
+      conferma: testiChiusura?.conferma ?? TESTI_CHIUSURA.conferma,
+    },
     chiede,
     setChiede,
     chiudi: () => {
@@ -310,10 +354,10 @@ function DomandaChiusura() {
     <ConfirmDialog
       aperto={protezione.chiede}
       onApertoChange={protezione.setChiede}
-      titolo="Chiudere senza salvare?"
-      descrizione="Le modifiche che hai fatto andranno perse."
-      annulla="Continua a modificare"
-      conferma="Chiudi senza salvare"
+      titolo={protezione.testi.titolo}
+      descrizione={protezione.testi.descrizione}
+      annulla={protezione.testi.annulla}
+      conferma={protezione.testi.conferma}
       tono="distruttivo"
       onConferma={protezione.chiudi}
     />
