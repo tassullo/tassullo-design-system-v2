@@ -1563,6 +1563,18 @@ export const InsiemeDegliSpaziProva: Story = {
   },
 }
 
+// Il menu dei gruppi non si smonta: chiuso, resta nella pagina dentro un
+// contenitore `hidden`. Ma ci arriva un fotogramma dopo la scelta, e fino ad
+// allora ha ancora le guardie del fuoco raggiungibili e l'elenco senza nome.
+// Una scena che finisce con la scelta aspetta il `hidden`: axe, che legge la
+// pagina subito dopo, troverebbe il menu a metà.
+async function gruppiChiusi() {
+  await waitFor(() => {
+    const menu = document.querySelector('[data-slot="select-content"]')
+    if (menu) expect(menu.closest('[hidden]')).not.toBeNull()
+  })
+}
+
 function ElencoTenutoFuori() {
   const [montato, setMontato] = useState(true)
   const [gruppo, setGruppo] = useState<string | null>(null)
@@ -1617,6 +1629,7 @@ export const ElencoTenutoFuoriProva: Story = {
       const dati = within(elencoDi(quale))
       await userEvent.click(dati.getByRole('combobox'))
       await userEvent.click(await within(document.body).findByRole('option', { name: 'Prodotto' }))
+      await gruppiChiusi()
       await waitFor(() => expect(righe(quale)).toHaveLength(3))
       await userEvent.type(dati.getByRole('searchbox'), 'lot')
       await waitFor(() => expect(righe(quale)).toEqual(['LottoIl dato non è compilato.']))
@@ -1645,6 +1658,47 @@ export const ElencoTenutoFuoriProva: Story = {
     await userEvent.click(await within(document.body).findByRole('option', { name: 'Tutti i dati' }))
     await waitFor(() => expect(stato).toHaveTextContent('tutti |'))
     expect(righe('fuori')).toHaveLength(VOCI_IN_PIU.length)
+    await gruppiChiusi()
+  },
+}
+
+// La scelta del gruppo con i fotogrammi in ritardo, come su una macchina
+// carica: il menu si nasconde al fotogramma dopo la scelta, e se la scena
+// finisce prima axe lo legge a metà, con le guardie del fuoco ancora
+// raggiungibili e l'elenco senza nome. Il ritardo, 500 ms, sta ben oltre il
+// tempo di axe su questa pagina (90 ms), e i fotogrammi restano lenti anche
+// mentre axe legge: tornano normali all'inizio della scena dopo, con la
+// pulizia del `beforeEach`. Prima di rallentare si lasciano passare due
+// fotogrammi veri: Base UI mette tutti i suoi in una coda sola, e uno già
+// chiesto porterebbe la chiusura a tempo pieno. Senza l'attesa di
+// `gruppiChiusi` la scena cade ogni volta (`docs/DECISIONI.md` §93).
+export const ElencoTenutoFuoriFotogrammiLentiProva: Story = {
+  name: 'Elenco, gruppo scelto coi fotogrammi lenti, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  args: { voci: VOCI_IN_PIU },
+  render: () => <ElencoTenutoFuori />,
+  beforeEach: () => {
+    const fotogramma = window.requestAnimationFrame
+    return () => {
+      window.requestAnimationFrame = fotogramma
+    }
+  },
+  play: async ({ canvasElement }) => {
+    const fuori = within(canvasElement.querySelector<HTMLElement>('[data-prova="fuori"]')!)
+    await userEvent.click(fuori.getByRole('combobox'))
+    const opzione = await within(document.body).findByRole('option', { name: 'Prodotto' })
+    await waitFor(() => expect(document.querySelector('[data-slot="select-content"]')).not.toHaveAttribute('data-starting-style'))
+    const fotogramma = window.requestAnimationFrame.bind(window)
+    await new Promise((fatto) => fotogramma(() => fotogramma(fatto)))
+    window.requestAnimationFrame = (richiamo) => {
+      setTimeout(() => fotogramma(richiamo), 500)
+      return 0
+    }
+    await userEvent.click(opzione)
+    // Lo stato della pagina si aggiorna alla scelta, senza aspettare il
+    // fotogramma: è il punto in cui finisce `Elenco, stato tenuto fuori`.
+    await waitFor(() => expect(canvasElement.querySelector('[data-prova="stato"]')).toHaveTextContent('Prodotto |'))
+    await gruppiChiusi()
   },
 }
 

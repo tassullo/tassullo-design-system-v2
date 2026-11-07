@@ -3,6 +3,8 @@ import { configure } from 'storybook/test'
 // @ts-expect-error — modulo virtuale del builder, senza tipi.
 import { getProjectAnnotations } from 'virtual:/@storybook/builder-vite/project-annotations.js'
 
+import { togliPausaRimasta } from './prove/pausa'
+
 /**
  * L'imbracatura del gate. Fa una cosa sola che il preview non fa da sé:
  * sceglie la **modalità** in cui girare, leggendola dall'ambiente.
@@ -97,7 +99,20 @@ const parametri = aperto
  */
 configure({ asyncUtilTimeout: 5000 })
 
+/**
+ * Ogni scena parte con le animazioni libere.
+ *
+ * Storybook, finita la `play`, mette in pausa le animazioni per la durata di
+ * axe e le libera dopo; ma se axe trova una violazione la pausa resta, e le
+ * scene seguenti dello stesso file trovano i popup fermi a metà uscita. Una
+ * caduta vera ne trascinava con sé altre quattro (`docs/DECISIONI.md` §93).
+ * Il dettaglio sta in `./prove/pausa.ts`.
+ */
+const beforeEach = () => {
+  togliPausaRimasta()
+}
+
 setProjectAnnotations([
   getProjectAnnotations(),
-  { initialGlobals: { modalita }, parameters: parametri },
+  { initialGlobals: { modalita }, parameters: parametri, beforeEach },
 ])

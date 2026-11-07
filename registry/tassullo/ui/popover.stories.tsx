@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { InfoIcon, SettingsIcon } from 'lucide-react'
+import { pauseAnimations } from 'storybook/internal/preview-api'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol } from '@/prove/apri'
+import { nelleProve, stiliDiPausa } from '@/prove/pausa'
 import { Button } from '@/registry/tassullo/ui/button'
 import { Field, FieldLabel } from '@/registry/tassullo/ui/field'
 import { Input } from '@/registry/tassullo/ui/input'
@@ -183,4 +186,59 @@ export const QuattroLati: Story = {
       ))}
     </div>
   ),
+}
+
+// Le due scene che seguono provano l'imbracatura, non il popover, e stanno
+// insieme e in quest'ordine: girano nella stessa pagina, una dopo l'altra.
+// La prima lascia accesa la pausa delle animazioni come la lascia Storybook
+// quando axe trova una violazione (il suo `afterEach` lancia e lo stile non
+// si toglie più); la seconda apre e chiude un popover e aspetta che si
+// smonti. Senza il `beforeEach` di `.storybook/vitest.setup.ts` la seconda
+// cade ogni volta, col riquadro fermo all'inizio dell'uscita
+// (`docs/DECISIONI.md` §93). Fuori dalle prove la prima non fa niente.
+function PopoverDiProva() {
+  return (
+    <Popover>
+      <PopoverTrigger render={<Button variant="outline" />}>Dettagli</PopoverTrigger>
+      <PopoverContent>
+        <PopoverHeader>
+          <PopoverTitle>Dettagli</PopoverTitle>
+          <PopoverDescription>Malta R4, sacco da 25 kg.</PopoverDescription>
+        </PopoverHeader>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export const PausaRimastaProva: Story = {
+  name: 'Una pausa rimasta, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <PopoverDiProva />,
+  play: async () => {
+    if (!nelleProve()) return
+    pauseAnimations()
+    expect(stiliDiPausa()).toHaveLength(1)
+  },
+}
+
+export const SiChiudeDopoUnaPausaProva: Story = {
+  name: 'Si chiude dopo una pausa rimasta, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  render: () => <PopoverDiProva />,
+  play: async ({ canvasElement }) => {
+    const contenuto = () => document.querySelector('[data-slot="popover-content"]')
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Dettagli' }))
+    await waitFor(() => expect(contenuto()).toHaveAttribute('data-open'))
+    await userEvent.keyboard('[Escape]')
+    try {
+      await waitFor(() => expect(contenuto()).not.toBeInTheDocument())
+    } catch (errore) {
+      const animazioni = contenuto()
+        ?.getAnimations()
+        .map((a) => `${a.playState}:${Math.round(Number(a.currentTime))}`)
+      throw new Error(
+        `il riquadro non si smonta: animazioni ${JSON.stringify(animazioni)}, stili di pausa ${stiliDiPausa().length}\n${String(errore).slice(0, 200)}`
+      )
+    }
+  },
 }
