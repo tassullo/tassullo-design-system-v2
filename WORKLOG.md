@@ -15336,6 +15336,8 @@ PR #211 unita col gate verde in CI, unione `470b7cd`. Prima dell'unione `main` s
 - **Non rompe chi aggiorna**: una funzione e una costante in più in `numeri`, una prop facoltativa spenta di serie sul campo; la cella a scelta cambia solo nel fotogramma dopo l'apertura.
 - Verifica da fuori: alla `v2.0.38` rispondono 200 `registry.json`, `public/r/numeri.json`, `public/r/tassullo-campo-numero.json`, `public/r/tassullo-foglio-gruppi.json` e `lib/numeri.ts` con `coloreNegativo`; `shadcn view …tassullo-campo-numero#v2.0.38` restituisce il blocco con `negativiInRosso`.
 
+- Sulla #196 il commento di adozione (Francesco: «Sì, sulla #196»): il comando, il rosso nella `rendi` dei risultati con un esempio, il `Tab` della cella a scelta, dove provarlo.
+
 #### Aperti
 
 - Studio: adottare alla `v2.0.37` (#195, #199) e alla `v2.0.38`; nel computo `coloreNegativo` nella `rendi` dei risultati.
