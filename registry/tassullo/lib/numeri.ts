@@ -284,3 +284,28 @@ function separaDecimale(t: string): string | null {
 export function scriviNumero(valore: string): string {
   return valore === "" || Number.isNaN(Number(valore)) ? valore : valore.replace(".", ",")
 }
+
+/**
+ * Come `scriviNumero`, **col punto delle migliaia**: per un campo che si
+ * guarda e non si sta scrivendo. Mentre ci si scrive si torna a
+ * `scriviNumero`: un punto lasciato fra le cifre si rileggerebbe come un
+ * decimale. Le cifre decimali restano tutte, senza arrotondare: a differenza
+ * di `decimale()`, qui non si sceglie quante.
+ *
+ * ```ts
+ * scriviNumeroConMigliaia("1234.5")   // "1.234,5"
+ * scriviNumeroConMigliaia("-1234567") // "-1.234.567"
+ * scriviNumeroConMigliaia("0.125")    // "0,125"
+ * ```
+ */
+export function scriviNumeroConMigliaia(valore: string): string {
+  const scritto = scriviNumero(valore)
+  // Le cifre si raggruppano sul testo e non con `Intl`: `Intl` scrive il
+  // valore esatto del numero in virgola mobile, e `0.1` uscirebbe con venti
+  // cifre. La notazione esponenziale e un testo che non è un numero restano
+  // com'erano.
+  const [interi, decimali] = scritto.split(",")
+  if (!/^-?\d+$/.test(interi)) return scritto
+  const raggruppati = interi.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  return decimali === undefined ? raggruppati : `${raggruppati},${decimali}`
+}

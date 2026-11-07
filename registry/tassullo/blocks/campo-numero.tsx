@@ -26,6 +26,9 @@
  * - Si legge con `leggiNumero(testo, { punto: "decimale" })`: un punto solo è
  *   il decimale. `1.500` diventa 1,5, e all'uscita il campo lo **riscrive**
  *   `1,5`: il valore cambia sotto gli occhi di chi scrive, non dopo.
+ * - A riposo il numero porta il punto delle migliaia (`1.234,5`), chiesto da
+ *   Francesco il 2026-11-07; a fuoco no (`1234,5`), perché un punto rimasto
+ *   fra le cifre si rileggerebbe come il decimale.
  * - Il valore si conferma all'uscita dal campo o con `Invio`, mai a ogni
  *   tasto: a metà digitazione `1,` o `-` non sono numeri, e un errore che
  *   lampeggia mentre si scrive è rumore.
@@ -56,7 +59,12 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/registry/tassullo/ui/input-group"
-import { formattatore, leggiNumero, scriviNumero } from "@/registry/tassullo/lib/numeri"
+import {
+  formattatore,
+  leggiNumero,
+  scriviNumero,
+  scriviNumeroConMigliaia,
+} from "@/registry/tassullo/lib/numeri"
 
 /** Le prop di `CampoNumero`. Quelle non elencate vanno all'`input`. */
 export type CampoNumeroProps = Omit<
@@ -93,9 +101,14 @@ export type CampoNumeroProps = Omit<
   errore?: string | null
 }
 
-/** Ciò che si mostra nel campo per un valore confermato. */
+/** Ciò che si scrive nel campo per un valore confermato: cifre senza punti. */
 function testoDi(valore: number | null): string {
   return valore === null ? "" : scriviNumero(String(valore))
+}
+
+/** Ciò che si legge nel campo a riposo: col punto delle migliaia. */
+function testoARiposo(valore: number | null): string {
+  return valore === null ? "" : scriviNumeroConMigliaia(String(valore))
 }
 
 // Un limite nel messaggio d'errore, scritto come si legge: `10.000`, `0,5`.
@@ -144,6 +157,7 @@ export function CampoNumero({
   errore,
   id,
   onBlur,
+  onFocus,
   onKeyDown,
   className,
   ...input
@@ -152,6 +166,7 @@ export function CampoNumero({
   const idCampo = id ?? base
   const [bozza, setBozza] = useState(() => testoDi(valore))
   const [erroreCampo, setErroreCampo] = useState<string | null>(null)
+  const [aFuoco, setAFuoco] = useState(false)
 
   // Il valore cambiato da fuori riscrive il campo e toglie l'errore: è la
   // forma che React indica per uno stato che segue una prop, senza effetti.
@@ -198,10 +213,23 @@ export function CampoNumero({
     }
   }
 
+  function alFuoco(evento: FocusEvent<HTMLInputElement>) {
+    setAFuoco(true)
+    onFocus?.(evento)
+  }
+
   function alUscita(evento: FocusEvent<HTMLInputElement>) {
+    setAFuoco(false)
     conferma()
     onBlur?.(evento)
   }
+
+  // A riposo il numero confermato si legge col punto delle migliaia; entrando
+  // nel campo il punto sparisce, e si scrive sulle cifre nude. Lasciarlo lì
+  // sarebbe un errore e non solo un intralcio: `1.234` riletto all'uscita, con
+  // un punto solo che è il decimale, diventerebbe 1,234. Un testo sbagliato
+  // resta com'è scritto anche a riposo.
+  const mostrato = !aFuoco && erroreCampo === null && bozza === testoDi(valore) ? testoARiposo(valore) : bozza
 
   const messaggio = erroreCampo ?? errore ?? null
   const nonValido = messaggio !== null && messaggio !== ""
@@ -221,9 +249,10 @@ export function CampoNumero({
           type="text"
           inputMode="decimal"
           autoComplete="off"
-          value={bozza}
+          value={mostrato}
           onChange={(e) => alCambio(e.target.value)}
           onKeyDown={alTasto}
+          onFocus={alFuoco}
           onBlur={alUscita}
           aria-invalid={nonValido}
           aria-describedby={descritto || undefined}

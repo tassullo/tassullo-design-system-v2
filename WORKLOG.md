@@ -15177,7 +15177,15 @@ Proposta di Studio (lo stesso bisogno c'è in Anagrafe). Ramo `fras/campo-numero
 - `npm run check`, in un worktree separato con la macchina carica (load average fra 38 e 40, tre sessioni coi loro gate): gli undici statici verdi; WebKit 50 su 50; nelle quattro passate di axe 0 violazioni su tutte le scene di #195. Due giri sono caduti su prove instabili di altri file, mai le stesse due volte: il primo su `testo-segnaposto` in chiaro/aperto e scuro/aperto (`exit:paused:0`, la caduta già aperta nel diario), il secondo, dopo l'unione di `main`, su `message-scroller › Conversazione Salvata` (prova scaduta, solo chiaro/aperto), che da sola passa. File non toccati, prove non ritoccate: decide il gate in CI, che gira su una macchina scarica.
 - **Tre sessioni nella stessa cartella** (#195, #196, #199). Ho creato il mio ramo nella cartella comune, poi la sessione #199 l'ha portata sul suo ramo con i miei file non ancora in un commit. Il primo `npm run check` è caduto solo su una scena di #199 (`ingrandimento › Gesti, prova`). Spostato il lavoro in un worktree separato, con dentro solo le modifiche di #195; avvisate #199 e #196, perché i miei file non entrino nei loro commit.
 
+#### Il punto delle migliaia (richiesta di Francesco, a PR aperta)
+
+- «possiamo aggiungere anche il separatore migliaia?». Fatto **a riposo**: fuori dal campo `1.234,5`, a fuoco `1234,5`, uscendo torna. A fuoco no, perché `1.234` riletto con la regola nuova diventerebbe 1,234.
+- `scriviNumeroConMigliaia` in `numeri`, funzione nuova: la prima stesura era un'opzione di `scriviNumero`, e `tsc` l'ha fermata sulla story del foglio a gruppi che fa `.map(scriviNumero)` (l'indice finiva nelle opzioni). Lo stesso sarebbe successo nelle app.
+- Scene `Migliaia` e `Migliaia, prova`: con il punto lasciato nel campo a fuoco la prova cade, con le cifre nude passa. `Quattro casi` ora aspetta `1.234,5`.
+- `npm run check` con la modifica, macchina più scarica (load average 8): statici verdi, axe 2656 scansioni in 4 passate, 0 violazioni. WebKit 49 su 50 al primo giro: caduta `pdf-preview › Zoom in una griglia, prova` («expected 0 to be greater than 0»), file non toccato; rilanciato, 50 su 50. Non ritoccata.
+- Ripulita la cartella comune su decisione di Francesco («Li toglie la #195», riferita dalla sessione #199): sei file riportati a `HEAD` e tre cancellati, tutti già nel commit del ramo.
+
 #### Aperti
 
 - Studio e Anagrafe: adottare alla versione nuova, togliere `leggiDecimale` e il `CampoNumero` fatto a mano, e i `// in attesa di tassullo-design-system-v2#195`.
-- La cartella comune: togliere da lì i file di #195, d'accordo con la sessione #199.
+- `pdf-preview › Zoom in una griglia, prova` in WebKit: caduta una volta su due giri («expected 0 to be greater than 0»). Cercarne la causa.

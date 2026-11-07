@@ -55,9 +55,10 @@ import { FieldGroup } from '@/registry/tassullo/ui/field'
  *
  * - Il valore si conferma all'uscita dal campo o con `Invio`, non a ogni
  *   tasto: `onValore` riceve solo numeri validi e nei limiti.
- * - Nel campo il numero si scrive senza il punto delle migliaia, che fra cifre
- *   da correggere sarebbe d'intralcio: `1234,5`. Nelle tabelle e nei totali si
- *   formatta con le funzioni di `numeri`.
+ * - A riposo il numero si legge col punto delle migliaia: `1.234,5`. Entrando
+ *   nel campo il punto sparisce e si scrive sulle cifre nude, `1234,5`: un
+ *   punto lasciato fra le cifre si rileggerebbe come il decimale, e `1.234`
+ *   diventerebbe 1,234. Uscendo, il punto torna.
  * - Sul telefono si apre il tastierino numerico. Quello dell'iPhone non ha il
  *   segno meno: per un campo che ammette valori negativi va detto nella
  *   `descrizione`, o il numero si scrive dalla tastiera completa.
@@ -111,7 +112,7 @@ export const Panoramica: Story = {
 const QUATTRO_CASI = [
   { etichetta: 'Coefficiente', scritto: '0.125', resta: '0,125', valore: '0.125' },
   { etichetta: 'Lunghezza', scritto: '1.500', resta: '1,5', valore: '1.5' },
-  { etichetta: 'Quantità', scritto: '1.234,5', resta: '1234,5', valore: '1234.5' },
+  { etichetta: 'Quantità', scritto: '1.234,5', resta: '1.234,5', valore: '1234.5' },
   { etichetta: 'Resa', scritto: 'dodici', resta: 'dodici', valore: 'nessuno' },
 ] as const
 
@@ -145,6 +146,50 @@ export const QuattroCasi: Story = {
     const resa = tela.getByLabelText('Resa')
     expect(resa).toHaveAttribute('aria-invalid', 'true')
     expect(tela.getByRole('alert')).toHaveTextContent('Scrivi un numero, per esempio 12,5.')
+  },
+}
+
+/**
+ * Il punto delle migliaia: a riposo c'è, entrando nel campo sparisce, uscendo
+ * torna. Il valore non cambia.
+ */
+export const Migliaia: Story = {
+  args: { etichetta: 'Volume', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Volume" unita="m³" iniziale={1234} />
+      <Esempio etichetta="Importo" unita="€" posizioneUnita="prima" iniziale={1234567.5} />
+    </FieldGroup>
+  ),
+}
+
+// Prova del punto delle migliaia. Il caso che conta è il primo: un intero di
+// quattro cifre mostrato `1.234`, se il punto restasse nel campo a fuoco,
+// all'uscita si rileggerebbe 1,234.
+export const MigliaiaProva: Story = {
+  ...Migliaia,
+  name: 'Migliaia, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const volume = tela.getByLabelText('Volume')
+    const valoreVolume = volume.closest('[data-slot="field"]')!.parentElement!.querySelector('[data-valore]')
+    expect(volume).toHaveValue('1.234')
+    expect(tela.getByLabelText('Importo')).toHaveValue('1.234.567,5')
+
+    // A fuoco le cifre nude; uscendo senza cambiare niente, il valore resta.
+    await userEvent.click(volume)
+    expect(volume).toHaveValue('1234')
+    await userEvent.tab()
+    expect(volume).toHaveValue('1.234')
+    expect(valoreVolume).toHaveTextContent('Valore confermato: 1234')
+
+    // Si scrive sulle cifre nude: aggiunta una cifra, il numero è 12345.
+    await userEvent.click(volume)
+    await userEvent.type(volume, '5')
+    await userEvent.tab()
+    await waitFor(() => expect(volume).toHaveValue('12.345'))
+    expect(valoreVolume).toHaveTextContent('Valore confermato: 12345')
   },
 }
 
