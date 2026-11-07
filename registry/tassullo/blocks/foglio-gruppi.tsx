@@ -737,6 +737,7 @@ function CellaFoglio<TTestata, TRiga>({
   extra,
   etichettaColonna,
   fuoriRef,
+  compatto = false,
 }: {
   motore: MotoreFoglioGruppi<TTestata, TRiga>
   posizione: PosizioneFoglio
@@ -746,6 +747,8 @@ function CellaFoglio<TTestata, TRiga>({
   etichettaColonna: string
   /** `true` quando il fuoco ha lasciato le celle: v. `FoglioGruppi`. */
   fuoriRef: React.RefObject<boolean>
+  /** Righe da 24px invece di 32: l'aspetto `stampato` (v. `FoglioGruppi`). */
+  compatto?: boolean
 }) {
   const zona = posizione.zona
   const cella = zona === "testata" ? colonna.testata : zona === "corpo" ? colonna.corpo : colonna.piede
@@ -782,7 +785,7 @@ function CellaFoglio<TTestata, TRiga>({
 
   if (cella.tipo === "fissa") {
     return (
-      <TableCell className={cn("truncate", classiAllineamento(colonna))}>
+      <TableCell className={cn("truncate", classiAllineamento(colonna), compatto && "py-0")}>
         {cella.rendi()}
       </TableCell>
     )
@@ -790,7 +793,7 @@ function CellaFoglio<TTestata, TRiga>({
 
   if (cella.tipo === "calcolata") {
     return (
-      <TableCell className={cn("truncate", classiAllineamento(colonna))}>
+      <TableCell className={cn("truncate", classiAllineamento(colonna), compatto && "py-0")}>
         {(cella.rendi as (d: unknown, a: unknown) => React.ReactNode)(dato, extra)}
       </TableCell>
     )
@@ -807,7 +810,7 @@ function CellaFoglio<TTestata, TRiga>({
    * sparirebbero e il testo salterebbe di 16px a sinistra.
    */
   const destra = (cella.allineamento ?? colonna.allineamento) === "destra"
-  const riquadro = cn("px-2 py-1", RIGA, destra && "justify-end")
+  const riquadro = cn("px-2 py-1", RIGA, compatto && "min-h-6", destra && "justify-end")
   const classiValore = cn(destra ? "text-right tabular-nums" : "text-left", cella.classiTesto)
   const prefisso = cella.prefisso ? <span className="me-2 shrink-0">{cella.prefisso}</span> : null
   const scelta = cella.tipo === "scelta" ? cella : undefined
@@ -1091,6 +1094,15 @@ export type FoglioGruppiProps<TTestata, TRiga> = {
   piede?: (gruppi: GruppoFoglio<TTestata, TRiga>[]) => React.ReactNode
   /** Descrizione della tabella per chi non vede — obbligatoria come un `alt`. */
   didascalia: string
+  /**
+   * Come si presenta il foglio. `griglia`, di serie, ha un filetto per ogni
+   * riga e la testata su fondo grigio. `stampato` si legge come un computo su
+   * carta: intestazioni in maiuscolo con un doppio filetto sotto, dentro un
+   * gruppo solo i filetti verticali, il numero del gruppo accanto al menu, il
+   * piede in grassetto con un filetto scuro sopra, il totale col doppio
+   * filetto, righe più basse. Tastiera e celle sono le stesse.
+   */
+  aspetto?: "griglia" | "stampato"
   className?: string
 }
 
@@ -1100,9 +1112,11 @@ export function FoglioGruppi<TTestata, TRiga>({
   azione,
   piede,
   didascalia,
+  aspetto = "griglia",
   className,
 }: FoglioGruppiProps<TTestata, TRiga>) {
   const { gruppi, colonne, posizione } = motore
+  const stampato = aspetto === "stampato"
   const apreComandi = React.useRef<(() => void) | null>(null)
   const radiceRef = React.useRef<HTMLDivElement>(null)
 
@@ -1189,6 +1203,11 @@ export function FoglioGruppi<TTestata, TRiga>({
         "overflow-x-auto",
         // In scuro il fondo è `border-strong` al 70%: `bg-muted` si staccava
         // appena dalla card, lo stesso rimedio della `data-grid`.
+        // L'aspetto `stampato`: doppio filetto sotto l'intestazione e sopra il
+        // totale, nessun filetto orizzontale dentro un gruppo, il piede con un
+        // filetto scuro sopra. Il resto lo decide ogni riga, più sotto.
+        stampato &&
+          "[&_thead]:bg-transparent [&_thead_tr]:border-b-3 [&_thead_tr]:border-double [&_thead_tr]:border-foreground [&_tbody_tr]:border-b-0 [&_tbody>tr:last-child>td]:border-t [&_tbody>tr:last-child>td]:border-t-muted-foreground [&_tfoot]:bg-transparent [&_tfoot]:font-bold [&_tfoot_td]:border-t-3 [&_tfoot_td]:border-double [&_tfoot_td]:border-t-foreground",
         fuoco === "fuori" &&
           "[&_[data-attiva]]:ring-1 [&_[data-attiva]]:ring-muted-foreground [&_[data-attiva]]:ring-inset [&_tr:has([data-attiva])]:bg-muted dark:[&_tr:has([data-attiva])]:bg-border-strong/70",
         className
@@ -1235,7 +1254,17 @@ export function FoglioGruppi<TTestata, TRiga>({
         <TableHeader>
           <TableRow>
             {colonne.map((col) => (
-              <TableHead key={col.id} className={cn("truncate", classiAllineamento(col))}>
+              <TableHead
+                key={col.id}
+                className={cn(
+                  "truncate",
+                  // Stampato: maiuscolo piccolo, centrato sulle colonne a
+                  // larghezza fissa, a sinistra su quella che assorbe lo spazio.
+                  stampato
+                    ? cn("text-xs font-semibold tracking-wide uppercase", col.larghezza ? "text-center" : "text-left")
+                    : classiAllineamento(col)
+                )}
+              >
                 {col.titolo}
               </TableHead>
             ))}
@@ -1246,9 +1275,9 @@ export function FoglioGruppi<TTestata, TRiga>({
           const comandiGruppo = comandi?.(gruppo, gi) ?? []
           const aFuocoQui = posizione?.gruppo === gi
           return (
-            <TableBody key={gruppo.id} className="border-b-2">
+            <TableBody key={gruppo.id} className={stampato ? undefined : "border-b-2"}>
               {/* Testata del gruppo */}
-              <TableRow className="bg-muted/40">
+              <TableRow className={stampato ? "[&>td]:border-t [&>td]:pt-1" : "bg-muted/40"}>
                 {colonne.map((col, ci) => {
                   const posizioneCella: PosizioneFoglio = {
                     gruppo: gi,
@@ -1256,20 +1285,27 @@ export function FoglioGruppi<TTestata, TRiga>({
                     riga: 0,
                     colonna: ci,
                   }
-                  if (ci === 0 && comandiGruppo.length > 0) {
+                  if (ci === 0 && (comandiGruppo.length > 0 || stampato)) {
                     return (
-                      <TableCell key={col.id}>
-                        <ComandiGruppo
-                          comandi={comandiGruppo}
-                          etichetta={`Azioni del gruppo ${gi + 1}`}
-                          apertoRef={aFuocoQui ? apreComandi : undefined}
-                        />
+                      <TableCell key={col.id} className={cn(stampato && "px-1")}>
+                        {/* Stampato: il numero del gruppo, accanto al menu. */}
+                        <span className="flex items-center justify-between gap-1">
+                          {stampato ? <span className="font-bold">{gi + 1}</span> : null}
+                          {comandiGruppo.length > 0 ? (
+                            <ComandiGruppo
+                              comandi={comandiGruppo}
+                              etichetta={`Azioni del gruppo ${gi + 1}`}
+                              apertoRef={aFuocoQui ? apreComandi : undefined}
+                            />
+                          ) : null}
+                        </span>
                       </TableCell>
                     )
                   }
                   return (
                     <CellaFoglio
                       fuoriRef={fuoriRef}
+                      compatto={stampato}
                       key={col.id}
                       motore={motore}
                       posizione={posizioneCella}
@@ -1287,6 +1323,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                   {colonne.map((col, ci) => (
                     <CellaFoglio
                       fuoriRef={fuoriRef}
+                      compatto={stampato}
                       key={col.id}
                       motore={motore}
                       posizione={{ gruppo: gi, zona: "corpo", riga: ri, colonna: ci }}
@@ -1326,6 +1363,7 @@ export function FoglioGruppi<TTestata, TRiga>({
                           disabled={comando.disabilitato}
                           className={cn(
                             RIGA,
+                            stampato && "min-h-6",
                             "px-2 py-1 text-sm text-accent-ink underline-offset-4 outline-none",
                             "hover:underline",
                             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
@@ -1349,10 +1387,11 @@ export function FoglioGruppi<TTestata, TRiga>({
               ) : null}
 
               {/* Piede del gruppo */}
-              <TableRow className="border-t font-medium">
+              <TableRow className={stampato ? "font-bold [&>td]:py-1" : "border-t font-medium"}>
                 {colonne.map((col, ci) => (
                   <CellaFoglio
                     fuoriRef={fuoriRef}
+                    compatto={stampato}
                     key={col.id}
                     motore={motore}
                     posizione={{ gruppo: gi, zona: "piede", riga: 0, colonna: ci }}
