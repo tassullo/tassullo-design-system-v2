@@ -4285,3 +4285,41 @@ Una barra ferma nuova va a `z-30`; un contenuto che resta fermo scorrendo sta so
 
 **La prova.** `Blocchi/Barra di salvataggio → Con una tabella e un avviso, prova`, in Chromium e WebKit: porta l'intestazione della tabella dietro la barra e chiede a `elementFromPoint` chi riceve il clic al centro di «Salva»; poi salva, il salvataggio fallisce, e misura il toast. Sul codice di prima cade sul primo punto; con la sola correzione del livello cade sul secondo. Una trappola trovata scrivendola: un `waitFor` sulla posizione del toast passava anche senza correzione, perché a metà dell'entrata il toast sta più in alto di dove si ferma. Si aspetta `data-mounted="true"` e la fine delle sue animazioni (`getAnimations()`), poi si misura una volta sola.
 
+## 92. Un numero scritto a mano: un punto solo è il decimale, e il campo è un blocco su `input-group` (proposta #195, 2026-11-07)
+
+**Da dove viene.** Proposta #195 di Studio. `leggiNumero` di `lib/numeri.ts` decide un punto senza virgola così: tre cifre dopo il punto sono migliaia. È giusto per un testo incollato da un gestionale, ma in un campo di quantità o di coefficienti `0.125` diventava **125**, `0.171` 171, `1.500` 1500, senza nessun avviso.
+
+**La lettura per i campi scritti a mano: `leggiNumero(testo, { punto: "decimale" })`.** Senza l'opzione la funzione resta com'era, quindi chi la usa già non cambia. Con l'opzione:
+
+| scritto | di serie | `punto: "decimale"` |
+|---|---|---|
+| `0.125` | `125` | `0.125` |
+| `1.500` | `1500` | `1.5` |
+| `20.78` | `20.78` | `20.78` |
+| `1.234,5` | `1234.5` | `1234.5` |
+| `1.234.567` | `1234567` | `1234567` |
+| `12.5,3` | `125.3` | resta `12.5,3`, quindi non valido |
+| `1e3` | `1000` | resta `1e3`, quindi non valido |
+
+Con la virgola i punti devono essere migliaia scritte giuste, a gruppi di tre. Più punti senza virgola sono migliaia, perché un decimale non compare due volte. Si accettano solo cifre, un meno davanti e i separatori: `Number()` prenderebbe anche `1e3` e `Infinity`. Un testo che si potrebbe leggere in due modi non diventa un numero.
+
+**Il caso da sapere è `1.500`.** Chi lo scrive pensando a millecinquecento ottiene 1,5. Il campo però lo riscrive `1,5` all'uscita: il valore cambia sotto gli occhi di chi scrive, non dopo. È la regola che Studio usava già nel suo `leggiDecimale`.
+
+**Il campo, e la scala di §4bis.**
+
+1. shadcn non ha un campo numerico: l'MCP trova `input`, `input-group` e `field`, e niente per «number».
+2. Il ri-stile non si applica: non c'è un originale.
+3. La strada più vicina è `@reui/number-field`, sopra il `NumberField` di Base UI. Provato il suo lettore (`parseNumber`, Base UI 1.8, `it-IT`): `0.125` → 125, `1.500` → 1500, `20.78` → **2078**. Il lettore è interno e non si sostituisce. In più blocca i caratteri non numerici mentre si scrive, quindi un testo sbagliato non può restare nel campo, e riporta dentro `min`/`max` un valore fuori dai limiti senza dirlo (`allowOutOfRange` di serie spento). Scartato.
+4. Proposto in chat un blocco nostro, **approvato da Francesco** («Sì, procedi»): `tassullo-campo-numero`. Compone `field` e `input-group` così come sono, senza varianti, quindi come ogni blocco non ha una riga in `componenti-propri.json`.
+
+**Le scelte del blocco.**
+
+- Il valore è `number | null`, e si conferma all'uscita dal campo o con `Invio`, mai a ogni tasto: a metà digitazione `1,` o `-` non sono numeri.
+- Un testo sbagliato o fuori dai limiti resta nel campo, con `aria-invalid` e il messaggio nel `Field`; il valore confermato non cambia. Mostrato un errore, il campo si ricontrolla a ogni tasto, e l'errore sparisce appena il testo torna giusto.
+- `Invio` su un testo sbagliato non invia il modulo; `Esc` torna all'ultimo valore confermato, e se non c'è niente da disfare lascia il tasto a chi lo aspetta, come un dialogo.
+- I collegamenti del `Field` sono gli stessi di `tassullo-form-field`, scritti nel blocco: `Campo` sta in un file che importa react-hook-form, e il campo numerico non deve portarselo dietro. Con react-hook-form si usa dentro un `Controller`.
+- `inputMode="decimal"`. Il tastierino dell'iPhone non ha il segno meno: per un campo che ammette negativi lo si dice nella descrizione.
+- **Il punto delle migliaia a riposo, non a fuoco** (chiesto da Francesco, «possiamo aggiungere anche il separatore migliaia?»). Fuori dal campo `1.234,5`; entrando il punto sparisce, `1234,5`; uscendo torna. Lasciarlo mentre si scrive non è un intralcio ma un errore: `1.234` riletto all'uscita, con un punto solo che è il decimale, diventerebbe 1,234. La funzione è `scriviNumeroConMigliaia` di `numeri`, a parte da `scriviNumero`: un secondo argomento a `scriviNumero` romperebbe chi la passa a `.map()`, come già fa una story del foglio a gruppi. Raggruppa le cifre sul testo, non con `Intl`, che scriverebbe `0.1` col valore esatto in virgola mobile, a venti cifre.
+
+**La prova.** `Blocchi/Campo numerico → Quattro casi` scrive `0.125`, `1.500`, `1.234,5` e `dodici` ed esce dal campo; `Con un modulo, prova` prova `Invio`, `Esc`, l'errore che sparisce e l'errore dello schema. Col blocco che legge come prima (`leggiNumero(testo)`) `Quattro casi` cade sul primo campo, che mostra `125`; con l'opzione passa. `Migliaia, prova`: entra e esce da `1.234` senza cambiare niente, poi aggiunge una cifra; con il punto lasciato nel campo a fuoco cade, con le cifre nude passa.
+
