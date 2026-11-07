@@ -855,6 +855,62 @@
       ]
     },
     {
+      "name": "attachment",
+      "type": "registry:ui",
+      "title": "Attachment",
+      "description": "Un file allegato, con lo stato della lettura (in attesa, in caricamento, in lettura, errore, pronto) e le azioni come «Togli». AttachmentGroup li mette in fila.",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn"
+      ],
+      "registryDependencies": [
+        "@tassullo/button"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/attachment.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "trace",
+      "type": "registry:ui",
+      "title": "Trace",
+      "description": "Le righe di ciò che un assistente sta facendo o ha fatto, come «Sto cercando nei documenti…», con lo stato e un dettaglio che si apre.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@tassullo/collapsible"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/trace.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "marker",
+      "type": "registry:ui",
+      "title": "Marker",
+      "description": "Una riga di segnalazione dentro una conversazione: un evento, un separatore con la data, una nota con un'icona.",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/marker.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "resizable",
       "type": "registry:ui",
       "title": "Resizable",

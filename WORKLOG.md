@@ -15012,3 +15012,32 @@ PR #194 unita col gate verde, unione `19e3adc`. Etichetta annotata `v2.0.32` su 
 - Studio: adottare alla `v2.0.32`; avvisare sulla #193 quando la chat è implementata, per la pagina d'esempio.
 - `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
 - Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Studio: adottare alla `v2.0.31` (#190). Il gesto del cassetto su un iPhone vero.
+
+## 2026-11-07 — #193b: `attachment`, `trace`, `marker`
+
+Secondo lavoro della proposta #193 (Francesco: «Sì, comincia»). Ramo `fras/attachment-trace-marker`. Con questo la #193 si chiude; la pagina della chat aspetta l'avviso di Studio (voce #193a).
+
+#### Cosa entra
+
+- **Tre item, originali di shadcn**, installati con `add @shadcn/…` e fotografati in `registry/.upstream/` prima di toccarli. Tutti Base UI, nessun pacchetto nuovo. `add` ha chiesto di sovrascrivere `button.tsx` e `collapsible.tsx`: risposto di no (`yes n |`), e ai due file non è successo niente. Al primo tentativo, senza risposta alla domanda, la CLI si era fermata dopo aver scritto il solo `marker`.
+- **`marker` resta com'è.** `attachment` e `trace` hanno ri-stilate le sole stringhe di classi, per due difetti noti del preset:
+  - **il rosso come testo**: `text-destructive` (3.52:1 su fondo scuro, CLAUDE.md) nella riga non riuscita di `trace` e nel suo grilletto, e `text-destructive/80` nella descrizione di un allegato non riuscito → `text-destructive-subtle-foreground`; sull'anteprima d'errore di `attachment` il fondo `destructive/10` → `destructive-subtle` e il bordo `destructive/30` → `destructive-border`, come in `bubble`;
+  - **il testo sbiadito con l'opacità**: `text-muted-foreground/70` su `TraceDescription` → `text-muted-foreground` (che sta già al limite di 4.5:1, ogni opacità lo porta sotto); `data-[status=pending]:opacity-60` sulla riga intera → la sola icona attenuata (`*:data-[slot=trace-icon]:opacity-60`), così la riga in attesa si distingue e il testo si legge.
+- `trace` è un originale a segnaposto d'icona (`◌`): alla prossima versione di shadcn va riletto a mano. Eredita un valore arbitrario (`ml-[calc(--spacing(2)-1px)]`), segnalato come avviso, lasciato come negli altri componenti.
+- `shimmer` e `shimmer-none` vengono da `shadcn/tailwind.css`; `scrollbar-none` e `scroll-fade-x` di `AttachmentGroup` dal tema (`v2.0.32`).
+
+#### Scene
+
+- `Primitive/Attachment`: i cinque stati con la descrizione a parole e «Togli <nome>», le tre taglie, due foto in verticale (finte schermate disegnate su canvas da `@/prove/schermate`, niente rete), il gruppo che scorre di lato, l'allegato da aprire con `AttachmentTrigger` col suo nome.
+- `Primitive/Trace`: le quattro forme di una riga, le fonti usate aperte col punteggio di pertinenza, le stesse chiuse.
+- `Primitive/Marker`: le tre varianti, e la data che separa due giorni in una conversazione.
+
+#### Prove
+
+- I tre file da soli nelle quattro passate di axe: 10 su 10 in ognuna. `check:storybook`, `check:spedito`, `check:registry`, `check:riferimenti`, `check:registry-build` verdi.
+- **Tastiera**, Playwright contro lo Storybook acceso. Fonti chiuse: il `Tab` arriva sul grilletto, `Invio` apre (le fonti si vedono), `Spazio` chiude, in Chromium e WebKit. Allegato da aprire: in Chromium il `Tab` passa da «Apri dop-membrana.pdf» a «Togli dop-membrana.pdf». In WebKit il `Tab` salta «Apri» e si ferma su «Togli»: è il comportamento di Safari su macOS, che col `Tab` non passa dai bottoni nativi (provato su una pagina vuota: due `button` nudi, nessuno dei due raggiunto); «Togli» ci arriva perché il `Button` di Base UI ha un `tabIndex` esplicito. Con `Option+Tab`, come in Safari, ci si arriva.
+- `npm run check` verde, 13 gate: 2608 scansioni in 4 passate (652 story), 0 violazioni, `testo-segnaposto` compreso; WebKit 49 su 49.
+
+#### Aperti
+
+- Studio: avvisare sulla #193 quando la chat è implementata, per `tassullo-pagina-chat`.
