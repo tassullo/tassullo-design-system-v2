@@ -803,6 +803,58 @@
       ]
     },
     {
+      "name": "message",
+      "type": "registry:ui",
+      "title": "Message",
+      "description": "La riga di un messaggio in una conversazione: chi scrive a sinistra o a destra (align), con posto per avatar, intestazione e piede.",
+      "dependencies": [
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/message.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "bubble",
+      "type": "registry:ui",
+      "title": "Bubble",
+      "description": "La superficie di un messaggio: fumetto colorato, contorno o ghost a tutta riga per le risposte lunghe. Va dentro message.",
+      "dependencies": [
+        "@base-ui/react",
+        "class-variance-authority",
+        "cn"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/bubble.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "message-scroller",
+      "type": "registry:ui",
+      "title": "MessageScroller",
+      "description": "Il riquadro che scorre di una conversazione: segue la risposta che cresce solo se chi legge è in fondo, ancora in alto la domanda nuova, bottone per tornare in fondo.",
+      "dependencies": [
+        "@shadcn/react",
+        "cn",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@tassullo/button"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/ui/message-scroller.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "resizable",
       "type": "registry:ui",
       "title": "Resizable",

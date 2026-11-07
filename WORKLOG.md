@@ -14956,3 +14956,43 @@ PR #191 unita col gate verde, unione `c340d4e`; la #190 si è chiusa da sé con 
 - Il gesto del cassetto su un iPhone vero (Safari).
 - Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183 (dalla voce della `v2.0.30`).
 - `testo-segnaposto`: alla prossima caduta, leggere l'errore della sonda.
+
+## 2026-11-07 — #193a: `message`, `bubble`, `message-scroller`
+
+Proposta #193 di Studio: un filo di conversazione per le chat con l'assistente. Francesco: «Sì, in tre lavori» — questo è il primo (i tre componenti di shadcn e le classi del tema che chiedono), poi `attachment`, `trace`, `marker`, poi la pagina `tassullo-pagina-chat`. Le composizioni di AI Elements (campo della domanda, fonti, suggerimenti, attività) restano pagine d'esempio, non item. Ramo `fras/message-bubble-scroller`. La #193 resta aperta fino al terzo lavoro.
+
+#### Cosa entra
+
+- **Tre item, originali di shadcn**, installati con `add @shadcn/…` e fotografati in `registry/.upstream/` prima di toccarli. `message` e `message-scroller` restano come sono; `bubble` ha ri-stilate le sole stringhe di due varianti, `tinted` (arancio tenue: `primary-subtle` con il bordo `primary-border`) e `destructive` (`destructive-subtle` col suo testo, che è il colore d'errore leggibile come testo). In `message-scroller` i due testi nascosti del bottone sono in italiano («Vai in fondo», «Vai all'inizio»).
+- **`message-scroller` porta `@shadcn/react`** (0.3.1), il pacchetto delle primitive di shadcn che non stanno in Base UI. Dipende solo da React 19, niente Radix: nessun conflitto con lo stile base-nova. Fa lui tutto il lavoro: ancora del turno, seguire la risposta solo se si è in fondo, fermarsi appena chi legge si muove.
+- **Le classi delle barre che i tre componenti usano** e che `shadcn/tailwind.css` non ha: `scrollbar-thin`, `scrollbar-none`, `scrollbar-gutter-stable`, `scrollbar-thumb-transparent`, `scrollbar-track-transparent`, come `@utility` del tema (nella palette di `scripts/hex-to-oklch.ts`, CSS rigenerato). `shimmer` e `scroll-fade-*` c'erano già. Senza, le classi non emettevano niente, in silenzio.
+- **`add` aveva riscritto `button.tsx`** (dipendenza di `message-scroller`) con l'originale: ripristinato. Da sapere a ogni `add` di un componente che dipende da una primitiva già ri-stilata.
+
+PR #194, gate in CI verde al primo giro (anche `testo-segnaposto`).
+
+#### La scelta dei colori
+
+Francesco, prima: «avrei fatto fumetto per anche la risposta. grigio la risposta, arancio la domanda». Poi, guardando l'app di Claude: «effettivamente non c'è un doppio fumetto. cosa propone di default shadcn?». Lo schema di shadcn: la domanda `default` (da noi arancio pieno) a destra, la risposta `ghost`, senza fumetto e a tutta riga. Francesco: «Sì, come shadcn». È la regola d'uso scritta in `bubble`; `secondary` resta per le conversazioni fra persone.
+
+Una misura che va nello stesso verso: a 375px una tabella dentro un fumetto grigio sfonda il tetto dell'80% (il fumetto si allarga a 357px) e la pagina scorre di lato di 150px. `ghost` toglie il tetto e la tabella scorre dentro il messaggio.
+
+#### Prove
+
+- **Comportamento del riquadro**, Playwright dalla cartella temporanea contro lo Storybook acceso, Chromium e WebKit, 1440 e 375px: la conversazione salvata si apre con l'ultima domanda in vista (`last-anchor`); la domanda nuova va in alto; la risposta che cresce è seguita se si è in fondo (mediana 0px dal fondo); risalendo con la rotella o con `Pag↑` il riquadro resta fermo mentre la risposta cresce (spostamento 0); «Vai in fondo» compare e fa riprendere a seguire; «Ferma» blocca la risposta; cambiare densità durante la risposta non dà errori. Per i falsi rossi della prima stesura: la risposta finiva prima delle misure, si è allungata e rallentata.
+- **Scena WebKit nuova**, `Risposta in arrivo, scorre e cambia densità`, fuori da barra e Docs: fa la domanda, poi `scorriECambiaDensita` mentre la risposta arriva. È lo stesso tipo di ciclo di §69 (osservatori di dimensione e fotogrammi), e il riquadro ne ha tutti gli ingredienti.
+- **Il gate a11y ha preso un difetto vero**: nelle scene `Risposta lunga` la tabella più larga del messaggio scorreva di lato e col `Tab` non ci si arrivava (`scrollable-region-focusable`, 8 violazioni nelle 4 passate). `table` è di shadcn e il suo contenitore non accetta un `tabIndex`; la scena mette la tabella dentro un riquadro nostro (`role="region"`, nome, `tabIndex={0}`, contorno di fuoco) e toglie lo scorrimento al contenitore di `table`. Scritto come regola d'uso in `bubble`: è il caso di ogni risposta con una tabella larga, e servirà alla pagina chat.
+- **Tastiera sulla tabella**, Playwright contro lo Storybook costruito, 375px: in Chromium il `Tab` arriva sul riquadro («Sovrapposizioni minime») e due frecce lo scorrono di 80px; la pagina non sporge più (0px). In WebKit il fuoco arriva, ma le frecce non scorrono, e non scorrono nemmeno un `div` nudo con `tabindex=0` in una pagina vuota (Chromium 40px, WebKit 0): è un limite di WebKit sotto Playwright, non della scena. Su Safari vero non provato.
+- `npm run check`: 12 gate verdi su 13. `test:a11y` 2568 scansioni in 4 passate (642 story), le scene nuove pulite; rosso per le sole cinque prove note di `testo-segnaposto`, nelle due passate «aperto» (sotto). WebKit 49 su 49.
+
+#### `testo-segnaposto`: la sonda ha parlato
+
+Cadute in questa sessione due volte: la prima in chiaro/aperto con un altro browser acceso a fare le foto, la seconda in chiaro/aperto e scuro/aperto senza altro carico. Sempre le stesse cinque prove della voce del 2026-11-03. La sonda dice, per le quattro che aspettano la chiusura dell'elenco: pagina `visible`, fuoco sì, fotogrammi sì, elemento attivo il testo, **animazioni `["exit:paused:0"]`**, cioè l'animazione d'uscita dell'elenco **c'è ed è ferma all'inizio**, con i fotogrammi che scattano. L'indizio delle animazioni era giusto, e ora è più stretto: non sono i fotogrammi fermi, è un'animazione messa in pausa. Chi la mette in pausa non l'ho cercato.
+
+Non le provoca questo lavoro: il file da solo nella passata chiaro/aperto passa (39 su 39, due volte), e la passata chiaro/aperto intera sul ramo, rilanciata da sola, passa (642 su 642). Il confronto con `main` non è riuscito: la copia di `main` coi `node_modules` collegati non carica nessun file di scene. La prova non è stata toccata.
+
+#### Aperti
+
+- #193, secondo lavoro: `attachment`, `trace`, `marker`. La issue si chiude con quello.
+- `tassullo-pagina-chat` **aspetta Studio**: Francesco, dopo aver guardato le scene: «segnaliamo a Studio che quando è implementata la chat ci avvisi che creiamo una pagina d'esempio in DS per le prossime app». Scritto sulla #193 (commento del 2026-11-07, con le regole d'uso dei colori, della tabella larga e del nome del riquadro). La pagina si ricava dalla chat vera di Studio, con la regola della tabella larga dentro la risposta.
+- `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
+- Le frecce sulla tabella della risposta in Safari vero.
