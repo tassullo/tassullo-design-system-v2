@@ -15328,3 +15328,16 @@ Richiesta di Francesco guardando il computo della #196: un'opzione per il campo 
 - Studio: con la versione nuova, `coloreNegativo` nella `rendi` dei risultati del computo.
 - `testo-segnaposto` in scuro/aperto nel gate intero (`exit:paused:0`): cade sempre più spesso, mai da sola. Cercarne la causa in una sessione a parte.
 
+## 2026-11-07 — v2.0.38 pubblicata, i negativi in rosso
+
+PR #211 unita col gate verde in CI, unione `470b7cd`. Prima dell'unione `main` si è mosso due volte (#208, #212): ogni volta l'unione di `main` nel ramo, conflitti solo in `CHECKLIST.md` e `WORKLOG.md`, statici rilanciati. Etichetta annotata `v2.0.38` su `470b7cd`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `coloreNegativo(valore)` e `ROSSO_NEGATIVO` in `numeri`, `negativiInRosso` su `tassullo-campo-numero`, la scena «Negativi» del foglio a gruppi (`docs/DECISIONI.md` §93); la cella a scelta del foglio col fuoco sul grilletto appena si apre, che passa `Tab` al foglio (§94).
+- **Non rompe chi aggiorna**: una funzione e una costante in più in `numeri`, una prop facoltativa spenta di serie sul campo; la cella a scelta cambia solo nel fotogramma dopo l'apertura.
+- Verifica da fuori: alla `v2.0.38` rispondono 200 `registry.json`, `public/r/numeri.json`, `public/r/tassullo-campo-numero.json`, `public/r/tassullo-foglio-gruppi.json` e `lib/numeri.ts` con `coloreNegativo`; `shadcn view …tassullo-campo-numero#v2.0.38` restituisce il blocco con `negativiInRosso`.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.37` (#195, #199) e alla `v2.0.38`; nel computo `coloreNegativo` nella `rendi` dei risultati.
+- `testo-segnaposto` nel gate intero (`exit:paused:0`): una sessione a parte ne cerca la causa.
+
