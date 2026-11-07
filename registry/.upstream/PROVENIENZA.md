@@ -10,9 +10,9 @@ dice quel file; qui sotto c'è solo il riassunto.
 
 | | |
 |---|---|
-| CLI shadcn | 4.21.0 |
+| CLI shadcn | 4.23.0 |
 | `style` | base-nova |
-| aggiornato il | 2026-09-19 |
+| aggiornato il | 2026-11-07 |
 
 ## Registry di origine
 

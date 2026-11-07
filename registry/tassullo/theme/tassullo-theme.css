@@ -461,3 +461,33 @@
     scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 }
+
+/* Le utility delle barre che alcuni componenti shadcn scrivono nelle loro
+   classi (`message-scroller`, per esempio) ma che né Tailwind né il CSS di
+   shadcn definiscono: senza queste righe sarebbero classi che non emettono
+   niente, senza errore. Seguono la regola qui sopra: la barra resta sottile
+   e del colore del tema, e queste la nascondono, le tengono il posto o ne
+   spengono il cursore per un momento. */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
+@utility scrollbar-thumb-transparent {
+  --scrollbar-thumb: transparent;
+}
+
+@utility scrollbar-track-transparent {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
