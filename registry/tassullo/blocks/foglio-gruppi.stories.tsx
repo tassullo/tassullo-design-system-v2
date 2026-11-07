@@ -212,7 +212,13 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
   },
 ]
 
-function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFoglio<Voce, Misurazione>[] }) {
+function ComputoFoglio({
+  gruppiIniziali = COMPUTO,
+  aspetto,
+}: {
+  gruppiIniziali?: GruppoFoglio<Voce, Misurazione>[]
+  aspetto?: 'griglia' | 'stampato'
+}) {
   const motore = useFoglioGruppi<Voce, Misurazione>({
     gruppiIniziali,
     colonne: COLONNE,
@@ -233,6 +239,7 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
       <FoglioGruppi
         motore={motore}
         didascalia="Computo metrico estimativo"
+        aspetto={aspetto}
         // Il «+ misurazione» sta QUI e non nel menu: è l'azione che si ripete
         // per ogni riga, e nasconderla dietro due gesti la rende più lenta di
         // quella che sostituisce (rilievo di Francesco, 2026-09-21).
@@ -340,6 +347,10 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   in grigio, e `motivo` dice sotto l'etichetta perché è spento («Prima
  *   salva la voce»): chi lo vede spento sa cosa fare per accenderlo.
  * - `piede` è la riga in coda al foglio, il totale generale.
+ * - `aspetto` sceglie come si presenta il foglio: `griglia`, di serie, con un
+ *   filetto per riga e la testata su fondo grigio, o `stampato`, che si legge
+ *   come un computo su carta (la scena «Stampato»). Celle, tastiera e comandi
+ *   sono gli stessi.
  * - `didascalia` descrive la tabella a chi non vede lo schermo, ed è
  *   obbligatoria come un `alt`.
  *
@@ -578,6 +589,17 @@ async function sceltaDaTastiera({ canvasElement }: { canvasElement: HTMLElement 
   await userEvent.keyboard('{Tab}')
   await waitFor(() => expect(canvasElement.querySelector('input[aria-label="Prezzo unit."]')).toHaveFocus())
   await userEvent.keyboard('{Escape}')
+}
+
+/**
+ * Lo stesso computo con `aspetto="stampato"`: si legge come un computo su
+ * carta. Intestazioni in maiuscolo con un doppio filetto sotto, dentro una voce
+ * solo i filetti verticali, il numero della voce accanto al menu, il SOMMANO in
+ * grassetto con un filetto scuro sopra, il totale col doppio filetto, righe più
+ * basse. La tastiera è la stessa.
+ */
+export const Stampato: Story = {
+  render: () => <ComputoFoglio aspetto="stampato" />,
 }
 
 /**
