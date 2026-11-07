@@ -15343,3 +15343,44 @@ PR #211 unita col gate verde in CI, unione `470b7cd`. Prima dell'unione `main` s
 - Studio: adottare alla `v2.0.37` (#195, #199) e alla `v2.0.38`; nel computo `coloreNegativo` nella `rendi` dei risultati.
 - `testo-segnaposto` nel gate intero (`exit:paused:0`): una sessione a parte ne cerca la causa.
 
+## 2026-11-07 — `testo-segnaposto`: le cinque prove che cadevano insieme, la causa
+
+Sessione avviata dalla sessione principale, col compito di trovare la causa nel codice e correggerla con una prova che cade sempre senza. Ramo `fras/testo-segnaposto-pausa`.
+
+#### La causa (`docs/DECISIONI.md` §95)
+
+- **Chi mette in pausa l'animazione d'uscita è Storybook.** Sotto Vitest, finita la `play`, `runStory` aggiunge uno stile che ferma tutte le animazioni, esegue gli `afterEach` (axe) e solo dopo lo toglie, senza `finally`. Se axe trova una violazione, `afterEach` lancia e lo stile resta per le scene seguenti del file: ogni uscita nasce ferma a zero (`exit:paused:0`), Base UI non smonta l'elenco, e le quattro scene che aspettano la chiusura cadono. Sono tutte dopo «Elenco, stato tenuto fuori» nel file.
+- **La prima caduta**: «Elenco, stato tenuto fuori» finiva subito dopo aver scelto un gruppo nel `select`. Il menu di Base UI non si smonta, si nasconde (`hidden`), ma un fotogramma dopo; fino ad allora ha le guardie del fuoco raggiungibili e l'elenco senza nome. A macchina carica axe lo legge prima del fotogramma.
+- **Ipotesi della cache di Storybook scartata**: la caduta si riproduce senza nessuno Storybook acceso. Lo Storybook di sviluppo contava solo come carico.
+
+#### Come si è arrivati
+
+- Cercato chi chiama `.pause()` o scrive `animation-play-state` in `node_modules`: Storybook (`pauseAnimations`, `setupStoryFreezer`), Base UI, `tw-animate-css`. Letto `runStory`: la pausa si toglie dopo `applyAfterEach`, e `addon-a11y` sotto Vitest lancia con `expect(...).toHaveNoViolations()`.
+- Una sonda temporanea in `vitest.setup.ts` (stili di pausa e popup a inizio e fine di ogni scena) ha mostrato che il menu del `select` è ancora lì, chiuso, quando axe parte, in ogni giro.
+- **Cascata riprodotta**: un `<img>` senza `alt` in fondo a «Elenco, stato tenuto fuori» fa cadere le stesse cinque scene, con `exit:paused:0` e uno stile di pausa in più all'inizio di ognuna.
+- **Prima caduta riprodotta**: fotogrammi rallentati di 150 ms prima dell'ultima scelta, 3 su 3, le stesse due regole.
+
+#### Le correzioni
+
+- `.storybook/prove/pausa.ts` (`togliPausaRimasta`, `stiliDiPausa`, `nelleProve`) e un `beforeEach` in `.storybook/vitest.setup.ts` che toglie la pausa rimasta all'inizio di ogni scena.
+- `gruppiChiusi()` in `testo-segnaposto.stories.tsx`: dopo ogni scelta di gruppo si aspetta il `hidden` del menu.
+
+#### Prove
+
+- `Primitive/Popover → Una pausa rimasta, prova` e `Si chiude dopo una pausa rimasta, prova` (etichetta `webkit`): senza il `beforeEach` la seconda cade 9 su 9 in Chromium (chiaro/chiuso, scuro/aperto) e WebKit, col riquadro `paused:0`; con, passa.
+- `Blocchi/Testo con segnaposto → Elenco, gruppo scelto coi fotogrammi lenti, prova` (etichetta `webkit`): fotogrammi a 500 ms anche durante axe, rimessi dalla pulizia del suo `beforeEach`. Senza `gruppiChiusi` cade 9 su 9 (Chromium due regole, WebKit `aria-input-field-name`); con, passa.
+- Trappola nella seconda prova: Base UI ha una coda sola di fotogrammi per la pagina, e uno vero già chiesto porta la chiusura a tempo pieno. A 150 ms e senza svuotare la coda la scena senza correzione passava in Chromium 3 volte su 4; ora si lasciano passare due fotogrammi veri prima di rallentare.
+- I due file, con le correzioni: Chromium 46 su 46 in chiaro/chiuso e scuro/aperto, WebKit 22 su 22.
+- `npm run check`, load average fra 6 e 10: verde al terzo giro, 13 gate, 2672 scansioni in 4 passate (668 story), 0 violazioni; WebKit 53 su 53. I primi due giri sono caduti su **una** scena ciascuno, mai di `testo-segnaposto` né del popover, in file non toccati: `foglio-gruppi › Cella a scelta, prova` (scuro/aperto, fuoco atteso sulla cella dopo tasti mandati subito dopo l'apertura dell'elenco: la famiglia di §90, chiusa su `main` con §94) e `data-grid › Celle Tipizzate, calendario, prova` (chiaro/chiuso, `aria-hidden-focus` su una guardia del fuoco: la scena finisce con `Esc` sul calendario senza aspettare che il popover sia smontato, cioè il primo difetto di §95). Da soli, `foglio-gruppi` 13 su 13 per tre volte. Prima di oggi una caduta così ne avrebbe trascinate altre con sé; questa volta è rimasta sola.
+
+- Dopo l'unione di `main` (che aveva preso §93 e §94: questa sezione è diventata §95): `npm run check` verde al primo giro, 2712 scansioni in 4 passate (678 story), 0 violazioni; WebKit 54 su 54.
+
+#### Visto per strada
+
+- Storybook unisce i parametri chiave per chiave ma sostituisce gli elenchi: le `rules` del meta di `testo-segnaposto` prendono il posto di quelle di `vitest.setup.ts`, e lì `aria-hidden-focus` resta armata anche nella passata `aperto`. Non cambiato; scritto in §95. Vale per ogni file che dichiara le sue `rules`.
+- Il difetto di `runStory` (la pausa che non si toglie se `afterEach` lancia) è di Storybook: si potrebbe segnalare a loro. Non fatto.
+
+#### Aperti
+
+- **Le scene che finiscono con un popup in chiusura**: `data-grid › Celle Tipizzate, calendario, prova` è caduta oggi per il primo difetto di §95, `foglio-gruppi › Cella a scelta, prova`, della famiglia di §90, l'ha chiusa nel frattempo un'altra sessione su `main` (§94). Da cercare in tutte le story le `play` che finiscono subito dopo aver chiuso un popup, e valutare se l'attesa vada nelle scene o una volta sola nell'imbracatura, prima di axe.
+- Segnalare a Storybook il `finally` mancante in `runStory`, se Francesco lo vuole.
