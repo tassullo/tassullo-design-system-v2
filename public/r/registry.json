@@ -1717,6 +1717,31 @@
       "docs": "Un blocco, un uso:\n\n  <GalleriaImmagini\n    immagini={richiesta.screenshot}\n    etichetta=\"Screenshot\"\n    carica={(s, segnale) => scarica(`/api/screenshot/${s.id}`, { signal: segnale })}\n  />\n\n`carica(immagine, segnale)` restituisce un URL o un `Blob`: è il punto in cui\nl'app mette l'autenticazione. Il blocco trasforma il `Blob` in un indirizzo e\nlo libera quando la miniatura si smonta; ogni immagine si scarica una volta\nsola, e l'ingrandimento usa quella della miniatura. Una promessa rifiutata è\nun'immagine che non si carica: la miniatura mostra un'icona, l'immagine grande\noffre «Riprova».\n\nDue colonne, tre da 512px di larghezza della galleria (container query, non\nla finestra). Nel dialogo `←` e `→` scorrono le immagini; alla chiusura il\nfuoco torna sulla miniatura di partenza."
     },
     {
+      "name": "tassullo-ingrandimento",
+      "type": "registry:block",
+      "title": "Ingrandimento",
+      "description": "Un disegno SVG o un'immagine in pagina, in scala, che al tocco si apre a tutta finestra e si ingrandisce: pizzico, trascinamento e doppio tocco sul telefono; rotella, Riduci, Ingrandisci e Adatta sulla scrivania; +, -, 0 e le frecce da tastiera. Il disegno resta vettoriale e nitido a ogni ingrandimento, e il livello si annuncia ai lettori di schermo.",
+      "dependencies": [
+        "cn",
+        "lucide-react"
+      ],
+      "files": [
+        {
+          "path": "registry/tassullo/blocks/ingrandimento.tsx",
+          "type": "registry:component",
+          "target": "components/blocks/ingrandimento.tsx"
+        }
+      ],
+      "registryDependencies": [
+        "@tassullo/dialog",
+        "@tassullo/button",
+        "@tassullo/button-group",
+        "@tassullo/numeri",
+        "@tassullo/tema"
+      ],
+      "docs": "Un blocco, due usi:\n\n  <Ingrandimento titolo=\"Sezione A-A\" className=\"max-w-xl\">\n    <DisegnoSezione />\n  </Ingrandimento>\n\n  <Ingrandimento titolo=\"Dettaglio del nodo\" src={foto} />\n\nIl contenuto è un nodo React, di solito un `<svg>` con `viewBox`, oppure un\n`src` d'immagine. Il rapporto si legge dal `viewBox` o dall'immagine; `rapporto`\nserve solo a un `<svg>` senza `viewBox`. Lo zoom cambia la misura vera del\ndisegno, non lo ingrandisce come una foto: i testi piccoli restano nitidi.\n\nIl disegno compare due volte, in pagina e nell'ingrandimento: se usa degli `id`\n(`marker` delle quote, `pattern`), generali con `useId` nel componente del disegno.\n\nIngrandimento da «Adatta» a 8×. Telefono: due dita, un dito, doppio tocco.\nScrivania: rotella e pizzico del trackpad intorno al puntatore, trascinamento,\nRiduci, Ingrandisci, Adatta. Tastiera: `+`, `-`, `0`, frecce, `Esc`.\n\n`AreaIngrandimento` è la sola superficie, senza anteprima né dialogo: riempie il\nsuo contenitore, che deve avere un'altezza."
+    },
+    {
       "name": "tassullo-filo-messaggi",
       "type": "registry:block",
       "title": "Filo di messaggi",
