@@ -15188,3 +15188,17 @@ Richiesta di Francesco: avvicinare il foglio a gruppi alla tabella del computo d
 #### Aperti
 
 - Studio: adottare alla versione nuova con `aspetto="stampato"` (prompt di adozione in chat a Francesco).
+
+## 2026-11-07 — v2.0.36 pubblicata, il foglio a gruppi «stampato»
+
+PR #209 unita col gate verde in CI (8 minuti, tutti e 13 i gate: le cinque prove di `testo-segnaposto` cadute in locale lì passano), unione `3907464`. Etichetta annotata `v2.0.36` su `3907464`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `tassullo-foglio-gruppi` con `aspetto="stampato"`, alternativa a `griglia` (voce sopra).
+- **Non rompe chi aggiorna**: prop facoltativa, di serie tutto com'era; nessun pacchetto nuovo.
+- Verifica da fuori: alla `v2.0.36` rispondono 200 `registry.json`, `public/r/tassullo-foglio-gruppi.json` e il sorgente, con `aspetto?: "griglia" | "stampato"`; `shadcn view …tassullo-foglio-gruppi#v2.0.36` restituisce il blocco nuovo.
+- Nessuna issue da commentare: la richiesta è di Francesco. Il prompt di adozione per Studio l'ha avuto in chat, da passare alla sessione di Studio (Francesco: «da comunicare a Studio di usare questa alternativa»).
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.36` con `aspetto="stampato"` sul computo, insieme alla `v2.0.35` (#196).
+- `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`); in questa sessione è caduta tre volte in locale, sempre a macchina carica, mai in CI.
