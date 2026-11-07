@@ -15081,3 +15081,19 @@ Due proposte di Studio aperte oggi sullo stesso blocco, in una PR sola (Francesc
 
 - Studio: adottare alla versione nuova, togliere il rimedio se l'ha messo, e scrivere l'esito sulle due proposte.
 
+## 2026-11-07 — v2.0.34 pubblicata, #197 e #198 chiuse
+
+PR #203 unita col gate verde in CI (11 minuti), unione `fd6b08f`; le due issue si sono chiuse da sé con `Closes`. Etichetta annotata `v2.0.34` su `fd6b08f`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `tassullo-barra-salva` a `z-30`, sopra l'intestazione e il piede fermi della tabella; i toast in basso sopra la barra finché c'è (voce sopra, `docs/DECISIONI.md` §91).
+- **Non rompe chi aggiorna**: nessuna prop e nessun pacchetto nuovo. Un `offset` già passato al `Toaster` per la barra si sommerebbe: detto nel commento di adozione.
+- Verifica da fuori: alla `v2.0.34` rispondono 200 `registry.json`, `public/r/tassullo-barra-salva.json` e il sorgente, con `z-30` e `--barra-salva-alta`; `shadcn view …tassullo-barra-salva#v2.0.34` restituisce il blocco nuovo.
+- Sulla #197 e sulla #198 il commento di adozione: il comando, cosa cambia, cosa togliere, dove provarla nella style guide.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.34` (#197, #198), alla `v2.0.33` (#193) e alla `v2.0.31` (#190).
+- Proposte di Studio del 2026-11-07 ancora aperte: #195 (campo numerico), #196 (foglio a gruppi), #199 (ingrandimento).
+- `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`); caduta di nuovo una volta in questa sessione.
+- Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Il gesto del cassetto su un iPhone vero.
+
