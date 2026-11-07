@@ -15240,6 +15240,42 @@ Proposta di Studio (lo stesso bisogno c'è in Anagrafe). Ramo `fras/campo-numero
 - Studio e Anagrafe: adottare alla versione nuova, togliere `leggiDecimale` e il `CampoNumero` fatto a mano, e i `// in attesa di tassullo-design-system-v2#195`.
 - `pdf-preview › Zoom in una griglia, prova` in WebKit: caduta una volta su due giri («expected 0 to be greater than 0»). Cercarne la causa.
 
+
+## 2026-11-07 — #199: ingrandimento di un disegno SVG o di un'immagine
+
+Proposta di Studio: i disegni tecnici generati dall'app (SVG con quote e testi piccoli) stanno in pagina in scala e non si leggono. Ramo `fras/ingrandimento-199`.
+
+#### La scala (§4bis) e la strada
+
+- MCP su `@shadcn` e `@reui` («zoom», «lightbox», «image», «pan»): niente con i gesti. `@reui/c-button-group-37` è una fila di bottoni di zoom, la stessa grammatica che `tassullo-pdf-preview` ha già.
+- Non una variante di `tassullo-galleria-immagini`: è legata a «elenco più `carica`», e un disegno solo in pagina non è una galleria.
+- Comporre a mano dialogo e `ButtonGroup` basterebbe per il guscio, ma i gesti li riscriverebbe ogni app. Gradino 4: blocco nuovo `tassullo-ingrandimento`, proposto in chat e approvato da Francesco («Sì, procedi»). È un blocco, non una primitiva: niente riga in `componenti-propri.json`.
+
+#### Il blocco
+
+- `Ingrandimento`: l'anteprima in pagina (un bottone «Ingrandisci ‹titolo›», con la lente in basso a destra) e, al tocco, un `Dialog` a tutta finestra. Contenuto: un nodo React fra i figli (di solito un `<svg>` con `viewBox`) oppure `src` con `alt`. Il rapporto si legge dal `viewBox` o dall'immagine; `rapporto` serve solo a un `<svg>` senza `viewBox`.
+- `AreaIngrandimento`, esportata: la sola superficie con i comandi sotto, per metterla in un riquadro proprio (la galleria, un domani).
+- **Dialogo, non `tassullo-responsive-dialog`**: sul telefono il cassetto si chiude trascinando in giù, cioè col gesto che qui sposta il disegno.
+- **Lo zoom cambia la misura vera del foglio**, e lo spostamento è un `translate`. Con `scale` WebKit può ingrandire una copia già disegnata e sfocare i testi; così il browser ridisegna l'SVG alla grandezza guardata. Misurato: a 800% foglio e SVG larghi 11.264px tutti e due, testi a 5 unità del disegno nitidi in Chromium e WebKit.
+- Gesti con Pointer Events e `touch-action: none`: un dito sposta, due dita ingrandiscono tenendo fermo il punto fra le dita (dita da 60 a 180px → 3×), doppio tocco ingrandisce 2× sul punto o torna ad «Adatta». Rotella e pizzico del trackpad (rotella con `ctrlKey`) con un ascoltatore non passivo, perché `preventDefault` fermi lo zoom della pagina; per Safari a scrivania anche `gesturestart`/`gesturechange`, ignorati mentre ci sono dita sullo schermo (su iOS arrivano insieme ai Pointer Events).
+- Da «Adatta» a 8×, passi di 1,5×; il foglio non esce dall'area. Tastiera sul blocco intero, quindi anche col fuoco sui bottoni: `+`/`=`, `-`, `0`, frecce (un decimo dell'area), `Esc` del dialogo. All'apertura il fuoco va sul disegno; alla chiusura torna all'anteprima.
+- Il livello si annuncia in un `role="status"` 400ms dopo che il gesto si ferma, non a ogni passo del pizzico. Un testo nascosto dice i tasti, legato all'area con `aria-describedby`.
+- Il disegno compare due volte (anteprima e dialogo). Con `id` fissi nei `marker` delle quote — la scena li ha apposta, il caso peggiore — le frecce si vedono anche nel dialogo. Nei docs: gli `id` si generano con `useId` nel componente del disegno.
+
+#### Prove
+
+- Scena `Gesti, prova` (nascosta, etichetta `webkit`, gira anche in `test:webkit`): pizzico, trascinamento da adattato e da ingrandito, doppio tocco nei due versi, rotella con `defaultPrevented`, `0 + → -`, bottoni, annuncio, `Aria-disabled` su «Adatta», `Esc` col fuoco che torna. Eventi costruiti a mano: Playwright in WebKit non sa dare due dita. La cattura del puntatore lancia su un evento costruito a mano: nel blocco sta in un `try`.
+- Prima caduta della scena, causa trovata: le misure si prendevano dentro i 100ms dell'animazione d'apertura (`zoom-in-95`), con l'area larga 1.409px invece di 1.440. Con la prova che corre in pochi millisecondi l'animazione era ancora al primo fotogramma. La scena la porta alla fine con `finish()` prima di misurare.
+- **Gesti veri** (Playwright contro lo Storybook costruito, script nella cartella temporanea, fuori dal repo): 32 verifiche su 32. Chromium a scrivania e WebKit a scrivania: rotella, Ctrl+rotella con la pagina a scala 1, trascinamento del mouse (Δ 120px esatti), tastiera, bottoni, 8×, `Esc`. Chromium telefono con tocchi CDP veri: pizzico 3×, un dito Δ 60px, doppio tocco nei due versi, pagina mai ingrandita né scorsa. WebKit telefono con `touchscreen.tap`: doppio tocco nei due versi.
+- Non provato: il pizzico del trackpad in Safari (eventi `gesture*`, Playwright non li simula) e un iPhone vero.
+- Durante la sessione la #195 ha lavorato nella stessa cartella: i suoi file non entrano in questo commit.
+
+#### Aperti
+
+- Studio: adottare alla versione nuova e togliere il `// in attesa di tassullo-design-system-v2#199`.
+- Su un Mac con Safari: il pizzico del trackpad. Su un iPhone: pizzico e doppio tocco.
+- Da proporre se serve: lo zoom dentro `tassullo-galleria-immagini` con `AreaIngrandimento` (lì oggi `←`/`→` cambiano immagine).
+
 ## 2026-11-07 — Negativi in rosso: sui risultati, non sui fattori
 
 Richiesta di Francesco guardando il computo della #196: un'opzione per il campo numerico e, nel computo, i negativi della riga in rosso. Ramo `fras/negativi-rossi`, partito da quello della #207 (il campo numerico sta lì).

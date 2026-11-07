@@ -89,6 +89,7 @@ const CON_POPUP = [
   "foglio-gruppi",
   "galleria-immagini",
   "hover-card",
+  "ingrandimento",
   "page-header",
   "popover",
   "responsive-dialog",
