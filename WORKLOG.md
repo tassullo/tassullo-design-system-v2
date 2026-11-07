@@ -15240,11 +15240,114 @@ Proposta di Studio (lo stesso bisogno c'è in Anagrafe). Ramo `fras/campo-numero
 - Studio e Anagrafe: adottare alla versione nuova, togliere `leggiDecimale` e il `CampoNumero` fatto a mano, e i `// in attesa di tassullo-design-system-v2#195`.
 - `pdf-preview › Zoom in una griglia, prova` in WebKit: caduta una volta su due giri («expected 0 to be greater than 0»). Cercarne la causa.
 
+
+## 2026-11-07 — #199: ingrandimento di un disegno SVG o di un'immagine
+
+Proposta di Studio: i disegni tecnici generati dall'app (SVG con quote e testi piccoli) stanno in pagina in scala e non si leggono. Ramo `fras/ingrandimento-199`.
+
+#### La scala (§4bis) e la strada
+
+- MCP su `@shadcn` e `@reui` («zoom», «lightbox», «image», «pan»): niente con i gesti. `@reui/c-button-group-37` è una fila di bottoni di zoom, la stessa grammatica che `tassullo-pdf-preview` ha già.
+- Non una variante di `tassullo-galleria-immagini`: è legata a «elenco più `carica`», e un disegno solo in pagina non è una galleria.
+- Comporre a mano dialogo e `ButtonGroup` basterebbe per il guscio, ma i gesti li riscriverebbe ogni app. Gradino 4: blocco nuovo `tassullo-ingrandimento`, proposto in chat e approvato da Francesco («Sì, procedi»). È un blocco, non una primitiva: niente riga in `componenti-propri.json`.
+
+#### Il blocco
+
+- `Ingrandimento`: l'anteprima in pagina (un bottone «Ingrandisci ‹titolo›», con la lente in basso a destra) e, al tocco, un `Dialog` a tutta finestra. Contenuto: un nodo React fra i figli (di solito un `<svg>` con `viewBox`) oppure `src` con `alt`. Il rapporto si legge dal `viewBox` o dall'immagine; `rapporto` serve solo a un `<svg>` senza `viewBox`.
+- `AreaIngrandimento`, esportata: la sola superficie con i comandi sotto, per metterla in un riquadro proprio (la galleria, un domani).
+- **Dialogo, non `tassullo-responsive-dialog`**: sul telefono il cassetto si chiude trascinando in giù, cioè col gesto che qui sposta il disegno.
+- **Lo zoom cambia la misura vera del foglio**, e lo spostamento è un `translate`. Con `scale` WebKit può ingrandire una copia già disegnata e sfocare i testi; così il browser ridisegna l'SVG alla grandezza guardata. Misurato: a 800% foglio e SVG larghi 11.264px tutti e due, testi a 5 unità del disegno nitidi in Chromium e WebKit.
+- Gesti con Pointer Events e `touch-action: none`: un dito sposta, due dita ingrandiscono tenendo fermo il punto fra le dita (dita da 60 a 180px → 3×), doppio tocco ingrandisce 2× sul punto o torna ad «Adatta». Rotella e pizzico del trackpad (rotella con `ctrlKey`) con un ascoltatore non passivo, perché `preventDefault` fermi lo zoom della pagina; per Safari a scrivania anche `gesturestart`/`gesturechange`, ignorati mentre ci sono dita sullo schermo (su iOS arrivano insieme ai Pointer Events).
+- Da «Adatta» a 8×, passi di 1,5×; il foglio non esce dall'area. Tastiera sul blocco intero, quindi anche col fuoco sui bottoni: `+`/`=`, `-`, `0`, frecce (un decimo dell'area), `Esc` del dialogo. All'apertura il fuoco va sul disegno; alla chiusura torna all'anteprima.
+- Il livello si annuncia in un `role="status"` 400ms dopo che il gesto si ferma, non a ogni passo del pizzico. Un testo nascosto dice i tasti, legato all'area con `aria-describedby`.
+- Il disegno compare due volte (anteprima e dialogo). Con `id` fissi nei `marker` delle quote — la scena li ha apposta, il caso peggiore — le frecce si vedono anche nel dialogo. Nei docs: gli `id` si generano con `useId` nel componente del disegno.
+
+#### Prove
+
+- Scena `Gesti, prova` (nascosta, etichetta `webkit`, gira anche in `test:webkit`): pizzico, trascinamento da adattato e da ingrandito, doppio tocco nei due versi, rotella con `defaultPrevented`, `0 + → -`, bottoni, annuncio, `Aria-disabled` su «Adatta», `Esc` col fuoco che torna. Eventi costruiti a mano: Playwright in WebKit non sa dare due dita. La cattura del puntatore lancia su un evento costruito a mano: nel blocco sta in un `try`.
+- Prima caduta della scena, causa trovata: le misure si prendevano dentro i 100ms dell'animazione d'apertura (`zoom-in-95`), con l'area larga 1.409px invece di 1.440. Con la prova che corre in pochi millisecondi l'animazione era ancora al primo fotogramma. La scena la porta alla fine con `finish()` prima di misurare.
+- **Gesti veri** (Playwright contro lo Storybook costruito, script nella cartella temporanea, fuori dal repo): 32 verifiche su 32. Chromium a scrivania e WebKit a scrivania: rotella, Ctrl+rotella con la pagina a scala 1, trascinamento del mouse (Δ 120px esatti), tastiera, bottoni, 8×, `Esc`. Chromium telefono con tocchi CDP veri: pizzico 3×, un dito Δ 60px, doppio tocco nei due versi, pagina mai ingrandita né scorsa. WebKit telefono con `touchscreen.tap`: doppio tocco nei due versi.
+- Non provato: il pizzico del trackpad in Safari (eventi `gesture*`, Playwright non li simula) e un iPhone vero.
+- Durante la sessione la #195 ha lavorato nella stessa cartella: i suoi file non entrano in questo commit.
+
+#### Aperti
+
+- Studio: adottare alla versione nuova e togliere il `// in attesa di tassullo-design-system-v2#199`.
+- Su un Mac con Safari: il pizzico del trackpad. Su un iPhone: pizzico e doppio tocco.
+- Da proporre se serve: lo zoom dentro `tassullo-galleria-immagini` con `AreaIngrandimento` (lì oggi `←`/`→` cambiano immagine).
+
+## 2026-11-07 — v2.0.37 pubblicata, #199 chiusa
+
+PR #208 unita col gate verde in CI, unione `7b6c841`; la #199 si è chiusa da sola con `Closes`. Prima dell'unione `main` si è mosso tre volte (v2.0.35, v2.0.36, #195): ogni volta l'unione di `main` nel ramo, fatta in una copia separata perché la cartella comune era occupata da un'altra sessione, e il gate rilanciato sul commit nuovo. Etichetta annotata `v2.0.37` su `7b6c841`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `tassullo-ingrandimento` (#199) e, già unito e non ancora pubblicato, `tassullo-campo-numero` con `leggiNumero(testo, { punto: "decimale" })` (#195). Avvisata la sessione della #195, che non mette un'etichetta sua.
+- **Non rompe chi aggiorna**: due blocchi nuovi; in `numeri` una funzione e un'opzione in più, di serie tutto com'era.
+- Verifica da fuori: alla `v2.0.37` rispondono 200 `registry.json`, `public/r/tassullo-ingrandimento.json` e il sorgente; `shadcn view …tassullo-ingrandimento#v2.0.37` restituisce il blocco con `Ingrandimento` e `AreaIngrandimento`.
+- Sulla #199 il commento di adozione: il comando, l'uso, gli `id` con `useId`, cosa togliere, cosa provare su un dispositivo vero, dove provarlo nella style guide.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.37` (#199) e togliere i `// in attesa di tassullo-design-system-v2#199`.
+- #195: commento di adozione e riga in CHECKLIST alla `v2.0.37`, in carico alla sua sessione.
+- Su un Mac con Safari il pizzico del trackpad; su un iPhone pizzico e doppio tocco dell'ingrandimento.
+
+## 2026-11-07 — Negativi in rosso: sui risultati, non sui fattori
+
+Richiesta di Francesco guardando il computo della #196: un'opzione per il campo numerico e, nel computo, i negativi della riga in rosso. Ramo `fras/negativi-rossi`, partito da quello della #207 (il campo numerico sta lì).
+
+#### La scelta
+
+- Rese tre varianti affiancate (pagina temporanea, tolta a scelta fatta): A solo il segno meno, B rosso su ogni negativo, C rosso solo sui risultati. Accanto, un campo in errore per confronto. Francesco: «C, solo risultati».
+
+#### Cosa cambia
+
+- `numeri`: `coloreNegativo(valore)` e `ROSSO_NEGATIVO` (`text-destructive-subtle-foreground`).
+- `CampoNumero`: `negativiInRosso`, spento di serie; il rosso segue il valore confermato, non il testo che si scrive.
+- Foglio a gruppi: il blocco non cambia. Nella story il rosso è nella `rendi` di quantità, SOMMANO, importo e nel totale; scena nuova «Negativi» con una voce di rettifica (SOMMANO −22,50, totale −54,47 €). Regola d'uso nella story e nei `docs` dell'item.
+- `check:contrast`: tre coppie nuove (pagina, card, riga selezionata), 6,93–11,29:1; aggiornato il conto in `CLAUDE.md` (28 per modalità, 56).
+
+#### Una caduta a tratti, con la causa trovata
+
+- Il primo `npm run check` del ramo è caduto su `foglio-gruppi › Cella a scelta, prova` in scuro/aperto: `toHaveFocus` scaduto sul prezzo dopo «`Invio`, poi `Tab`» (riga trovata dalla colonna del rapporto JSON del gate). Da sola 5 su 5, due passate intere 669 su 669.
+- Prima ipotesi scartata con una sonda: `↓` ed `Esc` prima del fotogramma chiudono bene.
+- Causa: aprendo la cella a scelta il fuoco resta sul `body` fino al fotogramma dopo, e un `Tab` arrivato lì si perde. Riprodotto con `fireEvent`, sempre. Difetto della cella a scelta arrivata con la #196, non del rosso.
+- Correzione: `autoFocus` sul grilletto, che passa `Tab` al foglio. Scena `Cella a scelta, Tab subito, prova`: senza la correzione cade 3 su 3, con passa, in Chromium e WebKit. `docs/DECISIONI.md` §94.
+
+#### Prove
+
+- `Negativi, prova` del foglio: in rosso esattamente i sei risultati negativi. Col rosso spento (`< -1000` al posto di `< 0`) cade, poi rimesso.
+- `Negativi, prova` del campo: rosso a riposo, non mentre si scrive `-1,890`, di nuovo rosso confermato; un positivo che diventa negativo prende il rosso.
+- `npm run check`: gli undici statici verdi (al secondo giro: il primo ha fermato un rimando a «DECISIONI §90» nel commento spedito); WebKit verde; axe 2680 scansioni, verdi tre passate su quattro. In scuro/aperto cadute le cinque prove di `testo-segnaposto` (`exit:paused:0`, la caduta già aperta): oggi tre volte su sei giri interi, mai da sola (39 su 39, tre volte). File non toccato, prove non ritoccate.
+
+#### Pubblicazione della #195
+
+- La #195 è uscita nella `v2.0.37`, messa dalla sessione della #199 sulla punta di `main` (contiene l'unione della #207). Commento di adozione sulla #195 (Francesco: «Sì, scrivilo»): comando, le tre novità, cosa togliere in Studio e Anagrafe, l'avvertenza sul segno meno dell'iPhone, l'annuncio del rosso dei negativi con la versione dopo.
+
+#### Aperti
+
+- Studio: con la versione nuova, `coloreNegativo` nella `rendi` dei risultati del computo.
+- `testo-segnaposto` in scuro/aperto nel gate intero (`exit:paused:0`): cade sempre più spesso, mai da sola. Cercarne la causa in una sessione a parte.
+
+## 2026-11-07 — v2.0.38 pubblicata, i negativi in rosso
+
+PR #211 unita col gate verde in CI, unione `470b7cd`. Prima dell'unione `main` si è mosso due volte (#208, #212): ogni volta l'unione di `main` nel ramo, conflitti solo in `CHECKLIST.md` e `WORKLOG.md`, statici rilanciati. Etichetta annotata `v2.0.38` su `470b7cd`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `coloreNegativo(valore)` e `ROSSO_NEGATIVO` in `numeri`, `negativiInRosso` su `tassullo-campo-numero`, la scena «Negativi» del foglio a gruppi (`docs/DECISIONI.md` §93); la cella a scelta del foglio col fuoco sul grilletto appena si apre, che passa `Tab` al foglio (§94).
+- **Non rompe chi aggiorna**: una funzione e una costante in più in `numeri`, una prop facoltativa spenta di serie sul campo; la cella a scelta cambia solo nel fotogramma dopo l'apertura.
+- Verifica da fuori: alla `v2.0.38` rispondono 200 `registry.json`, `public/r/numeri.json`, `public/r/tassullo-campo-numero.json`, `public/r/tassullo-foglio-gruppi.json` e `lib/numeri.ts` con `coloreNegativo`; `shadcn view …tassullo-campo-numero#v2.0.38` restituisce il blocco con `negativiInRosso`.
+
+- Sulla #196 il commento di adozione (Francesco: «Sì, sulla #196»): il comando, il rosso nella `rendi` dei risultati con un esempio, il `Tab` della cella a scelta, dove provarlo.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.37` (#195, #199) e alla `v2.0.38`; nel computo `coloreNegativo` nella `rendi` dei risultati.
+- `testo-segnaposto` nel gate intero (`exit:paused:0`): una sessione a parte ne cerca la causa.
+
 ## 2026-11-07 — `testo-segnaposto`: le cinque prove che cadevano insieme, la causa
 
 Sessione avviata dalla sessione principale, col compito di trovare la causa nel codice e correggerla con una prova che cade sempre senza. Ramo `fras/testo-segnaposto-pausa`.
 
-#### La causa (`docs/DECISIONI.md` §93)
+#### La causa (`docs/DECISIONI.md` §95)
 
 - **Chi mette in pausa l'animazione d'uscita è Storybook.** Sotto Vitest, finita la `play`, `runStory` aggiunge uno stile che ferma tutte le animazioni, esegue gli `afterEach` (axe) e solo dopo lo toglie, senza `finally`. Se axe trova una violazione, `afterEach` lancia e lo stile resta per le scene seguenti del file: ogni uscita nasce ferma a zero (`exit:paused:0`), Base UI non smonta l'elenco, e le quattro scene che aspettano la chiusura cadono. Sono tutte dopo «Elenco, stato tenuto fuori» nel file.
 - **La prima caduta**: «Elenco, stato tenuto fuori» finiva subito dopo aver scelto un gruppo nel `select`. Il menu di Base UI non si smonta, si nasconde (`hidden`), ma un fotogramma dopo; fino ad allora ha le guardie del fuoco raggiungibili e l'elenco senza nome. A macchina carica axe lo legge prima del fotogramma.
@@ -15268,14 +15371,16 @@ Sessione avviata dalla sessione principale, col compito di trovare la causa nel 
 - `Blocchi/Testo con segnaposto → Elenco, gruppo scelto coi fotogrammi lenti, prova` (etichetta `webkit`): fotogrammi a 500 ms anche durante axe, rimessi dalla pulizia del suo `beforeEach`. Senza `gruppiChiusi` cade 9 su 9 (Chromium due regole, WebKit `aria-input-field-name`); con, passa.
 - Trappola nella seconda prova: Base UI ha una coda sola di fotogrammi per la pagina, e uno vero già chiesto porta la chiusura a tempo pieno. A 150 ms e senza svuotare la coda la scena senza correzione passava in Chromium 3 volte su 4; ora si lasciano passare due fotogrammi veri prima di rallentare.
 - I due file, con le correzioni: Chromium 46 su 46 in chiaro/chiuso e scuro/aperto, WebKit 22 su 22.
-- `npm run check`, load average fra 6 e 10: verde al terzo giro, 13 gate, 2672 scansioni in 4 passate (668 story), 0 violazioni; WebKit 53 su 53. I primi due giri sono caduti su **una** scena ciascuno, mai di `testo-segnaposto` né del popover, in file non toccati: `foglio-gruppi › Cella a scelta, prova` (scuro/aperto, fuoco atteso sulla cella dopo `↓` ed `Esc` mandati subito dopo l'apertura dell'elenco: la famiglia di §90) e `data-grid › Celle Tipizzate, calendario, prova` (chiaro/chiuso, `aria-hidden-focus` su una guardia del fuoco: la scena finisce con `Esc` sul calendario senza aspettare che il popover sia smontato, cioè il primo difetto di §93). Da soli, `foglio-gruppi` 13 su 13 per tre volte. Prima di oggi una caduta così ne avrebbe trascinate altre con sé; questa volta è rimasta sola.
+- `npm run check`, load average fra 6 e 10: verde al terzo giro, 13 gate, 2672 scansioni in 4 passate (668 story), 0 violazioni; WebKit 53 su 53. I primi due giri sono caduti su **una** scena ciascuno, mai di `testo-segnaposto` né del popover, in file non toccati: `foglio-gruppi › Cella a scelta, prova` (scuro/aperto, fuoco atteso sulla cella dopo tasti mandati subito dopo l'apertura dell'elenco: la famiglia di §90, chiusa su `main` con §94) e `data-grid › Celle Tipizzate, calendario, prova` (chiaro/chiuso, `aria-hidden-focus` su una guardia del fuoco: la scena finisce con `Esc` sul calendario senza aspettare che il popover sia smontato, cioè il primo difetto di §95). Da soli, `foglio-gruppi` 13 su 13 per tre volte. Prima di oggi una caduta così ne avrebbe trascinate altre con sé; questa volta è rimasta sola.
+
+- Dopo l'unione di `main` (che aveva preso §93 e §94: questa sezione è diventata §95): `npm run check` verde al primo giro, 2712 scansioni in 4 passate (678 story), 0 violazioni; WebKit 54 su 54.
 
 #### Visto per strada
 
-- Storybook unisce i parametri chiave per chiave ma sostituisce gli elenchi: le `rules` del meta di `testo-segnaposto` prendono il posto di quelle di `vitest.setup.ts`, e lì `aria-hidden-focus` resta armata anche nella passata `aperto`. Non cambiato; scritto in §93. Vale per ogni file che dichiara le sue `rules`.
+- Storybook unisce i parametri chiave per chiave ma sostituisce gli elenchi: le `rules` del meta di `testo-segnaposto` prendono il posto di quelle di `vitest.setup.ts`, e lì `aria-hidden-focus` resta armata anche nella passata `aperto`. Non cambiato; scritto in §95. Vale per ogni file che dichiara le sue `rules`.
 - Il difetto di `runStory` (la pausa che non si toglie se `afterEach` lancia) è di Storybook: si potrebbe segnalare a loro. Non fatto.
 
 #### Aperti
 
-- **Le scene che finiscono con un popup in chiusura**: `data-grid › Celle Tipizzate, calendario, prova` è caduta oggi per il primo difetto di §93, e `foglio-gruppi › Cella a scelta, prova` è della famiglia di §90. Da cercare in tutte le story le `play` che finiscono subito dopo aver chiuso un popup, e valutare se l'attesa vada nelle scene o una volta sola nell'imbracatura, prima di axe.
+- **Le scene che finiscono con un popup in chiusura**: `data-grid › Celle Tipizzate, calendario, prova` è caduta oggi per il primo difetto di §95, `foglio-gruppi › Cella a scelta, prova`, della famiglia di §90, l'ha chiusa nel frattempo un'altra sessione su `main` (§94). Da cercare in tutte le story le `play` che finiscono subito dopo aver chiuso un popup, e valutare se l'attesa vada nelle scene o una volta sola nell'imbracatura, prima di axe.
 - Segnalare a Storybook il `finally` mancante in `runStory`, se Francesco lo vuole.

@@ -1,6 +1,6 @@
 /**
  * La pausa delle animazioni che Storybook lascia accesa quando una scena cade
- * nel controllo di axe (`docs/DECISIONI.md` §93).
+ * nel controllo di axe (`docs/DECISIONI.md` §95).
  *
  * ── Cosa fa Storybook ───────────────────────────────────────────────────
  *

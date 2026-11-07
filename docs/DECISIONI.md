@@ -4323,8 +4323,33 @@ Con la virgola i punti devono essere migliaia scritte giuste, a gruppi di tre. P
 
 **La prova.** `Blocchi/Campo numerico → Quattro casi` scrive `0.125`, `1.500`, `1.234,5` e `dodici` ed esce dal campo; `Con un modulo, prova` prova `Invio`, `Esc`, l'errore che sparisce e l'errore dello schema. Col blocco che legge come prima (`leggiNumero(testo)`) `Quattro casi` cade sul primo campo, che mostra `125`; con l'opzione passa. `Migliaia, prova`: entra e esce da `1.234` senza cambiare niente, poi aggiunge una cifra; con il punto lasciato nel campo a fuoco cade, con le cifre nude passa.
 
+## 93. I negativi in rosso: sui risultati, non sui fattori (richiesta di Francesco, 2026-11-07)
 
-## 93. Storybook mette in pausa le animazioni durante axe, e se axe trova una violazione la pausa resta: una caduta ne trascina altre quattro (2026-11-07)
+**Da dove viene.** Guardando il computo della proposta #196, Francesco ha chiesto un'opzione per mettere in rosso un numero negativo nel campo numerico, e nel computo i numeri negativi della riga, «come ad esempio il totale».
+
+**La scelta.** Rese tre varianti affiancate su una voce con due detrazioni e un SOMMANO negativo: A, solo il segno meno (com'era); B, rosso su ogni numero negativo, anche le parti scritte a mano; C, rosso solo sui risultati. Francesco ha scelto **C** («C, solo risultati»). In un computo una parte negativa è il modo di scrivere una detrazione, non un'anomalia; a contare è il risultato a cui porta.
+
+**Il colore** è `destructive-subtle-foreground`, il rosso fatto per il testo, e non `text-destructive`, che è il rosso dei fondi (3,52:1 sul fondo scuro, la trappola del `CLAUDE.md`). Aggiunte tre coppie a `check:contrast`: su pagina, su card e su riga selezionata, da 6,93:1 a 11,29:1 (28 coppie per modalità, 56 in tutto).
+
+**Dove sta.**
+
+- `coloreNegativo(valore)` e `ROSSO_NEGATIVO` in `numeri`: la classe in un posto solo, come i toni di `toni`. Zero, `-0`, `null` e `undefined` non sono negativi.
+- Nel foglio a gruppi **il blocco non cambia**: i risultati sono celle calcolate, e la loro `rendi` restituisce ciò che la pagina vuole. Il rosso si passa lì; la scena «Negativi» è la ricetta.
+- `CampoNumero` ha `negativiInRosso`, spento di serie. Il rosso segue il valore **confermato**: mentre si scrive un testo diverso, o con un errore, il campo non lo prende. Il rosso è del testo, non del bordo: un campo in errore resta riconoscibile dal bordo e dal messaggio.
+
+**Le prove.** `Blocchi/Foglio a gruppi → Negativi, prova` chiede che in rosso ci siano esattamente i sei risultati negativi della scena, nessun fattore e nessun positivo: col rosso spento cade. `Blocchi/Campo numerico → Negativi, prova` controlla il rosso a riposo, la sua assenza mentre si scrive e la conferma di un negativo nuovo.
+
+## 94. La cella a scelta del foglio: il fuoco sul grilletto appena si apre, e `Tab` passa al foglio (2026-11-07)
+
+**La causa di una caduta a tratti di `foglio-gruppi › Cella a scelta, prova`** nel gate intero (una volta su tre giri, in scuro/aperto): `toHaveFocus` scaduto sul prezzo dopo «`Invio`, poi `Tab`». Da sola la prova passava 5 volte su 5, e due passate intere 669 su 669.
+
+Aprendo la modifica di una cella a scelta, la cella chiusa sparisce e il `Select` compare aperto; l'elenco prende il fuoco **al fotogramma dopo** (§90). In mezzo il fuoco era sul `body`, e un `Tab` arrivato lì non passava dal foglio: lo gestiva solo l'elenco, che il fuoco non l'aveva ancora. La prova manda `Tab` appena l'elenco compare, quindi a macchina carica a volte arrivava prima. Riprodotto in modo deterministico: `Invio` e `Tab` con `fireEvent` nello stesso giro lasciano il fuoco nell'elenco, ogni volta.
+
+**La correzione**: il grilletto ha `autoFocus`, quindi fino al fotogramma dopo il fuoco sta su di lui e non sul `body`, e passa `Tab` al foglio come l'elenco. `Esc` lo gestisce già Base UI su tutto il documento. Scena nuova `Cella a scelta, Tab subito, prova`: senza la correzione cade 3 volte su 3, con la correzione passa, in Chromium e in WebKit.
+
+È la regola del §90 una seconda volta: un controllo che apre un popup tiene il fuoco, e gestisce i tasti, fino a quando il popup non l'ha preso davvero.
+
+## 95. Storybook mette in pausa le animazioni durante axe, e se axe trova una violazione la pausa resta: una caduta ne trascina altre quattro (2026-11-07)
 
 **La causa delle cinque prove di `testo-segnaposto` che cadevano insieme** (voci del diario dal 2026-11-03: «Elenco, stato tenuto fuori, prova» con `aria-hidden-focus` e `aria-input-field-name`, e «Niente che corrisponda», «Spazio accanto al dato», «Scrivere accanto a una pillola», «Proposte» con l'elenco fermo e le animazioni `["exit:paused:0"]`). Sono **due difetti in fila**, e solo il primo dipende dal carico della macchina.
 
@@ -4343,4 +4368,4 @@ Riprodotto in modo deterministico: aggiunto un `<img>` senza `alt` in fondo a «
 
 **Una trappola nel costruire la seconda prova.** Base UI mette tutti i suoi fotogrammi in **una coda sola** per la pagina (`Scheduler` di `@base-ui/utils/useAnimationFrame`): se un fotogramma vero era già stato chiesto quando si rallenta, la coda intera parte con quello, e la chiusura arriva a tempo pieno. Con un ritardo di 150 ms e senza svuotare la coda la scena senza correzione passava in Chromium 3 volte su 4. La prova lascia quindi passare due fotogrammi veri prima di rallentare.
 
-**La regola che vale oltre il caso**: una scena finisce a pagina ferma. Quello che la `play` lascia in movimento lo legge axe a metà, e se axe lo segnala, per colpa di Storybook, la pausa rimasta si portava dietro le scene seguenti. È la stessa famiglia di §90, dal lato opposto: là il fuoco entrava nel popup al fotogramma dopo, qui il menu ne usciva al fotogramma dopo.
+**La regola che vale oltre il caso**: una scena finisce a pagina ferma. Quello che la `play` lascia in movimento lo legge axe a metà, e se axe lo segnala, per colpa di Storybook, la pausa rimasta si portava dietro le scene seguenti. È la stessa famiglia di §90 e §94, dal lato opposto: là il fuoco entrava nel popup al fotogramma dopo, qui il menu ne usciva al fotogramma dopo.

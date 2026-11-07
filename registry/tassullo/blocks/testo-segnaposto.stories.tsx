@@ -1671,7 +1671,7 @@ export const ElencoTenutoFuoriProva: Story = {
 // pulizia del `beforeEach`. Prima di rallentare si lasciano passare due
 // fotogrammi veri: Base UI mette tutti i suoi in una coda sola, e uno già
 // chiesto porterebbe la chiusura a tempo pieno. Senza l'attesa di
-// `gruppiChiusi` la scena cade ogni volta (`docs/DECISIONI.md` §93).
+// `gruppiChiusi` la scena cade ogni volta (`docs/DECISIONI.md` §95).
 export const ElencoTenutoFuoriFotogrammiLentiProva: Story = {
   name: 'Elenco, gruppo scelto coi fotogrammi lenti, prova',
   tags: ['!dev', '!autodocs', 'webkit'],

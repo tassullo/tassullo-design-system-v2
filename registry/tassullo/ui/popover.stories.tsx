@@ -195,7 +195,7 @@ export const QuattroLati: Story = {
 // si toglie più); la seconda apre e chiude un popover e aspetta che si
 // smonti. Senza il `beforeEach` di `.storybook/vitest.setup.ts` la seconda
 // cade ogni volta, col riquadro fermo all'inizio dell'uscita
-// (`docs/DECISIONI.md` §93). Fuori dalle prove la prima non fa niente.
+// (`docs/DECISIONI.md` §95). Fuori dalle prove la prima non fa niente.
 function PopoverDiProva() {
   return (
     <Popover>

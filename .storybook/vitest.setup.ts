@@ -105,7 +105,7 @@ configure({ asyncUtilTimeout: 5000 })
  * Storybook, finita la `play`, mette in pausa le animazioni per la durata di
  * axe e le libera dopo; ma se axe trova una violazione la pausa resta, e le
  * scene seguenti dello stesso file trovano i popup fermi a metà uscita. Una
- * caduta vera ne trascinava con sé altre quattro (`docs/DECISIONI.md` §93).
+ * caduta vera ne trascinava con sé altre quattro (`docs/DECISIONI.md` §95).
  * Il dettaglio sta in `./prove/pausa.ts`.
  */
 const beforeEach = () => {
