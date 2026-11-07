@@ -15041,3 +15041,18 @@ Secondo lavoro della proposta #193 (Francesco: «Sì, comincia»). Ramo `fras/at
 #### Aperti
 
 - Studio: avvisare sulla #193 quando la chat è implementata, per `tassullo-pagina-chat`.
+
+## 2026-11-07 — v2.0.33 pubblicata, #193 chiusa
+
+PR #201 unita col gate verde, unione `5938183`; la #193 si è chiusa da sé con `Closes #193`. Etichetta annotata `v2.0.33` su `5938183`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `attachment`, `trace`, `marker` di shadcn col tema Tassullo (#193, seconda parte, voce #193b sopra).
+- **Non rompe chi aggiorna**: item nuovi, nessun pacchetto nuovo.
+- Verifica da fuori: alla `v2.0.33` rispondono 200 `registry.json`, `public/r/attachment.json`, `public/r/trace.json`, `public/r/marker.json` e i sorgenti di `attachment` e `trace`, entrambi con `destructive-subtle-foreground`; `shadcn view …#v2.0.33` risolve i tre item, `attachment` con `@tassullo/button` e `trace` con `@tassullo/collapsible` fra le dipendenze.
+- Sulla #193 il commento di adozione: il comando, a cosa servono i tre nella chat, cosa togliere, e di nuovo la richiesta di avvisare lì, anche a issue chiusa, quando la chat è implementata.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.33` (con le parti della `v2.0.32`); avvisare sulla #193 quando la chat è implementata, per `tassullo-pagina-chat`.
+- `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
+- Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Studio: adottare alla `v2.0.31` (#190). Il gesto del cassetto su un iPhone vero.
