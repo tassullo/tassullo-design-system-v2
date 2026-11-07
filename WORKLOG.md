@@ -15136,6 +15136,23 @@ Proposta di Studio, tre punti trattati uno per uno. Ramo `fras/foglio-gruppi-196
 
 - Studio: adottare alla versione nuova, togliere i tre `// in attesa di tassullo-design-system-v2#196`, e passare l'unità del SOMMANO a `tipo: "scelta"`.
 
+## 2026-11-07 — v2.0.35 pubblicata, #196 chiusa
+
+PR #205 unita col gate verde in CI (11 minuti), unione `34440a7`; la #196 si è chiusa da sé con `Closes #196`. Etichetta annotata `v2.0.35` su `34440a7`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `tassullo-foglio-gruppi` col testo selezionato all'apertura, `motivo` sotto la voce spenta del menu e la cella `scelta` su `select` (voce #196 sopra).
+- **Non rompe chi aggiorna**: aggiunte facoltative, nessun pacchetto npm nuovo; il blocco porta `@tassullo/select`. Il testo selezionato è un cambio di serie, detto nel commento di adozione.
+- Verifica da fuori: alla `v2.0.35` rispondono 200 `registry.json`, `public/r/tassullo-foglio-gruppi.json` e il sorgente, con `tipo: "scelta"`, `apertaScrivendo` e `motivo`; `shadcn view …tassullo-foglio-gruppi#v2.0.35` risolve, con `@tassullo/select` fra le dipendenze.
+- Sulla #196 il commento di adozione: il comando, i tre cambi, cosa togliere, dove provarla, Safari compreso.
+- La cartella del repository era condivisa con le sessioni della #195 e della #199, che l'hanno portata sui loro rami mentre questa lavorava (avviso della sessione #195). Il commit della #196 era già sul suo ramo e spinto, quindi intatto. Unione e diario fatti senza toccare la cartella comune: ramo remoto cancellato con l'API, diario scritto in una cartella di lavoro a parte. Da ricordare: più sessioni nella stessa cartella si cambiano il ramo sotto i piedi, e prima di un commit si guarda `git branch --show-current`.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.35` (#196), alla `v2.0.34` (#197, #198), alla `v2.0.33` (#193) e alla `v2.0.31` (#190).
+- Proposte di Studio del 2026-11-07 ancora aperte: #195 (campo numerico), #199 (ingrandimento).
+- `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
+- Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Il gesto del cassetto su un iPhone vero.
+
 ## 2026-11-07 — #195: campo numerico, e un punto che non diventa migliaia
 
 Proposta di Studio (lo stesso bisogno c'è in Anagrafe). Ramo `fras/campo-numero-195`. Prima l'analisi e la proposta in chat, poi il codice: Francesco ha approvato opzione e blocco così come proposti («Sì, procedi»).
