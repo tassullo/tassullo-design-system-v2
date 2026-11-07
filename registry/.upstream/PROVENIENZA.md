@@ -19,7 +19,7 @@ dice quel file; qui sotto c'è solo il riassunto.
 | registry | chi | licenza | avviso da conservare nel file | file |
 |---|---|---|---|---:|
 | `@reui` | ReUI — Keenthemes | MIT — Copyright (c) 2025 Keenthemes Inc | sì — «Copyright (c) 2025 Keenthemes Inc» | 12 |
-| `@shadcn` | shadcn/ui | MIT — shadcn | no | 50 |
+| `@shadcn` | shadcn/ui | MIT — shadcn | no | 53 |
 
 Un terzo registry si aggiunge con **una riga** in `REGISTRI_ORIGINE`
 (`scripts/check-registry.ts`), più una riga per file in `provenienze.json`.

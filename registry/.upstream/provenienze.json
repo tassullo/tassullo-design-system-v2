@@ -3,6 +3,7 @@
   "alert-dialog.tsx": "@shadcn/alert-dialog",
   "alert.tsx": "@shadcn/alert",
   "aspect-ratio.tsx": "@shadcn/aspect-ratio",
+  "attachment.tsx": "@shadcn/attachment",
   "avatar.tsx": "@shadcn/avatar",
   "badge.tsx": "@shadcn/badge",
   "breadcrumb.tsx": "@shadcn/breadcrumb",
@@ -40,6 +41,7 @@
   "item.tsx": "@shadcn/item",
   "kbd.tsx": "@shadcn/kbd",
   "label.tsx": "@shadcn/label",
+  "marker.tsx": "@shadcn/marker",
   "message-scroller.tsx": "@shadcn/message-scroller",
   "message.tsx": "@shadcn/message",
   "pagination.tsx": "@shadcn/pagination",
@@ -63,5 +65,6 @@
   "textarea.tsx": "@shadcn/textarea",
   "toggle-group.tsx": "@shadcn/toggle-group",
   "toggle.tsx": "@shadcn/toggle",
-  "tooltip.tsx": "@shadcn/tooltip"
+  "tooltip.tsx": "@shadcn/tooltip",
+  "trace.tsx": "@shadcn/trace"
 }
