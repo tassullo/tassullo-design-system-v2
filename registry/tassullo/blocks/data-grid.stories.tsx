@@ -745,6 +745,43 @@ export const CelleTipizzateCalendarioEscProva: Story = {
   play: escPrimaDelFuocoNelCalendario,
 }
 
+// Prova: la scena finisce col calendario ancora in chiusura, come
+// `Celle Tipizzate, calendario, prova` a macchina carica, quando `Esc` arriva
+// prima che il fuoco entri nel calendario e il fuoco, rimasto nel campo, fa
+// passare subito l'ultima attesa. La pausa di Storybook ferma l'uscita, e axe
+// leggerebbe le guardie del fuoco del calendario con `tabindex="0"` e
+// `aria-hidden`. Prima di axe l'imbracatura aspetta che il calendario sia
+// smontato: senza quell'attesa la scena cade ogni volta, in Chromium e in
+// WebKit (`docs/DECISIONI.md` §96). `aria-hidden-focus` è armata qui in
+// tutte le passate, anche dove l'imbracatura la spegne: questa scena non
+// lascia nessuno sfondo inerte.
+async function calendarioInChiusuraAFineScena({ canvasElement }: { canvasElement: HTMLElement }) {
+  const cella = () =>
+    canvasElement.querySelector<HTMLElement>('[data-riga-id="voce-t-3"][data-colonna-id="scadenza"]')
+  const campo = () => canvasElement.querySelector<HTMLInputElement>('input[aria-label="scadenza"]')
+  const calendario = () =>
+    document.querySelector('[data-slot="popover-content"][aria-label="Scegli la data"]')
+  await waitFor(() => expect(cella()).toBeTruthy())
+
+  await userEvent.click(cella()!)
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(document.activeElement).toBe(campo()))
+
+  fireEvent.keyDown(campo()!, { key: 'ArrowDown' })
+  fireEvent.keyDown(campo()!, { key: 'Escape' })
+  expect(document.activeElement).toBe(campo())
+  await waitFor(() => expect(calendario()).toHaveAttribute('data-ending-style'))
+}
+
+// Scena di misura del calendario in chiusura a fine scena: nascosta come quelle sopra.
+export const CelleTipizzateCalendarioInChiusuraProva: Story = {
+  ...CelleTipizzate,
+  name: 'Celle Tipizzate, calendario in chiusura a fine scena, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  parameters: { a11y: { config: { rules: [{ id: 'aria-hidden-focus', enabled: true }] } } },
+  play: calendarioInChiusuraAFineScena,
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Colonne miste — alcune si leggono, altre si scrivono
  * ──────────────────────────────────────────────────────────────────────── */
