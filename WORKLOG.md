@@ -15384,3 +15384,38 @@ Sessione avviata dalla sessione principale, col compito di trovare la causa nel 
 
 - **Le scene che finiscono con un popup in chiusura**: `data-grid › Celle Tipizzate, calendario, prova` è caduta oggi per il primo difetto di §95, `foglio-gruppi › Cella a scelta, prova`, della famiglia di §90, l'ha chiusa nel frattempo un'altra sessione su `main` (§94). Da cercare in tutte le story le `play` che finiscono subito dopo aver chiuso un popup, e valutare se l'attesa vada nelle scene o una volta sola nell'imbracatura, prima di axe.
 - Segnalare a Storybook il `finally` mancante in `runStory`, se Francesco lo vuole.
+
+## 2026-11-07 — Gate: le scene che finiscono con un popup in chiusura
+
+Sessione avviata dalla sessione principale, dopo la #214: cercare le scene che finiscono subito dopo aver chiuso un popup e decidere con Francesco dove va l'attesa. Ramo `fras/popup-in-chiusura`, partito da `fras/testo-segnaposto-pausa` (la #214 non era ancora unita).
+
+#### La causa (`docs/DECISIONI.md` §96)
+
+- La pausa di Storybook, prima di axe, riparte ogni animazione e la ferma all'istante zero: un popup che si sta chiudendo resta montato per tutta la lettura di axe. Il `popover` in chiusura ha le guardie del fuoco con `tabindex="0"` e `aria-hidden`; il menu a tendina le porta a `tabindex="-1"`, e per questo le sue scene passavano.
+- `data-grid › Celle Tipizzate, calendario, prova` finiva così solo quando `Esc` arrivava prima che il fuoco entrasse nel calendario (§90): il fuoco restava nel campo e l'ultima attesa passava subito.
+
+#### Come si è arrivati
+
+- Sonda in una scena copia: fotogrammi lenti prima di `Esc` a calendario già col fuoco dentro → il calendario è smontato prima che il fuoco torni al campo, nessuna caduta. Fotogrammi lenti prima della riapertura con `↓` → caduta ogni volta, il calendario a fine scena con `data-ending-style` e l'animazione `paused:0`.
+- Censimento con un `afterEach` temporaneo nell'imbracatura: ciò che ha `data-ending-style` o `data-starting-style` alla fine di ogni `play`, 679 scene, popup chiusi e aperti, a fotogrammi normali e rallentati di 120 ms (un `beforeEach` temporaneo). L'elenco sta in §96.
+- Trovato in Storybook (`applyAfterEach`) che gli `afterEach` girano in ordine inverso: per stare prima di axe il nostro va nell'ultimo gruppo di annotazioni. Messo in testa gira dopo axe, e quando axe lancia non gira affatto.
+
+#### La decisione
+
+- Chiesto a Francesco: attesa in ogni scena, o una volta sola nell'imbracatura. Ha scelto l'imbracatura, la strada consigliata.
+
+#### Le correzioni
+
+- `aspettaPaginaFerma` e `inChiusura` in `.storybook/prove/pausa.ts`; un `afterEach` in `.storybook/vitest.setup.ts`. Se niente si sta chiudendo esce subito; altrimenti toglie la pausa, aspetta, la rimette. Cinque secondi, poi la scena cade col nome del popup.
+- Tolte le due attese finali di `gruppiChiusi` in `testo-segnaposto.stories.tsx`, ora doppie.
+
+#### Prove
+
+- `Blocchi/Data Grid → Celle Tipizzate, calendario in chiusura a fine scena, prova` (etichetta `webkit`): senza l'attesa 9 su 9 cadute (Chromium chiuso e aperto `aria-hidden-focus`, WebKit `aria-command-name`, tre giri); con, verde.
+- `Celle Tipizzate, calendario, prova` coi fotogrammi a 120 ms: 3 su 3 cadute senza, 3 su 3 verdi con.
+- `Elenco, gruppo scelto coi fotogrammi lenti, prova` senza `gruppiChiusi` in fondo: cade senza l'attesa (Chromium e WebKit), verde con.
+- `npm run lint`, `npm run build` e `npm run check` verdi al primo giro: 13 gate, 2716 scansioni in 4 passate (679 story), 0 violazioni; WebKit 55 su 55.
+
+#### Aperti
+
+- La PR poggia sulla #214: unita quella, si riporta su `main` prima di cancellarne il ramo.

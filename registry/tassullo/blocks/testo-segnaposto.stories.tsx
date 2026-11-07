@@ -1566,8 +1566,8 @@ export const InsiemeDegliSpaziProva: Story = {
 // Il menu dei gruppi non si smonta: chiuso, resta nella pagina dentro un
 // contenitore `hidden`. Ma ci arriva un fotogramma dopo la scelta, e fino ad
 // allora ha ancora le guardie del fuoco raggiungibili e l'elenco senza nome.
-// Una scena che finisce con la scelta aspetta il `hidden`: axe, che legge la
-// pagina subito dopo, troverebbe il menu a metà.
+// Prima di proseguire con l'altro elenco la prova aspetta il `hidden`. A fine
+// scena non serve: prima di axe aspetta l'imbracatura (`docs/DECISIONI.md` §96).
 async function gruppiChiusi() {
   await waitFor(() => {
     const menu = document.querySelector('[data-slot="select-content"]')
@@ -1658,7 +1658,6 @@ export const ElencoTenutoFuoriProva: Story = {
     await userEvent.click(await within(document.body).findByRole('option', { name: 'Tutti i dati' }))
     await waitFor(() => expect(stato).toHaveTextContent('tutti |'))
     expect(righe('fuori')).toHaveLength(VOCI_IN_PIU.length)
-    await gruppiChiusi()
   },
 }
 
@@ -1670,8 +1669,9 @@ export const ElencoTenutoFuoriProva: Story = {
 // mentre axe legge: tornano normali all'inizio della scena dopo, con la
 // pulizia del `beforeEach`. Prima di rallentare si lasciano passare due
 // fotogrammi veri: Base UI mette tutti i suoi in una coda sola, e uno già
-// chiesto porterebbe la chiusura a tempo pieno. Senza l'attesa di
-// `gruppiChiusi` la scena cade ogni volta (`docs/DECISIONI.md` §95).
+// chiesto porterebbe la chiusura a tempo pieno. La scena finisce col menu
+// ancora in chiusura: prima di axe l'imbracatura aspetta che sia nascosto, e
+// senza quell'attesa la scena cade ogni volta (`docs/DECISIONI.md` §95, §96).
 export const ElencoTenutoFuoriFotogrammiLentiProva: Story = {
   name: 'Elenco, gruppo scelto coi fotogrammi lenti, prova',
   tags: ['!dev', '!autodocs', 'webkit'],
@@ -1698,7 +1698,6 @@ export const ElencoTenutoFuoriFotogrammiLentiProva: Story = {
     // Lo stato della pagina si aggiorna alla scelta, senza aspettare il
     // fotogramma: è il punto in cui finisce `Elenco, stato tenuto fuori`.
     await waitFor(() => expect(canvasElement.querySelector('[data-prova="stato"]')).toHaveTextContent('Prodotto |'))
-    await gruppiChiusi()
   },
 }
 

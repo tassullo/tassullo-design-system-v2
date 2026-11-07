@@ -3,7 +3,7 @@ import { configure } from 'storybook/test'
 // @ts-expect-error — modulo virtuale del builder, senza tipi.
 import { getProjectAnnotations } from 'virtual:/@storybook/builder-vite/project-annotations.js'
 
-import { togliPausaRimasta } from './prove/pausa'
+import { aspettaPaginaFerma, togliPausaRimasta } from './prove/pausa'
 
 /**
  * L'imbracatura del gate. Fa una cosa sola che il preview non fa da sé:
@@ -112,7 +112,19 @@ const beforeEach = () => {
   togliPausaRimasta()
 }
 
+/**
+ * Ogni scena arriva ad axe a pagina ferma.
+ *
+ * Se la `play` finisce mentre un popup si sta chiudendo, la pausa di Storybook
+ * ne ferma l'uscita e axe legge il popup a metà, con le guardie del fuoco
+ * ancora raggiungibili. Succedeva o no a seconda dei fotogrammi, cioè del
+ * carico della macchina (`docs/DECISIONI.md` §96). Gli `afterEach` girano in
+ * ordine inverso: questo, che sta nell'ultimo gruppo di annotazioni, parte
+ * prima di quello di axe. Il dettaglio sta in `./prove/pausa.ts`.
+ */
+const afterEach = () => aspettaPaginaFerma()
+
 setProjectAnnotations([
   getProjectAnnotations(),
-  { initialGlobals: { modalita }, parameters: parametri, beforeEach },
+  { initialGlobals: { modalita }, parameters: parametri, beforeEach, afterEach },
 ])
