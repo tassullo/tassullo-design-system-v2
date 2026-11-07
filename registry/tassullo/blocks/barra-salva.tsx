@@ -53,6 +53,23 @@
  * i bordi si scrivono sull'elemento, e `data-misurata` toglie l'opacità zero:
  * stesso istante, prima che la pagina si disegni, e nessun render. Prova
  * `Pagine/Scheda a blocchi → Cambio di tab, prova`, in WebKit.
+ *
+ * ── Sopra il contenuto, sotto gli avvisi ─────────────────────────────────
+ *
+ * Proposte #197 e #198 (Studio), 7 novembre 2026. Fino alla v2.0.33 la barra
+ * era `z-10`, e l'intestazione e il piede bloccati di `tassullo-data-table`
+ * sono `sticky z-20`: scorrendo una tabella lunga, l'intestazione passava
+ * sopra la barra e se ne prendeva i clic. Ora la barra è `z-30`, il gradino
+ * delle barre ferme nella scala dei livelli (`docs/DECISIONI.md`).
+ *
+ * Il toast di `sonner`, in basso, compariva invece proprio sopra «Salva» e
+ * «Annulla» — col salvataggio fallito, che è quando servono di nuovo. Ora la
+ * barra scrive la propria altezza in `--barra-salva-alta` sulla radice del
+ * documento, e finché c'è i toast in basso salgono di quell'altezza (un
+ * margine sotto l'elenco dei toast, che `sonner` posiziona con `bottom`).
+ * Nessuna modifica a `ui/sonner.tsx`, e l'app non deve passare niente al
+ * `Toaster`. Si misura, e non si conta in unità, perché su un telefono la
+ * barra va su due righe.
  */
 import * as React from "react"
 import { cn } from "cn"
@@ -103,6 +120,12 @@ export function BarraSalva({
     // fuori posto. Un render sincrono qui eseguirebbe anche gli aggiornamenti
     // in attesa del resto della pagina, che cambierebbero le misure dentro
     // l'osservatore.
+    // L'altezza, per i toast in basso, che salgono sopra la barra. Scrive solo
+    // sulla radice, non sulla barra: osservarla non può rimisurarla.
+    const alta = () => {
+      const b = barra.current
+      if (b) document.documentElement.style.setProperty("--barra-salva-alta", `${b.offsetHeight}px`)
+    }
     const leggi = () => {
       const b = barra.current
       if (!b) return
@@ -110,15 +133,22 @@ export function BarraSalva({
       b.style.left = `${r.left}px`
       b.style.width = `${r.width}px`
       b.dataset.misurata = ""
+      alta()
     }
     leggi()
-    if (typeof ResizeObserver === "undefined") return
+    const togli = () => document.documentElement.style.removeProperty("--barra-salva-alta")
+    if (typeof ResizeObserver === "undefined") return togli
     const osservatore = new ResizeObserver(leggi)
     osservatore.observe(misurato)
+    // Anche la barra: con un altro testo, o andando a capo, cambia altezza.
+    const osservaAltezza = new ResizeObserver(alta)
+    if (barra.current) osservaAltezza.observe(barra.current)
     window.addEventListener("resize", leggi)
     return () => {
       osservatore.disconnect()
+      osservaAltezza.disconnect()
       window.removeEventListener("resize", leggi)
+      togli()
     }
   }, [visibile])
 
@@ -138,12 +168,15 @@ export function BarraSalva({
         ref={barra}
         data-slot="barra-salva"
         className={cn(
-          "fixed bottom-0 z-10 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border bg-background px-4 py-3",
+          "fixed bottom-0 z-30 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border bg-background px-4 py-3",
           // Finché lo spazio non è misurato la barra non si vede e non si
           // clicca. Non `invisible`: la visibilità si eredita, e coi bottoni
           // in `transition-all` resterebbero nascosti per tutta la transizione
           // dopo che la barra è comparsa.
           "not-data-misurata:pointer-events-none not-data-misurata:opacity-0",
+          // Finché la barra c'è, i toast in basso le stanno sopra. `!` perché
+          // il foglio di `sonner` è fuori dai livelli e vincerebbe comunque.
+          "[html:has(&)_[data-sonner-toaster][data-y-position=bottom]]:mb-(--barra-salva-alta)!",
           className
         )}
       >

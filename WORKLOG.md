@@ -15056,3 +15056,28 @@ PR #201 unita col gate verde, unione `5938183`; la #193 si è chiusa da sé con 
 - Studio: adottare alla `v2.0.33` (con le parti della `v2.0.32`); avvisare sulla #193 quando la chat è implementata, per `tassullo-pagina-chat`.
 - `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
 - Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Studio: adottare alla `v2.0.31` (#190). Il gesto del cassetto su un iPhone vero.
+
+## 2026-11-07 — #197 e #198: barra di salvataggio sotto la tabella e sotto il toast
+
+Due proposte di Studio aperte oggi sullo stesso blocco, in una PR sola (Francesco: «#197 + #198 insieme»). Ramo `fras/barra-salva-livelli`. Le altre tre proposte del giorno (#195 campo numerico, #196 foglio a gruppi, #199 ingrandimento) restano aperte.
+
+#### Cosa cambia in `tassullo-barra-salva`
+
+- **#197**: la barra passa da `z-10` a `z-30`. L'intestazione e il piede fermi della tabella sono `z-20`, e le passavano sopra prendendosi i clic di «Salva» e «Annulla». Vale anche per `tassullo-data-grid`, che usa la stessa tabella. Scritta la scala dei livelli del registry (`docs/DECISIONI.md` §91).
+- **#198**: la barra scrive la propria altezza in `--barra-salva-alta` sulla radice del documento (un secondo `ResizeObserver`, sulla sola barra, che scrive solo sulla radice, così osservarla non la rimisura), e finché c'è l'elenco dei toast in basso prende un margine sotto di quell'altezza. Nessuna modifica a `ui/sonner.tsx`, niente da passare al `Toaster` nell'app. Tolta la variabile quando la barra sparisce. Strade scartate in §91.
+- Il JSDoc della story dice la regola a chi usa la barra: sopra la pagina, sotto gli avvisi.
+
+#### Prove
+
+- Scena nuova `Con una tabella e un avviso` (con la prova, etichetta `webkit`): una scheda con dieci campi, una tabella `altezza="ferma"` da 40 righe e un salvataggio che fallisce con `toast.error`. La prova porta l'intestazione dietro la barra, chiede a `elementFromPoint` chi riceve il clic al centro di «Salva», salva e misura il toast fermo.
+- **Sul codice di prima cade** al primo punto (al centro di «Salva» c'è l'intestazione), **con il solo `z-30` cade** al secondo (toast con fondo a 876, barra da 843), **con tutta la correzione passa**, in WebKit e Chromium.
+- Due correzioni della prova scrivendola: la prima stesura aveva la tabella troppo in alto per passare dietro la barra (la prova falliva per la ragione sbagliata), e la misura del toast in un `waitFor` passava anche senza correzione, presa a metà dell'entrata. Ora aspetta `data-mounted` e `getAnimations()`.
+- La tabella della scena ha `selezione`: senza niente da raggiungere col `Tab`, axe segnala `scrollable-region-focusable` sul riquadro che scorre.
+- Nel browser, a 1149×1197: barra alta 57, toast con fondo a 1116, cioè 24px sopra la barra.
+- Nel browser: a 1280×800 l'intestazione passa dietro la barra (727–767 contro 743), al centro di «Salva» c'è «Salva», toast con fondo a 719; a 375×812 barra su una riga, alta 57, toast 16px sopra.
+- `npm run check`: verde al secondo giro, 13 gate, 2616 scansioni in 4 passate (654 story), 0 violazioni; WebKit 50 su 50. Il primo giro è caduto in chiaro/aperto sulle cinque prove di `testo-segnaposto` della voce #193a (animazione d'uscita `exit:paused:0`), con Storybook e il pannello del browser accesi per le anteprime: stesso quadro di allora, file non toccato.
+
+#### Aperti
+
+- Studio: adottare alla versione nuova, togliere il rimedio se l'ha messo, e scrivere l'esito sulle due proposte.
+
