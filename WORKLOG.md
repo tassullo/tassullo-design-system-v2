@@ -15290,3 +15290,41 @@ PR #208 unita col gate verde in CI, unione `7b6c841`; la #199 si è chiusa da so
 - Studio: adottare alla `v2.0.37` (#199) e togliere i `// in attesa di tassullo-design-system-v2#199`.
 - #195: commento di adozione e riga in CHECKLIST alla `v2.0.37`, in carico alla sua sessione.
 - Su un Mac con Safari il pizzico del trackpad; su un iPhone pizzico e doppio tocco dell'ingrandimento.
+
+## 2026-11-07 — Negativi in rosso: sui risultati, non sui fattori
+
+Richiesta di Francesco guardando il computo della #196: un'opzione per il campo numerico e, nel computo, i negativi della riga in rosso. Ramo `fras/negativi-rossi`, partito da quello della #207 (il campo numerico sta lì).
+
+#### La scelta
+
+- Rese tre varianti affiancate (pagina temporanea, tolta a scelta fatta): A solo il segno meno, B rosso su ogni negativo, C rosso solo sui risultati. Accanto, un campo in errore per confronto. Francesco: «C, solo risultati».
+
+#### Cosa cambia
+
+- `numeri`: `coloreNegativo(valore)` e `ROSSO_NEGATIVO` (`text-destructive-subtle-foreground`).
+- `CampoNumero`: `negativiInRosso`, spento di serie; il rosso segue il valore confermato, non il testo che si scrive.
+- Foglio a gruppi: il blocco non cambia. Nella story il rosso è nella `rendi` di quantità, SOMMANO, importo e nel totale; scena nuova «Negativi» con una voce di rettifica (SOMMANO −22,50, totale −54,47 €). Regola d'uso nella story e nei `docs` dell'item.
+- `check:contrast`: tre coppie nuove (pagina, card, riga selezionata), 6,93–11,29:1; aggiornato il conto in `CLAUDE.md` (28 per modalità, 56).
+
+#### Una caduta a tratti, con la causa trovata
+
+- Il primo `npm run check` del ramo è caduto su `foglio-gruppi › Cella a scelta, prova` in scuro/aperto: `toHaveFocus` scaduto sul prezzo dopo «`Invio`, poi `Tab`» (riga trovata dalla colonna del rapporto JSON del gate). Da sola 5 su 5, due passate intere 669 su 669.
+- Prima ipotesi scartata con una sonda: `↓` ed `Esc` prima del fotogramma chiudono bene.
+- Causa: aprendo la cella a scelta il fuoco resta sul `body` fino al fotogramma dopo, e un `Tab` arrivato lì si perde. Riprodotto con `fireEvent`, sempre. Difetto della cella a scelta arrivata con la #196, non del rosso.
+- Correzione: `autoFocus` sul grilletto, che passa `Tab` al foglio. Scena `Cella a scelta, Tab subito, prova`: senza la correzione cade 3 su 3, con passa, in Chromium e WebKit. `docs/DECISIONI.md` §94.
+
+#### Prove
+
+- `Negativi, prova` del foglio: in rosso esattamente i sei risultati negativi. Col rosso spento (`< -1000` al posto di `< 0`) cade, poi rimesso.
+- `Negativi, prova` del campo: rosso a riposo, non mentre si scrive `-1,890`, di nuovo rosso confermato; un positivo che diventa negativo prende il rosso.
+- `npm run check`: gli undici statici verdi (al secondo giro: il primo ha fermato un rimando a «DECISIONI §90» nel commento spedito); WebKit verde; axe 2680 scansioni, verdi tre passate su quattro. In scuro/aperto cadute le cinque prove di `testo-segnaposto` (`exit:paused:0`, la caduta già aperta): oggi tre volte su sei giri interi, mai da sola (39 su 39, tre volte). File non toccato, prove non ritoccate.
+
+#### Pubblicazione della #195
+
+- La #195 è uscita nella `v2.0.37`, messa dalla sessione della #199 sulla punta di `main` (contiene l'unione della #207). Commento di adozione sulla #195 (Francesco: «Sì, scrivilo»): comando, le tre novità, cosa togliere in Studio e Anagrafe, l'avvertenza sul segno meno dell'iPhone, l'annuncio del rosso dei negativi con la versione dopo.
+
+#### Aperti
+
+- Studio: con la versione nuova, `coloreNegativo` nella `rendi` dei risultati del computo.
+- `testo-segnaposto` in scuro/aperto nel gate intero (`exit:paused:0`): cade sempre più spesso, mai da sola. Cercarne la causa in una sessione a parte.
+

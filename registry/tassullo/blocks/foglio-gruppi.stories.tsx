@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol } from '@/prove/apri'
 
@@ -12,6 +12,7 @@ import {
 } from '@/registry/tassullo/blocks/foglio-gruppi'
 import { useSoglia } from '@/registry/tassullo/hooks/use-soglia'
 import {
+  coloreNegativo,
   decimale,
   formattatore,
   leggiNumero,
@@ -173,10 +174,14 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
     titolo: 'Quantità',
     larghezza: 'w-28',
     allineamento: 'destra',
-    corpo: { tipo: 'calcolata', rendi: (m) => decimale(parziale(m)) },
+    // Rosso sui risultati negativi, non sui fattori: la parte `-1` di una
+    // detrazione resta nera, la sua quantità no.
+    corpo: { tipo: 'calcolata', rendi: (m) => <span className={coloreNegativo(parziale(m))}>{decimale(parziale(m))}</span> },
     piede: {
       tipo: 'calcolata',
-      rendi: (_voce, righe: Misurazione[]) => <span className="font-semibold">{decimale(sommano(righe))}</span>,
+      rendi: (_voce, righe: Misurazione[]) => (
+        <span className={`font-semibold ${coloreNegativo(sommano(righe)) ?? ''}`}>{decimale(sommano(righe))}</span>
+      ),
     },
   },
   {
@@ -206,7 +211,7 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
       tipo: 'calcolata',
       rendi: (voce: Voce, righe: Misurazione[]) => {
         const i = importo(voce, righe)
-        return <span className="font-semibold">{i == null ? '—' : valuta(i)}</span>
+        return <span className={`font-semibold ${coloreNegativo(i) ?? ''}`}>{i == null ? '—' : valuta(i)}</span>
       },
     },
   },
@@ -287,7 +292,9 @@ function ComputoFoglio({
               <TableCell colSpan={COLONNE.length - 1} className="text-right font-semibold">
                 TOTALE COMPUTO €
               </TableCell>
-              <TableCell className="text-right font-semibold tabular-nums">{valuta(totale)}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">
+                <span className={coloreNegativo(totale)}>{valuta(totale)}</span>
+              </TableCell>
             </>
           )
         }}
@@ -395,6 +402,10 @@ function ComputoFoglio({
  *   `valida`: chi scrive sceglie invece di indovinare la grafia. Un valore
  *   già salvato che non è fra le opzioni si mostra com'è, con l'anello rosso,
  *   finché non se ne sceglie uno.
+ * - I **risultati** negativi si scrivono in rosso — la quantità di una riga,
+ *   il SOMMANO, l'importo, il totale — con `coloreNegativo` di `numeri` nella
+ *   `rendi` della cella calcolata. I fattori scritti a mano no: la parte `-1`
+ *   di una detrazione resta nera. La scena «Negativi» è la ricetta.
  * - Un gruppo senza righe mostra comunque testata e piede: è la voce appena
  *   aggiunta, che ha un prezzo e non ha ancora misure.
  * - Quando il fuoco lascia il foglio — un clic su «Salva», su un filtro,
@@ -452,6 +463,47 @@ export const ComputoProva: Story = {
   name: 'Computo, prova',
   tags: ['!dev', '!autodocs'],
   play: prezzoConTreDecimali,
+}
+
+/** Una voce di rettifica: tolte due misure contate due volte. */
+const RETTIFICA: GruppoFoglio<Voce, Misurazione> = {
+  id: 'v4',
+  testata: { designazione: 'RETTIFICA — rasatura contata due volte', unita: 'm²', prezzo: '28.82' },
+  righe: [
+    { descrizione: 'a detrarre ambiente 1', parti: '-1', lunghezza: '10', larghezza: '1', altezza: '0.5' },
+    { descrizione: 'a detrarre ambiente 2', parti: '-1', lunghezza: '5', larghezza: '3.5', altezza: '' },
+  ],
+}
+
+/**
+ * I negativi: in rosso i **risultati** — la quantità di una riga, il SOMMANO,
+ * l'importo e il totale — e non i fattori scritti a mano. La parte `-1` di
+ * una detrazione resta nera; la quantità che ne esce è rossa. Il colore è
+ * `coloreNegativo` di `numeri`, passato nella `rendi` delle celle calcolate.
+ */
+export const Negativi: Story = {
+  render: () => <ComputoFoglio gruppiIniziali={[COMPUTO[0]!, RETTIFICA]} />,
+}
+
+// Prova dei negativi: in rosso esattamente i sei risultati negativi, nessun
+// fattore e nessun numero positivo.
+export const NegativiProva: Story = {
+  ...Negativi,
+  name: 'Negativi, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tabella = await waitFor(() => {
+      const t = canvasElement.querySelector('table')
+      expect(t).toBeTruthy()
+      return t!
+    })
+    const rossi = [...tabella.querySelectorAll('.text-destructive-subtle-foreground')].map((el) =>
+      el.textContent!.replace(/\u00a0/g, ' ').trim()
+    )
+    // Detrazione della prima voce; le due misure, il SOMMANO e l'importo della
+    // rettifica; il totale: 593,98 − 648,45.
+    expect(rossi).toEqual(['-1,89', '-5,00', '-17,50', '-22,50', '-648,45 €', '-54,47 €'])
+  },
 }
 
 // Prova: un prezzo scritto con tre decimali resta quello. «2,375» si salva come
@@ -542,6 +594,24 @@ export const CellaASceltaProva: Story = {
     />
   ),
   play: sceltaDaTastiera,
+}
+
+// Prova: `Invio` e `Tab` nello stesso giro, quindi sempre prima del fotogramma
+// in cui l'elenco prende il fuoco. Prima il fuoco stava sul `body` e il `Tab`
+// si perdeva: il fuoco finiva nell'elenco invece che sul prezzo. Nel gate
+// intero la prova «Cella a scelta» cadeva così, una volta su qualche giro.
+export const CellaASceltaTabSubitoProva: Story = {
+  ...CellaASceltaProva,
+  name: 'Cella a scelta, Tab subito, prova',
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const unita = () => tela.getAllByRole('button', { name: /^Designazione dei lavori: (m|mq|kg|cad|h)\b/ })
+    await waitFor(() => expect(unita()).toHaveLength(2))
+    unita()[0]!.focus()
+    fireEvent.keyDown(unita()[0]!, { key: 'Enter' })
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' })
+    await waitFor(() => expect(canvasElement.querySelector('input[aria-label="Prezzo unit."]')).toHaveFocus())
+  },
 }
 
 async function sceltaDaTastiera({ canvasElement }: { canvasElement: HTMLElement }) {

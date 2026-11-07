@@ -857,6 +857,14 @@ function CellaFoglio<TTestata, TRiga>({
         >
           <SelectTrigger
             aria-label={etichettaColonna}
+            // L'elenco prende il fuoco al fotogramma dopo l'apertura, e fino ad
+            // allora, sparita la cella chiusa, il fuoco sarebbe sul `body`: un
+            // `Tab` arrivato lì si perdeva. Il fuoco va subito sul grilletto,
+            // che passa `Tab` al foglio come fa l'elenco.
+            autoFocus
+            onKeyDown={(evento) => {
+              if (evento.key === "Tab") motore.onKeyDownCella(evento, posizione)
+            }}
             // Il riquadro della cella chiusa, non la misura da modulo di
             // `SelectTrigger`: aprendo l'elenco il testo resta dov'era.
             // `data-[size=default]:h-auto` e non `h-auto`, che per `cn` è

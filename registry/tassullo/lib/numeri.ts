@@ -162,6 +162,29 @@ export function valuta(valore: number, moneta = "EUR"): string {
   return formattatore({ style: "currency", currency: moneta }).format(valore)
 }
 
+/**
+ * La classe del testo di un **risultato negativo**: un rosso fatto per il
+ * testo, leggibile in chiaro e in scuro. Non è `text-destructive`, che è il
+ * rosso dei fondi e sul fondo scuro non si legge.
+ */
+export const ROSSO_NEGATIVO = "text-destructive-subtle-foreground"
+
+/**
+ * Il colore di un numero: rosso se è negativo, nessuno altrimenti. Si usa sui
+ * **risultati** — la quantità di una riga, un SOMMANO, un totale, un saldo —
+ * e non sui fattori scritti a mano: in un computo una parte negativa è il
+ * modo di scrivere una detrazione, e a contare è dove porta il risultato.
+ *
+ * ```tsx
+ * <span className={coloreNegativo(totale)}>{decimale(totale)}</span>
+ * ```
+ *
+ * Zero, `-0`, `null` e `undefined` non sono negativi.
+ */
+export function coloreNegativo(valore: number | null | undefined): string | undefined {
+  return valore != null && valore < 0 ? ROSSO_NEGATIVO : undefined
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Scrivere un numero, non solo leggerlo
  *

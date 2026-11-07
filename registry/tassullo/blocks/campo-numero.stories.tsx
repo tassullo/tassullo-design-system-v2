@@ -37,6 +37,8 @@ import { FieldGroup } from '@/registry/tassullo/ui/field'
  *   campo, con l'errore sotto.
  * - `errore`: un errore deciso fuori dal campo, dallo schema del modulo o dal
  *   server.
+ * - `negativiInRosso`: il valore confermato in rosso quando è negativo, per un
+ *   campo che porta un risultato o un saldo. Di serie spento.
  * - Le altre prop vanno all'`input`: `name`, `disabled`, `placeholder`, `ref`.
  *
  * **Come legge.**
@@ -190,6 +192,50 @@ export const MigliaiaProva: Story = {
     await userEvent.tab()
     await waitFor(() => expect(volume).toHaveValue('12.345'))
     expect(valoreVolume).toHaveTextContent('Valore confermato: 12345')
+  },
+}
+
+/**
+ * Con `negativiInRosso` il valore confermato è rosso quando è negativo. Il
+ * rosso è del numero, non del campo: l'errore resta riconoscibile dal bordo e
+ * dal messaggio. Mentre si scrive un testo diverso, il campo non è rosso.
+ */
+export const Negativi: Story = {
+  args: { etichetta: 'Saldo', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Saldo" unita="m²" iniziale={-1.89} negativiInRosso />
+      <Esempio etichetta="Quantità netta" unita="m²" iniziale={20.61} negativiInRosso />
+    </FieldGroup>
+  ),
+}
+
+// Prova dei negativi: rosso il saldo negativo, non il positivo; non mentre si
+// scrive un testo diverso; di nuovo rosso confermato un altro negativo.
+export const NegativiProva: Story = {
+  ...Negativi,
+  name: 'Negativi, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const saldo = tela.getByLabelText('Saldo')
+    const netta = tela.getByLabelText('Quantità netta')
+    const rosso = 'text-destructive-subtle-foreground'
+    expect(saldo).toHaveClass(rosso)
+    expect(netta).not.toHaveClass(rosso)
+
+    await userEvent.click(saldo)
+    await userEvent.type(saldo, '0')
+    expect(saldo).not.toHaveClass(rosso)
+    await userEvent.tab()
+    // «-1,890» confermato è -1,89: di nuovo rosso, a riposo.
+    await waitFor(() => expect(saldo).toHaveValue('-1,89'))
+    expect(saldo).toHaveClass(rosso)
+
+    // Un positivo che diventa negativo prende il rosso alla conferma.
+    await userEvent.clear(netta)
+    await userEvent.type(netta, '-3{Enter}')
+    expect(netta).toHaveClass(rosso)
   },
 }
 
