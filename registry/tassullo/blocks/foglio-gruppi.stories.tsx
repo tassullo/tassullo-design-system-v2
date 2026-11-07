@@ -119,6 +119,9 @@ const COMPUTO: GruppoFoglio<Voce, Misurazione>[] = [
   },
 ]
 
+/** Le unità di misura del SOMMANO: un elenco chiuso, quindi una cella a scelta. */
+const UNITA = ['m', 'm²', 'm³', 'kg', 'cad', 'h'].map((u) => ({ valore: u, etichetta: u }))
+
 const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
   { id: 'n', titolo: 'N°', larghezza: 'w-12' },
   {
@@ -141,11 +144,13 @@ const COLONNE: ColonnaFoglio<Voce, Misurazione>[] = [
     // La colonna che le tre zone condividono: è da qui che le frecce
     // verticali raggiungono il piede, e da lì `ArrowRight` arriva al prezzo.
     piede: {
-      tipo: 'scrivibile',
+      tipo: 'scelta',
       leggi: (v) => v.unita,
       scrivi: (v, valore) => ({ ...v, unita: valore }),
-      // Stile, prefisso e allineamento dichiarati e non disegnati in `mostra`:
-      // così il campo aperto li conosce, e «m²» non si sposta aprendolo.
+      opzioni: UNITA,
+      segnaposto: 'unità',
+      // Stile, prefisso e allineamento dichiarati e non disegnati a mano:
+      // così l'elenco aperto li conosce, e «m²» non si sposta aprendolo.
       prefisso: 'SOMMANO',
       allineamento: 'destra',
       classiTesto: 'pr-2 text-accent-ink',
@@ -236,6 +241,7 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
           {
             etichetta: 'Sposta su',
             disabilitato: i === 0,
+            motivo: 'È già la prima voce',
             onSelect: () => {
               const nuovi = motore.gruppi.slice()
               ;[nuovi[i - 1], nuovi[i]] = [nuovi[i]!, nuovi[i - 1]!]
@@ -245,9 +251,18 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
           {
             etichetta: 'Sposta giù',
             disabilitato: i === motore.gruppi.length - 1,
+            motivo: "È già l'ultima voce",
             onSelect: () => {
               const nuovi = motore.gruppi.slice()
               ;[nuovi[i], nuovi[i + 1]] = [nuovi[i + 1]!, nuovi[i]!]
+              motore.scriviGruppi(nuovi)
+            },
+          },
+          {
+            etichetta: 'Duplica la voce con le misure',
+            onSelect: () => {
+              const nuovi = motore.gruppi.slice()
+              nuovi.splice(i + 1, 0, { ...nuovi[i]!, id: `${nuovi[i]!.id}-copia-${Date.now()}` })
               motore.scriviGruppi(nuovi)
             },
           },
@@ -311,15 +326,19 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   cella per zona: `testata`, `corpo`, `piede`. Una cella è `scrivibile` —
  *   `leggi`, `scrivi`, e a scelta `mostra`, `valida`, `segnaposto`,
  *   `formato`, `prefisso`, `suffisso`, `classiTesto`, `allineamento`,
- *   `abilitata` — oppure `calcolata`, con `rendi`, oppure `fissa`. Una zona
- *   senza cella resta vuota.
+ *   `abilitata` —, `scelta` — `leggi`, `scrivi`, `opzioni` come
+ *   `{ valore, etichetta }`, e a scelta `segnaposto`, `prefisso`,
+ *   `classiTesto`, `allineamento`, `abilitata` —, oppure `calcolata`, con
+ *   `rendi`, oppure `fissa`. Una zona senza cella resta vuota.
  * - `azione` è il comando frequente del gruppo, su una riga propria fra corpo
  *   e piede — nel computo, «+ misurazione». È una sola, e il motore va
  *   costruito con `conRigaAzioni: true`, o la riga si vede e le frecce non la
  *   trovano.
  * - `comandi` sono i comandi rari del gruppo, in un menu: spostare la voce
  *   su o giù, eliminarla. Un comando con `distruttivo` si colora come
- *   un'azione che non si disfa.
+ *   un'azione che non si disfa. Un comando con `disabilitato` resta nel menu,
+ *   in grigio, e `motivo` dice sotto l'etichetta perché è spento («Prima
+ *   salva la voce»): chi lo vede spento sa cosa fare per accenderlo.
  * - `piede` è la riga in coda al foglio, il totale generale.
  * - `didascalia` descrive la tabella a chi non vede lo schermo, ed è
  *   obbligatoria come un `alt`.
@@ -360,6 +379,11 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  *   un clic non la apre: senza, il campo accetterebbe un valore che `scrivi`
  *   poi ignora, e chi scrive crederebbe di aver cambiato qualcosa. La scena
  *   «Righe di tipo diverso» è la ricetta.
+ * - Un valore da un elenco chiuso — l'unità di misura del SOMMANO — si
+ *   dichiara con una cella `scelta`, non con una cella di testo e una
+ *   `valida`: chi scrive sceglie invece di indovinare la grafia. Un valore
+ *   già salvato che non è fra le opzioni si mostra com'è, con l'anello rosso,
+ *   finché non se ne sceglie uno.
  * - Un gruppo senza righe mostra comunque testata e piede: è la voce appena
  *   aggiunta, che ha un prezzo e non ha ancora misure.
  * - Quando il fuoco lascia il foglio — un clic su «Salva», su un filtro,
@@ -379,7 +403,11 @@ function ComputoFoglio({ gruppiIniziali = COMPUTO }: { gruppiIniziali?: GruppoFo
  * riga: dall'ultima misura di un gruppo `↓` entra nel
  * gruppo dopo, e dalla colonna della designazione si arriva al piede e, a
  * destra, al prezzo. `Invio`, `F2` o un carattere qualsiasi aprono la
- * modifica, e anche un clic solo. Mentre si scrive, `Invio` conferma e scende,
+ * modifica, e anche un clic solo; il campo si apre col testo selezionato,
+ * così ciò che si scrive lo sostituisce. Su una cella `scelta` gli stessi
+ * gesti aprono l'elenco: `↑`/`↓` scelgono, `Invio` scrive e resta sulla
+ * cella, `Esc` chiude senza cambiare, `Tab` passa alla cella accanto. Mentre
+ * si scrive, `Invio` conferma e scende,
  * `Tab` conferma e passa accanto, le frecce verticali cambiano cella e quelle
  * orizzontali lo fanno arrivate al bordo del testo; la cella d'arrivo si apre
  * già in modifica. Un valore non valido non si conferma: l'errore resta sulla
@@ -433,6 +461,125 @@ async function prezzoConTreDecimali({ canvasElement }: { canvasElement: HTMLElem
   expect(piede.textContent).toContain('2,38\u00a0€')
 }
 
+// Scena di misura: chi apre una cella e scrive **sostituisce** il valore, non
+// lo allunga. Prima il campo si apriva col cursore in fondo: clic su «12,5»,
+// si scrive «10», e la misura diventava «12,510». Si prova col clic e con
+// l'arrivo da `Invio`, che apre la cella sotto già in modifica.
+export const ClicESostituisciProva: Story = {
+  name: 'Clic e sostituisci, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <ComputoFoglio
+      gruppiIniziali={[
+        {
+          id: 'v1',
+          testata: { designazione: 'RASATURA ARMATA — Tradizionale', unita: 'm²', prezzo: '28.82' },
+          righe: [
+            { descrizione: 'Piano terra', parti: '1', lunghezza: '12.5', larghezza: '1', altezza: '' },
+            { descrizione: 'Piano primo', parti: '1', lunghezza: '7.25', larghezza: '1', altezza: '' },
+          ],
+        },
+      ]}
+    />
+  ),
+  play: clicESostituisci,
+}
+
+async function clicESostituisci({ canvasElement }: { canvasElement: HTMLElement }) {
+  const tela = within(canvasElement)
+  const lunghezze = () => tela.getAllByRole('button', { name: /^Lung\.:/ })
+  await waitFor(() => expect(lunghezze()).toHaveLength(2))
+  await userEvent.click(lunghezze()[0]!)
+  await waitFor(() => expect(canvasElement.querySelector('tbody input')).toHaveFocus())
+  await userEvent.keyboard('10{Enter}')
+  // `Invio` conferma e apre la misura sotto: anche lì si sostituisce.
+  await userEvent.keyboard('3{Escape}')
+  await waitFor(() => expect(lunghezze()[1]).toHaveFocus())
+  // Il rovescio: un carattere scritto su una cella chiusa apre la modifica
+  // **con quel carattere**, e non va selezionato, o il secondo lo cancellerebbe.
+  await userEvent.keyboard('25{Enter}')
+  await waitFor(() => {
+    const [prima, seconda] = lunghezze()
+    expect(prima).toHaveAccessibleName('Lung.: 10')
+    expect(seconda).toHaveAccessibleName('Lung.: 25')
+  })
+}
+
+/**
+ * L'unità di misura del SOMMANO è una cella a scelta: un clic, `Invio` o una
+ * lettera aprono l'elenco delle unità, e la scelta si scrive subito.
+ */
+export const CellaAScelta: Story = {
+  name: 'Cella a scelta',
+  render: () => <ComputoFoglio />,
+  play: apriCol('[aria-label="Designazione dei lavori: m²"]', 'select-content'),
+}
+
+// Scena di misura della cella a scelta, da tastiera: `↓` e `Invio` scrivono la
+// voce dopo e lasciano il fuoco sulla cella; `Esc` chiude senza cambiare;
+// `Tab` passa al prezzo, aperto in modifica. La seconda voce ha un'unità
+// scritta prima che la cella fosse a scelta, «mq», che resta e si segnala.
+export const CellaASceltaProva: Story = {
+  name: 'Cella a scelta, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <ComputoFoglio
+      gruppiIniziali={[
+        COMPUTO[0]!,
+        { ...COMPUTO[1]!, testata: { ...COMPUTO[1]!.testata, unita: 'mq' } },
+      ]}
+    />
+  ),
+  play: sceltaDaTastiera,
+}
+
+async function sceltaDaTastiera({ canvasElement }: { canvasElement: HTMLElement }) {
+  const tela = within(canvasElement)
+  const unita = () => tela.getAllByRole('button', { name: /^Designazione dei lavori: (m|mq|kg|cad|h)\b/ })
+  await waitFor(() => expect(unita()).toHaveLength(2))
+  expect(unita()[1]).toHaveAccessibleName('Designazione dei lavori: mq (non è fra le scelte)')
+
+  const elenco = () => document.querySelector('[data-slot="select-content"]')
+  // Aprendo l'elenco le scritte restano ferme: con la freccia e lo spazio del
+  // grilletto «SOMMANO» andava 28px a sinistra e il valore 22.
+  const td = unita()[0]!.closest('td')!
+  const posti = () =>
+    [...td.querySelectorAll('span')]
+      .filter((s) => !s.children.length && s.textContent?.trim())
+      .map((s) => `${s.textContent!.trim()}@${Math.round(s.getBoundingClientRect().left)}`)
+  const chiusa = posti()
+  expect(chiusa).toHaveLength(2)
+  await userEvent.click(unita()[0]!)
+  await waitFor(() => expect(elenco()).toBeInTheDocument())
+  expect(posti()).toEqual(chiusa)
+  await waitFor(() => expect(within(elenco() as HTMLElement).getByRole('option', { name: 'm²' })).toHaveFocus())
+  await userEvent.keyboard('{ArrowDown}{Enter}')
+  await waitFor(() => expect(unita()[0]).toHaveAccessibleName('Designazione dei lavori: m³'))
+  await waitFor(() => expect(unita()[0]).toHaveFocus())
+
+  // `Esc` chiude senza cambiare, e il fuoco torna sulla cella.
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(elenco()).toBeInTheDocument())
+  await userEvent.keyboard('{ArrowDown}{Escape}')
+  await waitFor(() => expect(elenco()).not.toBeInTheDocument())
+  expect(unita()[0]).toHaveAccessibleName('Designazione dei lavori: m³')
+  await waitFor(() => expect(unita()[0]).toHaveFocus())
+
+  // Col mouse: il clic su una voce la scrive, e il fuoco resta sulla cella.
+  await userEvent.click(unita()[0]!)
+  await waitFor(() => expect(elenco()).toBeInTheDocument())
+  await userEvent.click(within(elenco() as HTMLElement).getByRole('option', { name: 'kg' }))
+  await waitFor(() => expect(unita()[0]).toHaveAccessibleName('Designazione dei lavori: kg'))
+  await waitFor(() => expect(unita()[0]).toHaveFocus())
+
+  // `Tab` passa alla cella accanto che si scrive, il prezzo, già aperta.
+  await userEvent.keyboard('{Enter}')
+  await waitFor(() => expect(elenco()).toBeInTheDocument())
+  await userEvent.keyboard('{Tab}')
+  await waitFor(() => expect(canvasElement.querySelector('input[aria-label="Prezzo unit."]')).toHaveFocus())
+  await userEvent.keyboard('{Escape}')
+}
+
 /**
  * Un gruppo senza misure: testata e piede ci sono comunque, e le frecce
  * verticali passano dalla testata direttamente al SOMMANO.
@@ -469,7 +616,8 @@ export const Validazione: Story = {
 
 /**
  * Il menu dei comandi di una voce, aperto: le azioni rare del gruppo, che da
- * tastiera si aprono con `Maiusc`+`F10`.
+ * tastiera si aprono con `Maiusc`+`F10`. Sulla prima voce «Sposta su» è
+ * spento, e il motivo si legge sotto l'etichetta.
  */
 export const Comandi: Story = {
   render: () => <ComputoFoglio />,

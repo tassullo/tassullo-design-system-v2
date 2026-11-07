@@ -15097,3 +15097,41 @@ PR #203 unita col gate verde in CI (11 minuti), unione `fd6b08f`; le due issue s
 - `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`); caduta di nuovo una volta in questa sessione.
 - Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Il gesto del cassetto su un iPhone vero.
 
+
+## 2026-11-07 — #196: foglio a gruppi, testo selezionato, menu del gruppo, cella a scelta
+
+Proposta di Studio, tre punti trattati uno per uno. Ramo `fras/foglio-gruppi-196`.
+
+#### 1. Il campo si apre col testo selezionato
+
+- Difetto: l'`input` in modifica aveva solo `autoFocus`, e il cursore andava in fondo. Clic su `12,5`, si scrive `10`, la misura diventava `12,510`. Il blocco lo dava già per fatto (il commento sulle frecce in `onKeyDownCella`).
+- Correzione: un `useLayoutEffect` seleziona il testo quando la cella si apre, prima del disegno. Vale per clic, `Invio`, `F2` e la cella d'arrivo mentre si scrive. **Non** quando la modifica l'ha aperta un carattere: il motore lo sa da `apertaScrivendo`, campo nuovo di `MotoreFoglioGruppi`. Selezionare quel carattere lo farebbe sparire al secondo.
+- Scena `Clic e sostituisci, prova` (nascosta): clic e `10`, poi `Invio` e `3` nella misura sotto, poi `25` scritto su una cella chiusa. **Sul codice di prima cade** con `Lung.: 12,51`, dopo passa.
+
+#### 2. Menu del gruppo: larghezza minima e `motivo`
+
+- Di serie il menu di shadcn è largo quanto il grilletto (`w-(--anchor-width)`, `min-w-32`), cioè 128px per il ⋯ da 24px: le etichette di tre o quattro parole andavano su tre righe. Ora `w-auto min-w-56`, 224px in normale.
+- `ComandoFoglio.motivo`: perché il comando è spento, scritto sotto l'etichetta. Mostrate a Francesco due forme affiancate, A (sotto la voce) e B (tooltip); scelta **A** («A, sotto la voce»).
+- Perché non B: la voce spenta di shadcn ha `pointer-events-none`, quindi un tooltip col mouse non si apre mai, e col dito nemmeno. Si apre solo da tastiera, perché Base UI lascia il fuoco sulle voci spente (`focusableWhenDisabled: true`).
+- Misura su A: la voce spenta di serie è al 50% di opacità, e il motivo scendeva a **2,05:1**. Con un motivo la voce resta piena (`data-disabled:opacity-100` nel punto d'uso) e il grigio lo dà `text-muted-foreground`: etichetta e motivo **5,37:1**. Una voce spenta senza motivo resta com'era.
+- Scena `Comandi`: «Sposta su» spento sulla prima voce con «È già la prima voce»; aggiunto «Duplica la voce con le misure».
+
+#### 3. Cella `scelta` (gradino 4, approvato da Francesco: «Sì, con select»)
+
+- Scala §4bis: shadcn ha `select`, `native-select`, `combobox`, ma non una cella del foglio; il ri-stile non basta; una cella di testo con `valida` è ciò che Studio fa già, e la issue dice che non basta. Proposta scritta in chat, approvata. È un tipo nuovo di un blocco nostro, non una variante di primitiva: niente riga in `componenti-propri.json`.
+- `CellaScelta<TDato>`: `leggi`, `scrivi`, `opzioni: { valore, etichetta }[]`, e a scelta `segnaposto`, `prefisso`, `classiTesto`, `allineamento`, `abilitata`. Il motore ha `scegli(p, valore)`. È la stessa forma della cella select della `data-grid`: `Select` aperto solo in modifica, chiuso la cella è il solito riquadro col fuoco mobile.
+- Tastiera: a cella chiusa le frecce navigano come sulle altre; clic, `Invio`, `F2` o una lettera aprono l'elenco; `↑`/`↓` scelgono, `Invio` scrive e resta, `Esc` chiude senza cambiare, `Tab` passa alla cella accanto già aperta.
+- Un valore salvato che non è fra le opzioni si mostra com'è, con l'anello rosso e «(non è fra le scelte)» nel nome.
+- Due correzioni trovate provando. **Il fuoco finiva sul `body`** dopo una scelta: l'elenco sta in un portale, fuori dalla tabella, e il foglio credeva il fuoco uscito. L'elenco porta `data-foglio-elenco`, e il fuoco lì dentro conta come dentro. **L'elenco sbordava** sulle colonne accanto: di serie si posa sulla cella con la voce scelta allineata al valore, e un valore a destra in una colonna larga lo spingeva fuori. Ora sta sotto la cella, dal lato del testo, largo quanto le voci.
+- Nella story l'unità del SOMMANO è diventata una cella a scelta (m, m², m³, kg, cad, h). Scene: `Cella a scelta` (elenco aperto, dichiarato con `apriCol`) e `Cella a scelta, prova` (tastiera, mouse, `Esc`, `Tab`, valore fuori elenco).
+- `registry.json`: `@tassullo/select` fra le dipendenze del blocco, `docs` aggiornati.
+- **Le scritte si spostavano aprendo l'elenco** (rilievo di Francesco: «quando clicco su sommano per selezionare l'UM si spostano le scritte»). Misurato: «SOMMANO» 28px a sinistra, «m²» 22px, per la freccia del `SelectTrigger` e il suo `gap-1.5`. Tolti tutti e due nel punto d'uso (`gap-0`, `[&>svg]:hidden`): ora le coordinate restano le stesse e l'altezza della riga anche (36,07px). Che si sceglie lo dice l'elenco, che si apre subito sotto. La prova lo controlla: senza la correzione cade con 655→627 e 734→712.
+
+#### Prove
+
+- 12 scene del foglio verdi in Chromium.
+- `npm run check`: verde al terzo giro, 13 gate, 2628 scansioni in 4 passate, 0 violazioni; WebKit 50 su 50. Il primo giro l'ho fermato io (partito prima dell'ultima correzione); il secondo è caduto su `check:registry-build`, perché non avevo rilanciato `registry:build` dopo l'ultima modifica.
+
+#### Aperti
+
+- Studio: adottare alla versione nuova, togliere i tre `// in attesa di tassullo-design-system-v2#196`, e passare l'unità del SOMMANO a `tipo: "scelta"`.
