@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { BoxesIcon } from 'lucide-react'
+import { toast } from 'sonner'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 
 import { AppShell, type SezioneNav } from '@/registry/tassullo/blocks/app-shell'
 import { BarraSalva } from '@/registry/tassullo/blocks/barra-salva'
+import { DataTable, creaColonne } from '@/registry/tassullo/blocks/data-table'
+import { Toaster } from '@/registry/tassullo/ui/sonner'
 import { PageHeader } from '@/registry/tassullo/blocks/page-header'
 import { Card, CardContent } from '@/registry/tassullo/ui/card'
 import { Field, FieldGroup, FieldLabel } from '@/registry/tassullo/ui/field'
@@ -55,6 +58,12 @@ import { Input } from '@/registry/tassullo/ui/input'
  * `Tab`. `Invio` in un campo del modulo salva, come ogni invio. Un campo
  * raggiunto col `Tab` non finisce sotto la barra: finché la barra c'è, la
  * pagina tiene lo spazio in fondo.
+ *
+ * **Sopra la pagina, sotto gli avvisi.** La barra sta sopra tutto ciò che la
+ * pagina tiene fermo scorrendo, come l'intestazione di una tabella: i suoi
+ * bottoni si cliccano sempre. Un avviso di `sonner` in basso, finché la barra
+ * c'è, compare sopra di lei e non copre «Salva» né «Annulla». Non serve
+ * niente nell'app: basta il `Toaster` alla radice, come sempre.
  */
 const meta = {
   title: 'Blocchi/Barra di salvataggio',
@@ -255,6 +264,133 @@ export const DentroUnaCardProva: Story = {
       )
       expect(`fondo ${Math.round(barra()!.getBoundingClientRect().bottom)}`).toBe(`fondo ${innerHeight}`)
     } finally {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  },
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Con una tabella e un avviso
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Riga = { codice: string; voce: string; quantita: string }
+const RIGHE: Riga[] = Array.from({ length: 40 }, (_, n) => ({
+  codice: `VC-${String(n + 1).padStart(3, '0')}`,
+  voce: `Voce di computo ${n + 1}`,
+  quantita: `${(n % 7) + 1},50`,
+}))
+const colonna = creaColonne<Riga>()
+const COLONNE = colonna.columns([
+  colonna.accessor('codice', { header: 'Codice', meta: { titolo: 'Codice', larghezza: 'w-32' } }),
+  colonna.accessor('voce', { header: 'Voce', meta: { titolo: 'Voce' } }),
+  colonna.accessor('quantita', { header: 'Quantità', meta: { titolo: 'Quantità', larghezza: 'w-32' } }),
+])
+
+function SchedaConTabella() {
+  const [valore, setValore] = useState('Valore 1')
+  const [inCorso, setInCorso] = useState(false)
+  return (
+    <>
+      <AppShell applicazione="Studio" sezioni={SEZIONI} utente={UTENTE}>
+        <PageHeader percorso={[{ titolo: 'Computi', href: '#' }, { titolo: 'Computo di prova' }]} />
+        <form
+          className="flex flex-col gap-4"
+          noValidate
+          onSubmit={(evento) => {
+            evento.preventDefault()
+            setInCorso(true)
+            setTimeout(() => {
+              setInCorso(false)
+              toast.error('Salvataggio non riuscito', { description: 'Il server non risponde. Riprova fra poco.' })
+            }, 300)
+          }}
+        >
+          <Card>
+            <CardContent>
+              <FieldGroup>
+                {CAMPI.slice(0, 10).map((c, n) => (
+                  <Field key={c.nome}>
+                    <FieldLabel htmlFor={c.nome}>{c.etichetta}</FieldLabel>
+                    {n === 0 ? (
+                      <Input id={c.nome} value={valore} disabled={inCorso} onChange={(evento) => setValore(evento.target.value)} />
+                    ) : (
+                      <Input id={c.nome} defaultValue={c.valore} disabled={inCorso} />
+                    )}
+                  </Field>
+                ))}
+              </FieldGroup>
+            </CardContent>
+          </Card>
+          <div className="flex h-96 flex-col">
+            <DataTable className="min-h-0 flex-1" colonne={COLONNE} dati={RIGHE} altezza="ferma" selezione perPagina={40} />
+          </div>
+          <Card>
+            <CardContent className="text-sm text-muted-foreground">Fine della scheda.</CardContent>
+          </Card>
+          <BarraSalva sporco={valore !== 'Valore 1'} inCorso={inCorso} onAnnulla={() => setValore('Valore 1')} />
+        </form>
+      </AppShell>
+      <Toaster />
+    </>
+  )
+}
+
+/**
+ * Una scheda con una tabella dall'intestazione ferma, e un salvataggio che non
+ * riesce. Si scrive nel campo e si scorre: quando la tabella passa in fondo
+ * alla finestra, la sua intestazione resta sotto la barra. Si preme «Salva»:
+ * l'avviso d'errore compare sopra la barra, e «Salva» resta da premere.
+ */
+export const ConTabellaEAvviso: Story = {
+  name: 'Con una tabella e un avviso',
+  render: () => <SchedaConTabella />,
+}
+
+// L'intestazione ferma della tabella non prende i clic della barra, e
+// l'avviso d'errore sta sopra la barra, non sopra «Salva». Misurato con
+// `elementFromPoint`: è il punto che riceve il clic, non uno z-index letto.
+export const ConTabellaEAvvisoProva: Story = {
+  ...ConTabellaEAvviso,
+  name: 'Con una tabella e un avviso, prova',
+  tags: ['!dev', '!autodocs', 'webkit'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const campo = await waitFor(() => tela.getByLabelText('Campo 1'))
+    const testata = () => canvasElement.querySelector<HTMLElement>('[data-slot="table-header"]')!
+    const salva = () => within(barra()!).getByRole('button', { name: 'Salva' })
+    const alCentro = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect()
+      return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    }
+    try {
+      await userEvent.type(campo, 'x')
+      await waitFor(() => expect(barra()).toBeTruthy())
+      // Si scorre finché l'intestazione della tabella sta dietro la barra.
+      const b = barra()!.getBoundingClientRect()
+      const t = testata().getBoundingClientRect()
+      window.scrollBy({ top: t.top - b.top, behavior: 'instant' })
+      await waitFor(() => {
+        const r = testata().getBoundingClientRect()
+        const sotto = barra()!.getBoundingClientRect()
+        expect(`testata dietro la barra: ${r.bottom > sotto.top && r.top < sotto.bottom}`).toBe('testata dietro la barra: true')
+      })
+      expect(`al centro di «Salva»: ${salva().contains(alCentro(salva()))}`).toBe('al centro di «Salva»: true')
+
+      await userEvent.click(salva())
+      // Si misura a avviso fermo: mentre entra, la sua posizione non è quella
+      // finale, e un `waitFor` sulla misura passerebbe a metà dell'entrata.
+      const avviso = await waitFor(() => {
+        const el = document.querySelector<HTMLElement>('[data-sonner-toast][data-mounted="true"]')
+        expect(el).toBeTruthy()
+        return el!
+      })
+      await Promise.all(avviso.getAnimations().map((a) => a.finished))
+      expect(`avviso sopra la barra: ${avviso.getBoundingClientRect().bottom <= barra()!.getBoundingClientRect().top}`).toBe(
+        'avviso sopra la barra: true'
+      )
+      expect(`al centro di «Salva»: ${salva().contains(alCentro(salva()))}`).toBe('al centro di «Salva»: true')
+    } finally {
+      toast.dismiss()
       window.scrollTo({ top: 0, behavior: 'instant' })
     }
   },

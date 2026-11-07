@@ -4262,3 +4262,26 @@ Base UI apre il popup subito, nel render, ma **ci porta il fuoco al fotogramma d
 **La correzione** (`CellaDataGriglia`): a calendario aperto il campo non passa i tasti alla modifica. Ci pensa Base UI, che ascolta `Esc` su tutto il documento: chiude il calendario e il fuoco resta nel campo. La scena nuova `Celle Tipizzate, calendario ed Esc subito, prova` manda `↓` ed `Esc` con `fireEvent` nello stesso giro, quindi sempre prima del fotogramma: cade 3 volte su 3 senza la correzione e passa con.
 
 **La regola che vale oltre il caso**: dopo l'apertura di un popup di Base UI, il fuoco *non* è ancora dentro. Un grilletto che resta a fuoco — un campo che apre un elenco, una cella che apre un calendario — deve ignorare i tasti che appartengono al popup mentre è aperto, oppure lasciarli a Base UI. Allo stesso modo, una prova che vuole parlare al popup aspetta che il fuoco ci sia entrato, non solo che il popup compaia.
+
+## 91. La scala dei livelli: contenuto fermo sotto le barre ferme, barre sotto i popup, gli avvisi sopra tutto (2026-11-07)
+
+**Da dove viene.** Proposte #197 e #198 di Studio. La barra di salvataggio era `fixed z-10`, l'intestazione e il piede fermi di `tassullo-data-table` sono `sticky z-20`: scorrendo, l'intestazione passava sopra la barra e ne prendeva i clic. E il toast di `sonner`, in basso a destra, compariva proprio sopra «Salva» e «Annulla», anche col salvataggio fallito, quando servono di nuovo.
+
+**La scala che c'è, scritta** (prima ogni blocco sceglieva il suo, e non era scritta da nessuna parte):
+
+| Livello | Chi |
+|---|---|
+| `z-10` | celle e colonne ferme della tabella, testata ferma e colonna laterale del guscio, `sidebar` di shadcn, intestazioni ferme del calendario |
+| `z-20` | intestazione e piede fermi della tabella (sopra le celle ferme, come spiega il commento in `data-table.tsx`), testata del mese del calendario |
+| `z-30` | **le barre ferme**: `tassullo-barra-salva` |
+| `z-40` | dentro il calendario a eventi, assoluti nel loro contenitore |
+| `z-50` | popup, menu, dialoghi, cassetti (preset shadcn) |
+| `z-100` | l'anteprima di trascinamento del calendario |
+| `sonner` | 999999999, dal suo foglio: sopra tutto |
+
+Una barra ferma nuova va a `z-30`; un contenuto che resta fermo scorrendo sta sotto, a `z-10` o `z-20`. Non è un token: Tailwind non ha una scala di `z-index` nel tema, e i gradini di shadcn sono già questi.
+
+**I toast sopra la barra.** La barra misura la propria altezza e la scrive in `--barra-salva-alta` sulla radice; finché c'è, l'elenco dei toast in basso (`[data-sonner-toaster][data-y-position=bottom]`) prende un margine sotto di quell'altezza. `sonner` posiziona l'elenco con `bottom`, e un margine su un elemento `fixed` si somma: il toast sale della barra e tiene il suo scarto di 24px (16 sul telefono). Scartate le altre due strade: un `offset` passato al `Toaster` vuole che l'app sappia della barra, e una modifica a `ui/sonner.tsx` è una divergenza di forma; una barra che mostra «Salvato» al posto del toast non copre il salvataggio fallito, che è il caso che conta. Il margine vuole `!`: il foglio di `sonner` è fuori dai livelli di Tailwind, e vincerebbe su qualunque utility. Si misura, non si conta in unità, perché sul telefono la barra va su due righe.
+
+**La prova.** `Blocchi/Barra di salvataggio → Con una tabella e un avviso, prova`, in Chromium e WebKit: porta l'intestazione della tabella dietro la barra e chiede a `elementFromPoint` chi riceve il clic al centro di «Salva»; poi salva, il salvataggio fallisce, e misura il toast. Sul codice di prima cade sul primo punto; con la sola correzione del livello cade sul secondo. Una trappola trovata scrivendola: un `waitFor` sulla posizione del toast passava anche senza correzione, perché a metà dell'entrata il toast sta più in alto di dove si ferma. Si aspetta `data-mounted="true"` e la fine delle sue animazioni (`getAnimations()`), poi si misura una volta sola.
+
