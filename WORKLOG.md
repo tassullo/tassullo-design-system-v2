@@ -15153,6 +15153,42 @@ PR #205 unita col gate verde in CI (11 minuti), unione `34440a7`; la #196 si è 
 - `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
 - Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Il gesto del cassetto su un iPhone vero.
 
+## 2026-11-07 — Foglio a gruppi: `aspetto="stampato"`, il computo come in Studio
+
+Richiesta di Francesco: avvicinare il foglio a gruppi alla tabella del computo di Studio, come alternativa. Ramo `fras/bozza-computo-studio`, in una cartella di lavoro a parte (la cartella comune la usavano le sessioni #195 e #199).
+
+#### Il confronto
+
+- Letto il computo di Studio su `main` (`frontend/src/components/computo/ComputoTable.tsx`, `VoceRowGroup.tsx`, `pages/Computo.css`, ancora sul tema v1), senza toccarlo. Per guardarlo senza backend: una copia statica con la stessa struttura e il suo CSS vero, fotografata col Chromium di Playwright insieme al foglio DS, stessi dati.
+- Studio si legge come un computo stampato, il DS come una griglia. Le differenze: intestazioni maiuscole piccole, centrate, doppio filetto sotto (DS: normali, fondo grigio); dentro la voce solo filetti verticali (DS: un filetto per riga); testata senza fondo col numero della voce (DS: fondo grigio, solo «⋯»); SOMMANO in grassetto con un filetto scuro sopra; totale col doppio filetto; righe da circa 24px (DS: 32).
+- Bozza mostrata a Francesco con le tre immagini affiancate. Proposto di farne l'aspetto di serie (il foglio esiste per il computo, Studio è il solo consumatore, una variante in più costa a ogni aggiornamento); Francesco ha scelto **l'alternativa** («Come alternativa»), e che Studio la usi.
+
+#### Cosa cambia nel blocco
+
+- `FoglioGruppiProps.aspetto?: "griglia" | "stampato"`, di serie `griglia`: chi non lo passa non vede niente di diverso.
+- `stampato`: le classi sulla radice per intestazione, filetti, piede e totale; per riga, la testata senza fondo con un filetto sopra e il piede in grassetto; le intestazioni in maiuscolo, centrate sulle colonne a larghezza fissa e a sinistra su quella elastica (non si presume quale sia la seconda); il numero del gruppo accanto al menu nella prima colonna; le celle con `compatto`, cioè `min-h-6` invece di `min-h-8` e `py-0` sulle calcolate. In touch le righe diventano 36px, perché `min-h-6` scala con `--spacing`.
+- Una trappola evitata scrivendolo: nella bozza la testata perdeva il fondo con `[&_tbody>tr:first-child]:bg-transparent` sulla radice, che per specificità vinceva sul segno di riga a fuoco uscito (`[&_tr:has([data-attiva])]:bg-muted`) in chiaro. Nel blocco il fondo della testata si toglie sulla riga stessa, quindi non c'è niente che vinca. Tolto anche l'annullamento del fondo al passaggio, per la stessa ragione.
+- Scena `Stampato`; `aspetto` nel JSDoc della pagina e nei `docs` di `registry.json`.
+
+#### Cosa resta diverso da Studio, voluto
+
+- Il bottone «Voce e analisi» sotto la designazione: Studio lo apre in un pannello laterale (la sua D5).
+- Nella riga del SOMMANO i filetti verticali sotto le misure restano: Studio li toglie unendo le celle, il foglio non unisce celle.
+- Le descrizioni delle misure in corsivo nero: in Studio grigie. È una classe di colonna (`classiTesto`), dell'app.
+
+#### Prove
+
+- axe sulla scena `Stampato` in cinque condizioni (normale/chiaro, touch/chiaro, normale/scuro, Card/chiaro, Sidebar/scuro): 0 violazioni. Altezze: testata 38, misura 27 in normale; 56 e 36 in touch.
+- Tastiera nello stampato: frecce fra le celle, `Maiusc`+`F10` apre il menu del gruppo, a fuoco uscito la riga della cella attiva tiene il fondo (`bg-muted`), anche sulla testata.
+
+- **Una cartella di lavoro fuori dal repository non fa girare i gate col browser.** Creata prima nella cartella temporanea della sessione, con `node_modules` come collegamento a quello della cartella comune: gli statici passano, ma vitest trova i file e **zero test**, e le quattro passate di axe escono «guaste» (il gate lo dice, §85). Il colpevole è il collegamento, non il percorso: spostata la cartella in `.claude/worktrees/` (che git ignora) resta zero; sostituito il collegamento con una copia APFS (`cp -cR`, istantanea, nessuno spazio in più) le scene girano. Da ricordare per una sessione che lavora in parallelo: cartella in `.claude/worktrees/`, `node_modules` copiato con `cp -cR`, non collegato.
+
+- `npm run check` in locale: 12 gate verdi; in `test:a11y` cadono cinque prove di `testo-segnaposto` (`exit:paused:0`, il difetto aperto della voce #193a), prima nella sola passata scuro/aperto, al secondo giro in tutte e due le passate aperte. File non toccato, macchina carica: tre sessioni e tre Storybook accesi. Tutte le altre scene a 0, `Stampato` compresa (13 scene del foglio verdi). Decide il gate in CI.
+
+#### Aperti
+
+- Studio: adottare alla versione nuova con `aspetto="stampato"` (prompt di adozione in chat a Francesco).
+
 ## 2026-11-07 — #195: campo numerico, e un punto che non diventa migliaia
 
 Proposta di Studio (lo stesso bisogno c'è in Anagrafe). Ramo `fras/campo-numero-195`. Prima l'analisi e la proposta in chat, poi il codice: Francesco ha approvato opzione e blocco così come proposti («Sì, procedi»).
