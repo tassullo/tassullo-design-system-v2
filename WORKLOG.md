@@ -15276,6 +15276,21 @@ Proposta di Studio: i disegni tecnici generati dall'app (SVG con quote e testi p
 - Su un Mac con Safari: il pizzico del trackpad. Su un iPhone: pizzico e doppio tocco.
 - Da proporre se serve: lo zoom dentro `tassullo-galleria-immagini` con `AreaIngrandimento` (lì oggi `←`/`→` cambiano immagine).
 
+## 2026-11-07 — v2.0.37 pubblicata, #199 chiusa
+
+PR #208 unita col gate verde in CI, unione `7b6c841`; la #199 si è chiusa da sola con `Closes`. Prima dell'unione `main` si è mosso tre volte (v2.0.35, v2.0.36, #195): ogni volta l'unione di `main` nel ramo, fatta in una copia separata perché la cartella comune era occupata da un'altra sessione, e il gate rilanciato sul commit nuovo. Etichetta annotata `v2.0.37` su `7b6c841`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `tassullo-ingrandimento` (#199) e, già unito e non ancora pubblicato, `tassullo-campo-numero` con `leggiNumero(testo, { punto: "decimale" })` (#195). Avvisata la sessione della #195, che non mette un'etichetta sua.
+- **Non rompe chi aggiorna**: due blocchi nuovi; in `numeri` una funzione e un'opzione in più, di serie tutto com'era.
+- Verifica da fuori: alla `v2.0.37` rispondono 200 `registry.json`, `public/r/tassullo-ingrandimento.json` e il sorgente; `shadcn view …tassullo-ingrandimento#v2.0.37` restituisce il blocco con `Ingrandimento` e `AreaIngrandimento`.
+- Sulla #199 il commento di adozione: il comando, l'uso, gli `id` con `useId`, cosa togliere, cosa provare su un dispositivo vero, dove provarlo nella style guide.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.37` (#199) e togliere i `// in attesa di tassullo-design-system-v2#199`.
+- #195: commento di adozione e riga in CHECKLIST alla `v2.0.37`, in carico alla sua sessione.
+- Su un Mac con Safari il pizzico del trackpad; su un iPhone pizzico e doppio tocco dell'ingrandimento.
+
 ## 2026-11-07 — Negativi in rosso: sui risultati, non sui fattori
 
 Richiesta di Francesco guardando il computo della #196: un'opzione per il campo numerico e, nel computo, i negativi della riga in rosso. Ramo `fras/negativi-rossi`, partito da quello della #207 (il campo numerico sta lì).
@@ -15303,6 +15318,10 @@ Richiesta di Francesco guardando il computo della #196: un'opzione per il campo 
 - `Negativi, prova` del foglio: in rosso esattamente i sei risultati negativi. Col rosso spento (`< -1000` al posto di `< 0`) cade, poi rimesso.
 - `Negativi, prova` del campo: rosso a riposo, non mentre si scrive `-1,890`, di nuovo rosso confermato; un positivo che diventa negativo prende il rosso.
 - `npm run check`: gli undici statici verdi (al secondo giro: il primo ha fermato un rimando a «DECISIONI §90» nel commento spedito); WebKit verde; axe 2680 scansioni, verdi tre passate su quattro. In scuro/aperto cadute le cinque prove di `testo-segnaposto` (`exit:paused:0`, la caduta già aperta): oggi tre volte su sei giri interi, mai da sola (39 su 39, tre volte). File non toccato, prove non ritoccate.
+
+#### Pubblicazione della #195
+
+- La #195 è uscita nella `v2.0.37`, messa dalla sessione della #199 sulla punta di `main` (contiene l'unione della #207). Commento di adozione sulla #195 (Francesco: «Sì, scrivilo»): comando, le tre novità, cosa togliere in Studio e Anagrafe, l'avvertenza sul segno meno dell'iPhone, l'annuncio del rosso dei negativi con la versione dopo.
 
 #### Aperti
 
