@@ -172,6 +172,30 @@ export function valuta(valore: number, moneta = "EUR"): string {
  * ──────────────────────────────────────────────────────────────────────── */
 
 /**
+ * Come si legge un punto senza la virgola.
+ *
+ * - `"tre-cifre"`, il default: se raggruppa esattamente tre cifre sono
+ *   migliaia (`1.234` → `1234`), altrimenti è un decimale all'inglese
+ *   (`20.78`). È la regola giusta per un **testo incollato** da un gestionale,
+ *   che scrive le migliaia col punto e non mette mai la virgola sui numeri
+ *   interi.
+ * - `"decimale"`: un punto solo è **sempre** il decimale (`0.125` → `0.125`,
+ *   `1.500` → `1.5`). È la regola per un **campo che si scrive a mano** —
+ *   quantità, coefficienti, rese —, dove `0.125` è un decimale scritto col
+ *   punto del tastierino, e leggerlo `125` cambierebbe il valore senza che
+ *   nessuno se ne accorga.
+ */
+export type PuntoSenzaVirgola = "tre-cifre" | "decimale"
+
+/** Le opzioni di `leggiNumero`. */
+export type OpzioniLettura = {
+  /** Come si legge un punto senza la virgola. Di serie `"tre-cifre"`. */
+  punto?: PuntoSenzaVirgola
+}
+
+const MIGLIAIA = /^-?\d{1,3}(\.\d{3})+$/
+
+/**
  * **Dal testo scritto al valore**, che resta la forma col punto che `Number()`
  * e Zod capiscono: si scrive con la virgola, come si legge, e il dato non
  * cambia forma.
@@ -190,17 +214,61 @@ export function valuta(valore: number, moneta = "EUR"): string {
  * leggiNumero("3,")        // "3"
  * leggiNumero("abc")       // "abc"
  * ```
+ *
+ * **In un campo che si scrive a mano** si passa `{ punto: "decimale" }`: un
+ * punto solo è il decimale, e i punti delle migliaia devono essere scritti
+ * giusti, a gruppi di tre. Un testo che si potrebbe leggere in due modi non
+ * diventa un numero: resta com'è, e la validazione lo rifiuta.
+ *
+ * ```ts
+ * leggiNumero("0.125", { punto: "decimale" })     // "0.125" — di serie "125"
+ * leggiNumero("1.500", { punto: "decimale" })     // "1.5"
+ * leggiNumero("1.234,5", { punto: "decimale" })   // "1234.5"
+ * leggiNumero("1.234.567", { punto: "decimale" }) // "1234567" — più punti sono migliaia
+ * leggiNumero("12.5,3", { punto: "decimale" })    // "12.5,3"  — migliaia scritte male
+ * ```
  */
-export function leggiNumero(testo: string): string {
+export function leggiNumero(testo: string, opzioni: OpzioniLettura = {}): string {
   const t = testo.replace(/[\s€]/g, "")
   if (t === "") return ""
-  const grezzo = t.includes(",")
-    ? t.replace(/\./g, "").replace(",", ".")
-    : /^-?\d{1,3}(\.\d{3})+$/.test(t)
-      ? t.replace(/\./g, "")
-      : t
+  const grezzo =
+    opzioni.punto === "decimale" ? grezzoDecimale(t) : grezzoTreCifre(t)
+  if (grezzo === null) return testo.trim()
   const numero = Number(grezzo)
   return Number.isNaN(numero) ? grezzo : String(numero)
+}
+
+// La regola di serie: con la virgola ogni punto è migliaia; senza, tre cifre
+// dopo il punto sono migliaia e il resto è decimale.
+function grezzoTreCifre(t: string): string {
+  return t.includes(",")
+    ? t.replace(/\./g, "").replace(",", ".")
+    : MIGLIAIA.test(t)
+      ? t.replace(/\./g, "")
+      : t
+}
+
+// La regola dei campi scritti a mano. `null` vuol dire «non è un numero
+// leggibile senza indovinare»: il chiamante restituisce il testo com'era.
+// Ammette solo cifre, un meno davanti e i separatori: `1e3` o `Infinity`, che
+// `Number()` accetterebbe, in un campo di quantità sono un errore di battitura.
+function grezzoDecimale(t: string): string | null {
+  const grezzo = separaDecimale(t)
+  return grezzo !== null && /^-?(\d+\.?\d*|\.\d+)$/.test(grezzo) ? grezzo : null
+}
+
+function separaDecimale(t: string): string | null {
+  const virgole = t.split(",").length - 1
+  if (virgole > 1) return null
+  if (virgole === 1) {
+    const [interi, decimali] = t.split(",")
+    if (interi.includes(".") && !MIGLIAIA.test(interi)) return null
+    if (decimali.includes(".")) return null
+    return `${interi.replace(/\./g, "")}.${decimali}`
+  }
+  const punti = t.split(".").length - 1
+  if (punti <= 1) return t
+  return MIGLIAIA.test(t) ? t.replace(/\./g, "") : null
 }
 
 /**
