@@ -14996,3 +14996,19 @@ Non le provoca questo lavoro: il file da solo nella passata chiaro/aperto passa 
 - `tassullo-pagina-chat` **aspetta Studio**: Francesco, dopo aver guardato le scene: «segnaliamo a Studio che quando è implementata la chat ci avvisi che creiamo una pagina d'esempio in DS per le prossime app». Scritto sulla #193 (commento del 2026-11-07, con le regole d'uso dei colori, della tabella larga e del nome del riquadro). La pagina si ricava dalla chat vera di Studio, con la regola della tabella larga dentro la risposta.
 - `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
 - Le frecce sulla tabella della risposta in Safari vero.
+
+## 2026-11-07 — v2.0.32 pubblicata
+
+PR #194 unita col gate verde, unione `19e3adc`. Etichetta annotata `v2.0.32` su `19e3adc`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `message`, `bubble`, `message-scroller` di shadcn col tema Tassullo; le classi `scrollbar-*` nel tema (#193, prima parte, voce sopra).
+- **Non rompe chi aggiorna**: item nuovi; il tema ha solo classi in più.
+- Verifica da fuori: alla `v2.0.32` rispondono 200 `registry.json`, `public/r/message.json`, `public/r/bubble.json`, `public/r/message-scroller.json`, `public/r/tema.json`, il sorgente di `message-scroller` (con «Vai in fondo») e il CSS del tema (con le cinque `@utility scrollbar-*`); `shadcn view …#v2.0.32` risolve i tre item, `bubble` con `tinted` su `primary-subtle`, `message-scroller` con `@shadcn/react` fra le dipendenze.
+- Sulla #193 il commento di adozione: i comandi (anche `tema`), cosa togliere nella pagina della chat di Studio, cosa provare. La issue resta aperta: si chiude col secondo lavoro.
+
+#### Aperti
+
+- #193, secondo lavoro: `attachment`, `trace`, `marker`.
+- Studio: adottare alla `v2.0.32`; avvisare sulla #193 quando la chat è implementata, per la pagina d'esempio.
+- `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
+- Anagrafe: adottare alla `v2.0.30` e scrivere l'esito sulla #183. Studio: adottare alla `v2.0.31` (#190). Il gesto del cassetto su un iPhone vero.
