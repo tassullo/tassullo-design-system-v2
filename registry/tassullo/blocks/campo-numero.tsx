@@ -64,6 +64,7 @@ import {
   leggiNumero,
   scriviNumero,
   scriviNumeroConMigliaia,
+  ROSSO_NEGATIVO,
 } from "@/registry/tassullo/lib/numeri"
 
 /** Le prop di `CampoNumero`. Quelle non elencate vanno all'`input`. */
@@ -99,6 +100,12 @@ export type CampoNumeroProps = Omit<
    * vince l'errore del campo.
    */
   errore?: string | null
+  /**
+   * Il numero confermato in rosso quando è negativo: per un campo che porta
+   * un risultato o un saldo. Di serie spento. Il rosso vale per il valore
+   * confermato, non per il testo che si sta scrivendo.
+   */
+  negativiInRosso?: boolean
 }
 
 /** Ciò che si scrive nel campo per un valore confermato: cifre senza punti. */
@@ -155,6 +162,7 @@ export function CampoNumero({
   max,
   descrizione,
   errore,
+  negativiInRosso = false,
   id,
   onBlur,
   onFocus,
@@ -231,6 +239,10 @@ export function CampoNumero({
   // resta com'è scritto anche a riposo.
   const mostrato = !aFuoco && erroreCampo === null && bozza === testoDi(valore) ? testoARiposo(valore) : bozza
 
+  // Il rosso del negativo segue il valore confermato: mentre si scrive un
+  // testo diverso, o con un errore, il campo non lo prende.
+  const rosso = negativiInRosso && valore !== null && valore < 0 && erroreCampo === null && bozza === testoDi(valore)
+
   const messaggio = erroreCampo ?? errore ?? null
   const nonValido = messaggio !== null && messaggio !== ""
   const idUnita = unita !== undefined ? `${idCampo}-unita` : undefined
@@ -245,7 +257,7 @@ export function CampoNumero({
         <InputGroupInput
           {...input}
           id={idCampo}
-          className={className ? `tabular-nums ${className}` : "tabular-nums"}
+          className={["tabular-nums", rosso ? ROSSO_NEGATIVO : null, className].filter(Boolean).join(" ")}
           type="text"
           inputMode="decimal"
           autoComplete="off"
