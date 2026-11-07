@@ -84,6 +84,13 @@ import {
   DropdownMenuTrigger,
 } from "@/registry/tassullo/ui/dropdown-menu"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/registry/tassullo/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -161,6 +168,31 @@ export type CellaScrivibile<TDato> = {
   abilitata?: (dato: TDato) => boolean
 }
 
+/** Una voce di una cella a scelta: il valore che si scrive nel dato e ciò che si legge. */
+export type OpzioneScelta = { valore: string; etichetta: string }
+
+/**
+ * Una cella che prende il valore **da un elenco chiuso** — l'unità di misura
+ * del SOMMANO. In modifica è un `select` aperto: `↑`/`↓` scelgono, `Invio`
+ * scrive e resta sulla cella, `Esc` chiude senza cambiare, `Tab` passa alla
+ * cella accanto. A cella chiusa le frecce navigano come sulle altre.
+ */
+export type CellaScelta<TDato> = {
+  tipo: "scelta"
+  /** Il valore della cella, cioè il `valore` di una delle opzioni; `""` se vuota. */
+  leggi: (dato: TDato) => string
+  scrivi: (dato: TDato, valore: string) => TDato
+  opzioni: OpzioneScelta[]
+  segnaposto?: string
+  /** Testo fisso davanti al valore, come nella cella scrivibile. */
+  prefisso?: string
+  /** Le classi del testo del valore, uguali in vista e in modifica. */
+  classiTesto?: string
+  allineamento?: "sinistra" | "destra"
+  /** Se la cella si sceglie su questa riga. Di serie sì. */
+  abilitata?: (dato: TDato) => boolean
+}
+
 export type CellaCalcolata<TDato, TAltro = never> = {
   tipo: "calcolata"
   rendi: (dato: TDato, altro: TAltro) => React.ReactNode
@@ -177,10 +209,11 @@ export type ColonnaFoglio<TTestata, TRiga> = {
   /** Classe di larghezza sul `<col>`; senza, la colonna assorbe lo spazio. */
   larghezza?: string
   allineamento?: "sinistra" | "destra"
-  testata?: CellaScrivibile<TTestata> | CellaCalcolata<TTestata> | CellaFissa
-  corpo?: CellaScrivibile<TRiga> | CellaCalcolata<TRiga> | CellaFissa
+  testata?: CellaScrivibile<TTestata> | CellaScelta<TTestata> | CellaCalcolata<TTestata> | CellaFissa
+  corpo?: CellaScrivibile<TRiga> | CellaScelta<TRiga> | CellaCalcolata<TRiga> | CellaFissa
   piede?:
     | CellaScrivibile<TTestata>
+    | CellaScelta<TTestata>
     | CellaCalcolata<TTestata, TRiga[]>
     | CellaFissa
 }
@@ -190,6 +223,11 @@ export type ComandoFoglio = {
   onSelect: () => void
   distruttivo?: boolean
   disabilitato?: boolean
+  /**
+   * Perché il comando è spento, scritto sotto l'etichetta nel menu del gruppo
+   * («Prima salva la voce»). Conta solo con `disabilitato`.
+   */
+  motivo?: string
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -223,6 +261,16 @@ function abilitataSu(cella: { abilitata?: (dato: never) => boolean }, dato: unkn
   return cella.abilitata ? (cella.abilitata as (d: unknown) => boolean)(dato) : true
 }
 
+/** Le celle che si scrivono — a mano o da un elenco — e quindi prendono il fuoco. */
+type CellaDaScrivere = CellaScrivibile<never> | CellaScelta<never>
+
+function siScrive(cella: { tipo: string } | undefined, dato: unknown): cella is CellaDaScrivere {
+  return (
+    (cella?.tipo === "scrivibile" || cella?.tipo === "scelta") &&
+    abilitataSu(cella as CellaDaScrivere, dato)
+  )
+}
+
 export type OpzioniFoglioGruppi<TTestata, TRiga> = {
   gruppiIniziali: GruppoFoglio<TTestata, TRiga>[]
   colonne: ColonnaFoglio<TTestata, TRiga>[]
@@ -251,12 +299,21 @@ export type MotoreFoglioGruppi<TTestata, TRiga> = {
    */
   primaPosizione: PosizioneFoglio | null
   inModifica: PosizioneFoglio | null
+  /**
+   * Se la modifica in corso è stata aperta da un carattere scritto. In quel
+   * caso il campo parte da quel carattere, col cursore dopo; in ogni altro —
+   * clic, `Invio`, `F2`, l'arrivo da un'altra cella — parte col testo tutto
+   * selezionato, così ciò che si scrive lo sostituisce.
+   */
+  apertaScrivendo: boolean
   bozza: string
   errore: string | undefined
   aFuoco: (p: PosizioneFoglio) => boolean
   vaiA: (p: PosizioneFoglio) => void
   muovi: (dy: number, dx: number) => PosizioneFoglio | null
   apriModifica: (p?: PosizioneFoglio, valoreIniziale?: string) => void
+  /** Scrive il valore scelto in una cella a scelta e chiude la modifica. */
+  scegli: (p: PosizioneFoglio, valore: string) => void
   aggiornaBozza: (v: string) => void
   confermaModifica: () => boolean
   annullaModifica: () => void
@@ -298,6 +355,7 @@ export function useFoglioGruppi<TTestata, TRiga>({
   const [posizione, setPosizione] = React.useState<PosizioneFoglio | null>(null)
   const [inModifica, setInModifica] = React.useState<PosizioneFoglio | null>(null)
   const [bozza, setBozza] = React.useState("")
+  const [apertaScrivendo, setApertaScrivendo] = React.useState(false)
 
   const scriviGruppi = (nuovi: GruppoFoglio<TTestata, TRiga>[]) => {
     setGruppi(nuovi)
@@ -322,9 +380,7 @@ export function useFoglioGruppi<TTestata, TRiga>({
           // fissa non ha niente da fare quando ci arrivi, e fermarcisi sopra
           // allunga il cammino senza dare niente in cambio. Lo stesso vale per
           // una scrivibile che su questa riga non si scrive.
-          return cella?.tipo === "scrivibile" && abilitataSu(cella, dato)
-            ? { gruppo: gi, zona, riga, colonna: ci }
-            : null
+          return siScrive(cella, dato) ? { gruppo: gi, zona, riga, colonna: ci } : null
         })
       righe.push(fila("testata", 0))
       gruppo.righe.forEach((_, ri) => righe.push(fila("corpo", ri)))
@@ -373,7 +429,11 @@ export function useFoglioGruppi<TTestata, TRiga>({
     if (!col) return undefined
     if (p.zona === "azioni") return undefined
     const cella = p.zona === "testata" ? col.testata : p.zona === "corpo" ? col.corpo : col.piede
-    return cella?.tipo === "scrivibile" && abilitataSu(cella, datoDi(p)) ? cella : undefined
+    return siScrive(cella, datoDi(p)) ? cella : undefined
+  }
+  const cellaDiTesto = (p: PosizioneFoglio) => {
+    const cella = cellaScrivibile(p)
+    return cella?.tipo === "scrivibile" ? cella : undefined
   }
 
   const valoreDi = (p: PosizioneFoglio): string => {
@@ -391,13 +451,13 @@ export function useFoglioGruppi<TTestata, TRiga>({
   }, [matrice])
 
   const interpreta = (p: PosizioneFoglio, testo: string) =>
-    cellaScrivibile(p)?.formato?.interpreta(testo) ?? testo
+    cellaDiTesto(p)?.formato?.interpreta(testo) ?? testo
   const perScrivere = (p: PosizioneFoglio, valore: string) =>
-    cellaScrivibile(p)?.formato?.perScrivere(valore) ?? valore
+    cellaDiTesto(p)?.formato?.perScrivere(valore) ?? valore
 
   // L'errore si calcola su ciò che si scriverà nel dato, non sul testo grezzo:
   // `20,78` è valido anche se `valida` si aspetta `20.78`.
-  const errore = inModifica ? cellaScrivibile(inModifica)?.valida?.(interpreta(inModifica, bozza)) : undefined
+  const errore = inModifica ? cellaDiTesto(inModifica)?.valida?.(interpreta(inModifica, bozza)) : undefined
 
   const vaiA = (p: PosizioneFoglio) => {
     if (inModifica && !stessaPosizione(inModifica, p)) {
@@ -442,36 +502,53 @@ export function useFoglioGruppi<TTestata, TRiga>({
     if (!p || !cellaScrivibile(p)) return
     setPosizione(p)
     setInModifica(p)
+    setApertaScrivendo(valoreIniziale !== undefined)
     setBozza(valoreIniziale ?? perScrivere(p, valoreDi(p)))
   }
 
   const annullaModifica = () => setInModifica(null)
 
-  const confermaModifica = (): boolean => {
-    if (!inModifica) return true
-    const cella = cellaScrivibile(inModifica)
-    if (!cella) return true
-    const p = inModifica
-    const valore = interpreta(p, bozza)
-    if (cella.valida?.(valore)) return false
-    const nuovi = gruppi.map((gruppo, gi) => {
+  /** I gruppi con `valore` scritto nella cella `p`, attraverso il suo `scrivi`. */
+  const conValore = (p: PosizioneFoglio, cella: CellaDaScrivere, valore: string) =>
+    gruppi.map((gruppo, gi) => {
       if (gi !== p.gruppo) return gruppo
       if (p.zona === "corpo") {
         return {
           ...gruppo,
           righe: gruppo.righe.map((riga, ri) =>
-            ri === p.riga ? (cella.scrivi as (d: unknown, v: string) => TRiga)(riga, valore) : riga
+            ri === p.riga ? (cella.scrivi as unknown as (d: unknown, v: string) => TRiga)(riga, valore) : riga
           ),
         }
       }
       return {
         ...gruppo,
-        testata: (cella.scrivi as (d: unknown, v: string) => TTestata)(gruppo.testata, valore),
+        testata: (cella.scrivi as unknown as (d: unknown, v: string) => TTestata)(gruppo.testata, valore),
       }
     })
-    scriviGruppi(nuovi)
+
+  const confermaModifica = (): boolean => {
+    if (!inModifica) return true
+    const cella = cellaScrivibile(inModifica)
+    if (!cella) return true
+    // Una cella a scelta scrive quando si sceglie (`scegli`): lasciarla
+    // aperta per spostarsi altrove la chiude e basta.
+    if (cella.tipo === "scelta") {
+      setInModifica(null)
+      return true
+    }
+    const p = inModifica
+    const valore = interpreta(p, bozza)
+    if (cella.valida?.(valore)) return false
+    scriviGruppi(conValore(p, cella, valore))
     setInModifica(null)
     return true
+  }
+
+  const scegli = (p: PosizioneFoglio, valore: string) => {
+    const cella = cellaScrivibile(p)
+    setInModifica(null)
+    if (cella?.tipo !== "scelta" || valore === valoreDi(p)) return
+    scriviGruppi(conValore(p, cella, valore))
   }
 
   const onKeyDownCella = (evento: React.KeyboardEvent, p: PosizioneFoglio) => {
@@ -593,12 +670,14 @@ export function useFoglioGruppi<TTestata, TRiga>({
     posizione,
     primaPosizione,
     inModifica,
+    apertaScrivendo,
     bozza,
     errore,
     aFuoco: (p) => stessaPosizione(posizione, p),
     vaiA,
     muovi,
     apriModifica,
+    scegli,
     aggiornaBozza: setBozza,
     confermaModifica,
     annullaModifica,
@@ -671,6 +750,7 @@ function CellaFoglio<TTestata, TRiga>({
   const zona = posizione.zona
   const cella = zona === "testata" ? colonna.testata : zona === "corpo" ? colonna.corpo : colonna.piede
   const riferimento = React.useRef<HTMLDivElement>(null)
+  const campoRef = React.useRef<HTMLInputElement>(null)
   const aFuoco = motore.aFuoco(posizione)
   const inModifica = stessaPosizione(motore.inModifica, posizione)
   // La porta d'ingresso: prima che il fuoco sia da qualche parte, è la prima
@@ -686,6 +766,17 @@ function CellaFoglio<TTestata, TRiga>({
     // chiude per un clic altrove non deve riportarlo qui.
     if (aFuoco && !inModifica && !fuoriRef.current) riferimento.current?.focus()
   }, [aFuoco, inModifica, fuoriRef])
+
+  // **Il campo si apre col testo tutto selezionato**, come la cella di un
+  // foglio di calcolo: chi scrive sostituisce il valore. Col solo `autoFocus`
+  // il cursore andava in fondo, e un clic su «12,5» seguito da «10» dava
+  // «12,510». Non quando la modifica l'ha aperta un carattere: lì il campo
+  // contiene già quel carattere, e selezionarlo lo farebbe sparire al
+  // successivo. Prima del disegno, così il primo tasto trova già la selezione.
+  const apertaScrivendo = motore.apertaScrivendo
+  React.useLayoutEffect(() => {
+    if (inModifica && !apertaScrivendo) campoRef.current?.select()
+  }, [inModifica, apertaScrivendo])
 
   if (!cella) return <TableCell />
 
@@ -719,9 +810,16 @@ function CellaFoglio<TTestata, TRiga>({
   const riquadro = cn("px-2 py-1", RIGA, destra && "justify-end")
   const classiValore = cn(destra ? "text-right tabular-nums" : "text-left", cella.classiTesto)
   const prefisso = cella.prefisso ? <span className="me-2 shrink-0">{cella.prefisso}</span> : null
-  const testoValore = cella.mostra
-    ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
-    : valore
+  const scelta = cella.tipo === "scelta" ? cella : undefined
+  const etichettaScelta = scelta?.opzioni.find((o) => o.valore === valore)?.etichetta
+  // Un valore che non è fra le opzioni — un dato scritto prima che la cella
+  // diventasse a scelta — si mostra com'è, con l'anello rosso: non si perde,
+  // e si vede che va scelto di nuovo.
+  const fuoriElenco = !!scelta && valore !== "" && etichettaScelta === undefined
+  const testoValore =
+    cella.tipo === "scrivibile" && cella.mostra
+      ? (cella.mostra as (v: string, d: unknown) => React.ReactNode)(valore, dato)
+      : (etichettaScelta ?? valore)
 
   // Su una riga dove non si scrive, la cella è testo: lo stesso riquadro e le
   // stesse classi della vista, così la colonna resta allineata, ma senza
@@ -737,13 +835,77 @@ function CellaFoglio<TTestata, TRiga>({
     )
   }
 
-  if (inModifica) {
+  if (inModifica && scelta) {
+    return (
+      <TableCell className="p-0">
+        <Select
+          value={valore === "" ? null : valore}
+          items={scelta.opzioni.map((o) => ({ value: o.valore, label: o.etichetta }))}
+          open
+          // Si chiude scegliendo — e allora `scegli` ha già chiuso la
+          // modifica — oppure con `Esc` o un clic fuori, che lasciano il
+          // valore com'era. In entrambi i casi chiudere la modifica basta.
+          onOpenChange={(aperto) => {
+            if (!aperto) motore.annullaModifica()
+          }}
+          onValueChange={(scelto) => {
+            if (typeof scelto === "string") motore.scegli(posizione, scelto)
+          }}
+        >
+          <SelectTrigger
+            aria-label={etichettaColonna}
+            // Il riquadro della cella chiusa, non la misura da modulo di
+            // `SelectTrigger`: aprendo l'elenco il testo resta dov'era.
+            // `data-[size=default]:h-auto` e non `h-auto`, che per `cn` è
+            // un'altra famiglia e lascerebbe vincere `h-8`. Senza spazio fra
+            // i pezzi e senza la freccia: con le due, aprendo, «SOMMANO»
+            // andava 28px a sinistra e il valore 22. Che si sceglie lo dice
+            // l'elenco, che si apre subito sotto.
+            className={cn(
+              riquadro,
+              "h-auto w-full min-w-0 gap-0 rounded-none border-0 bg-transparent ring-2 ring-ring ring-inset data-[size=default]:h-auto focus-visible:ring-2 focus-visible:ring-ring dark:bg-transparent dark:hover:bg-transparent [&>svg]:hidden",
+              fuoriElenco && "ring-destructive focus-visible:ring-destructive"
+            )}
+          >
+            {prefisso}
+            <SelectValue placeholder={scelta.segnaposto} className={cn(destra && "flex-none", classiValore)} />
+          </SelectTrigger>
+          <SelectContent
+            // L'elenco sta in un portale, fuori dalla tabella: questo segno
+            // dice al foglio che il fuoco lì dentro non è uscito (v. `fuoco`).
+            data-foglio-elenco=""
+            // Sotto la cella, dal lato del suo testo, largo quanto le voci.
+            // Di serie l'elenco si posa sopra la cella con la voce scelta
+            // allineata al valore: su un valore a destra in una colonna larga
+            // sbordava sulle colonne accanto.
+            alignItemWithTrigger={false}
+            align={destra ? "end" : "start"}
+            className="w-auto"
+            onKeyDown={(evento) => {
+              // `Tab` passa alla cella accanto, come da un campo di testo; le
+              // frecce e `Invio` restano all'elenco.
+              if (evento.key === "Tab") motore.onKeyDownCella(evento, posizione)
+            }}
+          >
+            {scelta.opzioni.map((o) => (
+              <SelectItem key={o.valore} value={o.valore}>
+                {o.etichetta}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+    )
+  }
+
+  if (inModifica && cella.tipo === "scrivibile") {
     const errore = motore.errore
     return (
       <TableCell className="p-0">
         <div className={cn(riquadro, "ring-2 ring-ring ring-inset", errore && "ring-destructive")}>
           {prefisso}
           <input
+            ref={campoRef}
             autoFocus
             className={cn(
               "min-w-0 bg-transparent p-0 outline-none placeholder:text-muted-foreground",
@@ -789,11 +951,17 @@ function CellaFoglio<TTestata, TRiga>({
         // così `Tab` esce dal foglio in una fermata invece di attraversarlo.
         tabIndex={tabbabile ? 0 : -1}
         role="button"
-        aria-label={`${etichettaColonna}: ${(cella.formato?.perScrivere(valore) ?? valore) || "vuoto"}`}
+        aria-label={
+          cella.tipo === "scelta"
+            ? `${etichettaColonna}: ${testoValore || "vuoto"}${fuoriElenco ? " (non è fra le scelte)" : ""}`
+            : `${etichettaColonna}: ${(cella.formato?.perScrivere(valore) ?? valore) || "vuoto"}`
+        }
         className={cn(
-          "cursor-text outline-none",
+          scelta ? "cursor-default" : "cursor-text",
+          "outline-none",
           riquadro,
           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+          fuoriElenco && "ring-2 ring-destructive ring-inset focus-visible:ring-destructive",
           !valore && "text-muted-foreground"
         )}
         onFocus={() => motore.vaiA(posizione)}
@@ -814,7 +982,7 @@ function CellaFoglio<TTestata, TRiga>({
             sborda è la designazione, cioè la colonna elastica. Meglio i
             puntini: il testo intero resta leggibile aprendo la modifica. */}
         <span className={cn("min-w-0 truncate", classiValore)}>
-          {cella.mostra ? testoValore : valore || cella.segnaposto || " "}
+          {cella.tipo === "scrivibile" && cella.mostra ? testoValore : testoValore || cella.segnaposto || " "}
         </span>
       </div>
     </TableCell>
@@ -861,7 +1029,10 @@ function ComandiGruppo({
           </Button>
         }
       />
-      <DropdownMenuContent align="start">
+      {/* Largo quanto serve, con un minimo: di serie il menu è largo quanto
+          il grilletto, e il ⋯ è di 24px — le etichette di tre o quattro
+          parole andavano su tre righe. */}
+      <DropdownMenuContent align="start" className="w-auto min-w-56">
         <DropdownMenuGroup>
           {comandi.map((comando, i) =>
             comando.etichetta === "-" ? (
@@ -872,8 +1043,19 @@ function ComandiGruppo({
                 disabled={comando.disabilitato}
                 variant={comando.distruttivo ? "destructive" : undefined}
                 onClick={comando.onSelect}
+                // Con un motivo la voce spenta resta piena e il grigio lo dà
+                // il testo: la voce di serie è trasparente a metà, e il motivo,
+                // che va letto, scendeva a 2,05:1 sul fondo del menu.
+                className={comando.disabilitato && comando.motivo ? "data-disabled:opacity-100" : undefined}
               >
-                {comando.etichetta}
+                {comando.disabilitato && comando.motivo ? (
+                  <span className="flex flex-col text-muted-foreground">
+                    <span>{comando.etichetta}</span>
+                    <span className="text-xs">{comando.motivo}</span>
+                  </span>
+                ) : (
+                  comando.etichetta
+                )}
               </DropdownMenuItem>
             )
           )}
@@ -941,11 +1123,25 @@ export function FoglioGruppi<TTestata, TRiga>({
    */
   const [fuoco, setFuoco] = React.useState<"mai" | "dentro" | "fuori">("mai")
   const fuoriRef = React.useRef(false)
+  // Letto dai gestori del documento, registrati una volta sola.
+  const motoreRef = React.useRef(motore)
+  React.useEffect(() => {
+    motoreRef.current = motore
+  })
   React.useEffect(() => {
     let attesa: ReturnType<typeof setTimeout> | undefined
-    const aggiorna = () => {
+    // L'elenco aperto di una cella a scelta vive in un portale fuori dalla
+    // tabella, ma il fuoco lì dentro è ancora sulla cella: senza, chiuso
+    // l'elenco il fuoco non tornava alla cella e finiva sul `body`.
+    const nelFoglio = (nodo: EventTarget | Element | null) => {
       const tabella = radiceRef.current?.querySelector("table")
-      const dentro = !!tabella && tabella.contains(document.activeElement)
+      if (!tabella || !(nodo instanceof Node)) return false
+      if (tabella.contains(nodo)) return true
+      const elenco = (nodo instanceof Element ? nodo : nodo.parentElement)?.closest("[data-foglio-elenco]")
+      return !!elenco && !!motoreRef.current.inModifica
+    }
+    const aggiorna = () => {
+      const dentro = nelFoglio(document.activeElement)
       fuoriRef.current = !dentro
       setFuoco((prima) => (dentro ? "dentro" : prima === "mai" ? "mai" : "fuori"))
     }
@@ -961,8 +1157,7 @@ export function FoglioGruppi<TTestata, TRiga>({
     // chiude da sé con `Invio` o `Esc`, e lì il fuoco deve tornare alla cella.
     // In cattura, per arrivare prima dei gestori di React.
     const premuto = (evento: PointerEvent) => {
-      const tabella = radiceRef.current?.querySelector("table")
-      if (tabella && !tabella.contains(evento.target as Node)) fuoriRef.current = true
+      if (radiceRef.current?.querySelector("table") && !nelFoglio(evento.target)) fuoriRef.current = true
     }
     document.addEventListener("focusin", aggiorna)
     document.addEventListener("focusout", dopo)
