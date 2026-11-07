@@ -14968,6 +14968,8 @@ Proposta #193 di Studio: un filo di conversazione per le chat con l'assistente. 
 - **Le classi delle barre che i tre componenti usano** e che `shadcn/tailwind.css` non ha: `scrollbar-thin`, `scrollbar-none`, `scrollbar-gutter-stable`, `scrollbar-thumb-transparent`, `scrollbar-track-transparent`, come `@utility` del tema (nella palette di `scripts/hex-to-oklch.ts`, CSS rigenerato). `shimmer` e `scroll-fade-*` c'erano già. Senza, le classi non emettevano niente, in silenzio.
 - **`add` aveva riscritto `button.tsx`** (dipendenza di `message-scroller`) con l'originale: ripristinato. Da sapere a ogni `add` di un componente che dipende da una primitiva già ri-stilata.
 
+PR #194, gate in CI verde al primo giro (anche `testo-segnaposto`).
+
 #### La scelta dei colori
 
 Francesco, prima: «avrei fatto fumetto per anche la risposta. grigio la risposta, arancio la domanda». Poi, guardando l'app di Claude: «effettivamente non c'è un doppio fumetto. cosa propone di default shadcn?». Lo schema di shadcn: la domanda `default` (da noi arancio pieno) a destra, la risposta `ghost`, senza fumetto e a tutta riga. Francesco: «Sì, come shadcn». È la regola d'uso scritta in `bubble`; `secondary` resta per le conversazioni fra persone.
@@ -14990,6 +14992,7 @@ Non le provoca questo lavoro: il file da solo nella passata chiaro/aperto passa 
 
 #### Aperti
 
-- #193, secondo lavoro: `attachment`, `trace`, `marker`. Terzo: `tassullo-pagina-chat`, con la regola della tabella larga dentro la risposta.
+- #193, secondo lavoro: `attachment`, `trace`, `marker`. La issue si chiude con quello.
+- `tassullo-pagina-chat` **aspetta Studio**: Francesco, dopo aver guardato le scene: «segnaliamo a Studio che quando è implementata la chat ci avvisi che creiamo una pagina d'esempio in DS per le prossime app». Scritto sulla #193 (commento del 2026-11-07, con le regole d'uso dei colori, della tabella larga e del nome del riquadro). La pagina si ricava dalla chat vera di Studio, con la regola della tabella larga dentro la risposta.
 - `testo-segnaposto`: cercare chi mette in pausa l'animazione d'uscita dell'elenco (`exit:paused:0`).
 - Le frecce sulla tabella della risposta in Safari vero.
