@@ -15275,3 +15275,18 @@ Proposta di Studio: i disegni tecnici generati dall'app (SVG con quote e testi p
 - Studio: adottare alla versione nuova e togliere il `// in attesa di tassullo-design-system-v2#199`.
 - Su un Mac con Safari: il pizzico del trackpad. Su un iPhone: pizzico e doppio tocco.
 - Da proporre se serve: lo zoom dentro `tassullo-galleria-immagini` con `AreaIngrandimento` (lì oggi `←`/`→` cambiano immagine).
+
+## 2026-11-07 — v2.0.37 pubblicata, #199 chiusa
+
+PR #208 unita col gate verde in CI, unione `7b6c841`; la #199 si è chiusa da sola con `Closes`. Prima dell'unione `main` si è mosso tre volte (v2.0.35, v2.0.36, #195): ogni volta l'unione di `main` nel ramo, fatta in una copia separata perché la cartella comune era occupata da un'altra sessione, e il gate rilanciato sul commit nuovo. Etichetta annotata `v2.0.37` su `7b6c841`, push della sola etichetta. Francesco: «Sì, uniscila», poi «Sì, pubblica».
+
+- Dentro: `tassullo-ingrandimento` (#199) e, già unito e non ancora pubblicato, `tassullo-campo-numero` con `leggiNumero(testo, { punto: "decimale" })` (#195). Avvisata la sessione della #195, che non mette un'etichetta sua.
+- **Non rompe chi aggiorna**: due blocchi nuovi; in `numeri` una funzione e un'opzione in più, di serie tutto com'era.
+- Verifica da fuori: alla `v2.0.37` rispondono 200 `registry.json`, `public/r/tassullo-ingrandimento.json` e il sorgente; `shadcn view …tassullo-ingrandimento#v2.0.37` restituisce il blocco con `Ingrandimento` e `AreaIngrandimento`.
+- Sulla #199 il commento di adozione: il comando, l'uso, gli `id` con `useId`, cosa togliere, cosa provare su un dispositivo vero, dove provarlo nella style guide.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.37` (#199) e togliere i `// in attesa di tassullo-design-system-v2#199`.
+- #195: commento di adozione e riga in CHECKLIST alla `v2.0.37`, in carico alla sua sessione.
+- Su un Mac con Safari il pizzico del trackpad; su un iPhone pizzico e doppio tocco dell'ingrandimento.
