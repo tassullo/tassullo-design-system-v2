@@ -15534,3 +15534,16 @@ Proposta di Studio, accettata da Francesco con i decimali da 2 a 4. Ramo `fras/p
 
 - Studio: alla versione che chiude la #222, «Importo lavori» passa a `decimali={4}` e si toglie il commento d'attesa.
 - Le colonne in euro di griglia e foglio a gruppi: ancora non deciso (§97).
+
+## 2026-11-08 — v2.0.41 pubblicata, #222 chiusa
+
+PR #223 unita col gate verde in CI, unione `09afa85`; la #222 si è chiusa con la PR. Etichetta annotata `v2.0.41` su `09afa85`, push della sola etichetta. Francesco: «Sì, unisci e pubblica».
+
+- Dentro: `decimali` (da 2 a 4) su `tassullo-campo-numero` e fra le opzioni di `leggiNumero` con `punto: "importo"`; le cifre in più si arrotondano in silenzio, la metà per eccesso; un punto che migliaia non può essere è il decimale.
+- **Cambia per chi aggiorna, ed è voluto**: con `importo`, tre decimali e `0.125` prima erano un errore e adesso si accettano arrotondati a due decimali. `1.500` e gli altri testi validi non cambiano.
+- Verifica da fuori: alla `v2.0.41` rispondono 200 `registry.json`, `public/r/tassullo-campo-numero.json`, `public/r/numeri.json` e i due sorgenti, con `decimali` e `arrotonda` dentro; `shadcn view …tassullo-campo-numero#v2.0.41` restituisce la prop.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.41`, passare «Importo lavori» a `decimali={4}` e togliere il commento d'attesa.
+- Le colonne in euro di griglia e foglio a gruppi: non deciso (§97, ultimo paragrafo).
