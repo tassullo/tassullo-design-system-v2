@@ -208,12 +208,14 @@ export function coloreNegativo(valore: number | null | undefined): string | unde
  *   punto del tastierino, e leggerlo `125` cambierebbe il valore senza che
  *   nessuno se ne accorga.
  * - `"importo"`: la regola per un **importo in euro** scritto o incollato.
- *   Il punto è delle migliaia se raggruppa bene (`1.500` → `1500`), un punto
- *   seguito da una o due cifre è il decimale del tastierino (`15.00` →
- *   `15`), la virgola è il decimale con al massimo due cifre. Si puliscono
- *   ciò che un testo copiato da un documento si porta dietro: spazi di ogni
- *   tipo, `€`, `EUR`, `euro`, il segno meno tipografico. Tutto il resto non
- *   si indovina: `0.125`, `0,125`, `1,500.50` e `12.5,3` restano come sono.
+ *   Il punto è delle migliaia se raggruppa bene (`1.500` → `1500`); un punto
+ *   solo che non può esserlo è il decimale del tastierino (`15.00` → `15`,
+ *   `0.125` → `0.13`), e così la virgola. I decimali sono quanti ne dice
+ *   `decimali`, di serie due: quelli in più si **arrotondano**, la metà per
+ *   eccesso (`0,125` → `0.13`, `-0,125` → `-0.13`). Si pulisce ciò che un
+ *   testo copiato da un documento si porta dietro: spazi di ogni tipo, `€`,
+ *   `EUR`, `euro`, il segno meno tipografico. Tutto il resto non si indovina:
+ *   `1,500.50` e `12.5,3` restano come sono.
  */
 export type PuntoSenzaVirgola = "tre-cifre" | "decimale" | "importo"
 
@@ -221,7 +223,16 @@ export type PuntoSenzaVirgola = "tre-cifre" | "decimale" | "importo"
 export type OpzioniLettura = {
   /** Come si legge un punto senza la virgola. Di serie `"tre-cifre"`. */
   punto?: PuntoSenzaVirgola
+  /**
+   * Con `punto: "importo"`, quanti decimali tiene la lettura: da 2 a 4, di
+   * serie 2. Quelli in più si arrotondano, la metà per eccesso. Con le altre
+   * letture non conta.
+   */
+  decimali?: DecimaliImporto
 }
+
+/** Quanti decimali può avere un importo: di serie due, fino a quattro. */
+export type DecimaliImporto = 2 | 3 | 4
 
 const MIGLIAIA = /^-?\d{1,3}(\.\d{3})+$/
 
@@ -259,15 +270,18 @@ const MIGLIAIA = /^-?\d{1,3}(\.\d{3})+$/
  * ```
  *
  * **In un campo per gli importi** si passa `{ punto: "importo" }`: il punto è
- * delle migliaia quando raggruppa bene, al massimo due decimali, e il testo
- * copiato da un documento si pulisce da spazi e simboli della moneta.
+ * delle migliaia quando raggruppa bene, i decimali in più di `decimali` (di
+ * serie due) si arrotondano, e il testo copiato da un documento si pulisce
+ * da spazi e simboli della moneta.
  *
  * ```ts
- * leggiNumero("1.500", { punto: "importo" })         // "1500"
- * leggiNumero("15.00", { punto: "importo" })         // "15"     — decimale del tastierino
- * leggiNumero("EUR 2.086,93", { punto: "importo" })  // "2086.93"
- * leggiNumero("0,125", { punto: "importo" })         // "0,125"  — più di due decimali
- * leggiNumero("1,500.50", { punto: "importo" })      // "1,500.50" — scritto all'inglese
+ * leggiNumero("1.500", { punto: "importo" })                   // "1500"
+ * leggiNumero("15.00", { punto: "importo" })                   // "15"     — decimale del tastierino
+ * leggiNumero("EUR 2.086,93", { punto: "importo" })            // "2086.93"
+ * leggiNumero("0,125", { punto: "importo" })                   // "0.13"   — arrotondato a due decimali
+ * leggiNumero("0,125", { punto: "importo", decimali: 4 })      // "0.125"
+ * leggiNumero("1.500,12345", { punto: "importo", decimali: 4 }) // "1500.1235"
+ * leggiNumero("1,500.50", { punto: "importo" })                // "1,500.50" — scritto all'inglese
  * ```
  */
 export function leggiNumero(testo: string, opzioni: OpzioniLettura = {}): string {
@@ -277,7 +291,7 @@ export function leggiNumero(testo: string, opzioni: OpzioniLettura = {}): string
     opzioni.punto === "decimale"
       ? grezzoDecimale(t)
       : opzioni.punto === "importo"
-        ? grezzoImporto(t)
+        ? grezzoImporto(t, opzioni.decimali ?? 2)
         : grezzoTreCifre(t)
   if (grezzo === null) return testo.trim()
   const numero = Number(grezzo)
@@ -332,18 +346,41 @@ function pulisciImporto(testo: string): string {
 }
 
 // La regola degli importi. Con la virgola: le migliaia raggruppate bene, o
-// nessun punto, e al massimo due decimali. Senza virgola: cifre nude,
-// migliaia raggruppate bene, o un punto solo seguito da una o due cifre, che
-// non possono essere migliaia. Il primo gruppo delle migliaia non comincia
-// con lo zero: `0.125` non è centoventicinque, e non si indovina cosa sia.
-const IMPORTO_CON_VIRGOLA = /^-?([1-9]\d{0,2}(\.\d{3})+|\d*),\d{0,2}$/
-const IMPORTO_SENZA_VIRGOLA = /^-?(\d+|[1-9]\d{0,2}(\.\d{3})+|\d*\.\d{1,2})$/
+// nessun punto, poi i decimali. Senza virgola: cifre nude, migliaia
+// raggruppate bene, o un punto solo che migliaia non può essere, ed è quindi
+// il decimale. Il primo gruppo delle migliaia non comincia con lo zero:
+// `0.125` non è centoventicinque, è zero virgola centoventicinque. I decimali
+// in più si arrotondano dopo, sulle cifre.
+const MIGLIAIA_IMPORTO = /^-?[1-9]\d{0,2}(\.\d{3})+$/
+const IMPORTO_CON_VIRGOLA = /^-?([1-9]\d{0,2}(\.\d{3})+|\d*),\d*$/
+const IMPORTO_SENZA_VIRGOLA = /^-?(\d+|\d*\.\d+)$/
 
-function grezzoImporto(t: string): string | null {
+function grezzoImporto(t: string, decimali: number): string | null {
   if (!/\d/.test(t)) return null
-  if (IMPORTO_CON_VIRGOLA.test(t)) return t.replace(/\./g, "").replace(",", ".")
-  if (IMPORTO_SENZA_VIRGOLA.test(t)) return MIGLIAIA.test(t) ? t.replace(/\./g, "") : t
+  if (IMPORTO_CON_VIRGOLA.test(t)) return arrotonda(t.replace(/\./g, "").replace(",", "."), decimali)
+  if (MIGLIAIA_IMPORTO.test(t)) return t.replace(/\./g, "")
+  if (IMPORTO_SENZA_VIRGOLA.test(t)) return arrotonda(t, decimali)
   return null
+}
+
+// Arrotonda un numero scritto col punto a `cifre` decimali, la metà per
+// eccesso e lontano dallo zero: `0.125` → `0.13`, `-0.125` → `-0.13`. Si
+// lavora sulle cifre e non con `Math.round`, che sui numeri a virgola mobile
+// sbaglia la metà: `1.005 * 100` vale `100.49999…`, e darebbe `1.00`.
+function arrotonda(grezzo: string, cifre: number): string {
+  const [interi, frazione = ""] = grezzo.split(".")
+  if (frazione.length <= cifre) return grezzo
+  const segno = interi.startsWith("-") ? "-" : ""
+  const tenute = ((segno ? interi.slice(1) : interi) || "0") + frazione.slice(0, cifre)
+  const tutte = tenute.split("")
+  if (frazione[cifre] >= "5") {
+    let i = tutte.length - 1
+    while (i >= 0 && tutte[i] === "9") tutte[i--] = "0"
+    if (i < 0) tutte.unshift("1")
+    else tutte[i] = String(Number(tutte[i]) + 1)
+  }
+  const unite = tutte.join("")
+  return `${segno}${unite.slice(0, -cifre)}.${unite.slice(-cifre)}`
 }
 
 /**

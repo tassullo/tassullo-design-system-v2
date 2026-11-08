@@ -37,9 +37,13 @@
  *   campo numerico non deve portarselo dietro.
  * - `importo` (proposta #219 di Studio, accettata da Francesco il
  *   2026-11-08, `docs/DECISIONI.md` §97): legge con `punto: "importo"`, cioè
- *   il punto delle migliaia all'italiana e al massimo due decimali, pulisce
- *   ciò che un testo incollato si porta dietro, e a riposo scrive sempre due
- *   decimali (`1.500,00`). L'unità di serie diventa `€`, prima del numero.
+ *   il punto delle migliaia all'italiana, pulisce ciò che un testo incollato
+ *   si porta dietro, e a riposo scrive almeno due decimali (`1.500,00`).
+ *   L'unità di serie diventa `€`, prima del numero.
+ * - `decimali` (proposta #222 di Studio, accettata da Francesco il
+ *   2026-11-08, `docs/DECISIONI.md` §98): da 2 a 4, di serie 2. Le cifre in
+ *   più si arrotondano in silenzio, la metà per eccesso, invece di fermare il
+ *   campo con un errore; il numero riscritto all'uscita mostra l'arrotondamento.
  * - `String(numero)` dà la notazione esponenziale sotto 1e-6 e sopra 1e21:
  *   fuori dai numeri di un computo, e lasciato com'è.
  */
@@ -65,12 +69,12 @@ import {
   InputGroupText,
 } from "@/registry/tassullo/ui/input-group"
 import {
-  decimale,
   formattatore,
   leggiNumero,
   scriviNumero,
   scriviNumeroConMigliaia,
   ROSSO_NEGATIVO,
+  type DecimaliImporto,
 } from "@/registry/tassullo/lib/numeri"
 
 /** Le prop di `CampoNumero`. Quelle non elencate vanno all'`input`. */
@@ -117,13 +121,20 @@ export type CampoNumeroProps = Omit<
   negativiInRosso?: boolean
   /**
    * Il campo è un importo in euro. Il punto è delle migliaia (`1.500` vale
-   * millecinquecento), un punto seguito da una o due cifre è il decimale
-   * (`15.00`), e i decimali sono al massimo due. Un importo incollato da un
+   * millecinquecento), un punto che migliaia non può essere è il decimale
+   * (`15.00`, `0.125`). I decimali sono quanti ne dice `decimali`: quelli in
+   * più si arrotondano, la metà per eccesso. Un importo incollato da un
    * documento si pulisce da spazi, `€`, `EUR` e `euro`. A riposo si leggono
-   * sempre due decimali: `1.500,00`. L'unità di serie è `€`, prima del
-   * numero. Di serie spento.
+   * sempre almeno due decimali: `1.500,00`. L'unità di serie è `€`, prima
+   * del numero. Di serie spento.
    */
   importo?: boolean
+  /**
+   * Con `importo`, quanti decimali tiene il campo: da 2 a 4, di serie 2. Per
+   * un prezzo unitario, `decimali={4}`: `0,1234` resta com'è scritto. A
+   * riposo l'importo ne mostra almeno due e al massimo questi.
+   */
+  decimali?: DecimaliImporto
 }
 
 /** Ciò che si scrive nel campo per un valore confermato: cifre senza punti. */
@@ -133,11 +144,13 @@ function testoDi(valore: number | null): string {
 
 /**
  * Ciò che si legge nel campo a riposo: col punto delle migliaia, e per un
- * importo sempre con due decimali.
+ * importo con almeno due decimali e al massimo quelli ammessi.
  */
-function testoARiposo(valore: number | null, importo: boolean): string {
+function testoARiposo(valore: number | null, importo: boolean, decimali: DecimaliImporto): string {
   if (valore === null) return ""
-  return importo ? decimale(valore, 2) : scriviNumeroConMigliaia(String(valore))
+  return importo
+    ? formattatore({ minimumFractionDigits: 2, maximumFractionDigits: decimali }).format(valore)
+    : scriviNumeroConMigliaia(String(valore))
 }
 
 // Un limite nel messaggio d'errore, scritto come si legge: `10.000`, `0,5`.
@@ -149,24 +162,24 @@ type Esito = { valore: number | null; errore: null } | { valore: undefined; erro
 function esamina(
   testo: string,
   importo: boolean,
+  decimali: DecimaliImporto,
   min?: number,
   max?: number,
   unita?: ReactNode,
 ): Esito {
-  const letto = leggiNumero(testo, { punto: importo ? "importo" : "decimale" })
+  const letto = importo
+    ? leggiNumero(testo, { punto: "importo", decimali })
+    : leggiNumero(testo, { punto: "decimale" })
   if (letto === "") return { valore: null, errore: null }
   const numero = Number(letto)
   // `leggiNumero` restituisce il testo com'era quando non è un numero: lo si
   // riconosce perché non è la forma canonica di sé stesso (`1e3`, `Infinity`).
-  // Per un importo non basta: `0.125` è rifiutato ma è già nella sua forma
-  // canonica, e lo si riconosce dai decimali, che in un importo letto sono al
-  // massimo due.
-  if (!Number.isFinite(numero) || String(numero) !== letto || (importo && /\.\d{3}/.test(letto))) {
+  // Vale anche per un importo: ogni numero scritto in forma canonica è un
+  // importo leggibile, e i decimali in più si arrotondano invece di fermarlo.
+  if (!Number.isFinite(numero) || String(numero) !== letto) {
     return {
       valore: undefined,
-      errore: importo
-        ? "Scrivi un importo con al massimo due decimali, per esempio 1.500,00."
-        : "Scrivi un numero, per esempio 12,5.",
+      errore: importo ? "Scrivi un importo, per esempio 1.500,00." : "Scrivi un numero, per esempio 12,5.",
     }
   }
   const coda = typeof unita === "string" ? ` ${unita}` : ""
@@ -194,6 +207,7 @@ export function CampoNumero({
   valore,
   onValore,
   importo = false,
+  decimali = 2,
   unita = importo ? "€" : undefined,
   posizioneUnita = importo ? "prima" : "dopo",
   min,
@@ -225,7 +239,7 @@ export function CampoNumero({
 
   /** Conferma il testo scritto. Restituisce `false` se non è valido. */
   function conferma(): boolean {
-    const esito = esamina(bozza, importo, min, max, unita)
+    const esito = esamina(bozza, importo, decimali, min, max, unita)
     if (esito.errore !== null) {
       setErroreCampo(esito.errore)
       return false
@@ -240,7 +254,7 @@ export function CampoNumero({
     setBozza(testo)
     // Mostrato un errore, il campo lo ricontrolla a ogni tasto: sparisce
     // appena il testo torna valido, senza aspettare l'uscita.
-    if (erroreCampo !== null) setErroreCampo(esamina(testo, importo, min, max, unita).errore)
+    if (erroreCampo !== null) setErroreCampo(esamina(testo, importo, decimali, min, max, unita).errore)
   }
 
   function alTasto(evento: KeyboardEvent<HTMLInputElement>) {
@@ -256,7 +270,7 @@ export function CampoNumero({
       evento.stopPropagation()
       setBozza(testoDi(valore))
       setErroreCampo(null)
-    }
+      }
   }
 
   function alFuoco(evento: FocusEvent<HTMLInputElement>) {
@@ -275,7 +289,7 @@ export function CampoNumero({
   // sarebbe un errore e non solo un intralcio: `1.234` riletto all'uscita, con
   // un punto solo che è il decimale, diventerebbe 1,234. Un testo sbagliato
   // resta com'è scritto anche a riposo.
-  const mostrato = !aFuoco && erroreCampo === null && bozza === testoDi(valore) ? testoARiposo(valore, importo) : bozza
+  const mostrato = !aFuoco && erroreCampo === null && bozza === testoDi(valore) ? testoARiposo(valore, importo, decimali) : bozza
 
   // Il rosso del negativo segue il valore confermato: mentre si scrive un
   // testo diverso, o con un errore, il campo non lo prende.

@@ -4416,10 +4416,35 @@ Il blocco è nostro e compone `field` e `input-group` senza varianti: nessuna ri
 
 **Un difetto trovato scrivendo la prova.** Il campo riconosceva un testo rifiutato perché `leggiNumero` lo restituisce non nella forma canonica di un numero. Con `"decimale"` è sempre vero; con `"importo"` no: `0.125` è rifiutato ma è già canonico, e il campo lo accettava come 0,125 (a riposo `0,13`). Per un importo il campo rifiuta anche un valore letto con più di due decimali, che una lettura riuscita non può dare.
 
-**Il limite di due decimali è voluto.** È ciò che il campo mostra a riposo: un terzo decimale verrebbe arrotondato a vista senza avviso. Per un prezzo unitario che ne ha bisogno di più si usa il campo normale con `unita="€"`.
+**Il limite di due decimali è voluto.** *(Superato da §98: da 2 a 4 decimali, e le cifre in più si arrotondano invece di essere rifiutate; anche `0.125` ora si legge.)* È ciò che il campo mostra a riposo: un terzo decimale verrebbe arrotondato a vista senza avviso. Per un prezzo unitario che ne ha bisogno di più si usa il campo normale con `unita="€"`.
 
 **L'ambiguità che resta.** `1.50` vale 1,50 e `1.500` vale 1.500: li separa uno zero. A riposo il campo scrive `1,50` o `1.500,00`, quindi il valore letto si vede appena si esce.
 
 **Le prove.** Fuori dal browser, 49 testi (i 29 della proposta, più 20 incollati: spazi che non vanno a capo, `EUR`, `euro`, il meno tipografico, `$`, `USD`, `0.500,00`, `€` da solo) danno tutti il risultato atteso; le letture di serie e `"decimale"` restano invariate. In Chromium `Blocchi/Campo numerico → Importo, prova` incolla dodici testi ed esce dal campo, e controlla quello che resta scritto, il valore confermato e l'errore. Col campo che legge come prima cade al primo testo (`1.500` → `1,50`).
 
 **Fuori dalla proposta, e non deciso.** Le colonne in euro di `tassullo-data-grid` e del foglio a gruppi leggono ancora con la regola di serie, quindi accettano `12.5,3` come 125,30. Passarle a `"importo"` farebbe rifiutare anche il formato inglese incollato da un gestionale (`1,500.50`): è una scelta da fare con un caso vero davanti.
+
+## 98. Un importo con più decimali: da 2 a 4, e le cifre in più si arrotondano invece di fermare il campo (proposta #222, accettata da Francesco il 2026-11-08)
+
+**Da dove viene.** Proposta #222 di Studio, seguito della #219 (§97). `<CampoNumero importo>` teneva al massimo due decimali e rifiutava il resto; un prezzo unitario come 0,1234 €/kg non si poteva scrivere in un campo d'importo. La proposta chiedeva una proprietà `decimali` da 0 a 4, di serie 2, e il rifiuto oltre quel numero.
+
+**Tre scostamenti dalla proposta, tutti decisi da Francesco.**
+
+- **Da 2 a 4, non da 0.** La proposta voleva a riposo «almeno due decimali»: con `decimali={0}` il campo avrebbe rifiutato `1.500,50` e poi scritto `1.500,00`. Il caso d'uso vero è 3–4. Francesco: «Sì, da 2 a 4».
+- **Si arrotonda, non si rifiuta.** Francesco, durante il lavoro: «se sono ammessi 2 decimali e ne scrivo 4 deve essere previsto l'arrotondamento del numero inserito». Vale anche per i due decimali di serie, quindi cambia la lettura della #219: `0,125` prima era un errore, adesso dà 0,13.
+- **Un punto che migliaia non può essere è il decimale.** La #219 rifiutava `0.125` perché non si sapeva cosa fosse. Adesso la regola è una sola: il punto è delle migliaia quando raggruppa bene (primo gruppo da 1 a 3 cifre senza zero davanti, poi gruppi di tre); altrimenti è la virgola del tastierino, con qualunque numero di cifre dopo, e le cifre in più si arrotondano. `0.125` → 0,13 con due decimali, 0,125 con quattro; `1234.567` → 1.234,57. Francesco ha scelto «A» dopo aver visto le due strade; `1.234` resta milleduecentotrentaquattro con qualunque `decimali`.
+
+**Le regole d'arrotondamento.**
+
+- **La metà per eccesso, lontano dallo zero** (Francesco: «A, per eccesso», fra metà per eccesso, metà al pari e troncamento): `0,125` → 0,13, `-0,125` → -0,13, `0,99995` con quattro decimali → 1. È la regola dell'arrotondamento al centesimo dell'euro (Reg. CE 1103/97).
+- **Sulle cifre scritte, non sul numero in virgola mobile**: `arrotonda()` in `numeri.ts` lavora sulla stringa. Con `Math.round(x * 100) / 100` `1,005` darebbe 1,00, perché `1.005 * 100` vale `100.49999…`; sulle cifre dà 1,01, ed è nella prova.
+- **In silenzio.** Sono state affiancate due versioni in una scena: A in silenzio, B con una nota sotto il campo («Arrotondato a due decimali: era 0,125.»). Francesco ha scelto A. L'arrotondamento si vede comunque: il campo riscrive il numero all'uscita, come già fa il campo normale con `1.500` → `1,5`. La nota, l'interruttore della prova e la funzione che la serviva sono stati tolti.
+
+**Cosa cambia nel codice.**
+
+- `numeri.ts`: `OpzioniLettura.decimali` (tipo `DecimaliImporto = 2 | 3 | 4`), che conta solo con `punto: "importo"`. La virgola accetta qualunque numero di decimali, e così il punto quando migliaia non può essere; il gruppo delle migliaia ha ora una regola sua (`MIGLIAIA_IMPORTO`, primo gruppo senza zero davanti), perché con la regola generale `0.125` sarebbe diventato 125.
+- `campo-numero.tsx`: la prop `decimali`; a riposo `formattatore({ minimumFractionDigits: 2, maximumFractionDigits: decimali })`, quindi `1.500,00` e `0,1234`. Il controllo sui decimali dopo `leggiNumero` (§97, «un difetto trovato scrivendo la prova») è tolto: ogni numero scritto in forma canonica ora è un importo leggibile, e un testo rifiutato non è mai canonico. Il messaggio d'errore diventa «Scrivi un importo, per esempio 1.500,00.», perché i decimali non sono più un motivo di rifiuto.
+
+**Le prove.** `Importo, prova` incolla quindici testi nel campo a due decimali (sette nuovi: `0,125`, `-0,125`, `1,005`, `0.125`, `1.500,999` arrotondati, e i due rifiuti che restano) e otto in un campo a quattro (`0,1234`, `0.125`, `1,500`, `1.500`, `1.500,12345`, `12.1234`, `0,99995`…). Con l'arrotondamento cambiato in troncamento la scena cade.
+
+**Non rompe chi aggiorna, salvo un caso voluto.** `decimali` è di serie 2 e il punto delle migliaia non cambia. Cambia ciò che prima era un errore: con `importo`, tre decimali o `0.125` adesso si accettano arrotondati. In Studio l'unico campo `importo` è «Importo lavori».

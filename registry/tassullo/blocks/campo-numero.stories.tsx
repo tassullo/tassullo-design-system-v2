@@ -42,6 +42,8 @@ import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
  *   campo che porta un risultato o un saldo. Di serie spento.
  * - `importo`: il campo è un importo in euro, e legge come scritto sotto in
  *   «Come legge un importo». L'unità diventa `€`, prima del numero.
+ * - `decimali`: con `importo`, quanti decimali tiene il campo, da 2 a 4; di
+ *   serie 2. Per un prezzo unitario, `decimali={4}`.
  * - Le altre prop vanno all'`input`: `name`, `disabled`, `placeholder`, `ref`.
  *
  * **Come legge.**
@@ -61,21 +63,25 @@ import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
  * sempre.
  *
  * - Il punto è delle migliaia quando raggruppa bene, a gruppi di tre:
- *   `1.500` vale millecinquecento euro, `1.500.000` un milione e mezzo.
- * - Un punto solo seguito da una o due cifre è il decimale del tastierino,
- *   perché non può essere delle migliaia: `15.00` vale quindici euro.
- * - La virgola è il decimale, con al massimo due cifre: `1.500,5` vale
- *   millecinquecento euro e cinquanta centesimi.
+ *   `1.500` vale millecinquecento euro, `1.500.000` un milione e mezzo,
+ *   qualunque sia `decimali`.
+ * - Un punto solo che non può essere delle migliaia è il decimale del
+ *   tastierino: seguito da una o due cifre (`15.00` vale quindici euro),
+ *   dopo uno zero (`0.125`) o dopo quattro cifre o più (`1234.567`).
+ * - La virgola è il decimale: `1.500,5` vale millecinquecento euro e
+ *   cinquanta centesimi.
+ * - I decimali in più di quelli ammessi si **arrotondano**, la metà per
+ *   eccesso: con due decimali `0,125` diventa 0,13 e `-0,125` diventa
+ *   -0,13; con quattro `1.500,12345` diventa 1.500,1235. Il campo riscrive
+ *   il numero arrotondato all'uscita, e quello è il valore confermato.
  * - Un importo copiato da un documento o da una pagina si pulisce da sé:
  *   spazi, `€`, `EUR`, `euro`, il segno meno tipografico. `EUR 2.086,93` e
  *   `1 500,00 €` si leggono.
  * - Tutto il resto resta nel campo segnato come sbagliato, invece di essere
- *   indovinato: tre decimali (`0,125`), gruppi sbagliati (`12.5,3`), il
- *   formato inglese (`1,500.50`), `0.125`, un'altra moneta.
- * - A riposo l'importo si legge sempre con due decimali: `1.500,00`.
- *
- * Per un prezzo unitario che ha bisogno di più di due decimali non si usa
- * `importo`: si usa il campo normale con `unita="€"`.
+ *   indovinato: gruppi sbagliati (`12.5,3`), il formato inglese
+ *   (`1,500.50`), un'altra moneta.
+ * - A riposo l'importo si legge con almeno due decimali e al massimo quelli
+ *   ammessi: `1.500,00`, `0,1234`.
  *
  * **Regole d'uso.**
  *
@@ -232,13 +238,15 @@ export const MigliaiaProva: Story = {
 
 /**
  * Con `importo` il campo legge gli importi in euro: il punto è delle migliaia,
- * i decimali sono al massimo due, e a riposo si leggono sempre tutti e due.
+ * i decimali in più si arrotondano, e a riposo se ne leggono almeno due. Il
+ * prezzo unitario tiene quattro decimali, con `decimali={4}`.
  */
 export const Importo: Story = {
   args: { etichetta: 'Importo lavori', valore: null, onValore: () => {} },
   render: () => (
     <FieldGroup className="max-w-xs">
       <Esempio etichetta="Importo lavori" importo iniziale={1500} min={0} />
+      <Esempio etichetta="Prezzo unitario" importo decimali={4} iniziale={0.1234} min={0} />
       <Esempio etichetta="Ribasso" importo iniziale={-2086.9} negativiInRosso />
     </FieldGroup>
   ),
@@ -256,10 +264,26 @@ const IMPORTI = [
   { scritto: '1 500,00 €', resta: '1.500,00', valore: '1.500' },
   { scritto: 'EUR 2.086,93', resta: '2.086,93', valore: '2.086,93' },
   { scritto: '−1.500', resta: '-1.500,00', valore: '-1.500' },
-  { scritto: '0,125', resta: '0,125', valore: '-1.500', errore: true },
-  { scritto: '0.125', resta: '0.125', valore: '-1.500', errore: true },
-  { scritto: '12.5,3', resta: '12.5,3', valore: '-1.500', errore: true },
-  { scritto: '1,500.50', resta: '1,500.50', valore: '-1.500', errore: true },
+  { scritto: '0,125', resta: '0,13', valore: '0,13' },
+  { scritto: '-0,125', resta: '-0,13', valore: '-0,13' },
+  { scritto: '1,005', resta: '1,01', valore: '1,01' },
+  { scritto: '0.125', resta: '0,13', valore: '0,13' },
+  { scritto: '1.500,999', resta: '1.501,00', valore: '1.501' },
+  { scritto: '12.5,3', resta: '12.5,3', valore: '1.501', errore: true },
+  { scritto: '1,500.50', resta: '1,500.50', valore: '1.501', errore: true },
+] as const
+
+// Lo stesso con quattro decimali: il punto delle migliaia non cambia, e si
+// arrotonda alla quarta cifra.
+const IMPORTI_QUATTRO = [
+  { scritto: '0,1234', resta: '0,1234', valore: '0,1234' },
+  { scritto: '0,125', resta: '0,125', valore: '0,125' },
+  { scritto: '0.125', resta: '0,125', valore: '0,125' },
+  { scritto: '1,500', resta: '1,50', valore: '1,5' },
+  { scritto: '1.500', resta: '1.500,00', valore: '1.500' },
+  { scritto: '1.500,12345', resta: '1.500,1235', valore: '1.500,1235' },
+  { scritto: '12.1234', resta: '12,1234', valore: '12,1234' },
+  { scritto: '0,99995', resta: '1,00', valore: '1' },
 ] as const
 
 export const ImportoProva: Story = {
@@ -269,6 +293,7 @@ export const ImportoProva: Story = {
   render: () => (
     <FieldGroup className="max-w-xs">
       <Esempio etichetta="Importo lavori" importo />
+      <Esempio etichetta="Prezzo unitario" importo decimali={4} />
     </FieldGroup>
   ),
   play: async ({ canvasElement }) => {
@@ -289,12 +314,21 @@ export const ImportoProva: Story = {
       expect(valore).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
       if ('errore' in caso) {
         expect(campo).toHaveAttribute('aria-invalid', 'true')
-        expect(tela.getByRole('alert')).toHaveTextContent(
-          'Scrivi un importo con al massimo due decimali, per esempio 1.500,00.',
-        )
+        expect(tela.getByRole('alert')).toHaveTextContent(esatto('Scrivi un importo, per esempio 1.500,00.'))
       } else {
         expect(campo).toHaveAttribute('aria-invalid', 'false')
       }
+    }
+
+    const prezzo = tela.getByLabelText('Prezzo unitario')
+    const valorePrezzo = prezzo.closest('[data-slot="field"]')!.parentElement!.querySelector('[data-valore]')
+    for (const caso of IMPORTI_QUATTRO) {
+      await userEvent.clear(prezzo)
+      await userEvent.paste(caso.scritto)
+      await userEvent.tab()
+      await waitFor(() => expect(prezzo).toHaveValue(caso.resta))
+      expect(valorePrezzo).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
+      expect(prezzo).toHaveAttribute('aria-invalid', 'false')
     }
   },
 }
