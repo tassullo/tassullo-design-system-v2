@@ -15478,6 +15478,11 @@ Proposta di Studio, accettata da Francesco («Accettiamo»), che ha chiesto in p
 - `Blocchi/Campo numerico`, 11 scene in Chromium: verdi. `Importo, prova` col campo rimesso a `punto: "decimale"`: cade al primo testo (`1,50` invece di `1.500,00`).
 - `npm run build` e `npm run check` verdi: 13 gate, 2724 scansioni in 4 passate (681 story), 0 violazioni; WebKit 55 su 55.
 
+#### Il valore confermato delle scene, all'italiana
+
+- Francesco, provando `Panoramica`: scritto `12,5`, la riga sotto il campo diceva «Valore confermato: 12.5». Era il numero di JavaScript così com'è, messo lì per mostrare il dato che arriva all'app; si leggeva come un errore di formato. Due strade affiancate (etichetta «Numero passato all'app» col punto, oppure all'italiana); scelta la seconda («B»).
+- Le scene scrivono il valore confermato e il «Salvato» del modulo con `scriviNumeroConMigliaia`: `12,5`, `1.500`, `1.234,5`. Le prove confrontano il testo **esatto** (`esatto()`), non contenuto: «1.500» sta dentro «1.500.000», e una lettura sbagliata sarebbe passata. Provato: aspettandosi `1.500` dove il valore è un milione e mezzo, `Importo, prova` cade.
+
 #### Aperti
 
 - Le colonne in euro di griglia e foglio a gruppi leggono ancora con la regola di serie (`12.5,3` → 125,30). Non deciso: passarle a `"importo"` rifiuterebbe anche `1,500.50` incollato da un gestionale.

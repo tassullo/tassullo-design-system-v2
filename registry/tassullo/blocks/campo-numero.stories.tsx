@@ -8,6 +8,7 @@ import * as z from 'zod'
 import { CampoNumero, type CampoNumeroProps } from '@/registry/tassullo/blocks/campo-numero'
 import { Button } from '@/registry/tassullo/ui/button'
 import { FieldGroup } from '@/registry/tassullo/ui/field'
+import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
 
 /**
  * Il campo in cui si scrive a mano un numero all'italiana — quantità, prezzi,
@@ -106,6 +107,17 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/** Il valore confermato come si legge: virgola decimale, punto delle migliaia. */
+function scritto(valore: number | null): string {
+  return valore === null ? 'nessuno' : scriviNumeroConMigliaia(String(valore))
+}
+
+// Il testo esatto, non contenuto: «1.500» è contenuto anche in «1.500.000».
+function esatto(testo: string): RegExp {
+  const protetto = testo.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&')
+  return new RegExp(`^${protetto}$`)
+}
+
 /** Un campo col suo stato, e il valore confermato scritto sotto. */
 function Esempio({ iniziale = null, ...prop }: Omit<CampoNumeroProps, 'valore' | 'onValore'> & { iniziale?: number | null }) {
   const [valore, setValore] = useState<number | null>(iniziale)
@@ -113,7 +125,7 @@ function Esempio({ iniziale = null, ...prop }: Omit<CampoNumeroProps, 'valore' |
     <div className="flex flex-col gap-1">
       <CampoNumero {...prop} valore={valore} onValore={setValore} />
       <p className="text-sm text-muted-foreground" data-valore>
-        Valore confermato: {valore === null ? 'nessuno' : String(valore)}
+        Valore confermato: {scritto(valore)}
       </p>
     </div>
   )
@@ -135,9 +147,9 @@ export const Panoramica: Story = {
 }
 
 const QUATTRO_CASI = [
-  { etichetta: 'Coefficiente', scritto: '0.125', resta: '0,125', valore: '0.125' },
-  { etichetta: 'Lunghezza', scritto: '1.500', resta: '1,5', valore: '1.5' },
-  { etichetta: 'Quantità', scritto: '1.234,5', resta: '1.234,5', valore: '1234.5' },
+  { etichetta: 'Coefficiente', scritto: '0.125', resta: '0,125', valore: '0,125' },
+  { etichetta: 'Lunghezza', scritto: '1.500', resta: '1,5', valore: '1,5' },
+  { etichetta: 'Quantità', scritto: '1.234,5', resta: '1.234,5', valore: '1.234,5' },
   { etichetta: 'Resa', scritto: 'dodici', resta: 'dodici', valore: 'nessuno' },
 ] as const
 
@@ -166,7 +178,7 @@ export const QuattroCasi: Story = {
       await userEvent.tab()
       await waitFor(() => expect(campo).toHaveValue(caso.resta))
       const riga = campo.closest('[data-slot="field"]')!.parentElement!
-      expect(riga.querySelector('[data-valore]')).toHaveTextContent(`Valore confermato: ${caso.valore}`)
+      expect(riga.querySelector('[data-valore]')).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
     }
     const resa = tela.getByLabelText('Resa')
     expect(resa).toHaveAttribute('aria-invalid', 'true')
@@ -207,14 +219,14 @@ export const MigliaiaProva: Story = {
     expect(volume).toHaveValue('1234')
     await userEvent.tab()
     expect(volume).toHaveValue('1.234')
-    expect(valoreVolume).toHaveTextContent('Valore confermato: 1234')
+    expect(valoreVolume).toHaveTextContent(esatto('Valore confermato: 1.234'))
 
     // Si scrive sulle cifre nude: aggiunta una cifra, il numero è 12345.
     await userEvent.click(volume)
     await userEvent.type(volume, '5')
     await userEvent.tab()
     await waitFor(() => expect(volume).toHaveValue('12.345'))
-    expect(valoreVolume).toHaveTextContent('Valore confermato: 12345')
+    expect(valoreVolume).toHaveTextContent(esatto('Valore confermato: 12.345'))
   },
 }
 
@@ -236,18 +248,18 @@ export const Importo: Story = {
 // copiati da un documento (spazi che non vanno a capo, il nome della moneta,
 // il meno tipografico), e quelli che deve rifiutare invece di indovinare.
 const IMPORTI = [
-  { scritto: '1.500', resta: '1.500,00', valore: '1500' },
+  { scritto: '1.500', resta: '1.500,00', valore: '1.500' },
   { scritto: '15.00', resta: '15,00', valore: '15' },
-  { scritto: '1.500,5', resta: '1.500,50', valore: '1500.5' },
-  { scritto: '1.500.000', resta: '1.500.000,00', valore: '1500000' },
-  { scritto: '€ 1.500', resta: '1.500,00', valore: '1500' },
-  { scritto: '1 500,00 €', resta: '1.500,00', valore: '1500' },
-  { scritto: 'EUR 2.086,93', resta: '2.086,93', valore: '2086.93' },
-  { scritto: '−1.500', resta: '-1.500,00', valore: '-1500' },
-  { scritto: '0,125', resta: '0,125', valore: '-1500', errore: true },
-  { scritto: '0.125', resta: '0.125', valore: '-1500', errore: true },
-  { scritto: '12.5,3', resta: '12.5,3', valore: '-1500', errore: true },
-  { scritto: '1,500.50', resta: '1,500.50', valore: '-1500', errore: true },
+  { scritto: '1.500,5', resta: '1.500,50', valore: '1.500,5' },
+  { scritto: '1.500.000', resta: '1.500.000,00', valore: '1.500.000' },
+  { scritto: '€ 1.500', resta: '1.500,00', valore: '1.500' },
+  { scritto: '1 500,00 €', resta: '1.500,00', valore: '1.500' },
+  { scritto: 'EUR 2.086,93', resta: '2.086,93', valore: '2.086,93' },
+  { scritto: '−1.500', resta: '-1.500,00', valore: '-1.500' },
+  { scritto: '0,125', resta: '0,125', valore: '-1.500', errore: true },
+  { scritto: '0.125', resta: '0.125', valore: '-1.500', errore: true },
+  { scritto: '12.5,3', resta: '12.5,3', valore: '-1.500', errore: true },
+  { scritto: '1,500.50', resta: '1,500.50', valore: '-1.500', errore: true },
 ] as const
 
 export const ImportoProva: Story = {
@@ -274,7 +286,7 @@ export const ImportoProva: Story = {
       await userEvent.paste(caso.scritto)
       await userEvent.tab()
       await waitFor(() => expect(campo).toHaveValue(caso.resta))
-      expect(valore).toHaveTextContent(`Valore confermato: ${caso.valore}`)
+      expect(valore).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
       if ('errore' in caso) {
         expect(campo).toHaveAttribute('aria-invalid', 'true')
         expect(tela.getByRole('alert')).toHaveTextContent(
@@ -350,7 +362,7 @@ export const FuoriDaiLimiti: Story = {
     await userEvent.type(campo, '12,5{Enter}')
     expect(await tela.findByRole('alert')).toHaveTextContent('Il massimo è 10 %.')
     expect(campo).toHaveValue('12,5')
-    expect(canvasElement.querySelector('[data-valore]')).toHaveTextContent('Valore confermato: 2')
+    expect(canvasElement.querySelector('[data-valore]')).toHaveTextContent(esatto('Valore confermato: 2'))
   },
 }
 
@@ -393,7 +405,7 @@ function ModuloRiga() {
         <div className="flex items-center gap-3">
           <Button type="submit">Salva</Button>
           <p className="text-sm text-muted-foreground" data-salvato>
-            {salvato === null ? 'Non ancora salvato' : `Salvato: ${String(salvato)}`}
+            {salvato === null ? 'Non ancora salvato' : `Salvato: ${scritto(salvato)}`}
           </p>
         </div>
       </FieldGroup>
@@ -468,7 +480,7 @@ export const ConUnModuloProva: Story = {
     // Un valore giusto, Invio: conferma e invia con il numero letto.
     await userEvent.click(campo)
     await userEvent.type(campo, '0.75{Enter}')
-    await waitFor(() => expect(esito).toHaveTextContent('Salvato: 0.75'))
+    await waitFor(() => expect(esito).toHaveTextContent(esatto('Salvato: 0,75')))
     expect(campo).toHaveValue('0,75')
     expect(tela.queryByRole('alert')).toBeNull()
   },
