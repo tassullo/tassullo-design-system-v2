@@ -15500,3 +15500,37 @@ PR #220 unita col gate verde in CI (11 min 56 s), unione `0528eb4`; la #219 si �
 
 - Studio: adottare alla `v2.0.40`, passare «Importo lavori (€)» a `CampoNumero importo` e togliere il commento d'attesa.
 - Le colonne in euro di griglia e foglio a gruppi: non deciso (§97, ultimo paragrafo).
+
+## 2026-11-08 — #222: `decimali` sul campo d'importo, e l'arrotondamento
+
+Proposta di Studio, accettata da Francesco con i decimali da 2 a 4. Ramo `fras/proposta-222-decimali` da `main`.
+
+#### Le decisioni, una alla volta
+
+- **Da 2 a 4**, non da 0 come chiedeva la proposta: con meno di due decimali la regola «a riposo almeno due» si contraddiceva (`1.500,50` rifiutato, poi scritto `1.500,00`).
+- **Arrotondare invece di rifiutare**: richiesta di Francesco a lavoro iniziato. Vale anche per i due decimali di serie: `0,125` adesso dà 0,13.
+- **La metà per eccesso** (scelta «A» fra per eccesso, al pari, troncato).
+- **In silenzio**: una scena con le due versioni affiancate, A in silenzio e B con una nota sotto il campo, fotografata in chiaro e in scuro. Scelta «A»; nota, interruttore e scena tolti.
+- **Un punto che migliaia non può essere è il decimale** (`0.125`, `1234.567`), anche con due decimali. Francesco ha chiesto prima cosa volesse dire: `1.234` resta 1.234,00 €, la domanda riguardava solo il punto dopo uno zero o dopo quattro cifre. Scelta «A».
+
+#### Cosa cambia
+
+- `lib/numeri.ts`: `decimali` fra le opzioni di `leggiNumero`, tipo `DecimaliImporto`; `arrotonda()` sulle cifre scritte, non con `Math.round` (`1,005` → 1,01); gruppo delle migliaia d'importo con primo gruppo senza zero davanti.
+- `tassullo-campo-numero`: prop `decimali`; a riposo da 2 a `decimali` cifre; tolto il controllo sui decimali dopo la lettura; messaggio d'errore «Scrivi un importo, per esempio 1.500,00.».
+- Scene: `Importo` ha un «Prezzo unitario» a quattro decimali; `Importo, prova` ha 15 testi a due decimali e 8 a quattro. Pagina del blocco: la prop e le regole d'arrotondamento.
+- Decisione in `docs/DECISIONI.md` §98; in §97 il paragrafo sul limite di due decimali porta il rimando.
+
+#### Problemi
+
+- La nota della versione B spariva rientrando nel campo e uscendo senza cambiare niente: trovato fotografando la scena, corretto e provato. Poi la versione B è stata scartata.
+- Nel pannello del browser dell'app la `play` della scena di confronto si fermava (clic e uscite non arrivano): foto prese con Chromium di Playwright dalla cartella temporanea.
+
+#### Prove
+
+- 14 testi con `npx tsx` sulla lettura: arrotondamenti, negativi, `9,995` → 10, `1.500` con quattro decimali → 1500.
+- `Blocchi/Campo numerico`, 11 scene in Chromium: verdi. Con l'arrotondamento cambiato in troncamento `Importo, prova` cade.
+
+#### Aperti
+
+- Studio: alla versione che chiude la #222, «Importo lavori» passa a `decimali={4}` e si toglie il commento d'attesa.
+- Le colonne in euro di griglia e foglio a gruppi: ancora non deciso (§97).
