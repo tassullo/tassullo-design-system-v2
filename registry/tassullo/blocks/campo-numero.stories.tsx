@@ -39,6 +39,8 @@ import { FieldGroup } from '@/registry/tassullo/ui/field'
  *   server.
  * - `negativiInRosso`: il valore confermato in rosso quando è negativo, per un
  *   campo che porta un risultato o un saldo. Di serie spento.
+ * - `importo`: il campo è un importo in euro, e legge come scritto sotto in
+ *   «Come legge un importo». L'unità diventa `€`, prima del numero.
  * - Le altre prop vanno all'`input`: `name`, `disabled`, `placeholder`, `ref`.
  *
  * **Come legge.**
@@ -52,6 +54,27 @@ import { FieldGroup } from '@/registry/tassullo/ui/field'
  * - Un testo che si potrebbe leggere in due modi, o che numero non è, resta
  *   nel campo così com'è, segnato come sbagliato e con il messaggio sotto.
  *   Il valore confermato non cambia.
+ *
+ * **Come legge un importo.** Con `importo` il punto torna a essere quello
+ * delle migliaia, perché in un importo scritto all'italiana lo è quasi
+ * sempre.
+ *
+ * - Il punto è delle migliaia quando raggruppa bene, a gruppi di tre:
+ *   `1.500` vale millecinquecento euro, `1.500.000` un milione e mezzo.
+ * - Un punto solo seguito da una o due cifre è il decimale del tastierino,
+ *   perché non può essere delle migliaia: `15.00` vale quindici euro.
+ * - La virgola è il decimale, con al massimo due cifre: `1.500,5` vale
+ *   millecinquecento euro e cinquanta centesimi.
+ * - Un importo copiato da un documento o da una pagina si pulisce da sé:
+ *   spazi, `€`, `EUR`, `euro`, il segno meno tipografico. `EUR 2.086,93` e
+ *   `1 500,00 €` si leggono.
+ * - Tutto il resto resta nel campo segnato come sbagliato, invece di essere
+ *   indovinato: tre decimali (`0,125`), gruppi sbagliati (`12.5,3`), il
+ *   formato inglese (`1,500.50`), `0.125`, un'altra moneta.
+ * - A riposo l'importo si legge sempre con due decimali: `1.500,00`.
+ *
+ * Per un prezzo unitario che ha bisogno di più di due decimali non si usa
+ * `importo`: si usa il campo normale con `unita="€"`.
  *
  * **Regole d'uso.**
  *
@@ -192,6 +215,75 @@ export const MigliaiaProva: Story = {
     await userEvent.tab()
     await waitFor(() => expect(volume).toHaveValue('12.345'))
     expect(valoreVolume).toHaveTextContent('Valore confermato: 12345')
+  },
+}
+
+/**
+ * Con `importo` il campo legge gli importi in euro: il punto è delle migliaia,
+ * i decimali sono al massimo due, e a riposo si leggono sempre tutti e due.
+ */
+export const Importo: Story = {
+  args: { etichetta: 'Importo lavori', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Importo lavori" importo iniziale={1500} min={0} />
+      <Esempio etichetta="Ribasso" importo iniziale={-2086.9} negativiInRosso />
+    </FieldGroup>
+  ),
+}
+
+// Scritti e incollati: i testi che un importo deve leggere, compresi quelli
+// copiati da un documento (spazi che non vanno a capo, il nome della moneta,
+// il meno tipografico), e quelli che deve rifiutare invece di indovinare.
+const IMPORTI = [
+  { scritto: '1.500', resta: '1.500,00', valore: '1500' },
+  { scritto: '15.00', resta: '15,00', valore: '15' },
+  { scritto: '1.500,5', resta: '1.500,50', valore: '1500.5' },
+  { scritto: '1.500.000', resta: '1.500.000,00', valore: '1500000' },
+  { scritto: '€ 1.500', resta: '1.500,00', valore: '1500' },
+  { scritto: '1 500,00 €', resta: '1.500,00', valore: '1500' },
+  { scritto: 'EUR 2.086,93', resta: '2.086,93', valore: '2086.93' },
+  { scritto: '−1.500', resta: '-1.500,00', valore: '-1500' },
+  { scritto: '0,125', resta: '0,125', valore: '-1500', errore: true },
+  { scritto: '0.125', resta: '0.125', valore: '-1500', errore: true },
+  { scritto: '12.5,3', resta: '12.5,3', valore: '-1500', errore: true },
+  { scritto: '1,500.50', resta: '1,500.50', valore: '-1500', errore: true },
+] as const
+
+export const ImportoProva: Story = {
+  name: 'Importo, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { etichetta: 'Importo lavori', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Importo lavori" importo />
+    </FieldGroup>
+  ),
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const campo = tela.getByLabelText('Importo lavori')
+    const valore = canvasElement.querySelector('[data-valore]')!
+
+    // L'unità è l'euro, prima del numero.
+    const unita = canvasElement.querySelector('[data-slot="input-group-addon"]')!
+    expect(unita).toHaveTextContent('€')
+    expect(unita).toHaveAttribute('data-align', 'inline-start')
+
+    for (const caso of IMPORTI) {
+      await userEvent.clear(campo)
+      await userEvent.paste(caso.scritto)
+      await userEvent.tab()
+      await waitFor(() => expect(campo).toHaveValue(caso.resta))
+      expect(valore).toHaveTextContent(`Valore confermato: ${caso.valore}`)
+      if ('errore' in caso) {
+        expect(campo).toHaveAttribute('aria-invalid', 'true')
+        expect(tela.getByRole('alert')).toHaveTextContent(
+          'Scrivi un importo con al massimo due decimali, per esempio 1.500,00.',
+        )
+      } else {
+        expect(campo).toHaveAttribute('aria-invalid', 'false')
+      }
+    }
   },
 }
 
