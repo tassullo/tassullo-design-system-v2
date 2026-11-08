@@ -15443,3 +15443,15 @@ Proposta di Studio, accettata da Francesco («Sì, realizzala»). Ramo `fras/fog
 #### Aperti
 
 - Studio: alla versione che contiene la #216, togliere `className="bg-card"` da `FoglioGruppi` e il commento d'attesa.
+
+## 2026-11-08 — v2.0.39 pubblicata, #216 chiusa
+
+PR #217 unita col gate verde in CI (11 min), unione `4028809`; la #216 si è chiusa con la PR. Etichetta annotata `v2.0.39` su `4028809`, push della sola etichetta. Francesco: «Unisci ora», poi «Sì, pubblica».
+
+- Dentro: `tassullo-foglio-gruppi` sul fondo della card (`bg-card` sulla radice), nei due aspetti. Più le due correzioni del gate (#214, #215), che alle app non arrivano.
+- **Non rompe chi aggiorna**: una classe in più sulla radice. Un'app che passava già `className="bg-card"` vede lo stesso risultato, e il `className` si toglie.
+- Verifica da fuori: alla `v2.0.39` rispondono 200 `registry.json`, `public/r/tassullo-foglio-gruppi.json` e `blocks/foglio-gruppi.tsx`, tutti e due con `overflow-x-auto bg-card`; `shadcn view …tassullo-foglio-gruppi#v2.0.39` restituisce il blocco con la classe.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.39`, togliere `className="bg-card"` da `FoglioGruppi` e il commento d'attesa.
