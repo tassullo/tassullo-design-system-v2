@@ -15487,3 +15487,16 @@ Proposta di Studio, accettata da Francesco («Accettiamo»), che ha chiesto in p
 
 - Le colonne in euro di griglia e foglio a gruppi leggono ancora con la regola di serie (`12.5,3` → 125,30). Non deciso: passarle a `"importo"` rifiuterebbe anche `1,500.50` incollato da un gestionale.
 - Studio: alla versione che chiude la #219, il campo «Importo lavori (€)» passa a `CampoNumero importo` e si toglie il commento d'attesa.
+
+## 2026-11-08 — v2.0.40 pubblicata, #219 chiusa
+
+PR #220 unita col gate verde in CI (11 min 56 s), unione `0528eb4`; la #219 si è chiusa con la PR. Etichetta annotata `v2.0.40` su `0528eb4`, push della sola etichetta. Francesco: «okay, confermato il blocco», poi «Sì, unisci e pubblica».
+
+- Dentro: `leggiNumero(testo, { punto: "importo" })` in `numeri` e l'opzione `importo` di `tassullo-campo-numero`, con la pulizia degli importi incollati; le scene scrivono il valore confermato all'italiana.
+- **Non rompe chi aggiorna**: `importo` è spento di serie e le letture `"tre-cifre"` e `"decimale"` non cambiano.
+- Verifica da fuori: alla `v2.0.40` rispondono 200 `registry.json`, `public/r/tassullo-campo-numero.json`, `public/r/numeri.json` e i due sorgenti, con l'opzione dentro; `shadcn view …tassullo-campo-numero#v2.0.40` la restituisce.
+
+#### Aperti
+
+- Studio: adottare alla `v2.0.40`, passare «Importo lavori (€)» a `CampoNumero importo` e togliere il commento d'attesa.
+- Le colonne in euro di griglia e foglio a gruppi: non deciso (§97, ultimo paragrafo).
