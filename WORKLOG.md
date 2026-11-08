@@ -15455,3 +15455,35 @@ PR #217 unita col gate verde in CI (11 min), unione `4028809`; la #216 si è chi
 #### Aperti
 
 - Studio: adottare alla `v2.0.39`, togliere `className="bg-card"` da `FoglioGruppi` e il commento d'attesa.
+
+## 2026-11-08 — #219: la lettura «importo» del campo numerico
+
+Proposta di Studio, accettata da Francesco («Accettiamo»), che ha chiesto in più di pulire spazi e simboli di moneta di un importo incollato da un documento. Ramo `fras/proposta-219-importo` da `main`.
+
+#### Cosa cambia
+
+- `lib/numeri.ts`: terza lettura, `leggiNumero(testo, { punto: "importo" })`. Punto delle migliaia se raggruppa bene (primo gruppo senza zero davanti), un punto seguito da una o due cifre è il decimale, virgola con al massimo due decimali, tutto il resto rifiutato. Prima di leggere toglie spazi di ogni tipo (anche U+00A0, U+202F e i caratteri larghi zero), `€`, `EUR`, `euro`, un `+` davanti; `−` e `–` davanti diventano il meno. Un'altra moneta resta, e il testo non si legge. Le altre due letture non cambiano.
+- `tassullo-campo-numero`: opzione `importo`. Legge con `"importo"`, a riposo `decimale(v, 2)` (`1.500,00`; non `valuta()`, che avrebbe scritto `€` due volte), unità di serie `€` prima del numero, messaggio d'errore suo.
+- Scene: `Importo` (in Docs) e `Importo, prova`. Pagina del blocco: la prop e la sezione «Come legge un importo».
+- Decisione in `docs/DECISIONI.md` §97.
+
+#### Problemi
+
+- Scrivendo la prova: `0.125` passava come valido. Il campo riconosceva un testo rifiutato perché non è canonico, e `0.125` lo è. Per un importo ora si rifiuta anche un valore con più di due decimali.
+- Il primo controllo sulla posizione dell'euro guardava l'ordine nel DOM; l'addon «prima» si mette davanti con `order-first`. Ora controlla `data-align="inline-start"`.
+
+#### Prove
+
+- 49 testi con `npx tsx` (i 29 della proposta più 20 incollati): tutti come attesi; `leggiNumero("1.500")` e `{ punto: "decimale" }` invariati.
+- `Blocchi/Campo numerico`, 11 scene in Chromium: verdi. `Importo, prova` col campo rimesso a `punto: "decimale"`: cade al primo testo (`1,50` invece di `1.500,00`).
+- `npm run build` e `npm run check` verdi: 13 gate, 2724 scansioni in 4 passate (681 story), 0 violazioni; WebKit 55 su 55.
+
+#### Il valore confermato delle scene, all'italiana
+
+- Francesco, provando `Panoramica`: scritto `12,5`, la riga sotto il campo diceva «Valore confermato: 12.5». Era il numero di JavaScript così com'è, messo lì per mostrare il dato che arriva all'app; si leggeva come un errore di formato. Due strade affiancate (etichetta «Numero passato all'app» col punto, oppure all'italiana); scelta la seconda («B»).
+- Le scene scrivono il valore confermato e il «Salvato» del modulo con `scriviNumeroConMigliaia`: `12,5`, `1.500`, `1.234,5`. Le prove confrontano il testo **esatto** (`esatto()`), non contenuto: «1.500» sta dentro «1.500.000», e una lettura sbagliata sarebbe passata. Provato: aspettandosi `1.500` dove il valore è un milione e mezzo, `Importo, prova` cade.
+
+#### Aperti
+
+- Le colonne in euro di griglia e foglio a gruppi leggono ancora con la regola di serie (`12.5,3` → 125,30). Non deciso: passarle a `"importo"` rifiuterebbe anche `1,500.50` incollato da un gestionale.
+- Studio: alla versione che chiude la #219, il campo «Importo lavori (€)» passa a `CampoNumero importo` e si toglie il commento d'attesa.

@@ -4391,3 +4391,35 @@ Riprodotto in modo deterministico: aggiunto un `<img>` senza `alt` in fondo a «
 - `Blocchi/Testo con segnaposto → Elenco, gruppo scelto coi fotogrammi lenti, prova` senza più `gruppiChiusi` in fondo: senza l'attesa dell'imbracatura cade in Chromium e in WebKit, con passa. È diventata la seconda prova di questa attesa.
 
 **La regola che vale oltre il caso**: una scena non ha bisogno di aspettare da sé che un popup si chiuda prima di axe, ci pensa l'imbracatura. Deve ancora aspettarlo quando la `play` prosegue e il popup in chiusura le darebbe fastidio: quella è un'attesa della prova, non di axe.
+
+## 97. Un importo in euro: il punto è delle migliaia, i decimali al massimo due, e il testo incollato si pulisce (proposta #219, accettata da Francesco il 2026-11-08)
+
+**Da dove viene.** Proposta #219 di Studio. `tassullo-campo-numero` legge con `punto: "decimale"` (§92), giusto per quantità e coefficienti. In un campo «Importo lavori (€)» però `1.500` diventava **1,50 €**: il campo lo riscrive all'uscita, ma senza errore, e sono tre ordini di grandezza su un importo. La regola di serie di `leggiNumero` legge giusto `1.500`, ma accetta testi scritti male (`12.5,3` → 125,30; `1,500.50` → 1,50; `0.125` → 125).
+
+**La lettura: `leggiNumero(testo, { punto: "importo" })`.** Le regole della proposta, così come scritte:
+
+- il punto è delle migliaia quando raggruppa bene (1–3 cifre, poi gruppi di tre), e il primo gruppo non comincia con lo zero: `1.500` → 1500, `0.125` rifiutato;
+- un punto solo seguito da una o due cifre è il decimale del tastierino, perché non può essere delle migliaia: `15.00` → 15, `12.5` → 12,5;
+- la virgola è il decimale, con al massimo due cifre: `1.500,5` → 1500,5; `,50` → 0,5;
+- tutto il resto resta com'è scritto, quindi non valido: `1.234.56`, `12.5,3`, `1,500.50`, `0,125`, `1500,555`.
+
+**La pulizia del testo incollato** (Francesco, accettando: «pulizia di eventuali spazi, simboli di valute etc … se fa copia incolla di una cifra presa da un documento»). Prima di leggere si tolgono: gli spazi di ogni tipo, compresi quello che non va a capo e quello stretto che `Intl` mette fra numero e `€`, e i caratteri larghi zero che si portano dietro le pagine web; `€`, `EUR`, `euro` in qualunque forma di maiuscole; un `+` davanti. Il meno tipografico (`−`) e il trattino lungo (`–`) davanti diventano il meno. Un'altra moneta (`$`, `£`, `USD`) **non** si toglie: il testo non si legge, perché non è un importo in euro. La pulizia vale solo per `"importo"`: le altre due letture non cambiano, e chi le usa già (griglia, foglio a gruppi, campo normale) non vede differenze.
+
+**Il campo: `importo`.** Su `CampoNumero` un'opzione sola, spenta di serie, che:
+
+- legge con `punto: "importo"`;
+- a riposo scrive sempre due decimali con `decimale(v, 2)`: `1.500,00`. Non `valuta()`, che porta già il simbolo e l'avrebbe scritto due volte accanto all'unità del campo;
+- mette di serie l'unità `€` prima del numero, come la documentazione del campo consigliava già; `unita` e `posizioneUnita` la cambiano;
+- dà un messaggio suo: «Scrivi un importo con al massimo due decimali, per esempio 1.500,00.».
+
+Il blocco è nostro e compone `field` e `input-group` senza varianti: nessuna riga in `componenti-propri.json`.
+
+**Un difetto trovato scrivendo la prova.** Il campo riconosceva un testo rifiutato perché `leggiNumero` lo restituisce non nella forma canonica di un numero. Con `"decimale"` è sempre vero; con `"importo"` no: `0.125` è rifiutato ma è già canonico, e il campo lo accettava come 0,125 (a riposo `0,13`). Per un importo il campo rifiuta anche un valore letto con più di due decimali, che una lettura riuscita non può dare.
+
+**Il limite di due decimali è voluto.** È ciò che il campo mostra a riposo: un terzo decimale verrebbe arrotondato a vista senza avviso. Per un prezzo unitario che ne ha bisogno di più si usa il campo normale con `unita="€"`.
+
+**L'ambiguità che resta.** `1.50` vale 1,50 e `1.500` vale 1.500: li separa uno zero. A riposo il campo scrive `1,50` o `1.500,00`, quindi il valore letto si vede appena si esce.
+
+**Le prove.** Fuori dal browser, 49 testi (i 29 della proposta, più 20 incollati: spazi che non vanno a capo, `EUR`, `euro`, il meno tipografico, `$`, `USD`, `0.500,00`, `€` da solo) danno tutti il risultato atteso; le letture di serie e `"decimale"` restano invariate. In Chromium `Blocchi/Campo numerico → Importo, prova` incolla dodici testi ed esce dal campo, e controlla quello che resta scritto, il valore confermato e l'errore. Col campo che legge come prima cade al primo testo (`1.500` → `1,50`).
+
+**Fuori dalla proposta, e non deciso.** Le colonne in euro di `tassullo-data-grid` e del foglio a gruppi leggono ancora con la regola di serie, quindi accettano `12.5,3` come 125,30. Passarle a `"importo"` farebbe rifiutare anche il formato inglese incollato da un gestionale (`1,500.50`): è una scelta da fare con un caso vero davanti.

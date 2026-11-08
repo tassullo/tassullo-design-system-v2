@@ -35,6 +35,11 @@
  * - I collegamenti del `Field` sono quelli di `tassullo-form-field`, scritti
  *   qui e non presi da `Campo`: `form-field.tsx` importa react-hook-form, e il
  *   campo numerico non deve portarselo dietro.
+ * - `importo` (proposta #219 di Studio, accettata da Francesco il
+ *   2026-11-08, `docs/DECISIONI.md` §97): legge con `punto: "importo"`, cioè
+ *   il punto delle migliaia all'italiana e al massimo due decimali, pulisce
+ *   ciò che un testo incollato si porta dietro, e a riposo scrive sempre due
+ *   decimali (`1.500,00`). L'unità di serie diventa `€`, prima del numero.
  * - `String(numero)` dà la notazione esponenziale sotto 1e-6 e sopra 1e21:
  *   fuori dai numeri di un computo, e lasciato com'è.
  */
@@ -60,6 +65,7 @@ import {
   InputGroupText,
 } from "@/registry/tassullo/ui/input-group"
 import {
+  decimale,
   formattatore,
   leggiNumero,
   scriviNumero,
@@ -83,7 +89,10 @@ export type CampoNumeroProps = Omit<
   onValore: (valore: number | null) => void
   /** L'unità di misura, accanto al numero: `"m²"`, `"€"`, `"%"`. */
   unita?: ReactNode
-  /** Dove sta l'unità. Di serie `"dopo"` il numero; `"prima"` per `€`. */
+  /**
+   * Dove sta l'unità. Di serie `"dopo"` il numero; `"prima"` per `€`, ed è
+   * il default di un `importo`.
+   */
   posizioneUnita?: "prima" | "dopo"
   /** Il valore più piccolo ammesso, compreso. */
   min?: number
@@ -106,6 +115,15 @@ export type CampoNumeroProps = Omit<
    * confermato, non per il testo che si sta scrivendo.
    */
   negativiInRosso?: boolean
+  /**
+   * Il campo è un importo in euro. Il punto è delle migliaia (`1.500` vale
+   * millecinquecento), un punto seguito da una o due cifre è il decimale
+   * (`15.00`), e i decimali sono al massimo due. Un importo incollato da un
+   * documento si pulisce da spazi, `€`, `EUR` e `euro`. A riposo si leggono
+   * sempre due decimali: `1.500,00`. L'unità di serie è `€`, prima del
+   * numero. Di serie spento.
+   */
+  importo?: boolean
 }
 
 /** Ciò che si scrive nel campo per un valore confermato: cifre senza punti. */
@@ -113,9 +131,13 @@ function testoDi(valore: number | null): string {
   return valore === null ? "" : scriviNumero(String(valore))
 }
 
-/** Ciò che si legge nel campo a riposo: col punto delle migliaia. */
-function testoARiposo(valore: number | null): string {
-  return valore === null ? "" : scriviNumeroConMigliaia(String(valore))
+/**
+ * Ciò che si legge nel campo a riposo: col punto delle migliaia, e per un
+ * importo sempre con due decimali.
+ */
+function testoARiposo(valore: number | null, importo: boolean): string {
+  if (valore === null) return ""
+  return importo ? decimale(valore, 2) : scriviNumeroConMigliaia(String(valore))
 }
 
 // Un limite nel messaggio d'errore, scritto come si legge: `10.000`, `0,5`.
@@ -124,14 +146,28 @@ const LIMITE = formattatore({ maximumFractionDigits: 6 })
 type Esito = { valore: number | null; errore: null } | { valore: undefined; errore: string }
 
 /** Il testo scritto, letto e confrontato coi limiti. */
-function esamina(testo: string, min?: number, max?: number, unita?: ReactNode): Esito {
-  const letto = leggiNumero(testo, { punto: "decimale" })
+function esamina(
+  testo: string,
+  importo: boolean,
+  min?: number,
+  max?: number,
+  unita?: ReactNode,
+): Esito {
+  const letto = leggiNumero(testo, { punto: importo ? "importo" : "decimale" })
   if (letto === "") return { valore: null, errore: null }
   const numero = Number(letto)
   // `leggiNumero` restituisce il testo com'era quando non è un numero: lo si
   // riconosce perché non è la forma canonica di sé stesso (`1e3`, `Infinity`).
-  if (!Number.isFinite(numero) || String(numero) !== letto) {
-    return { valore: undefined, errore: "Scrivi un numero, per esempio 12,5." }
+  // Per un importo non basta: `0.125` è rifiutato ma è già nella sua forma
+  // canonica, e lo si riconosce dai decimali, che in un importo letto sono al
+  // massimo due.
+  if (!Number.isFinite(numero) || String(numero) !== letto || (importo && /\.\d{3}/.test(letto))) {
+    return {
+      valore: undefined,
+      errore: importo
+        ? "Scrivi un importo con al massimo due decimali, per esempio 1.500,00."
+        : "Scrivi un numero, per esempio 12,5.",
+    }
   }
   const coda = typeof unita === "string" ? ` ${unita}` : ""
   if (min !== undefined && numero < min) {
@@ -150,14 +186,16 @@ function esamina(testo: string, min?: number, max?: number, unita?: ReactNode): 
  * ```tsx
  * <CampoNumero etichetta="Coefficiente" valore={k} onValore={setK} min={0} max={10} />
  * <CampoNumero etichetta="Superficie" valore={mq} onValore={setMq} unita="m²" />
+ * <CampoNumero etichetta="Importo lavori" valore={euro} onValore={setEuro} importo />
  * ```
  */
 export function CampoNumero({
   etichetta,
   valore,
   onValore,
-  unita,
-  posizioneUnita = "dopo",
+  importo = false,
+  unita = importo ? "€" : undefined,
+  posizioneUnita = importo ? "prima" : "dopo",
   min,
   max,
   descrizione,
@@ -187,7 +225,7 @@ export function CampoNumero({
 
   /** Conferma il testo scritto. Restituisce `false` se non è valido. */
   function conferma(): boolean {
-    const esito = esamina(bozza, min, max, unita)
+    const esito = esamina(bozza, importo, min, max, unita)
     if (esito.errore !== null) {
       setErroreCampo(esito.errore)
       return false
@@ -202,7 +240,7 @@ export function CampoNumero({
     setBozza(testo)
     // Mostrato un errore, il campo lo ricontrolla a ogni tasto: sparisce
     // appena il testo torna valido, senza aspettare l'uscita.
-    if (erroreCampo !== null) setErroreCampo(esamina(testo, min, max, unita).errore)
+    if (erroreCampo !== null) setErroreCampo(esamina(testo, importo, min, max, unita).errore)
   }
 
   function alTasto(evento: KeyboardEvent<HTMLInputElement>) {
@@ -237,7 +275,7 @@ export function CampoNumero({
   // sarebbe un errore e non solo un intralcio: `1.234` riletto all'uscita, con
   // un punto solo che è il decimale, diventerebbe 1,234. Un testo sbagliato
   // resta com'è scritto anche a riposo.
-  const mostrato = !aFuoco && erroreCampo === null && bozza === testoDi(valore) ? testoARiposo(valore) : bozza
+  const mostrato = !aFuoco && erroreCampo === null && bozza === testoDi(valore) ? testoARiposo(valore, importo) : bozza
 
   // Il rosso del negativo segue il valore confermato: mentre si scrive un
   // testo diverso, o con un errore, il campo non lo prende.

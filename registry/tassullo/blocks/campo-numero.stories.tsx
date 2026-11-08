@@ -8,6 +8,7 @@ import * as z from 'zod'
 import { CampoNumero, type CampoNumeroProps } from '@/registry/tassullo/blocks/campo-numero'
 import { Button } from '@/registry/tassullo/ui/button'
 import { FieldGroup } from '@/registry/tassullo/ui/field'
+import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
 
 /**
  * Il campo in cui si scrive a mano un numero all'italiana — quantità, prezzi,
@@ -39,6 +40,8 @@ import { FieldGroup } from '@/registry/tassullo/ui/field'
  *   server.
  * - `negativiInRosso`: il valore confermato in rosso quando è negativo, per un
  *   campo che porta un risultato o un saldo. Di serie spento.
+ * - `importo`: il campo è un importo in euro, e legge come scritto sotto in
+ *   «Come legge un importo». L'unità diventa `€`, prima del numero.
  * - Le altre prop vanno all'`input`: `name`, `disabled`, `placeholder`, `ref`.
  *
  * **Come legge.**
@@ -52,6 +55,27 @@ import { FieldGroup } from '@/registry/tassullo/ui/field'
  * - Un testo che si potrebbe leggere in due modi, o che numero non è, resta
  *   nel campo così com'è, segnato come sbagliato e con il messaggio sotto.
  *   Il valore confermato non cambia.
+ *
+ * **Come legge un importo.** Con `importo` il punto torna a essere quello
+ * delle migliaia, perché in un importo scritto all'italiana lo è quasi
+ * sempre.
+ *
+ * - Il punto è delle migliaia quando raggruppa bene, a gruppi di tre:
+ *   `1.500` vale millecinquecento euro, `1.500.000` un milione e mezzo.
+ * - Un punto solo seguito da una o due cifre è il decimale del tastierino,
+ *   perché non può essere delle migliaia: `15.00` vale quindici euro.
+ * - La virgola è il decimale, con al massimo due cifre: `1.500,5` vale
+ *   millecinquecento euro e cinquanta centesimi.
+ * - Un importo copiato da un documento o da una pagina si pulisce da sé:
+ *   spazi, `€`, `EUR`, `euro`, il segno meno tipografico. `EUR 2.086,93` e
+ *   `1 500,00 €` si leggono.
+ * - Tutto il resto resta nel campo segnato come sbagliato, invece di essere
+ *   indovinato: tre decimali (`0,125`), gruppi sbagliati (`12.5,3`), il
+ *   formato inglese (`1,500.50`), `0.125`, un'altra moneta.
+ * - A riposo l'importo si legge sempre con due decimali: `1.500,00`.
+ *
+ * Per un prezzo unitario che ha bisogno di più di due decimali non si usa
+ * `importo`: si usa il campo normale con `unita="€"`.
  *
  * **Regole d'uso.**
  *
@@ -83,6 +107,17 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/** Il valore confermato come si legge: virgola decimale, punto delle migliaia. */
+function scritto(valore: number | null): string {
+  return valore === null ? 'nessuno' : scriviNumeroConMigliaia(String(valore))
+}
+
+// Il testo esatto, non contenuto: «1.500» è contenuto anche in «1.500.000».
+function esatto(testo: string): RegExp {
+  const protetto = testo.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&')
+  return new RegExp(`^${protetto}$`)
+}
+
 /** Un campo col suo stato, e il valore confermato scritto sotto. */
 function Esempio({ iniziale = null, ...prop }: Omit<CampoNumeroProps, 'valore' | 'onValore'> & { iniziale?: number | null }) {
   const [valore, setValore] = useState<number | null>(iniziale)
@@ -90,7 +125,7 @@ function Esempio({ iniziale = null, ...prop }: Omit<CampoNumeroProps, 'valore' |
     <div className="flex flex-col gap-1">
       <CampoNumero {...prop} valore={valore} onValore={setValore} />
       <p className="text-sm text-muted-foreground" data-valore>
-        Valore confermato: {valore === null ? 'nessuno' : String(valore)}
+        Valore confermato: {scritto(valore)}
       </p>
     </div>
   )
@@ -112,9 +147,9 @@ export const Panoramica: Story = {
 }
 
 const QUATTRO_CASI = [
-  { etichetta: 'Coefficiente', scritto: '0.125', resta: '0,125', valore: '0.125' },
-  { etichetta: 'Lunghezza', scritto: '1.500', resta: '1,5', valore: '1.5' },
-  { etichetta: 'Quantità', scritto: '1.234,5', resta: '1.234,5', valore: '1234.5' },
+  { etichetta: 'Coefficiente', scritto: '0.125', resta: '0,125', valore: '0,125' },
+  { etichetta: 'Lunghezza', scritto: '1.500', resta: '1,5', valore: '1,5' },
+  { etichetta: 'Quantità', scritto: '1.234,5', resta: '1.234,5', valore: '1.234,5' },
   { etichetta: 'Resa', scritto: 'dodici', resta: 'dodici', valore: 'nessuno' },
 ] as const
 
@@ -143,7 +178,7 @@ export const QuattroCasi: Story = {
       await userEvent.tab()
       await waitFor(() => expect(campo).toHaveValue(caso.resta))
       const riga = campo.closest('[data-slot="field"]')!.parentElement!
-      expect(riga.querySelector('[data-valore]')).toHaveTextContent(`Valore confermato: ${caso.valore}`)
+      expect(riga.querySelector('[data-valore]')).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
     }
     const resa = tela.getByLabelText('Resa')
     expect(resa).toHaveAttribute('aria-invalid', 'true')
@@ -184,14 +219,83 @@ export const MigliaiaProva: Story = {
     expect(volume).toHaveValue('1234')
     await userEvent.tab()
     expect(volume).toHaveValue('1.234')
-    expect(valoreVolume).toHaveTextContent('Valore confermato: 1234')
+    expect(valoreVolume).toHaveTextContent(esatto('Valore confermato: 1.234'))
 
     // Si scrive sulle cifre nude: aggiunta una cifra, il numero è 12345.
     await userEvent.click(volume)
     await userEvent.type(volume, '5')
     await userEvent.tab()
     await waitFor(() => expect(volume).toHaveValue('12.345'))
-    expect(valoreVolume).toHaveTextContent('Valore confermato: 12345')
+    expect(valoreVolume).toHaveTextContent(esatto('Valore confermato: 12.345'))
+  },
+}
+
+/**
+ * Con `importo` il campo legge gli importi in euro: il punto è delle migliaia,
+ * i decimali sono al massimo due, e a riposo si leggono sempre tutti e due.
+ */
+export const Importo: Story = {
+  args: { etichetta: 'Importo lavori', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Importo lavori" importo iniziale={1500} min={0} />
+      <Esempio etichetta="Ribasso" importo iniziale={-2086.9} negativiInRosso />
+    </FieldGroup>
+  ),
+}
+
+// Scritti e incollati: i testi che un importo deve leggere, compresi quelli
+// copiati da un documento (spazi che non vanno a capo, il nome della moneta,
+// il meno tipografico), e quelli che deve rifiutare invece di indovinare.
+const IMPORTI = [
+  { scritto: '1.500', resta: '1.500,00', valore: '1.500' },
+  { scritto: '15.00', resta: '15,00', valore: '15' },
+  { scritto: '1.500,5', resta: '1.500,50', valore: '1.500,5' },
+  { scritto: '1.500.000', resta: '1.500.000,00', valore: '1.500.000' },
+  { scritto: '€ 1.500', resta: '1.500,00', valore: '1.500' },
+  { scritto: '1 500,00 €', resta: '1.500,00', valore: '1.500' },
+  { scritto: 'EUR 2.086,93', resta: '2.086,93', valore: '2.086,93' },
+  { scritto: '−1.500', resta: '-1.500,00', valore: '-1.500' },
+  { scritto: '0,125', resta: '0,125', valore: '-1.500', errore: true },
+  { scritto: '0.125', resta: '0.125', valore: '-1.500', errore: true },
+  { scritto: '12.5,3', resta: '12.5,3', valore: '-1.500', errore: true },
+  { scritto: '1,500.50', resta: '1,500.50', valore: '-1.500', errore: true },
+] as const
+
+export const ImportoProva: Story = {
+  name: 'Importo, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { etichetta: 'Importo lavori', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Importo lavori" importo />
+    </FieldGroup>
+  ),
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const campo = tela.getByLabelText('Importo lavori')
+    const valore = canvasElement.querySelector('[data-valore]')!
+
+    // L'unità è l'euro, prima del numero.
+    const unita = canvasElement.querySelector('[data-slot="input-group-addon"]')!
+    expect(unita).toHaveTextContent('€')
+    expect(unita).toHaveAttribute('data-align', 'inline-start')
+
+    for (const caso of IMPORTI) {
+      await userEvent.clear(campo)
+      await userEvent.paste(caso.scritto)
+      await userEvent.tab()
+      await waitFor(() => expect(campo).toHaveValue(caso.resta))
+      expect(valore).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
+      if ('errore' in caso) {
+        expect(campo).toHaveAttribute('aria-invalid', 'true')
+        expect(tela.getByRole('alert')).toHaveTextContent(
+          'Scrivi un importo con al massimo due decimali, per esempio 1.500,00.',
+        )
+      } else {
+        expect(campo).toHaveAttribute('aria-invalid', 'false')
+      }
+    }
   },
 }
 
@@ -258,7 +362,7 @@ export const FuoriDaiLimiti: Story = {
     await userEvent.type(campo, '12,5{Enter}')
     expect(await tela.findByRole('alert')).toHaveTextContent('Il massimo è 10 %.')
     expect(campo).toHaveValue('12,5')
-    expect(canvasElement.querySelector('[data-valore]')).toHaveTextContent('Valore confermato: 2')
+    expect(canvasElement.querySelector('[data-valore]')).toHaveTextContent(esatto('Valore confermato: 2'))
   },
 }
 
@@ -301,7 +405,7 @@ function ModuloRiga() {
         <div className="flex items-center gap-3">
           <Button type="submit">Salva</Button>
           <p className="text-sm text-muted-foreground" data-salvato>
-            {salvato === null ? 'Non ancora salvato' : `Salvato: ${String(salvato)}`}
+            {salvato === null ? 'Non ancora salvato' : `Salvato: ${scritto(salvato)}`}
           </p>
         </div>
       </FieldGroup>
@@ -376,7 +480,7 @@ export const ConUnModuloProva: Story = {
     // Un valore giusto, Invio: conferma e invia con il numero letto.
     await userEvent.click(campo)
     await userEvent.type(campo, '0.75{Enter}')
-    await waitFor(() => expect(esito).toHaveTextContent('Salvato: 0.75'))
+    await waitFor(() => expect(esito).toHaveTextContent(esatto('Salvato: 0,75')))
     expect(campo).toHaveValue('0,75')
     expect(tela.queryByRole('alert')).toBeNull()
   },

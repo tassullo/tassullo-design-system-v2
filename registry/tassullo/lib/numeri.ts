@@ -207,8 +207,15 @@ export function coloreNegativo(valore: number | null | undefined): string | unde
  *   quantità, coefficienti, rese —, dove `0.125` è un decimale scritto col
  *   punto del tastierino, e leggerlo `125` cambierebbe il valore senza che
  *   nessuno se ne accorga.
+ * - `"importo"`: la regola per un **importo in euro** scritto o incollato.
+ *   Il punto è delle migliaia se raggruppa bene (`1.500` → `1500`), un punto
+ *   seguito da una o due cifre è il decimale del tastierino (`15.00` →
+ *   `15`), la virgola è il decimale con al massimo due cifre. Si puliscono
+ *   ciò che un testo copiato da un documento si porta dietro: spazi di ogni
+ *   tipo, `€`, `EUR`, `euro`, il segno meno tipografico. Tutto il resto non
+ *   si indovina: `0.125`, `0,125`, `1,500.50` e `12.5,3` restano come sono.
  */
-export type PuntoSenzaVirgola = "tre-cifre" | "decimale"
+export type PuntoSenzaVirgola = "tre-cifre" | "decimale" | "importo"
 
 /** Le opzioni di `leggiNumero`. */
 export type OpzioniLettura = {
@@ -250,12 +257,28 @@ const MIGLIAIA = /^-?\d{1,3}(\.\d{3})+$/
  * leggiNumero("1.234.567", { punto: "decimale" }) // "1234567" — più punti sono migliaia
  * leggiNumero("12.5,3", { punto: "decimale" })    // "12.5,3"  — migliaia scritte male
  * ```
+ *
+ * **In un campo per gli importi** si passa `{ punto: "importo" }`: il punto è
+ * delle migliaia quando raggruppa bene, al massimo due decimali, e il testo
+ * copiato da un documento si pulisce da spazi e simboli della moneta.
+ *
+ * ```ts
+ * leggiNumero("1.500", { punto: "importo" })         // "1500"
+ * leggiNumero("15.00", { punto: "importo" })         // "15"     — decimale del tastierino
+ * leggiNumero("EUR 2.086,93", { punto: "importo" })  // "2086.93"
+ * leggiNumero("0,125", { punto: "importo" })         // "0,125"  — più di due decimali
+ * leggiNumero("1,500.50", { punto: "importo" })      // "1,500.50" — scritto all'inglese
+ * ```
  */
 export function leggiNumero(testo: string, opzioni: OpzioniLettura = {}): string {
-  const t = testo.replace(/[\s€]/g, "")
+  const t = opzioni.punto === "importo" ? pulisciImporto(testo) : testo.replace(/[\s€]/g, "")
   if (t === "") return ""
   const grezzo =
-    opzioni.punto === "decimale" ? grezzoDecimale(t) : grezzoTreCifre(t)
+    opzioni.punto === "decimale"
+      ? grezzoDecimale(t)
+      : opzioni.punto === "importo"
+        ? grezzoImporto(t)
+        : grezzoTreCifre(t)
   if (grezzo === null) return testo.trim()
   const numero = Number(grezzo)
   return Number.isNaN(numero) ? grezzo : String(numero)
@@ -292,6 +315,35 @@ function separaDecimale(t: string): string | null {
   const punti = t.split(".").length - 1
   if (punti <= 1) return t
   return MIGLIAIA.test(t) ? t.replace(/\./g, "") : null
+}
+
+// Ciò che un importo copiato da un documento o da una pagina si porta
+// dietro: spazi di ogni tipo (anche quelli che non vanno a capo, che `Intl`
+// mette fra il numero e `€`, e quelli larghi zero), il simbolo o il nome
+// della moneta, il segno meno tipografico o il trattino lungo di un testo
+// impaginato, un `+` davanti. Un'altra moneta (`$`, `£`, `USD`) resta, e il
+// testo non si legge: non è un importo in euro.
+function pulisciImporto(testo: string): string {
+  return testo
+    .replace(/[\s\u200b\u2060\ufeff]/g, "")
+    .replace(/€|euro|eur/gi, "")
+    .replace(/^[\u2212\u2013]/, "-")
+    .replace(/^\+/, "")
+}
+
+// La regola degli importi. Con la virgola: le migliaia raggruppate bene, o
+// nessun punto, e al massimo due decimali. Senza virgola: cifre nude,
+// migliaia raggruppate bene, o un punto solo seguito da una o due cifre, che
+// non possono essere migliaia. Il primo gruppo delle migliaia non comincia
+// con lo zero: `0.125` non è centoventicinque, e non si indovina cosa sia.
+const IMPORTO_CON_VIRGOLA = /^-?([1-9]\d{0,2}(\.\d{3})+|\d*),\d{0,2}$/
+const IMPORTO_SENZA_VIRGOLA = /^-?(\d+|[1-9]\d{0,2}(\.\d{3})+|\d*\.\d{1,2})$/
+
+function grezzoImporto(t: string): string | null {
+  if (!/\d/.test(t)) return null
+  if (IMPORTO_CON_VIRGOLA.test(t)) return t.replace(/\./g, "").replace(",", ".")
+  if (IMPORTO_SENZA_VIRGOLA.test(t)) return MIGLIAIA.test(t) ? t.replace(/\./g, "") : t
+  return null
 }
 
 /**
