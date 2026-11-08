@@ -15419,3 +15419,27 @@ Sessione avviata dalla sessione principale, dopo la #214: cercare le scene che f
 #### Aperti
 
 - La PR poggia sulla #214: unita quella, si riporta su `main` prima di cancellarne il ramo.
+
+## 2026-11-08 — #216: il foglio a gruppi sul fondo della card
+
+Proposta di Studio, accettata da Francesco («Sì, realizzala»). Ramo `fras/foglio-gruppi-fondo-card` da `main`.
+
+#### Il difetto
+
+- La radice di `tassullo-foglio-gruppi` era `overflow-x-auto` senza colore: il foglio prendeva il fondo della pagina (`bg-background`). `tassullo-data-table` sta invece nel riquadro `rounded-lg border bg-card`, e `tassullo-data-grid` lo eredita. Nel computo di Studio la scheda col foglio era grigia e quella dei fabbisogni bianca.
+- Era un errore nostro, non una richiesta di stile: il commento sulla riga attiva diceva già che in scuro `bg-muted` «si staccava appena dalla card». Il foglio era pensato per la card e nessuno gliel'aveva messa sotto.
+
+#### Cosa cambia
+
+- `bg-card` sulla radice, accanto a `overflow-x-auto`, con un commento che dice perché. Vale per `griglia` e `stampato`: nello stampato testata e piede sono trasparenti, quindi stanno anch'essi sulla card.
+- Solo una stringa di classi in un blocco: nessuna prop, nessuna variante, niente in `componenti-propri.json`. Il bordo resta ad angoli vivi (lo stampato imita la carta; la proposta chiedeva il solo fondo).
+- Scene: nessuna cambia. Nella descrizione della pagina, una frase sul fondo accanto ad `aspetto`.
+
+#### Prove
+
+- Storybook, scene «Computo» e «Stampato» in chiaro e in scuro: la radice ha lo stesso colore di un elemento `bg-card` (in scuro `oklch(0.2264 0 0)` contro la pagina `oklch(0.1913 0 0)`). Riga attiva a fuoco fuori (`bg-border-strong/70`) leggibile sulla card in scuro.
+- I colori del testo su card sono coppie già controllate da `check:contrast` (testo, attenuato, link, negativi su card).
+
+#### Aperti
+
+- Studio: alla versione che contiene la #216, togliere `className="bg-card"` da `FoglioGruppi` e il commento d'attesa.

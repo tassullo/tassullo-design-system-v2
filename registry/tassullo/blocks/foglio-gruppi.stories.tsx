@@ -357,7 +357,8 @@ function ComputoFoglio({
  * - `aspetto` sceglie come si presenta il foglio: `griglia`, di serie, con un
  *   filetto per riga e la testata su fondo grigio, o `stampato`, che si legge
  *   come un computo su carta (la scena «Stampato»). Celle, tastiera e comandi
- *   sono gli stessi.
+ *   sono gli stessi, e anche il fondo: in tutti e due il foglio sta sul fondo
+ *   della card, come le altre tabelle, e non prende quello della pagina.
  * - `didascalia` descrive la tabella a chi non vede lo schermo, ed è
  *   obbligatoria come un `alt`.
  *
