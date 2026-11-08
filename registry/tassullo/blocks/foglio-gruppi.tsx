@@ -1208,7 +1208,12 @@ export function FoglioGruppi<TTestata, TRiga>({
     <div
       ref={radiceRef}
       className={cn(
-        "overflow-x-auto",
+        // Il fondo della card, come le altre tabelle del design system: senza,
+        // il foglio prende il fondo della pagina e, accanto a una `data-table`
+        // nella stessa schermata, è grigio dove l'altra è bianca. Vale nei due
+        // aspetti: nello `stampato` testata e piede sono trasparenti, quindi
+        // anche loro stanno su questo fondo.
+        "overflow-x-auto bg-card",
         // In scuro il fondo è `border-strong` al 70%: `bg-muted` si staccava
         // appena dalla card, lo stesso rimedio della `data-grid`.
         // L'aspetto `stampato`: doppio filetto sotto l'intestazione e sopra il
