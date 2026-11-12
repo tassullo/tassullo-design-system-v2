@@ -15617,3 +15617,16 @@ Sesta proposta di Studio della giornata. Ramo `fras/proposta-227-schede`, sopra 
 - `tassullo-pagina-lista` non ha una prop che passi `schede` alla tabella: non chiesta.
 - Studio: alla versione nuova, le liste di documenti e documentazione passano a `schede` e perdono il secondo componente.
 
+## 2026-11-12 — v2.0.42 pubblicata, #225–#230 chiuse
+
+PR #231 unita col gate verde in CI, unione `c2f5ad7`: chiuse #225, #226, #228, #229, #230. La #232 è stata riportata su `main` prima di cancellare il ramo di base, poi unita col gate verde, unione `1190201`: chiusa la #227. Etichetta annotata `v2.0.42` su `1190201`, push della sola etichetta. Francesco: «Sì, unisci la #231», «Sì, unisci la #232», «Sì, pubblica».
+
+- Dentro: `onErrore` e `inputMode` su `tassullo-campo-numero`; versioni fissate, `paginaIniziale` e `onPagina` su `tassullo-pdf-preview`; il cassetto che si chiude e il nome che si tronca in `tassullo-app-shell`; `stato`, `messaggioErrore`, `onRiprova` e il grilletto stretto in `tassullo-barra-contesto`; la prop `schede` di `tassullo-data-table`; le regole del filo di conversazione.
+- **Cambia per chi aggiorna, ed è voluto**: sul telefono il cassetto del guscio si chiude dopo un clic di navigazione; un campo numerico con `min` negativo apre la tastiera intera; la barra di contesto più stretta di 384px mostra «Cambia» come sola icona; `tassullo-pdf-preview` installa `react-pdf@11.0.0` e `pdfjs-dist@6.3.289` esatte, e `tassullo-barra-contesto` porta con sé `spinner`.
+- Verifica da fuori: alla `v2.0.42` rispondono 200 `registry.json` e gli otto `public/r/` degli item toccati, con dentro `onErrore`, `pdfjs-dist@6.3.289`, `paginaIniziale`, `schede`, `setOpenMobile`, `onRiprova`, `@tassullo/spinner`; `shadcn view …tassullo-data-table#v2.0.42` restituisce la prop.
+
+#### Aperti
+
+- Studio: adottare alla versione nuova. Togliere la ricerca di `aria-invalid` prima di salvare, il pin di `pdfjs-dist` nel proprio `package.json`, il «Riprova» fuori dal selettore; passare le liste di documenti e documentazione a `schede`; per il «vai alla fonte» usare `scrollToMessage`.
+- Le scene di altezza ferma e di memoria delle schede non asseriscono niente da sole; il passaggio di soglia non è provato in WebKit.
+
