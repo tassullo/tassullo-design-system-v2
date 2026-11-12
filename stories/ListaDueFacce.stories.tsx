@@ -44,6 +44,13 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  * servono due pezzi: `use-soglia`, il bivio, e `tassullo-data-table`, la
  * faccia larga. La faccia stretta la scrive la pagina.
  *
+ * **Se le schede sono la stessa lista**, con gli stessi comandi di ricerca,
+ * filtro e ordinamento e senza raggruppamenti, questa ricetta non serve:
+ * `tassullo-data-table` ha la prop `schede` (`soglia` e `scheda`) e mostra le
+ * stesse righe della tabella come elenco di schede, con il menu di riga e la
+ * selezione dentro ogni scheda. Questa pagina è per il caso in cui la faccia
+ * stretta è un'altra cosa, come qui.
+ *
  * ```bash
  * npx shadcn@latest add tassullo/tassullo-design-system-v2/use-soglia
  * ```
@@ -83,7 +90,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  *   (240 in touch). Sotto la somma delle larghezze dichiarate più quel
  *   minimo, la tabella non si stringe: il suo riquadro scorre di lato. Per
  *   una lista pensata anche per il telefono, la risposta non è stringere le
- *   colonne ma la faccia a schede, che è questa pagina.
+ *   colonne ma la faccia a schede: la prop `schede` della tabella, o questa
+ *   ricetta quando la faccia stretta non è la stessa lista.
  * - Con `pannelloRiga` la prima colonna è quella del chevron, che la tabella
  *   aggiunge da sé: `bloccaPrimaColonna` bloccherebbe il chevron, non la
  *   colonna che identifica la riga. Qui non si usa.

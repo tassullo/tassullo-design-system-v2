@@ -4462,3 +4462,19 @@ Il blocco è nostro e compone `field` e `input-group` senza varianti: nessuna ri
 **Gli stati del selettore di contesto (#230).** `stato`, `messaggioErrore`, `onRiprova` su barra e selettore. In errore il menu si monta anche senza voci. Respinto lo spazio per azioni libere nel menu: nessun caso preciso lo chiede. Nella colonna il segno d'errore è neutro e non rosso: il fondo è scuro anche in modalità chiara, e il rosso del testo lì fa 2.22:1. «Cambia» si riduce all'icona con una container query sulla barra (384px), non sulla finestra.
 
 **Una prova che apre un PDF aspetta l'apertura fino a 20 secondi.** Nel primo gate intero «Pagina iniziale» è caduta in una passata su quattro. Misurato: la stessa scena impiega da 0,2 a 3,2 s secondo il carico, perché il worker di pdf.js parte da zero. È l'unica attesa allungata, e solo quella dell'apertura. La pagina al momento della caduta non è stata catturata: la causa è dedotta dai tempi.
+
+## 100. La faccia a schede sta dentro `tassullo-data-table`: la prop `schede` (proposta #227, accettata da Francesco il 2026-11-12)
+
+**Il problema.** Il blocco diceva: per una lista pensata anche per il telefono, una faccia a schede scelta con `useSoglia`. Ogni app la riscriveva: in Studio due componenti per lista, con ricerca, filtri, ordinamento e azioni di riga scritti due volte.
+
+**La forma.** `schede={{ soglia, scheda: (riga) => … }}`. `soglia` è una media query in forma `min-width`, come quella di `useSoglia`: sopra c'è la tabella, sotto un elenco con una scheda per riga. Le righe vengono dallo stesso modello della tabella, quindi ricerca, filtri della `barra`, ordinamento, pagine, conteggio, `memoria` e stati vuoti sono gli stessi e non si riscrivono. Il contenuto della scheda lo scrive la pagina; casella di selezione e menu «⋯» li mette il blocco. Le intestazioni non ci sono più, quindi l'ordinamento passa a una tendina «Ordina per» con un bottone che inverte il verso, sullo stesso stato.
+
+**Elenco continuo, non schede staccate.** Rese affiancate in chiaro e in scuro: A, un riquadro per riga; B, un solo riquadro con le righe divise da un filo. Francesco ha scelto la B: meno altezza e lo stesso riquadro della tabella. La A e la scena di confronto sono tolte.
+
+**Senza la prop non cambia niente.** Del ramo tabella sono toccate otto righe, e il blocco non interroga `matchMedia` se `schede` manca: per questo la soglia si legge con una copia interna della logica di `useSoglia` e non con l'item, che andrebbe chiamato sempre.
+
+**Dove non si attiva.** Con `perPagina="virtuale"` e con `getSottoRighe` la lista resta una tabella, e in sviluppo il blocco lo scrive in console. Riordino, pannello di riga, piede dei totali, colonne ridimensionabili o bloccabili non hanno effetto sulle schede.
+
+**La ricetta con `useSoglia` resta** per le liste la cui faccia stretta non è la stessa lista. Lette le tre pagine che la usano: «Lista a due facce» cambia i filtri in chip e apre il dettaglio dalla scheda; la pagina dei prodotti e `tassullo-pagina-lista` raggruppano le righe e hanno un pannello che si apre nella scheda. Nessuna delle tre è stata portata a `schede`.
+
+**Le prove.** Nel gate la finestra è larga: il ramo stretto è reso sostituendo `matchMedia` per la sola query (§46). In Chromium a 375×812, senza sostituzioni: dieci schede, niente scorre di lato; in touch menu e tendina 48px, caselle con area di 58×46; con `altezza="ferma"` e `"infinito"` l'elenco scorre dentro il riquadro e arriva a 120 schede; con `memoria` la pagina 2 resta passando a 1280, tornando a 375 e ricaricando, senza errori in console. Le due scene di altezza ferma e memoria non hanno una `play`: le misure sono state prese a mano.

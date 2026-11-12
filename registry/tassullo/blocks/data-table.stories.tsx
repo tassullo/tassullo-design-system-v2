@@ -12,7 +12,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
+import { expect, fireEvent, screen, userEvent, waitFor, within } from 'storybook/test'
 
 import { apriCol, apriColDestro } from '@/prove/apri'
 import {
@@ -359,8 +359,8 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  * colonna va lasciata senza larghezza: è quella che prende lo spazio che
  * avanza, e non scende sotto 160px (240 in touch). Quando le colonne non
  * stanno, la tabella non le stringe: il suo riquadro scorre di lato. Per una
- * lista pensata anche per il telefono c'è la faccia a schede, nella pagina
- * «Lista a due facce». L'intestazione ordinabile è
+ * lista pensata anche per il telefono c'è la faccia a schede: la prop
+ * `schede`, descritta sotto. L'intestazione ordinabile è
  * `IntestazioneColonna`, con `allinea="fine"` sulle colonne di numeri.
  * `sortFn` dice come si ordina: `alphanumeric` per i codici, perché `IN-9`
  * venga prima di `IN-10`; `text`; `basic` per i numeri; `datetime` per le
@@ -395,6 +395,12 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   `"infinito"` o `"virtuale"`. `piePagina={false}` toglie la fascia di
  *   paginazione, per le tabelle di appoggio dentro un'altra pagina.
  * - Il riquadro: `altezza`, `"naturale"` o `"ferma"`, sotto.
+ * - La faccia a schede: `schede={{ soglia, scheda }}`. Sopra la soglia la
+ *   lista è la tabella; sotto, al posto della tabella, ogni riga è una
+ *   scheda il cui contenuto scrive la pagina. Ricerca, filtri della `barra`,
+ *   ordinamento, pagine, conteggio e stati vuoti sono quelli della tabella;
+ *   l'ordinamento passa da una tendina «Ordina per», e il menu «⋯» e la
+ *   casella di selezione stanno dentro ogni scheda. Vedi la scena «Schede».
  * - Le colonne: `bloccaPrimaColonna`, `ridimensionabile`, `colonneBloccabili`,
  *   `colonneRiordinabili`, `bordiColonna`.
  * - Le righe: `idRiga`, `getSottoRighe`, `pannelloRiga`, `menuRiga`,
@@ -5102,4 +5108,521 @@ export const MemoriaRigaProva: StoryObj<typeof DataTable<Prodotto>> = {
   },
   render: () => <ListaConScheda chiave={CHIAVE_PROVA_RIGA} />,
   play: provaMemoriaRiga,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * La faccia a schede
+ *
+ * Un elenco di documenti inventato, per mostrare le schede: codice, titolo,
+ * tipo, stato, data e dimensione. I codici sono mescolati, così l'ordine dei
+ * dati non coincide con quello alfabetico e l'ordinamento si vede lavorare.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Documento = {
+  id: string
+  codice: string
+  titolo: string
+  tipo: 'Scheda tecnica' | 'Dichiarazione di prestazione' | 'Certificato' | 'Capitolato'
+  stato: Prodotto['stato']
+  aggiornato: Date
+  /** In megabyte. */
+  dimensione: number
+}
+
+// Trenta primi vocaboli diversi: l'ordinamento per titolo si decide sul primo,
+// quindi il documento che viene per primo è prevedibile.
+const TITOLI_DOCUMENTI = [
+  'Adesivo cementizio C2 per piastrelle',
+  'Betoncino fibrorinforzato per ripristini',
+  'Calce idraulica naturale NHL 3,5',
+  'Cocciopesto per deumidificazione',
+  'Collante per cappotto termico',
+  'Consolidante a base di silicato',
+  'Dolomia micronizzata per finiture',
+  'Fondo isolante per interni',
+  'Finitura ai silicati a pennello',
+  'Grassello di calce stagionato',
+  'Idropittura minerale traspirante',
+  'Intonaco di fondo a macchina',
+  'Isolante termico a base di calce',
+  'Legante idraulico per sottofondi',
+  'Malta da muratura M5',
+  'Marmorino a grana fine',
+  'Massetto ad asciugamento rapido',
+  'Membrana impermeabilizzante minerale',
+  'Pittura ai silicati per esterni',
+  'Primer di ancoraggio universale',
+  'Protettivo idrorepellente',
+  'Rasante a base di calce',
+  'Rinzaffo cementizio aggrappante',
+  'Sigillante per giunti di facciata',
+  'Stucco minerale per interni',
+  'Termointonaco alleggerito',
+  'Trattamento antisale per muri umidi',
+  'Ripristino strutturale del calcestruzzo',
+  'Zoccolatura impermeabile a spruzzo',
+  'Impregnante consolidante per pietra',
+]
+
+const TIPI_DOCUMENTO: Documento['tipo'][] = [
+  'Scheda tecnica',
+  'Dichiarazione di prestazione',
+  'Certificato',
+  'Capitolato',
+]
+
+function generaDocumenti(): Documento[] {
+  const caso = seminato(20261112)
+  // Codici da 101 a 130 mescolati (Fisher-Yates con lo stesso generatore).
+  const numeri = TITOLI_DOCUMENTI.map((_, i) => 101 + i)
+  for (let i = numeri.length - 1; i > 0; i--) {
+    const j = Math.floor(caso() * (i + 1))
+    ;[numeri[i], numeri[j]] = [numeri[j], numeri[i]]
+  }
+  const documenti = TITOLI_DOCUMENTI.map((titolo, i) => ({
+    id: String(i + 1),
+    codice: `DT-${numeri[i]}`,
+    titolo,
+    tipo: TIPI_DOCUMENTO[Math.floor(caso() * TIPI_DOCUMENTO.length)],
+    stato: STATI[Math.floor(caso() * STATI.length)],
+    aggiornato: new Date(
+      2025 + Math.floor(caso() * 2),
+      Math.floor(caso() * 12),
+      Math.floor(caso() * 28) + 1
+    ),
+    dimensione: Math.round((0.2 + caso() * 9) * 10) / 10,
+  }))
+  // Anche l'ordine dei dati è mescolato: il primo non è il primo in ordine alfabetico.
+  for (let i = documenti.length - 1; i > 0; i--) {
+    const j = Math.floor(caso() * (i + 1))
+    ;[documenti[i], documenti[j]] = [documenti[j], documenti[i]]
+  }
+  return documenti
+}
+
+const DOCUMENTI = generaDocumenti()
+
+const colDoc = creaColonne<Documento>()
+
+const COLONNE_DOCUMENTI = colDoc.columns([
+  colDoc.accessor('codice', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+    meta: { titolo: 'Codice', larghezza: 'w-32' },
+    sortFn: 'alphanumeric',
+  }),
+  colDoc.accessor('titolo', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Titolo" />,
+    meta: { titolo: 'Titolo' },
+    sortFn: 'text',
+    cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+  }),
+  colDoc.accessor('tipo', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Tipo" />,
+    meta: { titolo: 'Tipo', larghezza: 'w-56' },
+    sortFn: 'text',
+  }),
+  colDoc.accessor('stato', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Stato" />,
+    meta: { titolo: 'Stato', larghezza: 'w-32' },
+    sortFn: 'text',
+    filterFn: 'arrHas',
+    cell: ({ getValue }) => {
+      const stato = getValue<Documento['stato']>()
+      return <Badge className={TONO_STATO[stato]}>{stato}</Badge>
+    },
+  }),
+  colDoc.accessor('aggiornato', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Aggiornato" allinea="fine" />
+    ),
+    meta: { titolo: 'Aggiornato', larghezza: 'w-32' },
+    sortFn: 'datetime',
+    enableGlobalFilter: false,
+    cell: ({ getValue }) => <div className="text-right">{DATA.format(getValue<Date>())}</div>,
+  }),
+  colDoc.accessor('dimensione', {
+    header: ({ column }) => (
+      <IntestazioneColonna colonna={column} titolo="Dimensione" allinea="fine" />
+    ),
+    meta: { titolo: 'Dimensione', larghezza: 'w-36' },
+    sortFn: 'basic',
+    enableGlobalFilter: false,
+    cell: ({ getValue }) => <div className="text-right">{decimale(getValue<number>(), 1)} MB</div>,
+  }),
+])
+
+// Le voci scelte dal menu di una scheda, per la prova: ognuna annota la voce e
+// il codice della riga che il menu ha letto.
+const vociScelte: string[] = []
+
+function MenuDocumento() {
+  const documento = useDataTableRow<Documento>()
+  return (
+    <>
+      <RowMenuItem onClick={() => vociScelte.push(`Apri ${documento.codice}`)}>
+        <PencilIcon aria-hidden />
+        Apri
+      </RowMenuItem>
+      <RowMenuItem onClick={() => vociScelte.push(`Duplica ${documento.codice}`)}>
+        <CopyIcon aria-hidden />
+        Duplica
+      </RowMenuItem>
+      <RowMenuSeparator />
+      <RowMenuItem
+        variant="destructive"
+        onClick={() => vociScelte.push(`Elimina ${documento.codice}`)}
+      >
+        <Trash2Icon aria-hidden />
+        Elimina
+      </RowMenuItem>
+    </>
+  )
+}
+
+// Il tipo, scritto da un componente che legge la riga con `useDataTableRow`:
+// dentro la scheda funziona come nelle voci del menu.
+function TipoDocumento() {
+  const documento = useDataTableRow<Documento>()
+  return <p className="text-sm text-muted-foreground">{documento.tipo}</p>
+}
+
+/** Il contenuto di una scheda: codice, titolo, tipo, e sotto stato, data e dimensione. */
+function SchedaDocumento({ documento }: { documento: Documento }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-sm text-muted-foreground">{documento.codice}</p>
+      <p className="font-medium" data-slot="titolo-scheda">
+        {documento.titolo}
+      </p>
+      <TipoDocumento />
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground tabular-nums">
+        <Badge className={TONO_STATO[documento.stato]}>{documento.stato}</Badge>
+        <span>{DATA.format(documento.aggiornato)}</span>
+        <span>{decimale(documento.dimensione, 1)} MB</span>
+      </div>
+    </div>
+  )
+}
+
+const SOGLIA_SCHEDE = '(min-width: 48rem)'
+
+function ListaDocumenti({
+  perPagina = 10,
+  altezza,
+  memoria,
+  dati = DOCUMENTI,
+}: {
+  dati?: Documento[]
+  perPagina?: 10 | 25 | 'infinito'
+  altezza?: 'naturale' | 'ferma'
+  memoria?: string
+}) {
+  return (
+    <DataTable
+      colonne={COLONNE_DOCUMENTI}
+      dati={dati}
+      idRiga={(d) => d.id}
+      cerca="Cerca un documento…"
+      nomeRighe={{ singolare: 'documento', plurale: 'documenti' }}
+      selezione
+      perPagina={perPagina}
+      menuRiga={{
+        menu: <MenuDocumento />,
+        ariaLabel: (d) => `Azioni su ${d.codice}`,
+      }}
+      barra={(scelti, tabella) => (
+        <>
+          <FiltroSfaccettato tabella={tabella} accessore="stato" titolo="Stato" />
+          {scelti.length > 0 ? (
+            <Button variant="outline" size="sm">
+              Scarica {scelti.length}
+            </Button>
+          ) : null}
+        </>
+      )}
+      schede={{
+        soglia: SOGLIA_SCHEDE,
+        scheda: (documento) => <SchedaDocumento documento={documento} />,
+      }}
+      altezza={altezza}
+      memoria={memoria}
+      className={altezza === 'ferma' ? 'min-h-0 flex-1' : undefined}
+    />
+  )
+}
+
+/**
+ * La faccia a schede. Sopra la soglia che la pagina dichiara la lista è la
+ * tabella; sotto, al posto della tabella, ogni riga è una scheda. Qui la soglia
+ * è `(min-width: 48rem)`, e la scena si apre con la Viewport del telefono.
+ *
+ * ```tsx
+ * <DataTable
+ *   colonne={COLONNE}
+ *   dati={documenti}
+ *   cerca="Cerca un documento…"
+ *   selezione
+ *   menuRiga={{ menu: <VociDiRiga /> }}
+ *   schede={{
+ *     soglia: "(min-width: 48rem)",
+ *     scheda: (documento) => <SchedaDocumento documento={documento} />,
+ *   }}
+ * />
+ * ```
+ *
+ * Le schede mostrano le righe della tabella, quindi ricerca, filtro,
+ * ordinamento, pagine e conteggio sono gli stessi. Le intestazioni non ci
+ * sono: «Ordina per» sceglie la colonna e il bottone accanto inverte il verso,
+ * e la scelta resta quando la finestra torna larga e riappare la tabella.
+ * Dentro ogni scheda stanno la casella di selezione e il menu «⋯», con le
+ * stesse voci della tabella; il contenuto lo scrive la pagina e legge la riga
+ * con `useDataTableRow()`.
+ *
+ * Non si combina con `perPagina="virtuale"` né con le righe annidate: lì la
+ * lista resta una tabella. Sulle schede non hanno effetto il riordino, il
+ * pannello di riga, il piede dei totali e le colonne ridimensionabili o
+ * bloccabili.
+ */
+export const Schede: StoryObj<typeof DataTable<Documento>> = {
+  globals: { viewport: { value: 'telefono', isRotated: false } },
+  render: () => <ListaDocumenti />,
+}
+
+// La finestra del gate è larga, e il canvas non la restringe: la scena
+// sostituisce `matchMedia` per la sola query della soglia, prima del primo
+// render, e la rimette a posto alla fine. `cambiaSoglia` fa passare la
+// finestra da stretta a larga e viceversa, avvisando chi ascolta.
+let cambiaSoglia: (sopra: boolean) => void = () => {}
+
+function conSogliaSchede(inizioSopra: boolean) {
+  const originale = window.matchMedia
+  let sopra = inizioSopra
+  const ascoltatori = new Set<EventListenerOrEventListenerObject>()
+  window.matchMedia = (query: string) => {
+    if (query !== SOGLIA_SCHEDE) return originale.call(window, query)
+    return {
+      get matches() {
+        return sopra
+      },
+      media: query,
+      onchange: null,
+      addEventListener: (_tipo: string, ascoltatore: EventListenerOrEventListenerObject) => {
+        ascoltatori.add(ascoltatore)
+      },
+      removeEventListener: (_tipo: string, ascoltatore: EventListenerOrEventListenerObject) => {
+        ascoltatori.delete(ascoltatore)
+      },
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    } as MediaQueryList
+  }
+  cambiaSoglia = (nuovo) => {
+    sopra = nuovo
+    for (const ascoltatore of [...ascoltatori]) {
+      if (typeof ascoltatore === 'function') ascoltatore(new Event('change'))
+    }
+  }
+  return () => {
+    window.matchMedia = originale
+    cambiaSoglia = () => {}
+  }
+}
+
+const schedeDi = (radice: HTMLElement) =>
+  [...radice.querySelectorAll<HTMLElement>('[data-slot="scheda"]')]
+const titoliDi = (radice: HTMLElement) =>
+  schedeDi(radice).map((s) => s.querySelector('[data-slot="titolo-scheda"]')?.textContent ?? '')
+const primoTitolo = (radice: HTMLElement) => titoliDi(radice)[0]
+const conteggio = (radice: HTMLElement) =>
+  radice.querySelector('[role="status"]')?.textContent ?? ''
+
+async function scegliOrdine(nome: string) {
+  await userEvent.click(screen.getByRole('combobox', { name: 'Ordina per' }))
+  await userEvent.click(await screen.findByRole('option', { name: nome }))
+  await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull())
+}
+
+// La prova delle schede, in sette passi. Ogni passo lascia la lista com'era: la
+// scansione guarda la scena a riposo.
+async function provaSchede(contesto: { canvasElement: HTMLElement }) {
+  const { canvasElement } = contesto
+  const canvas = within(canvasElement)
+  const alfabetici = [...DOCUMENTI].sort((a, b) => (a.titolo < b.titolo ? -1 : 1))
+
+  // 1. Un elenco con le schede della prima pagina, e nessuna tabella.
+  await waitFor(() => expect(schedeDi(canvasElement)).toHaveLength(10))
+  expect(canvasElement.querySelector('table')).toBeNull()
+  expect(canvas.getByRole('list')).toBeInTheDocument()
+  expect(primoTitolo(canvasElement)).toBe(DOCUMENTI[0].titolo)
+  expect(conteggio(canvasElement)).toContain('di 30 documenti')
+  // Il contenuto della scheda legge la riga col contesto di riga.
+  expect(schedeDi(canvasElement)[0]).toHaveTextContent(DOCUMENTI[0].tipo)
+
+  // 4. Il menu «⋯» di una scheda: le voci ricevono la riga di quella scheda.
+  vociScelte.length = 0
+  const menu = canvas.getAllByRole('button', { name: /^Azioni su/ })
+  expect(menu).toHaveLength(10)
+  await userEvent.click(menu[1])
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplica' }))
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  expect(vociScelte).toEqual([`Duplica ${DOCUMENTI[1].codice}`])
+
+  // 2. La ricerca riduce le schede e il conteggio; svuotata, tornano.
+  const ricerca = canvas.getByRole('searchbox', { name: /cerca un documento/i })
+  await userEvent.type(ricerca, DOCUMENTI[3].codice)
+  await waitFor(() => expect(schedeDi(canvasElement)).toHaveLength(1))
+  expect(primoTitolo(canvasElement)).toBe(DOCUMENTI[3].titolo)
+  expect(conteggio(canvasElement)).toContain('di 1 documenti')
+  await userEvent.clear(ricerca)
+  await waitFor(() => expect(schedeDi(canvasElement)).toHaveLength(10))
+  expect(conteggio(canvasElement)).toContain('di 30 documenti')
+  // Senza risultati: lo stato vuoto, col bottone che toglie la ricerca.
+  await userEvent.type(ricerca, 'zzzz')
+  await waitFor(() => expect(canvas.getByText('Nessun risultato')).toBeInTheDocument())
+  expect(schedeDi(canvasElement)).toHaveLength(0)
+  await userEvent.click(canvas.getByRole('button', { name: 'Togli i filtri' }))
+  await waitFor(() => expect(schedeDi(canvasElement)).toHaveLength(10))
+  expect(ricerca).toHaveValue('')
+
+  // 3. «Ordina per» cambia l'ordine; il bottone accanto inverte il verso.
+  expect(alfabetici[0].titolo).not.toBe(DOCUMENTI[0].titolo)
+  await scegliOrdine('Titolo')
+  await waitFor(() => expect(primoTitolo(canvasElement)).toBe(alfabetici[0].titolo))
+  await userEvent.click(canvas.getByRole('button', { name: /inverti/i }))
+  await waitFor(() =>
+    expect(primoTitolo(canvasElement)).toBe(alfabetici[alfabetici.length - 1].titolo)
+  )
+  await scegliOrdine('Nessun ordine')
+  await waitFor(() => expect(primoTitolo(canvasElement)).toBe(DOCUMENTI[0].titolo))
+
+  // 5. Due schede scelte arrivano alla barra; «Seleziona tutte» le sceglie
+  //    tutte e togliendole la barra torna com'era.
+  const caselle = canvas.getAllByRole('checkbox', { name: 'Seleziona la riga' })
+  await userEvent.click(caselle[0])
+  await userEvent.click(caselle[1])
+  await waitFor(() => expect(canvas.getByRole('button', { name: 'Scarica 2' })).toBeInTheDocument())
+  expect(conteggio(canvasElement)).toContain('2 di 30 documenti')
+  await userEvent.click(canvas.getByRole('checkbox', { name: /seleziona tutte/i }))
+  await waitFor(() => expect(canvas.getByRole('button', { name: 'Scarica 10' })).toBeInTheDocument())
+  await userEvent.click(canvas.getByRole('checkbox', { name: /seleziona tutte/i }))
+  await waitFor(() => expect(canvas.queryByRole('button', { name: /^Scarica/ })).toBeNull())
+
+  // 6. La paginazione cambia le schede.
+  await userEvent.click(canvas.getByRole('button', { name: 'Pagina successiva' }))
+  await waitFor(() => expect(primoTitolo(canvasElement)).toBe(DOCUMENTI[10].titolo))
+  expect(canvasElement).toHaveTextContent('Pagina 2 di 3')
+  await userEvent.click(canvas.getByRole('button', { name: 'Pagina precedente' }))
+  await waitFor(() => expect(primoTitolo(canvasElement)).toBe(DOCUMENTI[0].titolo))
+
+  // 7. Da tastiera: ricerca, filtro, «Seleziona tutte», «Ordina per», la
+  //    casella della prima scheda e il suo menu, in quest'ordine.
+  ;(document.activeElement as HTMLElement | null)?.blur()
+  const raggiunti: string[] = []
+  for (let i = 0; i < 8; i++) {
+    await userEvent.tab()
+    const attivo = document.activeElement as HTMLElement
+    raggiunti.push(attivo.getAttribute('aria-label') ?? attivo.textContent ?? '')
+  }
+  const posizione = (testo: RegExp) => raggiunti.findIndex((voce) => testo.test(voce))
+  const ricercaTab = posizione(/cerca un documento/i)
+  const ordinaTab = posizione(/^Ordina per$/)
+  const casellaTab = posizione(/^Seleziona la riga$/)
+  const menuTab = posizione(/^Azioni su/)
+  expect(ricercaTab).toBe(0)
+  expect(ordinaTab).toBeGreaterThan(ricercaTab)
+  expect(casellaTab).toBeGreaterThan(ordinaTab)
+  expect(menuTab).toBe(casellaTab + 1)
+
+  // La scena resta con il menu aperto nella passata «aperto» (e chiuso nell'altra).
+  await apriCol('[aria-label^="Azioni su"]', 'dropdown-menu-content')(contesto)
+}
+
+export const SchedeProva: StoryObj<typeof DataTable<Documento>> = {
+  name: 'Schede, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: () => conSogliaSchede(false),
+  render: () => <ListaDocumenti />,
+  play: provaSchede,
+}
+
+// Sopra la soglia la stessa lista è la tabella, e l'ordinamento scelto nella
+// tendina delle schede si ritrova sull'intestazione. La finestra passa da
+// stretta a larga e torna stretta: l'ordine e il conteggio sono gli stessi.
+async function provaSogliaSchede({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  await waitFor(() => expect(schedeDi(canvasElement)).toHaveLength(10))
+  await scegliOrdine('Titolo')
+  await userEvent.click(canvas.getByRole('button', { name: /inverti/i }))
+  await waitFor(() => expect(primoTitolo(canvasElement)).toBe(
+    [...DOCUMENTI].sort((a, b) => (a.titolo < b.titolo ? -1 : 1)).at(-1)?.titolo
+  ))
+
+  cambiaSoglia(true)
+  await waitFor(() => expect(canvasElement.querySelector('table')).not.toBeNull())
+  expect(schedeDi(canvasElement)).toHaveLength(0)
+  expect(canvas.queryByRole('combobox', { name: 'Ordina per' })).toBeNull()
+  const titolo = canvas.getByRole('columnheader', { name: /Titolo/ })
+  expect(titolo).toHaveAttribute('aria-sort', 'descending')
+  expect(canvas.getByRole('columnheader', { name: /Codice/ })).toHaveAttribute('aria-sort', 'none')
+  expect(canvas.getByRole('button', { name: /^Colonne$/ })).toBeInTheDocument()
+
+  cambiaSoglia(false)
+  await waitFor(() => expect(schedeDi(canvasElement)).toHaveLength(10))
+  expect(canvasElement.querySelector('table')).toBeNull()
+  expect(conteggio(canvasElement)).toContain('di 30 documenti')
+  await scegliOrdine('Nessun ordine')
+}
+
+export const SchedeSogliaProva: StoryObj<typeof DataTable<Documento>> = {
+  name: 'Schede, soglia, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: () => conSogliaSchede(false),
+  render: () => <ListaDocumenti />,
+  play: provaSogliaSchede,
+}
+
+// Con la finestra larga fin dal primo render la lista è la tabella.
+async function provaSopraLaSoglia({ canvasElement }: { canvasElement: HTMLElement }) {
+  await waitFor(() => expect(canvasElement.querySelector('table')).not.toBeNull())
+  expect(schedeDi(canvasElement)).toHaveLength(0)
+  expect(canvasElement.querySelectorAll('tbody tr')).toHaveLength(10)
+}
+
+export const SchedeSopraLaSogliaProva: StoryObj<typeof DataTable<Documento>> = {
+  name: 'Schede, sopra la soglia, prova',
+  tags: ['!dev', '!autodocs'],
+  beforeEach: () => conSogliaSchede(true),
+  render: () => <ListaDocumenti />,
+  play: provaSopraLaSoglia,
+}
+
+// Centoventi documenti, per le scene che scorrono: lo scorrimento infinito
+// carica a passi di quaranta.
+const DOCUMENTI_MOLTI: Documento[] = Array.from({ length: 120 }, (_, i) => ({
+  ...DOCUMENTI[i % DOCUMENTI.length],
+  id: String(1000 + i),
+  codice: `DT-${200 + i}`,
+}))
+
+// Scena di misura nel browser: la lista dentro un genitore ad altezza vera,
+// con le schede che scorrono dentro il riquadro e il piede sempre in vista.
+// Si apre sotto la soglia solo in una finestra stretta.
+export const SchedeAltezzaFermaProva: StoryObj<typeof DataTable<Documento>> = {
+  name: 'Schede, altezza ferma, prova',
+  tags: ['!dev', '!autodocs'],
+  parameters: { layout: 'fullscreen' },
+  render: () => (
+    <div className="flex h-120 min-h-0 flex-col p-4">
+      <ListaDocumenti perPagina="infinito" altezza="ferma" dati={DOCUMENTI_MOLTI} />
+    </div>
+  ),
+}
+
+// Scena di misura nel browser: la stessa lista con `memoria`, per provare che
+// ricerca, ordinamento e pagina attraversano la soglia e un ricaricamento.
+export const SchedeMemoriaProva: StoryObj<typeof DataTable<Documento>> = {
+  name: 'Schede, memoria, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => <ListaDocumenti memoria="documenti-schede-prova" />,
 }
