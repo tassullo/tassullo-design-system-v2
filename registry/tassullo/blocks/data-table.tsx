@@ -76,6 +76,20 @@
  * sbagliata. Qui sono due, e il blocco sa distinguerli perché conosce sia le
  * righe filtrate sia quelle totali.
  *
+ * ── La faccia a schede ──────────────────────────────────────────────────
+ *
+ * Una lista pensata anche per il telefono non stringe le colonne: sotto una
+ * soglia che la pagina dichiara (`schede.soglia`) al posto della `<table>`
+ * c'è un elenco con una scheda per riga, il cui contenuto scrive la pagina
+ * (`schede.scheda`). Prima ogni app scriveva a mano due componenti per lista,
+ * tabella e schede, con ricerca, filtri, ordinamento e azioni di riga
+ * duplicati; ora la faccia stretta sta nel blocco e legge **lo stesso modello
+ * di righe** (`getRowModel()`), quindi non ha un secondo stato da tenere
+ * allineato. Le schede sono un elenco continuo: un riquadro solo, righe divise da un filo. L'ordinamento passa da una tendina perché le intestazioni non
+ * ci sono più. Non si combina con `"virtuale"` e con gli alberi, dove la
+ * tabella resta; sulle schede non hanno effetto riordino, pannello di riga,
+ * piede dei totali, colonne ridimensionabili o bloccabili.
+ *
  * Nota per **M3.5** (`empty-state`): qui i due stati usano la primitiva
  * `empty` così com'è. Quando M3.5 stabilirà lo standard unico, questo blocco
  * ci si appoggerà — il posto in cui intervenire è `TabellaVuota`, sotto, e
@@ -411,7 +425,7 @@ export function creaColonne<TDato extends RowData>() {
  * il riquadro scorre di lato. Vale solo se ogni `larghezza` è nella forma
  * `w-<n>`; con `w-1/4` o simili il minimo non si calcola. Per una lista
  * pensata anche per il telefono, la risposta non è stringere le colonne ma
- * una faccia a schede, scelta con `useSoglia`.
+ * la faccia a schede: la prop `schede` di `DataTable`.
  *
  * `larghezza` **si ignora** su una tabella `ridimensionabile`/`colonneBloccabili`:
  * lì la larghezza di partenza si dichiara con `size` — il campo
@@ -2560,6 +2574,237 @@ export function TabellaVuota({
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+ * La faccia a schede (`schede`)
+ *
+ * Sotto la soglia della pagina la `<table>` lascia il posto a un elenco con
+ * una scheda per riga. Le schede non hanno un modello di righe loro: leggono
+ * `tabella.getRowModel().rows`, lo stesso della tabella, quindi ricerca,
+ * filtri, ordinamento, pagine e conteggio sono quelli che già ci sono. Le
+ * intestazioni non esistono più, e l'ordinamento passa da una tendina.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Il valore della tendina «Ordina per» che toglie l'ordinamento. */
+const NESSUN_ORDINE = "__nessun-ordine"
+
+/** Le colonne che la tendina «Ordina per» offre: quelle con un dato, ordinabili. */
+function colonneOrdinabili<TDato extends RowData>(tabella: IstanzaTabella<TDato>) {
+  return tabella
+    .getAllLeafColumns()
+    .filter((c) => typeof c.accessorFn !== "undefined" && c.getCanSort())
+}
+
+/**
+ * Se la finestra soddisfa la soglia di `schede`. Come `useSoglia`, legge
+ * `matchMedia` durante il render, quindi il primo fotogramma è già quello
+ * giusto. Senza `schede` non chiama `matchMedia` affatto: una tabella che
+ * non usa le schede non deve dipendere da una funzione del browser che
+ * un ambiente di prova potrebbe non avere.
+ */
+function useSogliaSchede(query: string | undefined): boolean {
+  const subscribe = React.useCallback(
+    (onStoreChange: () => void) => {
+      if (!query) return () => {}
+      const mql = window.matchMedia(query)
+      mql.addEventListener("change", onStoreChange)
+      return () => mql.removeEventListener("change", onStoreChange)
+    },
+    [query]
+  )
+  const getSnapshot = React.useCallback(
+    () => (query ? window.matchMedia(query).matches : true),
+    [query]
+  )
+  // Fuori dal browser vale la risposta prudente: con `schede`, la faccia stretta.
+  const getServerSnapshot = React.useCallback(() => !query, [query])
+  return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+}
+
+/** L'avviso di sviluppo sulle combinazioni senza schede esce una volta sola. */
+const avvisiSchede = new Set<string>()
+
+/**
+ * La riga sotto la ricerca della faccia a schede: «Seleziona tutte» a
+ * sinistra, «Ordina per» e il verso a destra. Una tendina e non le
+ * intestazioni, che sulle schede non ci sono: guida lo stesso stato di
+ * ordinamento della tabella, quindi tornando sopra la soglia la colonna
+ * scelta si ritrova ordinata.
+ */
+function BarraSchede<TDato extends RowData>({
+  tabella,
+  selezione,
+}: {
+  tabella: IstanzaTabella<TDato>
+  selezione: boolean
+}) {
+  const ordinabili = colonneOrdinabili(tabella)
+  if (!selezione && ordinabili.length === 0) return null
+  const attiva = tabella.state.sorting?.[0]
+  const titolo = (colonna: (typeof ordinabili)[number]) =>
+    (colonna.columnDef.meta as MetaColonna | undefined)?.titolo ?? colonna.id
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      {selezione ? (
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={tabella.getIsAllPageRowsSelected()}
+            indeterminate={
+              tabella.getIsSomePageRowsSelected() && !tabella.getIsAllPageRowsSelected()
+            }
+            onCheckedChange={(v) => tabella.toggleAllPageRowsSelected(!!v)}
+            aria-label="Seleziona tutte le righe della pagina"
+            className="data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current data-indeterminate:[&_svg]:invisible"
+          />
+          Seleziona tutte
+        </label>
+      ) : null}
+      {ordinabili.length > 0 ? (
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-sm text-muted-foreground" aria-hidden>
+            Ordina per
+          </span>
+          <Select
+            value={attiva?.id ?? NESSUN_ORDINE}
+            onValueChange={(v) =>
+              tabella.setSorting(
+                v === NESSUN_ORDINE ? [] : [{ id: String(v), desc: attiva?.desc ?? false }]
+              )
+            }
+            items={[
+              { value: NESSUN_ORDINE, label: "Nessun ordine" },
+              ...ordinabili.map((c) => ({ value: c.id, label: titolo(c) })),
+            ]}
+          >
+            <SelectTrigger aria-label="Ordina per" className="max-w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value={NESSUN_ORDINE}>Nessun ordine</SelectItem>
+                {ordinabili.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {titolo(c)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={!attiva}
+            onClick={() => tabella.setSorting(attiva ? [{ id: attiva.id, desc: !attiva.desc }] : [])}
+            aria-label={
+              attiva?.desc ? "Ordine decrescente, inverti" : "Ordine crescente, inverti"
+            }
+          >
+            {attiva?.desc ? <ArrowDownIcon aria-hidden /> : <ArrowUpIcon aria-hidden />}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Le schede: un elenco, una scheda per riga. Dentro ognuna, in quest'ordine,
+ * la casella di selezione (con `selezione`), il contenuto che scrive la
+ * pagina e il menu «⋯» (con `menuRiga`). Il contenuto sta nel contesto di
+ * riga, quindi `useDataTableRow()` vi funziona come nelle voci del menu.
+ *
+ * Il contenitore porta `data-slot="table-container"`: è il riquadro che
+ * scorre con `altezza="ferma"`, e il blocco lo cerca con quel nome per
+ * ricordare lo scorrimento, caricare altre righe con `perPagina="infinito"`
+ * e chiudere il menu di riga quando la riga esce di vista.
+ */
+function ElencoSchede<TDato extends RowData>({
+  righe,
+  scheda,
+  menuRiga,
+  selezione,
+  vuoto,
+  conFiltri,
+  pulisci,
+  fermo,
+  infinito,
+  totaleFiltrate,
+  contenitoreRef,
+  sentinellaRef,
+}: {
+  righe: Row<CaratteristicheTabella, TDato>[]
+  scheda: (riga: TDato) => React.ReactNode
+  menuRiga?: DataTableProps<TDato>["menuRiga"]
+  selezione: boolean
+  vuoto: StatoVuoto
+  conFiltri: boolean
+  pulisci: () => void
+  fermo: boolean
+  infinito: boolean
+  totaleFiltrate: number
+  contenitoreRef: React.RefObject<HTMLDivElement | null>
+  sentinellaRef: React.RefObject<HTMLDivElement | null>
+}) {
+  return (
+    <div ref={contenitoreRef} className="flex min-h-0 flex-col">
+      <div data-slot="table-container" className={cn("min-h-0", fermo && "overflow-y-auto")}>
+        {righe.length > 0 ? (
+          <>
+            <ul
+              role="list"
+              className="divide-y divide-border overflow-hidden rounded-lg border bg-card"
+            >
+              {righe.map((riga) => {
+                const conMenu =
+                  menuRiga && (menuRiga.enabledFor?.(riga.original) ?? true) ? menuRiga : undefined
+                return (
+                  <li
+                    key={riga.id}
+                    data-slot="scheda"
+                    data-state={riga.getIsSelected() ? "selected" : undefined}
+                    className="flex items-start gap-3 p-3 data-[state=selected]:bg-muted"
+                  >
+                    {selezione ? (
+                      <Checkbox
+                        checked={riga.getIsSelected()}
+                        onCheckedChange={(v) => riga.toggleSelected(!!v)}
+                        aria-label="Seleziona la riga"
+                        className="mt-0.5"
+                      />
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <ContestoRigaMenu.Provider value={riga.original}>
+                        {scheda(riga.original)}
+                      </ContestoRigaMenu.Provider>
+                    </div>
+                    {conMenu ? (
+                      <div className="-my-1 -mr-1 shrink-0">
+                        <MenuAzioniRiga
+                          riga={riga.original}
+                          menu={conMenu.menu}
+                          ariaLabel={conMenu.ariaLabel?.(riga.original)}
+                        />
+                      </div>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+            {/* La sentinella di `perPagina="infinito"`, come nel corpo della tabella. */}
+            {infinito && righe.length < totaleFiltrate ? (
+              <div ref={sentinellaRef} aria-hidden className="h-px" />
+            ) : null}
+          </>
+        ) : (
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────────────
  * Il corpo della tabella — non virtualizzato e virtualizzato
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -4106,6 +4351,41 @@ export type DataTableProps<TDato extends RowData> = {
   barra?:
     | React.ReactNode
     | ((scelti: TDato[], tabella: IstanzaTabella<TDato>) => React.ReactNode)
+  /**
+   * La faccia a schede, per le liste pensate anche per il telefono. Sopra la
+   * soglia la lista è la tabella; sotto, al posto della `<table>`, c'è un
+   * elenco con una scheda per riga. `soglia` è una media query in forma
+   * `min-width`, come quella di `useSoglia` (`"(min-width: 48rem)"`: vera
+   * sopra, falsa sotto); `scheda` scrive il contenuto di una scheda, e
+   * `useDataTableRow()` vi legge la riga. Le schede mostrano le stesse righe
+   * della tabella: ricerca, filtri della `barra`, ordinamento, pagine,
+   * conteggio e i due stati vuoti sono gli stessi. Le intestazioni non ci
+   * sono più, e l'ordinamento passa da una tendina «Ordina per» che guida lo
+   * stesso stato.
+   *
+   * In ogni scheda stanno la casella di `selezione` e il menu «⋯» di
+   * `menuRiga`, con le stesse voci e lo stesso `enabledFor`, ma senza il
+   * tasto destro. Il menu «Colonne» non c'è. Non si combina con
+   * `perPagina="virtuale"` né con `getSottoRighe`, dove la tabella resta; sulle
+   * schede non hanno effetto `riordinabile`, `colonneRiordinabili`,
+   * `pannelloRiga`, `piede`, `ridimensionabile`, `colonneBloccabili` e
+   * `bloccaPrimaColonna`.
+   *
+   * ```tsx
+   * <DataTable
+   *   colonne={COLONNE}
+   *   dati={documenti}
+   *   schede={{
+   *     soglia: "(min-width: 48rem)",
+   *     scheda: (documento) => <SchedaDocumento documento={documento} />,
+   *   }}
+   * />
+   * ```
+   */
+  schede?: {
+    soglia: string
+    scheda: (riga: TDato) => React.ReactNode
+  }
   className?: string
   // Consegna l'istanza TanStack viva a ogni render — la via d'uscita per un
   // comando che questo blocco non traduce in un prop suo (`table.toggle
@@ -4216,6 +4496,7 @@ export function DataTable<TDato extends RowData>({
   menuRiga,
   chiaveMemoRiga,
   barra,
+  schede,
   className,
   onTabellaPronta,
   memoria,
@@ -4239,6 +4520,20 @@ export function DataTable<TDato extends RowData>({
   // tutte le righe stanno in una pagina sola.
   const aNumeri = typeof perPagina === "number" && !trascinamento
   const fermo = altezza === "ferma"
+  // La faccia a schede. Sopra la soglia, o senza `schede`, la tabella è quella
+  // di sempre. Con `"virtuale"` e con un albero la tabella resta: le schede
+  // non sanno montare solo le righe in vista né mostrare le sottorighe.
+  const sopraSoglia = useSogliaSchede(schede?.soglia)
+  const schedeSenzaEffetto = !!schede && (perPaginaVirtuale || !!getSottoRighe)
+  const facciaSchede = !!schede && !sopraSoglia && !schedeSenzaEffetto
+  React.useEffect(() => {
+    if (!import.meta.env.DEV || !schedeSenzaEffetto || avvisiSchede.has("combinazione")) return
+    avvisiSchede.add("combinazione")
+    console.warn(
+      "DataTable: `schede` non si combina con perPagina=\"virtuale\" né con getSottoRighe: " +
+        "la lista resta una tabella."
+    )
+  }, [schedeSenzaEffetto])
   // `colonneBloccabili` implica `ridimensionabile`: lo scarto sticky del pin
   // generalizzato si calcola dalle larghezze acquisite (v. `MetaColonna`,
   // sopra), che senza il `<colgroup>` di `ridimensionabile` non esistono.
@@ -4740,6 +5035,7 @@ export function DataTable<TDato extends RowData>({
 
   const contenitoreRef = React.useRef<HTMLDivElement>(null)
   const sentinellaRef = React.useRef<HTMLTableRowElement>(null)
+  const sentinellaSchedeRef = React.useRef<HTMLDivElement>(null)
 
   /**
    * L'elemento che scorre davvero (`perPagina="virtuale"`), passato al
@@ -4831,7 +5127,7 @@ export function DataTable<TDato extends RowData>({
    */
   React.useEffect(() => {
     if (!infinito) return
-    const sentinella = sentinellaRef.current
+    const sentinella = sentinellaRef.current ?? sentinellaSchedeRef.current
     const radice = contenitoreRef.current?.querySelector<HTMLElement>(
       '[data-slot="table-container"]'
     )
@@ -4853,7 +5149,7 @@ export function DataTable<TDato extends RowData>({
     )
     oss.observe(sentinella)
     return () => oss.disconnect()
-  }, [infinito, caricate])
+  }, [infinito, caricate, facciaSchede])
 
   const [altezzaMax, setAltezzaMax] = React.useState<number | undefined>(undefined)
   // Se `altezzaMax` è l'altezza intera della tabella, che ci sta tutta (v.
@@ -4949,7 +5245,7 @@ export function DataTable<TDato extends RowData>({
     // Con l'altezza ferma si aspetta la misura del riquadro: porta con sé il
     // margine dell'intestazione per l'aggancio delle righe, e uno
     // scorrimento dato prima il browser lo riaggancia una riga più su.
-    if (fermo && altezzaMax === undefined) return
+    if (fermo && !facciaSchede && altezzaMax === undefined) return
     const scorrimento = da.scorrimento
     if (scorrimento) {
       const manca =
@@ -5033,7 +5329,7 @@ export function DataTable<TDato extends RowData>({
       riquadro.removeEventListener("scroll", alloScorrere)
       riquadro.removeEventListener("click", alClic)
     }
-  }, [memoria, salva])
+  }, [memoria, salva, facciaSchede])
 
   /**
    * **Il riquadro finisce sempre su un confine di riga.** `flex-shrink`
@@ -5238,16 +5534,20 @@ export function DataTable<TDato extends RowData>({
      * per quello, solo quando si passa da «zero righe» (lo stato vuoto) a
      * «almeno una», o viceversa.
      */
-  }, [fermo, conRighe])
+  }, [fermo, conRighe, facciaSchede])
 
   // `riordinabile` spegne anche la casella di ricerca, non solo `enable
   // GlobalFilter` sulla tabella (v. il prop): a ricerca visibile ma senza
   // effetto sembrerebbe rotta, non disattivata apposta.
   const ricercaVisibile = cerca !== false && !trascinamento
+  // Il menu «Colonne» non ha senso sulle schede: non ci sono colonne da nascondere.
+  const menuColonne = colonneNascondibili && !facciaSchede
+  const barraSchede =
+    facciaSchede && (selezione || colonneOrdinabili(tabella).length > 0)
 
   const contenuto = (
     <div ref={radiceRef} className={cn("flex min-h-0 flex-col gap-4", className)}>
-      {ricercaVisibile || barra || colonneNascondibili ? (
+      {ricercaVisibile || barra || menuColonne || barraSchede ? (
         <div className="flex flex-col gap-3">
           {/* Riga 1: ricerca e menu Colonne. Riga 2: `barra` — i filtri della
               pagina, le azioni di massa. Due righe sempre, non una sola che
@@ -5255,12 +5555,12 @@ export function DataTable<TDato extends RowData>({
               `data-table-filtro-sfaccettato.tsx`) il ritorno a capo
               automatico spezzerebbe un bottone a metà — la riga separerebbe
               due controlli a metà altezza invece di andare sotto per intero. */}
-          {ricercaVisibile || colonneNascondibili ? (
+          {ricercaVisibile || menuColonne ? (
             <div className="flex flex-wrap items-center gap-3">
               {ricercaVisibile ? (
                 <RicercaTabella tabella={tabella} segnaposto={cerca as string} />
               ) : null}
-              {colonneNascondibili ? <VisibilitaColonne tabella={tabella} /> : null}
+              {menuColonne ? <VisibilitaColonne tabella={tabella} /> : null}
             </div>
           ) : null}
           {barra ? (
@@ -5268,9 +5568,27 @@ export function DataTable<TDato extends RowData>({
               {typeof barra === "function" ? barra(scelti, tabella) : barra}
             </div>
           ) : null}
+          {barraSchede ? <BarraSchede tabella={tabella} selezione={selezione} /> : null}
         </div>
       ) : null}
 
+      {facciaSchede && schede ? (
+        <ElencoSchede
+          righe={righe}
+          scheda={schede.scheda}
+          menuRiga={menuRiga}
+          selezione={selezione}
+          vuoto={vuoto}
+          conFiltri={conFiltri}
+          pulisci={pulisci}
+          fermo={fermo}
+          infinito={infinito}
+          totaleFiltrate={totaleFiltrate}
+          contenitoreRef={contenitoreRef}
+          sentinellaRef={sentinellaSchedeRef}
+        />
+      ) : null}
+      {facciaSchede ? null : (
       <div
         ref={contenitoreRef}
         style={
@@ -5566,6 +5884,7 @@ export function DataTable<TDato extends RowData>({
           ) : null}
         </Table>
       </div>
+      )}
 
       {piePagina ? (
         <div ref={piePaginaRef}>

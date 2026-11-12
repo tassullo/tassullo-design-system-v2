@@ -15584,3 +15584,36 @@ Sei proposte nuove di Studio (#225–#230). Lette con il codice che toccano, pro
 - #227, da fare.
 - Studio: alla versione che chiude queste proposte, togliere la ricerca di `aria-invalid`, il pin di `pdfjs-dist`, il «Riprova» fuori dal selettore.
 
+## 2026-11-12 — #227: la faccia a schede dentro `tassullo-data-table`
+
+Sesta proposta di Studio della giornata. Ramo `fras/proposta-227-schede`, sopra quello della PR #231.
+
+#### Le decisioni
+
+- Forma `schede={{ soglia, scheda }}`, accettata da Francesco con le altre.
+- **Elenco continuo**: due forme rese affiancate in chiaro e in scuro, Francesco: «B, elenco continuo». La A è tolta.
+- La soglia si legge dentro il blocco, non con l'item `use-soglia`: una tabella senza `schede` non deve interrogare la finestra.
+- Le tre pagine con le due facce a mano restano come sono: la loro faccia stretta non è la stessa lista. Dettaglio in `docs/DECISIONI.md` §100.
+
+#### Come si è lavorato
+
+- Un agente sonnet in due riprese (prima le due forme, poi la sola B e le prove mancanti). Rilettura del diff del ramo tabella, testi di `registry.json`, prova della pagina 2 attraverso la soglia e gate intero fatti dalla sessione.
+
+#### Cosa cambia
+
+- `data-table.tsx`: prop `schede`; elenco, tendina «Ordina per», «Seleziona tutte»; il menu «Colonne» nascosto in faccia a schede. Otto righe toccate nel ramo tabella.
+- Scene: `Schede` e cinque di prova. `stories/ListaDueFacce.stories.tsx`: due testi che rimandano alla prop.
+- `registry.json`: testo dell'item. Nessuna dipendenza nuova.
+
+#### Prove
+
+- `Schede, prova`: ricerca, stato vuoto, ordinamento, menu di riga, selezione, pagine, ordine del Tab. Cade se la tabella si rende sotto la soglia.
+- Chromium a 375×812: misure in §100.
+
+#### Aperti
+
+- Le scene di altezza ferma e di memoria non asseriscono niente da sole.
+- Non provato in WebKit il passaggio di soglia.
+- `tassullo-pagina-lista` non ha una prop che passi `schede` alla tabella: non chiesta.
+- Studio: alla versione nuova, le liste di documenti e documentazione passano a `schede` e perdono il secondo componente.
+
