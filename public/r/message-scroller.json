@@ -18,5 +18,6 @@
       "type": "registry:ui"
     }
   ],
+  "docs": "Per spostare il riquadro da codice si usa useMessageScroller():\nscrollToMessage(messageId) e scrollToStart() smettono di seguire la risposta\nche arriva. Scrivere scrollTop non basta: il riquadro smette di seguire solo\nsui gesti di chi legge (rotella, tocco, tasti) e su queste funzioni, e al\npezzo di risposta successivo torna in fondo. scrollToEnd() e il bottone\n«Vai in fondo» riprendono a seguire.",
   "type": "registry:ui"
 }

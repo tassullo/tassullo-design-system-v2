@@ -40,6 +40,13 @@ import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
  *   server.
  * - `negativiInRosso`: il valore confermato in rosso quando è negativo, per un
  *   campo che porta un risultato o un saldo. Di serie spento.
+ * - `onErrore`: chiamata quando l'errore del campo compare, cambia o sparisce,
+ *   con il messaggio o `null`. Serve a un modulo con un solo «Salva», che
+ *   altrimenti non sa che un testo è sbagliato: `onValore` per quel testo non
+ *   parte. Non riguarda l'errore che arriva da fuori con `errore`.
+ * - `inputMode`: il tastierino che si apre sul telefono. Di serie `decimal`;
+ *   diventa `text` da solo quando `min` è negativo, perché il tastierino
+ *   decimale dell'iPhone non ha il segno meno. Un valore passato vince sempre.
  * - `importo`: il campo è un importo in euro, e legge come scritto sotto in
  *   «Come legge un importo». L'unità diventa `€`, prima del numero.
  * - `decimali`: con `importo`, quanti decimali tiene il campo, da 2 a 4; di
@@ -92,8 +99,8 @@ import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
  *   punto lasciato fra le cifre si rileggerebbe come il decimale, e `1.234`
  *   diventerebbe 1,234. Uscendo, il punto torna.
  * - Sul telefono si apre il tastierino numerico. Quello dell'iPhone non ha il
- *   segno meno: per un campo che ammette valori negativi va detto nella
- *   `descrizione`, o il numero si scrive dalla tastiera completa.
+ *   segno meno: con un `min` negativo il campo apre da solo la tastiera
+ *   completa. Per un caso diverso si passa `inputMode`.
  * - Con react-hook-form il campo si collega con un `Controller`, come nella
  *   scena «Con un modulo».
  *
@@ -517,5 +524,155 @@ export const ConUnModuloProva: Story = {
     await waitFor(() => expect(esito).toHaveTextContent(esatto('Salvato: 0,75')))
     expect(campo).toHaveValue('0,75')
     expect(tela.queryByRole('alert')).toBeNull()
+  },
+}
+
+/** Un modulo con due campi e un «Salva» che aspetta che nessuno sia sbagliato. */
+function ModuloDueCampi() {
+  const [lunghezza, setLunghezza] = useState<number | null>(4)
+  const [larghezza, setLarghezza] = useState<number | null>(3)
+  const [errori, setErrori] = useState<{ lunghezza: string | null; larghezza: string | null }>({
+    lunghezza: null,
+    larghezza: null,
+  })
+  const sbagliato = errori.lunghezza !== null || errori.larghezza !== null
+  return (
+    <form className="max-w-xs" noValidate onSubmit={(e) => e.preventDefault()}>
+      <FieldGroup>
+        <CampoNumero
+          etichetta="Lunghezza"
+          unita="m"
+          valore={lunghezza}
+          onValore={setLunghezza}
+          onErrore={(errore) => setErrori((prima) => ({ ...prima, lunghezza: errore }))}
+          min={0}
+        />
+        <CampoNumero
+          etichetta="Larghezza"
+          unita="m"
+          valore={larghezza}
+          onValore={setLarghezza}
+          onErrore={(errore) => setErrori((prima) => ({ ...prima, larghezza: errore }))}
+          min={0}
+        />
+        <div className="flex items-center gap-3">
+          <Button type="submit" disabled={sbagliato}>
+            Salva
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setLunghezza(10)}>
+            Imposta 10
+          </Button>
+          <p className="text-sm text-muted-foreground" data-errori>
+            {sbagliato ? `Da correggere: ${[errori.lunghezza, errori.larghezza].filter(Boolean).length}` : 'Tutto a posto'}
+          </p>
+        </div>
+      </FieldGroup>
+    </form>
+  )
+}
+
+/**
+ * Due campi e un «Salva» nello stesso modulo. `onErrore` dice al modulo che un
+ * testo è sbagliato anche se `onValore` non è partito, e il bottone resta
+ * spento finché ce n'è uno.
+ *
+ * ```tsx
+ * <CampoNumero
+ *   etichetta="Lunghezza"
+ *   valore={lunghezza}
+ *   onValore={setLunghezza}
+ *   onErrore={(errore) => setErrori((prima) => ({ ...prima, lunghezza: errore }))}
+ * />
+ * ```
+ */
+export const ConErrore: Story = {
+  name: 'Con onErrore',
+  args: { etichetta: 'Lunghezza', valore: null, onValore: () => {} },
+  render: () => <ModuloDueCampi />,
+}
+
+// Prova di `onErrore`: compare, sparisce correggendo, sparisce con Esc, sparisce
+// quando il valore cambia da fuori; il testo scritto da un tasto non cambia
+// niente finché il messaggio è lo stesso.
+export const ConErroreProva: Story = {
+  ...ConErrore,
+  name: 'Con onErrore, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const lunghezza = tela.getByLabelText('Lunghezza')
+    const larghezza = tela.getByLabelText('Larghezza')
+    const salva = tela.getByRole('button', { name: 'Salva' })
+    const stato = canvasElement.querySelector('[data-errori]')!
+    expect(salva).toBeEnabled()
+    expect(stato).toHaveTextContent('Tutto a posto')
+
+    // Un testo sbagliato, uscendo dal campo: l'errore compare e il bottone si spegne.
+    await userEvent.click(lunghezza)
+    await userEvent.type(lunghezza, '{Control>}a{/Control}dodici')
+    await userEvent.tab()
+    await waitFor(() => expect(stato).toHaveTextContent('Da correggere: 1'))
+    expect(salva).toBeDisabled()
+
+    // Corretto il testo, l'errore sparisce e il bottone torna acceso.
+    await userEvent.clear(lunghezza)
+    await userEvent.type(lunghezza, '5')
+    await waitFor(() => expect(stato).toHaveTextContent('Tutto a posto'))
+    expect(salva).toBeEnabled()
+    await userEvent.tab()
+
+    // Fuori dai limiti: un altro messaggio, e due errori insieme.
+    await userEvent.click(larghezza)
+    await userEvent.type(larghezza, '{Control>}a{/Control}-2')
+    await userEvent.tab()
+    await waitFor(() => expect(stato).toHaveTextContent('Da correggere: 1'))
+    expect(salva).toBeDisabled()
+    await userEvent.click(lunghezza)
+    await userEvent.type(lunghezza, '{Control>}a{/Control}abc')
+    await userEvent.tab()
+    await waitFor(() => expect(stato).toHaveTextContent('Da correggere: 2'))
+
+    // Esc torna all'ultimo valore confermato e toglie l'errore.
+    await userEvent.click(larghezza)
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(stato).toHaveTextContent('Da correggere: 1'))
+    expect(larghezza).toHaveValue('3')
+
+    // Il valore cambiato da fuori riscrive il campo e toglie l'errore.
+    await userEvent.click(tela.getByRole('button', { name: 'Imposta 10' }))
+    await waitFor(() => expect(stato).toHaveTextContent('Tutto a posto'))
+    expect(lunghezza).toHaveValue('10')
+    expect(salva).toBeEnabled()
+  },
+}
+
+/**
+ * Il tastierino che il campo chiede al telefono. Di serie `decimal`; con un
+ * `min` negativo `text`, perché il tastierino decimale dell'iPhone non ha il
+ * segno meno; un `inputMode` passato dall'app vince sempre.
+ */
+export const TastieraTelefono: Story = {
+  name: 'Tastiera sul telefono',
+  args: { etichetta: 'Superficie', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Superficie" unita="m²" min={0} />
+      <Esempio etichetta="Temperatura" unita="°C" min={-10} />
+      <Esempio etichetta="Quota" unita="m" min={-10} inputMode="decimal" />
+      <Esempio etichetta="Indice" inputMode="numeric" />
+    </FieldGroup>
+  ),
+}
+
+export const TastieraTelefonoProva: Story = {
+  ...TastieraTelefono,
+  name: 'Tastiera sul telefono, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    expect(tela.getByLabelText('Superficie')).toHaveAttribute('inputmode', 'decimal')
+    expect(tela.getByLabelText('Temperatura')).toHaveAttribute('inputmode', 'text')
+    expect(tela.getByLabelText('Quota')).toHaveAttribute('inputmode', 'decimal')
+    expect(tela.getByLabelText('Indice')).toHaveAttribute('inputmode', 'numeric')
   },
 }

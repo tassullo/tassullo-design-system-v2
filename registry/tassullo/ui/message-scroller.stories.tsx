@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { waitFor } from 'storybook/test'
+import { expect, waitFor } from 'storybook/test'
 
 import { scorriECambiaDensita } from '@/prove/scorri-densita'
 
@@ -14,6 +14,7 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from '@/registry/tassullo/ui/message-scroller'
 import { Spinner } from '@/registry/tassullo/ui/spinner'
 
@@ -59,6 +60,13 @@ import { Spinner } from '@/registry/tassullo/ui/spinner'
  * hook `useMessageScroller` (`scrollToEnd`, `scrollToMessage`),
  * `useMessageScrollerScrollable` e `useMessageScrollerVisibility` servono a
  * comandarlo dall'app.
+ *
+ * **Spostarlo da codice.** Per portare il riquadro su un messaggio si usa
+ * `scrollToMessage(messageId)`, o `scrollToStart()` per l'inizio: smettono di
+ * seguire la risposta che arriva. Scrivere `scrollTop` non basta, perché il
+ * riquadro smette di seguire solo sui gesti di chi legge (rotella, tocco,
+ * tasti) e su queste funzioni: la risposta riporta in fondo al primo pezzo
+ * nuovo. `scrollToEnd()` e il bottone riprendono a seguire.
  *
  * **Regole d'uso.**
  *
@@ -267,5 +275,148 @@ export const RispostaInArrivoProva: Story = {
     })
     bottone.click()
     await scorriECambiaDensita(contesto)
+  },
+}
+
+function Comandi() {
+  const { scrollToMessage, scrollToEnd } = useMessageScroller()
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button variant="outline" onClick={() => scrollToMessage('r1', { align: 'start' })}>
+        Vai al messaggio
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => {
+          const v = document.querySelector<HTMLElement>('[aria-label="Conversazione"]')
+          if (v) v.scrollTop = 0
+        }}
+      >
+        Scrivi scrollTop
+      </Button>
+      <Button variant="outline" onClick={() => scrollToEnd()}>
+        Vai in fondo
+      </Button>
+    </div>
+  )
+}
+
+function VaiAlMessaggioScena() {
+  const [parole, setParole] = useState<number | null>(null)
+  const tutte = RISPOSTA.split(' ')
+
+  useEffect(() => {
+    if (parole === null || parole >= tutte.length) return
+    const t = window.setTimeout(() => setParole(parole + 1), 60)
+    return () => window.clearTimeout(t)
+  }, [parole, tutte.length])
+
+  const righe: Riga[] =
+    parole === null
+      ? SALVATA
+      : [
+          ...SALVATA,
+          { id: 'd4', autore: 'persona', testo: 'Quali sono le sovrapposizioni minime sui due strati?' },
+          { id: 'r4', autore: 'assistente', testo: tutte.slice(0, parole).join(' ') },
+        ]
+
+  return (
+    <div className="flex h-96 max-w-xl flex-col gap-2">
+      <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">
+        <div className="min-h-0 flex-1 rounded-lg border">
+          <Conversazione righe={righe} inCorso={parole !== null && parole < tutte.length} />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setParole(0)} disabled={parole !== null}>
+            Fai la domanda
+          </Button>
+          <Comandi />
+        </div>
+      </MessageScrollerProvider>
+    </div>
+  )
+}
+
+const bottone = (el: HTMLElement, nome: string) => {
+  const b = [...el.querySelectorAll('button')].find((x) => x.textContent === nome)
+  if (!b) throw new Error(`manca «${nome}»`)
+  return b
+}
+
+// Misura: se la prova sotto ha ragione, il riquadro smette di seguire dopo
+// `scrollToMessage` ma non dopo `scrollTop` scritto da codice.
+/**
+ * Una risposta in arrivo e due modi di spostare il riquadro da codice.
+ * «Vai al messaggio» usa `scrollToMessage`: il riquadro si ferma su quel
+ * messaggio e la risposta continua a crescere sotto, senza trascinarlo in
+ * fondo. «Scrivi scrollTop» assegna `scrollTop` e non ferma il seguito.
+ * «Vai in fondo» riprende a seguire.
+ */
+export const VaiAlMessaggio: Story = {
+  tags: ['webkit'],
+  render: () => <VaiAlMessaggioScena />,
+  play: async ({ canvasElement }) => {
+    const viewport = () => canvasElement.querySelector<HTMLElement>('[aria-label="Conversazione"]')!
+    const distanzaDalFondo = () => {
+      const v = viewport()
+      return v.scrollHeight - v.clientHeight - v.scrollTop
+    }
+    const testoRisposta = () => canvasElement.querySelector('[role="log"]')?.textContent?.length ?? 0
+    const base = testoRisposta()
+    bottone(canvasElement, 'Fai la domanda').click()
+    // La risposta è arrivata e il riquadro la sta seguendo.
+    await waitFor(() => {
+      if (testoRisposta() < base + 350) throw new Error('la risposta non è ancora lunga')
+    }, { timeout: 20000 })
+    await waitFor(() => expect(distanzaDalFondo()).toBeLessThan(40))
+
+    bottone(canvasElement, 'Vai al messaggio').click()
+    await waitFor(() => expect(viewport().scrollTop).toBeLessThan(200))
+    const alt = viewport().scrollTop
+    const prima = testoRisposta()
+    // Mentre il testo continua ad arrivare il riquadro non torna in fondo.
+    await waitFor(() => {
+      if (testoRisposta() < prima + 200) throw new Error('il testo non è ancora cresciuto')
+    }, { timeout: 20000 })
+    await expect(viewport().scrollTop, 'scrollToMessage non ha fermato il seguito').toBeLessThan(alt + 40)
+    await expect(distanzaDalFondo()).toBeGreaterThan(200)
+
+    // «Vai in fondo» riprende a seguire: resta in fondo anche con altro testo in arrivo.
+    bottone(canvasElement, 'Vai in fondo').click()
+    await waitFor(() => expect(distanzaDalFondo()).toBeLessThan(40))
+    const dopo = testoRisposta()
+    await waitFor(() => {
+      if (testoRisposta() < dopo + 100) throw new Error('il testo non è ancora cresciuto')
+    }, { timeout: 20000 })
+    await waitFor(() => expect(distanzaDalFondo()).toBeLessThan(40))
+  },
+}
+
+// Misura di strumento, fuori dalla barra: scrivere `scrollTop` da codice non
+// ferma il seguito, la risposta riporta in fondo.
+export const ScrollTopDaCodiceProva: Story = {
+  render: () => <VaiAlMessaggioScena />,
+  name: 'scrollTop da codice, il seguito continua',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const viewport = () => canvasElement.querySelector<HTMLElement>('[aria-label="Conversazione"]')!
+    const distanzaDalFondo = () => {
+      const v = viewport()
+      return v.scrollHeight - v.clientHeight - v.scrollTop
+    }
+    const testoRisposta = () => canvasElement.querySelector('[role="log"]')?.textContent?.length ?? 0
+    const base = testoRisposta()
+    bottone(canvasElement, 'Fai la domanda').click()
+    await waitFor(() => {
+      if (testoRisposta() < base + 350) throw new Error('la risposta non è ancora lunga')
+    }, { timeout: 20000 })
+    await waitFor(() => expect(distanzaDalFondo()).toBeLessThan(40))
+    bottone(canvasElement, 'Scrivi scrollTop').click()
+    const prima = testoRisposta()
+    await waitFor(() => {
+      if (testoRisposta() < prima + 100) throw new Error('il testo non è ancora cresciuto')
+    }, { timeout: 20000 })
+    console.log('MISURA dopo altro testo:', viewport().scrollTop, distanzaDalFondo())
+    await waitFor(() => expect(distanzaDalFondo()).toBeLessThan(40))
   },
 }

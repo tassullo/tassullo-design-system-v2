@@ -66,6 +66,43 @@
  * centinaio di pixel, cioè un menu in cui nessun nome di commessa ci sta. È
  * la stessa riga che `app-shell` risolve con `w-56` sul menù utente.
  *
+ * ── Gli stati: pronto, caricamento, errore ──────────────────────────────
+ *
+ * L'elenco delle entità spesso arriva da una richiesta, e fino a che non
+ * arriva — o se non arriva — il grilletto non può comportarsi come se le voci
+ * ci fossero. `stato` ha tre valori e il primo è quello di serie, quindi chi
+ * non lo passa non vede cambiare niente.
+ *
+ * - **caricamento**: il grilletto resta al suo posto ma non si apre; porta un
+ *   indicatore al posto del chevron e `aria-busy`. Il `titolo` dell'entità
+ *   attiva resta leggibile, perché quella la pagina la conosce già.
+ * - **errore**: il grilletto si apre anche senza voci — in errore non ci sono
+ *   per definizione — e porta un triangolo d'avviso al posto del chevron. Il
+ *   menu dice che cosa è successo e, se l'app passa `onRiprova`, offre la
+ *   voce «Riprova». Nella barra il segno ha il colore del testo d'errore,
+ *   `destructive-subtle-foreground` (6.93:1 su `muted` in chiaro, 9.28 in
+ *   scuro); `text-destructive` è il colore dei fondi e non basta. Nella
+ *   colonna il fondo è scuro in **tutte e due** le modalità, e lì il token
+ *   d'errore chiaro darebbe 2.22:1: il segno prende `sidebar-accent-
+ *   foreground` (14.5:1 e più) e a dire che c'è un errore sono la forma del
+ *   triangolo e il nome accessibile, non il rosso.
+ *
+ * Il messaggio sta in un'intestazione di gruppo e non in una voce, perché non
+ * si sceglie; «Riprova» è l'unica voce, e da tastiera è la prima cosa
+ * raggiunta dalle frecce.
+ *
+ * ── Il grilletto stretto: una container query, non la finestra ──────────
+ *
+ * Quando la barra è stretta il testo «Cambia» lascia il posto alla sola
+ * icona, così il nome del contesto ha più spazio. La barra dichiara il proprio
+ * contenitore (`@container/barra`) e la soglia è `@max-sm`, cioè sotto i
+ * 384px *della barra*, non della finestra: lo stesso blocco in una colonna
+ * stretta di una scrivania e su un telefono si comporta allo stesso modo, e il
+ * gate lo vede a qualunque viewport. Il bottone resta un solo elemento — il
+ * testo si nasconde, non si raddoppia il controllo — e diventa quadrato
+ * (`aspect-square`, senza padding laterale), quindi in touch fa 48×48. Il
+ * nome accessibile non dipende dal testo visibile: sta in `aria-label`.
+ *
  * ── Il nome lungo si tronca, e si tronca il nome ─────────────────────────
  *
  * `ItemTitle` porta `line-clamp-1`, ma dentro c'è anche l'etichetta del tipo
@@ -78,18 +115,21 @@
  * che va a capo non vede niente (M4ter.7 e M4ter.8, due volte).
  */
 import type { ComponentType, ReactNode } from "react"
-import { ChevronsUpDownIcon, MapPinIcon } from "lucide-react"
+import { ChevronsUpDownIcon, MapPinIcon, RotateCwIcon, TriangleAlertIcon } from "lucide-react"
 
 import { cn } from "cn"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/registry/tassullo/ui/dropdown-menu"
 import { Button } from "@/registry/tassullo/ui/button"
+import { Spinner } from "@/registry/tassullo/ui/spinner"
 import {
   Item,
   ItemActions,
@@ -107,6 +147,54 @@ import {
 
 /** Un'icona Lucide, o qualunque componente che accetti una `className`. */
 type Icona = ComponentType<{ className?: string }>
+
+/** In che momento è l'elenco delle entità: già arrivato, in arrivo, o non arrivato. */
+export type StatoContesto = "pronto" | "caricamento" | "errore"
+
+const MESSAGGIO_ERRORE = "Non è stato possibile caricare l'elenco."
+
+/*
+ * Il grilletto a sola icona sotto i 384px della barra: il testo si nasconde
+ * (vedi `<span>` nel grilletto), il bottone diventa quadrato e perde il
+ * padding laterale. Va scritta per ultima: `cn` tiene l'ultima della famiglia.
+ */
+const GRILLETTO_BARRA =
+  "bg-transparent dark:bg-transparent @max-sm/barra:aspect-square @max-sm/barra:px-0"
+
+/** Il segno d'errore sul grilletto della barra: il colore del testo d'errore, non quello dei fondi. */
+const SEGNO_ERRORE = "shrink-0 text-destructive-subtle-foreground"
+
+/** Nella colonna il fondo è scuro anche in modalità chiara: il token d'errore chiaro non si leggerebbe. */
+const SEGNO_ERRORE_COLONNA = "shrink-0 text-sidebar-accent-foreground"
+
+/** Il contenuto del menu in errore: che cosa è successo, e se si può riprovare. */
+function ContenutoErrore({
+  messaggio,
+  onRiprova,
+}: {
+  messaggio: string
+  onRiprova?: () => void
+}) {
+  /*
+   * L'intestazione sta dentro un gruppo: `DropdownMenuLabel` è
+   * `Menu.GroupLabel` di Base UI e senza un gruppo sopra di sé lancia.
+   * `whitespace-normal` e `text-foreground` perché qui è un messaggio da
+   * leggere, non l'etichetta in corpo piccolo di un elenco.
+   */
+  return (
+    <DropdownMenuGroup>
+      <DropdownMenuLabel className="text-sm whitespace-normal text-foreground">
+        {messaggio}
+      </DropdownMenuLabel>
+      {onRiprova ? (
+        <DropdownMenuItem onClick={onRiprova}>
+          <RotateCwIcon />
+          Riprova
+        </DropdownMenuItem>
+      ) : null}
+    </DropdownMenuGroup>
+  )
+}
 
 export type VoceContesto = {
   /** Quello che torna a `onCambia`, e quello che `attiva` confronta. */
@@ -146,13 +234,19 @@ export type BarraContestoProps = {
    * calcolo, un impianto.
    */
   icona?: Icona
-  /** Le entità fra cui scegliere. Se sono meno di due il menu non si monta. */
+  /** Le entità fra cui scegliere. Se sono meno di due il menu non si monta (salvo in errore). */
   voci?: VoceContesto[]
   /** L'`id` della voce attiva: è lei a portare il segno di spunta nel menu. */
   attiva?: string
   onCambia?: (id: string) => void
-  /** Il testo del grilletto. Default: «Cambia». */
+  /** Il testo del grilletto, che sotto i 384px di barra lascia il posto alla sola icona. Default: «Cambia». */
   cambia?: string
+  /** Se l'elenco è già arrivato (`pronto`, di serie), sta arrivando (`caricamento`) o non è arrivato (`errore`). */
+  stato?: StatoContesto
+  /** Il testo che il menu mostra in errore. Default: «Non è stato possibile caricare l'elenco.» */
+  messaggioErrore?: string
+  /** Se c'è, in errore il menu offre «Riprova» e la chiama. */
+  onRiprova?: () => void
   /** L'intestazione del pannello. Default: l'`etichetta` al plurale non si sa fare, quindi si scrive. */
   etichettaMenu?: string
   /** Accanto al grilletto: l'azione di pagina che la barra porta con sé. */
@@ -176,7 +270,18 @@ export type BarraContestoProps = {
  *
  * Senza `voci` (o con una sola) è una fascia di sola lettura: il grilletto
  * non si monta, invece di montarne uno che apre un menu con dentro quello che
- * c'è già scritto sopra.
+ * c'è già scritto sopra. Se l'elenco arriva da una richiesta, `stato` dice a
+ * che punto è: in `caricamento` il grilletto non si apre, in `errore` si apre
+ * su un messaggio e, con `onRiprova`, su «Riprova».
+ *
+ * ```tsx
+ * <BarraContesto
+ *   titolo={commessa.titolo}
+ *   voci={commesse}
+ *   stato={stato}
+ *   onRiprova={ricarica}
+ * />
+ * ```
  */
 export function BarraContesto({
   etichetta,
@@ -187,11 +292,16 @@ export function BarraContesto({
   attiva,
   onCambia,
   cambia = "Cambia",
+  stato = "pronto",
+  messaggioErrore = MESSAGGIO_ERRORE,
+  onRiprova,
   etichettaMenu,
   azioni,
   className,
 }: BarraContestoProps) {
-  const siCambia = voci.length > 1
+  const inErrore = stato === "errore"
+  const inCaricamento = stato === "caricamento"
+  const siCambia = inErrore || (stato === "pronto" && voci.length > 1)
 
   /*
    * `outline` più `bg-muted`, e il bordo non è ornamento: è ciò che fa
@@ -216,7 +326,7 @@ export function BarraContesto({
       data-slot="barra-contesto"
       variant="outline"
       size="sm"
-      className={cn("rounded-lg bg-muted", className)}
+      className={cn("@container/barra rounded-lg bg-muted", className)}
     >
       <ItemMedia variant="icon" className="text-muted-foreground">
         <Icona />
@@ -248,8 +358,25 @@ export function BarraContesto({
         </ItemTitle>
         {descrizione ? <ItemDescription>{descrizione}</ItemDescription> : null}
       </ItemContent>
-      {siCambia || azioni ? (
+      {siCambia || inCaricamento || azioni ? (
         <ItemActions>
+          {inCaricamento ? (
+            /*
+             * L'elenco sta arrivando: il grilletto c'è, ma non si apre. Il
+             * nome accessibile lo dice, e l'indicatore è muto perché il
+             * bottone ha già il suo nome.
+             */
+            <Button
+              variant="outline"
+              disabled
+              aria-busy="true"
+              className={GRILLETTO_BARRA}
+              aria-label={`${cambia}: ${titolo}. Elenco in caricamento`}
+            >
+              <span className="@max-sm/barra:hidden">{cambia}</span>
+              <Spinner role={undefined} aria-label={undefined} aria-hidden="true" />
+            </Button>
+          ) : null}
           {siCambia ? (
             <DropdownMenu>
               {/*
@@ -270,13 +397,21 @@ export function BarraContesto({
                 render={
                   <Button
                     variant="outline"
-                    className="bg-transparent dark:bg-transparent"
-                    aria-label={`${cambia}: ${titolo}`}
+                    className={GRILLETTO_BARRA}
+                    aria-label={
+                      inErrore
+                        ? `${cambia}: ${titolo}. Elenco non disponibile`
+                        : `${cambia}: ${titolo}`
+                    }
                   />
                 }
               >
-                {cambia}
-                <ChevronsUpDownIcon />
+                <span className="@max-sm/barra:hidden">{cambia}</span>
+                {inErrore ? (
+                  <TriangleAlertIcon className={SEGNO_ERRORE} />
+                ) : (
+                  <ChevronsUpDownIcon />
+                )}
               </DropdownMenuTrigger>
               {/*
                * Il pannello dichiara la **propria** larghezza, perché
@@ -299,6 +434,13 @@ export function BarraContesto({
                * mentre la coda del nome no.
                */}
               <DropdownMenuContent align="end" className="w-xs">
+                {inErrore ? (
+                  <ContenutoErrore messaggio={messaggioErrore} onRiprova={onRiprova} />
+                ) : (
+                <DropdownMenuRadioGroup
+                  value={attiva}
+                  onValueChange={(v) => onCambia?.(String(v))}
+                >
                 {/*
                  * L'intestazione sta **dentro** il gruppo, non sopra.
                  * `DropdownMenuLabel` è `Menu.GroupLabel` di Base UI, che
@@ -307,10 +449,6 @@ export function BarraContesto({
                  * un dettaglio di stile: è il modo in cui l'etichetta diventa
                  * il nome accessibile del gruppo di voci.
                  */}
-                <DropdownMenuRadioGroup
-                  value={attiva}
-                  onValueChange={(v) => onCambia?.(String(v))}
-                >
                   {etichettaMenu ? (
                     <DropdownMenuLabel>{etichettaMenu}</DropdownMenuLabel>
                   ) : null}
@@ -337,6 +475,7 @@ export function BarraContesto({
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -353,7 +492,18 @@ export function BarraContesto({
 
 export type SelettoreContestoProps = Pick<
   BarraContestoProps,
-  "etichetta" | "titolo" | "descrizione" | "icona" | "voci" | "attiva" | "onCambia" | "etichettaMenu" | "className"
+  | "etichetta"
+  | "titolo"
+  | "descrizione"
+  | "icona"
+  | "voci"
+  | "attiva"
+  | "onCambia"
+  | "etichettaMenu"
+  | "stato"
+  | "messaggioErrore"
+  | "onRiprova"
+  | "className"
 >
 
 // **Il commutatore del contesto, nella testata della colonna.** Si passa ad
@@ -476,6 +626,10 @@ export type SelettoreContestoProps = Pick<
  * voce del menu, che ha una larghezza sua. Un nome troppo lungo va a capo e
  * si ferma alla seconda riga. Il menu si apre accanto alla colonna, anche
  * quando è chiusa a icone.
+ *
+ * Con `stato` si dice a che punto è l'elenco: in `caricamento` la targhetta
+ * mostra un indicatore e non si apre, in `errore` si apre su un messaggio e,
+ * se c'è `onRiprova`, su «Riprova».
  */
 export function SelettoreContesto({
   etichetta,
@@ -486,9 +640,14 @@ export function SelettoreContesto({
   attiva,
   onCambia,
   etichettaMenu,
+  stato = "pronto",
+  messaggioErrore = MESSAGGIO_ERRORE,
+  onRiprova,
   className,
 }: SelettoreContestoProps) {
-  const siCambia = voci.length > 1
+  const inErrore = stato === "errore"
+  const inCaricamento = stato === "caricamento"
+  const siCambia = inErrore || (stato === "pronto" && voci.length > 1)
   /*
    * **Sul telefono il pannello si apre sotto, non a destra.** È la stessa
    * riga che shadcn scrive nel `TeamSwitcher` (`side={isMobile ? "bottom" :
@@ -540,7 +699,13 @@ export function SelettoreContesto({
           <span className="truncate text-xs">{descrizione}</span>
         ) : null}
       </div>
-      {siCambia ? <ChevronsUpDownIcon className="ml-auto shrink-0" /> : null}
+      {inErrore ? (
+        <TriangleAlertIcon className={cn(SEGNO_ERRORE_COLONNA, "ml-auto")} />
+      ) : siCambia ? (
+        <ChevronsUpDownIcon className="ml-auto shrink-0" />
+      ) : inCaricamento ? (
+        <Spinner className="ml-auto shrink-0" />
+      ) : null}
     </>
   )
 
@@ -553,7 +718,11 @@ export function SelettoreContesto({
               render={
                 <SidebarMenuButton
                   size="lg"
-                  aria-label={`${etichetta ?? "Contesto"}: ${titolo}`}
+                  aria-label={
+                    inErrore
+                      ? `${etichetta ?? "Contesto"}: ${titolo}. Elenco non disponibile`
+                      : `${etichetta ?? "Contesto"}: ${titolo}`
+                  }
                   className="data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground"
                 />
               }
@@ -566,6 +735,9 @@ export function SelettoreContesto({
               sideOffset={4}
               className="w-xs"
             >
+              {inErrore ? (
+                <ContenutoErrore messaggio={messaggioErrore} onRiprova={onRiprova} />
+              ) : (
               <DropdownMenuRadioGroup
                 value={attiva}
                 onValueChange={(v) => onCambia?.(String(v))}
@@ -586,6 +758,7 @@ export function SelettoreContesto({
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
@@ -594,7 +767,11 @@ export function SelettoreContesto({
            * regola della `BarraContesto` — un menu che contiene solo quello
            * che c'è già scritto sopra non si monta.
            */
-          <SidebarMenuButton size="lg" render={<div />}>
+          <SidebarMenuButton
+            size="lg"
+            render={<div />}
+            aria-busy={inCaricamento ? "true" : undefined}
+          >
             {contenuto}
           </SidebarMenuButton>
         )}

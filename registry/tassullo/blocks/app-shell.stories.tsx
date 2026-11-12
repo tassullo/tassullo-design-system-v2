@@ -385,6 +385,148 @@ export const Telefono: Story = {
   args: Predefinito.args,
 }
 
+// Il ramo telefono non si ottiene dal canvas: nel gate `window.innerWidth` è
+// quello della finestra vera. La scena sostituisce `matchMedia` per la sola
+// query della soglia mobile, prima del primo render, e la rimette a posto alla
+// fine.
+const SOGLIA_MOBILE = '(max-width: 767px)'
+
+function conSogliaMobile() {
+  const originale = window.matchMedia
+  window.matchMedia = (query: string) => {
+    if (query !== SOGLIA_MOBILE) return originale.call(window, query)
+    return {
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    } as MediaQueryList
+  }
+  return () => {
+    window.matchMedia = originale
+  }
+}
+
+// I collegamenti dell'app portano il loro `onClick` (un router lo usa per
+// navigare): la scena lo annulla per non cambiare l'indirizzo della prova, e
+// conta quante volte è scattato, perché la chiusura del pannello non deve
+// sostituirlo.
+const clicDellApp: string[] = []
+function annulla(e: { preventDefault: () => void; currentTarget: { textContent: string | null } }) {
+  e.preventDefault()
+  clicDellApp.push(e.currentTarget.textContent ?? '')
+}
+const SEZIONI_CON_CLIC: SezioneNav[] = SEZIONI.map((sezione) => ({
+  ...sezione,
+  voci: sezione.voci.map((voce) => ({
+    ...voce,
+    render: voce.href ? <a href="#" onClick={annulla} /> : undefined,
+    figli: voce.figli?.map((figlio) => ({
+      ...figlio,
+      render: figlio.href ? <a href="#" onClick={annulla} /> : undefined,
+    })),
+  })),
+}))
+
+/**
+ * Sul telefono il pannello laterale si chiude da sé dopo un clic di
+ * navigazione: su una voce, su una sottovoce, sul marchio quando è un
+ * collegamento. Il titolo di un gruppo apre e chiude il gruppo e lascia il
+ * pannello aperto, come una voce spenta.
+ */
+export const TelefonoNavigazione: Story = {
+  name: 'Telefono, navigazione',
+  tags: ['!dev', '!autodocs'],
+  globals: { viewport: { value: 'telefono', isRotated: false } },
+  beforeEach: conSogliaMobile,
+  args: {
+    ...Predefinito.args,
+    testataRender: <a href="#" onClick={annulla} />,
+    sezioni: SEZIONI_CON_CLIC,
+  },
+  play: async ({ canvasElement }) => {
+    const grilletto = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>('[data-slot="sidebar-trigger"]')
+      expect(el).toBeInTheDocument()
+      return el!
+    })
+    const pannello = () => document.querySelector('[data-slot="sidebar"][data-mobile="true"]')
+    const apri = async () => {
+      if (!pannello()) await userEvent.click(grilletto)
+      return waitFor(() => {
+        expect(pannello()).toBeInTheDocument()
+        return pannello() as HTMLElement
+      })
+    }
+    const chiuso = () => waitFor(() => expect(pannello()).not.toBeInTheDocument())
+
+    // Una voce senza figli.
+    await userEvent.click(within(await apri()).getByRole('link', { name: /Cruscotto/ }))
+    await chiuso()
+    expect(clicDellApp.at(-1)).toContain('Cruscotto')
+
+    // Una sottovoce.
+    await userEvent.click(within(await apri()).getByRole('link', { name: 'Sistemi' }))
+    await chiuso()
+    expect(clicDellApp.at(-1)).toContain('Sistemi')
+
+    // Il marchio, che è un collegamento.
+    await userEvent.click(within(await apri()).getByRole('link', { name: 'Anagrafe' }))
+    await chiuso()
+
+    // Il titolo di un gruppo: apre e chiude il gruppo, il pannello resta.
+    const titolo = within(await apri()).getByRole('button', { name: /Documenti/ })
+    await userEvent.click(titolo)
+    await waitFor(() => expect(titolo).toHaveAttribute('aria-expanded', 'false'))
+    expect(pannello()).toBeInTheDocument()
+    await userEvent.click(titolo)
+    await waitFor(() => expect(titolo).toHaveAttribute('aria-expanded', 'true'))
+    expect(pannello()).toBeInTheDocument()
+
+    // Una voce spenta non naviga e non chiude. Il puntatore non la raggiunge
+    // (`pointer-events: none`), quindi il clic si dà da programma.
+    within(pannello() as HTMLElement).getByText('Certificati').click()
+    expect(pannello()).toBeInTheDocument()
+  },
+}
+
+/**
+ * Un nome lungo, scritto tutto in `nome` perché non ha un cognome — una
+ * ragione sociale, per esempio. Nel piede della colonna si accorcia con i
+ * puntini e non passa sotto l'icona del menu. Quando il cognome c'è, cade lui
+ * per primo e il nome resta intero.
+ */
+export const NomeLungo: Story = {
+  name: 'Nome lungo',
+  args: {
+    ...Predefinito.args,
+    utente: {
+      nome: 'Costruzioni Meccaniche Valsugana Alta Quota Società Cooperativa',
+      email: 'amministrazione@esempio.it',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const grilletto = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="sidebar-footer"] [data-slot="dropdown-menu-trigger"]'
+      )
+      expect(el).toBeInTheDocument()
+      return el!
+    })
+    const nome = grilletto.querySelector<HTMLElement>('span.truncate')!
+    const icona = grilletto.querySelector<SVGElement>('svg:last-of-type')!
+    expect(nome.textContent).toContain('Costruzioni Meccaniche')
+    expect(`troncato: ${nome.scrollWidth > nome.clientWidth}`).toBe('troncato: true')
+    expect(
+      `nome finisce prima dell'icona: ${nome.getBoundingClientRect().right <= icona.getBoundingClientRect().left}`
+    ).toBe("nome finisce prima dell'icona: true")
+  },
+}
+
 const COMMESSE: VoceContesto[] = [
   { id: '2026-114', titolo: '2026-114 — Palazzo Roccabruna', descrizione: 'Trento, via Santa Trinità' },
   { id: '2026-092', titolo: '2026-092 — Scuola media Bolghera', descrizione: 'Trento, via Volta' },

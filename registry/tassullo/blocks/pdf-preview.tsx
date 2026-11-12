@@ -68,6 +68,23 @@
  * (axe, `scrollable-region-focusable`) e `justify-center-safe`, senza il
  * quale il bordo sinistro della pagina restava fuori portata. La prova è
  * «Zoom in una griglia, prova» nelle story.
+ *
+ * **La pagina da cui si parte e la pagina che cambia** (proposta #226 di
+ * Studio). `paginaIniziale` dice la pagina mostrata all'apertura e, se cambia
+ * (o cambia `file`), riporta l'anteprima lì; un numero fuori dal documento si
+ * riporta dentro — il massimo è noto solo a documento caricato, quindi la
+ * pagina mostrata si ricava ogni volta da quello che è stato chiesto e dal
+ * numero di pagine, senza un effetto che la corregga. `onPagina` parte quando
+ * la pagina mostrata cambia davvero, anche per quel riporto nei limiti; si
+ * confronta con l'ultima comunicata (in un riferimento), quindi non gira in
+ * cerchio e non si richiama a pagina uguale.
+ *
+ * **Le versioni di `react-pdf` e `pdfjs-dist` vanno tenute insieme.**
+ * `react-pdf` dipende da una `pdfjs-dist` esatta, e il worker importato con
+ * `?url` dev'essere della stessa: con l'ultima uscita, l'anteprima resta
+ * bianca senza un errore. L'item le dichiara tutte e due con la versione
+ * esatta, e `check:riferimenti` le confronta con quella di `react-pdf`
+ * installata.
  */
 import { Component, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
@@ -111,6 +128,10 @@ class ConfineDocumento extends Component<ConfineDocumentoProps, { fallito: boole
 export type PdfPreviewProps = {
   /** Lo stesso `file` di `react-pdf`: URL, `File`/`Blob` o `ArrayBuffer`. */
   file: DocumentProps["file"]
+  /** La pagina mostrata all'apertura (da 1): se cambia, o cambia `file`, l'anteprima va a quella pagina; un numero fuori dal documento si riporta alla prima o all'ultima. */
+  paginaIniziale?: number
+  /** Chiamata con il numero di pagina ogni volta che la pagina mostrata cambia. */
+  onPagina?: (pagina: number) => void
   /** Il messaggio già tradotto, se il caricamento fallisce — mai un codice, mai la risposta grezza del server. */
   messaggioErrore?: string
   onRiprova?: () => void
@@ -119,15 +140,39 @@ export type PdfPreviewProps = {
 
 export function PdfPreview({
   file,
+  paginaIniziale = 1,
+  onPagina,
   messaggioErrore = "Il PDF non si è aperto. Riprova o scarica il file.",
   onRiprova,
   className,
 }: PdfPreviewProps) {
   const [numeroPagine, setNumeroPagine] = useState<number | null>(null)
-  const [pagina, setPagina] = useState(1)
+  const richiesta = Number.isFinite(paginaIniziale) ? Math.max(1, Math.round(paginaIniziale)) : 1
+  const [richiestaCorrente, setRichiestaCorrente] = useState({ file, richiesta })
+  const [paginaScelta, setPaginaScelta] = useState(richiesta)
+  // La pagina chiesta da fuori si rilegge quando cambia, durante il render: un effetto
+  // la mostrerebbe un fotogramma dopo, e a `file` nuovo il vecchio conteggio non vale più.
+  if (richiestaCorrente.file !== file || richiestaCorrente.richiesta !== richiesta) {
+    if (richiestaCorrente.file !== file) setNumeroPagine(null)
+    setRichiestaCorrente({ file, richiesta })
+    setPaginaScelta(richiesta)
+  }
+  const pagina = numeroPagine ? Math.min(paginaScelta, numeroPagine) : paginaScelta
+  const onPaginaRef = useRef(onPagina)
+  const ultimaComunicata = useRef(pagina)
   const [zoom, setZoom] = useState(1)
   const [larghezzaContenitore, setLarghezzaContenitore] = useState<number | null>(null)
   const contenitoreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    onPaginaRef.current = onPagina
+  })
+
+  useEffect(() => {
+    if (ultimaComunicata.current === pagina) return
+    ultimaComunicata.current = pagina
+    onPaginaRef.current?.(pagina)
+  }, [pagina])
 
   useEffect(() => {
     const el = contenitoreRef.current
@@ -156,7 +201,7 @@ export function PdfPreview({
             size="icon-sm"
             aria-label="Pagina precedente"
             disabled={pagina <= 1}
-            onClick={() => setPagina((p) => Math.max(1, p - 1))}
+            onClick={() => setPaginaScelta(Math.max(1, pagina - 1))}
           >
             <ChevronLeftIcon />
           </Button>
@@ -169,7 +214,7 @@ export function PdfPreview({
             size="icon-sm"
             aria-label="Pagina successiva"
             disabled={!numeroPagine || pagina >= numeroPagine}
-            onClick={() => setPagina((p) => Math.min(numeroPagine ?? p, p + 1))}
+            onClick={() => setPaginaScelta(Math.min(numeroPagine ?? pagina, pagina + 1))}
           >
             <ChevronRightIcon />
           </Button>
@@ -224,7 +269,7 @@ export function PdfPreview({
             error={<ErrorState messaggio={messaggioErrore} onRiprova={onRiprova} />}
             onLoadSuccess={({ numPages }) => setNumeroPagine(numPages)}
           >
-            {larghezzaContenitore ? (
+            {larghezzaContenitore && numeroPagine ? (
               <Page
                 pageNumber={pagina}
                 width={larghezzaContenitore * zoom}

@@ -44,11 +44,20 @@
  *   2026-11-08, `docs/DECISIONI.md` §98): da 2 a 4, di serie 2. Le cifre in
  *   più si arrotondano in silenzio, la metà per eccesso, invece di fermare il
  *   campo con un errore; il numero riscritto all'uscita mostra l'arrotondamento.
+ * - `onErrore` (proposta #225 di Studio): dice al modulo che il campo ha un
+ *   testo sbagliato, che `onValore` per costruzione non riceve. Parte quando
+ *   l'errore del campo compare, cambia testo o sparisce; non per l'errore che
+ *   arriva da fuori con `errore`, e non a ogni tasto con lo stesso messaggio.
+ * - `inputMode` si passa come le altre prop dell'`input`. Di serie è `decimal`,
+ *   e diventa `text` con un `min` negativo: il tastierino decimale di iPhone
+ *   non ha il segno meno.
  * - `String(numero)` dà la notazione esponenziale sotto 1e-6 e sopra 1e21:
  *   fuori dai numeri di un computo, e lasciato com'è.
  */
 import {
+  useEffect,
   useId,
+  useRef,
   useState,
   type ComponentProps,
   type FocusEvent,
@@ -80,7 +89,7 @@ import {
 /** Le prop di `CampoNumero`. Quelle non elencate vanno all'`input`. */
 export type CampoNumeroProps = Omit<
   ComponentProps<"input">,
-  "value" | "defaultValue" | "onChange" | "type" | "min" | "max" | "inputMode" | "children"
+  "value" | "defaultValue" | "onChange" | "type" | "min" | "max" | "children"
 > & {
   /** L'etichetta. Sempre visibile. */
   etichetta: ReactNode
@@ -113,6 +122,12 @@ export type CampoNumeroProps = Omit<
    * vince l'errore del campo.
    */
   errore?: string | null
+  /**
+   * Chiamata quando l'errore del campo compare, cambia o sparisce: riceve il
+   * messaggio, o `null` quando il testo torna valido. Serve a un modulo che
+   * deve sapere che il campo è sbagliato anche se `onValore` non è partito.
+   */
+  onErrore?: (errore: string | null) => void
   /**
    * Il numero confermato in rosso quando è negativo: per un campo che porta
    * un risultato o un saldo. Di serie spento. Il rosso vale per il valore
@@ -200,6 +215,7 @@ function esamina(
  * <CampoNumero etichetta="Coefficiente" valore={k} onValore={setK} min={0} max={10} />
  * <CampoNumero etichetta="Superficie" valore={mq} onValore={setMq} unita="m²" />
  * <CampoNumero etichetta="Importo lavori" valore={euro} onValore={setEuro} importo />
+ * <CampoNumero etichetta="Quota" valore={q} onValore={setQ} min={-10} onErrore={setErroreQ} />
  * ```
  */
 export function CampoNumero({
@@ -215,6 +231,8 @@ export function CampoNumero({
   descrizione,
   errore,
   negativiInRosso = false,
+  onErrore,
+  inputMode,
   id,
   onBlur,
   onFocus,
@@ -227,6 +245,20 @@ export function CampoNumero({
   const [bozza, setBozza] = useState(() => testoDi(valore))
   const [erroreCampo, setErroreCampo] = useState<string | null>(null)
   const [aFuoco, setAFuoco] = useState(false)
+
+  // `onErrore` parte quando cambia l'errore del campo, non a ogni render: la
+  // dipendenza è il messaggio (una stringa), e la funzione si legge da un
+  // riferimento, così una callback nuova a ogni render non rilancia l'effetto.
+  const alErrore = useRef(onErrore)
+  const erroreDichiarato = useRef<string | null>(null)
+  useEffect(() => {
+    alErrore.current = onErrore
+  })
+  useEffect(() => {
+    if (erroreDichiarato.current === erroreCampo) return
+    erroreDichiarato.current = erroreCampo
+    alErrore.current?.(erroreCampo)
+  }, [erroreCampo])
 
   // Il valore cambiato da fuori riscrive il campo e toglie l'errore: è la
   // forma che React indica per uno stato che segue una prop, senza effetti.
@@ -311,7 +343,7 @@ export function CampoNumero({
           id={idCampo}
           className={["tabular-nums", rosso ? ROSSO_NEGATIVO : null, className].filter(Boolean).join(" ")}
           type="text"
-          inputMode="decimal"
+          inputMode={inputMode ?? (min !== undefined && min < 0 ? "text" : "decimal")}
           autoComplete="off"
           value={mostrato}
           onChange={(e) => alCambio(e.target.value)}

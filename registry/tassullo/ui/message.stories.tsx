@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect } from 'storybook/test'
 import { CopyIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react'
 
 import { Avatar, AvatarFallback } from '@/registry/tassullo/ui/avatar'
@@ -33,8 +34,10 @@ import {
  *
  * **Regole d'uso.**
  *
- * - Le azioni del piede sono bottoni-icona `ghost` con un nome: «Copia»,
- *   «Risposta utile», «Risposta non utile».
+ * - Le azioni del piede sono bottoni-icona `ghost` con un nome: «Copia la
+ *   risposta», «Segna la risposta come utile», «Segna la risposta come non
+ *   utile». Con più risposte nella pagina il nome dice quale: «Copia la
+ *   risposta 2», o i bottoni di risposte diverse hanno tutti lo stesso nome.
  * - L'ora nell'intestazione si scrive `hh:mm`, nell'ora italiana; con la data
  *   davanti se il messaggio non è di oggi.
  *
@@ -112,13 +115,13 @@ export const ConAvatarEAzioni: Story = {
             </BubbleContent>
           </Bubble>
           <MessageFooter className="gap-1">
-            <Button variant="ghost" size="icon-sm" aria-label="Copia">
+            <Button variant="ghost" size="icon-sm" aria-label="Copia la risposta">
               <CopyIcon />
             </Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Risposta utile">
+            <Button variant="ghost" size="icon-sm" aria-label="Segna la risposta come utile">
               <ThumbsUpIcon />
             </Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Risposta non utile">
+            <Button variant="ghost" size="icon-sm" aria-label="Segna la risposta come non utile">
               <ThumbsDownIcon />
             </Button>
           </MessageFooter>
@@ -126,4 +129,51 @@ export const ConAvatarEAzioni: Story = {
       </Message>
     </MessageGroup>
   ),
+}
+
+function Risposta({ n, testo }: { n: number; testo: string }) {
+  return (
+    <Message>
+      <MessageContent>
+        <Bubble variant="ghost">
+          <BubbleContent>{testo}</BubbleContent>
+        </Bubble>
+        <MessageFooter className="gap-1">
+          <Button variant="ghost" size="icon-sm" aria-label={`Copia la risposta ${n}`}>
+            <CopyIcon />
+          </Button>
+          <Button variant="ghost" size="icon-sm" aria-label={`Segna la risposta ${n} come utile`}>
+            <ThumbsUpIcon />
+          </Button>
+          <Button variant="ghost" size="icon-sm" aria-label={`Segna la risposta ${n} come non utile`}>
+            <ThumbsDownIcon />
+          </Button>
+        </MessageFooter>
+      </MessageContent>
+    </Message>
+  )
+}
+
+/**
+ * Più risposte con le loro azioni: il nome di ogni bottone dice a quale
+ * risposta appartiene, così nessuno è uguale a un altro.
+ */
+export const PiuRisposteConAzioni: Story = {
+  render: () => (
+    <MessageGroup className="max-w-xl">
+      <Risposta
+        n={1}
+        testo="Un primer bituminoso a solvente, steso quando il getto ha almeno 28 giorni."
+      />
+      <Risposta
+        n={2}
+        testo="Almeno 20 cm sopra il piano finito della copertura, fissato in testa con un profilo."
+      />
+    </MessageGroup>
+  ),
+  play: async ({ canvasElement }) => {
+    const nomi = [...canvasElement.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))
+    await expect(nomi).toHaveLength(6)
+    await expect(new Set(nomi).size, `nomi uguali: ${nomi.join(' | ')}`).toBe(nomi.length)
+  },
 }
