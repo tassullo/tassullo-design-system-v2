@@ -283,13 +283,16 @@ function Marchio() {
 
 /** La testata: marchio più nome dell'applicativo. Collassata resta la T. */
 function Testata({ applicazione, render }: { applicazione: string; render?: ReactElement }) {
-  const { isMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar()
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton
           size="lg"
           render={render}
+          // Sul telefono il marchio, se è un collegamento, porta alla pagina
+          // iniziale: il pannello si chiude come per ogni voce.
+          onClick={render && isMobile ? () => setOpenMobile(false) : undefined}
           tooltip={isMobile ? undefined : applicazione}
           aria-label={applicazione}
           className="group-data-[collapsible=icon]:justify-center"
@@ -335,10 +338,12 @@ function Utente({ utente, azioni }: { utente: UtenteShell; azioni?: ReactNode })
                * niente: è un elemento a sé con `min-w-0` e `truncate`, quindi
                * quando lo spazio manca si accorcia lui mentre il nome resta
                * intero. `truncate` sull'intera stringa darebbe invece
-               * «Massimiliano Bert…», che non è un nome.
+               * «Massimiliano Bert…», che non è un nome. Senza cognome (una
+               * ragione sociale lunga tutta in `nome`) non c'è altro che possa
+               * cadere: è il nome a troncarsi, invece di passare sotto l'icona.
                */}
               <span className="flex min-w-0 gap-1 text-sm font-medium text-sidebar-accent-foreground">
-                <span className="shrink-0">{utente.nome}</span>
+                <span className={utente.cognome ? "shrink-0" : "truncate"}>{utente.nome}</span>
                 {utente.cognome ? <span className="truncate">{utente.cognome}</span> : null}
               </span>
               {utente.ruolo ? <span className="truncate text-xs">{utente.ruolo}</span> : null}
@@ -406,7 +411,13 @@ type GruppiChiusi = {
 }
 
 function Voci({ voci, rail, gruppi }: { voci: VoceNav[]; rail: boolean; gruppi: GruppiChiusi }) {
-  const { isMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar()
+  // Sul telefono la colonna è un pannello che copre la pagina: dopo un clic
+  // di navigazione si chiude, o la pagina nuova resterebbe sotto. Una voce
+  // spenta non naviga, quindi non lo chiude. Il clic dell'app (`onClick` di
+  // `render`) viene fuso con questo da `useRender`, non sostituito.
+  const dopoClic = (disabilitata?: boolean) =>
+    isMobile && !disabilitata ? () => setOpenMobile(false) : undefined
   /*
    * Il tooltip non si passa affatto sotto la soglia mobile. Il preset lo
    * nasconde ma la radice Base UI resta montata, si apre col fuoco e si prende
@@ -493,6 +504,7 @@ function Voci({ voci, rail, gruppi }: { voci: VoceNav[]; rail: boolean; gruppi: 
                         href={figlio.render ? undefined : figlio.href}
                         isActive={figlio.attiva}
                         aria-disabled={figlio.disabilitata || undefined}
+                        onClick={dopoClic(figlio.disabilitata)}
                       >
                         <span>{figlio.titolo}</span>
                       </SidebarMenuSubButton>
@@ -507,7 +519,7 @@ function Voci({ voci, rail, gruppi }: { voci: VoceNav[]; rail: boolean; gruppi: 
         const render = voce.render ?? (voce.href ? <a href={voce.href} /> : undefined)
         return (
           <SidebarMenuItem key={voce.titolo}>
-            <SidebarMenuButton {...comuni} render={render}>
+            <SidebarMenuButton {...comuni} render={render} onClick={dopoClic(voce.disabilitata)}>
               {Icona ? <Icona /> : null}
               <span>{voce.titolo}</span>
             </SidebarMenuButton>

@@ -15547,3 +15547,40 @@ PR #223 unita col gate verde in CI, unione `09afa85`; la #222 si è chiusa con l
 
 - Studio: adottare alla `v2.0.41`, passare «Importo lavori» a `decimali={4}` e togliere il commento d'attesa.
 - Le colonne in euro di griglia e foglio a gruppi: non deciso (§97, ultimo paragrafo).
+
+## 2026-11-12 — #225, #226, #228, #229, #230: cinque proposte di Studio
+
+Sei proposte nuove di Studio (#225–#230). Lette con il codice che toccano, proposta una forma per ognuna, accettate da Francesco («Sì, procedi»). Cinque in questa PR, ramo `fras/proposte-225-230`; la #227 (faccia a schede della tabella) va su un ramo suo.
+
+#### Come si è lavorato
+
+- Cinque agenti sonnet in parallelo, uno per proposta, ognuno sui soli file del suo blocco e senza commit. `registry.json` (testi e dipendenze), `public/r/`, checklist, diario e decisioni scritti dalla sessione.
+- Poi: rilettura di ogni diff, controlli statici, build, gate intero due volte, foto delle scene nuove in Chromium in chiaro e in scuro.
+
+#### Cosa cambia
+
+- `tassullo-campo-numero`: `onErrore`; `inputMode` passa, `text` con `min` negativo.
+- `tassullo-pdf-preview`: `react-pdf@11.0.0` e `pdfjs-dist@6.3.289` fissate; `paginaIniziale`, `onPagina`. `check:riferimenti` confronta le due versioni.
+- `message-scroller`, `message`: solo scene e testi. Punto 1 della #228 respinto con le misure.
+- `tassullo-app-shell`: il cassetto del telefono si chiude al clic di navigazione; un nome senza cognome si tronca.
+- `tassullo-barra-contesto`: `stato`, `messaggioErrore`, `onRiprova`; «Cambia» a sola icona sotto 384px di barra. Dipendenza nuova `@tassullo/spinner`.
+- Decisioni in `docs/DECISIONI.md` §99.
+
+#### Problemi
+
+- Primo gate intero: «Pagina iniziale» del PDF caduta in una passata su quattro. Sei giri del file e due passate intere senza riprodurla; tempi della scena da 0,2 a 3,2 s. Attesa dell'apertura portata a 20 s (§99). Secondo gate intero verde.
+- Un agente ha segnalato un import non dichiarato (`spinner`) e una parola interna in una scena di un altro: tutti e due chiusi prima del gate.
+
+#### Prove
+
+- `npm run check`: tredici gate verdi, 2792 scansioni, 0 violazioni; WebKit 56 prove. `npm run build` verde.
+- Ogni prova nuova è stata fatta cadere togliendo il codice che prova.
+- Cassetto: Chromium a 375×812 contro Storybook costruito.
+
+#### Aperti
+
+- Non misurato: l'intestazione del menu utente con un nome lungo e senza email.
+- Il menu dell'utente e il selettore di contesto non chiudono il cassetto: non chiesto, non fatto.
+- #227, da fare.
+- Studio: alla versione che chiude queste proposte, togliere la ricerca di `aria-invalid`, il pin di `pdfjs-dist`, il «Riprova» fuori dal selettore.
+

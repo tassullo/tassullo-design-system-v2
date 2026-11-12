@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { PdfPreview } from '@/registry/tassullo/blocks/pdf-preview'
 
@@ -18,14 +18,20 @@ import { PdfPreview } from '@/registry/tassullo/blocks/pdf-preview'
  *
  * ```tsx
  * <PdfPreview file={urlDelDocumento} onRiprova={() => ricarica()} />
+ * <PdfPreview file={urlDelDocumento} paginaIniziale={2} onPagina={(n) => ricorda(n)} />
  * ```
  *
  * **Le prop.** `file`, lo stesso di `react-pdf`: un indirizzo, un `File` o un
- * `Blob`, un `ArrayBuffer`; `messaggioErrore`, il messaggio già tradotto se
+ * `Blob`, un `ArrayBuffer`; `paginaIniziale`, la pagina mostrata all'apertura
+ * (fuori dal documento si riporta alla prima o all'ultima); `onPagina`, chiamata
+ * con il numero di pagina quando la pagina mostrata cambia; `messaggioErrore`, il messaggio già tradotto se
  * il documento non si apre; `onRiprova`, il bottone per riprovare.
  *
  * **Regole d'uso.**
  *
+ * - Con `paginaIniziale` l'anteprima si apre a una pagina precisa, per
+ *   esempio quella citata da un rimando; se il valore cambia, o cambia `file`,
+ *   torna lì. `onPagina` dice all'app dove si è fermato chi legge.
  * - Il blocco mostra, non carica: da dove venga il documento è dell'app.
  * - La pagina si adatta alla larghezza della cornice, e lo zoom parte da lì.
  * - È un'anteprima: il testo non si seleziona e i collegamenti del PDF non si
@@ -39,6 +45,11 @@ import { PdfPreview } from '@/registry/tassullo/blocks/pdf-preview'
  * ingrandisci sono bottoni con un nome, raggiungibili col `Tab`. Anche la
  * pagina si raggiunge col `Tab`: ingrandita, scorre con le frecce.
  */
+// L'apertura del documento è l'unica attesa che non dipende dalla pagina: il
+// worker di pdf.js parte da zero e, col gate intero in corso, ci mette secondi
+// (misurato: da 0,2 s a 3,2 s per la stessa scena; a 5 s è caduta una volta).
+const APERTURA = { timeout: 20000 }
+
 const meta = {
   title: 'Blocchi/Anteprima PDF',
   component: PdfPreview,
@@ -60,6 +71,62 @@ export const SchedaTecnica: Story = {
       <PdfPreview {...args} />
     </div>
   ),
+}
+
+/**
+ * L'anteprima si apre alla pagina 2 di quattro. Avanti e indietro avvisano con
+ * `onPagina`; una pagina iniziale oltre la fine del documento mostra l'ultima.
+ */
+export const PaginaIniziale: Story = {
+  args: {
+    file: 'esempi/scheda-tecnica-esempio.pdf',
+    paginaIniziale: 2,
+    onPagina: fn(),
+  },
+  render: (args) => (
+    <div className="max-w-lg">
+      <PdfPreview {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const tela = within(canvasElement)
+    await waitFor(() => expect(tela.getByText('Pagina 2 di 4')).toBeVisible(), APERTURA)
+    expect(args.onPagina).not.toHaveBeenCalled()
+
+    await userEvent.click(tela.getByRole('button', { name: 'Pagina successiva' }))
+    await waitFor(() => expect(tela.getByText('Pagina 3 di 4')).toBeVisible())
+    expect(args.onPagina).toHaveBeenLastCalledWith(3)
+
+    await userEvent.click(tela.getByRole('button', { name: 'Pagina precedente' }))
+    await userEvent.click(tela.getByRole('button', { name: 'Pagina precedente' }))
+    await waitFor(() => expect(tela.getByText('Pagina 1 di 4')).toBeVisible())
+    expect(args.onPagina).toHaveBeenLastCalledWith(1)
+    expect(args.onPagina).toHaveBeenCalledTimes(3)
+  },
+}
+
+/**
+ * Una pagina iniziale oltre la fine del documento: l'anteprima mostra l'ultima
+ * pagina e lo comunica con `onPagina`.
+ */
+export const PaginaInizialeOltreLaFine: Story = {
+  args: {
+    file: 'esempi/scheda-tecnica-esempio.pdf',
+    paginaIniziale: 9,
+    onPagina: fn(),
+  },
+  render: (args) => (
+    <div className="max-w-lg">
+      <PdfPreview {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const tela = within(canvasElement)
+    await waitFor(() => expect(tela.getByText('Pagina 4 di 4')).toBeVisible(), APERTURA)
+    await waitFor(() => expect(args.onPagina).toHaveBeenCalledWith(4))
+    expect(args.onPagina).toHaveBeenCalledTimes(1)
+    expect(tela.getByRole('button', { name: 'Pagina successiva' })).toBeDisabled()
+  },
 }
 
 /**

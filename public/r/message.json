@@ -13,5 +13,6 @@
       "type": "registry:ui"
     }
   ],
+  "docs": "Le azioni del piede le scrive l'app. Con più risposte nella pagina ogni\nbottone-icona ha un nome che dice a quale risposta appartiene, per esempio\naria-label=\"Copia la risposta 2\": altrimenti i bottoni di risposte diverse\nhanno tutti lo stesso nome.",
   "type": "registry:ui"
 }

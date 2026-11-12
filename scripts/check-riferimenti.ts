@@ -80,6 +80,9 @@ type Esito = { errori: string[]; avvisi: string[]; riferimenti: number; imports:
 /** Il testo di un file del registry, o `null` se non esiste. */
 type Lettore = (percorso: string) => string | null;
 
+/** Il `package.json` di un pacchetto installato in `node_modules`, o `null` se non c'è. */
+type Installato = (pacchetto: string) => { version: string; dependencies?: Record<string, string> } | null;
+
 /** I moduli che ogni app ha per costruzione, e che nessun item dichiara. */
 const DELL_APP = new Set(["react", "react-dom"]);
 
@@ -98,6 +101,64 @@ function pacchetto(specificatore: string): string {
 /** `zod@^3.0.0` → `zod`; `@base-ui/react@1.8` → `@base-ui/react`. */
 function senzaVersione(dipendenza: string): string {
   return dipendenza.replace(/^(@?[^@]+)@.*$/, "$1");
+}
+
+/** `react-pdf@11.0.0` → `"11.0.0"`; `react-pdf` → `null`; un altro pacchetto → `undefined`. */
+function versioneDichiarata(dipendenza: string, nome: string): string | null | undefined {
+  if (senzaVersione(dipendenza) !== nome) return undefined;
+  return dipendenza.length > nome.length ? dipendenza.slice(nome.length + 1) : null;
+}
+
+/**
+ * `react-pdf` dipende **esattamente** da una versione di `pdfjs-dist`, e il
+ * worker dell'anteprima dev'essere quella. Se l'item dichiara `pdfjs-dist` senza
+ * versione, npm installa l'ultima: il worker non combacia con la libreria e
+ * l'anteprima resta bianca, senza un errore. Quindi: nell'item le due versioni
+ * sono esatte, la prima è quella di `react-pdf` installata qui, la seconda
+ * quella che quella `react-pdf` dichiara fra le sue `dependencies`.
+ */
+function controllaVersioniPdf(registry: { items: Item[] }, installato: Installato): string[] {
+  const errori: string[] = [];
+  const ESATTA = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+  for (const item of registry.items) {
+    const dichiarata = (nome: string) => {
+      for (const d of item.dependencies ?? []) {
+        const v = versioneDichiarata(d, nome);
+        if (v !== undefined) return v;
+      }
+      return undefined;
+    };
+    const vReact = dichiarata("react-pdf");
+    const vPdfjs = dichiarata("pdfjs-dist");
+    if (vReact === undefined && vPdfjs === undefined) continue;
+
+    const rp = installato("react-pdf");
+    if (!rp) {
+      errori.push(`${item.name}: \`react-pdf\` non è installato in node_modules, non si può controllare la versione.`);
+      continue;
+    }
+    const attesaPdfjs = rp.dependencies?.["pdfjs-dist"];
+    if (!attesaPdfjs) {
+      errori.push(`${item.name}: \`react-pdf@${rp.version}\` non dichiara \`pdfjs-dist\` fra le sue dipendenze.`);
+      continue;
+    }
+    const giusta = (nome: string, attesa: string, v: string | null | undefined) => {
+      const scrivi = ` Scrivi \`${nome}@${attesa}\`.`;
+      if (v === undefined) {
+        errori.push(`${item.name}: \`${nome}\` non è fra le \`dependencies\`, ma \`react-pdf\` e \`pdfjs-dist\` vanno insieme.${scrivi}`);
+      } else if (v === null || !ESATTA.test(v)) {
+        errori.push(
+          `${item.name}: \`${nome}\` senza versione esatta (${v ?? "nessuna versione"}): npm installerebbe l'ultima, ` +
+            `e il worker non combacerebbe con \`react-pdf\` (anteprima bianca, nessun errore).${scrivi}`
+        );
+      } else if (v !== attesa) {
+        errori.push(`${item.name}: \`${nome}@${v}\` non è la versione che serve a \`react-pdf@${rp.version}\`.${scrivi}`);
+      }
+    };
+    giusta("react-pdf", rp.version, vReact);
+    giusta("pdfjs-dist", attesaPdfjs, vPdfjs);
+  }
+  return errori;
 }
 
 /** Gli item che `add <nome>` installa: lui e la chiusura dei suoi `@tassullo/…`. */
@@ -170,7 +231,12 @@ function controllaImport(registry: { items: Item[] }, leggi: Lettore): { errori:
   return { errori, imports };
 }
 
-function controlla(registry: { items: Item[] }, namespaceNoti: Set<string>, leggi: Lettore): Esito {
+function controlla(
+  registry: { items: Item[] },
+  namespaceNoti: Set<string>,
+  leggi: Lettore,
+  installato: Installato = () => null
+): Esito {
   const errori: string[] = [];
   const avvisi: string[] = [];
   const nomi = new Set(registry.items.map((i) => i.name));
@@ -262,6 +328,9 @@ function controlla(registry: { items: Item[] }, namespaceNoti: Set<string>, legg
   const { errori: diImport, imports } = controllaImport(registry, leggi);
   errori.push(...diImport);
 
+  // ── 5. react-pdf e pdfjs-dist: versioni esatte e che combaciano ─────────────
+  errori.push(...controllaVersioniPdf(registry, installato));
+
   return { errori, avvisi, riferimenti, imports };
 }
 
@@ -297,7 +366,7 @@ function autotest(): number {
     "registry/tassullo/blocks/filtro.tsx":
       `import { Popover } from "@base-ui/react/popover"\nimport { cn } from "cn"\n` +
       `import type { Column } from "@tanstack/react-table"\nimport { createPortal } from "react-dom"\n` +
-      `import { it } from "date-fns/locale"\nimport w from "pdfjs-dist/build/pdf.worker.min.mjs?url"\n` +
+      `import { it } from "date-fns/locale"\nimport w from "esempio-worker/build/w.min.mjs?url"\n` +
       `import type { Tabella } from "./data-table"\n/** Uso: import { X } from "@/lib/inesistente" */\n`,
     // Il difetto vero: `lib/toni` importato senza `@tassullo/toni`.
     "registry/tassullo/pages/pagina-errore.tsx": `import { TONO } from "@/registry/tassullo/lib/toni"\n`,
@@ -317,7 +386,7 @@ function autotest(): number {
       },
       {
         name: "tassullo-data-table-filtro",
-        dependencies: ["date-fns", "pdfjs-dist"],
+        dependencies: ["date-fns", "esempio-worker"],
         registryDependencies: ["@tassullo/tassullo-data-table"],
         files: [{ path: "registry/tassullo/blocks/filtro.tsx" }],
       },
@@ -405,10 +474,33 @@ function autotest(): number {
     },
   ];
 
+  // ── le versioni di react-pdf e pdfjs-dist ──────────────────────────────────
+  const installatoFinto: Installato = (p) =>
+    p === "react-pdf" ? { version: "11.0.0", dependencies: { "pdfjs-dist": "6.3.289" } } : null;
+  const conPdf = (dependencies: string[]) => ({ items: [{ name: "pdf", dependencies, files: [] }] });
+  const provePdf: { nome: string; registry: { items: Item[] }; attesi: number }[] = [
+    { nome: "react-pdf e pdfjs-dist alle versioni giuste", registry: conPdf(["react-pdf@11.0.0", "pdfjs-dist@6.3.289"]), attesi: 0 },
+    { nome: "pdfjs-dist senza versione (il difetto della #226)", registry: conPdf(["react-pdf@11.0.0", "pdfjs-dist"]), attesi: 1 },
+    { nome: "pdfjs-dist più recente di quella di react-pdf", registry: conPdf(["react-pdf@11.0.0", "pdfjs-dist@6.5.438"]), attesi: 1 },
+    { nome: "pdfjs-dist con un intervallo", registry: conPdf(["react-pdf@11.0.0", "pdfjs-dist@^6.3.289"]), attesi: 1 },
+    { nome: "react-pdf senza versione", registry: conPdf(["react-pdf", "pdfjs-dist@6.3.289"]), attesi: 1 },
+    { nome: "react-pdf diversa da quella installata", registry: conPdf(["react-pdf@10.0.0", "pdfjs-dist@6.3.289"]), attesi: 1 },
+    { nome: "pdfjs-dist mancante", registry: conPdf(["react-pdf@11.0.0"]), attesi: 1 },
+  ];
+
   let falliti = 0;
   console.log("\n  Autotest — il gate sa fallire nei modi che dichiara\n");
   for (const prova of prove) {
     const { errori } = controlla(prova.registry, namespaceNoti, leggi);
+    const ok = errori.length === prova.attesi;
+    if (!ok) falliti++;
+    console.log(
+      `    ${ok ? "✔" : "✖"} ${prova.nome.padEnd(66)} ${errori.length} errore/i (atteso ${prova.attesi})`
+    );
+    if (!ok) errori.forEach((e) => console.log(`        ${e}`));
+  }
+  for (const prova of provePdf) {
+    const { errori } = controlla(prova.registry, namespaceNoti, leggi, installatoFinto);
     const ok = errori.length === prova.attesi;
     if (!ok) falliti++;
     console.log(
@@ -442,7 +534,11 @@ function main(): number {
   const namespaceNoti = new Set(["@shadcn", ...Object.keys(componentsJson.registries ?? {})]);
 
   const leggi: Lettore = (p) => (existsSync(join(RADICE, p)) ? readFileSync(join(RADICE, p), "utf8") : null);
-  const { errori, avvisi, riferimenti, imports } = controlla(registry, namespaceNoti, leggi);
+  const installato: Installato = (p) => {
+    const f = join(RADICE, "node_modules", p, "package.json");
+    return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : null;
+  };
+  const { errori, avvisi, riferimenti, imports } = controlla(registry, namespaceNoti, leggi, installato);
 
   console.log(`\n  ${registry.items.length} item, ${riferimenti} riferimenti fra item, ${imports} import nei file spediti`);
   console.log(`  namespace dichiarati: ${[...namespaceNoti].join(", ")}\n`);
