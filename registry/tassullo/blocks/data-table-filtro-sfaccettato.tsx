@@ -247,6 +247,12 @@ export function righeSenzaFiltroColonna<TDato extends RowData>(
  * suo elenco, una volta sola anche se l'elenco lo ripete: la somma dei
  * conteggi può quindi superare le righe. Una riga con l'elenco vuoto, o senza
  * il campo, non conta sotto nessuna voce.
+ *
+ * Con una tabella che pagina dal server (`server` di `<DataTable>`) le righe
+ * arrivate sono una pagina, e contarle direbbe un numero che non è
+ * dell'elenco: le `opzioni` restano tutte, con il conteggio che l'app dà nel
+ * loro `count` e nessuno se non lo dà. Senza `opzioni`, le voci sono i valori
+ * delle righe arrivate, senza conteggio.
  */
 export function useOpzioniSfaccettate<TDato extends RowData>(
   tabella: IstanzaTabella<TDato>,
@@ -257,12 +263,28 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
   const filtriColonna = tabella.state.columnFilters
   const ricerca = tabella.state.globalFilter
 
+  const dalServer = !!tabella.options.manualFiltering
+
   return React.useMemo((): OpzioneFiltro[] => {
-    const righeFiltrate = righeSenzaFiltroColonna(tabella, righeCore, chiaveColonna)
     const elenco = colonnaElenco(tabella, chiaveColonna)
     const selezionate = new Set(
       (filtriColonna.find((filtro) => filtro.id === chiaveColonna)?.value as string[] | undefined) ?? []
     )
+
+    if (dalServer) {
+      if (opzioniStatiche) return opzioniStatiche
+      const valori = new Set(selezionate)
+      for (const riga of righeCore) {
+        const grezzo = riga.getValue(chiaveColonna) as unknown
+        const voci = elenco && Array.isArray(grezzo) ? grezzo : [grezzo]
+        for (const voce of voci) if (voce != null && String(voce)) valori.add(String(voce))
+      }
+      return Array.from(valori)
+        .map((value) => ({ value, label: value }))
+        .sort((a, b) => a.label.localeCompare(b.label, "it"))
+    }
+
+    const righeFiltrate = righeSenzaFiltroColonna(tabella, righeCore, chiaveColonna)
 
     const conteggi = new Map<string, number>()
     for (const riga of righeFiltrate) {
@@ -297,7 +319,7 @@ export function useOpzioniSfaccettate<TDato extends RowData>(
       .map(([value, count]) => ({ value, label: value, count }))
       .sort((a, b) => a.label.localeCompare(b.label, "it"))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabella, righeCore, chiaveColonna, filtriColonna, ricerca, opzioniStatiche])
+  }, [tabella, righeCore, chiaveColonna, filtriColonna, ricerca, opzioniStatiche, dalServer])
 }
 
 /** Se la colonna dichiara `meta.elenco`. */
@@ -325,6 +347,10 @@ export type FiltroSfaccettatoProps<TDato extends RowData> = {
    * dati finti/di prova, quando l'ordine non deve essere alfabetico, o quando
    * l'etichetta deve essere diversa dal valore: senza `opzioni` ogni voce è
    * il valore com'è scritto nel dato, maiuscole e minuscole comprese.
+   *
+   * Con una tabella che pagina dal server va dato: le righe arrivate sono una
+   * pagina, e le voci restano tutte, col conteggio solo se l'app lo scrive in
+   * `count`.
    */
   opzioni?: OpzioneFiltro[]
 }
