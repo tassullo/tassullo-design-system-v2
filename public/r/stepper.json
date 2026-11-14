@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "stepper",
   "title": "Stepper",
-  "description": "La barra dei passi: N indicatori numerati uniti da trattini, con fatto / corrente / da fare. Orizzontale o verticale, e i trattini possono fare da barra a segmenti. Adottato da ReUI (Keenthemes), licenza MIT: l'avviso di copyright viaggia dentro il file e per esteso in reui-MIT.txt, che si installa accanto e non si cancella.",
+  "description": "La barra dei passi: N indicatori numerati uniti da trattini, con fatto / corrente / da fare. Orizzontale o verticale; il pallino, largo e basso, fa da segmento per una barra a segmenti, con i passi davanti spenti. Adottato da ReUI (Keenthemes), licenza MIT: l'avviso di copyright viaggia dentro il file e per esteso in reui-MIT.txt, che si installa accanto e non si cancella.",
   "dependencies": [
     "@base-ui/react",
     "cn"

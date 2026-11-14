@@ -96,6 +96,12 @@ export type SplitViewProps = {
   etichettaDestra?: string
   /** Lo scorrimento di una colonna trascina l'altra, per frazione percorsa. */
   sincronizzato?: boolean
+  /**
+   * Classi del contenitore. L'altezza di serie è `h-96`. Per prendere lo
+   * spazio di un contenitore con un'altezza sua: `h-full`; dentro una colonna
+   * flessibile (un dialogo grande, una pagina a tutta altezza):
+   * `h-auto min-h-64 flex-1`.
+   */
   className?: string
 }
 

@@ -7,10 +7,24 @@ import {
   AlignRightIcon,
   LayoutGridIcon,
   ListIcon,
+  SearchIcon,
   TableIcon,
 } from 'lucide-react'
 
 import { Badge } from '@/registry/tassullo/ui/badge'
+import { Button } from '@/registry/tassullo/ui/button'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/registry/tassullo/ui/empty'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/registry/tassullo/ui/input-group'
 import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-group'
 
 /**
@@ -52,7 +66,12 @@ import { ToggleGroup, ToggleGroupItem } from '@/registry/tassullo/ui/toggle-grou
  *   `tabular-nums text-muted-foreground`, senza parentesi: «Deumidificanti
  *   12». Il numero sta nel testo e non in un `aria-label`.
  * - Un'opzione a zero resta nella fila, spenta: toglierla farebbe saltare la
- *   fila mentre si filtra.
+ *   fila mentre si filtra. Se era quella scelta resta accesa, e la lista
+ *   sotto dice «Nessun risultato in questa categoria» con un bottone per
+ *   tornare a tutte: il messaggio sta nella lista, non nel gruppo.
+ * - Quando la fila non ci sta va a capo da sé, con la stessa spaziatura fra
+ *   le righe e fra i bottoni. Il gruppo attaccato (`spacing={0}`) non va a
+ *   capo: è una barra strumenti, e si tiene corta.
  * - Lo stato acceso ha lo stesso grigio del sorvolo, come nel `toggle`. Non
  *   si tinge a mano nell'app: una tinta diversa per l'acceso si propone nel
  *   design system, dove vale per tutti.
@@ -331,6 +350,140 @@ export const ChipColConteggio: Story = {
         </div>
       </div>
     )
+  },
+}
+
+const prodotti: [string, string][] = [
+  ['Malta da restauro a calce', 'Restauro'],
+  ['Intonaco di sacrificio', 'Restauro'],
+  ['Consolidante per murature', 'Restauro'],
+  ['Intonaco deumidificante', 'Deumidificanti'],
+  ['Barriera chimica', 'Deumidificanti'],
+  ['Intonaco di fondo', 'Intonaci'],
+  ['Intonaco fibrorinforzato', 'Intonaci'],
+  ['Malta bastarda', 'Malte'],
+  ['Malta per allettamento', 'Malte'],
+  ['Rasante minerale', 'Rasanti'],
+  ['Rasante fibrato', 'Rasanti'],
+  ['Pittura ai silicati', 'Pitture'],
+  ['Finitura a calce', 'Finiture'],
+  ['Pannello in fibra di legno', 'Isolanti'],
+  ['Malta strutturale', 'Strutturali'],
+]
+const categorie = [...new Set(prodotti.map(([, categoria]) => categoria))]
+
+function FiltroCategorie() {
+  const [cerca, setCerca] = useState('')
+  const [categoria, setCategoria] = useState('tutte')
+  const trovati = prodotti.filter(([nome]) =>
+    nome.toLowerCase().includes(cerca.trim().toLowerCase()),
+  )
+  const quante = (c: string) =>
+    c === 'tutte' ? trovati.length : trovati.filter(([, x]) => x === c).length
+  const righe = trovati.filter(([, x]) => categoria === 'tutte' || x === categoria)
+  return (
+    <div className="flex w-96 flex-col gap-4">
+      <InputGroup>
+        <InputGroupAddon>
+          <SearchIcon />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-label="Cerca un prodotto"
+          placeholder="Cerca un prodotto"
+          value={cerca}
+          onChange={(e) => setCerca(e.target.value)}
+        />
+      </InputGroup>
+      <ToggleGroup
+        variant="outline"
+        aria-label="Categoria"
+        value={[categoria]}
+        onValueChange={(scelti) => {
+          if (scelti[0]) setCategoria(String(scelti[0]))
+        }}
+      >
+        {['tutte', ...categorie].map((c) => (
+          <ToggleGroupItem
+            key={c}
+            value={c}
+            disabled={c !== categoria && quante(c) === 0}
+          >
+            {c === 'tutte' ? 'Tutte' : c}
+            <span className="tabular-nums text-muted-foreground">{quante(c)}</span>
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      {righe.length > 0 ? (
+        <ul className="flex flex-col divide-y rounded-md border text-sm">
+          {righe.map(([nome, c]) => (
+            <li key={nome} className="flex justify-between gap-3 px-3 py-2">
+              <span>{nome}</span>
+              <span className="text-muted-foreground">{c}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyTitle>Nessun risultato in questa categoria</EmptyTitle>
+            <EmptyDescription>
+              {quante('tutte') > 0
+                ? `La ricerca trova ${quante('tutte')} prodotti in altre categorie.`
+                : 'La ricerca non trova niente in nessuna categoria.'}
+            </EmptyDescription>
+          </EmptyHeader>
+          {quante('tutte') > 0 && (
+            <EmptyContent>
+              <Button variant="outline" onClick={() => setCategoria('tutte')}>
+                Mostra tutte le categorie
+              </Button>
+            </EmptyContent>
+          )}
+        </Empty>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Il filtro per categoria sopra una lista con la ricerca: dieci voci col
+ * conteggio in una colonna stretta, che vanno a capo da sé. Una categoria
+ * che la ricerca svuota resta nella fila, spenta. Se era quella scelta resta
+ * accesa, e la lista dice che lì non c'è niente e offre di tornare a tutte.
+ * Si prova scegliendo «Restauro» e cercando «rasante».
+ */
+export const FiltroPerCategoria: Story = {
+  name: 'Filtro per categoria',
+  render: () => <FiltroCategorie />,
+}
+
+// La fila va a capo senza uscire dal contenitore; la categoria scelta e
+// svuotata dalla ricerca resta accesa, la lista lo dice, e il bottone torna a
+// «Tutte».
+export const FiltroPerCategoriaProva: Story = {
+  name: 'Filtro per categoria, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => <FiltroCategorie />,
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const gruppo = tela.getByRole('group', { name: 'Categoria' })
+    const contenitore = gruppo.parentElement as HTMLElement
+    expect(gruppo.scrollWidth).toBeLessThanOrEqual(contenitore.clientWidth)
+    const bottoni = within(gruppo).getAllByRole('button')
+    const righe = new Set(bottoni.map((b) => b.offsetTop))
+    expect(righe.size).toBeGreaterThan(1)
+
+    await userEvent.click(within(gruppo).getByRole('button', { name: /^Restauro/ }))
+    await userEvent.type(tela.getByRole('textbox', { name: 'Cerca un prodotto' }), 'rasante')
+    const restauro = within(gruppo).getByRole('button', { name: /^Restauro/ })
+    expect(restauro).toHaveAttribute('aria-pressed', 'true')
+    expect(within(gruppo).getByRole('button', { name: /^Malte/ })).toBeDisabled()
+    expect(tela.getByText('Nessun risultato in questa categoria')).toBeInTheDocument()
+
+    await userEvent.click(tela.getByRole('button', { name: 'Mostra tutte le categorie' }))
+    expect(within(gruppo).getByRole('button', { name: /^Tutte/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(tela.getByText('Rasante minerale')).toBeInTheDocument()
+    expect(within(gruppo).getByRole('button', { name: /^Restauro/ })).toBeDisabled()
   },
 }
 

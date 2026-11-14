@@ -15631,6 +15631,44 @@ PR #231 unita col gate verde in CI, unione `c2f5ad7`: chiuse #225, #226, #228, #
 - Le scene di altezza ferma e di memoria delle schede non asseriscono niente da sole; il passaggio di soglia non è provato in WebKit.
 
 
+## 2026-11-14 — #234, #235, #237, #238: quattro proposte di Studio
+
+Cinque proposte nuove di Studio (#234–#238). Lette col codice che toccano; Francesco ha scelto due strade in parallelo («Sì, in parallelo»): la #236 (paginazione fatta dal server) in una sessione sua, su un ramo suo; le altre quattro qui, ramo `fras/proposte-234-238`, in successione.
+
+#### Le decisioni
+
+- **#234, un esempio e non una variante.** Lo stepper ha già due barre a segmenti fra le scene (`Barra con titoli`, `Barra a segmenti`), costruite col pallino: `StepperIndicator` largo quanto la colonna e basso è il segmento, ed è già dentro il bottone del passo. Una `variant="segmenti"` su un componente di ReUI sarebbe stata una divergenza di forma (gradino 4) per una cosa che le classi fanno già. Anche il trattino si ingrossa: `cn` sostituisce `group-data-[orientation=horizontal]/stepper-nav:h-0.5` con una classe dallo stesso prefisso (provato). Studio lo aveva provato con `h-…` nudo, che perde. La descrizione dell'item diceva «i trattini possono fare da barra a segmenti», che portava fuori strada: ora dice il pallino.
+- **#237, nessuna prop.** `h-96` è l'altezza di serie del contenitore e `cn` la sostituisce; i riquadri dentro sono già `h-full`. In una colonna flessibile la classe giusta è `h-auto min-h-64 flex-1`: `flex-1` da solo lascerebbe `h-96` nella stringa.
+- **#238, `flex-wrap` di serie**, solo nella stringa di classi del gruppo (gradino 2). Il gruppo attaccato (`spacing={0}`) resta su una riga: è una barra strumenti, e andando a capo i raggi agli estremi e i bordi tolti fra un bottone e l'altro non tornerebbero. Il messaggio «nessun risultato» sta nella lista, non nel gruppo: è l'esempio, non il componente.
+- **#235, `azioni` come elenco e non come nodo libero.** Il blocco decide la forma del menu (bottone «⋯» accanto alla data, voce rossa, voce spenta col motivo scritto sotto), l'app dà solo le voci. Un elenco vuoto toglie il menu dalla voce.
+
+#### Cosa cambia
+
+- `toggle-group.tsx`: `flex-wrap … data-[spacing=0]:flex-nowrap`. Scene `Filtro per categoria` e la sua prova; due regole d'uso nuove.
+- `split-view.tsx`: JSDoc di `className`. Scene `A tutta altezza` e prova; una regola d'uso.
+- `stepper.stories.tsx`: scena `Percorso a segmenti` (larga e stretta) e prova; due regole d'uso.
+- `version-timeline.tsx`: `autore?`, `data?`, `azioni?`, tipo `AzioneVersione`. Scene `Con azioni` (dichiara il popup con `apriCol`), `Senza autore né data` e una prova.
+- `registry.json`: testi di quattro item; `tassullo-version-timeline` dipende ora da `@tassullo/dropdown-menu` e `lucide-react`.
+
+#### Cambia per chi aggiorna
+
+- Un `toggle-group` staccato che non ci sta va a capo invece di uscire dal contenitore. Chi passava `flex-wrap` da sé non vede differenze.
+
+#### Prove
+
+- Ogni prova nuova è stata fatta cadere togliendo il codice che prova: `flex-wrap`; la classe della vista affiancata; lo spegnimento dei passi davanti e il titolo dal tablet in su; lo spegnimento del comando e il controllo dell'autore.
+- `npm run check:statici` verde, `tsc -b` verde.
+- Gate in locale, due volte: 713 story, 0 violazioni di axe. Una sola scena cade: `pdf-preview › Pagina Iniziale`, che questo ramo non tocca. Prima in 3 passate su 4, con l'altra sessione che faceva girare il suo gate nello stesso momento, poi in 1 su 4 a macchina più libera. Da sola passa tre volte su tre; in CI il gate è verde dal 2026-11-12.
+- Causa trovata a metà: la prova dura **15.002 ms**, cioè la ferma il limite di 15 s che vitest dà a ogni prova. L'attesa di 20 s per l'apertura (`APERTURA`, §99) non vale quindi mai per intero. Resta da capire perché in locale l'apertura del documento superi i 15 s, contro i 0,2–3,2 s misurati in §99. Non ritoccata qui: è un lavoro a parte.
+- Lo stepper è stato corretto dopo il primo gate: i segmenti salivano quando un titolo andava su due righe (`justify-start` sui passi, e la prova ora controlla che stiano tutti alla stessa altezza). Rifatto il secondo gate dopo la correzione.
+- Viste in Storybook, in chiaro e in scuro, le quattro scene nuove. Il menu della timeline nel pannello dell'app non si apre (fotogrammi fermi col pannello nascosto): è provato in Chromium vero da `Con azioni, prova`.
+
+#### Aperti
+
+- `pdf-preview › Pagina Iniziale`: attesa più lunga del limite della prova, e apertura oltre i 15 s in locale.
+- Studio: alla versione nuova togliere lo `span` disegnato nel bottone dello stepper, il riquadro dei comandi sotto la timeline dei modelli e il `collapsible` dell'archivio delle revisioni (ora `VersionTimeline` senza autore né data), il `className="w-full flex-wrap"` del filtro.
+- La #236 è nella sua sessione, su un ramo suo.
+
 ## 2026-11-14 — #236: la paginazione fatta dal server dentro `tassullo-data-table`
 
 Proposta di Studio, fatta in una sessione a parte mentre la sessione principale prendeva #234, #235, #237 e #238. Ramo `fras/proposta-236-paginazione-server` da `main`. Non unita, nessuna versione: la v2.0.43 la pubblica la sessione principale.

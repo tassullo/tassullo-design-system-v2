@@ -1105,7 +1105,7 @@
       "name": "toggle-group",
       "type": "registry:ui",
       "title": "Toggle group",
-      "description": "Il chip di filtro: si clicca e cambia la lista sotto. A più scelte o a scelta singola.",
+      "description": "Il chip di filtro: si clicca e cambia la lista sotto. A più scelte o a scelta singola; quando la fila non ci sta va a capo.",
       "dependencies": [
         "@base-ui/react",
         "class-variance-authority",
@@ -1696,9 +1696,10 @@
       "name": "tassullo-version-timeline",
       "type": "registry:block",
       "title": "Timeline delle revisioni",
-      "description": "Timeline verticale delle revisioni di un documento: stato, autore, data e selezione di due versioni da confrontare. Compone badge, avatar, checkbox e button — nessuna dipendenza pesante.",
+      "description": "Timeline verticale delle revisioni di un documento: stato, autore e data (facoltativi), selezione di due versioni da confrontare e un menu di comandi per revisione. Compone badge, avatar, checkbox, button e dropdown-menu.",
       "dependencies": [
-        "cn"
+        "cn",
+        "lucide-react"
       ],
       "files": [
         {
@@ -1712,6 +1713,7 @@
         "@tassullo/badge",
         "@tassullo/button",
         "@tassullo/checkbox",
+        "@tassullo/dropdown-menu",
         "@tassullo/tema"
       ],
       "docs": "Un blocco, due modalità:\n\n  <VersionTimeline revisioni={revisioni} />\n  <VersionTimeline revisioni={revisioni} confrontabile onConfronta={(a, b) => apriConfronto(a, b)} />\n\nCinque stati (`bozza | in-revisione | approvato | rifiutato | superato`),\nognuno con la propria tripletta di token (`success`/`warning`/`destructive`\n+ `-subtle`/`-border`), come badge ed errori altrove nel design system.\n\n**Il confronto è una selezione, non una diff.** In `confrontabile` due\ncheckbox per riga scelgono due revisioni — la terza si disabilita finché non\nse ne scarta una — e `onConfronta` riceve le due voci scelte quando l'app\nclicca \"Confronta\". Renderizzare la differenza vera è compito di\n`tassullo-diff-view`: questo blocco si ferma alla scelta, come `FileUpload` non carica\nniente da sé.\n\nshadcn non ha una `timeline`: il blocco compone primitive esistenti —\nbadge, avatar, checkbox, button."
@@ -1891,7 +1893,7 @@
       "name": "tassullo-split-view",
       "type": "registry:block",
       "title": "Vista affiancata",
-      "description": "Due colonne affiancate con scorrimento sincronizzabile per frazione, che sotto 448px di contenitore (misurato, non la viewport) si impilano. Base di diff-view; riusabile per confronti in genere.",
+      "description": "Due colonne affiancate con scorrimento sincronizzabile per frazione, che sotto 448px di contenitore (misurato, non la viewport) si impilano. Alta 384px di serie, o quanto il contenitore. Base di diff-view; riusabile per confronti in genere.",
       "dependencies": [
         "cn"
       ],
@@ -2280,7 +2282,7 @@
       "name": "stepper",
       "type": "registry:ui",
       "title": "Stepper",
-      "description": "La barra dei passi: N indicatori numerati uniti da trattini, con fatto / corrente / da fare. Orizzontale o verticale, e i trattini possono fare da barra a segmenti. Adottato da ReUI (Keenthemes), licenza MIT: l'avviso di copyright viaggia dentro il file e per esteso in reui-MIT.txt, che si installa accanto e non si cancella.",
+      "description": "La barra dei passi: N indicatori numerati uniti da trattini, con fatto / corrente / da fare. Orizzontale o verticale; il pallino, largo e basso, fa da segmento per una barra a segmenti, con i passi davanti spenti. Adottato da ReUI (Keenthemes), licenza MIT: l'avviso di copyright viaggia dentro il file e per esteso in reui-MIT.txt, che si installa accanto e non si cancella.",
       "dependencies": [
         "@base-ui/react",
         "cn"
