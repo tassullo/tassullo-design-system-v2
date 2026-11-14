@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, waitFor, within } from 'storybook/test'
 
 import { SplitView } from '@/registry/tassullo/blocks/split-view'
 
@@ -35,6 +36,12 @@ import { SplitView } from '@/registry/tassullo/blocks/split-view'
  *
  * - In un contenitore più stretto di 448px le colonne si impilano: la soglia
  *   guarda il contenitore, non lo schermo.
+ * - L'altezza di serie è 384px, che basta dentro una scheda o un dialogo
+ *   piccolo. In un dialogo grande o in una pagina a tutta altezza la vista
+ *   prende lo spazio che c'è: `className="h-auto min-h-64 flex-1"` dentro una
+ *   colonna flessibile, `className="h-full"` in un contenitore con
+ *   un'altezza sua. Il minimo tiene leggibili le due colonne quando la
+ *   finestra è bassa.
  * - Con `sincronizzato` le colonne scorrono per la stessa frazione della loro
  *   lunghezza, non per gli stessi pixel: due testi di lunghezza diversa
  *   restano allineati dall'inizio alla fine.
@@ -112,4 +119,60 @@ export const ContenitoreStretto: Story = {
       <SplitView {...args} />
     </div>
   ),
+}
+
+const voci = Array.from({ length: 40 }, (_, i) => `Sistema ${String(i + 1).padStart(2, '0')} — intonaco deumidificante su muratura mista`)
+
+function PaginaATuttaAltezza() {
+  return (
+    <div className="flex h-160 flex-col gap-3 rounded-lg border p-4">
+      <h2 className="text-lg font-semibold">Scegli un sistema</h2>
+      <SplitView
+        className="h-auto min-h-64 flex-1"
+        etichettaSinistra="Sistemi"
+        etichettaDestra="Anteprima"
+        sinistra={
+          <ul className="flex flex-col gap-2 text-sm">
+            {voci.map((v) => (
+              <li key={v}>{v}</li>
+            ))}
+          </ul>
+        }
+        destra={<p className="text-sm">Sistema 01: ciclo in tre strati, spessore complessivo 25 mm.</p>}
+      />
+    </div>
+  )
+}
+
+/**
+ * Elenco a sinistra e anteprima a destra in una pagina a tutta altezza: la
+ * vista prende lo spazio sotto il titolo invece di fermarsi a 384px, e
+ * l'elenco scorre dentro la sua colonna.
+ */
+export const ATuttaAltezza: Story = {
+  name: 'A tutta altezza',
+  args: { sinistra: null, destra: null },
+  render: () => <PaginaATuttaAltezza />,
+}
+
+// La vista riempie il riquadro fino al fondo, oltre i 384px di serie, e la
+// colonna dell'elenco scorre.
+export const ATuttaAltezzaProva: Story = {
+  name: 'A tutta altezza, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { sinistra: null, destra: null },
+  render: () => <PaginaATuttaAltezza />,
+  play: async ({ canvasElement }) => {
+    const vista = canvasElement.querySelector<HTMLElement>('[data-slot="split-view"]')!
+    const riquadro = vista.parentElement!
+    await waitFor(() => {
+      const fondoVista = vista.getBoundingClientRect().bottom
+      const fondoRiquadro = riquadro.getBoundingClientRect().bottom - parseFloat(getComputedStyle(riquadro).paddingBottom) - parseFloat(getComputedStyle(riquadro).borderBottomWidth)
+      expect(Math.abs(fondoRiquadro - fondoVista)).toBeLessThan(1)
+    })
+    expect(vista.getBoundingClientRect().height).toBeGreaterThan(384)
+    const elenco = within(canvasElement).getByRole('region', { name: 'Sistemi' })
+    expect(elenco.scrollHeight).toBeGreaterThan(elenco.clientHeight)
+    expect(elenco.getBoundingClientRect().height).toBeGreaterThan(384)
+  },
 }

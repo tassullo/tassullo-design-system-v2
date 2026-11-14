@@ -1,6 +1,9 @@
 /**
  * `tassullo-version-timeline` — lo storico delle revisioni di un documento:
  * stato, autore, data, e la selezione di due versioni da confrontare.
+ * Dalla proposta #235: autore e data facoltativi, e un menu di comandi per
+ * revisione (`azioni`), che resta un elenco dato dall'app e non un nodo
+ * libero: il blocco decide la forma del menu, l'app solo le voci.
  *
  * Chiesto all'MCP prima di scrivere (regola 4bis, gradino 1): shadcn non ha
  * `timeline` né `stepper` — già accertato il 2026-09-09 per lo stepper
@@ -22,6 +25,7 @@
  * design system.
  */
 import { useState } from "react"
+import { EllipsisVerticalIcon } from "lucide-react"
 
 import { cn } from "cn"
 import {
@@ -31,6 +35,12 @@ import {
 import { Badge } from "@/registry/tassullo/ui/badge"
 import { Button } from "@/registry/tassullo/ui/button"
 import { Checkbox } from "@/registry/tassullo/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/registry/tassullo/ui/dropdown-menu"
 
 export type StatoRevisione =
   | "bozza"
@@ -80,9 +90,21 @@ export type VersionTimelineEntry = {
   /** Es. "v3", "Rev. 4". */
   versione: string
   stato: StatoRevisione
-  autore: string
-  data: Date
+  /** Chi l'ha scritta. Senza, la riga dell'autore non c'è. */
+  autore?: string
+  /** Quando. Senza, la data non c'è. */
+  data?: Date
   descrizione?: string
+}
+
+/** Un comando su una revisione, nel menu «⋯» della sua voce. */
+export type AzioneVersione = {
+  etichetta: string
+  onSelect: () => void
+  /** In rosso: ripristina, elimina, tutto ciò che non si annulla con un clic. */
+  distruttiva?: boolean
+  /** Presente, il comando è spento e il motivo si legge sotto l'etichetta. */
+  motivoSpenta?: string
 }
 
 export type VersionTimelineProps = {
@@ -92,13 +114,57 @@ export type VersionTimelineProps = {
   confrontabile?: boolean
   /** Le due revisioni scelte, quando l'app clicca "Confronta". La diff vera non è compito di questo blocco. */
   onConfronta?: (a: VersionTimelineEntry, b: VersionTimelineEntry) => void
+  /**
+   * I comandi di ogni revisione: «Carica nell'editor», «Valida…»,
+   * «Ripristina». Un elenco vuoto toglie il menu da quella voce.
+   */
+  azioni?: (revisione: VersionTimelineEntry) => AzioneVersione[]
   className?: string
+}
+
+function MenuVersione({
+  versione,
+  azioni,
+}: {
+  versione: string
+  azioni: AzioneVersione[]
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon-sm" className="-my-1" />}
+        aria-label={`Azioni su ${versione}`}
+      >
+        <EllipsisVerticalIcon aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-auto max-w-(--available-width)">
+        {azioni.map((azione) => (
+          <DropdownMenuItem
+            key={azione.etichetta}
+            variant={azione.distruttiva ? "destructive" : "default"}
+            disabled={Boolean(azione.motivoSpenta)}
+            onClick={azione.onSelect}
+          >
+            {azione.motivoSpenta ? (
+              <span className="flex flex-col">
+                <span>{azione.etichetta}</span>
+                <span className="text-xs">{azione.motivoSpenta}</span>
+              </span>
+            ) : (
+              azione.etichetta
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 export function VersionTimeline({
   revisioni,
   confrontabile,
   onConfronta,
+  azioni,
   className,
 }: VersionTimelineProps) {
   const [selezionate, setSelezionate] = useState<string[]>([])
@@ -124,6 +190,7 @@ export function VersionTimeline({
         {revisioni.map((revisione, indice) => {
           const stato = STATO[revisione.stato]
           const ultima = indice === revisioni.length - 1
+          const comandi = azioni?.(revisione) ?? []
 
           return (
             <li
@@ -166,20 +233,29 @@ export function VersionTimeline({
                   <Badge variant="outline" className={stato.className}>
                     {stato.etichetta}
                   </Badge>
-                  <span className="ml-auto shrink-0 text-sm text-muted-foreground tabular-nums">
-                    {revisione.data.toLocaleDateString("it-IT", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                  <span className="ml-auto flex shrink-0 items-center gap-1">
+                    {revisione.data ? (
+                      <span className="text-sm text-muted-foreground tabular-nums">
+                        {revisione.data.toLocaleDateString("it-IT", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    ) : null}
+                    {comandi.length > 0 ? (
+                      <MenuVersione versione={revisione.versione} azioni={comandi} />
+                    ) : null}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Avatar size="sm">
-                    <AvatarFallback>{iniziali(revisione.autore)}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm text-muted-foreground">{revisione.autore}</span>
-                </div>
+                {revisione.autore ? (
+                  <div className="flex items-center gap-2">
+                    <Avatar size="sm">
+                      <AvatarFallback>{iniziali(revisione.autore)}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-muted-foreground">{revisione.autore}</span>
+                  </div>
+                ) : null}
                 {revisione.descrizione ? (
                   <p className="text-sm text-muted-foreground">{revisione.descrizione}</p>
                 ) : null}

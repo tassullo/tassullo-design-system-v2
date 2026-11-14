@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test'
+
+import { apriCol } from '@/prove/apri'
 
 import {
   VersionTimeline,
+  type AzioneVersione,
   type VersionTimelineEntry,
 } from '@/registry/tassullo/blocks/version-timeline'
 import { DiffView } from '@/registry/tassullo/blocks/diff-view'
@@ -33,18 +37,28 @@ import { DiffView } from '@/registry/tassullo/blocks/diff-view'
  * **Le prop.**
  *
  * - `revisioni`, dalla più recente alla più vecchia: ognuna ha `id`,
- *   `versione` («Rev. 4»), `stato`, `autore`, `data` e `descrizione`.
+ *   `versione` («Rev. 4»), `stato`, e a scelta `autore`, `data` e
+ *   `descrizione`. Senza autore o senza data la voce mostra solo ciò che
+ *   c'è, come nell'archivio delle revisioni di un PDF.
  * - `stato` è uno di `"bozza"`, `"in-revisione"`, `"approvato"`,
  *   `"rifiutato"`, `"superato"`, ciascuno con il suo colore.
  * - `confrontabile` accende una casella per revisione e il bottone
  *   «Confronta»; `onConfronta` riceve le due revisioni scelte.
+ * - `azioni(revisione)` dà i comandi di ogni voce, in un menu «⋯» accanto
+ *   alla data: `etichetta`, `onSelect`, `distruttiva` per il rosso,
+ *   `motivoSpenta` per un comando spento, col motivo scritto sotto. Un
+ *   elenco vuoto toglie il menu da quella voce.
  *
  * **Regole d'uso.** L'`id` di una revisione è stabile, non la sua posizione
  * nell'elenco. Si scelgono due revisioni al massimo: con due scelte le altre
- * caselle si spengono, e «Confronta» si accende solo con una coppia.
+ * caselle si spengono, e «Confronta» si accende solo con una coppia. Un
+ * comando che oggi non si può dare resta nel menu, spento, col perché: un
+ * comando che sparisce non dice a nessuno cosa manca.
  *
  * **Tastiera e accessibilità.** Le caselle si raggiungono col `Tab` e si
- * spuntano con `Spazio`; ognuna ha il nome della sua revisione.
+ * spuntano con `Spazio`; ognuna ha il nome della sua revisione. Il bottone
+ * «⋯» si chiama «Azioni su» più la versione; `Invio` apre il menu, le frecce
+ * scorrono le voci e `Esc` lo chiude.
  */
 const meta = {
   title: 'Blocchi/Timeline delle revisioni',
@@ -153,4 +167,90 @@ function DemoConfronto() {
       ) : null}
     </div>
   )
+}
+
+const comandiModello = (azione: (cosa: string, r: VersionTimelineEntry) => void) =>
+  (r: VersionTimelineEntry): AzioneVersione[] => [
+    { etichetta: 'Carica nell’editor', onSelect: () => azione('carica', r) },
+    r.stato === 'bozza' || r.stato === 'in-revisione'
+      ? { etichetta: 'Valida…', onSelect: () => azione('valida', r) }
+      : { etichetta: 'Valida…', onSelect: () => azione('valida', r), motivoSpenta: 'Già validata' },
+    ...(r.stato === 'superato'
+      ? [{ etichetta: 'Ripristina', onSelect: () => azione('ripristina', r), distruttiva: true }]
+      : []),
+  ]
+
+/**
+ * Un comando per revisione, nel menu «⋯» accanto alla data: caricare una
+ * versione nell'editor, validarla, ripristinarne una superata. «Valida…» su
+ * una versione già validata resta spento, col motivo; «Ripristina» è in
+ * rosso perché sostituisce la versione corrente.
+ */
+export const ConAzioni: Story = {
+  name: 'Con azioni',
+  args: { revisioni: cinqueRevisioni },
+  render: (args) => (
+    <div className="max-w-lg">
+      <VersionTimeline {...args} azioni={comandiModello(() => {})} />
+    </div>
+  ),
+  play: apriCol('[data-slot="dropdown-menu-trigger"][aria-label="Azioni su Rev. 2"]', 'dropdown-menu-content'),
+}
+
+const revisioniPdf: VersionTimelineEntry[] = [
+  { id: '03', versione: 'Rev. 03 — italiano', stato: 'approvato', descrizione: 'Scheda tecnica, PDF, 4 pagine.' },
+  { id: '02', versione: 'Rev. 02 — italiano', stato: 'superato' },
+  { id: '01', versione: 'Rev. 01 — italiano', stato: 'superato' },
+]
+
+/**
+ * L'archivio delle revisioni di un PDF, che non ha autore né data per
+ * revisione: la voce mostra il numero, lo stato e, se c'è, la descrizione.
+ */
+export const SenzaAutoreNeData: Story = {
+  name: 'Senza autore né data',
+  args: { revisioni: revisioniPdf },
+  render: (args) => (
+    <div className="max-w-lg">
+      <VersionTimeline {...args} />
+    </div>
+  ),
+}
+
+const sceltaProva = fn()
+
+// Il menu ha le tre voci sulla revisione superata, «Valida…» spento col
+// motivo, «Ripristina» in rosso; la scelta arriva all'app con la revisione
+// giusta; senza autore e data non si rendono né avatar né data.
+export const ConAzioniProva: Story = {
+  name: 'Con azioni, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { revisioni: cinqueRevisioni },
+  render: (args) => (
+    <div className="flex max-w-lg flex-col gap-8">
+      <VersionTimeline {...args} azioni={comandiModello((cosa, r) => sceltaProva(cosa, r.id))} />
+      <div data-prova="pdf">
+        <VersionTimeline revisioni={revisioniPdf} azioni={() => []} />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    sceltaProva.mockClear()
+    await userEvent.click(tela.getByRole('button', { name: 'Azioni su Rev. 2' }))
+    const menu = await screen.findByRole('menu')
+    const voci = within(menu).getAllByRole('menuitem')
+    expect(voci.map((v) => v.textContent)).toEqual(['Carica nell’editor', 'Valida…Già validata', 'Ripristina'])
+    expect(voci[1]).toHaveAttribute('aria-disabled', 'true')
+    expect(voci[2]).toHaveAttribute('data-variant', 'destructive')
+    await userEvent.click(voci[2])
+    expect(sceltaProva).toHaveBeenCalledWith('ripristina', '2')
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+
+    const pdf = canvasElement.querySelector<HTMLElement>('[data-prova="pdf"]')!
+    expect(pdf.querySelector('[data-slot="avatar"]')).toBeNull()
+    expect(pdf.querySelector('.tabular-nums')).toBeNull()
+    expect(within(pdf).queryByRole('button', { name: /^Azioni su/ })).toBeNull()
+    expect(within(pdf).getByText('Rev. 03 — italiano')).toBeInTheDocument()
+  },
 }
