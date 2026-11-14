@@ -15655,7 +15655,7 @@ Proposta di Studio, fatta in una sessione a parte mentre la sessione principale 
 - `Dal server, prova`: prima richiesta al montaggio e corpo «Caricamento…»; pagina dopo con le righe di prima, `aria-busy` e «Caricamento…»; selezione svuotata (vista tornando alla pagina 1); pagina 20 sparita dopo il taglio → pagina 19; «calce» una richiesta sola e prima pagina; ordinamento al server; opzioni e conteggi del filtro dall'app.
 - Tredici mutazioni del codice, tutte cadono. Il corpo vuoto cadeva solo dopo aver aggiunto l'asserzione sul `tbody`. `manualSorting` tolto non cade: un server onesto ordina la pagina come la riordinerebbe la tabella.
 - Nello Storybook dal pannello del browser: pagina dopo, «Caricamento…», `aria-busy` e una richiesta sola per «calce» scritta a mano. La `play` invece lì si ferma alla ricerca: il pannello era nascosto, e i timer della pagina rallentano oltre i 5 s del `waitFor`. Nel Chromium di vitest passa.
-- `npm run check`: vedi la voce della PR.
+- `npm run check` in locale: statici verdi; `test:a11y` 2824 scansioni nelle quattro passate, 0 violazioni. `test:webkit` rosso, ma per la macchina: con un emulatore al 150% di CPU e il carico fra 10 e 35 cadono per tempo scaduto da 2 a 28 scene, anche di blocchi non toccati, e `main` nello stesso momento fa cadere le stesse tre tabelle virtualizzate (4 e 2 su 6, contro 3 su 6 col ramo). Il giudice è la CI.
 
 #### Aperti
 
