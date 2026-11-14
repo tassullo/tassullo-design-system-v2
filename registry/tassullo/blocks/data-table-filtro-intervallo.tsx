@@ -74,9 +74,12 @@ export type FiltroIntervalloProps<TDato extends RowData> = {
   accessore: string
   /** Il nome del filtro sul grilletto («Prezzo», «Quantità»…). */
   titolo: string
-  /** Estremo minimo, invece di calcolarlo dai dati correnti. */
+  /**
+   * Estremo minimo, invece di calcolarlo dai dati correnti. Con una tabella
+   * che pagina dal server va dato: le righe arrivate sono una pagina.
+   */
   min?: number
-  /** Estremo massimo, invece di calcolarlo dai dati correnti. */
+  /** Estremo massimo, invece di calcolarlo dai dati correnti. Col server, come `min`. */
   max?: number
   /** Passo dello slider. Predefinito: 1, o il valore intero più vicino. */
   passo?: number
@@ -105,6 +108,9 @@ export function FiltroIntervallo<TDato extends RowData>({
     | Column<CaratteristicheTabella, TDato, unknown>
     | undefined
   const righeCore = tabella.getCoreRowModel().rows
+  // Una tabella che pagina dal server (`server` di `<DataTable>`): le righe
+  // sono una pagina, e minimo, massimo e conteggio non si ricavano da loro.
+  const dalServer = !!tabella.options.manualFiltering
 
   // Tutti gli hook prima di qualunque `return` — anche quando la colonna non
   // c'è, questo componente deve chiamarli nello stesso ordine a ogni render
@@ -202,9 +208,15 @@ export function FiltroIntervallo<TDato extends RowData>({
         </PopoverHeader>
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium">{titolo}</span>
-          <span className="inline-flex h-5 items-center justify-center rounded-sm bg-secondary px-1.5 text-xs font-normal tabular-nums text-secondary-foreground">
-            {conteggio}
-          </span>
+          {/*
+            Col server le righe arrivate sono una pagina: il loro conto non è
+            quello dell'elenco, e non si mostra.
+          */}
+          {dalServer ? null : (
+            <span className="inline-flex h-5 items-center justify-center rounded-sm bg-secondary px-1.5 text-xs font-normal tabular-nums text-secondary-foreground">
+              {conteggio}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Label htmlFor={`${idBase}-min`} className="sr-only">

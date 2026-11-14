@@ -15668,3 +15668,35 @@ Cinque proposte nuove di Studio (#234–#238). Lette col codice che toccano; Fra
 - `pdf-preview › Pagina Iniziale`: attesa più lunga del limite della prova, e apertura oltre i 15 s in locale.
 - Studio: alla versione nuova togliere lo `span` disegnato nel bottone dello stepper, il riquadro dei comandi sotto la timeline dei modelli e il `collapsible` dell'archivio delle revisioni (ora `VersionTimeline` senza autore né data), il `className="w-full flex-wrap"` del filtro.
 - La #236 è nella sua sessione, su un ramo suo.
+
+## 2026-11-14 — #236: la paginazione fatta dal server dentro `tassullo-data-table`
+
+Proposta di Studio, fatta in una sessione a parte mentre la sessione principale prendeva #234, #235, #237 e #238. Ramo `fras/proposta-236-paginazione-server` da `main`. Non unita, nessuna versione: la v2.0.43 la pubblica la sessione principale.
+
+#### Le decisioni
+
+- **Un oggetto `server`**, non quattro prop sciolte: `totale`, `pagina` (da 0), `onRichiesta`, `inCaricamento`. `perPagina` resta la prop che c'era, e col server è il numero tenuto dall'app.
+- **`onRichiesta` riceve la richiesta intera** (`pagina`, `perPagina`, `scarto`, `ricerca`, `filtri`, `ordinamento`): l'app la tiene nello stato e la gira al server. La prima la fa la tabella al montaggio, con quello che `memoria` ha ritrovato. Ricerca, filtri e ordinamento restano nella tabella e riportano alla prima pagina.
+- La ricerca aspetta 300 ms; svuotata vale subito.
+- Caricamento: righe di prima in vista, `aria-busy` sul riquadro, «Caricamento…» con lo spinner al posto del conto; senza righe, lo stato vuoto dice «Caricamento…».
+- `"infinito"`, `"virtuale"` e `riordinabile` col server non valgono (avviso in sviluppo). Selezione della pagina, svuotata a ogni richiesta. Filtri sfaccettati: opzioni dell'app, conteggio solo dal `count` dell'app; intervallo senza conteggio. `piede` somma la pagina. Tolta l'ultima riga dell'ultima pagina, la tabella chiede l'ultima che resta. Ragioni in `docs/DECISIONI.md` §101.
+
+#### Cosa cambia
+
+- `data-table.tsx`: tipi `RichiestaPagina` e `PaginazioneServer`, prop `server`; `TabellaVuota` ha lo stato `caricamento`; il piè riceve `totale` e `caricamento`. Fuori dai rami `conServer` una sola riga toccata (`schedeSenzaEffetto`).
+- `data-table-filtro-sfaccettato.tsx`, `data-table-filtro-intervallo.tsx`: il ramo per la tabella dal server, riconosciuto da `tabella.options.manualFiltering`.
+- `registry.json`: `@tassullo/spinner` fra le dipendenze dell'item, descrizione e testo d'uso.
+- Scene `Dal server` (server finto, mezzo secondo) e `Dal server, prova` (il server risponde a mano, «Consegna la pagina», e un bottone accorcia l'elenco).
+
+#### Prove
+
+- `Dal server, prova`: prima richiesta al montaggio e corpo «Caricamento…»; pagina dopo con le righe di prima, `aria-busy` e «Caricamento…»; selezione svuotata (vista tornando alla pagina 1); pagina 20 sparita dopo il taglio → pagina 19; «calce» una richiesta sola e prima pagina; ordinamento al server; opzioni e conteggi del filtro dall'app.
+- Tredici mutazioni del codice, tutte cadono. Il corpo vuoto cadeva solo dopo aver aggiunto l'asserzione sul `tbody`. `manualSorting` tolto non cade: un server onesto ordina la pagina come la riordinerebbe la tabella.
+- Nello Storybook dal pannello del browser: pagina dopo, «Caricamento…», `aria-busy` e una richiesta sola per «calce» scritta a mano. La `play` invece lì si ferma alla ricerca: il pannello era nascosto, e i timer della pagina rallentano oltre i 5 s del `waitFor`. Nel Chromium di vitest passa.
+- `npm run check` in locale: statici verdi; `test:a11y` 2824 scansioni nelle quattro passate, 0 violazioni. `test:webkit` rosso, ma per la macchina: con un emulatore al 150% di CPU e il carico fra 10 e 35 cadono per tempo scaduto da 2 a 28 scene, anche di blocchi non toccati, e `main` nello stesso momento fa cadere le stesse tre tabelle virtualizzate (4 e 2 su 6, contro 3 su 6 col ramo). Il giudice è la CI.
+
+#### Aperti
+
+- Caricare altre pagine scorrendo (`"infinito"` col server): non chiesto.
+- Una selezione «tutte le righe dell'elenco» per azioni di massa lato server: non chiesta.
+- Studio: alla versione nuova, la lista utenti passa a `server` e toglie l'avviso del limite di 200 righe.
