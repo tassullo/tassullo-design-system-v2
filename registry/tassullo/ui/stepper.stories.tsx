@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { CheckIcon } from 'lucide-react'
+import { expect, userEvent, within } from 'storybook/test'
+
+import { Button } from '@/registry/tassullo/ui/button'
 
 import {
   Stepper,
@@ -66,6 +70,16 @@ import {
  *   passo corrente: la strada dopo il corrente è ancora da fare.
  * - Un bottone senza testo visibile ha comunque un nome, in un `aria-label` o
  *   in uno `<span className="sr-only">`.
+ * - **La barra a segmenti si fa col pallino, non col tratto**: un
+ *   `StepperIndicator` largo quanto la colonna e basso (`h-1.5 w-full
+ *   rounded-full`) è il segmento, ed è già dentro il bottone del passo. Il
+ *   `StepperSeparator` resta il collegamento fra due pallini e non serve.
+ *   Fatto e corrente sono pieni, da fare grigio.
+ * - In un percorso che si valida passo per passo, i passi davanti sono
+ *   spenti (`disabled` su `StepperItem`) e si avanza solo col bottone del
+ *   modulo; si torna indietro toccando un passo fatto. Sui passi spenti
+ *   `disabled:opacity-100` sul bottone tiene il grigio dei passi da fare,
+ *   invece di sbiadirlo una seconda volta.
  *
  * **Tastiera e accessibilità.** La barra è un solo fermo di tabulazione: `Tab`
  * entra sul passo corrente e il `Tab` seguente esce. Dentro, le frecce
@@ -362,4 +376,147 @@ export const BarraASegmenti: Story = {
       />
     </Stepper>
   ),
+}
+
+const PERCORSO = [
+  'Dati di ingresso',
+  'Geometria',
+  'Analisi dei carichi',
+  'Verifiche',
+  'Relazione',
+]
+
+function PercorsoGuidato({ className }: { className: string }) {
+  const [passo, setPasso] = useState(1)
+  const totale = PERCORSO.length
+  return (
+    <Stepper
+      role="group"
+      aria-orientation={undefined}
+      value={passo}
+      onValueChange={setPasso}
+      className={`@container/passi space-y-6 ${className}`}
+    >
+      <div
+        role="tablist"
+        aria-label="Passi del calcolo"
+        className="grid w-full grid-flow-col auto-cols-fr gap-2"
+      >
+        {PERCORSO.map((titolo, i) => (
+          <StepperItem
+            key={titolo}
+            step={i + 1}
+            disabled={i + 1 > passo}
+            className="flex-col items-stretch justify-start"
+          >
+            <StepperTrigger
+              aria-label={`Passo ${i + 1} di ${totale}: ${titolo}`}
+              className="w-full flex-col items-start gap-2 rounded-md disabled:opacity-100"
+            >
+              <StepperIndicator className="h-1.5 w-full rounded-full" />
+              <span
+                aria-hidden
+                className="hidden text-start text-sm font-medium group-data-[state=inactive]/step:text-muted-foreground @md/passi:block"
+              >
+                {titolo}
+              </span>
+            </StepperTrigger>
+          </StepperItem>
+        ))}
+      </div>
+      <StepperPanel>
+        {PERCORSO.map((titolo, i) => (
+          <div
+            key={titolo}
+            id={`stepper-panel-${i + 1}`}
+            role="tabpanel"
+            aria-labelledby={`stepper-tab-${i + 1}`}
+          >
+            <StepperContent value={i + 1} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm text-muted-foreground">{`Passo ${i + 1} di ${totale}`}</p>
+                <h3 className="text-lg font-semibold">{titolo}</h3>
+              </div>
+              <div className="flex gap-2">
+                {i > 0 && (
+                  <Button variant="outline" onClick={() => setPasso(i)}>
+                    Indietro
+                  </Button>
+                )}
+                {i + 1 < totale && (
+                  // Qui l'app valida il modulo del passo prima di avanzare.
+                  <Button onClick={() => setPasso(i + 2)}>Avanti</Button>
+                )}
+              </div>
+            </StepperContent>
+          </div>
+        ))}
+      </StepperPanel>
+    </Stepper>
+  )
+}
+
+/**
+ * Un calcolo guidato in cinque passi, con la barra a segmenti: un segmento
+ * per passo, pieno fino al corrente. Il titolo sta sotto il segmento quando
+ * la barra è larga almeno 448px; più stretta, come sul telefono, resta il
+ * solo segmento, e il titolo si legge nel nome del bottone e nel pannello.
+ * I passi davanti sono spenti: si avanza col bottone del modulo, che valida,
+ * e si torna indietro toccando un passo fatto.
+ */
+export const PercorsoASegmenti: Story = {
+  name: 'Percorso a segmenti',
+  render: () => (
+    <div className="flex flex-col gap-10">
+      <PercorsoGuidato className="w-full max-w-xl" />
+      <PercorsoGuidato className="w-80" />
+    </div>
+  ),
+}
+
+// I passi davanti sono spenti; «Avanti» avanza, il passo fatto riporta
+// indietro; il nome del bottone dice passo, totale e titolo; sotto i 448px il
+// titolo sparisce dalla barra.
+export const PercorsoASegmentiProva: Story = {
+  name: 'Percorso a segmenti, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div className="flex flex-col gap-10">
+      <div data-prova="largo">
+        <PercorsoGuidato className="w-full max-w-xl" />
+      </div>
+      <div data-prova="stretto">
+        <PercorsoGuidato className="w-80" />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const largo = within(canvasElement.querySelector<HTMLElement>('[data-prova="largo"]')!)
+    const stretto = canvasElement.querySelector<HTMLElement>('[data-prova="stretto"]')!
+    const passo = (n: number, titolo: string) =>
+      largo.getByRole('tab', { name: `Passo ${n} di 5: ${titolo}` })
+
+    expect(passo(1, 'Dati di ingresso')).toHaveAttribute('aria-selected', 'true')
+    expect(passo(2, 'Geometria')).toBeDisabled()
+    expect(passo(5, 'Relazione')).toBeDisabled()
+
+    await userEvent.click(largo.getByRole('button', { name: 'Avanti' }))
+    await userEvent.click(largo.getByRole('button', { name: 'Avanti' }))
+    expect(passo(3, 'Analisi dei carichi')).toHaveAttribute('aria-selected', 'true')
+    expect(passo(4, 'Verifiche')).toBeDisabled()
+    expect(passo(1, 'Dati di ingresso')).toBeEnabled()
+
+    await userEvent.click(passo(1, 'Dati di ingresso'))
+    expect(passo(1, 'Dati di ingresso')).toHaveAttribute('aria-selected', 'true')
+    expect(passo(2, 'Geometria')).toBeDisabled()
+
+    const segmenti = [...canvasElement.querySelectorAll<HTMLElement>('[data-prova="largo"] [data-slot="stepper-indicator"]')]
+    const cime = new Set(segmenti.map((el) => Math.round(el.getBoundingClientRect().top)))
+    expect(cime.size).toBe(1)
+
+    const titoloLargo = largo.getByText('Geometria', { selector: 'span' })
+    expect(getComputedStyle(titoloLargo).display).not.toBe('none')
+    const titoloStretto = within(stretto).getByText('Geometria', { selector: 'span' })
+    expect(getComputedStyle(titoloStretto).display).toBe('none')
+  },
 }
