@@ -15746,3 +15746,17 @@ Trovato censendo la regola della #243: la pagina di `entity-image` consigliava a
 - Testo d'uso dell'item `tema` in `registry.json`: la ricetta della griglia. Autotest del controllo: la classe col token passa, quella scritta a mano no.
 - Nota per le app: reinstallare `tema` (il token è lì) e, se serve, `entity-image`. Chi ha una griglia `repeat(auto-fill, minmax(…))` per il catalogo la scrive `grid grid-cols-catalogo gap-4`.
 
+
+## 2026-11-15 — v2.0.44 pubblicata, #242–#244 chiuse
+
+Francesco: «Sistemiamo prima il problema della classe griglia catalogo e poi uniamo tutto», poi, con la CI verde, «Procedi con tutto». Gate della PR #245 verde in CI su `f7712d4` (9 min 34 s).
+
+- **L'unione ha dato un 502 di GitHub.** `gh pr merge` ha risposto 502; i tentativi dopo dicevano «Merge already in progress». L'unione invece era avvenuta: `49ba2a4` è in `main`, con un albero identico a quello di `f7712d4` (`2870632`), cioè il codice provato dalla CI. GitHub però non ha registrato l'evento: la #245 è rimasta aperta e «in conflitto», le `Closes` non hanno chiuso le issue, e su `main` non sono partiti né il gate né Pages. La correzione automatica ha segnalato un conflitto che non c'era: nessuna modifica fatta al ramo.
+- Etichetta annotata `v2.0.44` su `49ba2a4`, push della sola etichetta. Pages rilanciato a mano (`workflow_dispatch`).
+- Verifica da fuori: alla `v2.0.44` rispondono 200 `registry.json` e `public/r/` di `tassullo-version-timeline`, `tassullo-data-table`, `tassullo-controllo` e `tema`, con dentro `"corrente"`, `RighePerPagina`, il caso `group-data-[state=open]/menu` dell'autotest e `grid-template-columns-catalogo`; `shadcn view …#v2.0.44` risolve tabella e timeline con le modifiche.
+- Commento di adozione su #242, #243, #244 (cosa reinstallare, il ripiego da togliere in Studio, cambi di serie, cosa provare, se rompe), poi chiuse a mano con il rimando all'unione.
+
+#### Aperti
+
+- La #245 resta aperta su GitHub nonostante l'unione: da ricontrollare dopo l'unione di questa PR, che è il prossimo push su `main`. Se resta aperta, si chiude a mano con il rimando a `49ba2a4`.
+- Studio: adottare la v2.0.44 e togliere i tre commenti «in attesa di» in `CatalogoProdotto.tsx`, `percorso.tsx`, `UtentiAdmin.tsx`.
