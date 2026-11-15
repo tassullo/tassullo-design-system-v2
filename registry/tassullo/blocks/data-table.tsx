@@ -1596,7 +1596,15 @@ function VisibilitaColonne<TDato extends RowData>({
   )
 }
 
-const PER_PAGINA = [10, 25, 50, 100]
+const PER_PAGINA = [10, 25, 50, 100] as const
+
+/** Le righe per pagina che la tendina offre: 10, 25, 50 o 100. */
+export type RighePerPagina = (typeof PER_PAGINA)[number]
+
+/** Un numero arrivato dalla tabella, riportato a una delle righe offerte. */
+function righeOfferte(n: number): RighePerPagina {
+  return PER_PAGINA.find((offerta) => offerta === n) ?? 25
+}
 
 /** Quante righe in più a ogni caricamento, in `perPagina="infinito"`. */
 const PASSO_INFINITO = 40
@@ -3824,8 +3832,8 @@ export type NomeRighe = { singolare: string; plurale: string }
 export type RichiestaPagina = {
   /** La pagina da mostrare, contata da 0. */
   pagina: number
-  /** Quante righe per pagina: una di 10, 25, 50, 100. */
-  perPagina: number
+  /** Quante righe per pagina: una di 10, 25, 50, 100, come la prop `perPagina`. */
+  perPagina: RighePerPagina
   /** `pagina × perPagina`: quante righe saltare, per un server che conta così. */
   scarto: number
   /** Il testo della casella di ricerca, già fermo da un attimo; `""` se vuota. */
@@ -3982,14 +3990,15 @@ export type DataTableProps<TDato extends RowData> = {
    * che dà alla tabella un'altezza vera: `className="min-h-0 flex-1"` dentro
    * `<AppShell contenuto="riempie">`.
    */
-  perPagina?: (typeof PER_PAGINA)[number] | "infinito" | "virtuale"
+  perPagina?: RighePerPagina | "infinito" | "virtuale"
   /**
    * Le righe sono **una pagina** di un elenco più lungo, che pagina, cerca,
    * filtra e ordina il server. Senza, la tabella fa tutto da sé sulle righe
    * che riceve.
    *
    * La pagina e le righe per pagina le tiene l'app: `server.pagina` e
-   * `perPagina`, che qui è un numero. La tabella non cambia pagina da sé:
+   * `perPagina`, che qui è una delle righe offerte (`RighePerPagina`: 10, 25,
+   * 50 o 100). La tabella non cambia pagina da sé:
    * chiama `onRichiesta` con la richiesta intera, e l'app la manda al server.
    * Ricerca, filtri e ordinamento restano nella tabella, che non li applica
    * più alle righe arrivate: diventano campi della richiesta. La ricerca parte
@@ -4753,8 +4762,8 @@ export function DataTable<TDato extends RowData>({
   const chiediPagina = (pagina: number, righePerPagina: number) =>
     server?.onRichiesta({
       pagina,
-      perPagina: righePerPagina,
-      scarto: pagina * righePerPagina,
+      perPagina: righeOfferte(righePerPagina),
+      scarto: pagina * righeOfferte(righePerPagina),
       ricerca: ricercaInviata,
       filtri,
       ordinamento,

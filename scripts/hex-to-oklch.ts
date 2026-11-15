@@ -634,6 +634,14 @@ ${colorMap}
      Con un tema che non lo dichiara la classe non emette niente, senza
      errore: il termine e il valore finiscono uno sotto l'altro. */
   --grid-template-columns-termine: auto 1fr;
+
+  /* ── Griglia di catalogo (card con \`entity-image\`).
+     Genera \`grid-cols-catalogo\`: tante colonne quante ne entrano, ognuna
+     larga almeno \`--container-3xs\` (256px), che non segue la densità, così
+     su un telefono la griglia ripiega a una colonna invece di sbordare.
+     Con un tema che non lo dichiara la classe non emette niente, senza
+     errore: le card finiscono una sotto l'altra. */
+  --grid-template-columns-catalogo: repeat(auto-fill, minmax(var(--container-3xs), 1fr));
 }
 
 /* ── Tipografia: perché sta in un \`@theme\` SEMPLICE e non in \`@theme inline\`

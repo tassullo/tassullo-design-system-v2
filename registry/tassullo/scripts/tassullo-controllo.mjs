@@ -30,11 +30,13 @@ const COLORI =
 const REGOLE = [
   {
     id: "valore-arbitrario",
-    cerca: /(?<![\w[&-])[a-z][a-z0-9]*(?:-[a-z0-9]+)*-\[[^\]\s]+\](?!:)/,
+    // Un selettore finisce in `:`, anche col nome di un gruppo (`group-data-[…]/step:`);
+    // le parentesi possono contenerne altre (`has-[>[data-slot=x]]:`).
+    cerca: /(?<![\w[&-])[a-z][a-z0-9]*(?:-[a-z0-9]+)*-\[(?:[^[\]\s]|\[[^[\]\s]*\])+\](?!(?:\/[\w-]+)?:)/,
     dove: FILE_DI_CODICE,
     perché:
       "valore arbitrario: le utility si scrivono solo sui token del tema (`h-8`, non `h-[37px]`). " +
-      "Le parentesi nei selettori (`[&_svg]:`, `has-[>svg]:`) vanno bene.",
+      "Le parentesi nei selettori (`[&_svg]:`, `has-[>svg]:`, `group-data-[state=open]/menu:`) vanno bene.",
   },
   {
     id: "esadecimale",
@@ -503,6 +505,16 @@ function selfTest() {
     ["valore-arbitrario", '<div className="h-[37px]" />', true],
     ["valore-arbitrario", 'className="bg-[#F4AC3D] p-2"', true],
     ["valore-arbitrario", 'className="[&_svg]:size-4 has-[>svg]:px-2 data-[open]:bg-muted"', false],
+    // Il selettore di un gruppo o di un fratello con nome (`/step`), e le parentesi annidate.
+    ["valore-arbitrario", 'className="hidden text-start text-sm font-medium group-data-[state=inactive]/step:text-muted-foreground @md/passi:block"', false],
+    ["valore-arbitrario", 'className="peer-data-[checked]/scelta:font-semibold group-has-[>svg]/voce:gap-2"', false],
+    ["valore-arbitrario", 'className="has-[>[data-slot=button-group]]:gap-2"', false],
+    // La griglia di catalogo: col token del tema sì, scritta a mano no.
+    ["valore-arbitrario", 'className="grid grid-cols-catalogo gap-4"', false],
+    ["valore-arbitrario", 'className="grid grid-cols-[repeat(auto-fill,minmax(var(--container-3xs),1fr))] gap-4"', true],
+    // Una misura arbitraria resta tale anche con l'opacità o dopo un selettore.
+    ["valore-arbitrario", 'className="bg-[#F4AC3D]/50"', true],
+    ["valore-arbitrario", 'className="group-data-[state=open]/menu:w-[37px]"', true],
     ["esadecimale", "color: #fff;", true],
     ["esadecimale", 'fill="#F4AC3D"', true],
     ["esadecimale", "// in attesa di tassullo-design-system-v2#123", false],

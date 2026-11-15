@@ -5765,7 +5765,7 @@ function ListaDalServer({
         nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
         selezione
         colonneNascondibili={false}
-        perPagina={(domanda?.richiesta.perPagina ?? 25) as 25}
+        perPagina={domanda?.richiesta.perPagina ?? 25}
         server={{
           totale: risposta?.dati.totale ?? 0,
           pagina: domanda?.richiesta.pagina ?? 0,
@@ -5851,7 +5851,7 @@ async function provaDalServer({ canvasElement }: { canvasElement: HTMLElement })
     await waitFor(() => expect(stato()).not.toHaveTextContent('Caricamento'))
   }
   const richiesta = (parziale: Partial<RichiestaPagina>): RichiestaPagina => {
-    const r = { pagina: 0, perPagina: 25, ricerca: '', filtri: [], ordinamento: [], ...parziale }
+    const r: Omit<RichiestaPagina, 'scarto'> = { pagina: 0, perPagina: 25, ricerca: '', filtri: [], ordinamento: [], ...parziale }
     return { ...r, scarto: r.pagina * r.perPagina }
   }
 

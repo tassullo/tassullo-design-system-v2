@@ -15713,3 +15713,36 @@ PR #239 unita col gate verde in CI, unione `c3c6e18`: chiuse #234, #235, #237, #
 
 - Studio: adottare alla versione nuova. Togliere lo `span` disegnato nel bottone dello stepper (scena «Percorso a segmenti»), il riquadro dei comandi sotto la timeline dei modelli (`azioni`), il `collapsible` dell'archivio delle revisioni (`VersionTimeline` senza autore né data), il `className="w-full flex-wrap"` del filtro, l'avviso del limite di 200 righe sopra l'elenco degli utenti (`server`).
 - `pdf-preview › Pagina Iniziale` cade nel gate locale: l'attesa di 20 s supera il limite di 15 s della prova. Proposta una sessione a parte.
+
+## 2026-11-15 — Ondata 5 delle proposte di Studio: #242, #243, #244
+
+Ramo `fras/proposte-ondata-5` da `main` (`1bc86aa`). Le tre scelte portate a Francesco una alla volta: «A, verde», «Corrente», «Restringere». Ragioni in `docs/DECISIONI.md` §102.
+
+#### Cosa cambia
+
+- **#242** `version-timeline.tsx`: stato `corrente`, «Corrente», tono e pallino di `approvato`. Scena `Archivio di documenti` (al posto di `Senza autore né data`): scheda tecnica in due lingue, due correnti e due superate, il nome del file nella descrizione. Regole d'uso e prop della pagina aggiornate.
+- **#243** `tassullo-controllo.mjs`: la regola `valore-arbitrario` ammette `group-…[…]/<nome>:`, `peer-…[…]/<nome>:` e le parentesi annidate. La scena dello stepper non cambia.
+- **#244** `data-table.tsx`: `PER_PAGINA` `as const`, tipo esportato `RighePerPagina`, usato dalla prop `perPagina` e da `RichiestaPagina.perPagina`; `righeOfferte()` riporta a quel tipo la taglia data da TanStack. Tolto il cast `as 25` dalla scena `Dal server`; in `barra-salva.stories.tsx` `perPagina={40}` → `50` (stesse 40 righe in una pagina).
+
+#### Prove
+
+- #242: `Con azioni, prova` controlla l'archivio (due «Corrente», due «Superato», nessun «Approvato»). Rossa prima dello stato, verde dopo.
+- #243: autotest a 65 casi, 3 rossi prima. E lo script vero su un'app finta con la riga della scena: con la versione di `main` 1 violazione `valore-arbitrario`, col ramo nessuna.
+- #244: `src/prove-dei-tipi/data-table-server.tsx`, compilato da `tsc -b`: prima 2 errori (tipo mancante, `@ts-expect-error` inutile), dopo nessuno. La premessa della issue verificata su una copia di Studio in una cartella temporanea: tolto il cast, l'unico errore era l'import rimasto inutile.
+- `npm run check` in locale verde: statici, `test:a11y` 716 story e 2864 scansioni nelle quattro passate con 0 violazioni (rifatto dopo la griglia di catalogo), `test:webkit` 56 su 56. Questa volta è passata anche `pdf-preview › Pagina Iniziale`.
+
+#### Nota per le app (Studio)
+
+- Reinstallare con `--overwrite`: `tassullo-version-timeline`, `tassullo-data-table` e `tassullo-controllo`.
+- Ripieghi da togliere: in `CatalogoProdotto.tsx` lo stato `approvato` della revisione in vigore → `corrente` (#242); in `percorso.tsx` la classe condizionale del titolo → `group-data-[state=inactive]/step:text-muted-foreground` come nella scena (#243); in `UtentiAdmin.tsx` il cast di `perPagina` e l'import di `DataTableProps` se non serve altrove (#244).
+- Cambi di serie: nessun cambio di aspetto. `perPagina` accetta solo 10, 25, 50, 100, `"infinito"` o `"virtuale"`: un numero fuori elenco ora è un errore di compilazione.
+
+#### La griglia di catalogo
+
+Trovato censendo la regola della #243: la pagina di `entity-image` consigliava alle app `grid-cols-[repeat(auto-fill,minmax(var(--container-3xs),1fr))]`, che `tassullo-controllo` rifiuta. Francesco: «Sistemiamo prima il problema della classe griglia catalogo e poi uniamo tutto». Due forme mandate in foto, a 1050 e 780px di contenitore (le fasce in cui differiscono); scelta **A**, un token di tema.
+
+- `scripts/hex-to-oklch.ts` (e il tema rigenerato): `--grid-template-columns-catalogo` → `grid-cols-catalogo`. `check:registry` lo controlla fra i token di disposizione.
+- `entity-image.stories.tsx`: la scena `In griglia di card` usa la classe invece dello `style` in linea; la regola d'uso la consiglia; scena nascosta `Griglia di catalogo, prova` (3 e 2 colonne a 1048 e 780px, nessuna sotto i 256px), rossa col token tolto.
+- Testo d'uso dell'item `tema` in `registry.json`: la ricetta della griglia. Autotest del controllo: la classe col token passa, quella scritta a mano no.
+- Nota per le app: reinstallare `tema` (il token è lì) e, se serve, `entity-image`. Chi ha una griglia `repeat(auto-fill, minmax(…))` per il catalogo la scrive `grid grid-cols-catalogo gap-4`.
+

@@ -112,7 +112,11 @@ const SHADCN_TOKENS = new Set([
 // colore del cursore delle barre di scorrimento, e `scroll-area` lo legge
 // con `bg-(--scrollbar-thumb)`. Con un tema che non lo dichiara il cursore è
 // trasparente, senza errore.
-const TOKEN_DISPOSIZIONE = ["grid-template-columns-termine", "scrollbar-thumb"];
+const TOKEN_DISPOSIZIONE = [
+  "grid-template-columns-termine",
+  "grid-template-columns-catalogo",
+  "scrollbar-thumb",
+];
 
 /**
  * Un valore arbitrario è una parentesi quadra che NON apre una variante.
