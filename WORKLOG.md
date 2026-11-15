@@ -15700,3 +15700,16 @@ Proposta di Studio, fatta in una sessione a parte mentre la sessione principale 
 - Caricare altre pagine scorrendo (`"infinito"` col server): non chiesto.
 - Una selezione «tutte le righe dell'elenco» per azioni di massa lato server: non chiesta.
 - Studio: alla versione nuova, la lista utenti passa a `server` e toglie l'avviso del limite di 200 righe.
+
+## 2026-11-15 — v2.0.43 pubblicata, #234–#238 chiuse
+
+PR #239 unita col gate verde in CI, unione `c3c6e18`: chiuse #234, #235, #237, #238. La #240 era in conflitto con `main` solo su `CHECKLIST.md` e `WORKLOG.md`: tenute le voci di entrambe, statici verdi sul risultato, unione `1dac535` spinta sul suo ramo dalla sessione principale (la sessione della #236 avvisata di non toccarlo). Gate verde in CI, unita, unione `8318bf2`: chiusa la #236. Etichetta annotata `v2.0.43` su `8318bf2`, push della sola etichetta. Francesco: «Sì, unisci» (la #239), «Sì, unisci e pubblica».
+
+- Dentro: `flex-wrap` di serie nel `toggle-group` e la scena del filtro per categoria; l'altezza del contenitore per `tassullo-split-view`, con una classe; la scena del percorso a segmenti dello `stepper`; `azioni`, `autore?` e `data?` in `tassullo-version-timeline`; la prop `server` di `tassullo-data-table`, con i filtri sfaccettato e a intervallo che la rispettano.
+- **Cambia per chi aggiorna, ed è voluto**: un `toggle-group` staccato che non ci sta va a capo invece di uscire dal contenitore; `tassullo-version-timeline` porta con sé `dropdown-menu` e `lucide-react`. Senza `server` la tabella non cambia.
+- Verifica da fuori: alla `v2.0.43` rispondono 200 `registry.json` e i sette `public/r/` degli item toccati, con dentro `data-[spacing=0]:flex-nowrap`, `h-auto min-h-64 flex-1`, la descrizione nuova dello stepper, `motivoSpenta`, `@tassullo/dropdown-menu`, `server?:` nella tabella e `server` nei due filtri; `shadcn view …tassullo-version-timeline#v2.0.43` restituisce `azioni`.
+
+#### Aperti
+
+- Studio: adottare alla versione nuova. Togliere lo `span` disegnato nel bottone dello stepper (scena «Percorso a segmenti»), il riquadro dei comandi sotto la timeline dei modelli (`azioni`), il `collapsible` dell'archivio delle revisioni (`VersionTimeline` senza autore né data), il `className="w-full flex-wrap"` del filtro, l'avviso del limite di 200 righe sopra l'elenco degli utenti (`server`).
+- `pdf-preview › Pagina Iniziale` cade nel gate locale: l'attesa di 20 s supera il limite di 15 s della prova. Proposta una sessione a parte.
