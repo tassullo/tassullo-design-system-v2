@@ -22,18 +22,56 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    # «Già verificato in PR?» legge la PR unita e l'esito del suo gate.
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: read
     steps:
       # Tutta la storia: serve a sapere quali file sono cambiati.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Il push su `main` che unisce una PR rifaceva per intero il gate
+      # appena passato sulla PR: una decina di minuti per lo stesso esito. Si
+      # salta solo con tre prove insieme: questo commit è l'unione di una PR;
+      # i file uniti sono identici, tutti, a quelli della testa della PR; e
+      # su quella testa il job `gate` è riuscito. Una PR non aggiornata a
+      # `main`, un merge col gate rosso o non finito, un push diretto: il
+      # gate gira qui come prima. Nel dubbio (API che non risponde, testa non
+      # scaricata) gira.
+      - name: Già verificato in PR?
+        id: gia
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rifai() { echo "Il gate gira: $1"; echo "verificato=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\")][0] | \"\(.number) \(.head.sha)\"") \
+            || rifai "PR di questo commit non letta"
+          read -r numero testa <<< "$pr"
+          [ -n "${testa:-}" ] && [ "$testa" != "null" ] || rifai "questo commit non è l'unione di una PR"
+          git cat-file -e "$testa^{commit}" 2>/dev/null \
+            || git fetch --quiet --no-tags origin "$testa" \
+            || rifai "testa della PR #$numero non scaricata"
+          git diff --quiet "$testa" HEAD || rifai "i file uniti non sono quelli della testa della PR #$numero"
+          riuscito=$(gh api "repos/$GITHUB_REPOSITORY/commits/$testa/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name == "gate" and .conclusion == "success")] | length') \
+            || rifai "controlli della PR #$numero non letti"
+          [ "${riuscito:-0}" -gt 0 ] || rifai "nessun gate riuscito sulla testa della PR #$numero"
+          echo "Gate già passato sulla PR #$numero, stessi file: non si rifà."
+          echo "verificato=true" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
+        if: steps.gia.outputs.verificato != 'true'
         with:
           node-version: 24
           cache: npm
 
       - run: npm ci
+        if: steps.gia.outputs.verificato != 'true'
 
       # Una modifica di soli documenti (i `.md` alla radice e in `docs/`) non
       # cambia nessuna scena: salta i gate lenti, cioè le quattro passate di
@@ -43,6 +81,7 @@ jobs:
       # leggere vale «codice», e gira tutto (`docs/DECISIONI.md` §80).
       - name: Cosa è cambiato
         id: cosa
+        if: steps.gia.outputs.verificato != 'true'
         env:
           EVENTO: ${{ github.event_name }}
           BASE: ${{ github.base_ref }}
@@ -64,7 +103,7 @@ jobs:
       # `--with-deps` serve perché l'immagine di GitHub non porta le librerie
       # di sistema che i browser si aspettano.
       - run: npx playwright install --with-deps chromium
-        if: steps.cosa.outputs.esito != 'documenti'
+        if: steps.gia.outputs.verificato != 'true' && steps.cosa.outputs.esito != 'documenti'
 
       # WebKit per la sola passata `test:webkit`: le scene di misura che
       # scorrono e cambiano densità sulle righe virtualizzate. Il ciclo di
@@ -72,7 +111,7 @@ jobs:
       # (`docs/DECISIONI.md` §69 e §70). Con le dipendenze di sistema sono
       # circa 107 MB e 52 pacchetti; il tempo si misura alla prima PR.
       - run: npx playwright install --with-deps webkit
-        if: steps.cosa.outputs.esito != 'documenti'
+        if: steps.gia.outputs.verificato != 'true' && steps.cosa.outputs.esito != 'documenti'
 
       # I tredici gate: gli undici controlli statici — palette, aggiornabilità dei
       # componenti, allineamento di `public/r/` ai sorgenti, riferimenti e
@@ -84,16 +123,16 @@ jobs:
       # poi le quattro passate di axe: {chiaro, scuro} × {popup chiuso, aperto},
       # e la passata WebKit sulle scene etichettate `webkit` (`test:webkit`).
       - run: npm run check
-        if: steps.cosa.outputs.esito != 'documenti'
+        if: steps.gia.outputs.verificato != 'true' && steps.cosa.outputs.esito != 'documenti'
 
       # Soli documenti: gli undici controlli statici, senza i browser.
       - run: npm run check:statici
-        if: steps.cosa.outputs.esito == 'documenti'
+        if: steps.gia.outputs.verificato != 'true' && steps.cosa.outputs.esito == 'documenti'
 
       # La style guide deve anche **costruirsi**: una story che compila nel
       # dev server e non nel build statico è rotta per chi la consulta.
       - run: npm run build-storybook
-        if: steps.cosa.outputs.esito != 'documenti'
+        if: steps.gia.outputs.verificato != 'true' && steps.cosa.outputs.esito != 'documenti'
 
       # E deve **tipare**. `build-storybook` passa da esbuild, che i tipi non
       # li guarda: fino a M4ter.3 in CI non girava nessun `tsc`, e una prop
@@ -107,3 +146,4 @@ jobs:
       # `test:a11y` resta a zero violazioni. Il solo controllo che la vede è il
       # tipo, e il tipo qui dentro lo controlla solo questo passo.
       - run: npm run build
+        if: steps.gia.outputs.verificato != 'true'

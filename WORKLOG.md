@@ -15760,3 +15760,17 @@ Francesco: «Sistemiamo prima il problema della classe griglia catalogo e poi un
 
 - La #245 resta aperta su GitHub nonostante l'unione: da ricontrollare dopo l'unione di questa PR, che è il prossimo push su `main`. Se resta aperta, si chiude a mano con il rimando a `49ba2a4`.
 - Studio: adottare la v2.0.44 e togliere i tre commenti «in attesa di» in `CatalogoProdotto.tsx`, `percorso.tsx`, `UtentiAdmin.tsx`.
+
+## 2026-11-15 — Gate: sul push a `main` non si rifà se è già passato sulla PR unita
+
+Chiesto da Francesco dopo l'avviso di GitHub sui minuti di Actions dell'organizzazione (1.802 su 2.000 a metà mese, consumati da Anagrafe e Studio: questo repository è pubblico e non conta). Qui non si risparmia quota ma tempo: l'unione di una PR rifaceva per intero, sul push a `main`, il gate appena passato sulla PR.
+
+- `.github/workflows/gate.yml`: passo nuovo «Già verificato in PR?», solo sull'evento `push`. Salta tutti i passi successivi con tre prove insieme: il commit è l'unione di una PR (`merge_commit_sha`), `git diff --quiet` fra la testa della PR e il commit unito non trova differenze, e sulla testa c'è un job `gate` riuscito. In ogni altro caso (PR non aggiornata a `main`, gate rosso o non finito, push diretto, API che non risponde) il gate gira come prima.
+- Il job ha ora `permissions` esplicite in sola lettura (`contents`, `checks`, `pull-requests`). `pages.yml` non è toccato.
+- `CLAUDE.md` §Comandi: la frase sul gate «su ogni push a `main`» dice ora quando si salta.
+- Test: il passo provato in locale con una `gh` finta su un repository di prova: stessi file (salta), file diversi, gate rosso, nessuna PR (gira in tutti e tre). `npm run check` non rilanciato in locale: lo fa il gate di questa PR.
+
+#### Aperti
+
+- La prova vera è il push a `main` che unisce questa PR: nel log deve comparire «Gate già passato sulla PR».
+- Nessuna riga in `CHECKLIST.md`: non è un task del piano.
