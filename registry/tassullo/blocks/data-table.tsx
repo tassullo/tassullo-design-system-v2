@@ -132,6 +132,7 @@ import {
   type ColumnSizingState,
   type Header,
   type OnChangeFn,
+  type PaginationState,
   type ReactTable,
   type Row,
   type ColumnFiltersState,
@@ -229,6 +230,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/registry/tassullo/ui/select"
+import { Spinner } from "@/registry/tassullo/ui/spinner"
 import {
   Table,
   TableBody,
@@ -1731,6 +1733,8 @@ function PaginazioneTabella<TDato extends RowData>({
   infinito,
   nomeRighe,
   nomeSottoRighe,
+  totale,
+  caricamento = false,
 }: {
   tabella: IstanzaTabella<TDato>
   conSelezione: boolean
@@ -1743,11 +1747,15 @@ function PaginazioneTabella<TDato extends RowData>({
   nomeRighe: NomeRighe
   /** Negli alberi: il nome delle foglie, contate accanto alle righe di primo livello. */
   nomeSottoRighe?: NomeRighe
+  /** Col server: le righe dell'elenco intero, al posto di quelle arrivate. */
+  totale?: number
+  /** Col server: la pagina chiesta non è ancora arrivata. */
+  caricamento?: boolean
 }) {
   const perPagina = tabella.state.pagination?.pageSize ?? 10
   const pagina = (tabella.state.pagination?.pageIndex ?? 0) + 1
   const pagine = Math.max(tabella.getPageCount(), 1)
-  const filtrate = tabella.getFilteredRowModel().rows.length
+  const filtrate = totale ?? tabella.getFilteredRowModel().rows.length
   const scelte = tabella.getFilteredSelectedRowModel().rows.length
   const nome = filtrate === 1 ? nomeRighe.singolare : nomeRighe.plurale
   // Le foglie si contano su `flatRows`, che col filtro dalle foglie porta
@@ -1770,7 +1778,12 @@ function PaginazioneTabella<TDato extends RowData>({
         role="status"
         aria-live="polite"
       >
-        {conSelezione
+        {caricamento ? (
+          <span className="inline-flex items-center gap-2">
+            <Spinner aria-hidden />
+            Caricamento…
+          </span>
+        ) : conSelezione
           ? `${scelte} di ${filtrate} ${nomeRighe.plurale} selezionate`
           : nomeSottoRighe
             ? `${filtrate} ${nome}, ${foglie} ${nomeFoglie}`
@@ -2528,16 +2541,34 @@ function DataTableRiordinoColonne({
   )
 }
 
-/** I due stati vuoti, che non sono lo stesso stato. */
+/**
+ * I due stati vuoti, che non sono lo stesso stato. E un terzo, che vuoto non
+ * è: col server, la prima pagina che non è ancora arrivata.
+ */
 export function TabellaVuota({
   filtrata,
   vuoto,
   onPulisci,
+  caricamento = false,
 }: {
   filtrata: boolean
   vuoto: StatoVuoto
   onPulisci: () => void
+  /** Le righe stanno arrivando: né «non c'è niente» né «nessun risultato». */
+  caricamento?: boolean
 }) {
+  if (caricamento) {
+    return (
+      <Empty className="border-0 bg-transparent">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Spinner aria-hidden />
+          </EmptyMedia>
+          <EmptyTitle>Caricamento…</EmptyTitle>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
   if (filtrata) {
     return (
       <Empty className="border-0 bg-transparent">
@@ -2621,6 +2652,9 @@ function useSogliaSchede(query: string | undefined): boolean {
 
 /** L'avviso di sviluppo sulle combinazioni senza schede esce una volta sola. */
 const avvisiSchede = new Set<string>()
+
+/** Gli avvisi di `server` già dati, uno per tipo: come `avvisiSchede`. */
+const avvisiServer = new Set<string>()
 
 /**
  * La riga sotto la ricerca della faccia a schede: «Seleziona tutte» a
@@ -2725,6 +2759,7 @@ function ElencoSchede<TDato extends RowData>({
   vuoto,
   conFiltri,
   pulisci,
+  caricamento,
   fermo,
   infinito,
   totaleFiltrate,
@@ -2738,6 +2773,7 @@ function ElencoSchede<TDato extends RowData>({
   vuoto: StatoVuoto
   conFiltri: boolean
   pulisci: () => void
+  caricamento: boolean
   fermo: boolean
   infinito: boolean
   totaleFiltrate: number
@@ -2745,7 +2781,7 @@ function ElencoSchede<TDato extends RowData>({
   sentinellaRef: React.RefObject<HTMLDivElement | null>
 }) {
   return (
-    <div ref={contenitoreRef} className="flex min-h-0 flex-col">
+    <div ref={contenitoreRef} aria-busy={caricamento || undefined} className="flex min-h-0 flex-col">
       <div data-slot="table-container" className={cn("min-h-0", fermo && "overflow-y-auto")}>
         {righe.length > 0 ? (
           <>
@@ -2796,7 +2832,12 @@ function ElencoSchede<TDato extends RowData>({
           </>
         ) : (
           <div className="overflow-hidden rounded-lg border bg-card">
-            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+            <TabellaVuota
+              filtrata={conFiltri}
+              vuoto={vuoto}
+              onPulisci={pulisci}
+              caricamento={caricamento}
+            />
           </div>
         )}
       </div>
@@ -2966,6 +3007,8 @@ export type CorpoTabellaCondiviso<TDato extends RowData> = {
   vuoto: StatoVuoto
   conFiltri: boolean
   pulisci: () => void
+  /** Col server: la pagina non è ancora arrivata (v. `TabellaVuota`). */
+  caricamento?: boolean
 }
 
 /**
@@ -3242,6 +3285,7 @@ export function DataTableBody<TDato extends RowData>({
   vuoto,
   conFiltri,
   pulisci,
+  caricamento,
   fermo,
   pannelloRiga,
   infinito,
@@ -3338,7 +3382,12 @@ export function DataTableBody<TDato extends RowData>({
       ) : (
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={colonneVisibili} className="p-0">
-            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+            <TabellaVuota
+              filtrata={conFiltri}
+              vuoto={vuoto}
+              onPulisci={pulisci}
+              caricamento={caricamento}
+            />
           </TableCell>
         </TableRow>
       )}
@@ -3382,6 +3431,7 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
   vuoto,
   conFiltri,
   pulisci,
+  caricamento,
   scrollEl,
   senzaFocoRiga,
   alVirtualizzatore,
@@ -3612,7 +3662,12 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
       <TableBody>
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={colonneVisibili} className="p-0">
-            <TabellaVuota filtrata={conFiltri} vuoto={vuoto} onPulisci={pulisci} />
+            <TabellaVuota
+              filtrata={conFiltri}
+              vuoto={vuoto}
+              onPulisci={pulisci}
+              caricamento={caricamento}
+            />
           </TableCell>
         </TableRow>
       </TableBody>
@@ -3762,6 +3817,58 @@ export type StatoVuoto = {
  */
 export type NomeRighe = { singolare: string; plurale: string }
 
+/**
+ * Cosa chiedere al server, con `server`: la pagina, quante righe, e i criteri
+ * che la tabella non applica più da sé.
+ */
+export type RichiestaPagina = {
+  /** La pagina da mostrare, contata da 0. */
+  pagina: number
+  /** Quante righe per pagina: una di 10, 25, 50, 100. */
+  perPagina: number
+  /** `pagina × perPagina`: quante righe saltare, per un server che conta così. */
+  scarto: number
+  /** Il testo della casella di ricerca, già fermo da un attimo; `""` se vuota. */
+  ricerca: string
+  /**
+   * I filtri delle colonne, uno per colonna: `id` è la colonna, `value` quello
+   * che il suo filtro scrive — l'elenco dei valori scelti per un filtro a
+   * scelta multipla, la coppia `[minimo, massimo]` per un intervallo.
+   */
+  filtri: ColumnFiltersState
+  /** L'ordinamento: per ogni colonna, in ordine, `desc` è vero se decrescente. */
+  ordinamento: SortingState
+}
+
+/**
+ * Le righe sono una pagina di un elenco che sta sul server: vedi `server` di
+ * `<DataTable>`.
+ */
+export type PaginazioneServer = {
+  /** Quante righe ha l'elenco intero, con la ricerca e i filtri di adesso. */
+  totale: number
+  /**
+   * La pagina chiesta per ultima, contata da 0: quella della richiesta, anche
+   * mentre arriva e `dati` ha ancora le righe di prima.
+   */
+  pagina: number
+  /**
+   * Chiamata a ogni cambio di pagina, di righe per pagina, di ricerca, di
+   * filtri o di ordinamento, e una volta appena la tabella si monta, con la
+   * richiesta intera. Un cambio di ricerca, filtri o ordinamento riporta alla
+   * prima pagina.
+   */
+  onRichiesta: (richiesta: RichiestaPagina) => void
+  /**
+   * Vero mentre il server prepara la pagina richiesta. Le righe di prima
+   * restano in vista, e in fondo il conto lascia il posto a «Caricamento…».
+   */
+  inCaricamento?: boolean
+}
+
+/** Quanto la ricerca aspetta, dall'ultimo tasto, prima di diventare una richiesta. */
+const RITARDO_RICERCA = 300
+
 export type DataTableProps<TDato extends RowData> = {
   colonne: ColonnaTabella<TDato>[]
   dati: TDato[]
@@ -3876,6 +3983,56 @@ export type DataTableProps<TDato extends RowData> = {
    * `<AppShell contenuto="riempie">`.
    */
   perPagina?: (typeof PER_PAGINA)[number] | "infinito" | "virtuale"
+  /**
+   * Le righe sono **una pagina** di un elenco più lungo, che pagina, cerca,
+   * filtra e ordina il server. Senza, la tabella fa tutto da sé sulle righe
+   * che riceve.
+   *
+   * La pagina e le righe per pagina le tiene l'app: `server.pagina` e
+   * `perPagina`, che qui è un numero. La tabella non cambia pagina da sé:
+   * chiama `onRichiesta` con la richiesta intera, e l'app la manda al server.
+   * Ricerca, filtri e ordinamento restano nella tabella, che non li applica
+   * più alle righe arrivate: diventano campi della richiesta. La ricerca parte
+   * quando si smette di scrivere.
+   *
+   * ```tsx
+   * const [richiesta, setRichiesta] = React.useState<RichiestaPagina>()
+   * // l'app chiede `richiesta` al server e ne ricava `risposta` e `inCorso`
+   * <DataTable
+   *   dati={risposta?.righe ?? []}
+   *   perPagina={richiesta?.perPagina ?? 25}
+   *   server={{
+   *     totale: risposta?.totale ?? 0,
+   *     pagina: richiesta?.pagina ?? 0,
+   *     inCaricamento: inCorso,
+   *     onRichiesta: setRichiesta,
+   *   }}
+   * />
+   * ```
+   *
+   * La prima pagina la chiede la tabella appena montata: con `memoria`,
+   * la richiesta porta già la ricerca, i filtri e la pagina ritrovati.
+   *
+   * Cosa cambia rispetto alla tabella che fa da sé:
+   *
+   * - **`"infinito"` e `"virtuale"` non valgono**: si torna alle pagine, da 25
+   *   righe. Il riordino a trascinamento (`riordinabile`) si spegne.
+   * - **La selezione è della pagina.** Cambiando pagina, ricerca, filtri o
+   *   ordinamento si svuota: le righe delle altre pagine la tabella non le ha,
+   *   e un'azione su righe che non si vedono non la si deve poter fare.
+   * - **I filtri delle colonne non sanno contare l'elenco intero.** Il filtro
+   *   a scelta multipla vuole le `opzioni` scritte dall'app, e mostra il
+   *   conteggio di un'opzione solo se l'app glielo dà (`count`); senza
+   *   `opzioni` offre i soli valori delle righe arrivate. Il filtro a
+   *   intervallo vuole `min` e `max`, e non mostra il conteggio.
+   * - **`piede` somma la pagina**, cioè le righe arrivate: un totale
+   *   dell'elenco intero lo calcola il server, e la cella lo scrive.
+   * - Il piè (`piePagina`) serve: è lì che si cambia pagina.
+   *
+   * Se il totale scende e la pagina mostrata non esiste più — si è tolta
+   * l'ultima riga dell'ultima pagina —, la tabella chiede l'ultima che c'è.
+   */
+  server?: PaginazioneServer
   // Il riquadro della tabella, in una di due forme — indipendente da
   // `perPagina`, che sceglie *come si caricano* le righe, non *quanto spazio
   // prende* il riquadro. `"naturale"` (default): l'altezza segue il
@@ -4478,6 +4635,7 @@ export function DataTable<TDato extends RowData>({
   nomeRighe = { singolare: "riga", plurale: "righe" },
   nomeSottoRighe,
   perPagina = 25,
+  server,
   altezza = "naturale",
   piePagina = true,
   piede = false,
@@ -4503,7 +4661,10 @@ export function DataTable<TDato extends RowData>({
   internoGriglia,
   attributiTabella,
 }: DataTableProps<TDato>) {
-  const trascinamento = !!riordinabile
+  const conServer = !!server
+  // Col server le righe sono una pagina: il trascinamento, che riordina
+  // l'elenco intero, non ha un elenco intero da riordinare.
+  const trascinamento = !!riordinabile && !conServer
   // Alias semplici, non composti: TypeScript restringe il tipo letterale di
   // `perPagina` da un confronto diretto come questo (le "aliased conditions"
   // di TS 4.4+), non da un `&&` in più — `infinito`/`virtualizzata` sotto,
@@ -4514,17 +4675,34 @@ export function DataTable<TDato extends RowData>({
   // `"virtuale"` non si combina col riordino (v. il prop): monta una
   // finestra di righe, non l'elenco intero — l'indice visibile e quello
   // grezzo divergerebbero appena si scorre. Ricade su `"naturale"`.
-  const infinito = perPaginaInfinito && !trascinamento
-  const virtualizzata = perPaginaVirtuale && !trascinamento
+  const infinito = perPaginaInfinito && !trascinamento && !conServer
+  const virtualizzata = perPaginaVirtuale && !trascinamento && !conServer
   // Solo qui la pagina conta: con `"infinito"`, `"virtuale"` e il riordino
-  // tutte le righe stanno in una pagina sola.
-  const aNumeri = typeof perPagina === "number" && !trascinamento
+  // tutte le righe stanno in una pagina sola. Col server le pagine ci sono
+  // sempre, perché le righe arrivano a pagine.
+  const aNumeri = (typeof perPagina === "number" || conServer) && !trascinamento
+  // Le righe per pagina che si chiedono al server: `perPagina` se è un
+  // numero, altrimenti il predefinito.
+  const perPaginaServer = typeof perPagina === "number" ? perPagina : 25
+  React.useEffect(() => {
+    if (!import.meta.env.DEV || !conServer) return
+    if (typeof perPagina !== "number" && !avvisiServer.has("perPagina")) {
+      avvisiServer.add("perPagina")
+      console.warn(
+        `DataTable: con \`server\` perPagina="${perPagina}" non vale: la tabella pagina da 25 righe.`
+      )
+    }
+    if (riordinabile && !avvisiServer.has("riordinabile")) {
+      avvisiServer.add("riordinabile")
+      console.warn("DataTable: con `server` il riordino a trascinamento si spegne.")
+    }
+  }, [conServer, perPagina, riordinabile])
   const fermo = altezza === "ferma"
   // La faccia a schede. Sopra la soglia, o senza `schede`, la tabella è quella
   // di sempre. Con `"virtuale"` e con un albero la tabella resta: le schede
   // non sanno montare solo le righe in vista né mostrare le sottorighe.
   const sopraSoglia = useSogliaSchede(schede?.soglia)
-  const schedeSenzaEffetto = !!schede && (perPaginaVirtuale || !!getSottoRighe)
+  const schedeSenzaEffetto = !!schede && ((perPaginaVirtuale && !conServer) || !!getSottoRighe)
   const facciaSchede = !!schede && !sopraSoglia && !schedeSenzaEffetto
   React.useEffect(() => {
     if (!import.meta.env.DEV || !schedeSenzaEffetto || avvisiSchede.has("combinazione")) return
@@ -4555,6 +4733,32 @@ export function DataTable<TDato extends RowData>({
     () => ricordato?.visibilita ?? {}
   )
   const [scelte, setScelte] = React.useState({})
+
+  /**
+   * Col server, la ricerca che è già diventata una richiesta: segue `ricerca`
+   * con `RITARDO_RICERCA` di ritardo, così una parola scritta è una richiesta
+   * sola e non una per lettera. Una casella svuotata vale subito, nello
+   * stesso render: «Togli i filtri» svuota ricerca e filtri insieme, ed è una
+   * richiesta sola.
+   */
+  const [ricercaInviata, setRicercaInviata] = React.useState(ricerca)
+  if (conServer && ricerca === "" && ricercaInviata !== "") setRicercaInviata("")
+  React.useEffect(() => {
+    if (!conServer || ricerca === ricercaInviata) return
+    const attesa = window.setTimeout(() => setRicercaInviata(ricerca), RITARDO_RICERCA)
+    return () => window.clearTimeout(attesa)
+  }, [conServer, ricerca, ricercaInviata])
+
+  /** Col server: la richiesta intera, per la pagina e le righe date. */
+  const chiediPagina = (pagina: number, righePerPagina: number) =>
+    server?.onRichiesta({
+      pagina,
+      perPagina: righePerPagina,
+      scarto: pagina * righePerPagina,
+      ricerca: ricercaInviata,
+      filtri,
+      ordinamento,
+    })
   /**
    * Le larghezze **acquisite** dall'utente (`ridimensionabile`/
    * `colonneBloccabili`). Resta uno stato interno — non una prop controllata
@@ -4770,6 +4974,25 @@ export function DataTable<TDato extends RowData>({
     onGlobalFilterChange: setRicerca,
     onColumnVisibilityChange: setVisibilita,
     onRowSelectionChange: setScelte,
+    // Col server la tabella non pagina, non filtra e non ordina: le righe
+    // arrivano già così, e i tre stati diventano la richiesta. Il numero
+    // delle pagine lo dà `rowCount`. La pagina è dell'app, e si passa nello
+    // stato insieme alla funzione che riceve i cambi: le due chiavi si
+    // scrivono solo col server, perché una chiave presente col valore
+    // `undefined` toglierebbe alla tabella il suo stato e il suo gestore.
+    manualPagination: conServer,
+    manualFiltering: conServer,
+    manualSorting: conServer,
+    rowCount: server?.totale,
+    ...(server
+      ? {
+          onPaginationChange: (aggiorna: Parameters<OnChangeFn<PaginationState>>[0]) => {
+            const prima = { pageIndex: server.pagina, pageSize: perPaginaServer }
+            const dopo = typeof aggiorna === "function" ? aggiorna(prima) : aggiorna
+            chiediPagina(dopo.pageIndex, dopo.pageSize)
+          },
+        }
+      : {}),
     // `columnResizeMode: "onChange"`: la larghezza si aggiorna mentre si
     // trascina, non solo al rilascio — è il riscontro che rende il
     // trascinamento leggibile come tale, non un motivo di prestazioni (500
@@ -4816,6 +5039,9 @@ export function DataTable<TDato extends RowData>({
       columnPinning: ancoraggioVisto,
       columnOrder: ordineColonne,
       expanded: espanse,
+      ...(server
+        ? { pagination: { pageIndex: server.pagina, pageSize: perPaginaServer } }
+        : {}),
     },
   })
 
@@ -4840,10 +5066,10 @@ export function DataTable<TDato extends RowData>({
     setDaVerificare(false)
     const colonneVere = tabella.getAllFlatColumnsById()
     const esiste = (id: string) => Object.hasOwn(colonneVere, id)
-    const filtriBuoni = filtriConRighe(
-      tabella,
-      filtri.filter((f) => esiste(f.id))
-    )
+    // Col server le righe arrivate sono già filtrate dal server: provarci
+    // sopra i filtri non direbbe niente dell'elenco intero.
+    const filtriEsistenti = filtri.filter((f) => esiste(f.id))
+    const filtriBuoni = conServer ? filtriEsistenti : filtriConRighe(tabella, filtriEsistenti)
     if (JSON.stringify(filtriBuoni) !== JSON.stringify(filtri)) setFiltri(filtriBuoni)
     if (ordinamento.some((o) => !esiste(o.id))) setOrdinamento(ordinamento.filter((o) => esiste(o.id)))
     if (Object.keys(visibilita).some((id) => !esiste(id)))
@@ -4859,9 +5085,70 @@ export function DataTable<TDato extends RowData>({
       ? tabella.getFilteredSelectedRowModel().rows.map((r) => r.original)
       : []
 
+  /**
+   * **Col server, le richieste.** Ricerca, filtri e ordinamento, in una
+   * stringa sola che fa da dipendenza: a ogni cambio si chiede la prima
+   * pagina. Il primo giro, al montaggio, chiede invece la pagina dell'app, o
+   * quella ritrovata da `memoria`. Una stringa uguale all'ultima inviata non
+   * si rimanda: è il secondo giro che `StrictMode` fa fare agli effetti.
+   *
+   * La funzione che chiede sta in una `ref`, aggiornata a ogni commit prima
+   * dell'effetto che la usa: l'effetto deve ripartire per i criteri, non per
+   * `server`, che è un oggetto nuovo a ogni render dell'app.
+   */
+  const criteri = conServer
+    ? JSON.stringify({ ricerca: ricercaInviata, filtri, ordinamento })
+    : ""
+  const [paginaIniziale] = React.useState(() => ricordato?.pagina ?? server?.pagina ?? 0)
+  const chiediRef = React.useRef(chiediPagina)
+  React.useEffect(() => {
+    chiediRef.current = chiediPagina
+  })
+  const criteriInviatiRef = React.useRef<string | undefined>(undefined)
+  React.useEffect(() => {
+    if (!criteri || criteri === criteriInviatiRef.current) return
+    const primo = criteriInviatiRef.current === undefined
+    criteriInviatiRef.current = criteri
+    chiediRef.current(primo ? paginaIniziale : 0, perPaginaServer)
+  }, [criteri, paginaIniziale, perPaginaServer])
+
+  /**
+   * Col server, la pagina che non c'è più: il totale è sceso sotto la pagina
+   * mostrata (si è tolta l'ultima riga dell'ultima pagina). Si chiede
+   * l'ultima che c'è. Si guarda solo quando arriva un **totale nuovo** a
+   * caricamento finito, cioè una risposta: fra la richiesta e il momento in
+   * cui l'app accende `inCaricamento` può passare un render, col totale
+   * ancora vecchio, e lì la pagina appena chiesta sembrerebbe fuori elenco.
+   */
+  const paginaServer = server?.pagina ?? 0
+  const totaleServer = server?.totale ?? 0
+  const pagineServer = Math.max(1, Math.ceil(totaleServer / perPaginaServer))
+  const serverFermo = conServer && !server?.inCaricamento
+  const totaleVistoRef = React.useRef(totaleServer)
+  React.useEffect(() => {
+    if (!serverFermo || totaleServer === totaleVistoRef.current) return
+    totaleVistoRef.current = totaleServer
+    if (paginaServer >= pagineServer) chiediRef.current(pagineServer - 1, perPaginaServer)
+  }, [serverFermo, totaleServer, paginaServer, pagineServer, perPaginaServer])
+
+  /**
+   * Col server la selezione è della pagina (v. la prop): si svuota a ogni
+   * richiesta nuova. Aggiustato in fase di render, come `caricate` più
+   * sotto, con una chiave primitiva della richiesta che si sta guardando.
+   */
+  const chiaveRichiesta = conServer ? `${criteri}|${paginaServer}|${perPaginaServer}` : ""
+  const [chiaveRichiestaVista, setChiaveRichiestaVista] = React.useState(chiaveRichiesta)
+  if (chiaveRichiesta !== chiaveRichiestaVista) {
+    setChiaveRichiestaVista(chiaveRichiesta)
+    if (Object.keys(scelte).length > 0) setScelte({})
+  }
+
   const righe = tabella.getRowModel().rows
   const conRighe = righe.length > 0
   const conFiltri = ricerca.length > 0 || filtri.length > 0
+  // Col server, la pagina chiesta non è ancora arrivata. Senza righe, lo
+  // stato vuoto lo dice invece di «non c'è niente».
+  const caricamento = !!server?.inCaricamento
   const colonneVisibili = tabella.getVisibleFlatColumns().length
 
   /**
@@ -5220,7 +5507,8 @@ export function DataTable<TDato extends RowData>({
    * scorrimento, che si può dare solo quando il riquadro ha righe e altezza.
    */
   const daRiprendereRef = React.useRef({
-    pagina: aNumeri ? ricordato?.pagina : undefined,
+    // Col server la pagina ritrovata va nella prima richiesta, non qui.
+    pagina: aNumeri && !conServer ? ricordato?.pagina : undefined,
     scorrimento: ricordato?.scorrimento,
     riga: ricordato?.riga,
   })
@@ -5581,6 +5869,7 @@ export function DataTable<TDato extends RowData>({
           vuoto={vuoto}
           conFiltri={conFiltri}
           pulisci={pulisci}
+          caricamento={caricamento}
           fermo={fermo}
           infinito={infinito}
           totaleFiltrate={totaleFiltrate}
@@ -5591,6 +5880,9 @@ export function DataTable<TDato extends RowData>({
       {facciaSchede ? null : (
       <div
         ref={contenitoreRef}
+        // Col server, mentre la pagina nuova arriva: le righe che si vedono
+        // sono ancora quelle di prima.
+        aria-busy={caricamento || undefined}
         style={
           fermo
             ? ({
@@ -5791,6 +6083,7 @@ export function DataTable<TDato extends RowData>({
               vuoto={vuoto}
               conFiltri={conFiltri}
               pulisci={pulisci}
+              caricamento={caricamento}
               fermo={fermo}
               pannelloRiga={pannelloRiga}
               infinito={infinito}
@@ -5897,7 +6190,11 @@ export function DataTable<TDato extends RowData>({
             // `trascinamento`: stessa ragione, una pagina sola.
             infinito={infinito || virtualizzata || trascinamento}
             nomeRighe={nomeRighe}
-            nomeSottoRighe={getSottoRighe ? nomeSottoRighe : undefined}
+            // Col server le foglie arrivate sono quelle della pagina: il
+            // conto direbbe un numero che non è dell'elenco.
+            nomeSottoRighe={getSottoRighe && !conServer ? nomeSottoRighe : undefined}
+            totale={server?.totale}
+            caricamento={!!server?.inCaricamento}
           />
         </div>
       ) : null}

@@ -26,6 +26,7 @@ import {
   useDataTableRow,
   type IstanzaTabella,
   type MetaColonna,
+  type RichiestaPagina,
 } from '@/registry/tassullo/blocks/data-table'
 import { FiltroData } from '@/registry/tassullo/blocks/data-table-filtro-data'
 import { FiltroIntervallo } from '@/registry/tassullo/blocks/data-table-filtro-intervallo'
@@ -511,8 +512,9 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   dichiara il suo `filterFn`: `arrHas` per il filtro sfaccettato,
  *   `inNumberRange` per l'intervallo, `inDateRange` per le date.
  * - `perPagina="infinito"` mostra a passi un elenco che è già tutto in
- *   `dati`, e non chiede altro al server mentre si scorre. Per un elenco che
- *   il server consegna a pagine serve un'altra forma.
+ *   `dati`, e non chiede altro al server mentre si scorre. Un elenco che il
+ *   server consegna a pagine usa `server`: le pagine, la ricerca, i filtri e
+ *   l'ordinamento diventano una richiesta, e la selezione vale per la pagina.
  * - `riordinabile` spegne ordinamento, ricerca e filtri e mette tutte le
  *   righe su una pagina, perché il trascinamento conta le posizioni visibili;
  *   vuole `idRiga`. `colonneRiordinabili` invece non spegne niente.
@@ -547,7 +549,8 @@ const COLONNE_RIDIMENSIONABILI = colRidimensionabile.columns([
  *   la sua cella in `meta.piede`, che riceve le righe che filtri e ricerca
  *   lasciano passare, non quelle della pagina: il totale cambia col filtro e
  *   con la ricerca, non con l'ordinamento né con la pagina, e l'etichetta lo
- *   deve dire. `piede` non è `piePagina`, che è la fascia di paginazione.
+ *   deve dire. Con `server` le righe sono una pagina, e il totale dell'elenco
+ *   lo dà il server. `piede` non è `piePagina`, che è la fascia di paginazione.
  * - `menuRiga` scrive le voci una volta sola — `RowMenuItem`,
  *   `RowMenuSeparator`, `RowMenuSub`, con la riga letta da
  *   `useDataTableRow()` — e le monta sia nel menu «⋯» in coda alla riga sia
@@ -5625,4 +5628,320 @@ export const SchedeMemoriaProva: StoryObj<typeof DataTable<Documento>> = {
   name: 'Schede, memoria, prova',
   tags: ['!dev', '!autodocs'],
   render: () => <ListaDocumenti memoria="documenti-schede-prova" />,
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Le righe dal server (`server`)
+ *
+ * Un server finto, che fa sui 500 prodotti quello che fa un server vero:
+ * cerca, filtra, ordina e restituisce una pagina, col totale. Risponde dopo
+ * un ritardo, oppure — nella scena di prova — quando si preme «Consegna la
+ * pagina», così la prova guarda lo stato di caricamento senza contare sul
+ * tempo.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type RispostaFinta = {
+  righe: Prodotto[]
+  totale: number
+  /** Le righe per stato, con ricerca e filtri tranne quello sullo stato. */
+  perStato: Record<string, number>
+}
+
+function valoreOrdinabile(p: Prodotto, id: string): string | number {
+  const valore = p[id as keyof Prodotto]
+  return valore instanceof Date ? valore.getTime() : valore
+}
+
+/** Il server finto: cerca, filtra, ordina e taglia la pagina chiesta. */
+function rispondi(elenco: Prodotto[], richiesta: RichiestaPagina): RispostaFinta {
+  const testo = richiesta.ricerca.toLocaleLowerCase('it')
+  const scelti = (id: string) =>
+    richiesta.filtri.find((f) => f.id === id)?.value as string[] | undefined
+  const passa = (p: Prodotto, salvo?: string) =>
+    (!testo ||
+      [p.codice, p.nome, p.famiglia].some((v) => v.toLocaleLowerCase('it').includes(testo))) &&
+    (['stato', 'famiglia'] as const).every((id) => {
+      const voci = id === salvo ? undefined : scelti(id)
+      return !voci || voci.includes(p[id])
+    })
+  const trovati = elenco.filter((p) => passa(p))
+  const ordinati = [...trovati].sort((a, b) => {
+    for (const { id, desc } of richiesta.ordinamento) {
+      const x = valoreOrdinabile(a, id)
+      const y = valoreOrdinabile(b, id)
+      const confronto =
+        typeof x === 'string' && typeof y === 'string' ? x.localeCompare(y, 'it') : Number(x) - Number(y)
+      if (confronto !== 0) return desc ? -confronto : confronto
+    }
+    return 0
+  })
+  const perStato: Record<string, number> = {}
+  for (const p of elenco) if (passa(p, 'stato')) perStato[p.stato] = (perStato[p.stato] ?? 0) + 1
+  return {
+    righe: ordinati.slice(richiesta.scarto, richiesta.scarto + richiesta.perPagina),
+    totale: trovati.length,
+    perStato,
+  }
+}
+
+const COLONNE_SERVER = colFiltri.columns([
+  colFiltri.accessor('codice', {
+    header: ({ column }) => <IntestazioneColonna colonna={column} titolo="Codice" />,
+    meta: { titolo: 'Codice', larghezza: 'w-32' },
+  }),
+  ...COLONNE_FILTRI,
+])
+
+/** Un array solo per «nessuna riga ancora»: uno nuovo a ogni render rifarebbe la tabella. */
+const NESSUN_PRODOTTO: Prodotto[] = []
+
+type Domanda = { richiesta: RichiestaPagina; elenco: Prodotto[] }
+
+function ListaDalServer({
+  ritardo,
+  conTaglio = false,
+}: {
+  /** In millisecondi; `"a mano"`: il server risponde quando si preme «Consegna la pagina». */
+  ritardo: number | 'a mano'
+  /** Un bottone che toglie i primi 30 prodotti dall'elenco del server. */
+  conTaglio?: boolean
+}) {
+  const [elenco, setElenco] = React.useState(PRODOTTI)
+  const [domanda, setDomanda] = React.useState<Domanda>()
+  const [risposta, setRisposta] = React.useState<{ per: Domanda; dati: RispostaFinta }>()
+  const [richieste, setRichieste] = React.useState(0)
+  // In caricamento finché la risposta non è quella dell'ultima domanda: lo si
+  // ricava nello stesso render della domanda, senza un render di ritardo.
+  const inCorso = domanda !== undefined && risposta?.per !== domanda
+
+  const chiedi = React.useCallback(
+    (richiesta: RichiestaPagina) => {
+      setRichieste((n) => n + 1)
+      setDomanda({ richiesta, elenco })
+    },
+    [elenco]
+  )
+  const consegna = () => {
+    if (domanda) setRisposta({ per: domanda, dati: rispondi(domanda.elenco, domanda.richiesta) })
+  }
+  // L'elenco è cambiato sul server: l'app richiede la stessa pagina.
+  const taglia = () => {
+    const nuovo = elenco.slice(30)
+    setElenco(nuovo)
+    setDomanda((prima) => prima && { richiesta: prima.richiesta, elenco: nuovo })
+  }
+
+  React.useEffect(() => {
+    if (!domanda || ritardo === 'a mano') return
+    // Una domanda nuova annulla l'attesa della vecchia: vince l'ultima.
+    const attesa = setTimeout(
+      () => setRisposta({ per: domanda, dati: rispondi(domanda.elenco, domanda.richiesta) }),
+      ritardo
+    )
+    return () => clearTimeout(attesa)
+  }, [domanda, ritardo])
+
+  return (
+    <div className="flex flex-col gap-3" data-richieste={richieste}>
+      {ritardo === 'a mano' || conTaglio ? (
+        <div className="flex flex-wrap gap-2">
+          {ritardo === 'a mano' ? (
+            <Button type="button" variant="outline" size="sm" disabled={!inCorso} onClick={consegna}>
+              Consegna la pagina
+            </Button>
+          ) : null}
+          {conTaglio ? (
+            <Button type="button" variant="outline" size="sm" onClick={taglia}>
+              Togli 30 prodotti
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      <DataTable
+        colonne={COLONNE_SERVER}
+        dati={risposta?.dati.righe ?? NESSUN_PRODOTTO}
+        idRiga={(p) => p.id}
+        cerca="Cerca per codice, nome o famiglia…"
+        nomeRighe={{ singolare: 'prodotto', plurale: 'prodotti' }}
+        selezione
+        colonneNascondibili={false}
+        perPagina={(domanda?.richiesta.perPagina ?? 25) as 25}
+        server={{
+          totale: risposta?.dati.totale ?? 0,
+          pagina: domanda?.richiesta.pagina ?? 0,
+          inCaricamento: inCorso,
+          onRichiesta: chiedi,
+        }}
+        barra={(_scelti, tabella) => (
+          <>
+            <FiltroSfaccettato
+              tabella={tabella}
+              accessore="stato"
+              titolo="Stato"
+              opzioni={STATI.map((stato) => ({
+                value: stato,
+                label: stato,
+                count: risposta?.dati.perStato[stato] ?? 0,
+              }))}
+            />
+            <FiltroResetTutti tabella={tabella} />
+          </>
+        )}
+      />
+    </div>
+  )
+}
+
+/**
+ * Le righe arrivano a pagine da un server, che qui risponde dopo mezzo
+ * secondo. Totale, pagina e righe per pagina li dà l'app; ricerca, filtri e
+ * ordinamento la tabella li passa all'app invece di applicarli, e l'app li
+ * gira al server. Fra una pagina e l'altra le righe di prima restano, e in
+ * fondo il conto lascia il posto a «Caricamento…».
+ *
+ * ```tsx
+ * const [richiesta, setRichiesta] = React.useState<RichiestaPagina>()
+ * // l'app chiede `richiesta` al server e ne ricava `risposta` e `inCorso`
+ * <DataTable
+ *   colonne={COLONNE}
+ *   dati={risposta?.righe ?? []}
+ *   perPagina={richiesta?.perPagina ?? 25}
+ *   server={{
+ *     totale: risposta?.totale ?? 0,
+ *     pagina: richiesta?.pagina ?? 0,
+ *     inCaricamento: inCorso,
+ *     onRichiesta: setRichiesta,
+ *   }}
+ * />
+ * ```
+ *
+ * La prima pagina la chiede la tabella appena montata, e ogni richiesta porta
+ * tutto: `pagina`, `perPagina`, `scarto`, `ricerca`, `filtri`, `ordinamento`.
+ * La ricerca parte quando si smette di scrivere. Il filtro «Stato» ha le
+ * opzioni scritte dall'app e i conteggi del server, perché le righe arrivate
+ * non sono l'elenco. La selezione vale per la pagina: cambiando pagina si
+ * svuota.
+ */
+export const DalServer: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Dal server',
+  render: () => <ListaDalServer ritardo={500} />,
+}
+
+// La prova guida il server a mano: ogni risposta parte da «Consegna la
+// pagina», così lo stato di caricamento si guarda senza contare sul tempo.
+// Prova, in ordine: la prima richiesta al montaggio; le righe di prima che
+// restano col «Caricamento…» e `aria-busy`; la pagina nuova; la selezione
+// che si svuota; la pagina che non c'è più dopo un taglio dell'elenco; la
+// ricerca che diventa una richiesta sola e torna alla prima pagina;
+// l'ordinamento che va al server; le opzioni e i conteggi del filtro presi
+// dall'app.
+async function provaDalServer({ canvasElement }: { canvasElement: HTMLElement }) {
+  const canvas = within(canvasElement)
+  const pagina = within(canvasElement.ownerDocument.body)
+  const radice = () => canvasElement.querySelector<HTMLElement>('[data-richieste]')
+  const richieste = () => Number(radice()?.dataset.richieste)
+  const stato = () => canvas.getByRole('status')
+  const righe = () =>
+    [...canvasElement.querySelectorAll('tbody tr[data-riga]')].map((tr) => tr.getAttribute('data-riga'))
+  const occupato = () =>
+    canvasElement.querySelector('[data-slot="table-container"]')?.parentElement?.getAttribute('aria-busy')
+  const ids = (prodotti: Prodotto[]) => prodotti.map((p) => p.id)
+  const consegna = async () => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Consegna la pagina' }))
+    await waitFor(() => expect(stato()).not.toHaveTextContent('Caricamento'))
+  }
+  const richiesta = (parziale: Partial<RichiestaPagina>): RichiestaPagina => {
+    const r = { pagina: 0, perPagina: 25, ricerca: '', filtri: [], ordinamento: [], ...parziale }
+    return { ...r, scarto: r.pagina * r.perPagina }
+  }
+
+  // La prima pagina: la chiede la tabella, e finché non arriva la tabella aspetta.
+  await waitFor(() => expect(richieste()).toBe(1))
+  expect(stato()).toHaveTextContent('Caricamento…')
+  expect(righe()).toHaveLength(0)
+  // Senza righe, il corpo dice che aspetta: non «non c'è niente».
+  const corpo = canvasElement.querySelector<HTMLElement>('tbody')
+  expect(corpo).toHaveTextContent('Caricamento…')
+  await consegna()
+  expect(righe()).toEqual(ids(PRODOTTI.slice(0, 25)))
+  expect(stato()).toHaveTextContent('0 di 500 prodotti selezionate')
+  expect(canvas.getByText('Pagina 1 di 20')).toBeTruthy()
+
+  // Una riga scelta, poi la pagina dopo: le righe di prima restano finché la
+  // nuova non arriva.
+  await userEvent.click(canvas.getAllByRole('checkbox', { name: 'Seleziona la riga' })[0])
+  await waitFor(() => expect(stato()).toHaveTextContent('1 di 500'))
+  await userEvent.click(canvas.getByRole('button', { name: 'Pagina successiva' }))
+  await waitFor(() => expect(stato()).toHaveTextContent('Caricamento…'))
+  expect(richieste()).toBe(2)
+  expect(righe()).toEqual(ids(PRODOTTI.slice(0, 25)))
+  expect(occupato()).toBe('true')
+  await consegna()
+  expect(occupato()).toBeNull()
+  expect(righe()).toEqual(ids(PRODOTTI.slice(25, 50)))
+  expect(canvas.getByText('Pagina 2 di 20')).toBeTruthy()
+  // Tornati alla prima pagina, la riga scelta non è più scelta: la selezione
+  // era della pagina, e si è svuotata.
+  await userEvent.click(canvas.getByRole('button', { name: 'Pagina precedente' }))
+  await consegna()
+  expect(righe()).toEqual(ids(PRODOTTI.slice(0, 25)))
+  expect(stato()).toHaveTextContent('0 di 500 prodotti selezionate')
+
+  // L'ultima pagina, poi l'elenco si accorcia: la pagina 20 non c'è più, e la
+  // tabella chiede l'ultima che resta.
+  await userEvent.click(canvas.getByRole('button', { name: 'Ultima pagina' }))
+  await consegna()
+  expect(canvas.getByText('Pagina 20 di 20')).toBeTruthy()
+  const primaDelTaglio = richieste()
+  await userEvent.click(canvas.getByRole('button', { name: 'Togli 30 prodotti' }))
+  await userEvent.click(canvas.getByRole('button', { name: 'Consegna la pagina' }))
+  await waitFor(() => expect(richieste()).toBe(primaDelTaglio + 1))
+  await consegna()
+  const tagliato = PRODOTTI.slice(30)
+  expect(canvas.getByText('Pagina 19 di 19')).toBeTruthy()
+  expect(righe()).toEqual(ids(rispondi(tagliato, richiesta({ pagina: 18 })).righe))
+
+  // La ricerca: una richiesta sola per la parola intera, e si torna alla
+  // prima pagina.
+  const prima = richieste()
+  await userEvent.type(canvas.getByRole('searchbox'), 'calce')
+  await waitFor(() => expect(richieste()).toBe(prima + 1))
+  const cercato = rispondi(tagliato, richiesta({ ricerca: 'calce' }))
+  await consegna()
+  expect(righe()).toEqual(ids(cercato.righe))
+  expect(stato()).toHaveTextContent(`0 di ${cercato.totale} prodotti selezionate`)
+  expect(canvas.getByText(`Pagina 1 di ${Math.ceil(cercato.totale / 25)}`)).toBeTruthy()
+
+  // L'ordinamento va al server con la ricerca.
+  await userEvent.click(canvas.getByRole('button', { name: /^Ordina per Nome/ }))
+  await waitFor(() => expect(richieste()).toBe(prima + 2))
+  await consegna()
+  const ordinato = rispondi(
+    tagliato,
+    richiesta({ ricerca: 'calce', ordinamento: [{ id: 'nome', desc: false }] })
+  )
+  expect(righe()).toEqual(ids(ordinato.righe))
+
+  // Il filtro «Stato»: tutte le opzioni dell'app, coi conteggi del server.
+  await userEvent.click(canvas.getByRole('button', { name: /^Stato/ }))
+  const tendina = await waitFor(() => {
+    const el = pagina.getByRole('listbox')
+    expect(el).toBeTruthy()
+    return el
+  })
+  const voci = within(tendina)
+    .getAllByRole('option')
+    .map((opzione) => opzione.textContent?.trim())
+  expect(voci).toEqual(STATI.map((s) => `${s}${ordinato.perStato[s] ?? 0}`))
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(pagina.queryByRole('listbox')).toBeNull())
+}
+
+// Scena di prova di «Dal server»: il server risponde a mano, e c'è il
+// bottone che accorcia l'elenco. `!dev` la toglie dalla barra e da Docs.
+export const DalServerProva: StoryObj<typeof DataTable<Prodotto>> = {
+  name: 'Dal server, prova',
+  tags: ['!dev', '!autodocs'],
+  render: () => <ListaDalServer ritardo="a mano" conTaglio />,
+  play: provaDalServer,
 }
