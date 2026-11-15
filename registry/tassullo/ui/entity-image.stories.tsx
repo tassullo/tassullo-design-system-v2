@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Layers } from 'lucide-react'
+import { expect } from 'storybook/test'
 
 import {
   Card,
@@ -51,12 +52,12 @@ import {
  *   immagini quadrate `1:1`, dove riempiono il riquadro senza bande.
  * - Il raggio sta sulla radice: in testa a una `card` si aggiunge
  *   `className="rounded-b-none"`, e alla card `pt-0`.
- * - La larghezza la decide chi compone. In una griglia di catalogo la soglia
- *   delle colonne è `--container-3xs` (256px), con
- *   `grid-cols-[repeat(auto-fill,minmax(var(--container-3xs),1fr))]` o la
- *   forma equivalente: non segue la densità, di proposito, così su un telefono
- *   la griglia ripiega a una colonna invece di sbordare. Il token esiste nel
- *   foglio di stile solo se qualche utility lo usa, come `w-3xs`.
+ * - La larghezza la decide chi compone. Una griglia di catalogo si scrive
+ *   `grid grid-cols-catalogo gap-4`: tante colonne quante ne entrano, ognuna
+ *   larga almeno 256px. La soglia non segue la densità, di proposito, così su
+ *   un telefono la griglia ripiega a una colonna invece di sbordare. Il token
+ *   sta nel tema: con un tema che non lo ha, la classe non fa niente e le card
+ *   finiscono una sotto l'altra.
  * - Il componente non dipinge un fondo dietro la foto: le immagini scontornate
  *   si posano sulla superficie della card. Il grigio sta solo sul segnaposto.
  * - In una miniatura l'icona del segnaposto si rimpicciolisce dal punto di
@@ -196,13 +197,7 @@ export const InGrigliaDiCard: Story = {
   // scena esiste per far vedere.
   parameters: { layout: 'padded' },
   render: () => (
-    <div
-      className="grid gap-4"
-      style={{
-        gridTemplateColumns:
-          'repeat(auto-fill, minmax(var(--container-3xs), 1fr))',
-      }}
-    >
+    <div className="grid grid-cols-catalogo gap-4">
       {CATALOGO.map((m) => (
         <Card key={m.nome} className="gap-0 pt-0">
           <EntityImage
@@ -278,3 +273,35 @@ export const DensitaTouch: Story = {
     </div>
   ),
 }
+
+// La griglia di catalogo in due contenitori di larghezza fissa, così la
+// misura non dipende dalla finestra: a 1050px tre colonne, a 780px due,
+// mai una colonna sotto i 256px. Senza il token nel tema la classe non
+// emette niente e la griglia resta a una colonna.
+export const GrigliaCatalogoProva: Story = {
+  name: 'Griglia di catalogo, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { alt: '' },
+  parameters: { layout: 'padded' },
+  render: () => (
+    <div data-density="normale" className="flex flex-col gap-8">
+      {(['w-262', 'w-195'] as const).map((larghezza) => (
+        <div key={larghezza} className={larghezza} data-prova="griglia">
+          <div className="grid grid-cols-catalogo gap-4">
+            {CATALOGO.slice(0, 4).map((m) => (
+              <EntityImage key={m.nome} src={m.foto} alt="" ratio="1:1" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const colonne = [...canvasElement.querySelectorAll<HTMLElement>('[data-prova="griglia"] > .grid')].map((g) =>
+      getComputedStyle(g).gridTemplateColumns.split(' ').map(parseFloat),
+    )
+    expect(colonne.map((c) => c.length)).toEqual([3, 2])
+    for (const c of colonne.flat()) expect(c).toBeGreaterThanOrEqual(256)
+  },
+}
+

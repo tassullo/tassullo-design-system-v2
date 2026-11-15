@@ -15729,7 +15729,7 @@ Ramo `fras/proposte-ondata-5` da `main` (`1bc86aa`). Le tre scelte portate a Fra
 - #242: `Con azioni, prova` controlla l'archivio (due «Corrente», due «Superato», nessun «Approvato»). Rossa prima dello stato, verde dopo.
 - #243: autotest a 65 casi, 3 rossi prima. E lo script vero su un'app finta con la riga della scena: con la versione di `main` 1 violazione `valore-arbitrario`, col ramo nessuna.
 - #244: `src/prove-dei-tipi/data-table-server.tsx`, compilato da `tsc -b`: prima 2 errori (tipo mancante, `@ts-expect-error` inutile), dopo nessuno. La premessa della issue verificata su una copia di Studio in una cartella temporanea: tolto il cast, l'unico errore era l'import rimasto inutile.
-- `npm run check` in locale verde: statici, `test:a11y` 715 story e 2860 scansioni nelle quattro passate con 0 violazioni, `test:webkit` 56 su 56. Questa volta è passata anche `pdf-preview › Pagina Iniziale`.
+- `npm run check` in locale verde: statici, `test:a11y` 716 story e 2864 scansioni nelle quattro passate con 0 violazioni (rifatto dopo la griglia di catalogo), `test:webkit` 56 su 56. Questa volta è passata anche `pdf-preview › Pagina Iniziale`.
 
 #### Nota per le app (Studio)
 
@@ -15737,7 +15737,12 @@ Ramo `fras/proposte-ondata-5` da `main` (`1bc86aa`). Le tre scelte portate a Fra
 - Ripieghi da togliere: in `CatalogoProdotto.tsx` lo stato `approvato` della revisione in vigore → `corrente` (#242); in `percorso.tsx` la classe condizionale del titolo → `group-data-[state=inactive]/step:text-muted-foreground` come nella scena (#243); in `UtentiAdmin.tsx` il cast di `perPagina` e l'import di `DataTableProps` se non serve altrove (#244).
 - Cambi di serie: nessun cambio di aspetto. `perPagina` accetta solo 10, 25, 50, 100, `"infinito"` o `"virtuale"`: un numero fuori elenco ora è un errore di compilazione.
 
-#### Aperti
+#### La griglia di catalogo
 
-- La pagina di `entity-image` consiglia alle app una classe a valore arbitrario per la griglia di catalogo (`grid-cols-[repeat(auto-fill,…)]`), che `tassullo-controllo` rifiuta. Va riscritta con una forma a token o con un'eccezione dichiarata.
+Trovato censendo la regola della #243: la pagina di `entity-image` consigliava alle app `grid-cols-[repeat(auto-fill,minmax(var(--container-3xs),1fr))]`, che `tassullo-controllo` rifiuta. Francesco: «Sistemiamo prima il problema della classe griglia catalogo e poi uniamo tutto». Due forme mandate in foto, a 1050 e 780px di contenitore (le fasce in cui differiscono); scelta **A**, un token di tema.
+
+- `scripts/hex-to-oklch.ts` (e il tema rigenerato): `--grid-template-columns-catalogo` → `grid-cols-catalogo`. `check:registry` lo controlla fra i token di disposizione.
+- `entity-image.stories.tsx`: la scena `In griglia di card` usa la classe invece dello `style` in linea; la regola d'uso la consiglia; scena nascosta `Griglia di catalogo, prova` (3 e 2 colonne a 1048 e 780px, nessuna sotto i 256px), rossa col token tolto.
+- Testo d'uso dell'item `tema` in `registry.json`: la ricetta della griglia. Autotest del controllo: la classe col token passa, quella scritta a mano no.
+- Nota per le app: reinstallare `tema` (il token è lì) e, se serve, `entity-image`. Chi ha una griglia `repeat(auto-fill, minmax(…))` per il catalogo la scrive `grid grid-cols-catalogo gap-4`.
 

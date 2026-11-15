@@ -509,6 +509,9 @@ function selfTest() {
     ["valore-arbitrario", 'className="hidden text-start text-sm font-medium group-data-[state=inactive]/step:text-muted-foreground @md/passi:block"', false],
     ["valore-arbitrario", 'className="peer-data-[checked]/scelta:font-semibold group-has-[>svg]/voce:gap-2"', false],
     ["valore-arbitrario", 'className="has-[>[data-slot=button-group]]:gap-2"', false],
+    // La griglia di catalogo: col token del tema sì, scritta a mano no.
+    ["valore-arbitrario", 'className="grid grid-cols-catalogo gap-4"', false],
+    ["valore-arbitrario", 'className="grid grid-cols-[repeat(auto-fill,minmax(var(--container-3xs),1fr))] gap-4"', true],
     // Una misura arbitraria resta tale anche con l'opacità o dopo un selettore.
     ["valore-arbitrario", 'className="bg-[#F4AC3D]/50"', true],
     ["valore-arbitrario", 'className="group-data-[state=open]/menu:w-[37px]"', true],
