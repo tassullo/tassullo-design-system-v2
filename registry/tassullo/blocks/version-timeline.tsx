@@ -47,6 +47,7 @@ export type StatoRevisione =
   | "in-revisione"
   | "approvato"
   | "rifiutato"
+  | "corrente"
   | "superato"
 
 const STATO: Record<
@@ -68,6 +69,12 @@ const STATO: Record<
   rifiutato: {
     etichetta: "Rifiutato",
     className: "border-destructive-border bg-destructive-subtle text-destructive-subtle-foreground",
+  },
+  // La revisione in vigore, una per documento o per lingua: non dice chi
+  // l'ha approvata, dice quale usare. Il tono è quello di `approvato`.
+  corrente: {
+    etichetta: "Corrente",
+    className: "border-success-border bg-success-subtle text-success-subtle-foreground",
   },
   superato: {
     etichetta: "Superato",
@@ -208,7 +215,8 @@ export function VersionTimeline({
                   aria-hidden="true"
                   className={cn(
                     "size-3 shrink-0 rounded-full border-2 bg-background border-border",
-                    revisione.stato === "approvato" && "border-success",
+                    (revisione.stato === "approvato" || revisione.stato === "corrente") &&
+                      "border-success",
                     revisione.stato === "rifiutato" && "border-destructive",
                     revisione.stato === "in-revisione" && "border-warning-border"
                   )}

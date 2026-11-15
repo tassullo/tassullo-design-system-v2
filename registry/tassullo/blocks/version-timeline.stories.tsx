@@ -41,7 +41,10 @@ import { DiffView } from '@/registry/tassullo/blocks/diff-view'
  *   `descrizione`. Senza autore o senza data la voce mostra solo ciò che
  *   c'è, come nell'archivio delle revisioni di un PDF.
  * - `stato` è uno di `"bozza"`, `"in-revisione"`, `"approvato"`,
- *   `"rifiutato"`, `"superato"`, ciascuno con il suo colore.
+ *   `"rifiutato"`, `"corrente"`, `"superato"`, ciascuno con il suo colore.
+ *   `"approvato"` e `"rifiutato"` sono l'esito di un'approvazione;
+ *   `"corrente"` dice solo quale revisione è in vigore, per un documento
+ *   che l'app archivia senza approvarlo.
  * - `confrontabile` accende una casella per revisione e il bottone
  *   «Confronta»; `onConfronta` riceve le due revisioni scelte.
  * - `azioni(revisione)` dà i comandi di ogni voce, in un menu «⋯» accanto
@@ -50,7 +53,8 @@ import { DiffView } from '@/registry/tassullo/blocks/diff-view'
  *   elenco vuoto toglie il menu da quella voce.
  *
  * **Regole d'uso.** L'`id` di una revisione è stabile, non la sua posizione
- * nell'elenco. Si scelgono due revisioni al massimo: con due scelte le altre
+ * nell'elenco. Le revisioni correnti possono essere più d'una, per esempio
+ * una per lingua; le altre sono superate. Si scelgono due revisioni al massimo: con due scelte le altre
  * caselle si spengono, e «Confronta» si accende solo con una coppia. Un
  * comando che oggi non si può dare resta nel menu, spento, col perché: un
  * comando che sparisce non dice a nessuno cosa manca.
@@ -197,19 +201,22 @@ export const ConAzioni: Story = {
   play: apriCol('[data-slot="dropdown-menu-trigger"][aria-label="Azioni su Rev. 2"]', 'dropdown-menu-content'),
 }
 
-const revisioniPdf: VersionTimelineEntry[] = [
-  { id: '03', versione: 'Rev. 03 — italiano', stato: 'approvato', descrizione: 'Scheda tecnica, PDF, 4 pagine.' },
-  { id: '02', versione: 'Rev. 02 — italiano', stato: 'superato' },
-  { id: '01', versione: 'Rev. 01 — italiano', stato: 'superato' },
+const archivio: VersionTimelineEntry[] = [
+  { id: 'it-2', versione: 'Rev. 2 — italiano', stato: 'corrente', descrizione: 'scheda-tecnica-malta-m10-it-rev2.pdf' },
+  { id: 'en-1', versione: 'Rev. 1 — inglese', stato: 'corrente', descrizione: 'scheda-tecnica-malta-m10-en-rev1.pdf' },
+  { id: 'it-1', versione: 'Rev. 1 — italiano', stato: 'superato', descrizione: 'scheda-tecnica-malta-m10-it-rev1.pdf' },
+  { id: 'it-0', versione: 'Rev. 0 — italiano', stato: 'superato' },
 ]
 
 /**
- * L'archivio delle revisioni di un PDF, che non ha autore né data per
- * revisione: la voce mostra il numero, lo stato e, se c'è, la descrizione.
+ * L'archivio delle revisioni di un documento, una scheda tecnica in due
+ * lingue: niente autore né data, e la voce mostra solo numero, stato e, se
+ * c'è, il nome del file. Ogni lingua ha la sua revisione in vigore, quindi
+ * le voci «Corrente» possono essere più d'una; le altre sono «Superato».
  */
-export const SenzaAutoreNeData: Story = {
-  name: 'Senza autore né data',
-  args: { revisioni: revisioniPdf },
+export const ArchivioDiDocumenti: Story = {
+  name: 'Archivio di documenti',
+  args: { revisioni: archivio },
   render: (args) => (
     <div className="max-w-lg">
       <VersionTimeline {...args} />
@@ -221,7 +228,8 @@ const sceltaProva = fn()
 
 // Il menu ha le tre voci sulla revisione superata, «Valida…» spento col
 // motivo, «Ripristina» in rosso; la scelta arriva all'app con la revisione
-// giusta; senza autore e data non si rendono né avatar né data.
+// giusta; senza autore e data non si rendono né avatar né data; l'archivio
+// ha due revisioni correnti, una per lingua.
 export const ConAzioniProva: Story = {
   name: 'Con azioni, prova',
   tags: ['!dev', '!autodocs'],
@@ -230,7 +238,7 @@ export const ConAzioniProva: Story = {
     <div className="flex max-w-lg flex-col gap-8">
       <VersionTimeline {...args} azioni={comandiModello((cosa, r) => sceltaProva(cosa, r.id))} />
       <div data-prova="pdf">
-        <VersionTimeline revisioni={revisioniPdf} azioni={() => []} />
+        <VersionTimeline revisioni={archivio} azioni={() => []} />
       </div>
     </div>
   ),
@@ -251,6 +259,14 @@ export const ConAzioniProva: Story = {
     expect(pdf.querySelector('[data-slot="avatar"]')).toBeNull()
     expect(pdf.querySelector('.tabular-nums')).toBeNull()
     expect(within(pdf).queryByRole('button', { name: /^Azioni su/ })).toBeNull()
-    expect(within(pdf).getByText('Rev. 03 — italiano')).toBeInTheDocument()
+    expect(within(pdf).getByText('Rev. 2 — italiano')).toBeInTheDocument()
+
+    // «Corrente» è uno stato suo, una volta per lingua, distinto da «Superato»
+    // e da «Approvato», che è l'esito di un'approvazione.
+    const righe = Array.from(pdf.querySelectorAll<HTMLElement>('[data-slot="version-timeline-item"]'))
+    expect(righe.map((v) => v.dataset.stato)).toEqual(['corrente', 'corrente', 'superato', 'superato'])
+    expect(within(pdf).getAllByText('Corrente')).toHaveLength(2)
+    expect(within(pdf).getAllByText('Superato')).toHaveLength(2)
+    expect(within(pdf).queryByText('Approvato')).toBeNull()
   },
 }
