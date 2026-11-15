@@ -322,7 +322,7 @@ function SchedaConTabella() {
             </CardContent>
           </Card>
           <div className="flex h-96 flex-col">
-            <DataTable className="min-h-0 flex-1" colonne={COLONNE} dati={RIGHE} altezza="ferma" selezione perPagina={40} />
+            <DataTable className="min-h-0 flex-1" colonne={COLONNE} dati={RIGHE} altezza="ferma" selezione perPagina={50} />
           </div>
           <Card>
             <CardContent className="text-sm text-muted-foreground">Fine della scheda.</CardContent>
