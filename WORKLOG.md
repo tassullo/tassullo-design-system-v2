@@ -15774,3 +15774,18 @@ Chiesto da Francesco dopo l'avviso di GitHub sui minuti di Actions dell'organizz
 
 - La prova vera è il push a `main` che unisce questa PR: nel log deve comparire «Gate già passato sulla PR».
 - Nessuna riga in `CHECKLIST.md`: non è un task del piano.
+
+## 2026-11-16 — #250 di Anagrafe: decimali a riposo, punto delle migliaia, un controllo prima del numero
+
+Francesco ha chiesto di guardare la #250; poi «non si può applicare ai numeri le stesse regole degli importi?», e alla risposta (due regole separate, accese campo per campo) «procediamo come hai proposto». Ragionamento e scelte in `docs/DECISIONI.md` §103.
+
+- `lib/numeri.ts`: lettura `punto: "migliaia"`, la grammatica di `"importo"` senza moneta e senza arrotondare (`grezzoImporto` diventa `grezzoMigliaia`, con `decimali` facoltativo). Le altre tre letture non cambiano.
+- `blocks/campo-numero.tsx`: `puntoMigliaia`, `decimaliMinimi` (1–4, con `importo` di serie 2 e al massimo `decimali`), `prima` (un `InputGroupAddon` a sinistra, nel DOM prima dell'`input`). `esamina` riceve le opzioni di lettura invece di `importo` e `decimali`; i messaggi per un testo che numero non è stanno in una tabella.
+- `campo-numero.stories.tsx`: scene `Decimali a riposo`, `Punto delle migliaia`, `Con un controllo prima`, ognuna con la sua prova nascosta, più `Con un controllo prima, menu aperto` per le passate `aperto`. La scena compone `InputGroupButton` e `DropdownMenu` (il modo di shadcn per un menu dentro un gruppo).
+- Trovati scrivendo la scena: le voci a scelta singola di Base UI lasciano il menu aperto (`closeOnClick`), e il menu largo quanto il grilletto mandava le voci a capo su tre righe (`w-auto`). Visti solo sulle fotografie e nella prova, non nel codice.
+- Test: le 22 scene del campo in Chromium, verdi; fotografie in chiaro, scuro e touch dallo Storybook costruito (il server di Storybook dal pannello non partiva, restava «starting» senza log). `npm run check` verde in locale: 13 gate, 2892 scansioni axe a 0 violazioni.
+
+#### Aperti
+
+- Francesco deve guardare le tre scene prima dell'unione: la riga in `CHECKLIST.md` è in `REVIEW`.
+- Da dire ad Anagrafe nel commento di adozione: con `CampoNumero` un punto solo è il decimale; per il limite `1.700` serve `puntoMigliaia`, o diventa 1,7.
