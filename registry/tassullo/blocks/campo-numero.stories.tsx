@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { ChevronDownIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
@@ -7,7 +8,16 @@ import * as z from 'zod'
 
 import { CampoNumero, type CampoNumeroProps } from '@/registry/tassullo/blocks/campo-numero'
 import { Button } from '@/registry/tassullo/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/registry/tassullo/ui/dropdown-menu'
 import { FieldGroup } from '@/registry/tassullo/ui/field'
+import { InputGroupButton } from '@/registry/tassullo/ui/input-group'
+import { apriCol } from '@/prove/apri'
 import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
 
 /**
@@ -51,6 +61,14 @@ import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
  *   «Come legge un importo». L'unità diventa `€`, prima del numero.
  * - `decimali`: con `importo`, quanti decimali tiene il campo, da 2 a 4; di
  *   serie 2. Per un prezzo unitario, `decimali={4}`.
+ * - `decimaliMinimi`: quanti decimali si leggono almeno a riposo, da 1 a 4.
+ *   Con 2 una resa si legge `1,50` e non `1,5`. Il valore non cambia, e a
+ *   fuoco si scrivono le cifre nude. Con `importo` di serie 2.
+ * - `puntoMigliaia`: il punto è delle migliaia anche fuori da un importo,
+ *   per un campo di numeri grandi. Vedi «Col punto delle migliaia».
+ * - `prima`: un controllo prima del numero, dentro il bordo del campo e sotto
+ *   la sua etichetta, come il menu che sceglie se un limite è compreso o
+ *   escluso. Vedi la scena «Con un controllo prima».
  * - Le altre prop vanno all'`input`: `name`, `disabled`, `placeholder`, `ref`.
  *
  * **Come legge.**
@@ -89,6 +107,19 @@ import { scriviNumeroConMigliaia } from '@/registry/tassullo/lib/numeri'
  *   (`1,500.50`), un'altra moneta.
  * - A riposo l'importo si legge con almeno due decimali e al massimo quelli
  *   ammessi: `1.500,00`, `0,1234`.
+ *
+ * **Col punto delle migliaia.** Con `puntoMigliaia` un numero si legge come un
+ * importo, ma senza la moneta e senza arrotondare: `1.700` vale
+ * millesettecento, `1.50` e `0.125` restano decimali perché migliaia non
+ * possono essere, e `1.700,125` tiene tutti i decimali. Serve a un campo di
+ * numeri grandi che non hanno tre decimali, come un limite in kg/m³.
+ *
+ * Non è il comportamento di serie, e la ragione è un caso preciso: chi scrive
+ * `1.125` pensando a uno virgola centoventicinque otterrebbe 1125, e a riposo
+ * il campo scriverebbe `1.125`, cioè il testo di prima. Il valore sarebbe
+ * mille volte più grande senza che niente lo mostri. In un importo il rischio
+ * non c'è, perché a riposo esce `1.125,00`. Per un campo che ha spesso tre
+ * decimali, quindi, si resta al punto decimale.
  *
  * **Regole d'uso.**
  *
@@ -337,6 +368,268 @@ export const ImportoProva: Story = {
       expect(valorePrezzo).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
       expect(prezzo).toHaveAttribute('aria-invalid', 'false')
     }
+  },
+}
+
+/**
+ * Con `decimaliMinimi` il numero a riposo si legge con almeno quei decimali:
+ * una resa `1,50`, uno spessore `4,0`. Il valore è lo stesso, e i decimali in
+ * più restano. Su un importo vale lo stesso, fino a quanti ne dice `decimali`.
+ */
+export const DecimaliMinimi: Story = {
+  name: 'Decimali a riposo',
+  args: { etichetta: 'Resa', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Resa" unita="kg/m²" decimaliMinimi={2} iniziale={1.5} min={0} />
+      <Esempio etichetta="Spessore" unita="mm" decimaliMinimi={1} iniziale={4} min={0} />
+      <Esempio etichetta="Prezzo unitario" importo decimali={4} decimaliMinimi={4} iniziale={0.12} min={0} />
+    </FieldGroup>
+  ),
+}
+
+// Prova dei decimali a riposo: aggiunti a riposo, tolti a fuoco, mai tolti
+// quelli in più; sull'importo fino a `decimali`.
+const DECIMALI_MINIMI = [
+  { scritto: '1,567', resta: '1,567', valore: '1,567' },
+  { scritto: '1234', resta: '1.234,00', valore: '1.234' },
+  { scritto: '0.1', resta: '0,10', valore: '0,1' },
+  { scritto: '1.500', resta: '1,50', valore: '1,5' },
+  { scritto: '2,', resta: '2,00', valore: '2' },
+] as const
+
+export const DecimaliMinimiProva: Story = {
+  ...DecimaliMinimi,
+  name: 'Decimali a riposo, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const resa = tela.getByLabelText('Resa')
+    const valoreResa = resa.closest('[data-slot="field"]')!.parentElement!.querySelector('[data-valore]')
+    expect(resa).toHaveValue('1,50')
+    expect(tela.getByLabelText('Spessore')).toHaveValue('4,0')
+    expect(tela.getByLabelText('Prezzo unitario')).toHaveValue('0,1200')
+
+    // A fuoco le cifre nude, senza gli zeri aggiunti; uscendo tornano.
+    await userEvent.click(resa)
+    expect(resa).toHaveValue('1,5')
+    await userEvent.tab()
+    expect(resa).toHaveValue('1,50')
+    expect(valoreResa).toHaveTextContent(esatto('Valore confermato: 1,5'))
+
+    for (const caso of DECIMALI_MINIMI) {
+      await userEvent.clear(resa)
+      await userEvent.type(resa, caso.scritto)
+      await userEvent.tab()
+      await waitFor(() => expect(resa).toHaveValue(caso.resta))
+      expect(valoreResa).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
+    }
+
+    // Il campo vuoto resta vuoto: niente zeri da soli.
+    await userEvent.clear(resa)
+    await userEvent.tab()
+    await waitFor(() => expect(resa).toHaveValue(''))
+
+    // Sull'importo gli zeri arrivano fino a `decimali`.
+    const prezzo = tela.getByLabelText('Prezzo unitario')
+    await userEvent.clear(prezzo)
+    await userEvent.paste('1.500')
+    await userEvent.tab()
+    await waitFor(() => expect(prezzo).toHaveValue('1.500,0000'))
+  },
+}
+
+/**
+ * Con `puntoMigliaia` il punto è delle migliaia anche fuori da un importo:
+ * `1.700` vale millesettecento. Accanto, lo stesso numero in un campo di
+ * serie, dove un punto solo è il decimale.
+ */
+export const PuntoMigliaia: Story = {
+  name: 'Punto delle migliaia',
+  args: { etichetta: 'Massa volumica', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Massa volumica" unita="kg/m³" puntoMigliaia iniziale={1700} min={0} />
+      <Esempio etichetta="Lunghezza" unita="m" iniziale={1.7} min={0} />
+    </FieldGroup>
+  ),
+}
+
+// Prova del punto delle migliaia: i testi che deve leggere e quelli che deve
+// rifiutare, e il campo di serie che legge come prima.
+const PUNTO_MIGLIAIA = [
+  { scritto: '1.700', resta: '1.700', valore: '1.700' },
+  { scritto: '1.50', resta: '1,5', valore: '1,5' },
+  { scritto: '0.125', resta: '0,125', valore: '0,125' },
+  { scritto: '1.700,125', resta: '1.700,125', valore: '1.700,125' },
+  { scritto: '1234.567', resta: '1.234,567', valore: '1.234,567' },
+  { scritto: '1.500.000', resta: '1.500.000', valore: '1.500.000' },
+  { scritto: '12.5,3', resta: '12.5,3', valore: '1.500.000', errore: true },
+  { scritto: '1,500.50', resta: '1,500.50', valore: '1.500.000', errore: true },
+  { scritto: '0.700.000', resta: '0.700.000', valore: '1.500.000', errore: true },
+] as const
+
+export const PuntoMigliaiaProva: Story = {
+  ...PuntoMigliaia,
+  name: 'Punto delle migliaia, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const massa = tela.getByLabelText('Massa volumica')
+    const valoreMassa = massa.closest('[data-slot="field"]')!.parentElement!.querySelector('[data-valore]')
+    for (const caso of PUNTO_MIGLIAIA) {
+      await userEvent.clear(massa)
+      await userEvent.type(massa, caso.scritto)
+      await userEvent.tab()
+      await waitFor(() => expect(massa).toHaveValue(caso.resta))
+      expect(valoreMassa).toHaveTextContent(esatto(`Valore confermato: ${caso.valore}`))
+      if ('errore' in caso) {
+        expect(massa).toHaveAttribute('aria-invalid', 'true')
+        expect(tela.getByRole('alert')).toHaveTextContent(esatto('Scrivi un numero, per esempio 1.500 o 12,5.'))
+      } else {
+        expect(massa).toHaveAttribute('aria-invalid', 'false')
+      }
+    }
+
+    // Il campo di serie legge ancora un punto solo come il decimale.
+    const lunghezza = tela.getByLabelText('Lunghezza')
+    await userEvent.clear(lunghezza)
+    await userEvent.type(lunghezza, '1.700')
+    await userEvent.tab()
+    await waitFor(() => expect(lunghezza).toHaveValue('1,7'))
+  },
+}
+
+type Estremo = '≥' | '>' | '≤' | '<'
+const ESTREMI: { segno: Estremo; nome: string }[] = [
+  { segno: '≥', nome: 'almeno, compreso' },
+  { segno: '>', nome: 'più di, escluso' },
+  { segno: '≤', nome: 'al massimo, compreso' },
+  { segno: '<', nome: 'meno di, escluso' },
+]
+
+/**
+ * Il menu che sceglie se un limite è compreso o escluso: un `InputGroupButton`
+ * che apre un `DropdownMenu` con le quattro scelte. Porta un nome suo, perché
+ * l'etichetta del campo è quella del numero. `closeOnClick` chiude il menu
+ * alla scelta: di serie una voce a scelta singola lo lascia aperto. Il menu
+ * è largo quanto le sue voci (`w-auto`): di serie sarebbe largo quanto il
+ * bottone, e le voci andrebbero a capo.
+ */
+function SceltaEstremo({ di, iniziale }: { di: string; iniziale: Estremo }) {
+  const [estremo, setEstremo] = useState<Estremo>(iniziale)
+  const nome = ESTREMI.find((e) => e.segno === estremo)!.nome
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<InputGroupButton aria-label={`Estremo di ${di}: ${nome}`} />}>
+        {estremo}
+        <ChevronDownIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-auto">
+        <DropdownMenuRadioGroup value={estremo} onValueChange={(v) => setEstremo(v as Estremo)}>
+          {ESTREMI.map((e) => (
+            <DropdownMenuRadioItem key={e.segno} value={e.segno} closeOnClick>
+              {e.segno} {e.nome}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/**
+ * Con `prima` un controllo sta prima del numero, dentro il bordo del campo e
+ * sotto la stessa etichetta: qui il menu che dice se il limite è compreso o
+ * escluso. L'errore, quando c'è, sta sotto tutti e due, e il controllo resta
+ * allineato al numero. Da tastiera `Tab` passa prima dal menu, poi dal
+ * numero, nell'ordine in cui si leggono.
+ */
+export const ControlloPrima: Story = {
+  name: 'Con un controllo prima',
+  args: { etichetta: 'Aderenza', valore: null, onValore: () => {} },
+  render: () => (
+    <FieldGroup className="max-w-xs">
+      <Esempio etichetta="Aderenza" unita="N/mm²" prima={<SceltaEstremo di="Aderenza" iniziale="≥" />} iniziale={0.05} min={0} />
+      <Esempio
+        etichetta="Massa volumica"
+        unita="kg/m³"
+        puntoMigliaia
+        prima={<SceltaEstremo di="Massa volumica" iniziale="<" />}
+        iniziale={1700}
+        min={0}
+        errore="Il limite supera quello della scheda tecnica."
+      />
+    </FieldGroup>
+  ),
+}
+
+// La stessa scena col menu aperto, per misurarlo: il controllo automatico
+// apre il primo menu.
+export const ControlloPrimaAperto: Story = {
+  ...ControlloPrima,
+  name: 'Con un controllo prima, menu aperto',
+  tags: ['!dev', '!autodocs'],
+  play: apriCol('button[aria-haspopup="menu"]', 'dropdown-menu-content'),
+}
+
+// Prova del controllo prima del numero: l'ordine di `Tab`, il clic sul
+// controllo che non porta il fuoco nel numero, la scelta che cambia il segno
+// e il nome, e il controllo allineato al numero anche con l'errore sotto.
+export const ControlloPrimaProva: Story = {
+  ...ControlloPrima,
+  name: 'Con un controllo prima, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const tela = within(canvasElement)
+    const aderenza = tela.getByLabelText('Aderenza')
+    const estremo = tela.getByRole('button', { name: 'Estremo di Aderenza: almeno, compreso' })
+    const massa = tela.getByLabelText('Massa volumica')
+    const estremoMassa = tela.getByRole('button', { name: 'Estremo di Massa volumica: meno di, escluso' })
+
+    // Il controllo, l'unità e il numero in una riga, nello stesso bordo, e
+    // centrati sulla stessa linea anche col messaggio d'errore sotto.
+    for (const [bottone, campo] of [
+      [estremo, aderenza],
+      [estremoMassa, massa],
+    ] as const) {
+      expect(bottone.closest('[data-slot="input-group"]')).toBe(campo.closest('[data-slot="input-group"]'))
+      const b = bottone.getBoundingClientRect()
+      const c = campo.getBoundingClientRect()
+      expect(Math.abs(b.top + b.height / 2 - (c.top + c.height / 2))).toBeLessThan(1)
+      expect(b.right).toBeLessThanOrEqual(c.left)
+    }
+    expect(tela.getByRole('alert')).toHaveTextContent('Il limite supera quello della scheda tecnica.')
+    expect(massa).toHaveValue('1.700')
+
+    // `Tab` passa dal controllo, poi dal numero.
+    estremo.focus()
+    await userEvent.tab()
+    expect(aderenza).toHaveFocus()
+    await userEvent.tab()
+    expect(estremoMassa).toHaveFocus()
+    await userEvent.tab()
+    expect(massa).toHaveFocus()
+    await userEvent.tab()
+
+    // Il clic sul controllo apre il menu e non porta il fuoco nel numero.
+    await userEvent.click(estremo)
+    const menu = await waitFor(() => {
+      const m = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-content"]')
+      expect(m).toBeInTheDocument()
+      return m!
+    })
+    expect(aderenza).not.toHaveFocus()
+    await userEvent.click(within(menu).getByRole('menuitemradio', { name: /più di, escluso/ }))
+    await waitFor(() => expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeNull())
+    await waitFor(() => expect(estremo).toHaveAccessibleName('Estremo di Aderenza: più di, escluso'))
+    expect(estremo).toHaveTextContent('>')
+
+    // Il numero si scrive come sempre, e il valore non dipende dal controllo.
+    await userEvent.clear(aderenza)
+    await userEvent.type(aderenza, '0,08')
+    await userEvent.tab()
+    await waitFor(() => expect(aderenza).toHaveValue('0,08'))
   },
 }
 
