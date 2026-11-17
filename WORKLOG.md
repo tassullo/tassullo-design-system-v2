@@ -15787,5 +15787,5 @@ Francesco ha chiesto di guardare la #250; poi «non si può applicare ai numeri 
 
 #### Aperti
 
-- Francesco deve guardare le tre scene prima dell'unione: la riga in `CHECKLIST.md` è in `REVIEW`.
+- Scene guardate e approvate da Francesco il 2026-11-17 («Sì, unisci»): gate della PR #251 verde in CI (16 min 25 s), riga in `CHECKLIST.md` a `DONE`. Resta da pubblicare la versione.
 - Da dire ad Anagrafe nel commento di adozione: con `CampoNumero` un punto solo è il decimale; per il limite `1.700` serve `puntoMigliaia`, o diventa 1,7.
