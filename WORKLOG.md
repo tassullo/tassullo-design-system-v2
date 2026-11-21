@@ -15789,3 +15789,15 @@ Francesco ha chiesto di guardare la #250; poi «non si può applicare ai numeri 
 
 - Scene guardate e approvate da Francesco il 2026-11-17 («Sì, unisci»): gate della PR #251 verde in CI (16 min 25 s), riga in `CHECKLIST.md` a `DONE`. Resta da pubblicare la versione.
 - Da dire ad Anagrafe nel commento di adozione: con `CampoNumero` un punto solo è il decimale; per il limite `1.700` serve `puntoMigliaia`, o diventa 1,7.
+
+## 2026-11-21 — v2.0.45 pubblicata, #250 chiusa
+
+Francesco: «Sì, pubblica». Gate della #251 verde in CI su tutti e due i commit; su `main` il gate e Pages di `69d67c7` riusciti.
+
+- Etichetta annotata `v2.0.45` su `69d67c7` (unione della #251), push della sola etichetta.
+- Verifica da fuori: alla `v2.0.45` rispondono 200 `registry.json`, `public/r/tassullo-campo-numero.json` e `public/r/numeri.json`, con dentro `puntoMigliaia`, `decimaliMinimi`, `prima` e la lettura `"migliaia"`; `shadcn view …/tassullo-campo-numero#v2.0.45` risolve il campo con le opzioni nuove.
+- Commento di adozione sulla #250: cosa reinstallare (`tassullo-campo-numero`, `numeri`), le tre opzioni, come comporre il menu di `≥`/`<` (con `closeOnClick` e `w-auto`), i due ripieghi da togliere, cosa provare in Chromium e Safari. Non rompe, nessun cambio di serie.
+
+#### Aperti
+
+- Anagrafe: adottare la `v2.0.45` e riferire sulla #250 con il commit.
