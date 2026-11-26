@@ -3533,6 +3533,11 @@ export function DataTableVirtualizedBody<TDato extends RowData>({
     return () => osservatore.disconnect()
   }, [scrollEl, misuraMargini])
 
+  // `useVirtualizer` restituisce funzioni che cambiano senza cambiare
+  // riferimento, e il compilatore di React non le sa memorizzare: questo
+  // corpo resta fuori dalla compilazione. È voluto, perché la lista deve
+  // rendersi di nuovo a ogni scorrimento; la regola lo segnala e basta.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizzatore = useVirtualizer({
     count: righe.length,
     getScrollElement: () => scrollEl,

@@ -4529,3 +4529,28 @@ Il blocco è nostro e compone `field` e `input-group` senza varianti: nessuna ri
 - Il controllo consigliato è quello di shadcn per un menu dentro un gruppo: `InputGroupButton` che apre un `DropdownMenu`, con le voci a scelta singola. Non un `Select`: il suo grilletto ha bordo e altezza propri, e dentro il gruppo andrebbe ridisegnato, cioè una divergenza. Due cose trovate scrivendo la scena: una voce a scelta singola di Base UI **lascia il menu aperto** di serie (serve `closeOnClick`), e il menu è largo quanto il grilletto (`w-(--anchor-width)`), quindi con un bottone stretto le voci vanno a capo su tre righe: `className="w-auto"` sul contenuto. Il controllo porta un `aria-label` suo, perché l'etichetta del campo è quella del numero.
 
 **Le prove.** `Decimali a riposo, prova`: zeri aggiunti a riposo e tolti a fuoco, `1,567` che resta, il campo vuoto senza zeri, l'importo a quattro decimali (`1.500,0000`). `Punto delle migliaia, prova`: nove testi, tre rifiutati, e il campo di serie che legge ancora `1.700` come 1,7. `Con un controllo prima, prova`: controllo e numero nello stesso bordo e centrati sulla stessa linea anche con l'errore sotto, `Tab` che passa dal controllo e poi dal numero, il clic sul controllo che non porta il fuoco nel numero, la scelta che chiude il menu e cambia segno e nome. `Con un controllo prima, menu aperto` apre il menu per le passate `aperto` del gate. Fotografate in chiaro, scuro e touch.
+
+## 104. Un valore breve si confronta intero: `modo="valori"` di `tassullo-diff-view` (proposta #253 di Anagrafe, 2026-11-26)
+
+**Da dove viene.** Anagrafe mostra lo storico delle modifiche di un campo con `DiffView`. Per un numero all'italiana il confronto per parole di `diffWords` spezza la virgola: «2,0» → «9,1» diventa «2» barrato, «9» aggiunto, «,» comune, «0» barrato, «1» aggiunto, e nella vista combinata si legge una fila di cifre che non è né il valore di prima né quello di dopo. `modo="affiancato"` mostra i valori interi, ma con l'altezza e le due regioni che scorrono di `SplitView`, troppo per una cella di tabella.
+
+**Le scelte.**
+
+- **Una modalità esplicita, non una soglia automatica.** La proposta lasciava aperte le due strade. Una soglia (una riga, al più 40 caratteri) cambierebbe la resa a chi usa già `inline` con testi corti, e proprio dove `inline` serve: «sovrapposizione 80 mm» → «100 mm» dentro una frase breve si legge meglio per parole. Chi sa di mostrare un valore lo dice.
+- **Non confronta.** Il valore di prima intero in `<del>`, una freccia (`ArrowRightIcon`, nascosta ai lettori di schermo), quello di dopo intero in `<ins>`, con gli stessi colori di `inline` e `tabular-nums`. Uguali, il valore una volta sola, senza segni. Un valore che compare o sparisce si mostra da solo, senza freccia.
+- **Senza il riquadro della vista combinata.** La proposta chiedeva «stesso contenitore»; il riquadro di `inline` (bordo, fondo, `p-4`) in una cella di tabella raddoppia l'altezza della riga per poche cifre. I colori sono gli stessi, i due valori hanno un `px-1` perché non sono più parole dentro una frase. Confermato da Francesco il 2026-11-26, guardate le fotografie della scena `Valori` («Sì, unisci»).
+- `legenda` resta di serie sì, come negli altri due modi: in una tabella si toglie con `legenda={false}` e la frase si dice una volta sopra.
+- `lucide-react` entra fra le `dependencies` dell'item.
+
+**Le prove.** `Valori, prova`: valori interi (`2,0` e `9,1` in un solo `<del>` e un solo `<ins>`), uguali una volta sola, comparso e sparito senza freccia, nessuna legenda. Fotografie in chiaro, scuro e touch dallo Storybook costruito.
+
+## 105. ESLint non dà avvisi sui file del design system, e il gate lo pretende (proposta #254 di Anagrafe, 2026-11-26)
+
+**Da dove viene.** Con le righe del passo 12 di `docs/INTEGRAZIONE.md` il lint di Anagrafe dava 0 errori e 4 avvisi nei file del design system: tre `react-hooks/exhaustive-deps` in `ui/stepper.tsx` e un `react-hooks/incompatible-library` in `blocks/data-table.tsx`. `check:lint-app` li vedeva e li stampava senza fallire, «come `eslint .` in un'app». Ma l'app quegli avvisi non li può togliere: restano nel suo lint come residuo, e un residuo fisso insegna a non leggere gli avvisi.
+
+**Le scelte.**
+
+- **Stepper: l'eccezione nel passo 12.** È codice di reui copiato tale e quale, e l'originale spegne `exhaustive-deps` già da sé, con un `/* eslint-disable */` in testa al file, che nell'app non arriva (le teste dei file non si installano, §58). La regola si spegne nell'oggetto `tassullo/stepper`, accanto a `react-hooks/refs`.
+- **Calendario a eventi: un oggetto a parte, `tassullo/event-calendar-event`.** Il quinto avviso, che Anagrafe non vedeva perché non installa il calendario. Spegnerla su tutto `event-calendar*.tsx` rendeva inutile una `eslint-disable-next-line` che sta già in `event-calendar.tsx`, e ESLint lo segnala con un altro avviso: la regola si spegne sul solo file che la usa.
+- **Tabella: un commento nel blocco, non una riga nell'app.** Il blocco è nostro: `// eslint-disable-next-line react-hooks/incompatible-library` sopra `useVirtualizer`, con la ragione (il compilatore di React salta quel corpo, ed è voluto, perché la lista deve rendersi di nuovo a ogni scorrimento). oxlint rispetta lo stesso commento: i suoi avvisi passano da 13 a 12.
+- **Il gate fallisce sugli avvisi di ESLint.** Non su quelli di oxlint: lì le regole di React 19 sono avvisi di serie e il documento non le spegne apposta (una dozzina, tutti sul codice di terzi). Nuovo caso nell'autotest: un `useMemo` con una dipendenza mancante fa fallire.

@@ -2,6 +2,14 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, within } from 'storybook/test'
 
 import { DiffView } from '@/registry/tassullo/blocks/diff-view'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/registry/tassullo/ui/table'
 
 /**
  * Il confronto fra due versioni di un testo, parola per parola: cosa è stato
@@ -20,6 +28,7 @@ import { DiffView } from '@/registry/tassullo/blocks/diff-view'
  * ```tsx
  * <DiffView prima={revisione3.testo} dopo={revisione4.testo} />
  * <DiffView prima={revisione3.testo} dopo={revisione4.testo} modo="affiancato" />
+ * <DiffView prima="2,0" dopo="9,1" modo="valori" legenda={false} />
  * ```
  *
  * **Le prop.** `prima` e `dopo`, i due testi; `etichettaPrima` ed
@@ -27,7 +36,9 @@ import { DiffView } from '@/registry/tassullo/blocks/diff-view'
  * il predefinito, fonde il confronto in un paragrafo solo, con il tolto
  * barrato e l'aggiunto colorato; `"affiancato"` mette le due versioni in due
  * colonne che scorrono insieme, e che in un contenitore stretto si
- * impilano; `legenda`, di serie sì, mostra sopra il confronto la legenda
+ * impilano; `"valori"`, per un valore breve come una misura o un numero,
+ * mostra il valore di prima intero e barrato, una freccia e quello di dopo
+ * intero, senza confrontarli parola per parola; `legenda`, di serie sì, mostra sopra il confronto la legenda
  * «Tolto / Aggiunto».
  *
  * **Regole d'uso.** Il confronto è fra testi: un documento salvato in un
@@ -36,6 +47,10 @@ import { DiffView } from '@/registry/tassullo/blocks/diff-view'
  * o nella vista affiancata; si toglie con `legenda={false}` nella vista
  * combinata quando i confronti sono molti — uno per campo, in un dettaglio —
  * e la si dice una volta sola sopra tutti.
+ * Un valore breve, su una riga — una misura, una quantità, un codice — va in
+ * `"valori"`: confrontato per parole, «2,0» → «9,1» diventerebbe una fila di
+ * cifre barrate e aggiunte che non è né l'uno né l'altro. Un testo, anche
+ * corto, resta in `"inline"`, dove la parola cambiata si vede dentro la frase.
  *
  * **Tastiera e accessibilità.** Il testo tolto e quello aggiunto sono
  * `<del>` e `<ins>`, non soltanto colori; la legenda sopra dice quale è
@@ -182,5 +197,85 @@ export const CampoPerCampoProva: Story = {
     expect(canvasElement.querySelectorAll('[data-slot="diff-view"]')).toHaveLength(3)
     expect(canvas.queryAllByText('Tolto')).toHaveLength(0)
     expect(canvas.queryAllByText('Aggiunto')).toHaveLength(0)
+  },
+}
+
+const valoriRev3 = [
+  { campo: 'Spessore (mm)', prima: '2,0', dopo: '9,1' },
+  { campo: 'Resa (kg/m²)', prima: '1,50', dopo: '1,50' },
+  { campo: 'Confezione', prima: 'Sacco 25 kg', dopo: 'Sacco 20 kg' },
+  { campo: 'Peso pallet (kg)', prima: '1.200', dopo: '1.350' },
+  { campo: 'Classe di reazione al fuoco', prima: '', dopo: 'A1' },
+  { campo: 'Nota di posa', prima: 'Solo a mano', dopo: '' },
+]
+
+/**
+ * Un valore per riga, in una tabella: ogni valore resta intero, il vecchio
+ * barrato e il nuovo dopo la freccia. Uguali, il valore una volta sola; un
+ * valore che compare o che sparisce, da solo. La legenda sta sopra la
+ * tabella, una volta.
+ */
+export const Valori: Story = {
+  args: {
+    prima: '',
+    dopo: '',
+    modo: 'valori',
+    legenda: false,
+  },
+  render: (args) => (
+    <div className="flex max-w-2xl flex-col gap-3">
+      <p className="text-sm text-muted-foreground">
+        Il valore tolto è barrato, quello nuovo è sul fondo verde.
+      </p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Campo</TableHead>
+            <TableHead>Modifica</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {valoriRev3.map((voce) => (
+            <TableRow key={voce.campo}>
+              <TableCell>{voce.campo}</TableCell>
+              <TableCell>
+                <DiffView {...args} prima={voce.prima} dopo={voce.dopo} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  ),
+}
+
+// Scena di misura di «Valori»: la stessa resa, con la prova. `!dev` la toglie
+// dalla barra e da Docs, così la scena qui sopra si apre a riposo; il
+// controllo automatico la esegue lo stesso.
+export const ValoriProva: Story = {
+  ...Valori,
+  name: 'Valori, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const righe = [...canvasElement.querySelectorAll('tbody tr')]
+    const cella = (i: number) => righe[i]!.querySelector('[data-slot="diff-view"]')!
+    const testo = (i: number, tag: string) =>
+      [...cella(i).querySelectorAll(tag)].map((n) => n.textContent)
+    // Ogni valore intero, non spezzato in cifre.
+    expect(testo(0, 'del')).toEqual(['2,0'])
+    expect(testo(0, 'ins')).toEqual(['9,1'])
+    expect(cella(0).querySelector('svg')).not.toBeNull()
+    // Uguali: una volta sola, senza segni.
+    expect(cella(1).textContent).toBe('1,50')
+    expect(testo(1, 'del')).toEqual([])
+    expect(testo(1, 'ins')).toEqual([])
+    expect(testo(2, 'del')).toEqual(['Sacco 25 kg'])
+    expect(testo(2, 'ins')).toEqual(['Sacco 20 kg'])
+    // Comparso e sparito: da soli, senza freccia.
+    expect(testo(4, 'ins')).toEqual(['A1'])
+    expect(cella(4).querySelector('svg')).toBeNull()
+    expect(testo(5, 'del')).toEqual(['Solo a mano'])
+    expect(cella(5).querySelector('svg')).toBeNull()
+    expect(within(canvasElement).queryAllByText('Tolto')).toHaveLength(0)
   },
 }
