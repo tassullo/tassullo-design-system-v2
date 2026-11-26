@@ -15833,4 +15833,4 @@ Francesco: «Unisci ora», poi «Sì, pubblica». Gate della PR #255 verde in CI
 #### Aperti
 
 - Anagrafe: adottare la `v2.0.46` e riferire sulle due issue con il commit.
-- Proposte ancora aperte, tutte di Studio o già rinviate: #248, #249 (Studio, non ancora valutate), #157, #141, #140, #70.
+- Proposte ancora aperte: #248 e #249 (Studio, non ancora valutate), #157, #141, #140 e #70 (più vecchie, non riguardate in questa sessione).
