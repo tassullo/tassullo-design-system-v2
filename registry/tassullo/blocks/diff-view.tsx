@@ -30,6 +30,16 @@
  * la vista a due colonne sincronizzate che il piano chiede accanto al
  * confronto parola per parola, non un terzo blocco separato.
  *
+ * **Una terza modalità, `valori`** (proposta #253 di Anagrafe, 2026-11-26):
+ * per un valore breve, una misura o un numero, il confronto per parole
+ * spezza «2,0» → «9,1» in cifre e virgole mescolate, che non si leggono né
+ * come il valore di prima né come quello di dopo. `valori` non confronta:
+ * mostra il valore di prima intero e barrato, una freccia, il valore di dopo
+ * intero, con le cifre tabellari. Scelta esplicita e non automatica sotto
+ * una soglia di lunghezza: un testo breve di prosa («80 mm» → «100 mm»
+ * dentro una frase) resta meglio confrontato per parole, e una soglia
+ * cambierebbe la resa a chi usa già `inline`. `docs/DECISIONI.md` §104.
+ *
  * **Il colore non basta da solo.** Il tolto è barrato oltre che rosso
  * (`line-through` su `<del>`), non solo il colore a distinguerlo
  * dall'aggiunto — la stessa cautela di `version-timeline` con badge e
@@ -37,6 +47,7 @@
  */
 import { useMemo } from "react"
 import { diffWords } from "diff"
+import { ArrowRightIcon } from "lucide-react"
 
 import { cn } from "cn"
 import { SplitView } from "@/registry/tassullo/blocks/split-view"
@@ -46,8 +57,13 @@ export type DiffViewProps = {
   dopo: string
   etichettaPrima?: string
   etichettaDopo?: string
-  /** `inline` fonde il confronto in un paragrafo solo; `affiancato` usa due colonne sincronizzate. */
-  modo?: "inline" | "affiancato"
+  /**
+   * `inline` fonde il confronto in un paragrafo solo; `affiancato` usa due
+   * colonne sincronizzate; `valori`, per un valore breve come una misura o un
+   * numero, mostra il valore di prima barrato, una freccia e quello di dopo,
+   * ognuno intero.
+   */
+  modo?: "inline" | "affiancato" | "valori"
   /** Mostra la legenda «Tolto / Aggiunto» sopra il confronto. Di serie sì. */
   legenda?: boolean
   className?: string
@@ -77,7 +93,41 @@ export function DiffView({
   legenda = true,
   className,
 }: DiffViewProps) {
-  const segmenti = useMemo(() => diffWords(prima, dopo), [prima, dopo])
+  const segmenti = useMemo(
+    () => (modo === "valori" ? [] : diffWords(prima, dopo)),
+    [prima, dopo, modo]
+  )
+
+  if (modo === "valori") {
+    // Uguali, il valore una volta sola; un valore che compare o che sparisce
+    // si mostra da solo, senza freccia.
+    return (
+      <div data-slot="diff-view" className={cn("flex flex-col gap-3", className)}>
+        {legenda ? <Legenda /> : null}
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm tabular-nums">
+          {prima === dopo ? (
+            <span>{dopo}</span>
+          ) : (
+            <>
+              {prima ? (
+                <del className="rounded-sm bg-destructive-subtle px-1 text-destructive-subtle-foreground line-through">
+                  {prima}
+                </del>
+              ) : null}
+              {prima && dopo ? (
+                <ArrowRightIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
+              {dopo ? (
+                <ins className="rounded-sm bg-success-subtle px-1 text-success-subtle-foreground no-underline">
+                  {dopo}
+                </ins>
+              ) : null}
+            </>
+          )}
+        </p>
+      </div>
+    )
+  }
 
   if (modo === "affiancato") {
     return (

@@ -15801,3 +15801,23 @@ Francesco: «Sì, pubblica». Gate della #251 verde in CI su tutti e due i commi
 #### Aperti
 
 - Anagrafe: adottare la `v2.0.45` e riferire sulla #250 con il commit.
+
+## 2026-11-26 — #253 e #254 di Anagrafe: valori brevi nel confronto, zero avvisi di lint
+
+Francesco: «implementa i nuovi issue aperti da anagrafe, se c'è qualche dubbio o qualcosa da decidere assieme facciamolo altrimenti procedi subito». Le due proposte nuove sono la #253 e la #254 (le #248 e #249 sono di Studio, non toccate).
+
+**#254, avvisi di lint** (`docs/DECISIONI.md` §105).
+- `docs/INTEGRAZIONE.md` passo 12: `react-hooks/exhaustive-deps` spenta in `tassullo/stepper` (l'originale reui la spegne in testa al file, riga che nell'app non arriva) e in un oggetto nuovo `tassullo/event-calendar-event`, sul solo file: su tutto `event-calendar*.tsx` rendeva inutile una `eslint-disable` già presente in `event-calendar.tsx`. Una frase sotto «Codice di terzi»: con queste righe ESLint non dà né errori né avvisi.
+- `blocks/data-table.tsx`: `eslint-disable-next-line react-hooks/incompatible-library` sopra `useVirtualizer`, con la ragione. Vale anche per oxlint (13 → 12 avvisi).
+- `scripts/check-lint-app.ts`: fallisce anche sugli avvisi di ESLint; autotest con un caso nuovo (dipendenza mancante in un `useMemo`), 4 su 4. `CLAUDE.md` §Comandi aggiornato.
+
+**#253, valori brevi** (`docs/DECISIONI.md` §104).
+- `blocks/diff-view.tsx`: `modo="valori"` — prima intero in `<del>`, freccia, dopo intero in `<ins>`, `tabular-nums`; uguali una volta sola; comparso o sparito da solo. `diffWords` non gira in quel modo. `lucide-react` fra le dipendenze dell'item; descrizione e `docs` dell'item aggiornati.
+- Scelto esplicito e non a soglia, e **senza il riquadro** di `inline` (la proposta chiedeva «stesso contenitore»): in una cella di tabella il riquadro raddoppia la riga. È la sola scelta da far confermare a Francesco.
+- `diff-view.stories.tsx`: scena `Valori` (tabella con sei campi: decimale, uguale, testo breve, migliaia, comparso, sparito) e `Valori, prova`. Testo della pagina: prop e regola d'uso.
+
+**Test.** Le 9 scene di diff-view verdi in Chromium; fotografie di `Valori` in chiaro, scuro e touch dallo Storybook costruito. `check:lint-app` verde (ESLint 0 errori, 0 avvisi). `npm run check` verde in locale: 13 gate, 2900 scansioni axe a 0 violazioni.
+
+#### Aperti
+
+- Francesco guarda la scena `Valori` (soprattutto: senza riquadro va bene?). Poi PR unita e versione da pubblicare, con il commento di adozione sulle due issue: per la #253 togliere l'involucro dell'app; per la #254 ricopiare le righe del passo 12 e togliere il residuo dalla checklist di Anagrafe.

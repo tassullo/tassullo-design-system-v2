@@ -20,8 +20,11 @@
  *   - **oxlint** con il blocco dopo `<!-- lint-oxlint -->`, che è il lint del
  *     template Vite di oggi (ESLint era quello fino a `create-vite` 8).
  *
- * Fallisce su ogni **errore**. Gli avvisi li stampa e non fallisce, come
- * `eslint .` in un'app.
+ * Con ESLint fallisce su ogni errore **e su ogni avviso**: un avviso in un
+ * file del design system l'app non lo può togliere, e resta nel suo lint come
+ * residuo (proposta #254, 2026-11-26: quattro avvisi, che questo gate stampava
+ * senza fallire). Con oxlint fallisce sui soli errori: lì le regole di React
+ * 19 sono avvisi di serie e il documento non le spegne.
  *
  * **E le eccezioni devono servire.** Ogni oggetto della configurazione che si
  * chiama `tassullo/…` (per oxlint, ogni voce di `overrides`) spegne delle
@@ -215,7 +218,7 @@ async function controlla(file: FileSpedito[], testoEslint: string, testoOxlint: 
 
     return {
       errori: [
-        ...conEccezioni.filter((m) => m.errore).map((m) => `ESLint — ${m.file}:${m.riga} ${m.regola}`),
+        ...conEccezioni.map((m) => `ESLint — ${m.file}:${m.riga} ${m.regola}${m.errore ? "" : " (avviso)"}`),
         ...ox.filter((m) => m.errore).map((m) => `oxlint — ${m.file}:${m.riga} ${m.regola}`),
       ],
       inutili: [
@@ -234,13 +237,14 @@ async function controlla(file: FileSpedito[], testoEslint: string, testoOxlint: 
 /**
  * **L'autotest.** Su un'app di prova con un hook solo: se è pulito non dà
  * errori; se chiama `setState` dentro un effetto, ESLint dà l'errore della
- * proposta #49; un'eccezione su una cartella vuota è segnalata come inutile.
+ * proposta #49; se dimentica una dipendenza, l'avviso fa fallire; un'eccezione su una cartella vuota è segnalata come inutile.
  * (Con un file solo, le eccezioni vere del documento risultano tutte inutili:
  * qui si guarda solo quella di prova.)
  */
 async function autotest(): Promise<number> {
   const pulito = `import * as React from "react"\n\nexport function useUno() {\n  return React.useSyncExternalStore(() => () => {}, () => 1, () => 1)\n}\n`;
   const sporco = `import * as React from "react"\n\nexport function useUno() {\n  const [v, setV] = React.useState(0)\n  React.useEffect(() => {\n    setV(1)\n  }, [])\n  return v\n}\n`;
+  const avviso = `import * as React from "react"\n\nexport function useUno(n: number) {\n  return React.useMemo(() => n * 2, [])\n}\n`;
   const hook = (content: string): FileSpedito[] => [{ path: "registry/p/hooks/use-uno.ts", type: "registry:hook", content }];
   const eslintBase = blocco("lint-eslint");
   const oxBase = blocco("lint-oxlint");
@@ -256,6 +260,12 @@ async function autotest(): Promise<number> {
       file: hook(sporco),
       eslint: eslintBase,
       ok: (e) => e.errori.some((x) => x.includes("react-hooks/set-state-in-effect")),
+    },
+    {
+      nome: "un avviso di ESLint (dipendenza mancante): fallisce",
+      file: hook(avviso),
+      eslint: eslintBase,
+      ok: (e) => e.errori.some((x) => x.includes("react-hooks/exhaustive-deps")),
     },
     {
       nome: "un'eccezione che non serve: segnalata",

@@ -348,7 +348,12 @@ modificano.
 - **Codice di terzi.** Il carosello (shadcn), il calendario a eventi e lo
   stepper (reui) hanno forme che le regole di React 19 segnalano. Sono copiati
   tali e quali per poterli aggiornare quando escono versioni nuove: le regole
-  si spengono **solo su quei file, solo quelle regole**.
+  si spengono **solo su quei file, solo quelle regole**. Lo stepper, per
+  esempio, spegne `exhaustive-deps` già nell'originale, con una riga in testa
+  al file che nell'app non arriva: qui la si rimette.
+
+Con queste righe ESLint non dà né errori né avvisi sui file del design
+system.
 
 Il design system verifica queste righe a ogni modifica: installa tutti i
 suoi file in un'app di prova e ci passa sopra il lint con la configurazione
@@ -413,9 +418,17 @@ export default defineConfig([
     },
   },
   {
+    name: 'tassullo/event-calendar-event',
+    files: ['src/components/ui/event-calendar-event.tsx'],
+    rules: {
+      'react-hooks/exhaustive-deps': 'off',
+    },
+  },
+  {
     name: 'tassullo/stepper',
     files: ['src/components/ui/stepper.tsx'],
     rules: {
+      'react-hooks/exhaustive-deps': 'off',
       'react-hooks/refs': 'off',
     },
   },
