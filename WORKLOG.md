@@ -15821,3 +15821,16 @@ Francesco: «implementa i nuovi issue aperti da anagrafe, se c'è qualche dubbio
 #### Aperti
 
 - Scena `Valori` approvata da Francesco senza riquadro («Sì, unisci»): righe in `CHECKLIST.md` a `DONE`, PR #255 da unire col gate verde in CI. Resta la versione da pubblicare, con il commento di adozione sulle due issue: per la #253 togliere l'involucro dell'app; per la #254 ricopiare le righe del passo 12 e togliere il residuo dalla checklist di Anagrafe.
+
+## 2026-11-26 — v2.0.46 pubblicata, #253 e #254 chiuse
+
+Francesco: «Unisci ora», poi «Sì, pubblica». Gate della PR #255 verde in CI su tutti e due i commit (`ed46a97`, `7eb7793`); unita con un commit di unione (`6822a8e`); su `main` gate e Pages riusciti. Le `Closes` hanno chiuso #253 e #254.
+
+- Etichetta annotata `v2.0.46` su `6822a8e`, push della sola etichetta.
+- Verifica da fuori: alla `v2.0.46` rispondono 200 `registry.json`, `public/r/tassullo-diff-view.json`, `public/r/tassullo-data-table.json` e `docs/INTEGRAZIONE.md`, con dentro `modo="valori"`, il commento su `incompatible-library` e l'oggetto `tassullo/event-calendar-event`; `shadcn view …/tassullo-diff-view#v2.0.46` risolve il blocco con la modalità nuova.
+- Commento di adozione sulla #253 (reinstallare `tassullo-diff-view`, l'involucro da togliere, la scelta fra `valori` e `inline` che passa al punto d'uso, cosa provare) e sulla #254 (reinstallare `tassullo-data-table`, ricopiare intere le righe del passo 12, togliere il residuo dalla checklist, `npm run lint` a 0 avvisi). Non rompe, nessun cambio di serie.
+
+#### Aperti
+
+- Anagrafe: adottare la `v2.0.46` e riferire sulle due issue con il commit.
+- Proposte ancora aperte, tutte di Studio o già rinviate: #248, #249 (Studio, non ancora valutate), #157, #141, #140, #70.
