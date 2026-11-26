@@ -4538,7 +4538,7 @@ Il blocco è nostro e compone `field` e `input-group` senza varianti: nessuna ri
 
 - **Una modalità esplicita, non una soglia automatica.** La proposta lasciava aperte le due strade. Una soglia (una riga, al più 40 caratteri) cambierebbe la resa a chi usa già `inline` con testi corti, e proprio dove `inline` serve: «sovrapposizione 80 mm» → «100 mm» dentro una frase breve si legge meglio per parole. Chi sa di mostrare un valore lo dice.
 - **Non confronta.** Il valore di prima intero in `<del>`, una freccia (`ArrowRightIcon`, nascosta ai lettori di schermo), quello di dopo intero in `<ins>`, con gli stessi colori di `inline` e `tabular-nums`. Uguali, il valore una volta sola, senza segni. Un valore che compare o sparisce si mostra da solo, senza freccia.
-- **Senza il riquadro della vista combinata.** La proposta chiedeva «stesso contenitore»; il riquadro di `inline` (bordo, fondo, `p-4`) in una cella di tabella raddoppia l'altezza della riga per poche cifre. I colori sono gli stessi, i due valori hanno un `px-1` perché non sono più parole dentro una frase. Da confermare guardando la scena `Valori`.
+- **Senza il riquadro della vista combinata.** La proposta chiedeva «stesso contenitore»; il riquadro di `inline` (bordo, fondo, `p-4`) in una cella di tabella raddoppia l'altezza della riga per poche cifre. I colori sono gli stessi, i due valori hanno un `px-1` perché non sono più parole dentro una frase. Confermato da Francesco il 2026-11-26, guardate le fotografie della scena `Valori` («Sì, unisci»).
 - `legenda` resta di serie sì, come negli altri due modi: in una tabella si toglie con `legenda={false}` e la frase si dice una volta sopra.
 - `lucide-react` entra fra le `dependencies` dell'item.
 

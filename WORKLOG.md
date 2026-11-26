@@ -15820,4 +15820,4 @@ Francesco: «implementa i nuovi issue aperti da anagrafe, se c'è qualche dubbio
 
 #### Aperti
 
-- Francesco guarda la scena `Valori` (soprattutto: senza riquadro va bene?). Poi PR unita e versione da pubblicare, con il commento di adozione sulle due issue: per la #253 togliere l'involucro dell'app; per la #254 ricopiare le righe del passo 12 e togliere il residuo dalla checklist di Anagrafe.
+- Scena `Valori` approvata da Francesco senza riquadro («Sì, unisci»): righe in `CHECKLIST.md` a `DONE`, PR #255 da unire col gate verde in CI. Resta la versione da pubblicare, con il commento di adozione sulle due issue: per la #253 togliere l'involucro dell'app; per la #254 ricopiare le righe del passo 12 e togliere il residuo dalla checklist di Anagrafe.
