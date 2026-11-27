@@ -100,7 +100,8 @@ export type SplitViewProps = {
    * Classi del contenitore. L'altezza di serie è `h-96`. Per prendere lo
    * spazio di un contenitore con un'altezza sua: `h-full`; dentro una colonna
    * flessibile (un dialogo grande, una pagina a tutta altezza):
-   * `h-auto min-h-64 flex-1`.
+   * `h-auto min-h-64 flex-1`. Alta quanto il contenuto, fino a un massimo
+   * oltre il quale le colonne scorrono: `h-auto max-h-96`.
    */
   className?: string
 }
@@ -139,10 +140,17 @@ export function SplitView({
     })
   }
 
+  // `relative` sul contenitore: la libreria dei pannelli mette in ordine
+  // pannelli e separatore con `offsetLeft`, che si misura dal primo antenato
+  // posizionato. Il separatore è posizionato, i pannelli no: dentro una cella
+  // di tabella che non apre la riga i pannelli si misurano dalla cella e il
+  // separatore dal contenitore della tabella, l'ordine esce sbagliato e il
+  // separatore non sposta più niente. Con il contenitore posizionato si
+  // misurano tutti dallo stesso punto.
   return (
-    <div ref={contenitoreRef} data-slot="split-view" className={cn("h-96", className)}>
+    <div ref={contenitoreRef} data-slot="split-view" className={cn("relative flex h-96 flex-col", className)}>
       {affiancato ? (
-        <ResizablePanelGroup orientation="horizontal" className="h-full rounded-md border">
+        <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 rounded-md border">
           <ResizablePanel defaultSize={50}>
             <Colonna
               contenuto={sinistra}
@@ -162,8 +170,8 @@ export function SplitView({
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (
-        <div className="flex h-full flex-col gap-3">
-          <div className="flex-1 overflow-hidden rounded-md border">
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border">
             <Colonna
               contenuto={sinistra}
               etichetta={etichettaSinistra}
@@ -171,7 +179,7 @@ export function SplitView({
               onScroll={() => alSincronizza(sinistraRef.current, destraRef.current)}
             />
           </div>
-          <div className="flex-1 overflow-hidden rounded-md border">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border">
             <Colonna
               contenuto={destra}
               etichetta={etichettaDestra}
