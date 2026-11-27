@@ -15850,10 +15850,10 @@ Francesco: «risolvi le nuove issue». Le nuove sono la #257 e la #258, tutte e 
 
 **Scene.** `Numeri nel testo` (+ prova in `inline` e `affiancato`), `Affiancato in tabella` (+ prova sui separatori), `Affiancato, altezza, prova` (breve, lungo, lungo impilato in un contenitore stretto). Tutte e tre le prove falliscono sul codice di partenza. Regole d'uso: i numeri interi, e un'etichetta diversa per ogni confronto affiancato nella stessa pagina (`landmark-unique`).
 
-**Test.** Le prove di diff-view e split-view verdi in Chromium (19); le tre nuove verdi anche in WebKit, girate una volta con l'etichetta e poi tolta. Fotografie in chiaro e scuro, e a finestra stretta, dallo Storybook di sviluppo. `npm run check:statici` verde.
+**Test.** Le prove di diff-view e split-view verdi in Chromium (19); le tre nuove verdi anche in WebKit, girate una volta con l'etichetta e poi tolta. Fotografie in chiaro e scuro, e a finestra stretta, dallo Storybook di sviluppo. `npm run check:statici` verde; `test:a11y` 2920 scansioni a 0 violazioni, `test:webkit` 56 su 56. Il primo giro di `npm run check` si è fermato nella passata scuro/aperto (diciotto minuti senza avanzare, CPU quasi a zero) con lo Storybook di sviluppo acceso; rilanciato a Storybook spento, è passato. Causa non dimostrata.
 
 **Non toccato.** Nella colonna di sinistra resta uno spazio prima della punteggiatura che segue un'aggiunta («rasature .»): è `diffWords`, uguale con e senza segmentatore, da M3.9.
 
 #### Aperti
 
-- Due cambi di serie da far confermare a Francesco: il segmentatore senza prop e `affiancato` alto quanto il testo. Poi PR, versione e commento di adozione sulle due issue: reinstallare `tassullo-diff-view` e `tassullo-split-view`, togliere i due commenti «in attesa di», etichette diverse per ogni confronto affiancato in una tabella.
+- I due cambi di serie senza prop confermati da Francesco («così come sono»); gate della PR #259 verde in CI. Resta la versione, con il commento di adozione sulle due issue: reinstallare `tassullo-diff-view` e `tassullo-split-view`, togliere i due commenti «in attesa di» (e il ripiego di #257, l'affiancato al posto dell'inline, se non serve più), etichette diverse per ogni confronto affiancato in una tabella.
