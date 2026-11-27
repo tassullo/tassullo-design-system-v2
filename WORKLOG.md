@@ -15857,3 +15857,16 @@ Francesco: «risolvi le nuove issue». Le nuove sono la #257 e la #258, tutte e 
 #### Aperti
 
 - I due cambi di serie senza prop confermati da Francesco («così come sono»); gate della PR #259 verde in CI. Resta la versione, con il commento di adozione sulle due issue: reinstallare `tassullo-diff-view` e `tassullo-split-view`, togliere i due commenti «in attesa di» (e il ripiego di #257, l'affiancato al posto dell'inline, se non serve più), etichette diverse per ogni confronto affiancato in una tabella.
+
+## 2026-11-27 — v2.0.47 pubblicata, #257 e #258 chiuse
+
+Francesco: «così come sono», «CI verde procedi», poi «Sì, pubblica». Gate della PR #259 verde in CI su tutti e due i commit (`6e015c8`, `e25ee79`); unita con un commit di unione (`bdd56a8`); su `main` gate e Pages riusciti. Le `Closes` hanno chiuso #257 e #258.
+
+- Etichetta annotata `v2.0.47` su `bdd56a8`, push della sola etichetta.
+- Verifica da fuori: alla `v2.0.47` rispondono 200 `registry.json`, `public/r/tassullo-diff-view.json` e `public/r/tassullo-split-view.json`, con dentro `intlSegmenter`, `h-auto max-h-96` e il contenitore `relative flex h-96 flex-col`; `shadcn view …/tassullo-diff-view#v2.0.47` risolve il blocco con le due correzioni.
+- Commento di adozione sulla #257 (reinstallare `tassullo-diff-view`, cambio di serie dei numeri interi, il ritorno al modo voluto dove l'app era passata ad `affiancato`) e sulla #258 (reinstallare anche `tassullo-split-view`, cambio di serie dell'altezza, separatore corretto in tabella, etichette diverse per ogni confronto affiancato). Non rompe.
+
+#### Aperti
+
+- Anagrafe: adottare la `v2.0.47` e riferire sulle due issue con il commit.
+- Proposte ancora aperte: #248 e #249 (Studio), #157, #141, #140 e #70.
