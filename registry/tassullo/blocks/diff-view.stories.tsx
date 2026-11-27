@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
+import { expect, waitFor, within } from 'storybook/test'
 
 import { DiffView } from '@/registry/tassullo/blocks/diff-view'
 import {
@@ -36,7 +36,8 @@ import {
  * il predefinito, fonde il confronto in un paragrafo solo, con il tolto
  * barrato e l'aggiunto colorato; `"affiancato"` mette le due versioni in due
  * colonne che scorrono insieme, e che in un contenitore stretto si
- * impilano; `"valori"`, per un valore breve come una misura o un numero,
+ * impilano, alte quanto il testo fino a un massimo oltre il quale
+ * scorrono; `"valori"`, per un valore breve come una misura o un numero,
  * mostra il valore di prima intero e barrato, una freccia e quello di dopo
  * intero, senza confrontarli parola per parola; `legenda`, di serie sì, mostra sopra il confronto la legenda
  * «Tolto / Aggiunto».
@@ -50,7 +51,13 @@ import {
  * Un valore breve, su una riga — una misura, una quantità, un codice — va in
  * `"valori"`: confrontato per parole, «2,0» → «9,1» diventerebbe una fila di
  * cifre barrate e aggiunte che non è né l'uno né l'altro. Un testo, anche
- * corto, resta in `"inline"`, dove la parola cambiata si vede dentro la frase.
+ * corto, resta in `"inline"`, dove la parola cambiata si vede dentro la frase:
+ * lì un numero cambia intero, con la virgola dei decimali e il punto delle
+ * migliaia.
+ * Più confronti affiancati nella stessa pagina — uno per riga di una
+ * tabella — danno a ogni colonna un'etichetta sua, per esempio
+ * `` etichettaPrima={`${campo}, prima`} ``: le colonne sono regioni, e due
+ * regioni con lo stesso nome non si distinguono.
  *
  * **Tastiera e accessibilità.** Il testo tolto e quello aggiunto sono
  * `<del>` e `<ins>`, non soltanto colori; la legenda sopra dice quale è
@@ -129,6 +136,193 @@ export const AffiancatoProva: Story = {
   tags: ['!dev', '!autodocs'],
   play: async ({ canvasElement }) => {
     expect(within(canvasElement).getAllByText('Tolto')).toHaveLength(1)
+  },
+}
+
+const notaPrima =
+  'Aderenza al supporto di 2,0 N/mm² dopo 28 giorni. Consumo di 1.250 g/m² per 10 mm di spessore.'
+const notaDopo =
+  'Aderenza al supporto di 9,1 N/mm² dopo 28 giorni. Consumo di 1.400 g/m² per 10 mm di spessore.'
+
+/**
+ * Una frase che cita dei valori: ogni numero cambia intero, con la virgola
+ * dei decimali e il punto delle migliaia, e non si mescola cifra per cifra
+ * col numero di prima.
+ */
+export const NumeriNelTesto: Story = {
+  name: 'Numeri nel testo',
+  args: {
+    prima: notaPrima,
+    dopo: notaDopo,
+  },
+  render: (args) => (
+    <div className="max-w-2xl">
+      <DiffView {...args} />
+    </div>
+  ),
+}
+
+// Scena di misura di «Numeri nel testo»: i numeri restano interi in tutti e due
+// i modi che confrontano per parole.
+export const NumeriNelTestoProva: Story = {
+  name: 'Numeri nel testo, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { prima: notaPrima, dopo: notaDopo },
+  render: (args) => (
+    <div className="flex max-w-3xl flex-col gap-6">
+      <div data-prova="inline">
+        <DiffView {...args} />
+      </div>
+      <div data-prova="affiancato">
+        <DiffView {...args} modo="affiancato" />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    for (const modo of ['inline', 'affiancato']) {
+      const vista = canvasElement.querySelector(`[data-prova="${modo}"]`)!
+      const testi = (tag: string) => [...vista.querySelectorAll(tag)].map((n) => n.textContent)
+      expect(testi('del')).toEqual(['2,0', '1.250'])
+      expect(testi('ins')).toEqual(['9,1', '1.400'])
+    }
+  },
+}
+
+const breviPrima = [
+  { campo: 'Descrizione', testo: 'Malta per rasature.\nGrana fine.\nColore grigio.' },
+  { campo: 'Posa', testo: 'A spatola, in due mani.' },
+]
+const breviDopo = [
+  { campo: 'Descrizione', testo: 'Malta per rasature e incollaggi.\nGrana fine.\nColore bianco.' },
+  { campo: 'Posa', testo: 'A spatola o a macchina, in due mani.' },
+]
+
+/**
+ * Le due colonne sono alte quanto il testo, fino a un massimo: un confronto
+ * di poche righe non lascia spazio vuoto sotto, e uno lungo scorre nelle due
+ * colonne insieme. Qui un confronto per riga di una tabella.
+ */
+export const AffiancatoInTabella: Story = {
+  name: 'Affiancato in tabella',
+  args: {
+    prima: '',
+    dopo: '',
+    modo: 'affiancato',
+    legenda: false,
+  },
+  render: (args) => (
+    <div className="flex max-w-3xl flex-col gap-3">
+      <p className="text-sm text-muted-foreground">
+        Il tolto è barrato, l'aggiunto è sul fondo verde.
+      </p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Campo</TableHead>
+            <TableHead>Modifica</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {breviPrima.map((voce, indice) => (
+            <TableRow key={voce.campo}>
+              <TableCell className="align-top">{voce.campo}</TableCell>
+              <TableCell className="w-full whitespace-normal">
+                <DiffView
+                  {...args}
+                  prima={voce.testo}
+                  dopo={breviDopo[indice]!.testo}
+                  etichettaPrima={`${voce.campo}, prima`}
+                  etichettaDopo={`${voce.campo}, dopo`}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  ),
+}
+
+// Scena di misura di «Affiancato in tabella»: in una cella che non apre la
+// riga il separatore delle colonne resta collegato ai due pannelli, e da
+// tastiera li allarga e li stringe.
+export const AffiancatoInTabellaProva: Story = {
+  ...AffiancatoInTabella,
+  name: 'Affiancato in tabella, prova',
+  tags: ['!dev', '!autodocs'],
+  play: async ({ canvasElement }) => {
+    const separatori = [...canvasElement.querySelectorAll<HTMLElement>('[role="separator"]')]
+    expect(separatori).toHaveLength(2)
+    await waitFor(() => {
+      for (const separatore of separatori) expect(separatore.getAttribute('aria-valuenow')).toBe('50')
+    })
+    separatori[1]!.focus()
+    separatori[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    await waitFor(() => expect(separatori[1]!.getAttribute('aria-valuenow')).toBe('45'))
+  },
+}
+
+// Scena di misura dell'altezza: un testo breve dà colonne alte quanto il testo,
+// senza scorrimento; un testo lungo si ferma al massimo di 384px e le colonne
+// scorrono, affiancate e impilate.
+export const AffiancatoAltezzaProva: Story = {
+  name: 'Affiancato, altezza, prova',
+  tags: ['!dev', '!autodocs'],
+  args: { prima: '', dopo: '', modo: 'affiancato' },
+  render: (args) => (
+    <div className="flex max-w-3xl flex-col gap-6">
+      <div data-prova="breve">
+        <DiffView
+          {...args}
+          prima={breviPrima[0]!.testo}
+          dopo={breviDopo[0]!.testo}
+          etichettaPrima="Breve, prima"
+          etichettaDopo="Breve, dopo"
+        />
+      </div>
+      <div data-prova="lungo">
+        <DiffView
+          {...args}
+          prima={Array(12).fill(schedaRev3).join('\n\n')}
+          dopo={Array(12).fill(schedaRev4).join('\n\n')}
+          etichettaPrima="Lungo, prima"
+          etichettaDopo="Lungo, dopo"
+        />
+      </div>
+      <div data-prova="impilato" className="max-w-sm">
+        <DiffView
+          {...args}
+          prima={Array(12).fill(schedaRev3).join('\n\n')}
+          dopo={Array(12).fill(schedaRev4).join('\n\n')}
+          etichettaPrima="Impilato, prima"
+          etichettaDopo="Impilato, dopo"
+        />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const vista = (nome: string) =>
+      canvasElement.querySelector<HTMLElement>(`[data-prova="${nome}"] [data-slot="split-view"]`)!
+    const colonne = (nome: string) => [...vista(nome).querySelectorAll<HTMLElement>('[role="region"]')]
+    await waitFor(() => expect(colonne('breve')).toHaveLength(2))
+    // Breve: nessuna colonna scorre, e la vista è molto sotto il massimo.
+    for (const colonna of colonne('breve')) {
+      expect(colonna.scrollHeight - colonna.clientHeight).toBeLessThanOrEqual(1)
+    }
+    expect(vista('breve').getBoundingClientRect().height).toBeLessThan(250)
+    // Lungo, affiancato e impilato in un contenitore stretto: la vista si
+    // ferma a 384px e le colonne scorrono dentro.
+    await waitFor(() => expect(vista('impilato').querySelector('[role="separator"]')).toBeNull())
+    expect(vista('lungo').querySelector('[role="separator"]')).not.toBeNull()
+    for (const nome of ['lungo', 'impilato']) {
+      expect(Math.abs(vista(nome).getBoundingClientRect().height - 384)).toBeLessThan(1)
+      for (const colonna of colonne(nome)) {
+        expect(colonna.scrollHeight).toBeGreaterThan(colonna.clientHeight)
+        expect(colonna.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+          vista(nome).getBoundingClientRect().bottom + 1
+        )
+      }
+    }
   },
 }
 

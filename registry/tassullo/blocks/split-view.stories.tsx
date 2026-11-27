@@ -41,7 +41,9 @@ import { SplitView } from '@/registry/tassullo/blocks/split-view'
  *   prende lo spazio che c'è: `className="h-auto min-h-64 flex-1"` dentro una
  *   colonna flessibile, `className="h-full"` in un contenitore con
  *   un'altezza sua. Il minimo tiene leggibili le due colonne quando la
- *   finestra è bassa.
+ *   finestra è bassa. Per una vista alta quanto il testo, fino a un massimo
+ *   oltre il quale le colonne scorrono — un confronto per riga di una
+ *   tabella —, `className="h-auto max-h-96"`.
  * - Con `sincronizzato` le colonne scorrono per la stessa frazione della loro
  *   lunghezza, non per gli stessi pixel: due testi di lunghezza diversa
  *   restano allineati dall'inizio alla fine.

@@ -15834,3 +15834,26 @@ Francesco: «Unisci ora», poi «Sì, pubblica». Gate della PR #255 verde in CI
 
 - Anagrafe: adottare la `v2.0.46` e riferire sulle due issue con il commit.
 - Proposte ancora aperte: #248 e #249 (Studio, non ancora valutate), #157, #141, #140 e #70 (più vecchie, non riguardate in questa sessione).
+
+## 2026-11-27 — #257 e #258 di Anagrafe: numeri interi nel confronto, `affiancato` alto quanto il testo
+
+Francesco: «risolvi le nuove issue». Le nuove sono la #257 e la #258, tutte e due su `tassullo-diff-view`. Ragionamento e scelte in `docs/DECISIONI.md` §106.
+
+**#257, numeri interi.**
+- `blocks/diff-view.tsx`: `diffWords(prima, dopo, { intlSegmenter })`, con un `Intl.Segmenter("it", { granularity: "word" })` creato una volta per modulo; dove manca, la divisione di `diff`. Nessuna prop.
+- Provato prima in Node su dieci frasi (decimali, migliaia, intervalli `0,5-1,0`, sigle, apostrofi, a capo): migliore su tutti i numeri, identico sul resto.
+
+**#258, altezza.**
+- `blocks/diff-view.tsx`: in `affiancato` passa a `SplitView` `className="h-auto max-h-96"`. Nessuna prop.
+- `blocks/split-view.tsx`: contenitore `relative flex flex-col`, gruppo e riquadri impilati `min-h-0 flex-1`, riquadri impilati flessibili. Senza, `h-auto max-h-96` faceva uscire le colonne dal riquadro (affiancate e, a finestra stretta, impilate). JSDoc di `className` e regole d'uso aggiornati.
+- **Trovato strada facendo**: con due confronti affiancati in una tabella, nella colonna «Modifica», il separatore delle colonne era scollegato — niente trascinamento, niente tastiera, niente `aria-valuenow`. Causa in `react-resizable-panels`: ordina pannelli e separatore con `offsetLeft`, e in una cella il separatore (posizionato) si misura dal contenitore della tabella, i pannelli dalla cella. `relative` sul contenitore di `SplitView` lo chiude. C'era già prima.
+
+**Scene.** `Numeri nel testo` (+ prova in `inline` e `affiancato`), `Affiancato in tabella` (+ prova sui separatori), `Affiancato, altezza, prova` (breve, lungo, lungo impilato in un contenitore stretto). Tutte e tre le prove falliscono sul codice di partenza. Regole d'uso: i numeri interi, e un'etichetta diversa per ogni confronto affiancato nella stessa pagina (`landmark-unique`).
+
+**Test.** Le prove di diff-view e split-view verdi in Chromium (19); le tre nuove verdi anche in WebKit, girate una volta con l'etichetta e poi tolta. Fotografie in chiaro e scuro, e a finestra stretta, dallo Storybook di sviluppo. `npm run check:statici` verde.
+
+**Non toccato.** Nella colonna di sinistra resta uno spazio prima della punteggiatura che segue un'aggiunta («rasature .»): è `diffWords`, uguale con e senza segmentatore, da M3.9.
+
+#### Aperti
+
+- Due cambi di serie da far confermare a Francesco: il segmentatore senza prop e `affiancato` alto quanto il testo. Poi PR, versione e commento di adozione sulle due issue: reinstallare `tassullo-diff-view` e `tassullo-split-view`, togliere i due commenti «in attesa di», etichette diverse per ogni confronto affiancato in una tabella.

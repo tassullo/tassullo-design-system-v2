@@ -40,6 +40,18 @@
  * dentro una frase) resta meglio confrontato per parole, e una soglia
  * cambierebbe la resa a chi usa già `inline`. `docs/DECISIONI.md` §104.
  *
+ * **I numeri restano interi** (proposta #257 di Anagrafe, 2026-11-27):
+ * `diffWords` di serie spezza «2,0» → «9,1» alla virgola, e dentro una frase
+ * si legge «29,01» a colori alterni. Le parole le divide `Intl.Segmenter`
+ * (l'opzione `intlSegmenter` di `diff`), che tiene insieme cifre, virgola
+ * decimale e punto delle migliaia; sulle parole e sulla punteggiatura dà gli
+ * stessi segmenti di prima. Vale in `inline` e in `affiancato`, senza prop.
+ *
+ * **`affiancato` è alto quanto il testo**, fino a 384px, oltre i quali le
+ * colonne scorrono (proposta #258 di Anagrafe, 2026-11-27): con l'altezza
+ * fissa di `SplitView` un confronto di tre righe in una tabella lasciava
+ * 300px vuoti sotto. `docs/DECISIONI.md` §106.
+ *
  * **Il colore non basta da solo.** Il tolto è barrato oltre che rosso
  * (`line-through` su `<del>`), non solo il colore a distinguerlo
  * dall'aggiunto — la stessa cautela di `version-timeline` con badge e
@@ -59,7 +71,8 @@ export type DiffViewProps = {
   etichettaDopo?: string
   /**
    * `inline` fonde il confronto in un paragrafo solo; `affiancato` usa due
-   * colonne sincronizzate; `valori`, per un valore breve come una misura o un
+   * colonne sincronizzate, alte quanto il testo fino a un massimo oltre il
+   * quale scorrono; `valori`, per un valore breve come una misura o un
    * numero, mostra il valore di prima barrato, una freccia e quello di dopo,
    * ognuno intero.
    */
@@ -84,6 +97,15 @@ function Legenda() {
   )
 }
 
+// Il confronto per parole tiene interi i numeri: senza, `diffWords` spezza
+// «2,0» → «9,1» alla virgola, e si legge «29,01» a colori alterni. Le parole
+// le divide `Intl.Segmenter`, che tiene insieme cifre, virgola decimale e
+// punto delle migliaia; dove manca, si torna alla divisione di `diff`.
+const segmentatore =
+  typeof Intl !== "undefined" && "Segmenter" in Intl
+    ? new Intl.Segmenter("it", { granularity: "word" })
+    : undefined
+
 export function DiffView({
   prima,
   dopo,
@@ -94,7 +116,7 @@ export function DiffView({
   className,
 }: DiffViewProps) {
   const segmenti = useMemo(
-    () => (modo === "valori" ? [] : diffWords(prima, dopo)),
+    () => (modo === "valori" ? [] : diffWords(prima, dopo, { intlSegmenter: segmentatore })),
     [prima, dopo, modo]
   )
 
@@ -173,6 +195,7 @@ export function DiffView({
           etichettaSinistra={etichettaPrima}
           etichettaDestra={etichettaDopo}
           sincronizzato
+          className="h-auto max-h-96"
         />
       </div>
     )
